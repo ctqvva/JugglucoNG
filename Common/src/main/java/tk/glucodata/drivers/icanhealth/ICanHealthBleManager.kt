@@ -1433,7 +1433,9 @@ class ICanHealthBleManager(
         val liveSequence = !cappedHistoryTransfer &&
             isLiveSequence(reading.sequenceNumber, sampleTimeMs, nowMs, anchoredCurrentSequence)
         if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE && !liveSequence) {
-            if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
+            if (historySampleTimeMs == null) {
+                logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
+            } else if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
                 recordHistoryBackfillSample(
                     sequenceNumber = reading.sequenceNumber,
                     sampleTimeMs = historySampleTimeMs,
@@ -1469,7 +1471,9 @@ class ICanHealthBleManager(
                 scheduleNoDataWatchdog()
                 return
             }
-            val historyCoveredLiveEdge = shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)
+            val historyCoveredLiveEdge = historySampleTimeMs?.let {
+                shouldSkipHistoryOverlap(reading.sequenceNumber, it)
+            } ?: false
             if (reading.sequenceNumber == lastHandledLiveSequence) {
                 phase = Phase.STREAMING
                 setUiStatus(UiStatusKind.CONNECTED)
@@ -1530,9 +1534,13 @@ class ICanHealthBleManager(
                     return false
                 }
                 val nowMs = System.currentTimeMillis()
+                val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
+                if (sampleTimeMs == null) {
+                    logSkippedUnanchoredHistory(record.sequenceNumber, "encrypted glucose")
+                    return true
+                }
                 receivedGlucoseThisConnection = true
                 lastGlucoseReceiptRealtimeMs = nowMs
-                val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
                 if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
                     Log.d(TAG, "Skipping overlapping encrypted history record seq=${record.sequenceNumber}")
                     return true
@@ -1552,9 +1560,15 @@ class ICanHealthBleManager(
             }
 
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                val nowMs = System.currentTimeMillis()
+                val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
+                if (sampleTimeMs == null) {
+                    logSkippedUnanchoredHistory(record.sequenceNumber, "encrypted original")
+                    return true
+                }
                 recordHistoryBackfillSample(
                     sequenceNumber = record.sequenceNumber,
-                    sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, System.currentTimeMillis()),
+                    sampleTimeMs = sampleTimeMs,
                     rawCurrent = record.currentValue ?: Float.NaN,
                     temperatureC = record.temperatureC ?: Float.NaN,
                 )
@@ -1599,6 +1613,7 @@ class ICanHealthBleManager(
             ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {
                 val nowMs = System.currentTimeMillis()
                 var importedCount = 0
+                var skippedUnanchoredCount = 0
                 for (record in batch.records) {
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
@@ -1606,6 +1621,10 @@ class ICanHealthBleManager(
                         continue
                     }
                     val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
+                    if (sampleTimeMs == null) {
+                        skippedUnanchoredCount++
+                        continue
+                    }
                     if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
                         continue
                     }
@@ -1620,9 +1639,12 @@ class ICanHealthBleManager(
                 }
                 Log.i(
                     TAG,
-                    "Parsed SN glucose history batch base=${batch.baseSequenceNumber} records=${batch.records.size} imported=$importedCount"
+                    "Parsed SN glucose history batch base=${batch.baseSequenceNumber} records=${batch.records.size} " +
+                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount"
                 )
                 if (importedCount > 0) {
+                    sawUnsupportedSnHistoryBatch = false
+                } else if (skippedUnanchoredCount > 0) {
                     sawUnsupportedSnHistoryBatch = false
                 } else {
                     sawUnsupportedSnHistoryBatch = true
@@ -1632,10 +1654,16 @@ class ICanHealthBleManager(
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
                 val nowMs = System.currentTimeMillis()
                 var importedCount = 0
+                var skippedUnanchoredCount = 0
                 for (record in batch.records) {
+                    val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
+                    if (sampleTimeMs == null) {
+                        skippedUnanchoredCount++
+                        continue
+                    }
                     recordHistoryBackfillSample(
                         sequenceNumber = record.sequenceNumber,
-                        sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs),
+                        sampleTimeMs = sampleTimeMs,
                         rawCurrent = record.currentValue ?: Float.NaN,
                         temperatureC = record.temperatureC ?: Float.NaN,
                     )
@@ -1643,7 +1671,8 @@ class ICanHealthBleManager(
                 }
                 Log.d(
                     TAG,
-                    "Parsed SN original-history batch base=${batch.baseSequenceNumber} records=${batch.records.size} imported=$importedCount"
+                    "Parsed SN original-history batch base=${batch.baseSequenceNumber} records=${batch.records.size} " +
+                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount"
                 )
                 if (importedCount > 0) {
                     sawUnsupportedSnHistoryBatch = false
@@ -1710,16 +1739,15 @@ class ICanHealthBleManager(
         return fallbackNowMs
     }
 
-    private fun resolveHistoryTimestampMs(sequenceNumber: Int, fallbackNowMs: Long): Long {
+    private fun resolveHistoryTimestampMs(sequenceNumber: Int, fallbackNowMs: Long): Long? {
         if (sequenceNumber < 0) {
-            return fallbackNowMs
+            return null
         }
-        resolveSequenceTimelineTimestampMs(
+        return resolveSequenceTimelineTimestampMs(
             sequenceNumber = sequenceNumber,
             fallbackNowMs = fallbackNowMs,
             requireRecentCandidate = false
-        )?.let { return it }
-        return fallbackNowMs
+        )
     }
 
     private fun isLiveSequence(
@@ -2575,7 +2603,12 @@ class ICanHealthBleManager(
             return null
         }
         val anchorTimeMs = resolveSequenceAnchorTimeMs(fallbackNowMs)
-        if (canUseSessionTimeline(anchorTimeMs)) {
+        val useSessionTimeline = when {
+            requireRecentCandidate -> canUseSessionTimeline(anchorTimeMs)
+            canUseHistoryPastEndedStatusCap() && hasRecentOperationalData(fallbackNowMs) -> false
+            else -> sessionStartEpochMs > 0L
+        }
+        if (useSessionTimeline) {
             val candidate = sessionStartEpochMs + sequenceNumber.toLong() * SEQUENCE_UNIT_MS
             val lowerBound = if (requireRecentCandidate) {
                 fallbackNowMs - MAX_SESSION_TIMESTAMP_PAST_DRIFT_MS
@@ -2679,7 +2712,13 @@ class ICanHealthBleManager(
     private fun resolveSequenceAnchorTimeMs(fallbackNowMs: Long): Long {
         loadPersistedCoveredEdge()
         if (canUseHistoryPastEndedStatusCap()) {
-            return fallbackNowMs
+            return resolveCappedEndedSequenceAnchorTimeMs(fallbackNowMs)
+        }
+        if (launcherState == ICanHealthConstants.LAUNCHER_STATE_ENDED) {
+            refreshPersistedHistoryTailTimestamp()
+            if (!hasRecentOperationalData(fallbackNowMs)) {
+                return 0L
+            }
         }
         if (currentSequenceNumber >= 0 &&
             persistedCoveredSequence >= 0 &&
@@ -2701,6 +2740,15 @@ class ICanHealthBleManager(
             currentSequenceObservedAtMs > 0L -> currentSequenceObservedAtMs
             else -> fallbackNowMs
         }
+    }
+
+    private fun resolveCappedEndedSequenceAnchorTimeMs(fallbackNowMs: Long): Long {
+        refreshPersistedHistoryTailTimestamp()
+        if (hasRecentOperationalData(fallbackNowMs)) {
+            return fallbackNowMs
+        }
+        observedEndedStatusEndMs(sessionStartEpochMs)?.let { return it }
+        return 0L
     }
 
     private fun canUseHistoryPastEndedStatusCap(): Boolean {
@@ -2885,6 +2933,10 @@ class ICanHealthBleManager(
             TAG,
             "$reason during ${historyBackfillPhase.name.lowercase()} phase len=${data.size} hex=${data.toHexString()}"
         )
+    }
+
+    private fun logSkippedUnanchoredHistory(sequenceNumber: Int, source: String) {
+        Log.w(TAG, "Skipping iCan $source history record seq=$sequenceNumber; no trusted timestamp anchor")
     }
 
     private fun hasStartedOrWarmupSession(): Boolean {
