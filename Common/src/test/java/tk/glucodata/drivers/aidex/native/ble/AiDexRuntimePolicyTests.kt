@@ -431,6 +431,34 @@ class AiDexRuntimePolicyTests {
     }
 
     @Test
+    fun shouldUseSavedPairKeyReconnect_requiresBondedDeviceAndSavedKey() {
+        assertTrue(
+            AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+                bondState = BluetoothDevice.BOND_BONDED,
+                hasSavedPairKey = true,
+            )
+        )
+        assertFalse(
+            AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+                bondState = BluetoothDevice.BOND_BONDED,
+                hasSavedPairKey = false,
+            )
+        )
+        assertFalse(
+            AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+                bondState = BluetoothDevice.BOND_NONE,
+                hasSavedPairKey = true,
+            )
+        )
+        assertFalse(
+            AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+                bondState = BluetoothDevice.BOND_BONDING,
+                hasSavedPairKey = true,
+            )
+        )
+    }
+
+    @Test
     fun decideMissingCccdCallbackAction_waitsThenAssumesComplete() {
         assertEquals(
             AiDexRuntimePolicy.MissingCccdCallbackAction.WAIT,

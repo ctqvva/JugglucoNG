@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -181,6 +182,7 @@ class AiDexBleManager(
         private const val START_TIME_REPAIR_RESPONSE_MAX_BYTES = 12
         private const val DEFAULT_PARAM_WRITE_ACK_TIMEOUT_MS = 10_000L
         private const val DEFAULT_PARAM_MAX_CHUNK_PAYLOAD_BYTES = 160
+        private const val PAIR_KEY_BYTES = 16
 
         // -- History Storage --
         private const val MIN_VALID_GLUCOSE_MGDL = 20
@@ -276,6 +278,8 @@ class AiDexBleManager(
     private var bondStateAtConnection: Int = BluetoothDevice.BOND_NONE
     private var bondBecameBondedThisConnection = false
     @Volatile private var bondValidatedByStreaming = false
+    @Volatile private var persistedPairKey: ByteArray? = null
+    private var keyExchangeUsingSavedPairKey = false
     private var preAuthEncryptedFrameCount = 0
     private var preAuthFirstEncryptedFrameAtMs = 0L
     private var preAuthLastEncryptedFrameAtMs = 0L
@@ -647,6 +651,62 @@ class AiDexBleManager(
         prefs.edit().putString(prefKey(name), value).apply()
     }
 
+    private fun removePref(name: String) {
+        prefs.edit().remove(prefKey(name)).apply()
+    }
+
+    private fun bytesToHexPref(bytes: ByteArray): String {
+        return bytes.joinToString(separator = "") { "%02X".format(it.toInt() and 0xFF) }
+    }
+
+    private fun hexToBytesPref(value: String, expectedBytes: Int): ByteArray? {
+        val text = value.trim()
+        if (text.length != expectedBytes * 2) return null
+
+        val bytes = ByteArray(expectedBytes)
+        for (index in 0 until expectedBytes) {
+            val high = Character.digit(text[index * 2], 16)
+            val low = Character.digit(text[index * 2 + 1], 16)
+            if (high < 0 || low < 0) return null
+            bytes[index] = ((high shl 4) or low).toByte()
+        }
+        return bytes
+    }
+
+    private fun readByteArrayPref(name: String, expectedBytes: Int): ByteArray? {
+        val raw = readStringPref(name)
+        if (raw.isBlank()) return null
+        return hexToBytesPref(raw, expectedBytes)
+    }
+
+    private fun writeByteArrayPref(name: String, bytes: ByteArray) {
+        writeStringPref(name, bytesToHexPref(bytes))
+    }
+
+    private fun hasPersistedPairKey(): Boolean {
+        return persistedPairKey?.size == PAIR_KEY_BYTES
+    }
+
+    private fun savePersistedPairKey(pairKey: ByteArray, reason: String) {
+        if (pairKey.size != PAIR_KEY_BYTES) {
+            Log.w(TAG, "Not saving invalid AiDex pair key length=${pairKey.size} ($reason)")
+            return
+        }
+        val copy = pairKey.copyOf()
+        persistedPairKey = copy
+        writeByteArrayPref("pairKey", copy)
+        Log.i(TAG, "Saved AiDex pair key for bonded reconnect ($reason)")
+    }
+
+    private fun clearPersistedPairKey(reason: String) {
+        val hadKey = persistedPairKey != null || readStringPref("pairKey").isNotBlank()
+        persistedPairKey = null
+        removePref("pairKey")
+        if (hadKey) {
+            Log.i(TAG, "Cleared saved AiDex pair key ($reason)")
+        }
+    }
+
     // -- History State --
     @Volatile private var historyDownloading = false
     private var historyRawNextIndex = 0
@@ -689,6 +749,13 @@ class AiDexBleManager(
         bondValidatedByStreaming = readBoolPref("bondValidatedByStreaming", false)
         if (bondValidatedByStreaming) {
             Log.i(TAG, "Restored bondValidatedByStreaming=true from prefs")
+        }
+        persistedPairKey = readByteArrayPref("pairKey", PAIR_KEY_BYTES)
+        if (persistedPairKey != null) {
+            Log.i(TAG, "Restored saved AiDex pair key from prefs")
+        } else if (readStringPref("pairKey").isNotBlank()) {
+            Log.w(TAG, "Saved AiDex pair key pref is invalid; clearing")
+            clearPersistedPairKey("invalid-pref")
         }
     }
 
@@ -1157,6 +1224,7 @@ class AiDexBleManager(
         cccdMissingCallbackRetries = 0
         pendingBondedCccdUuid = null
         keyExchangePendingBond = false
+        keyExchangeUsingSavedPairKey = false
         postCccdFollowUp = PostCccdFollowUp.NONE
         historyDownloading = false
         cccdRetryCount = 0
@@ -1284,11 +1352,12 @@ class AiDexBleManager(
     }
 
     private fun removeBondSafely(device: BluetoothDevice?, reason: String) {
+        setBondValidatedByStreaming(false, "$reason-removeBond")
+        clearPersistedPairKey("$reason-removeBond")
         try {
             if (device?.bondState == BluetoothDevice.BOND_BONDED) {
                 val removeBond = device.javaClass.getMethod("removeBond")
                 removeBond.invoke(device)
-                setBondValidatedByStreaming(false, "$reason-removeBond")
                 Log.i(TAG, "$reason: BLE bond removed")
             }
         } catch (t: Throwable) {
@@ -1304,8 +1373,11 @@ class AiDexBleManager(
         )
         pendingBondedCccdUuid = null
         cccdWriteInProgress = false
+        cccdPendingWriteUuid = null
+        cccdMissingCallbackRetries = 0
         cccdChainComplete = true
-        startKeyExchange(gatt)
+        handler.removeCallbacks(cccdWriteWatchdog)
+        startKeyExchangeForCurrentConnection(gatt)
     }
 
     private fun recoverFromInvalidSetupState(reason: String) {
@@ -1356,6 +1428,7 @@ class AiDexBleManager(
         challengeWritten = false
         bondDataRead = false
         keyExchangePendingBond = false
+        keyExchangeUsingSavedPairKey = false
         cccdWriteInProgress = false
         cccdChainComplete = false
         when (recovery) {
@@ -1598,8 +1671,11 @@ class AiDexBleManager(
             currentGattOp = null
             cccdQueue.clear()
             cccdWriteInProgress = false
+            cccdPendingWriteUuid = null
+            cccdMissingCallbackRetries = 0
             cccdRetryCount = 0
             pendingBondedCccdUuid = null
+            keyExchangeUsingSavedPairKey = false
             startupMetadataComplete =
                 _modelName.isNotBlank() && _firmwareVersion.isNotBlank() && hasAuthoritativeSessionStart && sensorstartmsec > 0L
             startupDeviceInfoRequested = false
@@ -1769,6 +1845,7 @@ class AiDexBleManager(
                     }
                 } catch (_: Throwable) {}
                 keyExchange.reset()
+                clearPersistedPairKey("post-unpair-disconnect")
                 enterBroadcastOnlyFallback(
                     reason = "post-unpair-disconnect",
                     statusText = "Unpaired — Broadcast Only",
@@ -1782,6 +1859,7 @@ class AiDexBleManager(
 
                 // Clear crypto state — will re-derive on next connection
                 keyExchange.reset()
+                clearPersistedPairKey("post-reset")
 
                 // Capture device ref before closing GATT
                 val device = mBluetoothGatt?.device
@@ -1865,15 +1943,30 @@ class AiDexBleManager(
         }
 
         servicesReady = true
-        Log.i(TAG, "Services discovered. Starting CCCD chain...")
         setPhase(Phase.CCCD_CHAIN)
         handler.removeCallbacks(cccdWriteWatchdog)
 
-        // Build CCCD queue: F003 first (data), then F002 (commands), then F001 (auth)
+        val useSavedPairKeyReconnect = AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+            bondState = gatt.device?.bondState ?: BluetoothDevice.BOND_NONE,
+            hasSavedPairKey = hasPersistedPairKey(),
+        )
+        Log.i(
+            TAG,
+            if (useSavedPairKeyReconnect) {
+                "Services discovered. Starting saved-key bonded CCCD chain..."
+            } else {
+                "Services discovered. Starting full CCCD chain..."
+            }
+        )
+
+        // Full first-pair path enables F001 so its PAIR notification can arrive.
+        // Bonded reconnects with a saved pair key follow upstream: F003 -> F002.
         cccdQueue.clear()
         cccdQueue.add(CHAR_F003)
         cccdQueue.add(CHAR_F002)
-        cccdQueue.add(CHAR_F001)
+        if (!useSavedPairKeyReconnect) {
+            cccdQueue.add(CHAR_F001)
+        }
         cccdWriteInProgress = false
         cccdPendingWriteUuid = null
         cccdMissingCallbackRetries = 0
@@ -1902,7 +1995,7 @@ class AiDexBleManager(
         if (
             phase == Phase.KEY_EXCHANGE &&
             postCccdFollowUp == PostCccdFollowUp.NONE &&
-            challengeWritten &&
+            (challengeWritten || keyExchangeUsingSavedPairKey || bondDataRead) &&
             cccdQueue.isEmpty()
         ) {
             Log.i(TAG, "onDescriptorWrite: late initial CCCD callback for $charUuid after key exchange start — ignoring")
@@ -1994,7 +2087,7 @@ class AiDexBleManager(
                     // Already bonded (reconnect case, or bonding finished during CCCD chain).
                     // Small delay to let encryption fully settle.
                     Log.i(TAG, "Already bonded. Starting key exchange after 500ms settle delay...")
-                    handler.postDelayed({ startKeyExchange(gatt) }, 500L)
+                    handler.postDelayed({ startKeyExchangeForCurrentConnection(gatt) }, 500L)
                 }
                 BluetoothDevice.BOND_BONDING -> {
                     // Bonding in progress — defer key exchange to bonded() callback.
@@ -2047,7 +2140,7 @@ class AiDexBleManager(
                     if (waitingForDeferredKeyExchange) {
                         keyExchangePendingBond = false
                         Log.w(TAG, "BOND_BONDED observed via fallback check — starting deferred key exchange")
-                        startKeyExchange(gatt)
+                        startKeyExchangeForCurrentConnection(gatt)
                     }
                 }
                 BluetoothDevice.BOND_BONDING -> {
@@ -2307,7 +2400,7 @@ class AiDexBleManager(
                 // 500ms delay to let encryption fully settle after bonding,
                 // matching vendor driver's approach (AiDexSensor.kt line 6013)
                 Log.i(TAG, "Bond complete. Starting deferred key exchange after 500ms settle delay...")
-                handler.postDelayed({ startKeyExchange(gatt) }, 500L)
+                handler.postDelayed({ startKeyExchangeForCurrentConnection(gatt) }, 500L)
             } else if (
                 phase == Phase.STREAMING &&
                 keyExchange.isComplete &&
@@ -2338,6 +2431,7 @@ class AiDexBleManager(
             Log.d(TAG, "bonded() callback: BOND_BONDING — waiting for BOND_BONDED")
         } else if (bondState == BluetoothDevice.BOND_NONE) {
             setBondValidatedByStreaming(false, "bonded-callback-none")
+            clearPersistedPairKey("bonded-callback-none")
             pendingBondedCccdUuid = null
             // User cancelled pairing dialog or bonding failed
             Log.w(TAG, "bonded() callback: BOND_NONE — pairing cancelled/failed")
@@ -2354,6 +2448,60 @@ class AiDexBleManager(
         } else {
             Log.w(TAG, "bonded() callback: unexpected bond state $bondState")
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun enableAiDexNotification(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+    ): Boolean {
+        val descriptor = characteristic.getDescriptor(mCharacteristicConfigDescriptor)
+        if (descriptor == null) {
+            Log.e(TAG, "enableAiDexNotification: CCCD missing for ${characteristic.uuid}")
+            return false
+        }
+
+        val originalWriteType = characteristic.writeType
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        val writeAccepted = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val result = gatt.writeDescriptor(
+                    descriptor,
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE,
+                )
+                if (result != BluetoothStatusCodes.SUCCESS) {
+                    Log.e(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) failed code=$result")
+                    false
+                } else {
+                    true
+                }
+            } else {
+                if (!descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                    Log.e(TAG, "enableAiDexNotification: descriptor.setValue(${characteristic.uuid}) failed")
+                    false
+                } else if (!gatt.writeDescriptor(descriptor)) {
+                    Log.e(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) returned false")
+                    false
+                } else {
+                    true
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) threw ${t.message}")
+            false
+        } finally {
+            characteristic.writeType = originalWriteType
+        }
+
+        if (!writeAccepted) return false
+
+        if (!gatt.setCharacteristicNotification(characteristic, true)) {
+            Log.e(TAG, "enableAiDexNotification: setCharacteristicNotification(${characteristic.uuid}) failed")
+            return false
+        }
+
+        Log.i(TAG, "enableAiDexNotification: descriptor write accepted for ${characteristic.uuid}")
+        return true
     }
 
     // =========================================================================
@@ -2382,7 +2530,7 @@ class AiDexBleManager(
         // All AiDex characteristics (F001, F002, F003) use NOTIFY, not INDICATE.
         // F001 props=0x18 (WRITE + NOTIFY), F002 props=WRITE+NOTIFY, F003 props=0x10 (NOTIFY).
         // Writing indication (02 00) to a NOTIFY-only CCCD fails with status=3.
-        val ok = enableNotification(gatt, characteristic)
+        val ok = enableAiDexNotification(gatt, characteristic)
         if (!ok) {
             cccdWriteInProgress = false
             cccdPendingWriteUuid = null
@@ -2429,9 +2577,53 @@ class AiDexBleManager(
     // Key Exchange
     // =========================================================================
 
+    private fun shouldUseSavedPairKeyReconnect(bondState: Int = currentBondState()): Boolean {
+        return AiDexRuntimePolicy.shouldUseSavedPairKeyReconnect(
+            bondState = bondState,
+            hasSavedPairKey = hasPersistedPairKey(),
+        )
+    }
+
+    private fun startKeyExchangeForCurrentConnection(gatt: BluetoothGatt) {
+        val bondState = gatt.device?.bondState ?: BluetoothDevice.BOND_NONE
+        if (shouldUseSavedPairKeyReconnect(bondState)) {
+            startSavedPairKeyExchange(gatt)
+        } else {
+            startKeyExchange(gatt)
+        }
+    }
+
+    private fun startSavedPairKeyExchange(gatt: BluetoothGatt) {
+        val savedPairKey = persistedPairKey?.takeIf { it.size == PAIR_KEY_BYTES }
+        if (savedPairKey == null) {
+            Log.w(TAG, "Saved-key reconnect requested without a valid saved key; falling back to full key exchange")
+            startKeyExchange(gatt)
+            return
+        }
+
+        clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-saved-key-exchange")
+        setPhase(Phase.KEY_EXCHANGE)
+
+        handler.removeCallbacks(keyExchangeWatchdog)
+        handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
+
+        keyExchange.reset()
+        keyExchange.onPairKeyReceived(savedPairKey)
+        keyExchangeUsingSavedPairKey = true
+        challengeWritten = false
+        bondDataRead = false
+
+        Log.i(TAG, "Key exchange: using saved AiDex pair key; reading BOND data from F002")
+        readBondData(gatt)
+    }
+
     private fun startKeyExchange(gatt: BluetoothGatt) {
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
+        keyExchange.reset()
+        keyExchangeUsingSavedPairKey = false
+        challengeWritten = false
+        bondDataRead = false
 
         // Start watchdog timer — force disconnect if key exchange doesn't complete
         handler.removeCallbacks(keyExchangeWatchdog)
@@ -2478,7 +2670,7 @@ class AiDexBleManager(
         // Extract PAIR key (first 16 bytes of notification)
         val pairKeyData = data.copyOfRange(0, 16)
         keyExchange.onPairKeyReceived(pairKeyData)
-        Log.i(TAG, "Key exchange: PAIR key received (${AiDexParser.hexString(pairKeyData)})")
+        Log.i(TAG, "Key exchange: PAIR key received")
 
         // Step 3: Read BOND data from F002
         readBondData(gatt)
@@ -2502,7 +2694,18 @@ class AiDexBleManager(
         Log.i(TAG, "Key exchange: BOND data received (${data.size} bytes)")
 
         if (!keyExchange.decryptBond(data)) {
-            Log.e(TAG, "Key exchange: BOND decryption/CRC failed!")
+            Log.e(TAG, "Key exchange: BOND decryption/CRC failed! savedKey=$keyExchangeUsingSavedPairKey")
+            if (keyExchangeUsingSavedPairKey) {
+                clearPersistedPairKey("saved-key-bond-decrypt-failed")
+                keyExchange.reset()
+                keyExchangeUsingSavedPairKey = false
+                val delay = reconnect.nextReconnectDelayMs()
+                Log.w(TAG, "Saved pair key failed; reconnecting in ${delay}ms through full F001 key exchange")
+                close()
+                handler.postDelayed({ connectDevice(0) }, delay)
+                return
+            }
+
             // Retry entire key exchange on next connection
             close()
             reconnect.nextReconnectDelayMs()
@@ -2510,7 +2713,13 @@ class AiDexBleManager(
             return
         }
 
-        Log.i(TAG, "Key exchange: Session key established!")
+        if (keyExchangeUsingSavedPairKey) {
+            Log.i(TAG, "Key exchange: Session key established from saved pair key")
+        } else {
+            keyExchange.pairKey?.let { savePersistedPairKey(it, "bond-decrypt-success") }
+            Log.i(TAG, "Key exchange: Session key established!")
+        }
+        keyExchangeUsingSavedPairKey = false
 
         // Step 5: Send post-BOND config
         sendPostBondConfig(gatt)
@@ -4230,6 +4439,7 @@ class AiDexBleManager(
                 Log.w(TAG, "unpairSensor: removeBond failed: ${t.message}")
             }
             keyExchange.reset()
+            clearPersistedPairKey("delete-bond-response")
             softDisconnect()
             constatstatusstr = "Unpaired — Broadcast Only"
             // Transition to broadcast-only mode so user keeps getting data
@@ -4920,6 +5130,7 @@ class AiDexBleManager(
         connectAttemptInFlight = false
         cancelBroadcastScan()
         keyExchange.reset()
+        clearPersistedPairKey("forget-vendor")
         // Notify C++ layer that this sensor is being removed — prevents zombie resurrection
         try { finishSensor() } catch (_: Throwable) {}
         // Capture device reference BEFORE nullifying gatt
@@ -5116,6 +5327,7 @@ class AiDexBleManager(
                 }
             } catch (_: Throwable) {}
             keyExchange.reset()
+            clearPersistedPairKey("unpair-no-session-key")
             softDisconnect()
             enterBroadcastOnlyFallback(
                 reason = "post-unpair",
@@ -5136,6 +5348,7 @@ class AiDexBleManager(
         Log.i(TAG, "rePairSensor: resetting key exchange and reconnecting for $SerialNumber")
         consecutiveSetupDisconnects = 0
         keyExchange.reset()
+        clearPersistedPairKey("re-pair")
         softDisconnect()
         constatstatusstr = "Re-pairing..."
         UiRefreshBus.requestStatusRefresh()

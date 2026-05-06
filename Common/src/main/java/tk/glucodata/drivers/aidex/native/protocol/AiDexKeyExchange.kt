@@ -13,9 +13,9 @@ import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
  *
  * Protocol:
  *   1. Write snSecret to F001 (authentication challenge)
- *   2. Receive PAIR key from F001 notification (16 bytes, changes per connection)
+ *   2. Receive PAIR key from F001 notification (16 bytes, persisted for bonded reconnect)
  *   3. Read F002 to get 17-byte BOND data
- *   4. Decrypt BOND with PAIR key + SN IV -> session key
+ *   4. Decrypt BOND with PAIR key + SN IV -> per-connection session key
  *   5. Send post-BOND config (plaintext 10 C1 F3, encrypted with session key + SN IV)
  *   6. F003 data decrypted with session key + SN IV
  *   7. F002 commands encrypted with session key + SN IV
@@ -32,7 +32,7 @@ class AiDexKeyExchange(val serial: String) {
     /** SN-derived IV. Used for BOND, F003, and F002. Stable per serial. */
     val snIv: ByteArray = SerialCrypto.deriveIv(bareSerial)
 
-    /** PAIR key from F001 notification. Changes per connection. */
+    /** PAIR key from F001 notification. Saved by the BLE layer for bonded reconnects. */
     var pairKey: ByteArray? = null
         private set
 

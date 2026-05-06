@@ -213,11 +213,18 @@ internal object AiDexRuntimePolicy {
         if (bondState != BluetoothDevice.BOND_BONDED || keyExchangePendingBond) return false
         if (!cccdQueueEmpty || cccdChainComplete) return false
         // The CCCD queue is drained when the descriptor write is issued, before the
-        // callback arrives. If the last F001 descriptor callback never lands but
+        // callback arrives. If the final initial descriptor callback never lands but
         // bonded pre-auth F003 traffic is already flowing, treat that as setup being
         // far enough along to force key exchange instead of stalling forever.
         if (challengeWritten || bondDataRead) return false
         return true
+    }
+
+    fun shouldUseSavedPairKeyReconnect(
+        bondState: Int,
+        hasSavedPairKey: Boolean,
+    ): Boolean {
+        return bondState == BluetoothDevice.BOND_BONDED && hasSavedPairKey
     }
 
     fun decideMissingCccdCallbackAction(
