@@ -709,7 +709,7 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun toMgDl(rawValue: Float, unit: GlucoseUnit): Float {
-        return if (unit == GlucoseUnit.MMOL && rawValue > 0f) rawValue * MGDL_PER_MMOL else rawValue
+        return if (unit == GlucoseUnit.MMOL && rawValue > 0f) GlucoseFormatter.mmolToMg(rawValue) else rawValue
     }
 
     private fun readTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
@@ -1271,7 +1271,6 @@ class StatsViewModel : ViewModel() {
     )
 
     companion object {
-        private const val MGDL_PER_MMOL = 18.0182f
         private const val DAY_MS = 24L * 60L * 60L * 1000L
         private const val MAX_INSIGHTS = 5
         private const val TEMPERATURE_REFRESH_INTERVAL_MS = 15L * 60L * 1000L

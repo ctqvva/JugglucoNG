@@ -16,6 +16,8 @@ import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
+import tk.glucodata.ui.util.GlucoseFormatter
+import tk.glucodata.ui.util.inDisplayUnit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.HashMap
@@ -98,14 +100,9 @@ class HistoryRepository(context: Context = Applic.app) {
         @JvmStatic
         fun getHistoryBlocking(startTime: Long, isMmol: Boolean): List<GlucosePoint> {
             return kotlinx.coroutines.runBlocking {
-                val raw = HistoryRepository().getDisplayHistory(SensorIdentity.resolveMainSensor(), startTime)
-                if (isMmol) {
-                    raw.map { p ->
-                        val v = p.value / 18.0182f
-                        val r = p.rawValue / 18.0182f
-                        GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-                    }
-                } else raw
+                HistoryRepository()
+                    .getDisplayHistory(SensorIdentity.resolveMainSensor(), startTime)
+                    .inDisplayUnit(isMmol)
             }
         }
         
@@ -116,7 +113,7 @@ class HistoryRepository(context: Context = Applic.app) {
         fun storeReadingAsync(timestamp: Long, valueMmol: Float, source: Int) {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val valueMgDl = valueMmol * 18.0182f
+                    val valueMgDl = GlucoseFormatter.mmolToMg(valueMmol)
                     // Use main sensor serial for source tagging
                     val serial = SensorIdentity.resolveMainSensor() ?: Natives.lastsensorname() ?: "unknown"
                     HistoryRepository().storeReading(
@@ -177,10 +174,8 @@ class HistoryRepository(context: Context = Applic.app) {
                     Log.w(TAG, "getHistoryForNotification: no main sensor serial, returning empty list")
                     emptyList()
                 }
-                uiPoints.map { p ->
-                    val v = if (isMmol) p.value / 18.0182f else p.value
-                    val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-                    tk.glucodata.GlucosePoint(p.timestamp, v, r)
+                uiPoints.inDisplayUnit(isMmol).map { p ->
+                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
                 }
             }
         }
@@ -203,12 +198,10 @@ class HistoryRepository(context: Context = Applic.app) {
                     Log.w(TAG, "getHistoryForNotificationForSensor: no sensor serial, returning empty list")
                     return@runBlocking emptyList()
                 }
-                val raw = HistoryRepository().getHistoryForDisplaySensor(serial, startTime)
-                raw.map { p ->
-                    val v = if (isMmol) p.value / 18.0182f else p.value
-                    val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-                    tk.glucodata.GlucosePoint(p.timestamp, v, r)
-                }
+                HistoryRepository()
+                    .getHistoryForDisplaySensor(serial, startTime)
+                    .inDisplayUnit(isMmol)
+                    .map { p -> tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue) }
             }
         }
         

@@ -1,10 +1,20 @@
 package tk.glucodata.ui.util
 
 import java.util.Locale
+import tk.glucodata.ui.GlucosePoint
 
 object GlucoseFormatter {
 
     const val MGDL_TO_MMOL = 0.0555f
+
+    /**
+     * mg/dL ↔ mmol/L exact factor — used as the multiplier when going from
+     * mmol/L to mg/dL (the inverse direction of [MGDL_TO_MMOL]).
+     *
+     * Note: this is intentionally not `1 / MGDL_TO_MMOL` — both factors are
+     * pinned to their decimal forms so existing rounded outputs stay stable.
+     */
+    const val MGDL_PER_MMOL = 18.0182f
 
     /**
      * Format a glucose value based on the unit type.
@@ -68,4 +78,41 @@ object GlucoseFormatter {
     fun isMmolApp(): Boolean {
         return tk.glucodata.Applic.unit == 1
     }
+}
+
+/**
+ * Convert this raw mg/dL [GlucosePoint] to the requested display unit. Returns
+ * the receiver unchanged for mg/dL.
+ */
+fun GlucosePoint.inDisplayUnit(unit: String): GlucosePoint =
+    inDisplayUnit(GlucoseFormatter.isMmol(unit))
+
+fun GlucosePoint.inDisplayUnit(isMmol: Boolean): GlucosePoint {
+    if (!isMmol) return this
+    return copy(
+        value = GlucoseFormatter.mgToMmol(value),
+        rawValue = GlucoseFormatter.mgToMmol(rawValue)
+    )
+}
+
+/**
+ * Convert a raw mg/dL [GlucosePoint] list to the requested display unit. Returns
+ * the receiver unchanged for mg/dL — the common case — so it's always safe to
+ * call. Caller is responsible for offloading the work to a background
+ * dispatcher when the list is large enough to matter (long histories, stats
+ * windows).
+ */
+fun List<GlucosePoint>.inDisplayUnit(unit: String): List<GlucosePoint> {
+    if (!GlucoseFormatter.isMmol(unit)) return this
+    return map { it.inDisplayUnit(unit) }
+}
+
+/**
+ * Same as [List.inDisplayUnit] but resolved against the boolean `isMmol` flag
+ * already in the caller's hand. Useful inside hot loops that compute `isMmol`
+ * once per emission.
+ */
+fun List<GlucosePoint>.inDisplayUnit(isMmol: Boolean): List<GlucosePoint> {
+    if (!isMmol) return this
+    return map { it.inDisplayUnit(true) }
 }

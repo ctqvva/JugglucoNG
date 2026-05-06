@@ -15,6 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.R
 import tk.glucodata.ui.GlucosePoint
+import tk.glucodata.ui.util.GlucoseFormatter
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -27,7 +28,6 @@ import kotlin.math.roundToInt
 
 object StatsReportExporter {
     private const val TAG = "StatsReportExporter"
-    private const val MGDL_PER_MMOL = 18.0182f
 
     enum class PdfVisualStyle(
         val prefValue: String,
@@ -495,13 +495,13 @@ object StatsReportExporter {
             var pageNumber = 0
 
             fun formatGlucose(valueMgDl: Float, withUnit: Boolean = true): String {
-                return if (uiState.unit == GlucoseUnit.MMOL) {
-                    val formatted = String.format(Locale.getDefault(), "%.1f", valueMgDl / MGDL_PER_MMOL)
-                    if (withUnit) "$formatted $unitLabel" else formatted
+                val isMmol = uiState.unit == GlucoseUnit.MMOL
+                val formatted = if (isMmol) {
+                    String.format(Locale.getDefault(), "%.1f", GlucoseFormatter.mgToMmol(valueMgDl))
                 } else {
-                    val formatted = valueMgDl.roundToInt().toString()
-                    if (withUnit) "$formatted $unitLabel" else formatted
+                    valueMgDl.roundToInt().toString()
                 }
+                return if (withUnit) "$formatted $unitLabel" else formatted
             }
 
             fun formatPercent(value: Float): String =

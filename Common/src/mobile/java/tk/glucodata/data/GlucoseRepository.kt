@@ -15,6 +15,7 @@ import android.os.SystemClock
 import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
 import tk.glucodata.SensorIdentity
+import tk.glucodata.ui.util.inDisplayUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
@@ -97,26 +98,8 @@ class GlucoseRepository {
             }
 
             historyRepository.getLatestReadingFlowForSensor(serial).collect { point ->
-                val unit = Natives.getunit()
-                val isMmol = (unit == 1)
-
-                if (point != null) {
-                    // Apply Unit Conversion for Display
-                    val displayValue = if (isMmol) point.value / 18.0182f else point.value
-                    val displayRaw = if (isMmol) point.rawValue / 18.0182f else point.rawValue
-
-                    val finalPoint = GlucosePoint(
-                        value = displayValue,
-                        time = point.time, // Already formatted HH:mm
-                        timestamp = point.timestamp,
-                        rawValue = displayRaw,
-                        rate = point.rate,
-                        sensorSerial = point.sensorSerial
-                    )
-                    send(finalPoint)
-                } else {
-                    send(null)
-                }
+                val isMmol = (Natives.getunit() == 1)
+                send(point?.inDisplayUnit(isMmol))
             }
         }
     }
@@ -240,22 +223,40 @@ class GlucoseRepository {
     }
 
     /**
+     * Dedicated merged multi-sensor flow for the History browse screen.
+     *
+     * The dashboard chart deliberately narrows to the current sensor (so the
+     * live chart and `shouldRequestHistoryRecovery` see only that sensor's tail
+     * — see commits c812ddb9 and 30e4d11f). The History screen needs the full
+     * cross-sensor timeline so the previous sensor's calibrated readings, CSV
+     * imports, and older device data remain visible after a sensor swap.
+     *
+     * Merge prefers the current sensor inside a 5-min overlap window; older
+     * sensor rows only fill genuine gaps.
+     */
+    fun getMergedHistoryFlowRaw(startTime: Long = 0L): Flow<List<GlucosePoint>> {
+        return _currentSerial.flatMapLatest { serial ->
+            val preferredSerial = resolveDisplayPreferredSerial(serial)
+            channelFlow {
+                launch {
+                    historyRepository.ensureBackfilled(preferredSerial, startTime)
+                }
+                historyRepository.getDisplayHistoryFlow(preferredSerial, startTime).collect { points ->
+                    send(points)
+                }
+            }
+        }
+    }
+
+    /**
      * Get ALL history from the Room database for the main sensor.
      * No time limit - fetches everything available for the main sensor.
      */
     suspend fun getAllHistory(): List<GlucosePoint> {
-        val unit = Natives.getunit()
-        val isMmol = (unit == 1)
+        val isMmol = (Natives.getunit() == 1)
         val preferredSerial = resolveDisplayPreferredSerial()
         historyRepository.ensureBackfilled(preferredSerial, 0L)
-        val rawHistory = loadDisplayHistory(preferredSerial, 0L)
-        
-        // Convert to display unit
-        return rawHistory.map { p ->
-             val v = if (isMmol) p.value / 18.0182f else p.value
-             val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-             GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-        }
+        return loadDisplayHistory(preferredSerial, 0L).inDisplayUnit(isMmol)
     }
 
     /**
@@ -265,14 +266,7 @@ class GlucoseRepository {
     suspend fun getHistory(startTime: Long, isMmol: Boolean): List<GlucosePoint> {
         val preferredSerial = resolveDisplayPreferredSerial()
         historyRepository.ensureBackfilled(preferredSerial, startTime)
-        val raw = loadDisplayHistory(preferredSerial, startTime)
-        return if (isMmol) {
-            raw.map { p ->
-                val v = p.value / 18.0182f
-                val r = p.rawValue / 18.0182f
-                GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-            }
-        } else raw
+        return loadDisplayHistory(preferredSerial, startTime).inDisplayUnit(isMmol)
     }
 
     /**
@@ -292,13 +286,7 @@ class GlucoseRepository {
                     send(points)
                 }
             }
-        }.map { list ->
-            list.map { p ->
-                 val v = if (isMmol) p.value / 18.0182f else p.value
-                 val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-                 GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-            }
-        }
+        }.map { list -> list.inDisplayUnit(isMmol) }
     }
 
     /**
@@ -327,13 +315,8 @@ class GlucoseRepository {
         return kotlinx.coroutines.runBlocking {
             val preferredSerial = resolveDisplayPreferredSerial()
             historyRepository.ensureBackfilled(preferredSerial, 0L)
-            val rawHistory = loadDisplayHistory(preferredSerial, 0L)
             val isMmol = (Natives.getunit() == 1)
-            rawHistory.map { p ->
-                val v = if (isMmol) p.value / 18.0182f else p.value
-                val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-                GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-            }
+            loadDisplayHistory(preferredSerial, 0L).inDisplayUnit(isMmol)
         }
     }
 
@@ -355,13 +338,8 @@ class GlucoseRepository {
                 val preferredSerial = resolveDisplayPreferredSerial()
                 val startMs = (System.currentTimeMillis() - durationMs).coerceAtLeast(0L)
                 historyRepository.ensureBackfilled(preferredSerial, startMs)
-                val rawHistory = loadDisplayHistory(preferredSerial, startMs)
                 val isMmol = (Natives.getunit() == 1)
-                rawHistory.map { p ->
-                    val v = if (isMmol) p.value / 18.0182f else p.value
-                    val r = if (isMmol) p.rawValue / 18.0182f else p.rawValue
-                    GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-                }
+                loadDisplayHistory(preferredSerial, startMs).inDisplayUnit(isMmol)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching recent history", e)
                 emptyList()

@@ -1228,7 +1228,7 @@ private fun PredictiveSimulationExpandableSettingsItem(
         label = "predictiveSimulationChevron"
     )
     val insulinSensitivityDisplay = remember(insulinSensitivityMgDlPerUnit, isMmol) {
-        if (isMmol) insulinSensitivityMgDlPerUnit / 18.0182f else insulinSensitivityMgDlPerUnit
+        tk.glucodata.ui.util.GlucoseFormatter.displayFromMgDl(insulinSensitivityMgDlPerUnit, isMmol)
     }
     val sensitivityValue = if (isMmol) {
         stringResource(R.string.predictive_sensitivity_value_mmol, insulinSensitivityDisplay)
@@ -1328,7 +1328,7 @@ private fun PredictiveSimulationExpandableSettingsItem(
                             enabled = predictiveSimulationEnabled,
                             onValueChange = { displayValue ->
                                 onInsulinSensitivityChange(
-                                    if (isMmol) displayValue * 18.0182f else displayValue
+                                    if (isMmol) tk.glucodata.ui.util.GlucoseFormatter.mmolToMg(displayValue) else displayValue
                                 )
                             }
                         )

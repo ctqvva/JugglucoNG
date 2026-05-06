@@ -20,6 +20,7 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertStateTracker
 import tk.glucodata.alerts.AlertType
+import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.alerts.SnoozeManager
 import tk.glucodata.logic.CustomAlertManager
 import tk.glucodata.logic.TrendEngine
@@ -245,8 +246,8 @@ class AlarmActivity : ComponentActivity() {
             var value = historyRaw[i + 1] / 10.0f
             var rawValue = historyRaw[i + 2] / 10.0f
             if (isMmol) {
-                value /= 18.0182f
-                rawValue /= 18.0182f
+                value = GlucoseFormatter.mgToMmol(value)
+                rawValue = GlucoseFormatter.mgToMmol(rawValue)
             }
             nativePoints.add(GlucosePoint(timestampMs, value, rawValue))
         }

@@ -25,6 +25,7 @@ import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalInsulinPresetInput
+import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.CustomAlertRepository
@@ -113,6 +114,16 @@ class DashboardViewModel(
 
     private val _glucoseHistory = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
     val glucoseHistory = _glucoseHistory.asStateFlow()
+
+    /**
+     * Cross-sensor merged history for the History browse screen. Includes
+     * previous sensor calibrated readings, CSV imports, and older device data,
+     * so the History route remains complete across sensor swaps. The live
+     * dashboard intentionally uses the per-sensor [glucoseHistory] above.
+     */
+    private val _historyScreenGlucoseHistory =
+        MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
+    val historyScreenGlucoseHistory = _historyScreenGlucoseHistory.asStateFlow()
 
     private val _unit = MutableStateFlow("mg/dL")
     val unit = _unit.asStateFlow()
@@ -209,6 +220,7 @@ class DashboardViewModel(
     private var collectionMode = CollectionMode.INACTIVE
     private var currentReadingJob: Job? = null
     private var historyJob: Job? = null
+    private var historyScreenJob: Job? = null
     private var uiRefreshJob: Job? = null
     private var journalEntriesJob: Job? = null
     private var journalPresetsJob: Job? = null
@@ -563,8 +575,28 @@ class DashboardViewModel(
         if (historyJob?.isActive == true && activeHistoryMode == mode) return
 
         historyJob?.cancel()
+        historyScreenJob?.cancel()
         activeHistoryMode = mode
         _isLoading.value = _glucoseHistory.value.isEmpty()
+
+        // Parallel cross-sensor merged stream that backs the History browse
+        // screen. Lives alongside the per-sensor [historyJob] below — keeping
+        // the two flows separate preserves the dashboard's recovery and
+        // overlap-pruning semantics while still giving the History screen a
+        // complete cross-sensor timeline.
+        historyScreenJob = viewModelScope.launch {
+            combine(
+                _unit,
+                glucoseRepository.getMergedHistoryFlowRaw(queryStartTimeMs)
+                    .distinctUntilChangedBy(::historyEdgeSignature)
+            ) { unitStr, rawHistory ->
+                unitStr to rawHistory
+            }.collect { (unitStr, rawHistory) ->
+                _historyScreenGlucoseHistory.value = withContext(Dispatchers.Default) {
+                    rawHistory.inDisplayUnit(unitStr)
+                }
+            }
+        }
 
         historyJob = viewModelScope.launch {
             var lastRecoveryRequestSerial: String? = null
@@ -593,22 +625,14 @@ class DashboardViewModel(
                     logEvery = 20L,
                     detail = "mode=$mode size=${rawHistory.size}"
                 )
-                val isMmol = unitStr == "mmol/L"
-                _glucoseHistory.value = if (isMmol) {
-                    withContext(Dispatchers.Default) {
-                        rawHistory.map { p ->
-                            val v = p.value / 18.0182f
-                            val r = p.rawValue / 18.0182f
-                            tk.glucodata.ui.GlucosePoint(v, p.time, p.timestamp, r, p.rate, p.sensorSerial)
-                        }
-                    }
-                } else {
-                    rawHistory
+                _glucoseHistory.value = withContext(Dispatchers.Default) {
+                    rawHistory.inDisplayUnit(unitStr)
                 }
                 _isLoading.value = false
             }
         }
     }
+
 
     private fun historyEdgeSignature(points: List<tk.glucodata.ui.GlucosePoint>): HistoryEdgeSignature {
         val first = points.firstOrNull()
@@ -644,6 +668,8 @@ class DashboardViewModel(
         currentReadingJob = null
         historyJob?.cancel()
         historyJob = null
+        historyScreenJob?.cancel()
+        historyScreenJob = null
         uiRefreshJob?.cancel()
         uiRefreshJob = null
         activeHistoryMode = null

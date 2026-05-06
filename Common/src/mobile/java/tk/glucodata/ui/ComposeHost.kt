@@ -717,7 +717,11 @@ private fun HistoryRoute(
     onBack: () -> Unit,
     onTriggerCalibration: (CalibrationSheetState) -> Unit
 ) {
-    val glucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
+    // Use the merged multi-sensor flow so the previous sensor's calibrated
+    // readings (and any imported/older sensor data) remain visible on the
+    // History screen across sensor swaps. The dashboard chart still uses the
+    // narrower per-sensor [glucoseHistory] flow above.
+    val glucoseHistory by dashboardViewModel.historyScreenGlucoseHistory.collectAsStateWithLifecycle()
     val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
     val viewMode by dashboardViewModel.viewMode.collectAsStateWithLifecycle()
     val sensorName by dashboardViewModel.sensorName.collectAsStateWithLifecycle()
@@ -738,15 +742,11 @@ private fun HistoryRoute(
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
 
-    val scopedJournalEntries = remember(journalEntries, sensorName) {
-        if (sensorName.isBlank()) {
-            journalEntries
-        } else {
-            journalEntries.filter { entry ->
-                entry.sensorSerial.isNullOrBlank() || entry.sensorSerial == sensorName
-            }
-        }
-    }
+    // Journal entries are time-bound user events (insulin, food, fingersticks);
+    // they must stay visible across sensor swaps. The History route deliberately
+    // does NOT scope them by the current sensor — otherwise the previous
+    // sensor's period goes empty as soon as a replacement is paired.
+    val scopedJournalEntries = journalEntries
 
     HistoryBrowseScreen(
         glucoseHistory = glucoseHistory,
@@ -1319,16 +1319,11 @@ fun DashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val activeJournalPresets = remember(journalInsulinPresets) { journalInsulinPresets.filter { !it.isArchived } }
-    val scopedJournalEntries = remember(journalEnabled, journalEntries, sensorName) {
-        if (!journalEnabled) {
-            emptyList()
-        } else if (sensorName.isBlank()) {
-            journalEntries
-        } else {
-            journalEntries.filter { entry ->
-                entry.sensorSerial.isNullOrBlank() || entry.sensorSerial == sensorName
-            }
-        }
+    // Mirror the History route: journal entries are time-bound, not
+    // sensor-bound. Scoping them by the active sensor would silently hide
+    // entries logged before a sensor swap.
+    val scopedJournalEntries = remember(journalEnabled, journalEntries) {
+        if (!journalEnabled) emptyList() else journalEntries
     }
     val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, unit, glucoseHistory) {
         if (!journalEnabled || scopedJournalEntries.isEmpty()) {
@@ -5392,10 +5387,9 @@ fun SensorCard(
             confirmButton = {
                 val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
                 val inputValue = calibrationInputText.toFloatOrNull()
-                val glucoseMgDl = if (inputValue != null) {
-                    if (isMmol) (inputValue * 18.0182f).toInt()
-                    else inputValue.toInt()
-                } else null
+                val glucoseMgDl = inputValue?.let {
+                    (if (isMmol) tk.glucodata.ui.util.GlucoseFormatter.mmolToMg(it) else it).toInt()
+                }
                 val isValid = glucoseMgDl != null && glucoseMgDl in 30..500
                 TextButton(
                     onClick = {
@@ -5510,10 +5504,8 @@ fun SensorCard(
             val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
             val unitLabel = if (isMmol) "mmol/L" else "mg/dL"
             val inputValue = mqCalibrationInputText.toFloatOrNull()
-            val glucoseMgDl = if (inputValue != null) {
-                if (isMmol) (inputValue * 18.0182f).toInt() else inputValue.toInt()
-            } else {
-                null
+            val glucoseMgDl = inputValue?.let {
+                (if (isMmol) tk.glucodata.ui.util.GlucoseFormatter.mmolToMg(it) else it).toInt()
             }
             val canCalibrate = sensor.isVendorConnected && glucoseMgDl != null && glucoseMgDl in 30..500
             Column(
@@ -6121,11 +6113,10 @@ fun SensorCard(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        val displayGlucose = if (isMmol) {
-                                            String.format(java.util.Locale.getDefault(), "%.1f", cal.referenceGlucoseMgDl / 18.0182f)
-                                        } else {
-                                            cal.referenceGlucoseMgDl.toString()
-                                        }
+                                        val displayGlucose = tk.glucodata.ui.util.GlucoseFormatter.formatFromMgDl(
+                                            cal.referenceGlucoseMgDl.toFloat(),
+                                            isMmol
+                                        )
                                         Text(
                                             text = displayGlucose,
                                             style = MaterialTheme.typography.bodyMedium,

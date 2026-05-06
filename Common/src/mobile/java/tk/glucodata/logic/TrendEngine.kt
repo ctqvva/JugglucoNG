@@ -2,6 +2,7 @@ package tk.glucodata.logic
 
 import tk.glucodata.GlucosePoint as NativeGlucosePoint
 import tk.glucodata.ui.GlucosePoint
+import tk.glucodata.ui.util.GlucoseFormatter
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.jvm.JvmName
@@ -77,7 +78,7 @@ object TrendEngine {
         val firstVal = if (useRaw && pFirst.rawValue > 0) pFirst.rawValue else pFirst.value
 
         // Use explicit flag
-        val conversionFactor = if (isMmol) 18.0182f else 1.0f
+        val conversionFactor = if (isMmol) GlucoseFormatter.MGDL_PER_MMOL else 1.0f
 
         // Collect values for noise calculation (in NATIVE units - no conversion!)
         val rawValueList = mutableListOf<Float>()

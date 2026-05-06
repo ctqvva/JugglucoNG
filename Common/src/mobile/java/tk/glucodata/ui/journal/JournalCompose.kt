@@ -1787,8 +1787,9 @@ private fun journalMarkerDetail(
 }
 
 private fun formatGlucoseForEditor(glucoseMgDl: Float, unit: String): String {
-    val value = if (GlucoseFormatter.isMmol(unit)) glucoseMgDl / 18.0182f else glucoseMgDl
-    return if (GlucoseFormatter.isMmol(unit)) {
+    val isMmol = GlucoseFormatter.isMmol(unit)
+    val value = GlucoseFormatter.displayFromMgDl(glucoseMgDl, isMmol)
+    return if (isMmol) {
         DecimalFormat("0.#", DecimalFormatSymbols(Locale.getDefault())).format(value)
     } else {
         formatFloatForEditor(value)
@@ -1797,7 +1798,7 @@ private fun formatGlucoseForEditor(glucoseMgDl: Float, unit: String): String {
 
 private fun parseGlucoseToMgDl(value: String, unit: String): Float? {
     val parsed = value.parseFloatOrNull() ?: return null
-    return if (GlucoseFormatter.isMmol(unit)) parsed * 18.0182f else parsed
+    return if (GlucoseFormatter.isMmol(unit)) GlucoseFormatter.mmolToMg(parsed) else parsed
 }
 
 private fun formatFloatForEditor(value: Float): String {

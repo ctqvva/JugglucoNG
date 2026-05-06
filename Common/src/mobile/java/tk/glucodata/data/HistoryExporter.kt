@@ -6,6 +6,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tk.glucodata.ui.GlucosePoint
+import tk.glucodata.ui.util.GlucoseFormatter
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -321,9 +322,9 @@ object HistoryExporter {
                                     val unit = parts[4].trim()
 
                                     // Convert back to mg/dL if needed
-                                    if (unit == "mmol/L") {
-                                        value *= 18.0182f
-                                        rawValue *= 18.0182f
+                                    if (GlucoseFormatter.isMmol(unit)) {
+                                        value = GlucoseFormatter.mmolToMg(value)
+                                        rawValue = GlucoseFormatter.mmolToMg(rawValue)
                                     }
 
                                     readings.add(HistoryReading(
