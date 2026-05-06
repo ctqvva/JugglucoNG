@@ -1562,6 +1562,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_correction_component">Correction %1$s</string>
     <string name="journal_manage_title">Journal setup</string>
     <string name="journal_manage_desc">Build insulin types, colors, and activity curves</string>
+    <string name="journal_import_health_activity">Import Health Connect activity</string>
     <string name="journal_settings_summary">%1$s · %2$d insulin types</string>
     <string name="journal_quick_actions">Quick log</string>
     <string name="journal_visible_events">Visible events</string>

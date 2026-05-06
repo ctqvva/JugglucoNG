@@ -1379,6 +1379,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d 分钟</string>
     <string name="journal_dose_math_title">剂量计算器</string>
     <string name="journal_dose_calculator_desc">根据模型配置和活性胰岛素建议配对的胰岛素或碳水</string>
+    <string name="journal_import_health_activity">导入 Health Connect 活动</string>
     <string name="journal_dose_pair_insulin">配对胰岛素</string>
     <string name="journal_dose_pair_carbs">配对碳水</string>
     <string name="journal_dose_suggested_insulin">建议 %1$s U</string>

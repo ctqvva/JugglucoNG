@@ -1401,6 +1401,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dosisrechner</string>
     <string name="journal_dose_calculator_desc">Insulin oder Kohlenhydrate aus Modellprofil und aktivem Insulin vorschlagen</string>
+    <string name="journal_import_health_activity">Health-Connect-Aktivität importieren</string>
     <string name="journal_dose_pair_insulin">Insulin koppeln</string>
     <string name="journal_dose_pair_carbs">Kohlenhydrate koppeln</string>
     <string name="journal_dose_suggested_insulin">%1$s U vorgeschlagen</string>

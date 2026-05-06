@@ -1405,6 +1405,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d мин</string>
     <string name="journal_dose_math_title">Калькулятор дозы</string>
     <string name="journal_dose_calculator_desc">Предлагать парный инсулин или углеводы по профилю модели и активному инсулину</string>
+    <string name="journal_import_health_activity">Импортировать активность из Health Connect</string>
     <string name="journal_dose_pair_insulin">Добавить инсулин</string>
     <string name="journal_dose_pair_carbs">Добавить углеводы</string>
     <string name="journal_dose_suggested_insulin">Предложено %1$s ЕД</string>

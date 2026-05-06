@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
@@ -191,6 +192,22 @@ fun JournalSettingsScreen(
                     onCheckedChange = { viewModel.setJournalDoseCalculatorEnabled(it) },
                     icon = Icons.Default.Calculate
                 )
+            }
+
+            item(key = "import_health_activity") {
+                FilledTonalButton(
+                    onClick = { viewModel.importHealthConnectActivity(daysBack = 14) },
+                    enabled = journalEnabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsRun,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.journal_import_health_activity))
+                }
             }
 
             item(key = "active_label") {

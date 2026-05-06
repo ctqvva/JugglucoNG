@@ -829,6 +829,10 @@ class DashboardViewModel(
         _journalDoseCalculatorEnabled.value = enabled
     }
 
+    fun importHealthConnectActivity(daysBack: Int = 14) {
+        tk.glucodata.HealthConnection.importActivity(daysBack)
+    }
+
     fun setPredictiveSimulationEnabled(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)

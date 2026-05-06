@@ -1369,6 +1369,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Calculateur de dose</string>
     <string name="journal_dose_calculator_desc">Suggérer l\'insuline ou les glucides associés selon le profil et l\'insuline active</string>
+    <string name="journal_import_health_activity">Importer l’activité Health Connect</string>
     <string name="journal_dose_pair_insulin">Associer l\'insuline</string>
     <string name="journal_dose_pair_carbs">Associer les glucides</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggérées</string>

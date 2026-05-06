@@ -1398,6 +1398,7 @@
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Kalkulator dawki</string>
     <string name="journal_dose_calculator_desc">Sugeruj sparowaną insulinę lub węglowodany z profilu modelu i aktywnej insuliny</string>
+    <string name="journal_import_health_activity">Importuj aktywność z Health Connect</string>
     <string name="journal_dose_pair_insulin">Połącz insulinę</string>
     <string name="journal_dose_pair_carbs">Połącz węglowodany</string>
     <string name="journal_dose_suggested_insulin">Sugerowane %1$s U</string>

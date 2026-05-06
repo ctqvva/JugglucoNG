@@ -22,22 +22,30 @@
 package tk.glucodata
 
 import android.content.Intent
-import android.health.connect.datatypes.Metadata
 import android.net.Uri
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.health.connect.client.HealthConnectClient
-//import androidx.health.connect.client.permission.HealthPermission.Companion.getReadPermission
+import androidx.health.connect.client.permission.HealthPermission.Companion.getReadPermission
 import androidx.health.connect.client.permission.HealthPermission.Companion.getWritePermission
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.BloodGlucoseRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Device.Companion.TYPE_UNKNOWN
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import tk.glucodata.data.journal.JournalEntryInput
+import tk.glucodata.data.journal.JournalEntrySource
+import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.JournalIntensity
+import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.Log.doLog
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,6 +53,7 @@ import kotlin.math.min
 
 class HealthConnection(private val client: HealthConnectClient) {
 	var active= AtomicBoolean(false)
+    private val activityImportActive = AtomicBoolean(false)
 
 
   private var scope = CoroutineScope(Dispatchers.IO+SupervisorJob())
@@ -114,6 +123,83 @@ private suspend fun checkPermissionsAndRun(act:MainActivity?) {
         }
     }
 
+private fun importActivityIns(daysBack: Int) {
+    if (activityImportActive.getAndSet(true)) {
+        if(doLog) {Log.i(LOG_ID, "activity import already active");}
+        return
+    }
+    scope.launch {
+        try {
+            if (!hasPermission) {
+                checkPermissionsAndRun(MainActivity.thisone)
+                if (!hasPermission) return@launch
+            }
+            val now = Instant.now()
+            val start = now.minusSeconds(daysBack.coerceIn(1, 30) * 24L * 60L * 60L)
+            val repository = JournalRepository()
+            var imported = 0
+
+            val sessions = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, now)
+                )
+            ).records
+            sessions.forEach { session ->
+                val startMillis = session.startTime.toEpochMilli()
+                val endMillis = session.endTime.toEpochMilli()
+                val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
+                repository.upsertEntry(
+                    JournalEntryInput(
+                        timestamp = startMillis,
+                        type = JournalEntryType.ACTIVITY,
+                        title = session.title?.takeIf { it.isNotBlank() } ?: "Health activity",
+                        note = session.notes,
+                        durationMinutes = durationMinutes,
+                        intensity = durationMinutes.inferredHealthIntensity(),
+                        source = JournalEntrySource.HEALTH_CONNECT,
+                        sourceRecordId = session.stableHealthRecordId("exercise", startMillis, endMillis)
+                    )
+                )
+                imported++
+            }
+
+            val steps = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = StepsRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, now)
+                )
+            ).records
+            steps
+                .filter { it.count >= 250L }
+                .forEach { record ->
+                    val startMillis = record.startTime.toEpochMilli()
+                    val endMillis = record.endTime.toEpochMilli()
+                    val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
+                    repository.upsertEntry(
+                        JournalEntryInput(
+                            timestamp = startMillis,
+                            type = JournalEntryType.ACTIVITY,
+                            title = "Steps",
+                            note = "${record.count} steps",
+                            amount = record.count.toFloat(),
+                            durationMinutes = durationMinutes,
+                            intensity = record.count.inferredStepIntensity(durationMinutes),
+                            source = JournalEntrySource.HEALTH_CONNECT,
+                            sourceRecordId = record.stableHealthRecordId("steps", startMillis, endMillis)
+                        )
+                    )
+                    imported++
+                }
+            Log.i(LOG_ID, "Imported $imported Health Connect activity records")
+        } catch (th: Throwable) {
+            Log.stack(LOG_ID, "importActivity", th)
+        } finally {
+            activityImportActive.set(false)
+        }
+    }
+}
+
 
 companion object {
     val PERMISSIONS =
@@ -121,7 +207,9 @@ companion object {
             setOf(
                 getWritePermission(
                     BloodGlucoseRecord::class
-                )
+                ),
+                getReadPermission(ExerciseSessionRecord::class),
+                getReadPermission(StepsRecord::class)
             )
     var hasPermission = false
     private const val LOG_ID = "HealthConnection"
@@ -189,9 +277,43 @@ private suspend   fun susinit(context: MainActivity): Int {
 fun writeAll(sensorptr:Long,sensorname:String) {
 	instance?.writeAllIns(sensorptr,sensorname);
     }
+    fun importActivity(daysBack: Int = 14) {
+        instance?.importActivityIns(daysBack) ?: MainActivity.thisone?.let { context ->
+            GlobalScope.launch {
+                susinit(context)
+                instance?.importActivityIns(daysBack)
+            }
+        }
+    }
     public fun stop() {
         instance?.scope?.cancel()
         instance = null
         }
     }
+}
+
+private fun Int.inferredHealthIntensity(): JournalIntensity {
+    return when {
+        this >= 75 -> JournalIntensity.INTENSE
+        this >= 25 -> JournalIntensity.MODERATE
+        else -> JournalIntensity.LIGHT
+    }
+}
+
+private fun Long.inferredStepIntensity(durationMinutes: Int): JournalIntensity {
+    val stepsPerMinute = this.toFloat() / durationMinutes.coerceAtLeast(1)
+    return when {
+        stepsPerMinute >= 110f -> JournalIntensity.INTENSE
+        stepsPerMinute >= 70f -> JournalIntensity.MODERATE
+        else -> JournalIntensity.LIGHT
+    }
+}
+
+private fun androidx.health.connect.client.records.Record.stableHealthRecordId(
+    type: String,
+    startMillis: Long,
+    endMillis: Long
+): String {
+    val id = metadata.id.takeIf { it.isNotBlank() }
+    return "health_connect:$type:${id ?: "$startMillis:$endMillis"}"
 }

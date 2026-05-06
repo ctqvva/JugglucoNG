@@ -10,6 +10,8 @@
 
 <!-- s/^[	 ]*\(.*\)[	 ]*$/<uses-permission android:name="\1"\/>/g -->
 <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE"/>
+<uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+<uses-permission android:name="android.permission.health.READ_STEPS"/>
 <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
 
 <queries>
