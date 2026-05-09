@@ -1078,12 +1078,16 @@ class AnytimeBleManager(
                 result.iwNa, result.ibNa, result.temperatureC, result.trend, result.errorCode,
             )
         )
-        mirrorReadingIntoNative(sampleMs, result.mgdl)
+        // Managed Anytime history is written through Room only.
+        // Do not mirror computed readings into native SensorGlucoseData here:
+        // Natives.addGlucoseStream() stores values in the legacy/native history path
+        // and was producing duplicate phantom rows such as 25.9 (mmol*10) beside
+        // the Room-managed 2.59 mmol/L point.
         mirrorReadingIntoRoom(sampleMs, result)
         if (live) {
             emitGlucose(result, sampleMs)
         } else if (history && newest) {
-            Log.d(TAG, "Backfill stored newer native point without live emit id=${result.glucoseId}")
+            Log.d(TAG, "Backfill stored newer Room point without live emit id=${result.glucoseId}")
         }
     }
 
@@ -1098,13 +1102,9 @@ class AnytimeBleManager(
         }.onFailure { Log.stack(TAG, "ensureNativeSensorShell", it) }
     }
 
-    private fun mirrorReadingIntoNative(sampleMs: Long, glucoseMgdl: Float) {
-        val name = SerialNumber ?: return
-        runCatching {
-            Natives.addGlucoseStream(sampleMs / 1000L, glucoseMgdl, name)
-            Natives.wakebackup()
-        }.onFailure { Log.stack(TAG, "mirrorReadingIntoNative", it) }
-    }
+    // Intentionally unused: managed Anytime history must not be mirrored into
+    // native SensorGlucoseData. Current/live updates go through emitGlucose();
+    // history rows go through VirtualGlucoseSensorBridge.importHistory().
 
     private fun mirrorReadingIntoRoom(sampleMs: Long, result: AnytimeAlgorithm.Result) {
         val name = SerialNumber ?: return

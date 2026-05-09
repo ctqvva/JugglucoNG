@@ -98,7 +98,8 @@ object AnytimeAlgorithm {
         val k = qr?.k ?: 0f
         val r = qr?.r ?: 0f
         val linear = computeLinear(record, k, r)
-        if (isNativeAvailable && qr != null && k > 0f && r > 0f) {
+        val nativeQrReady = qr != null && k > 0f && r > 0f && hasDecodedQrChemistry(qr)
+        if (isNativeAvailable && nativeQrReady) {
             runCatching {
                 val cal = Calendar.getInstance().apply { timeInMillis = sampleTimeMs }
                 val latest = LatestData().apply {
@@ -151,10 +152,30 @@ object AnytimeAlgorithm {
                 Log.w(TAG, "native algorithm failed: ${t.message}")
             }
         } else if (isNativeAvailable && qr != null) {
-            Log.w(TAG, "native algorithm skipped: invalid QR K/R (K=$k R=$r)")
+            Log.w(
+                TAG,
+                "native algorithm skipped: QR is not decoded enough for vendor algorithm " +
+                        "(K=$k R=$r chemistry=${hasDecodedQrChemistry(qr)}); using linear fallback"
+            )
         }
         return linear
     }
+
+    /**
+     * The vendor algorithm needs more than just any K/R pair: chemistry/batch metadata
+     * from decodeCT/QR parsing is required. A synthesised fallback QR has plausible K/R
+     * but empty chemistry fields; feeding that into native produces false positives such
+     * as a long run of 50 mg/dL / 2.78 mmol/L clamp values.
+     */
+    private fun hasDecodedQrChemistry(qr: AnytimeQrCalibration): Boolean =
+        qr.electrodeType.isNotBlank() ||
+                qr.electrodeTecNo.isNotBlank() ||
+                qr.enzymeTecNo.isNotBlank() ||
+                qr.membraneTecNo.isNotBlank() ||
+                qr.marketNo.isNotBlank() ||
+                qr.serialNo.isNotBlank() ||
+                qr.productMonth > 0 ||
+                qr.productYear > 2000
 
     /** Linear K/R fallback. */
     @JvmStatic
