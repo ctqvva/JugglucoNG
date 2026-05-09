@@ -365,6 +365,13 @@ object AnytimeConstants {
     }
 
     @JvmStatic
+    fun macAddressFromSensorId(sensorId: String?): String? {
+        val canonical = canonicalSensorId(sensorId)
+        if (!Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE).matches(canonical)) return null
+        return canonical.chunked(2).joinToString(":")
+    }
+
+    @JvmStatic
     fun matchesCanonicalOrKnownNativeAlias(a: String?, b: String?): Boolean {
         val ca = canonicalSensorId(a)
         val cb = canonicalSensorId(b)

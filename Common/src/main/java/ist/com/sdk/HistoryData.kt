@@ -33,12 +33,16 @@ class HistoryData {
     @JvmField var right: Float = 0f
     @JvmField var sensorInfo: String = ""
     @JvmField var sickDuration: Float = 0f
+    @JvmField var weight: Int = 0
+    @JvmField var width: Float = 0f
     @JvmField var startDay: Int = 0
     @JvmField var startHour: Int = 0
     @JvmField var startMinute: Int = 0
     @JvmField var startMonth: Int = 0
     @JvmField var startYear: Int = 0
     @JvmField var userType: Int = 0
+    @JvmField var algorithmUpgradeGlucoseId: Int = 0
+    @JvmField var algorithmUpgradeGLUMG: IntArray = IntArray(0)
 
     fun setIbs(v: FloatArray) { Ibs = v }
     fun setIws(v: FloatArray) { Iws = v }
@@ -59,8 +63,10 @@ class HistoryData {
     fun setInitCount(v: Int) { initCount = v }
     fun setLeft(v: Float) { left = v }
     fun setLenIw(v: Float) { len_iw = v }
+    fun setLen_iw(v: Float) { len_iw = v }
     fun setLifeTime(v: Int) { lifeTime = v }
     fun setMembraneLayers(v: Float) { membrane_layers = v }
+    fun setMembrane_layers(v: Float) { membrane_layers = v }
     fun setName(v: String) { name = v }
     fun setNewBgToGlucoseIds(v: IntArray) { newBgToGlucoseIds = v }
     fun setNewBgValues(v: IntArray) { newBgValues = v }
@@ -68,10 +74,54 @@ class HistoryData {
     fun setRight(v: Float) { right = v }
     fun setSensorInfo(v: String) { sensorInfo = v }
     fun setSickDuration(v: Float) { sickDuration = v }
+    fun setWeight(v: Int) { weight = v }
+    fun setWidth(v: Float) { width = v }
     fun setStartDay(v: Int) { startDay = v }
     fun setStartHour(v: Int) { startHour = v }
     fun setStartMinute(v: Int) { startMinute = v }
     fun setStartMonth(v: Int) { startMonth = v }
     fun setStartYear(v: Int) { startYear = v }
     fun setUserType(v: Int) { userType = v }
+    fun setAlgorithmUpgradeGlucoseId(v: Int) { algorithmUpgradeGlucoseId = v }
+    fun setAlgorithmUpgradeGLUMG(v: IntArray?) {
+        algorithmUpgradeGLUMG = v ?: IntArray(0)
+    }
+
+    fun getIbs(): FloatArray = Ibs
+    fun getIws(): FloatArray = Iws
+    fun getTs(): FloatArray = Ts
+    fun getK0(): Float = k0
+    fun getR(): Float = r
+    fun getAge(): Int = age
+    fun getAlgorithm(): Int = algorithm
+    fun getBatch(): String = batch
+    fun getCheckErrorContinuousAbnormalCurrentToGlucoseIds(): IntArray =
+        checkErrorContinuousAbnormalCurrentToGlucoseIds
+    fun getEndCount(): Int = endCount
+    fun getEnzyme_activity(): Float = enzyme_activity
+    fun getGender(): Int = gender
+    fun getGlucoseId(): Int = glucoseId
+    fun getHeight(): Int = height
+    fun getInitCount(): Int = initCount
+    fun getLeft(): Float = left
+    fun getLen_iw(): Float = len_iw
+    fun getLifeTime(): Int = lifeTime
+    fun getMembrane_layers(): Float = membrane_layers
+    fun getName(): String = name
+    fun getNewBgToGlucoseIds(): IntArray = newBgToGlucoseIds
+    fun getNewBgValues(): IntArray = newBgValues
+    fun getProductMonth(): Int = productMonth
+    fun getRight(): Float = right
+    fun getSensorInfo(): String = sensorInfo
+    fun getSickDuration(): Float = sickDuration
+    fun getWeight(): Int = weight
+    fun getWidth(): Float = width
+    fun getStartDay(): Int = startDay
+    fun getStartHour(): Int = startHour
+    fun getStartMinute(): Int = startMinute
+    fun getStartMonth(): Int = startMonth
+    fun getStartYear(): Int = startYear
+    fun getUserType(): Int = userType
+    fun getAlgorithmUpgradeGlucoseId(): Int = algorithmUpgradeGlucoseId
+    fun getAlgorithmUpgradeGLUMG(): IntArray = algorithmUpgradeGLUMG
 }

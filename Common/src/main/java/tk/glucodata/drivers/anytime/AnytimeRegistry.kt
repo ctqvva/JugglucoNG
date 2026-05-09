@@ -54,7 +54,13 @@ object AnytimeRegistry {
         val canonical = AnytimeConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
         val records = persistedRecords(context).toMutableList()
         val existing = records.indexOfFirst { it.matchesId(canonical) }
-        val record = SensorRecord(canonical, address, displayName.ifBlank { canonical })
+        val existingRecord = existing.takeIf { it >= 0 }?.let { records[it] }
+        val effectiveAddress = address.ifBlank {
+            existingRecord?.address?.takeIf { it.isNotBlank() }
+                ?: AnytimeConstants.macAddressFromSensorId(canonical).orEmpty()
+        }
+        val effectiveName = displayName.ifBlank { existingRecord?.displayName ?: canonical }
+        val record = SensorRecord(canonical, effectiveAddress, effectiveName)
         if (existing >= 0) records[existing] = record else records.add(record)
         writeRecords(context, records)
     }
@@ -65,7 +71,9 @@ object AnytimeRegistry {
         return raw.mapNotNull { line ->
             val parts = line.split('|')
             if (parts.size < 3) return@mapNotNull null
-            SensorRecord(parts[0], parts[1], parts[2])
+            val canonical = AnytimeConstants.canonicalSensorId(parts[0]).ifEmpty { parts[0] }
+            val address = parts[1].ifBlank { AnytimeConstants.macAddressFromSensorId(canonical).orEmpty() }
+            SensorRecord(canonical, address, parts[2])
         }
     }
 
@@ -189,9 +197,12 @@ object AnytimeRegistry {
         dataptr: Long,
     ): SuperGattCallback? {
         val canonical = AnytimeConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
-        if (findRecord(context, canonical) == null) return null
+        val record = findRecord(context, canonical) ?: return null
         return runCatching {
-            AnytimeBleManager(canonical, dataptr).also { it.restoreFromPersistence(context) }
+            AnytimeBleManager(record.sensorId, dataptr).also {
+                it.mActiveDeviceAddress = record.address.takeIf { address -> address.isNotBlank() }
+                it.restoreFromPersistence(context)
+            }
         }.onFailure { Log.stack(TAG, "createRestoredCallback", it) }.getOrNull()
     }
 

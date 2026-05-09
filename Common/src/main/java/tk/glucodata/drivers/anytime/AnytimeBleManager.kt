@@ -464,18 +464,10 @@ class AnytimeBleManager(
                 AnytimeConstants.Family.CT3_PLUS,
                 AnytimeConstants.Family.CT3_YUWELL,
                 AnytimeConstants.Family.CT3_ULTRASONIC,
+                AnytimeConstants.Family.CT4,
             ) -> {
                 Log.i(TAG, "Family ${familyEntry.family} — requesting formal version first")
                 writeFrame(AnytimeFrames.Builders.transmitterFormal(), "transmitterFormal")
-            }
-            familyEntry.family == AnytimeConstants.Family.CT4 -> {
-                Log.i(TAG, "CT4 — verifying QR voltage match")
-                if (qr?.voltageFlag == 1) {
-                    writeFrame(AnytimeFrames.Builders.check(), "check(CT4)")
-                } else {
-                    Log.w(TAG, "CT4 with voltage flag 0 / no QR — sending check anyway")
-                    writeFrame(AnytimeFrames.Builders.check(), "check(CT4-no-qr)")
-                }
             }
             else -> {
                 writeFrame(AnytimeFrames.Builders.check(), "check")

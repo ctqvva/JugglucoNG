@@ -29,15 +29,20 @@ class LatestData {
     @JvmField var len_iw: Float = 0f
     @JvmField var left: Float = 0f
     @JvmField var right: Float = 0f
+    @JvmField var width: Float = 0f
     @JvmField var userType: Int = 0
     @JvmField var age: Int = 0
     @JvmField var gender: Int = 0
     @JvmField var height: Int = 0
+    @JvmField var weight: Int = 0
     @JvmField var sickDuration: Float = 0f
     @JvmField var endCount: Int = 0
     @JvmField var initCount: Int = 0
     @JvmField var newBgToGlucoseId: Int = 0
     @JvmField var newBgValue: Int = 0
+    @JvmField var checkErrorContinuousAbnormalCurrent: Boolean = false
+    @JvmField var algorithmUpgradeGlucoseId: Int = 0
+    @JvmField var algorithmUpgradeGLUMG: IntArray = IntArray(0)
 
     // Setters matching the vendor SDK signatures.
     fun setIb(v: Float) { ib = v }
@@ -58,19 +63,31 @@ class LatestData {
     fun setProductMonth(v: Int) { productMonth = v }
     fun setBatch(v: String) { batch = v }
     fun setEnzymeActivity(v: Float) { enzyme_activity = v }
+    fun setEnzyme_activity(v: Float) { enzyme_activity = v }
     fun setMembraneLayers(v: Float) { membrane_layers = v }
+    fun setMembrane_layers(v: Float) { membrane_layers = v }
     fun setLenIw(v: Float) { len_iw = v }
+    fun setLen_iw(v: Float) { len_iw = v }
     fun setLeft(v: Float) { left = v }
     fun setRight(v: Float) { right = v }
+    fun setWidth(v: Float) { width = v }
     fun setUserType(v: Int) { userType = v }
     fun setAge(v: Int) { age = v }
     fun setGender(v: Int) { gender = v }
     fun setHeight(v: Int) { height = v }
+    fun setWeight(v: Int) { weight = v }
     fun setSickDuration(v: Float) { sickDuration = v }
     fun setEndCount(v: Int) { endCount = v }
     fun setInitCount(v: Int) { initCount = v }
     fun setNewBgToGlucoseId(v: Int) { newBgToGlucoseId = v }
     fun setNewBgValue(v: Int) { newBgValue = v }
+    fun setCheckErrorContinuousAbnormalCurrent(v: Boolean) {
+        checkErrorContinuousAbnormalCurrent = v
+    }
+    fun setAlgorithmUpgradeGlucoseId(v: Int) { algorithmUpgradeGlucoseId = v }
+    fun setAlgorithmUpgradeGLUMG(v: IntArray?) {
+        algorithmUpgradeGLUMG = v ?: IntArray(0)
+    }
 
     // Getters
     fun getIb(): Float = ib
@@ -95,13 +112,18 @@ class LatestData {
     fun getLen_iw(): Float = len_iw
     fun getLeft(): Float = left
     fun getRight(): Float = right
+    fun getWidth(): Float = width
     fun getUserType(): Int = userType
     fun getAge(): Int = age
     fun getGender(): Int = gender
     fun getHeight(): Int = height
+    fun getWeight(): Int = weight
     fun getSickDuration(): Float = sickDuration
     fun getEndCount(): Int = endCount
     fun getInitCount(): Int = initCount
     fun getNewBgToGlucoseId(): Int = newBgToGlucoseId
     fun getNewBgValue(): Int = newBgValue
+    fun isCheckErrorContinuousAbnormalCurrent(): Boolean = checkErrorContinuousAbnormalCurrent
+    fun getAlgorithmUpgradeGlucoseId(): Int = algorithmUpgradeGlucoseId
+    fun getAlgorithmUpgradeGLUMG(): IntArray = algorithmUpgradeGLUMG
 }
