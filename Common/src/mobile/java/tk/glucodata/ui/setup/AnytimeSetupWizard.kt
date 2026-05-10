@@ -68,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.drivers.anytime.AnytimeAlgorithm
 import tk.glucodata.drivers.anytime.AnytimeConstants
 import tk.glucodata.drivers.anytime.AnytimeRegistry
 import tk.glucodata.ui.util.BleDeviceScanner
@@ -83,6 +84,14 @@ private data class AnytimeScanCandidate(
     val familyEntry: AnytimeConstants.FamilyEntry,
 )
 
+private data class AnytimeQrSetupValidation(
+    val normalizedQr: String?,
+    val error: String?,
+    val summary: String?,
+) {
+    val isAllowed: Boolean get() = error == null
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnytimeSetupWizard(
@@ -97,6 +106,7 @@ fun AnytimeSetupWizard(
     var selectedLabel by remember { mutableStateOf("") }
     var qrCodeContent by remember { mutableStateOf("") }
     var showManualQrEntry by remember { mutableStateOf(false) }
+    val qrValidation = validateAnytimeSetupQr(qrCodeContent)
 
     if (showManualQrEntry) {
         AnytimeManualQrEntryDialog(
@@ -144,14 +154,23 @@ fun AnytimeSetupWizard(
                 AnytimeSetupStep.SCAN -> AnytimeScanStep(
                     ui = ui,
                     qrCodeContent = qrCodeContent,
+                    qrValidation = qrValidation,
                     onQrCodeChanged = { qrCodeContent = normalizeAnytimeQrCode(it) },
                     onShowManualQrEntry = { showManualQrEntry = true },
                     onDeviceSelected = { candidate ->
+                        if (!qrValidation.isAllowed) {
+                            Toast.makeText(
+                                context,
+                                qrValidation.error ?: "Invalid Anytime QR code",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            return@AnytimeScanStep
+                        }
                         selectedLabel = candidate.displayName.ifBlank { candidate.address }
                         currentStep = AnytimeSetupStep.CONNECTING
                         scope.launch {
                             try {
-                                val normalizedQr = normalizeAnytimeQrCode(qrCodeContent).takeIf { it.isNotBlank() }
+                                val normalizedQr = qrValidation.normalizedQr
                                 val sensorId = AnytimeRegistry.addSensor(
                                     context = context,
                                     displayName = candidate.displayName.ifBlank { null },
@@ -211,6 +230,7 @@ fun AnytimeSetupWizard(
 private fun AnytimeScanStep(
     ui: WizardUiMetrics,
     qrCodeContent: String,
+    qrValidation: AnytimeQrSetupValidation,
     onQrCodeChanged: (String) -> Unit,
     onShowManualQrEntry: () -> Unit,
     onDeviceSelected: (AnytimeScanCandidate) -> Unit,
@@ -287,7 +307,7 @@ private fun AnytimeScanStep(
                 val advertisesPrimary =
                     record?.serviceUuids?.any {
                         it.uuid == AnytimeConstants.SERVICE_PRIMARY ||
-                            it.uuid == AnytimeConstants.SERVICE_LEGACY_CT2
+                                it.uuid == AnytimeConstants.SERVICE_LEGACY_CT2
                     } == true
                 val nameLooksAnytime = nameCandidates.any(AnytimeConstants::isAnytimeDevice)
                 val isLikelyAnytime = advertisesPrimary || nameLooksAnytime
@@ -382,12 +402,27 @@ private fun AnytimeScanStep(
                         )
                         Spacer(Modifier.height(8.dp))
                         if (qrCodeContent.isNotBlank()) {
+                            val qrStatus = qrValidation.error ?: qrValidation.summary
                             Text(
                                 text = "${stringResource(R.string.scan_sensor_qr)}: $qrCodeContent",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            if (!qrStatus.isNullOrBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = qrStatus,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (qrValidation.error == null) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.error
+                                    },
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                             Spacer(Modifier.height(8.dp))
                         }
                         OutlinedButton(
@@ -456,3 +491,37 @@ private fun AnytimeManualQrEntryDialog(
 
 private fun normalizeAnytimeQrCode(raw: String): String =
     raw.trim().uppercase().filter { it.isLetterOrDigit() }
+
+private fun validateAnytimeSetupQr(raw: String): AnytimeQrSetupValidation {
+    val normalized = normalizeAnytimeQrCode(raw)
+    if (normalized.isBlank()) {
+        // QR is optional: allow setup without it. The driver will run in raw/linear
+        // mode until a valid calibration QR is provided later.
+        return AnytimeQrSetupValidation(
+            normalizedQr = null,
+            error = null,
+            summary = null,
+        )
+    }
+
+    val parsed = AnytimeAlgorithm.decodeQr(normalized)
+    if (parsed == null) {
+        return AnytimeQrSetupValidation(
+            normalizedQr = null,
+            error = "This QR code is not a valid Anytime calibration code. Clear it to continue without QR, or scan the sensor calibration QR.",
+            summary = null,
+        )
+    }
+    if (!parsed.isFactoryCalibration) {
+        return AnytimeQrSetupValidation(
+            normalizedQr = null,
+            error = "This looks like a product/UDI label, not the calibration QR. Clear it to continue without QR, or scan the sensor calibration QR.",
+            summary = null,
+        )
+    }
+    return AnytimeQrSetupValidation(
+        normalizedQr = normalized,
+        error = null,
+        summary = "Calibration QR OK · K=${"%.2f".format(parsed.k)} R=${"%.1f".format(parsed.r)} · ${parsed.lifeTime}d",
+    )
+}
