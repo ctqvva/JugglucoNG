@@ -255,7 +255,15 @@ object AnytimeRegistry {
                 saveRValue(context, sensorId, parsed.r)
                 saveLifetimeDays(context, sensorId, parsed.lifeTime)
                 saveVoltageFlag(context, sensorId, parsed.voltageFlag)
-                Log.i(TAG, "Anytime sensor $sensorId QR decoded: K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d")
+                if (parsed.isFactoryCalibration) {
+                    Log.i(TAG, "Anytime sensor $sensorId QR decoded: K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d")
+                } else {
+                    Log.i(
+                        TAG,
+                        "Anytime sensor $sensorId QR recognized as product/UDI metadata; " +
+                                "using linear fallback K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d"
+                    )
+                }
             } else {
                 Log.w(TAG, "Anytime sensor $sensorId QR decode failed: $normalizedQr")
             }

@@ -2,8 +2,7 @@
 //
 // CRITICAL: This package and class name must match the symbols exported from
 // the vendor library exactly:
-//   Java_ist_com_sdk_AlgorithmTools_algorithmGlucose
-//   Java_ist_com_sdk_AlgorithmTools_algorithmLatestGlucose
+//   Java_ist_com_sdk_AlgorithmTools_algorithm
 //   Java_ist_com_sdk_AlgorithmTools_decodeCT
 //   Java_ist_com_sdk_AlgorithmTools_getVersion
 //
@@ -14,6 +13,8 @@
 package ist.com.sdk
 
 class AlgorithmTools private constructor() {
+
+    external fun algorithm(input: DataInput): DataOutput?
 
     external fun algorithmGlucose(history: HistoryData): CurrentGlucose?
 

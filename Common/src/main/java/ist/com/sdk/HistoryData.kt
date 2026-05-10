@@ -1,5 +1,7 @@
 package ist.com.sdk
 
+import java.util.Calendar
+
 /**
  * Batch input to `AlgorithmTools.algorithmGlucose` (history backfill).
  * Mirrors the vendor SDK's POJO. Field names and `setX` setters are required
@@ -27,6 +29,7 @@ class HistoryData {
     @JvmField var lifeTime: Int = 0
     @JvmField var membrane_layers: Float = 0f
     @JvmField var name: String = ""
+    @JvmField var mEDevice: EDevice = EDevice.DEVICE_UNKNOWN
     @JvmField var newBgToGlucoseIds: IntArray = IntArray(0)
     @JvmField var newBgValues: IntArray = IntArray(0)
     @JvmField var productMonth: Int = 0
@@ -40,6 +43,7 @@ class HistoryData {
     @JvmField var startMinute: Int = 0
     @JvmField var startMonth: Int = 0
     @JvmField var startYear: Int = 0
+    @JvmField var startTimeMillis: Long = 0L
     @JvmField var userType: Int = 0
     @JvmField var algorithmUpgradeGlucoseId: Int = 0
     @JvmField var algorithmUpgradeGLUMG: IntArray = IntArray(0)
@@ -81,10 +85,34 @@ class HistoryData {
     fun setStartMinute(v: Int) { startMinute = v }
     fun setStartMonth(v: Int) { startMonth = v }
     fun setStartYear(v: Int) { startYear = v }
+    fun setStartTimeMillis(v: Long) {
+        startTimeMillis = v
+        val cal = Calendar.getInstance().apply { timeInMillis = v }
+        startYear = cal.get(Calendar.YEAR)
+        startMonth = cal.get(Calendar.MONTH) + 1
+        startDay = cal.get(Calendar.DAY_OF_MONTH)
+        startHour = cal.get(Calendar.HOUR_OF_DAY)
+        startMinute = cal.get(Calendar.MINUTE)
+    }
     fun setUserType(v: Int) { userType = v }
     fun setAlgorithmUpgradeGlucoseId(v: Int) { algorithmUpgradeGlucoseId = v }
     fun setAlgorithmUpgradeGLUMG(v: IntArray?) {
         algorithmUpgradeGLUMG = v ?: IntArray(0)
+    }
+    fun setTransmitterName(v: String) {
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), 0)
+    }
+    fun setTransmitterName(v: String, voltage: Int) {
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), 0)
+        applyVoltageAlgorithm(voltage)
+    }
+    fun setTransmitterName(v: String, voltage: Int, lifeTimeDays: Int) {
+        lifeTime = lifeTimeDays
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), lifeTimeDays)
+        applyVoltageAlgorithm(voltage)
     }
 
     fun getIbs(): FloatArray = Ibs
@@ -108,6 +136,7 @@ class HistoryData {
     fun getLifeTime(): Int = lifeTime
     fun getMembrane_layers(): Float = membrane_layers
     fun getName(): String = name
+    fun getEDevice(): EDevice = mEDevice
     fun getNewBgToGlucoseIds(): IntArray = newBgToGlucoseIds
     fun getNewBgValues(): IntArray = newBgValues
     fun getProductMonth(): Int = productMonth
@@ -121,7 +150,31 @@ class HistoryData {
     fun getStartMinute(): Int = startMinute
     fun getStartMonth(): Int = startMonth
     fun getStartYear(): Int = startYear
+    fun getStartTimeMillis(): Long = startTimeMillis
     fun getUserType(): Int = userType
     fun getAlgorithmUpgradeGlucoseId(): Int = algorithmUpgradeGlucoseId
     fun getAlgorithmUpgradeGLUMG(): IntArray = algorithmUpgradeGLUMG
+
+    private fun applyDevice(device: EDevice, lifeTimeDays: Int) {
+        mEDevice = device
+        initCount = device.getInitNumber(lifeTimeDays)
+        endCount = device.getEndNumber(lifeTimeDays)
+        algorithm = device.getAlgorithm()
+    }
+
+    private fun applyVoltageAlgorithm(voltage: Int) {
+        val family = mEDevice.geteGattMessage()
+        if (family == EGattMessage.CT3 ||
+            family == EGattMessage.CT3_PLUS ||
+            family == EGattMessage.CT3_YUWELL ||
+            family == EGattMessage.CT3_ULTRASONIC ||
+            family == EGattMessage.CT4
+        ) {
+            if (algorithm == 10 && voltage == 0) {
+                algorithm = 3
+            } else if (algorithm == 3 && voltage == 1) {
+                algorithm = 10
+            }
+        }
+    }
 }

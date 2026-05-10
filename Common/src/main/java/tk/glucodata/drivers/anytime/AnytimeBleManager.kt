@@ -10,6 +10,8 @@
 //        if persisted bound flag is set: write reset
 //        else if family ∈ CT3_PLUS / CT3_YUWELL / CT3_ULTRASONIC / CT4:
 //             write transmitterFormal — handles voltage switch
+//             CT4 + QR voltage mode 1 follows the official app and skips
+//             modifyVoltage entirely, going straight to check
 //        else: write check
 //   5. RX 0x05 (check) → batt + IW + age check → write {0x03,...} setDate
 //   6. RX 0x03/0x04 (setDate ack) → write {0x06} init
@@ -20,7 +22,8 @@
 //   9. On disconnect: ReconnectManagement equivalent — exponential backoff
 //
 // Calibration:
-//   - QR scan → AnytimeAlgorithm.decodeQr → store K/R + push {0x0B,K,R} to TX
+//   - QR scan → AnytimeAlgorithm.decodeQr → store K/R; push {0x0B,K,R} only
+//     for factory calibration QRs, not GS1/UDI package labels.
 //   - Fingerstick {0x09, mmolInt, mmolFrac/10}
 //
 // Reset / unbind:
@@ -140,6 +143,7 @@ class AnytimeBleManager(
     @Volatile private var lastProtocolFrameTag: String = ""
     @Volatile private var ct4HandshakeFallbackStep: Int = 0
     @Volatile private var postVoltagePlainControlFrames: Boolean = false
+    private val rawAlgorithmWindow = java.util.TreeMap<Int, AnytimeRawRecord>()
 
     // ---- History backfill loop state ----
     @Volatile private var historyBackfillActive: Boolean = false
@@ -622,9 +626,21 @@ class AnytimeBleManager(
                 BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
             }
             Log.d(TAG, "Writing CCCD=${cccd.value.joinToHex()}")
-            runCatching { gatt.writeDescriptor(cccd) }
+            val started = runCatching { gatt.writeDescriptor(cccd) }.getOrDefault(false)
+            if (!started) {
+                Log.w(TAG, "writeDescriptor returned false; starting handshake fallback")
+                beginHandshake(gatt, "cccd-write-false")
+            } else {
+                handler.postDelayed({
+                    if (!stop && phase == Phase.DISCOVERING && mBluetoothGatt === gatt) {
+                        Log.w(TAG, "CCCD write callback timed out; starting handshake fallback")
+                        beginHandshake(gatt, "cccd-timeout")
+                    }
+                }, 750L)
+            }
         } else {
             Log.w(TAG, "Notify characteristic has no CCCD descriptor")
+            beginHandshake(gatt, "missing-cccd")
         }
     }
 
@@ -635,9 +651,16 @@ class AnytimeBleManager(
             scheduleReconnect("descriptor write failed", ACTIVE_SESSION_RECONNECT_DELAY_MS)
             return
         }
+        beginHandshake(gatt, "cccd-ok")
+    }
+
+    private fun beginHandshake(gatt: BluetoothGatt, reason: String) {
+        if (stop || mBluetoothGatt !== gatt) return
+        if (phase == Phase.STREAMING || phase == Phase.HANDSHAKING) return
         phase = Phase.HANDSHAKING
         ct4HandshakeFallbackStep = 0
         postVoltagePlainControlFrames = false
+        Log.i(TAG, "Starting Anytime handshake ($reason)")
 
         val cachedName = SerialNumber?.let { AnytimeRegistry.loadDeviceName(Applic.app, it) }.orEmpty()
         val activeName = gatt.device?.name.orEmpty()
@@ -661,6 +684,11 @@ class AnytimeBleManager(
             ) -> {
                 if (familyEntry.family == AnytimeConstants.Family.CT4 && qr == null) {
                     Log.w(TAG, "CT4 QR calibration is missing; continuing BLE handshake but glucose computation may stay unavailable")
+                }
+                if (isCt4VoltageOne()) {
+                    Log.i(TAG, "CT4 voltage mode 1 — skipping formal voltage switch and sending check")
+                    writeFrame(checkFrame(), "check(ct4-voltage1)")
+                    return
                 }
                 Log.i(TAG, "Family ${familyEntry.family} — requesting formal version first")
                 writeFrame(transmitterFormalFrame(), "transmitterFormal")
@@ -755,6 +783,11 @@ class AnytimeBleManager(
         }
         // Voltage switch: vendor firmware branches V13xx/V14xx need the QR-derived voltage mode.
         val needsVoltageSwitch = Regex("""V1[34]\d{2}""", RegexOption.IGNORE_CASE).containsMatchIn(version)
+        if (isCt4VoltageOne()) {
+            Log.i(TAG, "CT4 voltage mode 1 — skipping modifyVoltage after formal version")
+            writeFrame(checkFrame(), "check(ct4-voltage1-post-formal)")
+            return
+        }
         if (needsVoltageSwitch && qr != null) {
             voltageFlag = qr?.voltageFlag ?: voltageFlag
             writeFrame(AnytimeFrames.Builders.modifyVoltage(voltageFlag), "modifyVoltage($voltageFlag)")
@@ -762,6 +795,9 @@ class AnytimeBleManager(
             writeFrame(checkFrame(), "check")
         }
     }
+
+    private fun isCt4VoltageOne(): Boolean =
+        familyEntry.family == AnytimeConstants.Family.CT4 && ((qr?.voltageFlag ?: voltageFlag) == 1)
 
     private fun handleVoltageAck(data: ByteArray) {
         val echoed = if (data.size >= 2) data[1].toInt() and 0xFF else -1
@@ -822,7 +858,9 @@ class AnytimeBleManager(
         persistAlgorithmState()
         if (pendingKrPush) {
             pendingKrPush = false
-            qr?.let { writeFrame(inputKrFrame(it.k, it.r), "inputKR(deferred)") }
+            qr?.takeIf { it.isFactoryCalibration }?.let {
+                writeFrame(inputKrFrame(it.k, it.r), "inputKR(deferred)")
+            }
         }
         writeFrame(lowPowerFrame(), "lowPower", expectResponse = false)
         armPullFallback()
@@ -929,6 +967,12 @@ class AnytimeBleManager(
         }
         for (rec in records) {
             packetsSinceInit++
+            synchronized(rawAlgorithmWindow) {
+                rawAlgorithmWindow[rec.glucoseId] = rec
+                while (rawAlgorithmWindow.size > 128) {
+                    rawAlgorithmWindow.pollFirstEntry()
+                }
+            }
             lastIwNa = rec.iwNa
             lastIbNa = rec.ibNa
             lastTemperatureC = rec.temperatureC
@@ -950,11 +994,13 @@ class AnytimeBleManager(
                 record = rec,
                 qr = qr,
                 family = familyEntry,
-                sensorIdName = SerialNumber.orEmpty(),
+                sensorIdName = algorithmTransmitterName(context),
                 sampleTimeMs = sampleMs,
                 lastReferenceBgMgdlTimes10 = lastReferenceBgMgdlTimes10,
                 lastReferenceBgGlucoseId = lastReferenceBgGlucoseId,
                 sessionPacketsSinceInit = packetsSinceInit,
+                recentRecords = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.values.toList() },
+                sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
             )
             commitReading(result, sampleMs, context, live = push, history = !push)
             if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
@@ -984,7 +1030,7 @@ class AnytimeBleManager(
         } else {
             System.currentTimeMillis()
         }
-        val result = AnytimeAlgorithm.fromComputedRecord(rec)
+        val result = AnytimeAlgorithm.fromComputedRecord(rec, qr, familyEntry)
         commitReading(result, sampleMs, Applic.app, live = true, history = false)
         if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
         persistAlgorithmState()
@@ -1134,10 +1180,29 @@ class AnytimeBleManager(
         val mgdlTimes10 = result.mgdlTimes10.toLong() and 0xFFFFFFFFL
         val res = (alarm shl 48) or ((rateShort.toLong() and 0xFFFF) shl 32) or mgdlTimes10
         try {
-            handleGlucoseResult(res, sampleMs)
+            val raw = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
+            handleGlucoseResult(res, sampleMs, raw)
         } catch (t: Throwable) {
             Log.stack(TAG, "emitGlucose", t)
         }
+    }
+
+    private fun algorithmTransmitterName(context: Context?): String {
+        val id = SerialNumber.orEmpty()
+        val cachedName = if (context != null && id.isNotBlank()) {
+            AnytimeRegistry.loadDeviceName(context, id)
+        } else {
+            ""
+        }
+        val activeName = mBluetoothGatt?.device?.name.orEmpty()
+        val familyPrefix = familyEntry.prefix.takeUnless { it == AnytimeConstants.FAMILY_UNKNOWN.prefix }.orEmpty()
+        return listOf(cachedName, activeName, id, familyPrefix)
+            .map { it.trim() }
+            .firstOrNull { candidate ->
+                candidate.isNotBlank() &&
+                    AnytimeConstants.resolveFamily(candidate).family != AnytimeConstants.Family.UNKNOWN
+            }
+            ?: familyPrefix.ifBlank { id }
     }
 
     // ---- Frame writer ----
@@ -1174,7 +1239,12 @@ class AnytimeBleManager(
         voltageFlag = parsed.voltageFlag
         persistAlgorithmState()
         // If actively streaming, push K/R now; otherwise queue for next init.
-        if (phase == Phase.STREAMING) {
+        // GS1/UDI package labels do not contain factory K/R, so they must not
+        // be sent to the transmitter as calibration coefficients.
+        if (!parsed.isFactoryCalibration) {
+            pendingKrPush = false
+            Log.i(TAG, "QR is product/UDI metadata only; using linear fallback defaults without inputKR")
+        } else if (phase == Phase.STREAMING) {
             writeFrame(inputKrFrame(parsed.k, parsed.r), "inputKR")
         } else {
             pendingKrPush = true

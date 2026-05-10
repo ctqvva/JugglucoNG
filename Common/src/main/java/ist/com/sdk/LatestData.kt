@@ -1,5 +1,7 @@
 package ist.com.sdk
 
+import java.util.Calendar
+
 /**
  * Single-reading input to `AlgorithmTools.algorithmLatestGlucose`.
  * Mirrors the vendor SDK's POJO. Field names and `setX` setters are required
@@ -18,8 +20,10 @@ class LatestData {
     @JvmField var day: Int = 0
     @JvmField var hour: Int = 0
     @JvmField var minute: Int = 0
+    @JvmField var timeMillis: Long = 0L
     @JvmField var name: String = ""
     @JvmField var sensorInfo: String = ""
+    @JvmField var mEDevice: EDevice = EDevice.DEVICE_UNKNOWN
     @JvmField var algorithm: Int = 0
     @JvmField var lifeTime: Int = 0
     @JvmField var productMonth: Int = 0
@@ -57,6 +61,15 @@ class LatestData {
     fun setHour(v: Int) { hour = v }
     fun setMinute(v: Int) { minute = v }
     fun setName(v: String) { name = v }
+    fun setTimeMillis(v: Long) {
+        timeMillis = v
+        val cal = Calendar.getInstance().apply { timeInMillis = v }
+        year = cal.get(Calendar.YEAR)
+        month = cal.get(Calendar.MONTH) + 1
+        day = cal.get(Calendar.DAY_OF_MONTH)
+        hour = cal.get(Calendar.HOUR_OF_DAY)
+        minute = cal.get(Calendar.MINUTE)
+    }
     fun setSensorInfo(v: String) { sensorInfo = v }
     fun setAlgorithm(v: Int) { algorithm = v }
     fun setLifeTime(v: Int) { lifeTime = v }
@@ -88,6 +101,21 @@ class LatestData {
     fun setAlgorithmUpgradeGLUMG(v: IntArray?) {
         algorithmUpgradeGLUMG = v ?: IntArray(0)
     }
+    fun setTransmitterName(v: String) {
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), 0)
+    }
+    fun setTransmitterName(v: String, voltage: Int) {
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), 0)
+        applyVoltageAlgorithm(voltage)
+    }
+    fun setTransmitterName(v: String, voltage: Int, lifeTimeDays: Int) {
+        lifeTime = lifeTimeDays
+        name = v
+        applyDevice(EDevice.getEnumDevice(v), lifeTimeDays)
+        applyVoltageAlgorithm(voltage)
+    }
 
     // Getters
     fun getIb(): Float = ib
@@ -101,8 +129,10 @@ class LatestData {
     fun getDay(): Int = day
     fun getHour(): Int = hour
     fun getMinute(): Int = minute
+    fun getTimeMillis(): Long = timeMillis
     fun getName(): String = name
     fun getSensorInfo(): String = sensorInfo
+    fun getEDevice(): EDevice = mEDevice
     fun getAlgorithm(): Int = algorithm
     fun getLifeTime(): Int = lifeTime
     fun getProductMonth(): Int = productMonth
@@ -126,4 +156,27 @@ class LatestData {
     fun isCheckErrorContinuousAbnormalCurrent(): Boolean = checkErrorContinuousAbnormalCurrent
     fun getAlgorithmUpgradeGlucoseId(): Int = algorithmUpgradeGlucoseId
     fun getAlgorithmUpgradeGLUMG(): IntArray = algorithmUpgradeGLUMG
+
+    private fun applyDevice(device: EDevice, lifeTimeDays: Int) {
+        mEDevice = device
+        initCount = device.getInitNumber(lifeTimeDays)
+        endCount = device.getEndNumber(lifeTimeDays)
+        algorithm = device.getAlgorithm()
+    }
+
+    private fun applyVoltageAlgorithm(voltage: Int) {
+        val family = mEDevice.geteGattMessage()
+        if (family == EGattMessage.CT3 ||
+            family == EGattMessage.CT3_PLUS ||
+            family == EGattMessage.CT3_YUWELL ||
+            family == EGattMessage.CT3_ULTRASONIC ||
+            family == EGattMessage.CT4
+        ) {
+            if (algorithm == 10 && voltage == 0) {
+                algorithm = 3
+            } else if (algorithm == 3 && voltage == 1) {
+                algorithm = 10
+            }
+        }
+    }
 }

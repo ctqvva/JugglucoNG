@@ -215,7 +215,7 @@ class CurrentDisplaySourceTests {
     }
 
     @Test
-    fun prepareRecentPointsForCurrent_keepsHistoryRawWhenLiveRawIsOnlyFallback() {
+    fun prepareRecentPointsForCurrent_keepsFreshHistoryWhenLiveOverlaps() {
         val timestamp = 10L * 60_000L
         val recentPoints = listOf(GlucosePoint(timestamp, 101f, 82f))
         val current = CurrentGlucoseSource.Snapshot(
@@ -240,7 +240,58 @@ class CurrentDisplaySourceTests {
             collapseChunks = false
         )
 
-        assertEquals(105f, processed.last().value, 0.001f)
+        assertEquals(101f, processed.last().value, 0.001f)
         assertEquals(82f, processed.last().rawValue, 0.001f)
+    }
+
+    @Test
+    fun prepareRecentPointsForCurrent_keepsLiveRawWhenAutoRawHistoryHasOnlyAuto() {
+        val timestamp = 10L * 60_000L
+        val liveTimestamp = timestamp + 30_000L
+        val recentPoints = listOf(GlucosePoint(timestamp, 4.7f, 0f))
+        val current = CurrentGlucoseSource.Snapshot(
+            timeMillis = liveTimestamp,
+            valueText = "",
+            numericValue = 4.7f,
+            rawNumericValue = 3.5f,
+            rate = 0f,
+            sensorId = "anytime-test",
+            sensorGen = 0,
+            index = 0,
+            source = "test"
+        )
+
+        val processed = CurrentDisplaySource.prepareRecentPointsForCurrent(
+            recentPoints = recentPoints,
+            current = current,
+            historyStart = 0L,
+            viewMode = 2,
+            smoothAllData = false,
+            smoothingMinutes = 0,
+            collapseChunks = false
+        )
+
+        assertEquals(liveTimestamp, processed.last().timestamp)
+        assertEquals(4.7f, processed.last().value, 0.001f)
+        assertEquals(3.5f, processed.last().rawValue, 0.001f)
+
+        val snapshot = CurrentDisplaySource.resolveFromLive(
+            liveValueText = null,
+            liveNumericValue = 4.7f,
+            rate = 0f,
+            targetTimeMillis = liveTimestamp,
+            sensorId = "anytime-test",
+            sensorGen = 0,
+            index = 0,
+            source = "test",
+            recentPoints = processed,
+            viewMode = 2,
+            isMmol = true
+        )
+
+        requireNotNull(snapshot)
+        assertEquals(4.7f, snapshot.primaryValue, 0.001f)
+        assertEquals(3.5f, snapshot.rawValue, 0.001f)
+        requireNotNull(snapshot.secondaryStr)
     }
 }

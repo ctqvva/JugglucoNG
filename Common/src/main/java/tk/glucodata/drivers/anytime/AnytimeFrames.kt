@@ -468,27 +468,33 @@ object AnytimeFrames {
     /**
      * Parse a 0x05 check response.
      *
-     * Layout (CT3): {0x05, _ageLo, _ageHi (×0.01 = sensor-age count), _, _, _, _IW_int, _IW_frac×0.01, _, batVoltsInt, batVoltsFrac×0.01, ...}
-     * Different sub-families slightly shuffle byte 2/3 vs 9/10. We use the
-     * vendor's standard CT3 layout (`checkResponse_CT3`).
+     * Layout (CT3/CT4): battery is bytes 9/10 as int + frac*0.01. Official
+     * CT3_A/CT4 check handling only gates on battery by default; the byte 2/3
+     * current field is used only by the optional low-current variant and is
+     * big-endian /100. Bytes 6/7 are diagnostic on some firmware and can look
+     * like a 190nA current, so do not let them block the handshake.
      */
     @JvmStatic
     fun parseCheckResponse(bytes: ByteArray, lowBatteryThresholdVolts: Float): AnytimeCheckStatus {
         if (bytes.size < 12 || bytes[0] != AnytimeConstants.RX_CHECK) {
             return AnytimeCheckStatus(0, 0f, 0f, isHealthy = false, failure = AnytimeCheckStatus.CheckFailure.MALFORMED)
         }
-        val ageLo = bytes[2].toInt() and 0xFF
-        val ageHi = bytes[3].toInt() and 0xFF
-        val sensorAge = (ageLo or (ageHi shl 8))
-        val iwInt = bytes[6].toInt() and 0xFF
-        val iwFrac = bytes[7].toInt() and 0xFF
-        val iw = iwInt + iwFrac / 100f
+        val field23 = (((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF))
+        val sensorAge = field23
+        val checkCurrent = field23 / 100f
+        val diagInt = bytes[6].toInt() and 0xFF
+        val diagFrac = bytes[7].toInt() and 0xFF
+        val diagCurrent = diagInt + diagFrac / 100f
+        val iw = when {
+            diagCurrent in 0.5f..80f -> diagCurrent
+            checkCurrent in 0.5f..80f -> checkCurrent
+            else -> 0f
+        }
         val batVoltsInt = bytes[9].toInt() and 0xFF
         val batVoltsFrac = bytes[10].toInt() and 0xFF
         val volts = batVoltsInt + batVoltsFrac / 100f
         val failure = when {
             volts > 0f && volts < lowBatteryThresholdVolts -> AnytimeCheckStatus.CheckFailure.LOW_BATTERY
-            iw < 0.5f -> AnytimeCheckStatus.CheckFailure.LOW_IW
             else -> null
         }
         return AnytimeCheckStatus(
