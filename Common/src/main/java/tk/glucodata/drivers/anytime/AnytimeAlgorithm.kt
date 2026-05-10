@@ -30,6 +30,7 @@ import tk.glucodata.Log
 object AnytimeAlgorithm {
 
     private const val TAG = AnytimeConstants.TAG
+    private const val LEGACY_WARMUP_RECORDS = 20
     @Volatile private var officialLatestMissing: Boolean = false
     @Volatile private var officialHistoryMissing: Boolean = false
     @Volatile private var legacyAlgorithmMissing: Boolean = false
@@ -167,12 +168,14 @@ object AnytimeAlgorithm {
                 rawMgdl = linear.rawMgdl,
             )?.let { mapped ->
                 if (isNativeResultUsable(mapped)) return mapped
-                Log.w(
-                    TAG,
-                    "legacy native algorithm returned invalid result: id=${mapped.glucoseId} " +
-                            "mmol=${mapped.mmol} mgdl=${mapped.mgdl} trend=${mapped.trend} " +
-                            "err=${mapped.errorCode}; using linear fallback"
-                )
+                val msg = "legacy native algorithm returned invalid result: id=${mapped.glucoseId} " +
+                        "mmol=${mapped.mmol} mgdl=${mapped.mgdl} trend=${mapped.trend} " +
+                        "err=${mapped.errorCode}; using linear fallback"
+                if (mapped.glucoseId < LEGACY_WARMUP_RECORDS) {
+                    Log.d(TAG, msg)
+                } else {
+                    Log.w(TAG, msg)
+                }
             }
         } else if (isNativeAvailable && qr != null) {
             Log.w(
@@ -291,42 +294,42 @@ object AnytimeAlgorithm {
         if (legacyAlgorithmMissing) return null
         if (window.isEmpty()) return null
         return runCatching {
-                val eventIds: IntArray?
-                val bgValues: IntArray?
-                if (lastReferenceBgGlucoseId > 0 && lastReferenceBgMgdlTimes10 > 0) {
-                    eventIds = intArrayOf(lastReferenceBgGlucoseId)
-                    bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
-                } else {
-                    eventIds = null
-                    bgValues = null
-                }
-                val input = DataInput(
-                    glucoseId = record.glucoseId,
-                    Iws = window.map { it.iwNa }.toFloatArray(),
-                    Ibs = window.map { it.ibNa }.toFloatArray(),
-                    Ts = window.map { it.temperatureC }.toFloatArray(),
-                    eventIds = eventIds,
-                    BGMGs = bgValues,
-                    K0 = calibration.k,
-                    R = calibration.r,
-                    startTimeMillis = sensorStartTimeMs.takeIf { it > 0L } ?: sampleTimeMs,
-                    transmitterName = sensorIdName,
-                ).apply {
-                    setAlgorithm(nativeAlgorithm(family, calibration.voltageFlag))
-                    setWarmup_time(20)
-                    setLife_time(family.endNumber)
-                }
-                val out: DataOutput? = AlgorithmTools.getInstance().algorithm(input)
-                out?.let { mapLegacyNative(record, it, rawMgdl) }
-            }.getOrElse { t ->
-                if (t is UnsatisfiedLinkError) {
-                    legacyAlgorithmMissing = true
-                    Log.d(TAG, "legacy native algorithm unavailable: ${t.message}")
-                } else {
-                    Log.w(TAG, "legacy native algorithm failed: ${t.message}")
-                }
-                null
+            val eventIds: IntArray?
+            val bgValues: IntArray?
+            if (lastReferenceBgGlucoseId > 0 && lastReferenceBgMgdlTimes10 > 0) {
+                eventIds = intArrayOf(lastReferenceBgGlucoseId)
+                bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
+            } else {
+                eventIds = null
+                bgValues = null
             }
+            val input = DataInput(
+                glucoseId = record.glucoseId,
+                Iws = window.map { it.iwNa }.toFloatArray(),
+                Ibs = window.map { it.ibNa }.toFloatArray(),
+                Ts = window.map { it.temperatureC }.toFloatArray(),
+                eventIds = eventIds,
+                BGMGs = bgValues,
+                K0 = calibration.k,
+                R = calibration.r,
+                startTimeMillis = sensorStartTimeMs.takeIf { it > 0L } ?: sampleTimeMs,
+                transmitterName = sensorIdName,
+            ).apply {
+                setAlgorithm(nativeAlgorithm(family, calibration.voltageFlag))
+                setWarmup_time(20)
+                setLife_time(family.endNumber)
+            }
+            val out: DataOutput? = AlgorithmTools.getInstance().algorithm(input)
+            out?.let { mapLegacyNative(record, it, rawMgdl) }
+        }.getOrElse { t ->
+            if (t is UnsatisfiedLinkError) {
+                legacyAlgorithmMissing = true
+                Log.d(TAG, "legacy native algorithm unavailable: ${t.message}")
+            } else {
+                Log.w(TAG, "legacy native algorithm failed: ${t.message}")
+            }
+            null
+        }
     }
 
     private fun contiguousHistoryThrough(

@@ -75,7 +75,7 @@ class AnytimeBleManager(
         private const val PULL_FALLBACK_MULTIPLIER = 3L
 
         /** Backfill loop: gap between consecutive pulls when records keep arriving. */
-        private const val HISTORY_PULL_BATCH_DELAY_MS = 500L
+        private const val HISTORY_PULL_BATCH_DELAY_MS = 75L
 
         /** How many empty pull responses in a row count as "caught up". */
         private const val HISTORY_EMPTY_RESPONSES_TO_STOP = 2
@@ -88,6 +88,9 @@ class AnytimeBleManager(
 
         /** Avoid duplicate Room rows when the same point arrives through live/backfill/native refresh. */
         private const val ROOM_HISTORY_NEAR_DUPLICATE_MS = 90_000L
+
+        /** Legacy Yuwell JNI returns 0 until it has enough warmup history. */
+        private const val NATIVE_HISTORY_WARMUP_RECORDS = 20
 
         /** Check-frame age counter is seconds for CT4/Anytime v3 traces. */
         private const val SENSOR_AGE_COUNTER_TO_MS = 1_000L
@@ -148,6 +151,9 @@ class AnytimeBleManager(
     private val rawAlgorithmWindow = java.util.TreeMap<Int, AnytimeRawRecord>()
     private val pendingNativeRecomputeIds = java.util.TreeSet<Int>()
 
+    /** True only when this process restored an existing Anytime session cache. */
+    @Volatile private var restoredGlucoseState: Boolean = false
+
     // ---- History backfill loop state ----
     @Volatile private var historyBackfillActive: Boolean = false
     @Volatile private var historyEmptyResponsesInARow: Int = 0
@@ -182,6 +188,7 @@ class AnytimeBleManager(
             rawAlgorithmWindow.clear()
             rawHistory.forEach { rawAlgorithmWindow[it.glucoseId] = it }
         }
+        restoredGlucoseState = lastGlucoseId >= 0 || rawHistory.isNotEmpty()
     }
 
     private fun synthesiseQr(raw: String, k: Float, r: Float): AnytimeQrCalibration =
@@ -336,6 +343,13 @@ class AnytimeBleManager(
                     "(lastId=$lastGlucoseId cached=${synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.size }})"
         )
         return firstMissing
+    }
+
+    private fun postInitBackfillStartId(): Int {
+        if (!restoredGlucoseState) return 0
+        val startId = reconnectBackfillStartId()
+        Log.i(TAG, "Restored Anytime state; post-init backfill will resume from id=$startId instead of replaying from zero")
+        return startId
     }
 
     private fun hasContiguousRawHistoryThrough(targetId: Int): Boolean {
@@ -911,7 +925,7 @@ class AnytimeBleManager(
         // Pull any history we missed after low-power is written. Starting too
         // early can leave CT4 ignoring the first pull and wedging the backfill
         // cursor in-flight forever.
-        handler.postDelayed({ startHistoryBackfill("post-init", fromId = 0) }, 750L)
+        handler.postDelayed({ startHistoryBackfill("post-init", fromId = postInitBackfillStartId()) }, 750L)
         UiRefreshBus.requestStatusRefresh()
     }
 
@@ -1065,7 +1079,12 @@ class AnytimeBleManager(
         synchronized(pendingNativeRecomputeIds) {
             if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) {
                 pendingNativeRecomputeIds.remove(result.glucoseId)
-            } else if (result.source == AnytimeAlgorithm.Source.LINEAR) {
+            } else if (result.source == AnytimeAlgorithm.Source.LINEAR &&
+                result.glucoseId >= NATIVE_HISTORY_WARMUP_RECORDS
+            ) {
+                // The legacy Yuwell JNI returns 0 for the initial warmup records.
+                // Do not enqueue those ids for repeated recomputation; otherwise
+                // each later backfill point replays id=0..18 and floods the log.
                 pendingNativeRecomputeIds.add(result.glucoseId)
             }
         }
@@ -1100,7 +1119,13 @@ class AnytimeBleManager(
                 recentRecords = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.values.toList() },
                 sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
             )
-            if (result.source != AnytimeAlgorithm.Source.NATIVE || result.errorCode != 0) continue
+            if (result.source != AnytimeAlgorithm.Source.NATIVE || result.errorCode != 0) {
+                // Future records do not change the input prefix used for this id;
+                // retrying it on every new backfill point only creates quadratic
+                // legacy-native warning spam.
+                synchronized(pendingNativeRecomputeIds) { pendingNativeRecomputeIds.remove(id) }
+                continue
+            }
             Log.i(TAG, "Replacing pending linear Anytime point id=$id with native algorithm output")
             commitReading(result, sampleMs, context, live = id == lastGlucoseId || sampleMs >= lastGlucoseAtMs, history = true)
             synchronized(pendingNativeRecomputeIds) { pendingNativeRecomputeIds.remove(id) }
@@ -1295,7 +1320,7 @@ class AnytimeBleManager(
             .map { it.trim() }
             .firstOrNull { candidate ->
                 candidate.isNotBlank() &&
-                    AnytimeConstants.resolveFamily(candidate).family != AnytimeConstants.Family.UNKNOWN
+                        AnytimeConstants.resolveFamily(candidate).family != AnytimeConstants.Family.UNKNOWN
             }
             ?: familyPrefix.ifBlank { id }
     }
