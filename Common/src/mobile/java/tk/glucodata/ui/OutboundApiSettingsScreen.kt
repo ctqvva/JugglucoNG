@@ -80,6 +80,8 @@ import androidx.navigation.NavController
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
+import tk.glucodata.Applic
 import tk.glucodata.OutboundApi
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
@@ -523,20 +525,18 @@ private fun DestinationEditor(
         )
     )
 
-    if (isCustom) {
-        OutlinedTextField(
-            value = destination.headers,
-            onValueChange = { onChange(destination.copy(headers = it)) },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            label = { Text(stringResource(R.string.outbound_api_headers)) },
-            placeholder = { Text(stringResource(R.string.outbound_api_headers_placeholder)) },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Default
-            )
+    OutlinedTextField(
+        value = destination.headers,
+        onValueChange = { onChange(destination.copy(headers = it)) },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = if (isCustom) 3 else 1,
+        label = { Text(stringResource(R.string.outbound_api_headers)) },
+        placeholder = { Text(stringResource(R.string.outbound_api_headers_placeholder)) },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Default
         )
-    }
+    )
 
     if (isVk) {
         OutlinedTextField(
@@ -567,6 +567,7 @@ private fun DestinationEditor(
             imeAction = ImeAction.Next
         )
     )
+    TriggerPicker(destination = destination, onChange = onChange)
     TemplateEditor(destination = destination, onChange = onChange)
 }
 
@@ -599,6 +600,163 @@ private fun PresetSummaryRow(
             TextButton(onClick = onChangePreset) {
                 Text(stringResource(R.string.outbound_api_change_preset))
             }
+        }
+    }
+}
+
+@Composable
+private fun TriggerPicker(
+    destination: OutboundApiSettings.Destination,
+    onChange: (OutboundApiSettings.Destination) -> Unit
+) {
+    var showSheet by rememberSaveable(destination.id) { mutableStateOf(false) }
+    if (showSheet) {
+        TriggerEditorSheet(
+            destination = destination,
+            onDismiss = { showSheet = false },
+            onChange = onChange
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.outbound_api_trigger),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = triggerSummary(destination),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        TextButton(onClick = { showSheet = true }) {
+            Text(stringResource(R.string.outbound_api_change_trigger))
+        }
+    }
+}
+
+@Composable
+private fun TriggerEditorSheet(
+    destination: OutboundApiSettings.Destination,
+    onDismiss: () -> Unit,
+    onChange: (OutboundApiSettings.Destination) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var lowText by rememberSaveable(destination.id) {
+        mutableStateOf(formatThreshold(destination.triggerLowMgdl))
+    }
+    var highText by rememberSaveable(destination.id) {
+        mutableStateOf(formatThreshold(destination.triggerHighMgdl))
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.outbound_api_trigger),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
+            triggerModes().forEach { (mode, titleRes, descRes) ->
+                TriggerModeRow(
+                    title = stringResource(titleRes),
+                    description = stringResource(descRes),
+                    selected = destination.normalizedTriggerMode() == mode,
+                    onClick = { onChange(destination.copy(triggerMode = mode)) }
+                )
+            }
+            OutlinedTextField(
+                value = lowText,
+                onValueChange = { raw ->
+                    lowText = raw.filterThresholdInput()
+                    parseThreshold(lowText, destination.triggerLowMgdl)?.let { threshold ->
+                        onChange(destination.copy(triggerLowMgdl = threshold))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.outbound_api_trigger_low_threshold,
+                            thresholdUnitLabel()
+                        )
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                )
+            )
+            OutlinedTextField(
+                value = highText,
+                onValueChange = { raw ->
+                    highText = raw.filterThresholdInput()
+                    parseThreshold(highText, destination.triggerHighMgdl)?.let { threshold ->
+                        onChange(destination.copy(triggerHighMgdl = threshold))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.outbound_api_trigger_high_threshold,
+                            thresholdUnitLabel()
+                        )
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun TriggerModeRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = cardShape(CardPosition.SINGLE, radius = 12.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
         }
     }
 }
@@ -841,6 +999,74 @@ private fun presetTitle(preset: String): Int =
         else -> R.string.outbound_api_preset_custom_json
     }
 
+private fun triggerModes(): List<Triple<String, Int, Int>> =
+    listOf(
+        Triple(
+            OutboundApiSettings.TRIGGER_ALWAYS,
+            R.string.outbound_api_trigger_always,
+            R.string.outbound_api_trigger_always_desc
+        ),
+        Triple(
+            OutboundApiSettings.TRIGGER_AT_OR_BELOW,
+            R.string.outbound_api_trigger_at_or_below,
+            R.string.outbound_api_trigger_at_or_below_desc
+        ),
+        Triple(
+            OutboundApiSettings.TRIGGER_AT_OR_ABOVE,
+            R.string.outbound_api_trigger_at_or_above,
+            R.string.outbound_api_trigger_at_or_above_desc
+        ),
+        Triple(
+            OutboundApiSettings.TRIGGER_OUTSIDE_RANGE,
+            R.string.outbound_api_trigger_outside_range,
+            R.string.outbound_api_trigger_outside_range_desc
+        )
+    )
+
+@Composable
+private fun triggerSummary(destination: OutboundApiSettings.Destination): String {
+    val unit = thresholdUnitLabel()
+    val low = formatThreshold(destination.triggerLowMgdl)
+    val high = formatThreshold(destination.triggerHighMgdl)
+    return when (destination.normalizedTriggerMode()) {
+        OutboundApiSettings.TRIGGER_AT_OR_BELOW ->
+            stringResource(R.string.outbound_api_trigger_summary_low, low, unit)
+        OutboundApiSettings.TRIGGER_AT_OR_ABOVE ->
+            stringResource(R.string.outbound_api_trigger_summary_high, high, unit)
+        OutboundApiSettings.TRIGGER_OUTSIDE_RANGE ->
+            stringResource(R.string.outbound_api_trigger_summary_range, low, high, unit)
+        else -> stringResource(R.string.outbound_api_trigger_summary_always)
+    }
+}
+
+private fun thresholdUnitLabel(): String =
+    if (Applic.unit == 1) "mmol/L" else "mg/dL"
+
+private fun formatThreshold(mgdl: Int): String =
+    if (Applic.unit == 1) {
+        String.format(Locale.US, "%.1f", mgdl / MGDL_PER_MMOLL)
+    } else {
+        mgdl.coerceAtLeast(1).toString()
+    }
+
+private fun parseThreshold(raw: String, fallbackMgdl: Int): Int? {
+    val normalized = raw.replace(',', '.').trim()
+    if (normalized.isBlank()) return null
+    val value = normalized.toFloatOrNull() ?: return null
+    if (!value.isFinite() || value <= 0f) return null
+    val mgdl = if (Applic.unit == 1) {
+        (value * MGDL_PER_MMOLL).roundToInt()
+    } else {
+        value.roundToInt()
+    }
+    return mgdl.coerceIn(1, 600).takeIf { it != fallbackMgdl } ?: mgdl.coerceIn(1, 600)
+}
+
+private fun String.filterThresholdInput(): String =
+    filter { it.isDigit() || it == '.' || it == ',' }
+
+private const val MGDL_PER_MMOLL = 18.0182f
+
 private val templateTokens = listOf(
     "{value}",
     "{unit}",
@@ -848,11 +1074,16 @@ private val templateTokens = listOf(
     "{time}",
     "{mgdl}",
     "{mmol}",
+    "{raw}",
+    "{raw_mgdl}",
+    "{raw_mmol}",
     "{rate_mgdl}",
     "{rate_mmol}",
     "{timestamp}",
     "{sensor}",
     "{recipient}",
     "{iob}",
-    "{cob}"
+    "{journal_iob}",
+    "{cob}",
+    "{journal}"
 )

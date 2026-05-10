@@ -28,6 +28,9 @@ object OutboundApiSettings {
     private const val KEY_HEADERS = "headers"
     private const val KEY_MESSAGE_TEMPLATE = "message_template"
     private const val KEY_MIN_INTERVAL_MINUTES = "min_interval_minutes"
+    private const val KEY_TRIGGER_MODE = "trigger_mode"
+    private const val KEY_TRIGGER_LOW_MGDL = "trigger_low_mgdl"
+    private const val KEY_TRIGGER_HIGH_MGDL = "trigger_high_mgdl"
     private const val KEY_LAST_QUEUED_EVENT_ID = "last_queued_event_id"
     private const val KEY_LAST_QUEUED_AT_MS = "last_queued_at_ms"
     private const val KEY_LAST_ATTEMPT_AT_MS = "last_attempt_at_ms"
@@ -39,12 +42,18 @@ object OutboundApiSettings {
     const val DEFAULT_MIN_INTERVAL_MINUTES = 5
     const val DEFAULT_CUSTOM_URL = ""
     const val DEFAULT_VK_URL = "https://api.vk.com/method/messages.send"
+    const val TRIGGER_ALWAYS = "always"
+    const val TRIGGER_AT_OR_BELOW = "at_or_below"
+    const val TRIGGER_AT_OR_ABOVE = "at_or_above"
+    const val TRIGGER_OUTSIDE_RANGE = "outside_range"
+    const val DEFAULT_TRIGGER_LOW_MGDL = 70
+    const val DEFAULT_TRIGGER_HIGH_MGDL = 180
     const val DEFAULT_CUSTOM_TEMPLATE =
-        "{value} {unit} {trend_arrow} ({rate_mgdl} mg/dL/min) {time}"
+        "{value} {unit} {trend_arrow} RAW:{raw} ({rate_mgdl} mg/dL/min) IOB:{iob} COB:{cob} {time}"
     const val DEFAULT_CHAT_TEMPLATE =
         "{value} {unit} {trend_arrow} {time}"
     const val DEFAULT_GLUCO_WATCH_TEMPLATE =
-        "GV:{mmol}|TR:{trend_arrow}|AL:{alarm}|RT:{rate_mmol}|IOB:{iob}|COB:{cob}|TS:{timestamp}"
+        "GV:{mmol}|RAW:{raw}|TR:{trend_arrow}|AL:{alarm}|RT:{rate_mmol}|IOB:{iob}|COB:{cob}|TS:{timestamp}"
 
     data class Config(
         val enabled: Boolean,
@@ -69,6 +78,9 @@ object OutboundApiSettings {
         val headers: String,
         val messageTemplate: String,
         val minIntervalMinutes: Int,
+        val triggerMode: String,
+        val triggerLowMgdl: Int,
+        val triggerHighMgdl: Int,
         val lastQueuedEventId: String,
         val lastQueuedAtMs: Long,
         val lastAttemptAtMs: Long,
@@ -78,12 +90,19 @@ object OutboundApiSettings {
     ) {
         fun normalizedPreset(): String = normalizePreset(preset)
 
+        fun normalizedTriggerMode(): String = normalizeTriggerMode(triggerMode)
+
         fun resolvedUrl(): String {
             val trimmed = url.trim()
-            if (trimmed.isNotEmpty()) {
-                return trimmed.replace("{token}", token.trim())
+            val replacementToken = if (normalizedPreset() == PRESET_TELEGRAM_BOT) {
+                token.trim().removePrefix("bot")
+            } else {
+                token.trim()
             }
-            return defaultUrl(normalizedPreset(), token).replace("{token}", token.trim())
+            if (trimmed.isNotEmpty()) {
+                return trimmed.replace("{token}", replacementToken)
+            }
+            return defaultUrl(normalizedPreset(), token).replace("{token}", replacementToken)
         }
 
         fun resolvedTemplate(): String {
@@ -116,6 +135,18 @@ object OutboundApiSettings {
                 PRESET_GLUCO_WATCH_VK,
                 PRESET_VK_MESSAGES -> token.isNotBlank() && recipients().isNotEmpty() &&
                     recipients().all(::isVkRecipient)
+                else -> true
+            }
+        }
+
+        fun shouldSendForGlucose(mgdl: Int): Boolean {
+            if (mgdl <= 0) return false
+            val low = triggerLowMgdl.coerceIn(1, 600)
+            val high = triggerHighMgdl.coerceIn(1, 600)
+            return when (normalizedTriggerMode()) {
+                TRIGGER_AT_OR_BELOW -> mgdl <= low
+                TRIGGER_AT_OR_ABOVE -> mgdl >= high
+                TRIGGER_OUTSIDE_RANGE -> mgdl <= low || mgdl >= high
                 else -> true
             }
         }
@@ -190,6 +221,9 @@ object OutboundApiSettings {
             headers = "",
             messageTemplate = defaultTemplate(normalized),
             minIntervalMinutes = DEFAULT_MIN_INTERVAL_MINUTES,
+            triggerMode = TRIGGER_ALWAYS,
+            triggerLowMgdl = DEFAULT_TRIGGER_LOW_MGDL,
+            triggerHighMgdl = DEFAULT_TRIGGER_HIGH_MGDL,
             lastQueuedEventId = "",
             lastQueuedAtMs = 0L,
             lastAttemptAtMs = 0L,
@@ -306,6 +340,13 @@ object OutboundApiSettings {
                         KEY_MIN_INTERVAL_MINUTES,
                         DEFAULT_MIN_INTERVAL_MINUTES
                     ).coerceAtLeast(0),
+                    triggerMode = normalizeTriggerMode(
+                        prefs.getString(KEY_TRIGGER_MODE, TRIGGER_ALWAYS).orEmpty()
+                    ),
+                    triggerLowMgdl = prefs.getInt(KEY_TRIGGER_LOW_MGDL, DEFAULT_TRIGGER_LOW_MGDL)
+                        .coerceIn(1, 600),
+                    triggerHighMgdl = prefs.getInt(KEY_TRIGGER_HIGH_MGDL, DEFAULT_TRIGGER_HIGH_MGDL)
+                        .coerceIn(1, 600),
                     lastQueuedEventId = prefs.getString(KEY_LAST_QUEUED_EVENT_ID, "").orEmpty(),
                     lastQueuedAtMs = prefs.getLong(KEY_LAST_QUEUED_AT_MS, 0L),
                     lastAttemptAtMs = prefs.getLong(KEY_LAST_ATTEMPT_AT_MS, 0L),
@@ -323,6 +364,14 @@ object OutboundApiSettings {
             PRESET_GLUCO_WATCH_VK,
             PRESET_VK_MESSAGES -> preset
             else -> PRESET_CUSTOM_JSON
+        }
+
+    fun normalizeTriggerMode(mode: String): String =
+        when (mode) {
+            TRIGGER_AT_OR_BELOW,
+            TRIGGER_AT_OR_ABOVE,
+            TRIGGER_OUTSIDE_RANGE -> mode
+            else -> TRIGGER_ALWAYS
         }
 
     private fun isTelegramRecipient(recipient: String): Boolean =
@@ -348,6 +397,9 @@ object OutboundApiSettings {
                         .put("headers", destination.headers)
                         .put("messageTemplate", destination.messageTemplate)
                         .put("minIntervalMinutes", destination.minIntervalMinutes)
+                        .put("triggerMode", destination.normalizedTriggerMode())
+                        .put("triggerLowMgdl", destination.triggerLowMgdl)
+                        .put("triggerHighMgdl", destination.triggerHighMgdl)
                         .put("lastQueuedEventId", destination.lastQueuedEventId)
                         .put("lastQueuedAtMs", destination.lastQueuedAtMs)
                         .put("lastAttemptAtMs", destination.lastAttemptAtMs)
@@ -380,6 +432,9 @@ object OutboundApiSettings {
                     "minIntervalMinutes",
                     DEFAULT_MIN_INTERVAL_MINUTES
                 ).coerceAtLeast(0),
+                triggerMode = normalizeTriggerMode(item.optString("triggerMode", TRIGGER_ALWAYS)),
+                triggerLowMgdl = item.optInt("triggerLowMgdl", DEFAULT_TRIGGER_LOW_MGDL).coerceIn(1, 600),
+                triggerHighMgdl = item.optInt("triggerHighMgdl", DEFAULT_TRIGGER_HIGH_MGDL).coerceIn(1, 600),
                 lastQueuedEventId = item.optString("lastQueuedEventId", ""),
                 lastQueuedAtMs = item.optLong("lastQueuedAtMs", 0L),
                 lastAttemptAtMs = item.optLong("lastAttemptAtMs", 0L),

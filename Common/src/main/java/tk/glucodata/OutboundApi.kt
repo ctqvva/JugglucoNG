@@ -20,6 +20,8 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import tk.glucodata.drivers.ManagedSensorRuntime
+import tk.glucodata.drivers.ManagedSensorUiFamily
 
 @Keep
 object OutboundApi {
@@ -37,6 +39,7 @@ object OutboundApi {
     private const val IN_PRIMARY_TEXT = "primary_text"
     private const val IN_DISPLAY_VALUE = "display_value"
     private const val IN_MGDL = "mgdl"
+    private const val IN_RAW_VALUE = "raw_value"
     private const val IN_RATE = "rate"
     private const val IN_TIME_MILLIS = "time_millis"
     private const val IN_SENSOR_GEN = "sensor_gen"
@@ -54,12 +57,38 @@ object OutboundApi {
         sensorGen: Int,
         alarm: Int
     ) {
+        enqueueGlucose(
+            sensorId = sensorId,
+            primaryText = primaryText,
+            primaryDisplayValue = primaryDisplayValue,
+            primaryMgdl = primaryMgdl,
+            rate = rate,
+            timeMillis = timeMillis,
+            sensorGen = sensorGen,
+            rawValue = Float.NaN,
+            alarm = alarm
+        )
+    }
+
+    @JvmStatic
+    fun enqueueGlucose(
+        sensorId: String?,
+        primaryText: String?,
+        primaryDisplayValue: Double,
+        primaryMgdl: Int,
+        rate: Float,
+        timeMillis: Long,
+        sensorGen: Int,
+        rawValue: Float,
+        alarm: Int
+    ) {
         enqueueGlucoseInternal(
             context = Applic.app,
             sensorId = sensorId,
             primaryText = primaryText,
             primaryDisplayValue = primaryDisplayValue,
             primaryMgdl = primaryMgdl,
+            rawValue = rawValue,
             rate = rate,
             timeMillis = timeMillis,
             sensorGen = sensorGen,
@@ -84,6 +113,7 @@ object OutboundApi {
             primaryText = current.primaryStr,
             primaryDisplayValue = current.primaryValue.toDouble(),
             primaryMgdl = current.sharedMgdl,
+            rawValue = current.rawValue,
             rate = current.rate,
             timeMillis = current.timeMillis,
             sensorGen = current.sensorGen,
@@ -100,6 +130,7 @@ object OutboundApi {
         primaryText: String?,
         primaryDisplayValue: Double,
         primaryMgdl: Int,
+        rawValue: Float,
         rate: Float,
         timeMillis: Long,
         sensorGen: Int,
@@ -118,6 +149,9 @@ object OutboundApi {
         }
         val now = System.currentTimeMillis()
         resolveDestinations(config, destinationId).forEach { destination ->
+            if (!test && !destination.shouldSendForGlucose(primaryMgdl)) {
+                return@forEach
+            }
             if (!test && !OutboundApiSettings.shouldQueue(appContext, destination, eventId, now)) {
                 return@forEach
             }
@@ -129,6 +163,7 @@ object OutboundApi {
                 primaryText = primaryText,
                 primaryDisplayValue = primaryDisplayValue,
                 primaryMgdl = primaryMgdl,
+                rawValue = rawValue,
                 rate = rate,
                 timeMillis = timeMillis,
                 sensorGen = sensorGen,
@@ -159,6 +194,7 @@ object OutboundApi {
         primaryText: String?,
         primaryDisplayValue: Double,
         primaryMgdl: Int,
+        rawValue: Float,
         rate: Float,
         timeMillis: Long,
         sensorGen: Int,
@@ -180,6 +216,7 @@ object OutboundApi {
                 .putString(IN_PRIMARY_TEXT, primaryText.orEmpty())
                 .putDouble(IN_DISPLAY_VALUE, primaryDisplayValue)
                 .putInt(IN_MGDL, primaryMgdl)
+                .putFloat(IN_RAW_VALUE, rawValue)
                 .putFloat(IN_RATE, rate)
                 .putLong(IN_TIME_MILLIS, timeMillis)
                 .putInt(IN_SENSOR_GEN, sensorGen)
@@ -214,6 +251,7 @@ object OutboundApi {
             primaryText = input.getString(IN_PRIMARY_TEXT).orEmpty(),
             displayValue = displayValue,
             mgdl = mgdl,
+            rawValue = input.getFloat(IN_RAW_VALUE, Float.NaN),
             rateMgdlPerMinute = input.getFloat(IN_RATE, Float.NaN),
             timeMillis = timeMillis,
             sensorGen = input.getInt(IN_SENSOR_GEN, 0),
@@ -229,6 +267,7 @@ object OutboundApi {
         val primaryText: String,
         val displayValue: Double,
         val mgdl: Int,
+        val rawValue: Float,
         val rateMgdlPerMinute: Float,
         val timeMillis: Long,
         val sensorGen: Int,
@@ -237,15 +276,37 @@ object OutboundApi {
     ) {
         val unit: String get() = if (Applic.unit == 1) "mmol/L" else "mg/dL"
         val mmol: Float get() = mgdl / MGDL_PER_MMOLL
+        val rawGlucoseMgdl: Float
+            get() = rawValue.takeIf { rawValueLooksGlucoseScaled(sensorId, it) }
+                ?.let { if (Applic.unit == 1) it * MGDL_PER_MMOLL else it }
+                ?: Float.NaN
+        val rawGlucoseMmol: Float get() = rawGlucoseMgdl / MGDL_PER_MMOLL
         val rateMmolPerMinute: Float get() = rateMgdlPerMinute / MGDL_PER_MMOLL
         val trendName: String get() = Natives.getxDripTrendName(rateMgdlPerMinute) ?: ""
         val trendArrow: String get() = trendArrow(trendName)
         val iob: Float get() = runCatching { Natives.getIOBvalue(timeMillis) }.getOrDefault(Float.NaN)
+        val journal: JournalSnapshot get() = loadJournalSnapshot(timeMillis)
         val displayText: String
             get() = primaryText.ifBlank {
                 if (Applic.unit == 1) formatNumber(mmol, 1) else mgdl.toString()
             }
+        val rawDisplayText: String
+            get() {
+                if (!rawValue.isFinite() || rawValue <= 0f) return ""
+                val decimals = when {
+                    rawValue < 20f -> 2
+                    rawValue < 100f -> 1
+                    else -> 0
+                }
+                return formatNumber(rawValue, decimals)
+            }
     }
+
+    internal data class JournalSnapshot(
+        val iob: Float = Float.NaN,
+        val cob: Float = Float.NaN,
+        val json: JSONObject? = null
+    )
 
     internal fun renderMessage(template: String, reading: Reading): String {
         val time = DateFormat.getDateTimeInstance(
@@ -253,6 +314,16 @@ object OutboundApi {
             DateFormat.SHORT,
             Locale.getDefault()
         ).format(Date(reading.timeMillis))
+        val journal = if (
+            template.contains("{journal") ||
+            template.contains("{iob}") ||
+            template.contains("{cob}")
+        ) {
+            reading.journal
+        } else {
+            JournalSnapshot()
+        }
+        val effectiveIob = journal.iob.takeIf { it.isFinite() } ?: reading.iob
         return template
             .replace("{event_id}", reading.eventId)
             .replace("{recipient}", reading.recipient)
@@ -260,6 +331,17 @@ object OutboundApi {
             .replace("{unit}", reading.unit)
             .replace("{mgdl}", reading.mgdl.toString())
             .replace("{mmol}", formatNumber(reading.mmol, 2))
+            .replace("{raw}", reading.rawDisplayText)
+            .replace("{raw_mgdl}", if (reading.rawGlucoseMgdl.isFinite() && reading.rawGlucoseMgdl > 0f) {
+                formatNumber(reading.rawGlucoseMgdl, 0)
+            } else {
+                ""
+            })
+            .replace("{raw_mmol}", if (reading.rawGlucoseMgdl.isFinite() && reading.rawGlucoseMgdl > 0f) {
+                formatNumber(reading.rawGlucoseMmol, 2)
+            } else {
+                ""
+            })
             .replace("{trend}", reading.trendName)
             .replace("{trend_arrow}", reading.trendArrow)
             .replace("{rate_mgdl}", formatNumber(reading.rateMgdlPerMinute, 1))
@@ -269,14 +351,45 @@ object OutboundApi {
             .replace("{sensor}", reading.sensorId)
             .replace("{sensor_gen}", reading.sensorGen.toString())
             .replace("{alarm}", reading.alarm.toString())
-            .replace("{iob}", if (reading.iob.isFinite()) formatNumber(reading.iob, 2) else "0")
-            .replace("{cob}", "0")
+            .replace("{iob}", if (effectiveIob.isFinite()) formatNumber(effectiveIob, 2) else "0")
+            .replace("{journal_iob}", if (journal.iob.isFinite()) formatNumber(journal.iob, 2) else "0")
+            .replace("{cob}", if (journal.cob.isFinite()) formatNumber(journal.cob, 1) else "0")
+            .replace("{journal}", journal.json?.toString().orEmpty())
             .replace("{test}", reading.test.toString())
     }
 
     internal fun formatNumber(value: Float, decimals: Int): String {
         if (!value.isFinite()) return ""
         return "%.${decimals}f".format(Locale.US, value)
+    }
+
+    private fun rawValueLooksGlucoseScaled(sensorId: String?, rawValue: Float): Boolean {
+        if (!rawValue.isFinite() || rawValue <= 0f) return false
+        val family = runCatching {
+            ManagedSensorRuntime.resolveUiSnapshot(sensorId, sensorId)?.uiFamily
+        }.getOrNull()
+        if (family == ManagedSensorUiFamily.MQ || family == ManagedSensorUiFamily.ANYTIME) {
+            return false
+        }
+        val asMgdl = if (Applic.unit == 1) rawValue * MGDL_PER_MMOLL else rawValue
+        return asMgdl.isFinite() && asMgdl in 1f..600f
+    }
+
+    private fun loadJournalSnapshot(timeMillis: Long): JournalSnapshot {
+        val raw = runCatching {
+            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
+            val method = type.getMethod("snapshotJson", java.lang.Long.TYPE)
+            method.invoke(null, timeMillis) as? String
+        }.getOrNull() ?: return JournalSnapshot()
+        if (raw.isBlank()) return JournalSnapshot()
+        return runCatching {
+            val json = JSONObject(raw)
+            JournalSnapshot(
+                iob = json.optDouble("iob", Double.NaN).toFloat(),
+                cob = json.optDouble("cob", Double.NaN).toFloat(),
+                json = json
+            )
+        }.getOrDefault(JournalSnapshot())
     }
 
     private fun trendArrow(trendName: String): String =
@@ -354,16 +467,15 @@ class OutboundApiWorker(
         reading: OutboundApi.Reading,
         message: String
     ): SendResponse {
-        val body = formEncode(
-            linkedMapOf(
-                "chat_id" to reading.recipient,
-                "text" to message
-            )
-        ).toByteArray(Charsets.UTF_8)
+        val body = JSONObject()
+            .put("chat_id", reading.recipient)
+            .put("text", message)
+            .toString()
+            .toByteArray(Charsets.UTF_8)
         return executePost(
             urlString = destination.resolvedUrl(),
-            contentType = "application/x-www-form-urlencoded; charset=UTF-8",
-            headers = "",
+            contentType = "application/json; charset=UTF-8",
+            headers = destination.headers,
             body = body,
             parseApiError = ::parseTelegramError
         )
@@ -417,6 +529,8 @@ class OutboundApiWorker(
             readTimeout = 30_000
             doOutput = true
             setRequestProperty("Content-Type", contentType)
+            setRequestProperty("Accept", "application/json, text/plain")
+            setRequestProperty("User-Agent", "JugglucoNG API destinations")
             applyHeaders(headers)
         }
 
@@ -453,6 +567,7 @@ class OutboundApiWorker(
         reading: OutboundApi.Reading,
         message: String
     ): JSONObject {
+        val journal = reading.journal
         return JSONObject()
             .put("schema", "tk.glucodata.outbound.glucose.v1")
             .put("type", "glucose")
@@ -466,6 +581,16 @@ class OutboundApiWorker(
             .put("timestamp", reading.timeMillis)
             .put("glucose_mgdl", reading.mgdl)
             .put("glucose_mmol", OutboundApi.formatNumber(reading.mmol, 2).toDoubleOrNull())
+            .put("raw_value", reading.rawValue.takeIf { it.isFinite() && it > 0f })
+            .put("raw_glucose_mgdl", reading.rawGlucoseMgdl.takeIf { it.isFinite() && it > 0f })
+            .put(
+                "raw_glucose_mmol",
+                if (reading.rawGlucoseMgdl.isFinite() && reading.rawGlucoseMgdl > 0f) {
+                    OutboundApi.formatNumber(reading.rawGlucoseMmol, 2).toDoubleOrNull()
+                } else {
+                    null
+                }
+            )
             .put("display_value", reading.displayText)
             .put("display_unit", reading.unit)
             .put("rate_mgdl_per_min", reading.rateMgdlPerMinute.takeIf { it.isFinite() })
@@ -474,7 +599,9 @@ class OutboundApiWorker(
             .put("trend_arrow", reading.trendArrow)
             .put("alarm", reading.alarm)
             .put("iob", reading.iob.takeIf { it.isFinite() })
-            .put("cob", 0)
+            .put("journal_iob", journal.iob.takeIf { it.isFinite() })
+            .put("cob", journal.cob.takeIf { it.isFinite() })
+            .put("journal", journal.json)
             .put("message", message)
     }
 
@@ -564,7 +691,7 @@ class OutboundApiWorker(
         if (destination.normalizedPreset() == OutboundApiSettings.PRESET_TELEGRAM_BOT &&
             raw.contains("api.telegram.org", ignoreCase = true)
         ) {
-            return "Cannot reach Telegram API from this network. Check VPN/firewall or use a Telegram-compatible relay URL."
+            return "Telegram Bot API connection failed before a JSON response: $raw"
         }
         return raw
     }

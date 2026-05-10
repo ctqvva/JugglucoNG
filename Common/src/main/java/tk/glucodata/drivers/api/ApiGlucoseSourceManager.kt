@@ -57,6 +57,7 @@ class ApiGlucoseSourceManager(
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
+    @Volatile private var latestRawMgdl: Float = Float.NaN
     @Volatile private var latestRateMgdlPerMin: Float = 0f
 
     init {
@@ -89,14 +90,20 @@ class ApiGlucoseSourceManager(
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
         val timestampMs = latestReadingTimeMs
         val glucoseMgdl = latestReadingMgdl
+        val rawMgdl = latestRawMgdl
         if (timestampMs <= 0L || !glucoseMgdl.isFinite() || glucoseMgdl <= 0f) return null
         if (kotlin.math.abs(System.currentTimeMillis() - timestampMs) > maxAgeMillis) return null
         val glucoseDisplay = if (Applic.unit == 1) glucoseMgdl / MGDL_PER_MMOLL else glucoseMgdl
+        val rawDisplay = if (rawMgdl.isFinite() && rawMgdl > 0f) {
+            if (Applic.unit == 1) rawMgdl / MGDL_PER_MMOLL else rawMgdl
+        } else {
+            Float.NaN
+        }
         val rateDisplay = if (Applic.unit == 1) latestRateMgdlPerMin / MGDL_PER_MMOLL else latestRateMgdlPerMin
         return ManagedSensorCurrentSnapshot(
             timeMillis = timestampMs,
             glucoseValue = glucoseDisplay,
-            rawGlucoseValue = Float.NaN,
+            rawGlucoseValue = rawDisplay,
             rate = rateDisplay,
             sensorGen = SENSOR_GEN,
         )
@@ -240,6 +247,7 @@ class ApiGlucoseSourceManager(
         }
         latestReadingTimeMs = latest.timestampMs
         latestReadingMgdl = latest.glucoseMgdl
+        latestRawMgdl = latest.rawMgdl
         latestRateMgdlPerMin = rate
         VirtualGlucoseSensorBridge.publishCurrent(
             sensorSerial = SerialNumber,
@@ -377,6 +385,7 @@ class ApiGlucoseSourceManager(
     }
 
     private fun parseJsonReading(entry: JSONObject): VirtualGlucoseSensorBridge.Reading? {
+        importJournal(entry)
         val mgdl = firstFinite(
             entry.optDouble("glucose_mgdl", Double.NaN),
             entry.optDouble("sgv", Double.NaN),
@@ -400,9 +409,20 @@ class ApiGlucoseSourceManager(
                 ?.let { (it * MGDL_PER_MMOLL).toFloat() }
             ?: Float.NaN
 
+        val rawMgdl = firstFinite(
+            entry.optDouble("raw_value", Double.NaN),
+            entry.optDouble("raw_glucose_mgdl", Double.NaN),
+            entry.optDouble("raw_mgdl", Double.NaN),
+            entry.optDouble("rawMgdl", Double.NaN),
+        ) ?: firstFinite(
+            entry.optDouble("raw_glucose_mmol", Double.NaN),
+            entry.optDouble("raw_mmol", Double.NaN),
+        )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestamp,
             glucoseMgdl = mgdl.toFloat(),
+            rawMgdl = rawMgdl.toFloat(),
             rate = rate,
         )
     }
@@ -467,11 +487,32 @@ class ApiGlucoseSourceManager(
         val rate = fields["RT"]?.toDoubleOrNull()
             ?.let { (it * MGDL_PER_MMOLL).toFloat() }
             ?: Float.NaN
+        val rawMgdl = fields["RMGDL"]?.toDoubleOrNull()
+            ?: fields["RAW_MGDL"]?.toDoubleOrNull()
+            ?: fields["RAW"]?.toDoubleOrNull()
+            ?: fields["RMMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: Double.NaN
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestamp,
             glucoseMgdl = glucoseMgdl.toFloat(),
+            rawMgdl = rawMgdl.toFloat(),
             rate = rate,
         )
+    }
+
+    private fun importJournal(entry: JSONObject) {
+        val journal = when {
+            entry.has("journal") -> entry.opt("journal")
+            entry.has("events") -> JSONObject().put("events", entry.optJSONArray("events"))
+            else -> null
+        } ?: return
+        runCatching {
+            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
+            val method = type.getMethod("importFromJson", String::class.java)
+            method.invoke(null, journal.toString())
+        }.onFailure {
+            Log.w(TAG, "journal import ignored: ${it.message}")
+        }
     }
 
     private fun firstFinite(vararg values: Double): Double? =
