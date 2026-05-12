@@ -115,6 +115,12 @@ class AnytimeBleManager(
         private const val TELEMETRY_PREFS = "anytime_ble_telemetry"
         private const val TELEMETRY_BATTERY_VOLTS_PREFIX = "battery_volts_"
 
+        /** Refresh check-frame telemetry after reconnect settles, then hourly. */
+        private const val TELEMETRY_CHECK_INTERVAL_MS = 60L * 60L * 1000L
+        private const val TELEMETRY_CHECK_RETRY_DELAY_MS = 60_000L
+        private const val TELEMETRY_CHECK_QUIET_MS = 10_000L
+        private const val TELEMETRY_CHECK_AFTER_RECONNECT_LIVE_PUSHES = 2
+
         /** Check-frame age counter is seconds for CT4/Anytime v3 traces. */
         private const val SENSOR_AGE_COUNTER_TO_MS = 1_000L
 
@@ -200,6 +206,16 @@ class AnytimeBleManager(
     @Volatile private var historyPullInFlight: Boolean = false
     @Volatile private var historyStopBeforeId: Int = Int.MAX_VALUE
     @Volatile private var historyBackfillReason: String = ""
+
+    // If a long one-by-one history pull is interrupted by BLE loss, keep the
+    // range and resume it after the next successful handshake/reset instead of
+    // silently abandoning the backfill.
+    @Volatile private var interruptedBackfillReason: String = ""
+    @Volatile private var interruptedBackfillFromId: Int = -1
+    @Volatile private var interruptedBackfillStopBeforeId: Int = Int.MAX_VALUE
+
+    /** Count down live pushes after bound reconnect before probing battery telemetry. */
+    @Volatile private var telemetryLivePushesUntilCheck: Int = -1
 
     override var viewMode: Int = 0
 
@@ -320,6 +336,43 @@ class AnytimeBleManager(
             writeFrame(pullGlucoseFrame(lastGlucoseId + 1), "pullGlucose(fallback)")
         }
         armPullFallback()
+    }
+
+    private val telemetryCheckRunnable = Runnable {
+        if (stop || phase != Phase.STREAMING) return@Runnable
+        if (historyBackfillActive || historyPullInFlight) {
+            armTelemetryCheck(TELEMETRY_CHECK_RETRY_DELAY_MS)
+            return@Runnable
+        }
+        val quietForMs = System.currentTimeMillis() - lastProtocolFrameAtMs
+        if (lastProtocolFrameAtMs > 0L && quietForMs < TELEMETRY_CHECK_QUIET_MS) {
+            armTelemetryCheck(TELEMETRY_CHECK_RETRY_DELAY_MS)
+            return@Runnable
+        }
+        if (writeFrame(checkFrame(), "check(periodic-telemetry)", expectResponse = true)) {
+            armTelemetryCheck(TELEMETRY_CHECK_INTERVAL_MS)
+        } else {
+            armTelemetryCheck(TELEMETRY_CHECK_RETRY_DELAY_MS)
+        }
+    }
+
+    private fun armTelemetryCheck(delayMs: Long = TELEMETRY_CHECK_INTERVAL_MS) {
+        handler.removeCallbacks(telemetryCheckRunnable)
+        if (!stop) handler.postDelayed(telemetryCheckRunnable, delayMs)
+    }
+
+    private fun requestTelemetryAfterReconnectLivePushes() {
+        telemetryLivePushesUntilCheck = TELEMETRY_CHECK_AFTER_RECONNECT_LIVE_PUSHES
+        armTelemetryCheck(TELEMETRY_CHECK_INTERVAL_MS)
+    }
+
+    private fun maybeRunReconnectTelemetryAfterLivePush() {
+        if (telemetryLivePushesUntilCheck <= 0) return
+        telemetryLivePushesUntilCheck--
+        if (telemetryLivePushesUntilCheck == 0) {
+            telemetryLivePushesUntilCheck = -1
+            armTelemetryCheck(1_000L)
+        }
     }
 
     private val historyBackfillRunnable: Runnable = Runnable {
@@ -572,10 +625,14 @@ class AnytimeBleManager(
 
     private fun rewriteFreshRecentTailAfterRangeComplete(completedStopBefore: Int) {
         if (!nativeAlgorithmExpected()) return
-        val ids = synchronized(freshRecentTailFinalRecomputeIds) {
-            freshRecentTailFinalRecomputeIds
-                .filter { it < completedStopBefore }
-                .also { done -> freshRecentTailFinalRecomputeIds.removeAll(done.toSet()) }
+        val recentStartId = pendingFreshOlderBackfillStartId
+        if (recentStartId < 0) return
+
+        val ids = java.util.TreeSet<Int>()
+        for (id in recentStartId until completedStopBefore) ids.add(id)
+        synchronized(freshRecentTailFinalRecomputeIds) {
+            ids.addAll(freshRecentTailFinalRecomputeIds.filter { it in recentStartId until completedStopBefore })
+            freshRecentTailFinalRecomputeIds.removeAll(ids)
         }
         if (ids.isEmpty()) return
 
@@ -604,26 +661,61 @@ class AnytimeBleManager(
                 sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
             )
             if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) {
+                // This is intentionally allowed into Room: the user wants immediate
+                // native/auto display. It stays pending and will be replaced later
+                // by full-prefix native when the older backfill reaches this id.
                 commitReading(
                     result = result,
                     sampleMs = sampleMs,
                     context = context,
-                    live = id == lastGlucoseId || sampleMs >= lastGlucoseAtMs,
+                    // This is a history rewrite, even if it rewrites the newest/live id.
+                    // Emitting it through handleGlucoseResult() duplicates the native
+                    // reading row, because the original live 0x07 already emitted one
+                    // current point for the same timestamp. Room is enough here.
+                    live = false,
                     history = true,
+                    skipHistoryImport = false,
                 )
-                // Keep rolling recent-tail native points pending until the older
-                // prefix is loaded; otherwise the startup bump is never replaced.
                 trackNativeRecomputeNeed(result)
                 replaced++
             }
         }
         if (replaced > 0) {
-            Log.i(TAG, "Rewrote $replaced fresh recent-tail point(s) after full tail range loaded")
+            Log.i(TAG, "Rewrote $replaced fresh recent-tail point(s) with rolling native output")
             UiRefreshBus.requestStatusRefresh()
         }
     }
 
-    private fun stopHistoryBackfill() {
+    private fun rememberInterruptedBackfill() {
+        if (!historyBackfillActive) return
+        val next = nextBackfillIdSkippingCached((historyLastPulledId + 1).coerceAtLeast(0))
+        if (next >= historyStopBeforeId) return
+        interruptedBackfillReason = historyBackfillReason.ifBlank { "interrupted" }
+        interruptedBackfillFromId = next
+        interruptedBackfillStopBeforeId = historyStopBeforeId
+        Log.i(
+            TAG,
+            "Remembering interrupted backfill ($interruptedBackfillReason) " +
+                    "from id=$interruptedBackfillFromId stopBefore=${if (interruptedBackfillStopBeforeId == Int.MAX_VALUE) "∞" else interruptedBackfillStopBeforeId.toString()}"
+        )
+    }
+
+    private fun maybeResumeInterruptedBackfill(): Boolean {
+        val from = interruptedBackfillFromId
+        if (from < 0) return false
+        if (historyBackfillActive || phase != Phase.STREAMING) return false
+        val reason = interruptedBackfillReason.ifBlank { "interrupted" }
+        val stopBefore = interruptedBackfillStopBeforeId
+        interruptedBackfillReason = ""
+        interruptedBackfillFromId = -1
+        interruptedBackfillStopBeforeId = Int.MAX_VALUE
+        Log.i(TAG, "Resuming interrupted backfill ($reason) from id=$from")
+        startHistoryBackfill("$reason(resumed)", fromId = from, stopBeforeId = stopBefore)
+        return true
+    }
+
+    private fun stopHistoryBackfill(rememberForReconnect: Boolean = false) {
+        if (rememberForReconnect) rememberInterruptedBackfill()
         historyBackfillActive = false
         historyPullInFlight = false
         historyStopBeforeId = Int.MAX_VALUE
@@ -640,10 +732,23 @@ class AnytimeBleManager(
     private val serviceDiscoveryRetryRunnable: Runnable = Runnable {
         if (stop || serviceDiscoveryHandled) return@Runnable
         if (serviceDiscoveryRetryCount >= MAX_SERVICE_DISCOVERY_RETRIES) return@Runnable
-        serviceDiscoveryRetryCount++
         val gatt = mBluetoothGatt ?: return@Runnable
-        if (gatt.discoverServices()) {
-            handler.postDelayed(serviceDiscoveryRetryRunnable, SERVICE_DISCOVERY_RETRY_DELAY_MS)
+        discoverServicesOrRetry(gatt, "retry")
+    }
+
+    private fun discoverServicesOrRetry(gatt: BluetoothGatt, reason: String) {
+        if (stop || serviceDiscoveryHandled || mBluetoothGatt !== gatt || phase != Phase.DISCOVERING) return
+        serviceDiscoveryRetryCount++
+        val started = runCatching { gatt.discoverServices() }
+            .onFailure { Log.stack(TAG, "discoverServices($reason)", it) }
+            .getOrDefault(false)
+        Log.d(TAG, "discoverServices($reason) started=$started attempt=$serviceDiscoveryRetryCount")
+        if (!started) {
+            if (serviceDiscoveryRetryCount < MAX_SERVICE_DISCOVERY_RETRIES + 1) {
+                handler.postDelayed(serviceDiscoveryRetryRunnable, SERVICE_DISCOVERY_RETRY_DELAY_MS)
+            } else {
+                recoverGattAndReconnect("discoverServices returned false", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+            }
         }
     }
 
@@ -665,9 +770,11 @@ class AnytimeBleManager(
         handler.removeCallbacks(cccdWriteTimeoutRunnable)
         handler.removeCallbacks(noDataWatchdog)
         handler.removeCallbacks(pullFallbackRunnable)
+        handler.removeCallbacks(telemetryCheckRunnable)
+        telemetryLivePushesUntilCheck = -1
         pendingCccdGatt = null
         clearProtocolFrameTimeout()
-        stopHistoryBackfill()
+        stopHistoryBackfill(rememberForReconnect = true)
     }
 
     private fun clearGattReferences() {
@@ -923,14 +1030,15 @@ class AnytimeBleManager(
                 serviceDiscoveryHandled = false
                 serviceDiscoveryRetryCount = 0
                 phase = Phase.DISCOVERING
-                runCatching { gatt.requestMtu(AnytimeConstants.DEFAULT_MTU) }
-                handler.postDelayed({
-                    if (phase == Phase.DISCOVERING && mBluetoothGatt === gatt && !serviceDiscoveryHandled) {
-                        if (gatt.discoverServices()) {
-                            handler.postDelayed(serviceDiscoveryRetryRunnable, SERVICE_DISCOVERY_RETRY_DELAY_MS)
-                        }
-                    }
-                }, 250)
+                val mtuStarted = runCatching { gatt.requestMtu(AnytimeConstants.DEFAULT_MTU) }
+                    .onFailure { Log.stack(TAG, "requestMtu", it) }
+                    .getOrDefault(false)
+                Log.d(TAG, "requestMtu(${AnytimeConstants.DEFAULT_MTU}) started=$mtuStarted")
+                // Do not depend on onMtuChanged: after an interrupted write/reconnect
+                // Android can report STATE_CONNECTED but never deliver MTU callback.
+                // Start service discovery shortly anyway, and retry if discoverServices()
+                // returns false instead of waiting for the watchdog loop.
+                handler.postDelayed({ discoverServicesOrRetry(gatt, "connected-fallback") }, 350L)
                 handler.postDelayed(serviceDiscoveryWatchdog, SERVICE_DISCOVERY_TIMEOUT_MS)
                 UiRefreshBus.requestStatusRefresh()
             }
@@ -951,6 +1059,9 @@ class AnytimeBleManager(
 
     override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
         Log.d(TAG, "MTU=$mtu status=$status")
+        if (status == BluetoothGatt.GATT_SUCCESS && phase == Phase.DISCOVERING && mBluetoothGatt === gatt && !serviceDiscoveryHandled) {
+            discoverServicesOrRetry(gatt, "mtu")
+        }
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -1188,13 +1299,15 @@ class AnytimeBleManager(
     }
 
     private fun handleCheckResponse(data: ByteArray) {
-        if (phase != Phase.HANDSHAKING) {
-            Log.d(TAG, "Ignoring check response while phase=$phase")
-            return
-        }
         val status = AnytimeFrames.parseCheckResponse(data, profile.lowBatteryVolts)
         lastBatteryVolts = status.batteryVolts
         saveCachedBatteryVolts(Applic.app, SerialNumber, lastBatteryVolts)
+        if (phase != Phase.HANDSHAKING) {
+            Log.d(TAG, "Check telemetry updated while phase=$phase (battery=${status.batteryVolts}V iw=${status.workingElectrodeCurrentNa}nA)")
+            armTelemetryCheck(TELEMETRY_CHECK_INTERVAL_MS)
+            UiRefreshBus.requestStatusRefresh()
+            return
+        }
         if (!status.isHealthy) {
             Log.w(TAG, "Check failed: ${status.failure} (battery=${status.batteryVolts}V iw=${status.workingElectrodeCurrentNa}nA)")
             if (status.failure == AnytimeCheckStatus.CheckFailure.LOW_BATTERY) {
@@ -1255,11 +1368,14 @@ class AnytimeBleManager(
         writeFrame(lowPowerFrame(), "lowPower", expectResponse = false)
         armPullFallback()
         armNoDataWatchdog()
+        armTelemetryCheck(TELEMETRY_CHECK_INTERVAL_MS)
         // Restored sessions already have a usable id→time timeline, so resume
         // the missing tail immediately. Fresh sessions wait for the first real
         // live 0x07 anchor and then auto-fill only a short recent tail. Full
         // replay from id=0 remains available through requestHistoryBackfill().
-        if (hasUsableHistoryTimeline()) {
+        if (maybeResumeInterruptedBackfill()) {
+            // resumed the exact interrupted range
+        } else if (hasUsableHistoryTimeline()) {
             handler.postDelayed({ startHistoryBackfill("post-init", fromId = postInitBackfillStartId()) }, 750L)
         } else {
             Log.i(TAG, "Fresh Anytime session has no live timeline yet; waiting for first 0x07 before history backfill")
@@ -1282,10 +1398,18 @@ class AnytimeBleManager(
             // any history we missed while disconnected.
 
             phase = Phase.STREAMING
+            // Do not send check(post-reset-telemetry) here. It races with lowPower/history
+            // on the single Android GATT write slot and caused an endless loop:
+            // TX check(post-reset-telemetry) -> writeCharacteristic(lowPower)=false -> reconnect.
+            // Battery telemetry is refreshed from normal check frames and restored from cache;
+            // preserving the data path is more important than probing voltage on every reconnect.
             writeFrame(lowPowerFrame(), "lowPower(post-reset)", expectResponse = false)
             armPullFallback()
             armNoDataWatchdog()
-            handler.postDelayed({ startHistoryBackfill("post-reset(reconnect)", fromId = reconnectBackfillStartId()) }, 750L)
+            requestTelemetryAfterReconnectLivePushes()
+            if (!maybeResumeInterruptedBackfill()) {
+                handler.postDelayed({ startHistoryBackfill("post-reset(reconnect)", fromId = reconnectBackfillStartId()) }, 500L)
+            }
             UiRefreshBus.requestStatusRefresh()
         } else {
             // Sensor lost binding — fall through to fresh handshake.
@@ -1395,9 +1519,20 @@ class AnytimeBleManager(
                 recentRecords = rawRecordsForAlgorithm(rec.glucoseId),
                 sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
             )
-            commitReading(result, sampleMs, context, live = push, history = !push)
+            val skipHistoryImport = shouldSkipStartupRoomImport(result, push = push, history = !push)
+            commitReading(
+                result = result,
+                sampleMs = sampleMs,
+                context = context,
+                live = push,
+                history = !push,
+                skipHistoryImport = skipHistoryImport,
+            )
             trackNativeRecomputeNeed(result)
             if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
+        }
+        if (push) {
+            maybeRunReconnectTelemetryAfterLivePush()
         }
         if (!push && !isFreshRecentBackfillReason() && !historyBackfillReason.startsWith("post-live-anchor(older-background)")) {
             recomputePendingNativeReadings(context, intervalMs)
@@ -1413,14 +1548,42 @@ class AnytimeBleManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
+    private fun isRollingNativeProvisional(result: AnytimeAlgorithm.Result): Boolean {
+        if (result.source != AnytimeAlgorithm.Source.NATIVE || result.errorCode != 0) return false
+        val id = result.glucoseId
+        if (id < NATIVE_HISTORY_WARMUP_RECORDS) return false
+        return !hasContiguousRawHistoryThrough(id) &&
+                hasContiguousRawTailThrough(id, NATIVE_HISTORY_WARMUP_RECORDS)
+    }
+
+    private fun shouldSkipStartupRoomImport(
+        result: AnytimeAlgorithm.Result,
+        push: Boolean,
+        history: Boolean,
+    ): Boolean {
+        if (!nativeAlgorithmExpected()) return false
+        if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) return false
+
+        // During the fresh recent-tail pass LINEAR points are only a temporary
+        // fallback before the rolling native window becomes available. Importing
+        // them is what created the visible startup bump/curve on the dashboard.
+        if (history && isFreshRecentBackfillReason()) return true
+
+        // The very first live point on a clean start can also be LINEAR because
+        // the recent tail is not loaded yet. Keep it for the hero/notification,
+        // but do not anchor it into Room; rewriteFreshRecentTailAfterRangeComplete()
+        // will import the rolling-native current point once the tail is present.
+        if (push && freshPostLiveBackfillStarted && !hasContiguousRawHistoryThrough(result.glucoseId)) return true
+
+        return false
+    }
+
     private fun trackNativeRecomputeNeed(result: AnytimeAlgorithm.Result) {
         rememberFreshRecentTailForFinalRewrite(result.glucoseId)
         if (!nativeAlgorithmExpected()) return
 
         val id = result.glucoseId
         val hasFullPrefix = hasContiguousRawHistoryThrough(id)
-        val hasRollingTail = hasContiguousRawTailThrough(id, NATIVE_HISTORY_WARMUP_RECORDS)
-
         synchronized(pendingNativeRecomputeIds) {
             if (id < NATIVE_HISTORY_WARMUP_RECORDS) {
                 pendingNativeRecomputeIds.remove(id)
@@ -1430,9 +1593,9 @@ class AnytimeBleManager(
             if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) {
                 if (hasFullPrefix) {
                     pendingNativeRecomputeIds.remove(id)
-                } else if (hasRollingTail) {
-                    pendingNativeRecomputeIds.add(id)
                 } else {
+                    // Rolling-native is useful for the live/current value, but it is
+                    // provisional for history until ids 0..id are contiguous.
                     pendingNativeRecomputeIds.add(id)
                 }
                 return@synchronized
@@ -1479,7 +1642,10 @@ class AnytimeBleManager(
                 continue
             }
             Log.i(TAG, "Replacing provisional Anytime point id=$id with full-prefix native algorithm output")
-            commitReading(result, sampleMs, context, live = id == lastGlucoseId || sampleMs >= lastGlucoseAtMs, history = true)
+            // Full-prefix recompute is also a Room/history replacement only.
+            // Never emit recomputed backfill as a live/current point: the reading
+            // row is backed by the native current stream and will show duplicates.
+            commitReading(result, sampleMs, context, live = false, history = true)
             synchronized(pendingNativeRecomputeIds) { pendingNativeRecomputeIds.remove(id) }
         }
     }
@@ -1565,6 +1731,7 @@ class AnytimeBleManager(
         context: Context?,
         live: Boolean,
         history: Boolean,
+        skipHistoryImport: Boolean = false,
     ) {
         if (result.errorCode != 0 || result.mgdlTimes10 < 170) {
             Log.w(
@@ -1600,7 +1767,11 @@ class AnytimeBleManager(
         // Natives.addGlucoseStream() stores values in the legacy/native history path
         // and was producing duplicate phantom rows such as 25.9 (mmol*10) beside
         // the Room-managed 2.59 mmol/L point.
-        mirrorReadingIntoRoom(sampleMs, result)
+        if (!skipHistoryImport) {
+            mirrorReadingIntoRoom(sampleMs, result)
+        } else {
+            Log.d(TAG, "Skipping startup provisional Room import id=${result.glucoseId} source=${result.source}")
+        }
         if (live) {
             emitGlucose(result, sampleMs)
         } else if (history && newest) {
@@ -1890,6 +2061,17 @@ class AnytimeBleManager(
 
     override fun shouldUseNativeHistorySync(): Boolean = false
 
+    private fun historyProgressStatus(): String {
+        val next = nextBackfillIdSkippingCached((historyLastPulledId + 1).coerceAtLeast(0))
+        val stopExclusive = when {
+            historyStopBeforeId != Int.MAX_VALUE -> historyStopBeforeId
+            lastGlucoseId >= 0 -> lastGlucoseId + 1
+            else -> familyEntry.endNumber
+        }.coerceAtLeast(1)
+        val done = next.coerceIn(0, stopExclusive)
+        return "Fetching history $done/$stopExclusive"
+    }
+
     override fun getDetailedBleStatus(): String = if (stop) {
         "Paused"
     } else when (phase) {
@@ -1897,10 +2079,9 @@ class AnytimeBleManager(
         Phase.CONNECTING -> "Connecting"
         Phase.DISCOVERING -> "Discovering"
         Phase.HANDSHAKING -> "Handshaking"
-        Phase.STREAMING -> if (lastGlucoseAtMs > 0L) {
-            val ageMin = ((System.currentTimeMillis() - lastGlucoseAtMs) / 60000L).toInt()
-            "Streaming • last reading ${ageMin}m ago"
-        } else "Streaming (warming up)"
+        Phase.STREAMING -> if (historyBackfillActive) {
+            historyProgressStatus()
+        } else "Connected"
     }
 
     /**
@@ -1916,7 +2097,7 @@ class AnytimeBleManager(
         }
         val voltagesLine = if (r.weVoltageMv != Int.MIN_VALUE) {
             "WE=${r.weVoltageMv}mV BE=${r.beVoltageMv}mV RE=${r.reVoltageMv}mV CE=${r.ceVoltageMv}mV B=${r.bVoltageMv}mV"
-        } else ""
+        } else ""a
         val iirLine = if (!r.iw30Iir.isNaN() || !r.iw48Iir.isNaN()) {
             "Iw30IIR=${"%.2f".format(r.iw30Iir)} Iw48IIR=${"%.2f".format(r.iw48Iir)}"
         } else ""
