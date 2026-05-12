@@ -116,6 +116,7 @@ object AnytimeQr {
         val trimmed = qr?.trim()?.uppercase(Locale.US) ?: return null
         if (trimmed.isEmpty()) return null
 
+        parseTrailingKrFactoryCode(trimmed)?.let { return it }
         AnytimeQrCalibration.PATTERN_A.matchEntire(trimmed)?.let { return parseFormatA(trimmed, it) }
         AnytimeQrCalibration.PATTERN_B.matchEntire(trimmed)?.let { return parseFormatB(trimmed, it) }
         AnytimeQrCalibration.PATTERN_C.matchEntire(trimmed)?.let { return parseFormatC(trimmed, it) }
@@ -123,6 +124,36 @@ object AnytimeQr {
         parseManual(trimmed)?.let { return it }
         parseGs1Udi(trimmed)?.let { return it }
         return null
+    }
+
+    private fun parseTrailingKrFactoryCode(qr: String): AnytimeQrCalibration? {
+        if (qr.length != 21 || qr.firstOrNull() !in 'A'..'C') return null
+        val kDigits = qr.substring(13, 16)
+        val rDigits = qr.substring(16, 18)
+        if (kDigits.any { it !in '0'..'9' } || rDigits.any { it !in '0'..'9' }) return null
+        val k = "${kDigits[0]}.${kDigits.substring(1)}".toFloatOrNull() ?: return null
+        val r = "${rDigits[0]}.${rDigits[1]}".toFloatOrNull() ?: return null
+        if (k <= 0f || r <= 0f) return null
+
+        return AnytimeQrCalibration(
+            rawQr = qr,
+            format = AnytimeQrCalibration.Format.C,
+            k = k,
+            r = r,
+            lifeTime = inferLifeTimeDays(qr.takeLast(3)),
+            productMonth = qr.substring(4, 6).toIntOrNull() ?: 0,
+            productYear = 2000 + (qr.getOrNull(1)?.digitToIntOrNull() ?: 0) + 10,
+            electrodeType = qr.getOrNull(2)?.toString().orEmpty(),
+            electrodeTecNo = qr.substring(4, 6),
+            enzymeTecNo = kDigits,
+            membraneTecNo = rDigits,
+            marketNo = qr.takeLast(3),
+            serialNo = qr.substring(7, 13),
+            sensorNo = qr.take(2),
+            unitOrder = 0,
+            voltageFlag = inferVoltageFlag(qr),
+            calibrationCount = qr.getOrNull(3)?.digitToIntOrNull() ?: 0,
+        )
     }
 
     private fun parseFormatA(qr: String, m: MatchResult): AnytimeQrCalibration {

@@ -31,7 +31,6 @@ object AnytimeAlgorithm {
 
     private const val TAG = AnytimeConstants.TAG
     private const val LEGACY_WARMUP_RECORDS = 20
-    private const val ROLLING_NATIVE_MIN_RECORDS = 20
     @Volatile private var officialLatestMissing: Boolean = false
     @Volatile private var officialHistoryMissing: Boolean = false
     @Volatile private var legacyAlgorithmMissing: Boolean = false
@@ -178,52 +177,6 @@ object AnytimeAlgorithm {
                 }
             }
 
-            // Fresh CT4 startup often has only the newest tail (for example ids
-            // 561..584) while the old prefix 0..560 is still loading. The
-            // legacy JNI does not require the absolute transmitter id; it needs
-            // a contiguous algorithm window whose glucoseId indexes that window.
-            // Try a remapped rolling tail so Auto can become native as soon as
-            // the recent window is loaded, instead of waiting for the full day
-            // prefix to finish. Raw lane remains the simple linear value.
-            val rollingTail = contiguousTailEndingAt(record, window)
-            if (rollingTail.size >= ROLLING_NATIVE_MIN_RECORDS && rollingTail.size > contiguousHistory.size) {
-                val rollingStartTimeMs = estimateRollingStartTimeMs(
-                    originalRecord = record,
-                    firstRecord = rollingTail.first(),
-                    sampleTimeMs = sampleTimeMs,
-                    sensorStartTimeMs = sensorStartTimeMs,
-                )
-                tryOfficialHistory(
-                    record = record,
-                    calibration = calibration,
-                    family = family,
-                    sensorIdName = sensorIdName,
-                    sampleTimeMs = sampleTimeMs,
-                    lastReferenceBgMgdlTimes10 = lastReferenceBgMgdlTimes10,
-                    lastReferenceBgGlucoseId = remapEventIdForWindow(lastReferenceBgGlucoseId, rollingTail),
-                    window = rollingTail,
-                    sensorStartTimeMs = rollingStartTimeMs,
-                    rawMgdl = linear.rawMgdl,
-                    algorithmGlucoseId = rollingTail.size - 1,
-                )?.let { mapped ->
-                    if (isNativeResultUsable(mapped)) return mapped
-                }
-                tryLegacyNative(
-                    record = record,
-                    calibration = calibration,
-                    family = family,
-                    sensorIdName = sensorIdName,
-                    sampleTimeMs = sampleTimeMs,
-                    lastReferenceBgMgdlTimes10 = lastReferenceBgMgdlTimes10,
-                    lastReferenceBgGlucoseId = remapEventIdForWindow(lastReferenceBgGlucoseId, rollingTail),
-                    window = rollingTail,
-                    sensorStartTimeMs = rollingStartTimeMs,
-                    rawMgdl = linear.rawMgdl,
-                    algorithmGlucoseId = rollingTail.size - 1,
-                )?.let { mapped ->
-                    if (isNativeResultUsable(mapped)) return mapped
-                }
-            }
         } else if (isNativeAvailable && qr != null && !nativeSkippedNoFactoryLogged) {
             nativeSkippedNoFactoryLogged = true
             Log.w(
@@ -394,46 +347,6 @@ object AnytimeAlgorithm {
             out.add(rec)
         }
         return out
-    }
-
-    private fun contiguousTailEndingAt(
-        record: AnytimeRawRecord,
-        sortedRecords: List<AnytimeRawRecord>,
-    ): List<AnytimeRawRecord> {
-        if (record.glucoseId < 0) return emptyList()
-        val byId = sortedRecords.associateBy { it.glucoseId }
-        val out = ArrayList<AnytimeRawRecord>()
-        var id = record.glucoseId
-        while (id >= 0) {
-            val rec = byId[id] ?: break
-            out.add(rec)
-            id--
-        }
-        out.reverse()
-        return out
-    }
-
-    private fun remapEventIdForWindow(eventId: Int, window: List<AnytimeRawRecord>): Int {
-        if (eventId <= 0 || window.isEmpty()) return 0
-        val first = window.first().glucoseId
-        val last = window.last().glucoseId
-        return if (eventId in first..last) eventId - first else 0
-    }
-
-    private fun estimateRollingStartTimeMs(
-        originalRecord: AnytimeRawRecord,
-        firstRecord: AnytimeRawRecord,
-        sampleTimeMs: Long,
-        sensorStartTimeMs: Long,
-    ): Long {
-        val idDelta = originalRecord.glucoseId - firstRecord.glucoseId
-        if (idDelta <= 0) return sampleTimeMs
-        val estimatedIntervalMs = if (sensorStartTimeMs > 0L && originalRecord.glucoseId > 0) {
-            ((sampleTimeMs - sensorStartTimeMs) / originalRecord.glucoseId.toLong()).coerceAtLeast(60_000L)
-        } else {
-            3L * 60L * 1000L
-        }
-        return sampleTimeMs - idDelta.toLong() * estimatedIntervalMs
     }
 
     /** Linear K/R fallback. */

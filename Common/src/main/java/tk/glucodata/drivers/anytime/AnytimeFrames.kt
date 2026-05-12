@@ -16,6 +16,7 @@
 package tk.glucodata.drivers.anytime
 
 import java.util.Calendar
+import kotlin.math.roundToInt
 
 /** Single raw current record from RX_PUSH_GLUCOSE / RX_PULL_GLUCOSE. */
 data class AnytimeRawRecord(
@@ -134,7 +135,7 @@ object AnytimeFrames {
         @JvmStatic
         fun lowPower(): ByteArray = byteArrayOf(AnytimeConstants.TX_LOW_POWER)
 
-        /** {0x0F, 0x55, 0xAA, sum} — CT2.5/CT3A/CT4 low power. */
+        /** {0x0F, 0x55, 0xAA, sum} — CT2.5/CT3A/CT4/CT5 low power. */
         @JvmStatic
         fun lowPowerSummed(): ByteArray = withSum(0x0F, 0x55, 0xAA)
 
@@ -304,6 +305,91 @@ object AnytimeFrames {
         @JvmStatic
         fun transmitterFormalSummed(): ByteArray = withSum(0x20, 0x55, 0xAA)
 
+        /** CT5 get-date request. The response is opcode 0x03. */
+        @JvmStatic
+        fun ct5GetDate(): ByteArray = withSum(0x04, 0x55, 0xAA)
+
+        /** CT5 reconnect identity check. */
+        @JvmStatic
+        fun ct5CheckId(randomB: IntArray): ByteArray {
+            require(randomB.size == 4) { "CT5 randomB must be 4 bytes" }
+            return withSum(
+                AnytimeConstants.TX_CT5_CHECK_ID.toInt() and 0xFF,
+                randomB[0],
+                randomB[1],
+                randomB[2],
+                randomB[3],
+            )
+        }
+
+        /** CT5 identity challenge: opcode 0x30 + randomB + convolve(randomB, randomA). */
+        @JvmStatic
+        fun ct5SetId(randomA: IntArray, randomB: IntArray): ByteArray {
+            require(randomA.size == 4 && randomB.size == 4) { "CT5 random vectors must be 4 bytes" }
+            val convolution = ct5Convolve(randomB, randomA)
+            val values = IntArray(1 + randomB.size + convolution.size)
+            values[0] = AnytimeConstants.TX_CT5_SET_ID.toInt() and 0xFF
+            for (i in randomB.indices) values[1 + i] = randomB[i]
+            for (i in convolution.indices) values[1 + randomB.size + i] = convolution[i]
+            return withSum(*values)
+        }
+
+        /** CT5 encrypted QR/KR query. */
+        @JvmStatic
+        fun ct5QuerySsn(): ByteArray = withSum(AnytimeConstants.TX_CT5_QUERY_SSN.toInt() and 0xFF, 0x55, 0xAA)
+
+        /** CT5 push ACK. */
+        @JvmStatic
+        fun ct5PushAck(): ByteArray = withSum(AnytimeConstants.TX_CT5_PUSH_ACK.toInt() and 0xFF, 0x55, 0xAA)
+
+        /** CT5 series-history pull. */
+        @JvmStatic
+        @JvmOverloads
+        fun ct5PullGlucoseSeries(nextId: Int, count: Int = 15): ByteArray {
+            val id = nextId and 0xFFFF
+            return withSum(
+                AnytimeConstants.TX_CT5_PULL_SERIES.toInt() and 0xFF,
+                id and 0xFF,
+                (id ushr 8) and 0xFF,
+                count.coerceAtLeast(1) and 0xFF,
+            )
+        }
+
+        /** CT5 fingerstick reference BG is mg/dL big-endian, not mmol split. */
+        @JvmStatic
+        fun ct5InputBgMg(mgdl: Int): ByteArray =
+            withSum(0x09, (mgdl ushr 8) and 0xFF, mgdl and 0xFF)
+
+        /** CT5 unbind needs the same four-character temp id used during setup. */
+        @JvmStatic
+        fun ct5Unbind(tempId: String): ByteArray {
+            val bytes = tempId.take(4).padStart(4, '0').toByteArray(Charsets.US_ASCII)
+            return withSum(0x0A, bytes[0].toInt(), bytes[1].toInt(), bytes[2].toInt(), bytes[3].toInt())
+        }
+
+        /** CT5 encrypted K/R + temporary id setup. */
+        @JvmStatic
+        fun ct5SetParameters(k: Float, r: Float, cipherKey: Int, tempId: String): ByteArray {
+            require(cipherKey in 0..255) { "CT5 cipher key must be in 0..255" }
+            val tempBytes = tempId.take(4).padStart(4, '0').toByteArray(Charsets.US_ASCII)
+            val payload = ByteArray(12)
+            payload[0] = k.toInt().coerceIn(0, 255).toByte()
+            payload[1] = fractionByte(k, scaleTenths = 100, roundToTenthsFirst = false)
+            payload[2] = r.toInt().coerceIn(0, 255).toByte()
+            payload[3] = fractionByte(r, scaleTenths = 100, roundToTenthsFirst = true)
+            payload[4] = 0x03
+            payload[5] = 0x53
+            payload[6] = 0x55
+            payload[7] = 0x00
+            for (i in tempBytes.indices) payload[8 + i] = tempBytes[i]
+            val encrypted = ct5Decode(payload, cipherKey)
+            val frame = ByteArray(14)
+            frame[0] = AnytimeConstants.TX_CT5_SET_PARAMETERS
+            encrypted.copyInto(frame, destinationOffset = 1)
+            frame[13] = sum(frame, 0, 12)
+            return frame
+        }
+
         private fun withSum(vararg values: Int): ByteArray {
             val frame = ByteArray(values.size + 1)
             for (i in values.indices) {
@@ -312,7 +398,208 @@ object AnytimeFrames {
             frame[frame.lastIndex] = sum(frame, 0, frame.lastIndex - 1)
             return frame
         }
+
+        private fun fractionByte(value: Float, scaleTenths: Int, roundToTenthsFirst: Boolean): Byte {
+            val intPart = value.toInt()
+            val rounded = if (roundToTenthsFirst) {
+                (value * 10f).roundToInt() / 10f
+            } else {
+                (value * 100f).roundToInt() / 100f
+            }
+            return (((rounded - intPart) * scaleTenths).roundToInt() and 0xFF).toByte()
+        }
     }
+
+    // ---- CT5 obfuscation/session helpers ----
+
+    @JvmStatic
+    fun ct5Convolve(first: IntArray, second: IntArray): IntArray {
+        val out = IntArray(first.size)
+        for (i in first.indices) {
+            for (j in second.indices) {
+                val k = i - j
+                if (k >= 0 && j < first.size && k < second.size) {
+                    out[i] += (first[j] and 0xFF) * (second[k] and 0xFF)
+                }
+            }
+        }
+        return out
+    }
+
+    /** ConvertTools.decode(): used by the official app for outgoing encrypted CT5 setup payloads. */
+    @JvmStatic
+    fun ct5Decode(bytes: ByteArray, cipherKey: Int): ByteArray {
+        val bits = bytesToBits(bytes)
+        for (i in bits.size - 2 downTo 0) {
+            if (bits[i + 1] == 0) bits[i] = bits[i] xor 1
+        }
+        val out = ByteArray(bytes.size)
+        for (i in out.indices) {
+            out[i] = (bitsToByte(bits, i * 8) xor (cipherKey and 0xFF)).toByte()
+        }
+        return out
+    }
+
+    /** ConvertTools.encode(): used by the official app for incoming encrypted CT5 payloads. */
+    @JvmStatic
+    fun ct5Encode(bytes: ByteArray, cipherKey: Int): ByteArray {
+        val bits = IntArray(bytes.size * 8)
+        for (i in bytes.indices) {
+            val value = (bytes[i].toInt() and 0xFF) xor (cipherKey and 0xFF)
+            for (bit in 0 until 8) {
+                bits[i * 8 + bit] = (value ushr (7 - bit)) and 1
+            }
+        }
+        var i = 0
+        while (i < bits.size - 1) {
+            if (bits[i + 1] == 0) bits[i] = bits[i] xor 1
+            i++
+        }
+        val out = ByteArray(bytes.size)
+        for (byteIndex in out.indices) {
+            out[byteIndex] = bitsToByte(bits, byteIndex * 8).toByte()
+        }
+        return out
+    }
+
+    @JvmStatic
+    fun ct5SessionKeyFromSetIdResponse(bytes: ByteArray, randomA: IntArray): Int {
+        if (randomA.size != 4 || bytes.isEmpty() || bytes[0] != AnytimeConstants.TX_CT5_SET_ID) return -1
+        if (!verifySum(bytes) || bytes.size < 7) return -1
+        val responseTail = bytes.copyOfRange(5, bytes.size - 1).map { it.toInt() and 0xFF }.toIntArray()
+        if (responseTail.isEmpty()) return -1
+        return ct5Convolve(responseTail, randomA).fold(0) { acc, value -> acc xor value } and 0xFF
+    }
+
+    @JvmStatic
+    fun parseCt5QuerySsnResponse(bytes: ByteArray, cipherKey: Int): String? {
+        if (bytes.isEmpty() || bytes[0] != AnytimeConstants.RX_CT5_QUERY_SSN || cipherKey !in 0..255) return null
+        val encrypted = bytes.copyOfRange(1, bytes.size)
+        val decoded = ct5Encode(encrypted, cipherKey)
+        return decoded
+            .toString(Charsets.US_ASCII)
+            .trim { it <= ' ' || it.code > 0x7E }
+            .takeIf { it.isNotBlank() }
+    }
+
+    @JvmStatic
+    fun parseCt5CurrentRecord(bytes: ByteArray, cipherKey: Int): AnytimeComputedRecord? {
+        val voltage = bytes.size == 19
+        val expected = if (voltage) 19 else 15
+        if (bytes.size != expected || bytes[0] != AnytimeConstants.RX_CT5_PUSH_GLUCOSE) return null
+        if (cipherKey !in 0..255 || !verifySum(bytes)) return null
+        val decoded = decryptCt5PayloadFrame(bytes, cipherKey)
+        val glucoseId = (decoded[1].toInt() and 0xFF) or ((decoded[2].toInt() and 0xFF) shl 8)
+        return parseCt5DecodedRecord(decoded, offset = 3, glucoseId = glucoseId, chunkSize = if (voltage) 15 else 11)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun parseCt5SeriesRecords(bytes: ByteArray, cipherKey: Int, voltage: Boolean = false): List<AnytimeComputedRecord> {
+        val chunkSize = if (voltage) AnytimeConstants.CT5_VOLTAGE_CHUNK_SIZE else AnytimeConstants.CT5_RAW_CHUNK_SIZE
+        if (bytes.isEmpty() || bytes[0] != AnytimeConstants.RX_CT5_SERIES || cipherKey !in 0..255) return emptyList()
+        if (!verifySum(bytes)) return emptyList()
+        val sanitized = sanitizeCt5SeriesFrame(bytes, chunkSize)
+        if (sanitized.size == 4) return emptyList()
+        val decoded = decryptCt5PayloadFrame(sanitized, cipherKey)
+        val startId = (decoded[1].toInt() and 0xFF) or ((decoded[2].toInt() and 0xFF) shl 8)
+        val count = (decoded.size - 4) / chunkSize
+        val out = ArrayList<AnytimeComputedRecord>(count)
+        for (i in 0 until count) {
+            parseCt5DecodedRecord(
+                decoded = decoded,
+                offset = 3 + i * chunkSize,
+                glucoseId = startId + i,
+                chunkSize = chunkSize,
+            )?.let { out.add(it) }
+        }
+        return out
+    }
+
+    private fun decryptCt5PayloadFrame(bytes: ByteArray, cipherKey: Int): ByteArray {
+        val payload = if (bytes.size > 4) bytes.copyOfRange(3, bytes.size - 1) else ByteArray(0)
+        val decodedPayload = ct5Encode(payload, cipherKey)
+        val decoded = bytes.copyOf()
+        decodedPayload.copyInto(decoded, destinationOffset = 3)
+        decoded[decoded.lastIndex] = sum(decoded, 0, decoded.lastIndex - 1)
+        return decoded
+    }
+
+    private fun sanitizeCt5SeriesFrame(bytes: ByteArray, chunkSize: Int): ByteArray {
+        if (bytes.size <= 4) return bytes.copyOf()
+        val chunks = ArrayList<ByteArray>()
+        var offset = 3
+        while (offset + chunkSize <= bytes.size - 1) {
+            val chunk = bytes.copyOfRange(offset, offset + chunkSize)
+            if (chunk.all { (it.toInt() and 0xFF) == 0xFC }) break
+            if (!chunk.all { (it.toInt() and 0xFF) == 0xFF }) chunks.add(chunk)
+            offset += chunkSize
+        }
+        val out = ByteArray(4 + chunks.sumOf { it.size })
+        out[0] = bytes[0]
+        out[1] = bytes[1]
+        out[2] = bytes[2]
+        var dst = 3
+        for (chunk in chunks) {
+            chunk.copyInto(out, destinationOffset = dst)
+            dst += chunk.size
+        }
+        out[out.lastIndex] = bytes[bytes.lastIndex]
+        return out
+    }
+
+    private fun parseCt5DecodedRecord(
+        decoded: ByteArray,
+        offset: Int,
+        glucoseId: Int,
+        chunkSize: Int,
+    ): AnytimeComputedRecord? {
+        if (offset + chunkSize > decoded.size - 1) return null
+        val ibRaw = u16(decoded[offset], decoded[offset + 1])
+        val iwRaw = u16(decoded[offset + 2], decoded[offset + 3])
+        val tPlus40 = decoded[offset + 4].toInt() and 0xFF
+        val tFrac = decoded[offset + 5].toInt() and 0xFF
+        val temperature = (tPlus40 - AnytimeConstants.TEMP_INT_OFFSET) + tFrac / 100f
+        if (ibRaw >= 0xFFF0 || iwRaw >= 0xFFF0 || temperature !in -20f..80f) return null
+        val trendAndHigh = decoded[offset + 6].toInt() and 0xFF
+        val trend = (trendAndHigh ushr 4) and 0x0F
+        val glucoseMgdl = ((trendAndHigh and 0x0F) shl 8) or (decoded[offset + 7].toInt() and 0xFF)
+        val error = decoded[offset + 8].toInt() and 0xFF
+        if (glucoseMgdl <= 0) return null
+        return AnytimeComputedRecord(
+            glucoseId = glucoseId,
+            hypoEarlyWarnMinutes = 0,
+            hyperEarlyWarnMinutes = 0,
+            ibNa = ibRaw / 100f,
+            iwNa = iwRaw / 100f,
+            temperatureC = temperature,
+            gluMmol = glucoseMgdl / 18f,
+            referenceBgMmol = 0f,
+            errorCode = error,
+            trend = trend,
+            warnCode = 0,
+        )
+    }
+
+    private fun bytesToBits(bytes: ByteArray): IntArray {
+        val bits = IntArray(bytes.size * 8)
+        for (i in bytes.indices) {
+            val value = bytes[i].toInt() and 0xFF
+            for (bit in 0 until 8) {
+                bits[i * 8 + bit] = (value ushr (7 - bit)) and 1
+            }
+        }
+        return bits
+    }
+
+    private fun bitsToByte(bits: IntArray, offset: Int): Int {
+        var value = 0
+        for (bit in 0 until 8) value = (value shl 1) or (bits[offset + bit] and 1)
+        return value and 0xFF
+    }
+
+    private fun u16(hi: Byte, lo: Byte): Int =
+        ((hi.toInt() and 0xFF) shl 8) or (lo.toInt() and 0xFF)
 
     // ---- Parsers (RX from sensor) ----
 

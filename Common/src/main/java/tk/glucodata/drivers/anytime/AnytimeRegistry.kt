@@ -15,6 +15,9 @@
 //   anytime_tx_version_<id>  → firmware version string (e.g. "V1300")
 //   anytime_bound_<id>       → 1/0 ("known bound from previous session")
 //   anytime_raw_history_<id> → compact raw id/Ib/Iw/T history for JNI restore
+//   anytime_ct5_cipher_<id>  → CT5 session cipher byte (0..255), -1 if unknown
+//   anytime_ct5_randomb_<id> → CT5 reconnect identity randomB, hex encoded
+//   anytime_ct5_tempid_<id>  → CT5 4-digit temporary ID used by setParameters
 
 package tk.glucodata.drivers.anytime
 
@@ -174,6 +177,40 @@ object AnytimeRegistry {
         prefs(c).edit().putBoolean(AnytimeConstants.PREF_BOUND_PREFIX + id, bound).apply()
     }
 
+    @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
+    @JvmStatic fun saveCt5CipherKey(c: Context, id: String, key: Int) {
+        prefs(c).edit().putInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, key.coerceIn(-1, 255)).apply()
+    }
+
+    @JvmStatic fun loadCt5TempId(c: Context, id: String): String =
+        prefs(c).getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null).orEmpty()
+    @JvmStatic fun saveCt5TempId(c: Context, id: String, tempId: String) {
+        prefs(c).edit().putString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, tempId.take(4)).apply()
+    }
+
+    @JvmStatic
+    fun loadCt5RandomB(c: Context, id: String): IntArray? {
+        val encoded = prefs(c).getString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, null).orEmpty()
+        if (encoded.length != 8) return null
+        val out = IntArray(4)
+        for (i in 0 until 4) {
+            out[i] = encoded.substring(i * 2, i * 2 + 2).toIntOrNull(16) ?: return null
+        }
+        return out
+    }
+
+    @JvmStatic
+    fun saveCt5RandomB(c: Context, id: String, randomB: IntArray?) {
+        val editor = prefs(c).edit()
+        if (randomB == null || randomB.size != 4) {
+            editor.remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id).apply()
+            return
+        }
+        val encoded = randomB.joinToString("") { "%02X".format(it and 0xFF) }
+        editor.putString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, encoded).apply()
+    }
+
     @JvmStatic
     fun loadRawHistory(c: Context, id: String): List<AnytimeRawRecord> {
         val encoded = prefs(c).getString(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + id, null).orEmpty()
@@ -244,6 +281,9 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_TRANSMITTER_VERSION_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_BOUND_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + sensorId)
         }.apply()
     }
 

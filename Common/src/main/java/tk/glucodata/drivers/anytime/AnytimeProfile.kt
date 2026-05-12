@@ -2,8 +2,9 @@
 //
 // CT3 4/4H is the primary target (cadence ~1/min, 16-day rated). CT4 / CT3_PLUS
 // have shorter or longer rated lives depending on chemistry. CT5 (no separate
-// transmitter) is on a 5-min cadence with extra obfuscation — separate driver
-// later, this file just gives it sane defaults so resolveFamily never fails.
+// transmitter) uses the same 3-minute tick scale in the official SDK
+// (`Anytime`, endNumber 7695 => 16 days) and adds an encrypted identity/data
+// layer on top of the usual 0x1000 GATT service.
 
 package tk.glucodata.drivers.anytime
 
@@ -42,7 +43,7 @@ object AnytimeProfileResolver {
 
         val readingMinutes = when (entry.family) {
             AnytimeConstants.Family.CT4 -> 3
-            AnytimeConstants.Family.CT5 -> 5
+            AnytimeConstants.Family.CT5 -> 3
             else -> AnytimeConstants.DEFAULT_READING_INTERVAL_MINUTES
         }
         val lowVolts = when (entry.family) {

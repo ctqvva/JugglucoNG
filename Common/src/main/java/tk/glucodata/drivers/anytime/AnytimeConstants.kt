@@ -88,6 +88,24 @@ object AnytimeConstants {
     /** Formal version request (CT3_x / CT4 — selects voltage path). */
     const val TX_TRANSMITTER_FORMAL: Byte = 0x20
 
+    /** CT5 identity challenge. Body: {0x30, randomB[4], convolve(randomB, randomA)[4], sum}. */
+    const val TX_CT5_SET_ID: Byte = 0x30
+
+    /** CT5 reconnect identity check. Body: {0x31, randomB[4], sum}. */
+    const val TX_CT5_CHECK_ID: Byte = 0x31
+
+    /** CT5 push ACK. Body: {0x35, 0x55, 0xAA, sum}. */
+    const val TX_CT5_PUSH_ACK: Byte = 0x35
+
+    /** CT5 series-history pull. Body: {0x37, idLo, idHi, count, sum}. */
+    const val TX_CT5_PULL_SERIES: Byte = 0x37
+
+    /** CT5 encrypted K/R and temporary ID setup. */
+    const val TX_CT5_SET_PARAMETERS: Byte = 0x38
+
+    /** CT5 encrypted QR/KR query. Body: {0x3F, 0x55, 0xAA, sum}. */
+    const val TX_CT5_QUERY_SSN: Byte = 0x3F
+
     // ---- Sensor → phone notification opcodes (RX) ----
 
     const val RX_VERSION: Byte = 0x01
@@ -135,10 +153,27 @@ object AnytimeConstants {
     /** Series response (CT5 push). */
     const val RX_SERIES: Byte = 0x22
 
+    /** CT5 reconnect identity check response. */
+    const val RX_CT5_CHECK_ID: Byte = 0x31
+
+    /** CT5 transmitter-computed live push. */
+    const val RX_CT5_PUSH_GLUCOSE: Byte = 0x35
+
+    /** CT5 encrypted history series response. */
+    const val RX_CT5_SERIES: Byte = 0x37
+
+    /** CT5 encrypted K/R setup response. */
+    const val RX_CT5_SET_PARAMETERS: Byte = 0x38
+
+    /** CT5 encrypted QR/KR response. */
+    const val RX_CT5_QUERY_SSN: Byte = 0x3F
+
     // ---- 9-byte / 11-byte raw-current records (RX_PUSH_GLUCOSE / RX_PULL_GLUCOSE) ----
 
     const val RAW_RECORD_SIZE = 9
     const val WIDE_RAW_RECORD_SIZE = 11
+    const val CT5_RAW_CHUNK_SIZE = 11
+    const val CT5_VOLTAGE_CHUNK_SIZE = 15
     const val RAW_OFFSET_OPCODE = 0
     const val RAW_OFFSET_ID_LO = 1
     const val RAW_OFFSET_ID_HI = 2
@@ -306,7 +341,7 @@ object AnytimeConstants {
         FamilyEntry("SN87", Family.CT4, 10, 7220),
         FamilyEntry("SN88", Family.CT4, 10, 7220),
         FamilyEntry("SN90", Family.CT4, 10, 4820),
-        // ---- CT5 (no separate transmitter — placeholder) ----
+        // ---- CT5 (integrated transmitter/sensor, encrypted identity/data layer) ----
         FamilyEntry("Anytime", Family.CT5, 11, 7695),
     )
 
@@ -408,4 +443,7 @@ object AnytimeConstants {
     const val PREF_TRANSMITTER_VERSION_PREFIX = "anytime_tx_version_"
     const val PREF_BOUND_PREFIX = "anytime_bound_"
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
+    const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
+    const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
+    const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
 }

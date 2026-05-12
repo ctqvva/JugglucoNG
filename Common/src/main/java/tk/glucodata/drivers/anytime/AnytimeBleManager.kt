@@ -42,6 +42,7 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import java.security.SecureRandom
 import java.util.UUID
 import tk.glucodata.Applic
 import tk.glucodata.HistorySyncAccess
@@ -49,6 +50,7 @@ import tk.glucodata.Log
 import tk.glucodata.Natives
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
 @SuppressLint("MissingPermission")
@@ -91,9 +93,6 @@ class AnytimeBleManager(
 
         /** Bound for manually recovering a half-open GATT that never reported STATE_DISCONNECTED. */
         private const val STALE_GATT_RECOVERY_MS = 20_000L
-
-        /** Avoid duplicate Room rows when the same point arrives through live/backfill/native refresh. */
-        private const val ROOM_HISTORY_NEAR_DUPLICATE_MS = 90_000L
 
         /** Legacy Yuwell JNI returns 0 until it has enough warmup history. */
         private const val NATIVE_HISTORY_WARMUP_RECORDS = 20
@@ -177,19 +176,17 @@ class AnytimeBleManager(
     @Volatile private var lastProtocolFrameTag: String = ""
     @Volatile private var ct4HandshakeFallbackStep: Int = 0
     @Volatile private var postVoltagePlainControlFrames: Boolean = false
+    @Volatile private var ct5CipherKey: Int = -1
+    @Volatile private var ct5RandomA: IntArray? = null
+    @Volatile private var ct5RandomB: IntArray? = null
+    @Volatile private var ct5TempId: String = ""
+    @Volatile private var ct5VoltagePayload: Boolean = false
+    @Volatile private var ct5ReconnectDateAfterIdentity: Boolean = false
+    private val ct5Random = SecureRandom()
     // Native Yuwell algorithm inputs have no start-id field; the raw arrays must
     // represent glucose ids from 0..current. Keep the full session history.
     private val rawAlgorithmWindow = java.util.TreeMap<Int, AnytimeRawRecord>()
     private val pendingNativeRecomputeIds = java.util.TreeSet<Int>()
-
-    /**
-     * During the fresh recent-tail pass rolling native can be computed from a
-     * still-growing window (e.g. id=589 before ids=590..593 are present). Keep
-     * those ids and rewrite them once the whole tail range is loaded so the
-     * chart settles on one final native lane instead of keeping transitional
-     * rolling estimates.
-     */
-    private val freshRecentTailFinalRecomputeIds = java.util.TreeSet<Int>()
 
     /** True only when this process restored an existing Anytime session cache. */
     @Volatile private var restoredGlucoseState: Boolean = false
@@ -217,12 +214,22 @@ class AnytimeBleManager(
     /** Count down live pushes after bound reconnect before probing battery telemetry. */
     @Volatile private var telemetryLivePushesUntilCheck: Int = -1
 
-    override var viewMode: Int = 0
+    @Volatile private var viewModeValue: Int = restoreInitialViewMode(serial, dataptr)
+
+    override var viewMode: Int
+        get() = viewModeValue
+        set(value) {
+            val normalized = ManagedSensorViewModeStore.sanitize(value)
+            viewModeValue = normalized
+            ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+            applyViewModeToNative(normalized)
+        }
 
     // ---- Restore from persistence ----
 
     fun restoreFromPersistence(context: Context) {
         val id = SerialNumber ?: return
+        viewMode = ManagedSensorViewModeStore.read(context, id, viewModeValue)
         val cachedDeviceName = AnytimeRegistry.loadDeviceName(context, id)
         familyEntry = AnytimeProfileResolver.familyEntry(cachedDeviceName)
         profile = AnytimeProfileResolver.resolve(cachedDeviceName)
@@ -240,6 +247,9 @@ class AnytimeBleManager(
         sensorStartAtMs = AnytimeRegistry.loadSensorStartAt(context, id)
         warmupStartedAtMs = AnytimeRegistry.loadWarmupStartedAt(context, id)
         bound = AnytimeRegistry.loadBound(context, id)
+        ct5CipherKey = AnytimeRegistry.loadCt5CipherKey(context, id)
+        ct5RandomB = AnytimeRegistry.loadCt5RandomB(context, id)
+        ct5TempId = AnytimeRegistry.loadCt5TempId(context, id)
         val rawHistory = AnytimeRegistry.loadRawHistory(context, id)
         synchronized(rawAlgorithmWindow) {
             rawAlgorithmWindow.clear()
@@ -250,6 +260,21 @@ class AnytimeBleManager(
         freshOlderBackfillStarted = false
         pendingFreshOlderBackfillStartId = -1
         lastBatteryVolts = loadCachedBatteryVolts(context, id)
+    }
+
+    private fun restoreInitialViewMode(sensorId: String, nativePtr: Long): Int {
+        val nativeMode = if (nativePtr != 0L) {
+            runCatching { Natives.getViewMode(nativePtr) }.getOrDefault(0)
+        } else {
+            0
+        }
+        return ManagedSensorViewModeStore.read(Applic.app, sensorId, nativeMode)
+    }
+
+    private fun applyViewModeToNative(mode: Int) {
+        if (dataptr == 0L) return
+        runCatching { Natives.setViewMode(dataptr, mode) }
+            .onFailure { Log.stack(TAG, "applyViewModeToNative", it) }
     }
 
     private fun loadCachedBatteryVolts(context: Context?, sensorId: String): Float {
@@ -306,6 +331,9 @@ class AnytimeBleManager(
         AnytimeRegistry.saveWarmupStartedAt(ctx, id, warmupStartedAtMs)
         saveCachedBatteryVolts(ctx, id, lastBatteryVolts)
         AnytimeRegistry.saveRawHistory(ctx, id, synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.values.toList() })
+        AnytimeRegistry.saveCt5CipherKey(ctx, id, ct5CipherKey)
+        AnytimeRegistry.saveCt5RandomB(ctx, id, ct5RandomB)
+        AnytimeRegistry.saveCt5TempId(ctx, id, ct5TempId)
     }
 
     // ---- Reconnect / watchdog ----
@@ -544,34 +572,11 @@ class AnytimeBleManager(
     private fun isFreshRecentBackfillReason(reason: String = historyBackfillReason): Boolean =
         reason.startsWith("post-live-anchor(recent)")
 
-    private fun rememberFreshRecentTailForFinalRewrite(id: Int) {
-        if (!isFreshRecentBackfillReason()) return
-        val startId = pendingFreshOlderBackfillStartId
-        if (startId < 0 || id < startId) return
-        synchronized(freshRecentTailFinalRecomputeIds) {
-            freshRecentTailFinalRecomputeIds.add(id)
-        }
-    }
-
     private fun hasContiguousRawHistoryThrough(targetId: Int): Boolean {
         return firstMissingRawHistoryIdThrough(targetId) == null
     }
 
-    private fun hasContiguousRawTailThrough(targetId: Int, minCount: Int): Boolean {
-        if (targetId < 0 || minCount <= 0) return false
-        synchronized(rawAlgorithmWindow) {
-            var count = 0
-            var id = targetId
-            while (id >= 0 && rawAlgorithmWindow.containsKey(id)) {
-                count++
-                if (count >= minCount) return true
-                id--
-            }
-        }
-        return false
-    }
-
-    /** Contiguous records ending at targetId, enough for rolling native without O(n²) copies. */
+    /** Contiguous records ending at targetId, enough for native input without O(n²) copies. */
     private fun rawRecordsForAlgorithm(targetId: Int): List<AnytimeRawRecord> =
         synchronized(rawAlgorithmWindow) {
             val target = rawAlgorithmWindow[targetId] ?: return@synchronized emptyList()
@@ -603,14 +608,14 @@ class AnytimeBleManager(
 
     private fun finishHistoryBackfill() {
         val completedReason = historyBackfillReason
-        val completedStopBefore = historyStopBeforeId
         stopHistoryBackfill()
 
         if (isFreshRecentBackfillReason(completedReason)) {
-            // Fast UX pass: rewrite the recent tail once the tail itself is loaded.
-            // These values may still be rolling/provisional because ids 0..recentStart-1
-            // are not loaded yet, so they must remain pending for the final prefix pass.
-            rewriteFreshRecentTailAfterRangeComplete(completedStopBefore)
+            // The vendor algorithm has glucose-id/lifetime dependent coefficients
+            // (K_AUTO/K_BASE). A remapped rolling tail makes late-life samples look
+            // like first-day samples, so recent-tail data stays provisional until
+            // ids 0..current are contiguous and the full-prefix pass can replace it.
+            Log.i(TAG, "Recent tail loaded; waiting for older prefix before native rewrite")
         } else if (completedReason.startsWith("post-live-anchor(older-background)")) {
             // Final correctness pass after the older prefix exists.
             recomputePendingNativeReadings(
@@ -621,71 +626,6 @@ class AnytimeBleManager(
 
         maybeStartPendingFreshOlderBackfill()
     }
-
-
-    private fun rewriteFreshRecentTailAfterRangeComplete(completedStopBefore: Int) {
-        if (!nativeAlgorithmExpected()) return
-        val recentStartId = pendingFreshOlderBackfillStartId
-        if (recentStartId < 0) return
-
-        val ids = java.util.TreeSet<Int>()
-        for (id in recentStartId until completedStopBefore) ids.add(id)
-        synchronized(freshRecentTailFinalRecomputeIds) {
-            ids.addAll(freshRecentTailFinalRecomputeIds.filter { it in recentStartId until completedStopBefore })
-            freshRecentTailFinalRecomputeIds.removeAll(ids)
-        }
-        if (ids.isEmpty()) return
-
-        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
-        if (intervalMs <= 0L) return
-        val context = Applic.app
-        var replaced = 0
-        for (id in ids) {
-            if (!hasContiguousRawHistoryThrough(id) && !hasContiguousRawTailThrough(id, NATIVE_HISTORY_WARMUP_RECORDS)) continue
-            val rec = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow[id] } ?: continue
-            val sampleMs = when {
-                glucoseTimelineStartAtMs > 0L -> glucoseTimelineStartAtMs + id.toLong() * intervalMs
-                sensorStartAtMs > 0L -> sensorStartAtMs + id.toLong() * intervalMs
-                else -> continue
-            }
-            val result = AnytimeAlgorithm.compute(
-                record = rec,
-                qr = qr,
-                family = familyEntry,
-                sensorIdName = algorithmTransmitterName(context),
-                sampleTimeMs = sampleMs,
-                lastReferenceBgMgdlTimes10 = lastReferenceBgMgdlTimes10,
-                lastReferenceBgGlucoseId = lastReferenceBgGlucoseId,
-                sessionPacketsSinceInit = packetsSinceInit,
-                recentRecords = rawRecordsForAlgorithm(rec.glucoseId),
-                sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
-            )
-            if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) {
-                // This is intentionally allowed into Room: the user wants immediate
-                // native/auto display. It stays pending and will be replaced later
-                // by full-prefix native when the older backfill reaches this id.
-                commitReading(
-                    result = result,
-                    sampleMs = sampleMs,
-                    context = context,
-                    // This is a history rewrite, even if it rewrites the newest/live id.
-                    // Emitting it through handleGlucoseResult() duplicates the native
-                    // reading row, because the original live 0x07 already emitted one
-                    // current point for the same timestamp. Room is enough here.
-                    live = false,
-                    history = true,
-                    skipHistoryImport = false,
-                )
-                trackNativeRecomputeNeed(result)
-                replaced++
-            }
-        }
-        if (replaced > 0) {
-            Log.i(TAG, "Rewrote $replaced fresh recent-tail point(s) with rolling native output")
-            UiRefreshBus.requestStatusRefresh()
-        }
-    }
-
     private fun rememberInterruptedBackfill() {
         if (!historyBackfillActive) return
         val next = nextBackfillIdSkippingCached((historyLastPulledId + 1).coerceAtLeast(0))
@@ -848,9 +788,12 @@ class AnytimeBleManager(
             AnytimeConstants.Family.CT3_YUWELL,
             AnytimeConstants.Family.CT3_ULTRASONIC,
             AnytimeConstants.Family.CT4,
+            AnytimeConstants.Family.CT5,
         )
 
-    private fun usesWideRawRecords(): Boolean = usesSummedFrames()
+    private fun isCt5(): Boolean = familyEntry.family == AnytimeConstants.Family.CT5
+
+    private fun usesWideRawRecords(): Boolean = usesSummedFrames() && !isCt5()
 
     private fun checkFrame(): ByteArray =
         if (usesSummedFrames()) AnytimeFrames.Builders.checkSummed() else AnytimeFrames.Builders.check()
@@ -869,28 +812,47 @@ class AnytimeBleManager(
         if (usesSummedFrames()) AnytimeFrames.Builders.resetSummed() else AnytimeFrames.Builders.reset()
 
     private fun unbindFrame(): ByteArray =
-        if (usesSummedFrames()) AnytimeFrames.Builders.unbindSummed() else AnytimeFrames.Builders.unbind()
+        if (isCt5()) AnytimeFrames.Builders.ct5Unbind(ct5TempId.ifBlank { generateCt5TempId() })
+        else if (usesSummedFrames()) AnytimeFrames.Builders.unbindSummed() else AnytimeFrames.Builders.unbind()
 
     private fun setDateFrame(): ByteArray =
-        if (usesPlainControlFrames()) AnytimeFrames.Builders.setDate()
+        if (isCt5()) AnytimeFrames.Builders.ct5GetDate()
+        else if (usesPlainControlFrames()) AnytimeFrames.Builders.setDate()
         else if (usesSummedFrames()) AnytimeFrames.Builders.setDateSummed()
         else AnytimeFrames.Builders.setDate()
 
     private fun pullGlucoseFrame(nextId: Int): ByteArray =
-        if (usesPlainControlFrames()) AnytimeFrames.Builders.pullGlucose(nextId)
+        if (isCt5()) AnytimeFrames.Builders.ct5PullGlucoseSeries(nextId)
+        else if (usesPlainControlFrames()) AnytimeFrames.Builders.pullGlucose(nextId)
         else if (usesSummedFrames()) AnytimeFrames.Builders.pullGlucoseSummed(nextId)
         else AnytimeFrames.Builders.pullGlucose(nextId)
 
     private fun inputKrFrame(k: Float, r: Float): ByteArray =
-        if (usesSummedFrames()) AnytimeFrames.Builders.inputKRSummed(k, r) else AnytimeFrames.Builders.inputKR(k, r)
+        if (isCt5()) {
+            if (ct5CipherKey in 0..255) {
+                AnytimeFrames.Builders.ct5SetParameters(k, r, ct5CipherKey, ct5TempId.ifBlank { generateCt5TempId() })
+            } else {
+                ByteArray(0)
+            }
+        } else if (usesSummedFrames()) AnytimeFrames.Builders.inputKRSummed(k, r) else AnytimeFrames.Builders.inputKR(k, r)
 
     private fun inputBgFrame(mgdl: Int): ByteArray =
-        if (usesSummedFrames()) AnytimeFrames.Builders.inputBgMgSummed(mgdl) else AnytimeFrames.Builders.inputBgMg(mgdl)
+        if (isCt5()) AnytimeFrames.Builders.ct5InputBgMg(mgdl)
+        else if (usesSummedFrames()) AnytimeFrames.Builders.inputBgMgSummed(mgdl) else AnytimeFrames.Builders.inputBgMg(mgdl)
 
     private fun transmitterFormalFrame(): ByteArray =
         if (usesSummedFrames()) AnytimeFrames.Builders.transmitterFormalSummed() else AnytimeFrames.Builders.transmitterFormal()
 
     private fun usesPlainControlFrames(): Boolean = false
+
+    private fun generateCt5TempId(): String {
+        val generated = (1000 + ct5Random.nextInt(9000)).toString()
+        ct5TempId = generated
+        return generated
+    }
+
+    private fun generateCt5RandomBytes(): IntArray =
+        IntArray(4) { ct5Random.nextInt(256) }
 
     private fun armProtocolFrameTimeout(tag: String) {
         if (phase != Phase.HANDSHAKING) return
@@ -1161,6 +1123,22 @@ class AnytimeBleManager(
         profile = AnytimeProfileResolver.resolve(resolvedName.ifBlank { activeName })
 
         when {
+            familyEntry.family == AnytimeConstants.Family.CT5 && bound -> {
+                val randomB = ct5RandomB
+                if (randomB != null && randomB.size == 4 && ct5CipherKey in 0..255) {
+                    Log.i(TAG, "CT5 bound session — sending identity check")
+                    writeFrame(AnytimeFrames.Builders.ct5CheckId(randomB), "ct5-checkID")
+                } else {
+                    Log.w(TAG, "CT5 bound flag exists but identity material is missing; starting fresh bind")
+                    bound = false
+                    persistAlgorithmState()
+                    writeFrame(setDateFrame(), "ct5-getDate(fresh)")
+                }
+            }
+            familyEntry.family == AnytimeConstants.Family.CT5 -> {
+                Log.i(TAG, "CT5 family — starting getDate/check/setID/querySSN handshake")
+                writeFrame(setDateFrame(), "ct5-getDate(fresh)")
+            }
             bound -> {
                 Log.i(TAG, "Already bound — sending reset to confirm session")
                 writeFrame(resetFrame(), "reset")
@@ -1234,6 +1212,7 @@ class AnytimeBleManager(
     }
 
     private fun dispatch(opcode: Byte, data: ByteArray) {
+        if (isCt5() && dispatchCt5(opcode, data)) return
         when (opcode) {
             AnytimeConstants.RX_VERSION -> Log.d(TAG, "RX 0x01 version: ${data.joinToHex()}")
             AnytimeConstants.RX_SET_DATE_ACK_A,
@@ -1259,6 +1238,26 @@ class AnytimeBleManager(
             AnytimeConstants.RX_TRANSMITTER_FORMAL -> handleFormalVersion(data)
             else -> Log.d(TAG, "Unhandled opcode 0x%02X len=%d".format(opcode.toInt() and 0xFF, data.size))
         }
+    }
+
+    private fun dispatchCt5(opcode: Byte, data: ByteArray): Boolean {
+        when (opcode) {
+            AnytimeConstants.RX_SET_DATE_ACK_A,
+            AnytimeConstants.RX_SET_DATE_ACK_B -> handleCt5DateResponse(data)
+            AnytimeConstants.RX_CHECK -> handleCt5CheckResponse(data)
+            AnytimeConstants.TX_CT5_SET_ID -> handleCt5SetIdResponse(data)
+            AnytimeConstants.RX_CT5_CHECK_ID -> handleCt5CheckIdResponse(data)
+            AnytimeConstants.RX_CT5_PUSH_GLUCOSE -> handleCt5CurrentGlucose(data)
+            AnytimeConstants.RX_CT5_SERIES -> handleCt5Series(data)
+            AnytimeConstants.RX_CT5_SET_PARAMETERS -> handleCt5SetParametersResponse(data)
+            AnytimeConstants.RX_CT5_QUERY_SSN -> handleCt5QuerySsnResponse(data)
+            AnytimeConstants.RX_INIT -> handleInitResponse()
+            AnytimeConstants.RX_LOW_POWER_ACK -> Log.d(TAG, "CT5 low-power ack")
+            AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
+            AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck()
+            else -> return false
+        }
+        return true
     }
 
     // ---- Handshake handlers ----
@@ -1362,7 +1361,12 @@ class AnytimeBleManager(
         if (pendingKrPush) {
             pendingKrPush = false
             qr?.takeIf { it.isFactoryCalibration }?.let {
-                writeFrame(inputKrFrame(it.k, it.r), "inputKR(deferred)")
+                if (isCt5() && ct5CipherKey !in 0..255) {
+                    pendingKrPush = true
+                    Log.w(TAG, "CT5 deferred K/R still waiting for cipher key")
+                } else {
+                    writeFrame(inputKrFrame(it.k, it.r), if (isCt5()) "ct5-setParameters(deferred)" else "inputKR(deferred)")
+                }
             }
         }
         writeFrame(lowPowerFrame(), "lowPower", expectResponse = false)
@@ -1435,6 +1439,132 @@ class AnytimeBleManager(
 
     private fun handleInputKrAck() {
         Log.i(TAG, "K/R upload ack")
+    }
+
+    private fun handleCt5DateResponse(data: ByteArray) {
+        if (!AnytimeFrames.verifySum(data)) {
+            Log.w(TAG, "Bad CT5 date response: ${data.joinToHex()}")
+            return
+        }
+        if (phase != Phase.HANDSHAKING) {
+            Log.d(TAG, "Ignoring CT5 date response while phase=$phase")
+            return
+        }
+        if (ct5ReconnectDateAfterIdentity && bound && ct5CipherKey in 0..255) {
+            ct5ReconnectDateAfterIdentity = false
+            enterStreaming("CT5 reconnect date OK")
+        } else {
+            ct5ReconnectDateAfterIdentity = false
+            writeFrame(checkFrame(), "ct5-check")
+        }
+    }
+
+    private fun handleCt5CheckResponse(data: ByteArray) {
+        if (phase != Phase.HANDSHAKING) {
+            Log.d(TAG, "Ignoring CT5 check response while phase=$phase")
+            return
+        }
+        if (data.size != 20 || !AnytimeFrames.verifySum(data)) {
+            Log.w(TAG, "Bad CT5 check response: ${data.joinToHex()}")
+            return
+        }
+        ct5TempId = generateCt5TempId()
+        val randomA = generateCt5RandomBytes()
+        val randomB = generateCt5RandomBytes()
+        ct5RandomA = randomA
+        ct5RandomB = randomB
+        persistAlgorithmState()
+        Log.i(TAG, "CT5 check OK — sending setID")
+        writeFrame(AnytimeFrames.Builders.ct5SetId(randomA, randomB), "ct5-setID")
+    }
+
+    private fun handleCt5SetIdResponse(data: ByteArray) {
+        val randomA = ct5RandomA
+        if (randomA == null || randomA.size != 4) {
+            Log.w(TAG, "CT5 setID response without randomA")
+            return
+        }
+        val key = AnytimeFrames.ct5SessionKeyFromSetIdResponse(data, randomA)
+        if (key !in 0..255) {
+            Log.w(TAG, "CT5 setID failed: ${data.joinToHex()}")
+            return
+        }
+        ct5CipherKey = key
+        persistAlgorithmState()
+        Log.i(TAG, "CT5 session cipher established")
+        writeFrame(AnytimeFrames.Builders.ct5QuerySsn(), "ct5-querySSN")
+    }
+
+    private fun handleCt5CheckIdResponse(data: ByteArray) {
+        val ok = data.size >= 6 &&
+                data[0] == AnytimeConstants.RX_CT5_CHECK_ID &&
+                AnytimeFrames.verifySum(data) &&
+                (data[5].toInt() and 0xFF) == 1
+        if (ok) {
+            Log.i(TAG, "CT5 identity check OK")
+            ct5ReconnectDateAfterIdentity = true
+            writeFrame(setDateFrame(), "ct5-getDate(reconnect)")
+        } else {
+            Log.w(TAG, "CT5 identity check failed; restarting fresh handshake")
+            bound = false
+            ct5CipherKey = -1
+            ct5RandomB = null
+            ct5ReconnectDateAfterIdentity = false
+            persistAlgorithmState()
+            writeFrame(setDateFrame(), "ct5-getDate(fresh-after-checkID)")
+        }
+    }
+
+    private fun handleCt5QuerySsnResponse(data: ByteArray) {
+        val key = ct5CipherKey
+        if (key !in 0..255) {
+            Log.w(TAG, "CT5 querySSN response before cipher key")
+            return
+        }
+        val decoded = AnytimeFrames.parseCt5QuerySsnResponse(data, key).orEmpty()
+        val candidates = buildList {
+            if (decoded.isNotBlank()) add(decoded)
+            val alnum = decoded.filter { it.isLetterOrDigit() }
+            if (alnum.isNotBlank() && alnum != decoded) add(alnum)
+            if (data.size > 2) {
+                val noSum = AnytimeFrames.ct5Encode(data.copyOfRange(1, data.size - 1), key)
+                    .toString(Charsets.US_ASCII)
+                    .trim { it <= ' ' || it.code > 0x7E }
+                if (noSum.isNotBlank()) add(noSum)
+                val noSumAlnum = noSum.filter { it.isLetterOrDigit() }
+                if (noSumAlnum.isNotBlank() && noSumAlnum != noSum) add(noSumAlnum)
+            }
+        }.distinct()
+        val parsed = candidates.firstNotNullOfOrNull { candidate ->
+            AnytimeAlgorithm.decodeQr(candidate)
+        }
+        if (parsed != null) {
+            qr = parsed
+            voltageFlag = parsed.voltageFlag
+            Log.i(TAG, "CT5 QR/KR decoded from transmitter: K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d")
+            persistAlgorithmState()
+        } else {
+            Log.w(TAG, "CT5 querySSN did not decode with local QR parser; raw='$decoded'")
+        }
+        val calibration = parsed ?: qr
+        if (calibration == null) {
+            Log.w(TAG, "CT5 setup cannot continue without K/R calibration")
+            return
+        }
+        if (ct5TempId.isBlank()) ct5TempId = generateCt5TempId()
+        writeFrame(
+            AnytimeFrames.Builders.ct5SetParameters(calibration.k, calibration.r, key, ct5TempId),
+            "ct5-setParameters",
+        )
+    }
+
+    private fun handleCt5SetParametersResponse(data: ByteArray) {
+        if (data.size != 14 || !AnytimeFrames.verifySum(data)) {
+            Log.w(TAG, "Bad CT5 setParameters response: ${data.joinToHex()}")
+            return
+        }
+        Log.i(TAG, "CT5 K/R parameters accepted")
+        writeFrame(initFrame(), "ct5-init")
     }
 
     // ---- Glucose pipeline ----
@@ -1548,14 +1678,6 @@ class AnytimeBleManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
-    private fun isRollingNativeProvisional(result: AnytimeAlgorithm.Result): Boolean {
-        if (result.source != AnytimeAlgorithm.Source.NATIVE || result.errorCode != 0) return false
-        val id = result.glucoseId
-        if (id < NATIVE_HISTORY_WARMUP_RECORDS) return false
-        return !hasContiguousRawHistoryThrough(id) &&
-                hasContiguousRawTailThrough(id, NATIVE_HISTORY_WARMUP_RECORDS)
-    }
-
     private fun shouldSkipStartupRoomImport(
         result: AnytimeAlgorithm.Result,
         push: Boolean,
@@ -1565,21 +1687,20 @@ class AnytimeBleManager(
         if (result.source == AnytimeAlgorithm.Source.NATIVE && result.errorCode == 0) return false
 
         // During the fresh recent-tail pass LINEAR points are only a temporary
-        // fallback before the rolling native window becomes available. Importing
-        // them is what created the visible startup bump/curve on the dashboard.
+        // fallback before full-prefix native can recompute them. Importing them
+        // created a visible startup bump/curve on the dashboard.
         if (history && isFreshRecentBackfillReason()) return true
 
         // The very first live point on a clean start can also be LINEAR because
-        // the recent tail is not loaded yet. Keep it for the hero/notification,
-        // but do not anchor it into Room; rewriteFreshRecentTailAfterRangeComplete()
-        // will import the rolling-native current point once the tail is present.
+        // the full raw prefix is not loaded yet. Keep it for hero/notification,
+        // but do not anchor it into Room; the older-prefix pass will import the
+        // native current point once ids 0..current are contiguous.
         if (push && freshPostLiveBackfillStarted && !hasContiguousRawHistoryThrough(result.glucoseId)) return true
 
         return false
     }
 
     private fun trackNativeRecomputeNeed(result: AnytimeAlgorithm.Result) {
-        rememberFreshRecentTailForFinalRewrite(result.glucoseId)
         if (!nativeAlgorithmExpected()) return
 
         val id = result.glucoseId
@@ -1670,6 +1791,106 @@ class AnytimeBleManager(
         persistAlgorithmState()
         armNoDataWatchdog()
         armPullFallback()
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun handleCt5CurrentGlucose(data: ByteArray) {
+        writeFrame(AnytimeFrames.Builders.ct5PushAck(), "ct5-pushAck", expectResponse = false)
+        val key = ct5CipherKey
+        if (key !in 0..255) {
+            Log.w(TAG, "CT5 live push before cipher key: ${data.joinToHex()}")
+            return
+        }
+        val rec = AnytimeFrames.parseCt5CurrentRecord(data, key) ?: run {
+            Log.w(TAG, "Bad CT5 live frame: ${data.joinToHex()}")
+            return
+        }
+        ct5VoltagePayload = data.size == 19
+        if (phase == Phase.HANDSHAKING) {
+            enterStreaming("CT5 glucose during handshake")
+        }
+        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
+        val now = System.currentTimeMillis()
+        updateTimelineFromLiveGlucoseId(rec.glucoseId, now, intervalMs)
+        maybeStartFreshPostLiveBackfill(rec.glucoseId)
+        val sampleMs = if (glucoseTimelineStartAtMs > 0L) {
+            glucoseTimelineStartAtMs + rec.glucoseId.toLong() * intervalMs
+        } else {
+            now
+        }
+        val result = AnytimeAlgorithm.fromComputedRecord(rec, qr, familyEntry)
+        commitReading(result, sampleMs, Applic.app, live = true, history = false)
+        if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
+        persistAlgorithmState()
+        armNoDataWatchdog()
+        armPullFallback()
+        maybeRunReconnectTelemetryAfterLivePush()
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun handleCt5Series(data: ByteArray) {
+        val key = ct5CipherKey
+        if (key !in 0..255) {
+            Log.w(TAG, "CT5 series before cipher key: ${data.joinToHex()}")
+            if (historyBackfillActive) historyPullInFlight = false
+            return
+        }
+        val payloadLen = (data.size - 4).coerceAtLeast(0)
+        val preferVoltage = ct5VoltagePayload ||
+                (payloadLen > 0 && payloadLen % AnytimeConstants.CT5_VOLTAGE_CHUNK_SIZE == 0 &&
+                        payloadLen % AnytimeConstants.CT5_RAW_CHUNK_SIZE != 0)
+        val preferred = AnytimeFrames.parseCt5SeriesRecords(data, key, voltage = preferVoltage)
+        val records = if (preferred.isNotEmpty()) {
+            ct5VoltagePayload = preferVoltage
+            preferred
+        } else {
+            val fallbackVoltage = !preferVoltage
+            AnytimeFrames.parseCt5SeriesRecords(data, key, voltage = fallbackVoltage).also {
+                if (it.isNotEmpty()) ct5VoltagePayload = fallbackVoltage
+            }
+        }
+        if (historyBackfillActive) historyPullInFlight = false
+        if (records.isEmpty()) {
+            Log.d(TAG, "Empty CT5 series frame: ${data.joinToHex()}")
+            if (historyBackfillActive) {
+                historyEmptyResponsesInARow++
+                if (historyEmptyResponsesInARow >= HISTORY_EMPTY_RESPONSES_TO_STOP) {
+                    Log.i(TAG, "CT5 backfill caught up at id=$lastGlucoseId")
+                    finishHistoryBackfill()
+                } else {
+                    handler.postDelayed(historyBackfillRunnable, HISTORY_PULL_BATCH_DELAY_MS)
+                }
+            }
+            return
+        }
+
+        historyEmptyResponsesInARow = 0
+        records.maxOfOrNull { it.glucoseId }?.let { maxId ->
+            if (maxId > historyLastPulledId) historyLastPulledId = maxId
+        }
+        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
+        val now = System.currentTimeMillis()
+        val maxId = records.maxOf { it.glucoseId }
+        for (rec in records) {
+            lastIwNa = rec.iwNa
+            lastIbNa = rec.ibNa
+            lastTemperatureC = rec.temperatureC
+            val sampleMs = when {
+                glucoseTimelineStartAtMs > 0L -> glucoseTimelineStartAtMs + rec.glucoseId.toLong() * intervalMs
+                sensorStartAtMs > 0L -> sensorStartAtMs + rec.glucoseId.toLong() * intervalMs
+                else -> now - (maxId - rec.glucoseId).toLong() * intervalMs
+            }
+            anchorSensorTimelineIfNeeded(rec.glucoseId, sampleMs, intervalMs)
+            val result = AnytimeAlgorithm.fromComputedRecord(rec, qr, familyEntry)
+            commitReading(result, sampleMs, Applic.app, live = false, history = true)
+            if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
+        }
+        persistAlgorithmState()
+        armNoDataWatchdog()
+        armPullFallback()
+        if (historyBackfillActive) {
+            handler.postDelayed(historyBackfillRunnable, HISTORY_PULL_BATCH_DELAY_MS)
+        }
         UiRefreshBus.requestStatusRefresh()
     }
 
@@ -1807,7 +2028,6 @@ class AnytimeBleManager(
                     )
                 ),
                 logLabel = "Anytime ${result.source}",
-                nearDuplicateWindowMs = ROOM_HISTORY_NEAR_DUPLICATE_MS,
             )
             if (imported > 0) {
                 val raw = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
@@ -1817,13 +2037,15 @@ class AnytimeBleManager(
     }
 
     private fun emitGlucose(result: AnytimeAlgorithm.Result, sampleMs: Long) {
-        val alarm = 0L
-        val rateShort = 0 // we do not compute trend rate yet
-        val mgdlTimes10 = result.mgdlTimes10.toLong() and 0xFFFFFFFFL
-        val res = (alarm shl 48) or ((rateShort.toLong() and 0xFFFF) shl 32) or mgdlTimes10
         try {
-            val raw = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
-            handleGlucoseResult(res, sampleMs, raw)
+            val displayValue = if (Applic.unit == 1) result.mmol else result.mgdl
+            SuperGattCallback.processExternalCurrentReading(
+                SerialNumber,
+                displayValue,
+                0f,
+                sampleMs,
+                SENSOR_GEN,
+            )
         } catch (t: Throwable) {
             Log.stack(TAG, "emitGlucose", t)
         }
@@ -1850,6 +2072,10 @@ class AnytimeBleManager(
     // ---- Frame writer ----
 
     private fun writeFrame(bytes: ByteArray, tag: String, expectResponse: Boolean = true): Boolean {
+        if (bytes.isEmpty()) {
+            Log.w(TAG, "writeFrame($tag) skipped empty frame")
+            return false
+        }
         val gatt = mBluetoothGatt ?: return false
         val ch = charWrite ?: return false
         ch.value = bytes
@@ -1890,7 +2116,12 @@ class AnytimeBleManager(
             pendingKrPush = false
             Log.i(TAG, "QR is product/UDI metadata only; using linear fallback defaults without inputKR")
         } else if (phase == Phase.STREAMING) {
-            writeFrame(inputKrFrame(parsed.k, parsed.r), "inputKR")
+            if (isCt5() && ct5CipherKey !in 0..255) {
+                pendingKrPush = true
+                Log.w(TAG, "CT5 K/R update deferred — cipher key is not established")
+            } else {
+                writeFrame(inputKrFrame(parsed.k, parsed.r), if (isCt5()) "ct5-setParameters(qr-update)" else "inputKR")
+            }
         } else {
             pendingKrPush = true
         }
@@ -2097,7 +2328,7 @@ class AnytimeBleManager(
         }
         val voltagesLine = if (r.weVoltageMv != Int.MIN_VALUE) {
             "WE=${r.weVoltageMv}mV BE=${r.beVoltageMv}mV RE=${r.reVoltageMv}mV CE=${r.ceVoltageMv}mV B=${r.bVoltageMv}mV"
-        } else ""a
+        } else ""
         val iirLine = if (!r.iw30Iir.isNaN() || !r.iw48Iir.isNaN()) {
             "Iw30IIR=${"%.2f".format(r.iw30Iir)} Iw48IIR=${"%.2f".format(r.iw48Iir)}"
         } else ""
