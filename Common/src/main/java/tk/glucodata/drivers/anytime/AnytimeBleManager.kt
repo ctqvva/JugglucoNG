@@ -75,7 +75,7 @@ class AnytimeBleManager(
         private const val PULL_FALLBACK_MULTIPLIER = 3L
 
         /** Backfill loop: gap between consecutive pulls when records keep arriving. */
-        private const val HISTORY_PULL_BATCH_DELAY_MS = 25L
+        private const val HISTORY_PULL_BATCH_DELAY_MS = 10L
 
         /** How many empty pull responses in a row count as "caught up". */
         private const val HISTORY_EMPTY_RESPONSES_TO_STOP = 2
@@ -107,6 +107,13 @@ class AnytimeBleManager(
 
         /** Small pause between the quick recent tail and the older full-prefix fill. */
         private const val FRESH_OLDER_BACKFILL_DELAY_MS = 2_000L
+
+        /** Some CT4 units do not ACK init; do not wait for the next 3-minute push if we can resume from cache. */
+        private const val INIT_NO_ACK_STREAMING_GRACE_MS = 650L
+
+        /** Tiny private cache for UI-only telemetry that is not part of the raw algorithm state. */
+        private const val TELEMETRY_PREFS = "anytime_ble_telemetry"
+        private const val TELEMETRY_BATTERY_VOLTS_PREFIX = "battery_volts_"
 
         /** Check-frame age counter is seconds for CT4/Anytime v3 traces. */
         private const val SENSOR_AGE_COUNTER_TO_MS = 1_000L
@@ -226,6 +233,23 @@ class AnytimeBleManager(
         freshPostLiveBackfillStarted = false
         freshOlderBackfillStarted = false
         pendingFreshOlderBackfillStartId = -1
+        lastBatteryVolts = loadCachedBatteryVolts(context, id)
+    }
+
+    private fun loadCachedBatteryVolts(context: Context?, sensorId: String): Float {
+        if (context == null) return 0f
+        return context
+            .getSharedPreferences(TELEMETRY_PREFS, Context.MODE_PRIVATE)
+            .getFloat(TELEMETRY_BATTERY_VOLTS_PREFIX + sensorId, 0f)
+    }
+
+    private fun saveCachedBatteryVolts(context: Context?, sensorId: String?, volts: Float) {
+        if (context == null || sensorId.isNullOrBlank() || volts <= 0f) return
+        context
+            .getSharedPreferences(TELEMETRY_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(TELEMETRY_BATTERY_VOLTS_PREFIX + sensorId, volts)
+            .apply()
     }
 
     private fun synthesiseQr(raw: String, k: Float, r: Float): AnytimeQrCalibration =
@@ -264,6 +288,7 @@ class AnytimeBleManager(
         AnytimeRegistry.saveLastGlucoseId(ctx, id, lastGlucoseId)
         AnytimeRegistry.saveSensorStartAt(ctx, id, sensorStartAtMs)
         AnytimeRegistry.saveWarmupStartedAt(ctx, id, warmupStartedAtMs)
+        saveCachedBatteryVolts(ctx, id, lastBatteryVolts)
         AnytimeRegistry.saveRawHistory(ctx, id, synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.values.toList() })
     }
 
@@ -301,7 +326,7 @@ class AnytimeBleManager(
         if (stop || !historyBackfillActive) return@Runnable
         if (phase != Phase.STREAMING) return@Runnable
         if (historyPullInFlight) return@Runnable
-        val nextId = (historyLastPulledId + 1).coerceAtLeast(0)
+        var nextId = nextBackfillIdSkippingCached((historyLastPulledId + 1).coerceAtLeast(0))
         if (nextId >= historyStopBeforeId) {
             Log.i(TAG, "Backfill range complete ($historyBackfillReason, nextId=$nextId stopBefore=$historyStopBeforeId)")
             finishHistoryBackfill()
@@ -312,6 +337,7 @@ class AnytimeBleManager(
             finishHistoryBackfill()
             return@Runnable
         }
+        historyLastPulledId = nextId - 1
         historyPullInFlight = true
         Log.d(TAG, "Backfill pull next id=$nextId")
         if (!writeFrame(pullGlucoseFrame(nextId), "pullGlucose(backfill)")) {
@@ -347,6 +373,20 @@ class AnytimeBleManager(
             return@Runnable
         }
         recoverGattAndReconnect("protocol timeout after $tag", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+    }
+
+    private fun nextBackfillIdSkippingCached(fromId: Int): Int {
+        var id = fromId.coerceAtLeast(0)
+        // Avoid re-requesting raw records already restored from AnytimeRegistry.
+        // This is the main app-restart speed path: once a full/partial backfill
+        // has been cached, reconnect resumes at the first real gap instead of
+        // replaying id=0..N again.
+        synchronized(rawAlgorithmWindow) {
+            while (id < historyStopBeforeId && rawAlgorithmWindow.containsKey(id)) {
+                id++
+            }
+        }
+        return id
     }
 
     /**
@@ -478,13 +518,7 @@ class AnytimeBleManager(
         return false
     }
 
-    /**
-     * Give the native algorithm only the contiguous records it can actually use.
-     * Passing the whole session map on every pulled id made startup/background
-     * backfill O(n²) and forced the algorithm to re-filter/re-sort unrelated
-     * future gaps. This keeps the result semantics the same: full prefix when it
-     * exists, otherwise the contiguous rolling tail ending at targetId.
-     */
+    /** Contiguous records ending at targetId, enough for rolling native without O(n²) copies. */
     private fun rawRecordsForAlgorithm(targetId: Int): List<AnytimeRawRecord> =
         synchronized(rawAlgorithmWindow) {
             val target = rawAlgorithmWindow[targetId] ?: return@synchronized emptyList()
@@ -522,12 +556,10 @@ class AnytimeBleManager(
         if (isFreshRecentBackfillReason(completedReason)) {
             // Fast UX pass: rewrite the recent tail once the tail itself is loaded.
             // These values may still be rolling/provisional because ids 0..recentStart-1
-            // are not loaded yet.
+            // are not loaded yet, so they must remain pending for the final prefix pass.
             rewriteFreshRecentTailAfterRangeComplete(completedStopBefore)
         } else if (completedReason.startsWith("post-live-anchor(older-background)")) {
-            // Final correctness pass: now ids 0..recentStart-1 are loaded, so pending
-            // rolling/provisional recent-tail values can be recomputed using the full
-            // contiguous prefix and replace the old Room buckets.
+            // Final correctness pass after the older prefix exists.
             recomputePendingNativeReadings(
                 context = Applic.app,
                 intervalMs = profile.readingIntervalMinutes * 60L * 1000L,
@@ -579,13 +611,9 @@ class AnytimeBleManager(
                     live = id == lastGlucoseId || sampleMs >= lastGlucoseAtMs,
                     history = true,
                 )
-
-// Important: this recent-tail rewrite may still be rolling/provisional.
-// Do NOT remove the id from pending here. trackNativeRecomputeNeed() will keep
-// rolling-native values queued until the older prefix exists and a full-prefix
-// recompute can replace the same Room bucket.
+                // Keep rolling recent-tail native points pending until the older
+                // prefix is loaded; otherwise the startup bump is never replaced.
                 trackNativeRecomputeNeed(result)
-                Log.i(TAG, "Rewrote fresh recent-tail point $id")
                 replaced++
             }
         }
@@ -1166,6 +1194,7 @@ class AnytimeBleManager(
         }
         val status = AnytimeFrames.parseCheckResponse(data, profile.lowBatteryVolts)
         lastBatteryVolts = status.batteryVolts
+        saveCachedBatteryVolts(Applic.app, SerialNumber, lastBatteryVolts)
         if (!status.isHealthy) {
             Log.w(TAG, "Check failed: ${status.failure} (battery=${status.batteryVolts}V iw=${status.workingElectrodeCurrentNa}nA)")
             if (status.failure == AnytimeCheckStatus.CheckFailure.LOW_BATTERY) {
@@ -1185,6 +1214,15 @@ class AnytimeBleManager(
         handler.postDelayed({
             if (!stop && phase == Phase.HANDSHAKING && !lastProtocolFrameTag.startsWith("init")) {
                 writeFrame(initFrame(), "init(after-setDate-best-effort)", expectResponse = false)
+                handler.postDelayed({
+                    if (!stop && phase == Phase.HANDSHAKING) {
+                        if (hasUsableHistoryTimeline() || lastGlucoseId >= 0) {
+                            enterStreaming("Init sent without ACK")
+                        } else {
+                            Log.i(TAG, "Init ACK missing and no cached timeline; waiting for first live 0x07")
+                        }
+                    }
+                }, INIT_NO_ACK_STREAMING_GRACE_MS)
             }
         }, 250L)
     }
@@ -1194,6 +1232,7 @@ class AnytimeBleManager(
     }
 
     private fun enterStreaming(reason: String) {
+        if (phase == Phase.STREAMING) return
         Log.i(TAG, "$reason — entering streaming")
         bound = true
         phase = Phase.STREAMING
@@ -1371,12 +1410,7 @@ class AnytimeBleManager(
         if (historyBackfillActive) {
             handler.postDelayed(historyBackfillRunnable, HISTORY_PULL_BATCH_DELAY_MS)
         }
-        // Recent tail and live updates should appear immediately. Older prefix
-        // background fill is intentionally quieter: Room flows still update the
-        // chart, but we avoid an extra global UI refresh for every historical id.
-        if (push || !historyBackfillActive || isFreshRecentBackfillReason()) {
-            UiRefreshBus.requestStatusRefresh()
-        }
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private fun trackNativeRecomputeNeed(result: AnytimeAlgorithm.Result) {
@@ -1417,7 +1451,6 @@ class AnytimeBleManager(
         if (ids.isEmpty()) return
         for (id in ids) {
             if (!hasContiguousRawHistoryThrough(id)) continue
-            //            if (!hasContiguousRawHistoryThrough(id) && !hasContiguousRawTailThrough(id, NATIVE_HISTORY_WARMUP_RECORDS)) continue
             val rec = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow[id] } ?: continue
             val sampleMs = if (glucoseTimelineStartAtMs > 0L) {
                 glucoseTimelineStartAtMs + id.toLong() * intervalMs
@@ -1603,11 +1636,7 @@ class AnytimeBleManager(
                     )
                 ),
                 logLabel = "Anytime ${result.source}",
-                nearDuplicateWindowMs = if (result.source == AnytimeAlgorithm.Source.NATIVE) {
-                    0L
-                } else {
-                    ROOM_HISTORY_NEAR_DUPLICATE_MS
-                },
+                nearDuplicateWindowMs = ROOM_HISTORY_NEAR_DUPLICATE_MS,
             )
             if (imported > 0) {
                 val raw = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
@@ -1870,9 +1899,8 @@ class AnytimeBleManager(
         Phase.HANDSHAKING -> "Handshaking"
         Phase.STREAMING -> if (lastGlucoseAtMs > 0L) {
             val ageMin = ((System.currentTimeMillis() - lastGlucoseAtMs) / 60000L).toInt()
-            "Connected"
-//            "Streaming • last reading ${ageMin}m ago"
-        } else "Connected (warming up)"
+            "Streaming • last reading ${ageMin}m ago"
+        } else "Streaming (warming up)"
     }
 
     /**
