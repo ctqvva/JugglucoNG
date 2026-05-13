@@ -21,6 +21,7 @@ import tk.glucodata.drivers.ManagedSensorMaintenanceDriver
 import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.ManagedSensorUiSignals
 import tk.glucodata.drivers.ManagedSensorUiSnapshot
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.mq.MQBootstrapClient
 import tk.glucodata.drivers.mq.MQDriver
 import tk.glucodata.drivers.mq.MQRegistry
@@ -384,7 +385,7 @@ class SensorViewModel : ViewModel() {
                         val officialEndMs = Natives.getSensorEndTime(gatt.dataptr, true)
                         val expectedEndMs = Natives.getSensorEndTime(gatt.dataptr, false)
                         val startMs = Natives.getSensorStartmsec(gatt.dataptr)
-                        val currentViewMode = Natives.getViewMode(gatt.dataptr)
+                        val nativeViewMode = Natives.getViewMode(gatt.dataptr)
                         var autoResetDays = Natives.getAutoResetDays(gatt.dataptr)
                         val isSi2 = Natives.isSibionics2(gatt.dataptr)
                         val isSi = Natives.isSibionics(gatt.dataptr)
@@ -434,6 +435,10 @@ class SensorViewModel : ViewModel() {
                         val sensorSerial = SensorIdentity.resolveAppSensorId(gatt.SerialNumber)
                             ?: gatt.SerialNumber
                             ?: "Unknown"
+                        val currentViewMode = ManagedSensorViewModeStore.read(Applic.app, sensorSerial, nativeViewMode)
+                        if (currentViewMode != nativeViewMode) {
+                            Natives.setViewMode(gatt.dataptr, currentViewMode)
+                        }
                         val isActiveSensor = activeSensorSerial != null && SensorIdentity.matches(sensorSerial, activeSensorSerial)
     
                         SensorInfo(
@@ -823,11 +828,13 @@ class SensorViewModel : ViewModel() {
     fun setCalibrationMode(serial: String, mode: Int) {
         val gatt = findGatt(serial)
         if (gatt != null) {
+            val normalizedMode = ManagedSensorViewModeStore.sanitize(mode)
+            ManagedSensorViewModeStore.write(Applic.app, serial, normalizedMode)
             if (gatt is ManagedBluetoothSensorDriver) {
-                gatt.viewMode = mode
+                gatt.viewMode = normalizedMode
             }
             if (gatt.dataptr != 0L) {
-                Natives.setViewMode(gatt.dataptr, mode)
+                Natives.setViewMode(gatt.dataptr, normalizedMode)
             }
             UiRefreshBus.requestStatusRefresh()
             refreshSensors()

@@ -23,6 +23,7 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.drivers.ManagedSensorRuntime
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.DisplayValueResolver
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -352,17 +353,18 @@ class StatsViewModel : ViewModel() {
 
     private fun resolveViewMode(serial: String): Int {
         ManagedSensorRuntime.resolveUiSnapshot(serial, serial)?.let { managedSnapshot ->
-            return managedSnapshot.viewMode
+            return ManagedSensorViewModeStore.read(Applic.app, serial, managedSnapshot.viewMode)
         }
         if (!SensorIdentity.hasNativeSensorBacking(serial)) {
-            return 0
+            return ManagedSensorViewModeStore.read(Applic.app, serial, 0)
         }
-        return try {
+        val nativeMode = try {
             val snapshot = Natives.getSensorUiSnapshot(serial)
             if (snapshot != null && snapshot.size >= 2) snapshot[1].toInt() else 0
         } catch (_: Throwable) {
             0
         }
+        return ManagedSensorViewModeStore.read(Applic.app, serial, nativeMode)
     }
 
     private fun resolveViewModeForStats(serial: String): Int {
