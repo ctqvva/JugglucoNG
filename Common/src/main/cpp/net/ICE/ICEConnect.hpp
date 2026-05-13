@@ -123,8 +123,8 @@ virtual int setindex(int in) override{
         auto wasagent=agent.exchange(nullptr);
 
 #ifdef RESETAGENT
-       extern time_t oldTwilioTimes;
-       if(recreateAgent||time(nullptr)>oldTwilioTimes) {
+       extern bool shouldRecreateAgentsForTurnRefresh();
+       if(recreateAgent||shouldRecreateAgentsForTurnRefresh()) {
           extern void   recreateAgents();
           if(!recreateAgent)
               recreateAgents();

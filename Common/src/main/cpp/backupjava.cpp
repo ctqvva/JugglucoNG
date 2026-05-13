@@ -453,6 +453,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
 void resetnetwork() {
   LOGSTRING("resetnetwork\n");
   if (backup) {
+    extern void recreateAgents();
+    recreateAgents();
     backup->closeallsocks();
     backup->getupdatedata()->wakesender();
     networkpresent = true;

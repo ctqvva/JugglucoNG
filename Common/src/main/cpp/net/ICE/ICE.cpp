@@ -37,11 +37,15 @@ constexpr const int givefirst=0;
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include <thread>
 #include <bitset>
 #include <assert.h>
 #include <semaphore>
 #include <condition_variable>
+#include <limits>
+#include <mutex>
+#include <vector>
 
 #include "logs.hpp"
 #include "ContextHTTPS.hpp"
@@ -506,7 +510,7 @@ class initJuice {
 
 static std::pair<const char *,const char *> getloginpass(char *twiliooutput,const int len) {
      char *endstr=twiliooutput+len;
-     char *startsearch=endstr-300;
+     char *startsearch=twiliooutput+(len>300?len-300:0);
     std::string_view  password{R"("password": ")"};
     if(auto *pos=std::search(startsearch,endstr,&password[0],password.end());pos!=endstr) {
         char *pass=pos+password.size();
@@ -530,8 +534,6 @@ static std::pair<const char *,const char *> getloginpass(char *twiliooutput,cons
         }
      return {};
     }
-extern time_t oldTwilioTimes;
-time_t oldTwilioTimes=0;
 #if __has_include("twilio.local.hpp")
 #include "twilio.local.hpp"
 #define JUGGLUCO_HAS_TWILIO_TOKEN 1
@@ -541,6 +543,105 @@ time_t oldTwilioTimes=0;
 // twilio.local.hpp can define:
 // #define TWILIOACCOUNT  // TWILIO_ACCOUNT_SID
 // #define USERPASSBASE64 // base64 TWILIO_ACCOUNT_SID:TWILIO_AUTH_TOKEN
+extern time_t oldTwilioTimes;
+time_t oldTwilioTimes=
+#if JUGGLUCO_HAS_TWILIO_TOKEN
+0;
+#else
+std::numeric_limits<time_t>::max();
+#endif
+
+static bool turnTextPresent(const char *value) {
+    return value&&value[0];
+    }
+
+static bool isTwilioTurnServer(const juice_turn_server_t &server) {
+    return turnTextPresent(server.host)&&!strcmp(server.host,"global.turn.twilio.com");
+    }
+
+static bool hasTurnCredentials(const juice_turn_server_t &server) {
+    return server.username&&server.password;
+    }
+
+#if JUGGLUCO_HAS_TWILIO_TOKEN
+static void refreshTwilioTurnCredentials(juice_turn_server_t *servers,int servercount) {
+    bool hasTwilio=false;
+    for(int i=0;i<servercount;++i) {
+        if(isTwilioTurnServer(servers[i])) {
+            hasTwilio=true;
+            break;
+            }
+        }
+    if(!hasTwilio) {
+        oldTwilioTimes=std::numeric_limits<time_t>::max();
+        return;
+        }
+    static std::mutex mut;
+    std::lock_guard<std::mutex> lck(mut);
+    auto now=time(nullptr);
+    if(now<oldTwilioTimes)
+        return;
+    const auto url{"https://api.twilio.com/2010-04-01/Accounts/" TWILIOACCOUNT  "/Tokens.json"sv};
+    const std::span<const char> input{(const char *)nullptr,0};
+    const std::string_view header{"\r\nAuthorization: Basic " USERPASSBASE64 };
+    auto [resbody,code]=ContextHTTPS::getContext().postRequest("api.twilio.com",443,url,input,header);
+    if(code==201) {
+        auto [user,pass]=getloginpass(resbody.data(),resbody.size());
+        if(turnTextPresent(user)&&turnTextPresent(pass)) {
+            static std::string username;
+            static std::string password;
+            username=user;
+            password=pass;
+            for(int i=0;i<servercount;++i) {
+                if(isTwilioTurnServer(servers[i])) {
+                    servers[i].username=username.data();
+                    servers[i].password=password.data();
+                    }
+                }
+            oldTwilioTimes=now+24*60*60;
+            LOGAR("TWILIO: refreshed TURN credentials");
+            return;
+            }
+        LOGAR("TWILIO ERROR: missing username/password in token response");
+        }
+    else {
+        LOGGER("TWILIO ERROR: code=%d\n",code);
+        }
+    oldTwilioTimes=now+15*60;
+    }
+#else
+static void refreshTwilioTurnCredentials(juice_turn_server_t *,int) {
+    }
+#endif
+
+static std::vector<juice_turn_server_t> usableDefaultTurnServers(juice_turn_server_t *servers,int servercount) {
+    std::vector<juice_turn_server_t> usable;
+    usable.reserve(servercount);
+    for(int i=0;i<servercount;++i) {
+        auto &server=servers[i];
+        if(!turnTextPresent(server.host)) {
+            continue;
+            }
+        if(!hasTurnCredentials(server)) {
+            LOGGER("createAgent: skipping TURN server %s without credentials\n",server.host);
+            continue;
+            }
+        usable.push_back(server);
+        }
+    return usable;
+    }
+
+bool shouldRecreateAgentsForTurnRefresh() {
+#if JUGGLUCO_HAS_TWILIO_TOKEN
+    auto *data=backup?backup->getupdatedata():nullptr;
+    if(data&&data->NRturnserver&&data->turnserver[0].hostname[0])
+        return false;
+    return time(nullptr)>oldTwilioTimes;
+#else
+    return false;
+#endif
+    }
+
 juice_agent *createAgent(int allindex) {
     static initJuice el;
     LOGGER("createAgent(%d)\n",allindex);
@@ -566,6 +667,7 @@ juice_agent *createAgent(int allindex) {
     int servercount;
 
     juice_turn_server_t conf_server;
+    std::vector<juice_turn_server_t> usable_turn_servers;
     auto *updatedata = backup->getupdatedata();
     if(updatedata->NRturnserver&&updatedata->turnserver[0].hostname[0]) {
         conf_server.host=updatedata->turnserver[0].hostname;
@@ -580,35 +682,10 @@ juice_agent *createAgent(int allindex) {
             LOGAR("createAgent: ignoring empty configured TURN host");
             updatedata->NRturnserver=0;
             }
-        servercount=defaultservercount;
-        turn_servers=default_turn_servers;
-#if JUGGLUCO_HAS_TWILIO_TOKEN
-        {
-        static std::mutex mut;
-        std::lock_guard<std::mutex> lck(mut);
-        auto now=time(nullptr);
-        if(now>=oldTwilioTimes) {
-                const auto url{"https://api.twilio.com/2010-04-01/Accounts/" TWILIOACCOUNT  "/Tokens.json"sv};
-                const std::span<const char> input{(const char *)nullptr,0};
-                const std::string_view header{"\r\nAuthorization: Basic " USERPASSBASE64 };
-                auto [resbody,code]=ContextHTTPS::getContext().postRequest("api.twilio.com",443,url,input,header);
-                if(code==201) {
-                     auto [user,pass]=getloginpass(resbody.data(),resbody.size());
-                     LOGGER("TWILIO: user=%s pass=%s\n",user,pass);
-                     static std::string username;
-                     static std::string password;
-                     username=user;
-                     password=pass;
-                     oldTwilioTimes=now+24*60*60;
-                     default_turn_servers[2].username=username.data();
-                     default_turn_servers[2].password=password.data();
-                     }
-               else {
-                  LOGGER("TWILIO ERROR: code=%d\n",code);
-                  }
-                 }
-           }
-#endif
+        refreshTwilioTurnCredentials(default_turn_servers,defaultservercount);
+        usable_turn_servers=usableDefaultTurnServers(default_turn_servers,defaultservercount);
+        servercount=static_cast<int>(usable_turn_servers.size());
+        turn_servers=servercount?usable_turn_servers.data():nullptr;
         }
       juice_config_t config1{
             .concurrency_mode=JUICE_CONCURRENCY_MODE_THREAD,
