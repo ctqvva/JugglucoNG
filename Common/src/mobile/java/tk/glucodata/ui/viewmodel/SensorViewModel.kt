@@ -435,10 +435,7 @@ class SensorViewModel : ViewModel() {
                         val sensorSerial = SensorIdentity.resolveAppSensorId(gatt.SerialNumber)
                             ?: gatt.SerialNumber
                             ?: "Unknown"
-                        val currentViewMode = ManagedSensorViewModeStore.read(Applic.app, sensorSerial, nativeViewMode)
-                        if (currentViewMode != nativeViewMode) {
-                            Natives.setViewMode(gatt.dataptr, currentViewMode)
-                        }
+                        val currentViewMode = nativeViewMode
                         val isActiveSensor = activeSensorSerial != null && SensorIdentity.matches(sensorSerial, activeSensorSerial)
     
                         SensorInfo(

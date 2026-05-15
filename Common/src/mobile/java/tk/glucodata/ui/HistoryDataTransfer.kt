@@ -1,6 +1,8 @@
 package tk.glucodata.ui
 
 import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,6 +63,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.data.ExportPackageExporter
+import tk.glucodata.data.GlucoseRepository
+import tk.glucodata.data.HistoryExporter
+import java.io.File
+import java.util.ArrayList
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,6 +218,13 @@ fun HistoryExportSheet(
     }
 }
 
+private data class HistoryExportArgs(
+    val data: List<GlucosePoint>,
+    val unit: String,
+    val startMillis: Long,
+    val endMillis: Long
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExportDataSettingsSheet(
@@ -225,6 +239,9 @@ fun ExportDataSettingsSheet(
     var historyDays by rememberSaveable { mutableStateOf<Long?>(90L) }
     var isExporting by remember { mutableStateOf(false) }
     var pendingRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
+    var pendingTreeRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
+    var pendingCsvRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
+    var pendingReadableRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
 
     fun currentRequest(): ExportPackageExporter.ExportRequest {
         return ExportPackageExporter.ExportRequest(
@@ -250,6 +267,108 @@ fun ExportDataSettingsSheet(
         ).show()
     }
 
+    suspend fun loadHistoryExportArgs(
+        request: ExportPackageExporter.ExportRequest
+    ): HistoryExportArgs {
+        val isMmol = Natives.getunit() == 1
+        val endTime = System.currentTimeMillis()
+        val startTime = request.historyDays
+            ?.let { endTime - TimeUnit.DAYS.toMillis(it.coerceAtLeast(1L)) }
+            ?: 0L
+        val data = GlucoseRepository().getHistory(startTime, isMmol)
+        val unit = if (isMmol) "mmol/L" else "mg/dL"
+        return HistoryExportArgs(
+            data = data,
+            unit = unit,
+            startMillis = startTime,
+            endMillis = endTime
+        )
+    }
+
+    suspend fun exportCsvToUri(
+        uri: Uri,
+        request: ExportPackageExporter.ExportRequest
+    ): Boolean {
+        val args = loadHistoryExportArgs(request)
+        return HistoryExporter.exportToCsv(
+            context = context,
+            uri = uri,
+            data = args.data,
+            unit = args.unit,
+            startMillis = args.startMillis,
+            endMillis = args.endMillis
+        )
+    }
+
+    suspend fun exportReadableReportToUri(
+        uri: Uri,
+        request: ExportPackageExporter.ExportRequest
+    ): Boolean {
+        val args = loadHistoryExportArgs(request)
+        return HistoryExporter.exportToReadable(
+            context = context,
+            uri = uri,
+            data = args.data,
+            unit = args.unit,
+            startMillis = args.startMillis,
+            endMillis = args.endMillis
+        )
+    }
+
+    suspend fun writeReadableReportToCache(
+        request: ExportPackageExporter.ExportRequest
+    ): Result<ExportPackageExporter.CachedExport> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val args = loadHistoryExportArgs(request)
+                val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+                val fileName = ExportPackageExporter.suggestedReadableReportFileName()
+                val file = File(exportDir, fileName)
+                val success = HistoryExporter.exportReadableToFile(
+                    context = context,
+                    file = file,
+                    data = args.data,
+                    unit = args.unit,
+                    startMillis = args.startMillis,
+                    endMillis = args.endMillis
+                )
+                require(success) { context.getString(R.string.export_failed) }
+                ExportPackageExporter.CachedExport(
+                    file = file,
+                    fileName = fileName,
+                    mimeType = "text/plain"
+                )
+            }
+        }
+    }
+
+    suspend fun savePackageAndReportToTree(
+        treeUri: Uri,
+        request: ExportPackageExporter.ExportRequest
+    ): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val jsonUri = DocumentsContract.createDocument(
+                    context.contentResolver,
+                    treeUri,
+                    ExportPackageExporter.mimeTypeFor(request),
+                    ExportPackageExporter.suggestedFileName(request)
+                ) ?: error(context.getString(R.string.unable_to_open_destination_file))
+                ExportPackageExporter.exportToUri(context, jsonUri, request).getOrThrow()
+
+                val reportUri = DocumentsContract.createDocument(
+                    context.contentResolver,
+                    treeUri,
+                    "text/plain",
+                    ExportPackageExporter.suggestedReadableReportFileName()
+                ) ?: error(context.getString(R.string.unable_to_open_destination_file))
+                require(exportReadableReportToUri(reportUri, request)) {
+                    context.getString(R.string.export_failed)
+                }
+            }
+        }
+    }
+
     val saveLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -268,10 +387,69 @@ fun ExportDataSettingsSheet(
         }
     }
 
+    val treeLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        val request = pendingTreeRequest
+        pendingTreeRequest = null
+        if (uri != null && request != null) {
+            isExporting = true
+            scope.launch {
+                val result = savePackageAndReportToTree(uri, request)
+                withContext(Dispatchers.Main) {
+                    isExporting = false
+                    showExportResult(result.isSuccess, result.exceptionOrNull()?.localizedMessage)
+                    if (result.isSuccess) onDismiss()
+                }
+            }
+        }
+    }
+
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        val request = pendingCsvRequest
+        pendingCsvRequest = null
+        if (uri != null && request != null) {
+            isExporting = true
+            scope.launch {
+                val success = exportCsvToUri(uri, request)
+                withContext(Dispatchers.Main) {
+                    isExporting = false
+                    showExportResult(success)
+                    if (success) onDismiss()
+                }
+            }
+        }
+    }
+
+    val readableLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val request = pendingReadableRequest
+        pendingReadableRequest = null
+        if (uri != null && request != null) {
+            isExporting = true
+            scope.launch {
+                val success = exportReadableReportToUri(uri, request)
+                withContext(Dispatchers.Main) {
+                    isExporting = false
+                    showExportResult(success)
+                    if (success) onDismiss()
+                }
+            }
+        }
+    }
+
     fun saveToFilePicker() {
         val request = currentRequest()
         if (!request.hasSelection) {
             Toast.makeText(context, context.getString(R.string.export_nothing_selected), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (request.includeHistory && (request.includeSettings || request.includeCalibrations)) {
+            pendingTreeRequest = request
+            treeLauncher.launch(null)
             return
         }
         pendingRequest = request
@@ -286,20 +464,44 @@ fun ExportDataSettingsSheet(
         }
         isExporting = true
         scope.launch {
-            val result = ExportPackageExporter.writeToCache(context, request)
+            val result = runCatching {
+                val packageFile = ExportPackageExporter.writeToCache(context, request).getOrThrow()
+                val readableReport = if (request.includeHistory && (request.includeSettings || request.includeCalibrations)) {
+                    writeReadableReportToCache(request).getOrThrow()
+                } else {
+                    null
+                }
+                packageFile to readableReport
+            }
             withContext(Dispatchers.Main) {
                 isExporting = false
                 result
-                    .onSuccess { cached ->
-                        val uri = FileProvider.getUriForFile(
+                    .onSuccess { (cached, report) ->
+                        val packageUri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.fileprovider",
                             cached.file
                         )
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = cached.mimeType
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        val intent = if (report != null) {
+                            val reportUri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                report.file
+                            )
+                            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                                type = "*/*"
+                                putParcelableArrayListExtra(
+                                    Intent.EXTRA_STREAM,
+                                    ArrayList(listOf(packageUri, reportUri))
+                                )
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        } else {
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = cached.mimeType
+                                putExtra(Intent.EXTRA_STREAM, packageUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
                         }
                         runCatching {
                             context.startActivity(
@@ -318,6 +520,22 @@ fun ExportDataSettingsSheet(
                     }
             }
         }
+    }
+
+    fun exportCsv() {
+        val request = currentRequest()
+        if (!request.includeHistory || isExporting) return
+        pendingCsvRequest = request
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(System.currentTimeMillis())
+        csvLauncher.launch("Juggluco_Export_$date.csv")
+    }
+
+    fun exportReadableReport() {
+        val request = currentRequest()
+        if (!request.includeHistory || isExporting) return
+        pendingReadableRequest = request
+        readableLauncher.launch(ExportPackageExporter.suggestedReadableReportFileName())
     }
 
     val allSelected = includeSettings && includeHistory && includeCalibrations
@@ -339,48 +557,48 @@ fun ExportDataSettingsSheet(
                 text = stringResource(R.string.export_data_settings),
                 style = MaterialTheme.typography.headlineSmall
             )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = allSelected,
-                    onClick = {
-                        includeSettings = true
-                        includeHistory = true
-                        includeCalibrations = true
-                    },
-                    label = { Text(stringResource(R.string.export_everything)) }
-                )
-                FilterChip(
-                    selected = includeHistory && !includeSettings && !includeCalibrations,
-                    onClick = {
-                        includeSettings = false
-                        includeHistory = true
-                        includeCalibrations = false
-                    },
-                    label = { Text(stringResource(R.string.export_data)) }
-                )
-                FilterChip(
-                    selected = includeSettings && !includeHistory && !includeCalibrations,
-                    onClick = {
-                        includeSettings = true
-                        includeHistory = false
-                        includeCalibrations = false
-                    },
-                    label = { Text(stringResource(R.string.settings)) }
-                )
-                FilterChip(
-                    selected = includeCalibrations && !includeSettings && !includeHistory,
-                    onClick = {
-                        includeSettings = false
-                        includeHistory = false
-                        includeCalibrations = true
-                    },
-                    label = { Text(stringResource(R.string.calibrations)) }
-                )
-            }
+//
+//            FlowRow(
+//                horizontalArrangement = Arrangement.spacedBy(8.dp),
+//                verticalArrangement = Arrangement.spacedBy(8.dp)
+//            ) {
+//                FilterChip(
+//                    selected = allSelected,
+//                    onClick = {
+//                        includeSettings = true
+//                        includeHistory = true
+//                        includeCalibrations = true
+//                    },
+//                    label = { Text(stringResource(R.string.export_everything)) }
+//                )
+//                FilterChip(
+//                    selected = includeHistory && !includeSettings && !includeCalibrations,
+//                    onClick = {
+//                        includeSettings = false
+//                        includeHistory = true
+//                        includeCalibrations = false
+//                    },
+//                    label = { Text(stringResource(R.string.export_data)) }
+//                )
+//                FilterChip(
+//                    selected = includeSettings && !includeHistory && !includeCalibrations,
+//                    onClick = {
+//                        includeSettings = true
+//                        includeHistory = false
+//                        includeCalibrations = false
+//                    },
+//                    label = { Text(stringResource(R.string.settings)) }
+//                )
+//                FilterChip(
+//                    selected = includeCalibrations && !includeSettings && !includeHistory,
+//                    onClick = {
+//                        includeSettings = false
+//                        includeHistory = false
+//                        includeCalibrations = true
+//                    },
+//                    label = { Text(stringResource(R.string.calibrations)) }
+//                )
+//            }
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 ExportContentRow(
@@ -407,12 +625,12 @@ fun ExportDataSettingsSheet(
             }
 
             if (includeHistory) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Text(
-                    text = stringResource(R.string.export_range_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+//                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+//                Text(
+//                    text = stringResource(R.string.export_range_title),
+//                    style = MaterialTheme.typography.titleSmall,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant
+//                )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -437,6 +655,32 @@ fun ExportDataSettingsSheet(
                         label = stringResource(R.string.export_range_all),
                         onClick = { historyDays = null }
                     )
+                }
+                OutlinedButton(
+                    onClick = ::exportCsv,
+                    enabled = !isExporting,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.List,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.export_complete_csv))
+                }
+                OutlinedButton(
+                    onClick = ::exportReadableReport,
+                    enabled = !isExporting,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.export_readable_report))
                 }
             }
 

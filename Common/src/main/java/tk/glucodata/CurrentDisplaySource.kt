@@ -1,7 +1,6 @@
 package tk.glucodata
 
 import kotlin.math.roundToInt
-import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.ui.DisplayValueResolver
 import tk.glucodata.ui.DisplayValues
 
@@ -571,17 +570,16 @@ object CurrentDisplaySource {
             return 0
         }
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName)
-            ?.let { return ManagedSensorViewModeStore.read(Applic.app, sensorName, it.viewMode) }
+            ?.let { return it.viewMode }
         if (!SensorIdentity.hasNativeSensorBacking(sensorName)) {
-            return ManagedSensorViewModeStore.read(Applic.app, sensorName, 0)
+            return 0
         }
-        val nativeMode = try {
+        return try {
             val snapshot = Natives.getSensorUiSnapshot(sensorName)
             if (snapshot != null && snapshot.size >= 2) snapshot[1].toInt() else 0
         } catch (_: Throwable) {
             0
         }
-        return ManagedSensorViewModeStore.read(Applic.app, sensorName, nativeMode)
     }
 
     private fun resolveSharedMgdl(

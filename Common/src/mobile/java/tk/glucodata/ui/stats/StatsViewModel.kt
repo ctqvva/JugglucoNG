@@ -23,7 +23,6 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.drivers.ManagedSensorRuntime
-import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.DisplayValueResolver
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -353,18 +352,17 @@ class StatsViewModel : ViewModel() {
 
     private fun resolveViewMode(serial: String): Int {
         ManagedSensorRuntime.resolveUiSnapshot(serial, serial)?.let { managedSnapshot ->
-            return ManagedSensorViewModeStore.read(Applic.app, serial, managedSnapshot.viewMode)
+            return managedSnapshot.viewMode
         }
         if (!SensorIdentity.hasNativeSensorBacking(serial)) {
-            return ManagedSensorViewModeStore.read(Applic.app, serial, 0)
+            return 0
         }
-        val nativeMode = try {
+        return try {
             val snapshot = Natives.getSensorUiSnapshot(serial)
             if (snapshot != null && snapshot.size >= 2) snapshot[1].toInt() else 0
         } catch (_: Throwable) {
             0
         }
-        return ManagedSensorViewModeStore.read(Applic.app, serial, nativeMode)
     }
 
     private fun resolveViewModeForStats(serial: String): Int {
@@ -560,7 +558,15 @@ class StatsViewModel : ViewModel() {
             )
         }
 
-        val historySignature = historySignature(history)
+        val rawHistory = filterHistoryForRange(history, activeRange)
+        if (rawHistory.isEmpty()) {
+            return StatsRangeProjection(
+                filteredHistory = emptyList(),
+                summary = StatsSummary()
+            )
+        }
+
+        val historySignature = historySignature(rawHistory)
         val cacheKey = StatsRangeProjectionCacheKey(
             historySignature = historySignature,
             viewMode = viewMode,
@@ -579,14 +585,13 @@ class StatsViewModel : ViewModel() {
         }
 
         val displayHistory = resolveStatsDisplayHistory(
-            history = history,
+            history = rawHistory,
             viewMode = viewMode,
             unit = unit,
             historySignature = historySignature
         )
         val filteredHistory = displayHistory.filter { point ->
-            val withinTimeWindow = activeRange?.let { point.timestamp in it.startMillis..it.endMillis } ?: true
-            withinTimeWindow && isStatsValueValid(point.value)
+            isStatsValueValid(point.value)
         }
         val projection = StatsRangeProjection(
             filteredHistory = filteredHistory,
@@ -595,6 +600,47 @@ class StatsViewModel : ViewModel() {
         statsRangeProjectionCacheKey = cacheKey
         statsRangeProjectionCacheValue = projection
         return projection
+    }
+
+    private fun filterHistoryForRange(
+        history: List<GlucosePoint>,
+        activeRange: StatsDateRange?
+    ): List<GlucosePoint> {
+        if (history.isEmpty() || activeRange == null) return history
+
+        val startIndex = lowerBoundByTimestamp(history, activeRange.startMillis)
+        val endExclusive = upperBoundByTimestamp(history, activeRange.endMillis)
+        if (startIndex >= endExclusive) return emptyList()
+        if (startIndex == 0 && endExclusive == history.size) return history
+        return history.subList(startIndex, endExclusive)
+    }
+
+    private fun lowerBoundByTimestamp(points: List<GlucosePoint>, timestamp: Long): Int {
+        var low = 0
+        var high = points.size
+        while (low < high) {
+            val mid = (low + high) ushr 1
+            if (points[mid].timestamp < timestamp) {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        return low
+    }
+
+    private fun upperBoundByTimestamp(points: List<GlucosePoint>, timestamp: Long): Int {
+        var low = 0
+        var high = points.size
+        while (low < high) {
+            val mid = (low + high) ushr 1
+            if (points[mid].timestamp <= timestamp) {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        return low
     }
 
     private fun resolvePrimaryStatsValueMgDl(
@@ -947,7 +993,7 @@ class StatsViewModel : ViewModel() {
     ): GviScore {
         if (history.size < 2) return GviScore()
 
-        val sorted = history.sortedBy { it.timestamp }
+        val sorted = sortedByTimestampIfNeeded(history)
         var totalDelta = 0f
         var rateOfChangeAccum = 0f
         var rateOfChangeSamples = 0
@@ -1011,7 +1057,7 @@ class StatsViewModel : ViewModel() {
     ): PsgScore {
         if (history.isEmpty()) return PsgScore()
 
-        val sorted = history.sortedBy { it.timestamp }
+        val sorted = sortedByTimestampIfNeeded(history)
         val halfSize = sorted.size / 2
         val firstHalfAvg = if (halfSize > 0) {
             sorted.take(halfSize).map { it.value }.average().toFloat()
@@ -1049,9 +1095,9 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun toVariabilitySeries(history: List<GlucosePoint>): List<GlucosePoint> {
-        if (history.size <= 8) return history.sortedBy { it.timestamp }
+        if (history.size <= 8) return sortedByTimestampIfNeeded(history)
 
-        val sorted = history.sortedBy { it.timestamp }
+        val sorted = sortedByTimestampIfNeeded(history)
         val bucketed = sorted
             .groupBy { it.timestamp / VARIABILITY_BUCKET_MS }
             .toSortedMap()
@@ -1102,6 +1148,15 @@ class StatsViewModel : ViewModel() {
         }
 
         return stabilized
+    }
+
+    private fun sortedByTimestampIfNeeded(history: List<GlucosePoint>): List<GlucosePoint> {
+        for (index in 1 until history.size) {
+            if (history[index].timestamp < history[index - 1].timestamp) {
+                return history.sortedBy { it.timestamp }
+            }
+        }
+        return history
     }
 
     private fun buildInsights(

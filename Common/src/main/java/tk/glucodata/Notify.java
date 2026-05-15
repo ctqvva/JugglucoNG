@@ -86,7 +86,6 @@ import tk.glucodata.alerts.AlertRepository;
 import tk.glucodata.alerts.AlertStateTracker;
 import tk.glucodata.drivers.ManagedSensorRuntime;
 import tk.glucodata.drivers.ManagedSensorStatusPolicy;
-import tk.glucodata.drivers.ManagedSensorViewModeStore;
 import java.util.Collections;
 import java.util.List;
 
@@ -1346,7 +1345,7 @@ public class Notify {
         try {
             final var managedSnapshot = ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName);
             if (managedSnapshot != null) {
-                return ManagedSensorViewModeStore.INSTANCE.read(Applic.app, sensorName, managedSnapshot.getViewMode());
+                return managedSnapshot.getViewMode();
             }
         } catch (Throwable ignored) {
         }
@@ -1356,12 +1355,12 @@ public class Notify {
         try {
             final long[] snapshot = Natives.getSensorUiSnapshot(sensorName);
             if (snapshot != null && snapshot.length >= 2) {
-                return ManagedSensorViewModeStore.INSTANCE.read(Applic.app, sensorName, (int) snapshot[1]);
+                return (int) snapshot[1];
             }
         } catch (Throwable th) {
             Log.stack(LOG_ID, "resolveSensorViewMode", th);
         }
-        return ManagedSensorViewModeStore.INSTANCE.read(Applic.app, sensorName, 0);
+        return 0;
     }
 
     private static boolean isAlarmUiForeground() {

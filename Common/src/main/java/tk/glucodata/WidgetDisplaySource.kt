@@ -1,7 +1,5 @@
 package tk.glucodata
 
-import tk.glucodata.drivers.ManagedSensorViewModeStore
-
 object WidgetDisplaySource {
     const val CHART_WINDOW_MS = 6L * 60L * 60L * 1000L
 
@@ -30,17 +28,16 @@ object WidgetDisplaySource {
             return 0
         }
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName)
-            ?.let { return ManagedSensorViewModeStore.read(Applic.app, sensorName, it.viewMode) }
+            ?.let { return it.viewMode }
         if (!SensorIdentity.hasNativeSensorBacking(sensorName)) {
-            return ManagedSensorViewModeStore.read(Applic.app, sensorName, 0)
+            return 0
         }
-        val nativeMode = try {
+        return try {
             val snapshot = Natives.getSensorUiSnapshot(sensorName)
             if (snapshot != null && snapshot.size >= 2) snapshot[1].toInt() else 0
         } catch (_: Throwable) {
             0
         }
-        return ManagedSensorViewModeStore.read(Applic.app, sensorName, nativeMode)
     }
 
     @JvmStatic
