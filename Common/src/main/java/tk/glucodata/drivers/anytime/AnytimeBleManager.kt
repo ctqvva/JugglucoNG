@@ -48,6 +48,7 @@ import tk.glucodata.Applic
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.Natives
+import tk.glucodata.R
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
@@ -67,6 +68,7 @@ class AnytimeBleManager(
 
         private const val ACTIVE_SESSION_RECONNECT_DELAY_MS = 2_000L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 15_000L
+        private const val SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS = 5_000L
         private const val SERVICE_DISCOVERY_RETRY_DELAY_MS = 1_500L
         private const val MAX_SERVICE_DISCOVERY_RETRIES = 2
 
@@ -102,6 +104,12 @@ class AnytimeBleManager(
 
         /** Legacy Yuwell JNI returns 0 until it has enough warmup history. */
         private const val NATIVE_HISTORY_WARMUP_RECORDS = 20
+
+        /** Blueberry/original-compatible rule: do not accept manual BG calibration in the first 24h. */
+        private const val MANUAL_CALIBRATION_MIN_AGE_HOURS = 24
+
+        /** Keep the last calibration result visible in the Sensor card long enough to notice. */
+        private const val CALIBRATION_STATUS_TTL_MS = 60L * 60L * 1000L
 
         /**
          * Fresh installs should become useful quickly, then continue filling older
@@ -169,6 +177,9 @@ class AnytimeBleManager(
     @Volatile private var lastAlgorithmResult: AnytimeAlgorithm.Result? = null
     @Volatile private var lastReferenceBgMgdlTimes10: Int = 0
     @Volatile private var lastReferenceBgGlucoseId: Int = 0
+    @Volatile private var lastReferenceAppliedGlucoseId: Int = 0
+    @Volatile private var calibrationStatusText: String = ""
+    @Volatile private var calibrationStatusAtMs: Long = 0L
     @Volatile private var packetsSinceInit: Int = 0
     @Volatile private var bound: Boolean = false
     @Volatile private var reconnectReason: String = ""
@@ -730,8 +741,12 @@ class AnytimeBleManager(
 
     private val serviceDiscoveryWatchdog = Runnable {
         if (stop || phase != Phase.DISCOVERING || serviceDiscoveryHandled) return@Runnable
-        Log.w(TAG, "Service discovery wedged — reconnecting")
-        recoverGattAndReconnect("service discovery timeout", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+        Log.w(TAG, "Service discovery wedged — resetting GATT before reconnect")
+        recoverGattAndReconnect(
+            reason = "service discovery timeout",
+            delayMs = SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS,
+            refreshGattCache = true,
+        )
     }
 
     private val serviceDiscoveryRetryRunnable: Runnable = Runnable {
@@ -758,7 +773,11 @@ class AnytimeBleManager(
             if (serviceDiscoveryRetryCount < MAX_SERVICE_DISCOVERY_RETRIES + 1) {
                 handler.postDelayed(serviceDiscoveryRetryRunnable, SERVICE_DISCOVERY_RETRY_DELAY_MS)
             } else {
-                recoverGattAndReconnect("discoverServices returned false", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+                recoverGattAndReconnect(
+                    reason = "discoverServices returned false",
+                    delayMs = SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS,
+                    refreshGattCache = true,
+                )
             }
         }
     }
@@ -799,17 +818,38 @@ class AnytimeBleManager(
         mActiveBluetoothDevice = null
     }
 
-    private fun recoverGattAndReconnect(reason: String, delayMs: Long = ACTIVE_SESSION_RECONNECT_DELAY_MS) {
+    private fun recoverGattAndReconnect(
+        reason: String,
+        delayMs: Long = ACTIVE_SESSION_RECONNECT_DELAY_MS,
+        refreshGattCache: Boolean = false,
+    ) {
         if (stop) return
         val gatt = mBluetoothGatt
         Log.w(TAG, "Recovering GATT: $reason")
         clearGattCallbacks()
         phase = Phase.IDLE
         clearGattReferences()
+        if (refreshGattCache && gatt != null) {
+            refreshGattCache(gatt, reason)
+        }
         runCatching { gatt?.disconnect() }
+            .onFailure { Log.stack(TAG, "recoverGattAndReconnect(disconnect:$reason)", it) }
         runCatching { gatt?.close() }
+            .onFailure { Log.stack(TAG, "recoverGattAndReconnect(close:$reason)", it) }
         scheduleReconnect(reason, delayMs)
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun refreshGattCache(gatt: BluetoothGatt, reason: String) {
+        runCatching {
+            val refreshMethod = BluetoothGatt::class.java.getMethod("refresh")
+            refreshMethod.isAccessible = true
+            refreshMethod.invoke(gatt) as? Boolean ?: false
+        }.onSuccess { refreshed ->
+            Log.d(TAG, "BluetoothGatt.refresh($reason)=$refreshed")
+        }.onFailure { t ->
+            Log.d(TAG, "BluetoothGatt.refresh($reason) unavailable: ${t.javaClass.simpleName}: ${t.message}")
+        }
     }
 
     private fun shouldForceStaleGattReconnect(now: Long): Boolean {
@@ -1124,7 +1164,11 @@ class AnytimeBleManager(
         handler.removeCallbacks(serviceDiscoveryRetryRunnable)
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "onServicesDiscovered failed status=$status")
-            recoverGattAndReconnect("services discovery failed status=$status", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+            recoverGattAndReconnect(
+                reason = "services discovery failed status=$status",
+                delayMs = SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS,
+                refreshGattCache = true,
+            )
             return
         }
         serviceDiscoveryHandled = true
@@ -1520,11 +1564,52 @@ class AnytimeBleManager(
         if (pendingFingerstickMgdl > 0 && pendingFingerstickTargetGlucoseId > 0) {
             lastReferenceBgMgdlTimes10 = pendingFingerstickMgdl * 10
             lastReferenceBgGlucoseId = pendingFingerstickTargetGlucoseId
+            lastReferenceAppliedGlucoseId = 0
             Log.i(TAG, "Fingerstick BG ${pendingFingerstickMgdl}mg/dL will calibrate glucose id=$lastReferenceBgGlucoseId")
+            setCalibrationStatus(
+                resId = R.string.anytime_calibration_accepted_status,
+                fallback = "Calibration accepted; applies from reading #$lastReferenceBgGlucoseId",
+                lastReferenceBgGlucoseId,
+            )
         }
         pendingFingerstickMgdl = -1
         pendingFingerstickTargetGlucoseId = -1
         persistAlgorithmState()
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun setCalibrationStatus(resId: Int, fallback: String, vararg args: Any) {
+        val localized = Applic.app?.let { context ->
+            runCatching { context.getString(resId, *args) }.getOrNull()
+        }
+        calibrationStatusText = localized ?: fallback
+        calibrationStatusAtMs = System.currentTimeMillis()
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun visibleCalibrationStatus(): String {
+        val status = calibrationStatusText
+        if (status.isBlank()) return ""
+        val ageMs = System.currentTimeMillis() - calibrationStatusAtMs
+        return if (ageMs <= CALIBRATION_STATUS_TTL_MS) status else ""
+    }
+
+    private fun maybeMarkReferenceConsumed(result: AnytimeAlgorithm.Result) {
+        val targetId = lastReferenceBgGlucoseId
+        if (targetId <= 0 || result.glucoseId < targetId || lastReferenceAppliedGlucoseId >= targetId) return
+        lastReferenceAppliedGlucoseId = targetId
+        val enteredMgdl = lastReferenceBgMgdlTimes10 / 10f
+        Log.i(
+            TAG,
+            "Fingerstick BG reference ${"%.1f".format(enteredMgdl)}mg/dL consumed at " +
+                    "glucose id=$targetId by ${result.source}; algorithm output=${"%.1f".format(result.mgdl)}mg/dL"
+        )
+        setCalibrationStatus(
+            resId = R.string.anytime_calibration_used_status,
+            fallback = "Calibration used at reading #$targetId: ${"%.0f".format(result.mgdl)} mg/dL",
+            targetId,
+            result.mgdl,
+        )
     }
 
     private fun handleUnbindAck() {
@@ -1757,7 +1842,7 @@ class AnytimeBleManager(
                 sensorStartTimeMs = glucoseTimelineStartAtMs.takeIf { it > 0L } ?: sensorStartAtMs,
             )
             val skipHistoryImport = shouldSkipStartupRoomImport(result, push = push, history = !push)
-            commitReading(
+            val committed = commitReading(
                 result = result,
                 sampleMs = sampleMs,
                 context = context,
@@ -1765,6 +1850,9 @@ class AnytimeBleManager(
                 history = !push,
                 skipHistoryImport = skipHistoryImport,
             )
+            if (committed) {
+                maybeMarkReferenceConsumed(result)
+            }
             trackNativeRecomputeNeed(result)
             if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
         }
@@ -2060,7 +2148,7 @@ class AnytimeBleManager(
         live: Boolean,
         history: Boolean,
         skipHistoryImport: Boolean = false,
-    ) {
+    ): Boolean {
         if (result.errorCode != 0 || result.mgdlTimes10 < 170) {
             Log.w(
                 TAG,
@@ -2074,7 +2162,7 @@ class AnytimeBleManager(
                     result.temperatureC,
                 )
             )
-            return
+            return false
         }
         val newest = sampleMs >= lastGlucoseAtMs
         if (newest) {
@@ -2105,6 +2193,7 @@ class AnytimeBleManager(
         } else if (history && newest) {
             Log.d(TAG, "Backfill stored newer Room point without live emit id=${result.glucoseId}")
         }
+        return true
     }
 
     private fun ensureNativeSensorShell() {
@@ -2237,15 +2326,40 @@ class AnytimeBleManager(
 
     override fun pushReferenceBg(mgdl: Int): Boolean {
         if (mgdl <= 0 || lastGlucoseId < 0) return false
+        val ageHours = getSensorAgeHours()
+        if (ageHours < MANUAL_CALIBRATION_MIN_AGE_HOURS) {
+            val ageLabel = if (ageHours >= 0) "${ageHours}h" else "unknown"
+            Log.w(
+                TAG,
+                "pushReferenceBg($mgdl) rejected — manual calibration unavailable before " +
+                        "${MANUAL_CALIBRATION_MIN_AGE_HOURS}h (age=$ageLabel)"
+            )
+            return false
+        }
         pendingFingerstickMgdl = mgdl
         // Official Anytime stores a calibration entered at current glucose id N
         // as an event for the next algorithm sample, N+1.
         pendingFingerstickTargetGlucoseId = lastGlucoseId + 1
         return if (phase == Phase.STREAMING) {
-            writeFrame(inputBgFrame(mgdl), "inputBg($mgdl)")
-            true
+            val ok = writeFrame(inputBgFrame(mgdl), "inputBg($mgdl)")
+            if (ok) {
+                setCalibrationStatus(
+                    resId = R.string.anytime_calibration_sent_status,
+                    fallback = "Calibration sent; waiting for sensor",
+                )
+            } else {
+                pendingFingerstickMgdl = -1
+                pendingFingerstickTargetGlucoseId = -1
+                setCalibrationStatus(
+                    resId = R.string.anytime_calibration_send_failed_status,
+                    fallback = "Calibration send failed",
+                )
+            }
+            ok
         } else {
             Log.w(TAG, "pushReferenceBg($mgdl) deferred — not streaming (phase=$phase)")
+            pendingFingerstickMgdl = -1
+            pendingFingerstickTargetGlucoseId = -1
             false
         }
     }
@@ -2413,16 +2527,20 @@ class AnytimeBleManager(
         return "Fetching history $done/$stopExclusive"
     }
 
-    override fun getDetailedBleStatus(): String = if (stop) {
-        "Paused"
-    } else when (phase) {
-        Phase.IDLE -> "Idle"
-        Phase.CONNECTING -> "Connecting"
-        Phase.DISCOVERING -> "Discovering"
-        Phase.HANDSHAKING -> "Handshaking"
-        Phase.STREAMING -> if (historyBackfillActive) {
-            historyProgressStatus()
-        } else "Connected"
+    override fun getDetailedBleStatus(): String {
+        val base = if (stop) {
+            "Paused"
+        } else when (phase) {
+            Phase.IDLE -> "Idle"
+            Phase.CONNECTING -> "Connecting"
+            Phase.DISCOVERING -> "Discovering"
+            Phase.HANDSHAKING -> "Handshaking"
+            Phase.STREAMING -> if (historyBackfillActive) {
+                historyProgressStatus()
+            } else "Connected"
+        }
+        val calibrationStatus = visibleCalibrationStatus()
+        return if (calibrationStatus.isBlank()) base else "$base - $calibrationStatus"
     }
 
     /**

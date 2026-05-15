@@ -1164,6 +1164,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Calibrate</string>
     <string name="calibrate_after_24h">Calibrate after 24h</string>
     <string name="calibrate_connect_first">Connect sensor first to calibrate.</string>
+    <string name="anytime_calibration_sent_status">Calibration sent; waiting for sensor</string>
+    <string name="anytime_calibration_accepted_status">Calibration accepted; applies from reading #%1$d</string>
+    <string name="anytime_calibration_used_status">Calibration used at reading #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Calibration send failed</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor</string>
     <string name="calibrate_sensor_title">Calibrate Sensor</string>
     <string name="calibration_deleted">Calibration deleted</string>

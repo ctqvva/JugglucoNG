@@ -1066,6 +1066,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Calibrate</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="calibrate_connect_first">Connect sensor first to calibrate.</string>
+    <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
+    <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>
+    <string name="anytime_calibration_used_status">Тохируулга #%1$d уншилтад хэрэглэгдсэн: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Тохируулга илгээж чадсангүй</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor</string>
     <string name="calibrate_sensor_title">Calibrate Sensor</string>
     <string name="calibration_deleted">Calibration deleted</string>

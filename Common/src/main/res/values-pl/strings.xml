@@ -1037,6 +1037,10 @@
     <string name="calibrate_action">Kalibracja</string>
     <string name="calibrate_after_24h">Kalibruj po 24 h</string>
     <string name="calibrate_connect_first">Najpierw podłącz czujnik w celu kalibracji.</string>
+    <string name="anytime_calibration_sent_status">Kalibracja wysłana; oczekiwanie na czujnik</string>
+    <string name="anytime_calibration_accepted_status">Kalibracja przyjęta; obowiązuje od odczytu #%1$d</string>
+    <string name="anytime_calibration_used_status">Kalibracja użyta przy odczycie #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Nie udało się wysłać kalibracji</string>
     <string name="calibrate_sensor_title">Kalibracja czujnika</string>
     <string name="calibration_deleted">Kalibracja usunięta</string>
     <string name="calibration_profile_exported">Wyeksportowano profil kalibracji</string>

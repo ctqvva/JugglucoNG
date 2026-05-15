@@ -1045,6 +1045,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="calibrate_action">Kalibreer</string>
     <string name="calibrate_after_24h">Kalibreer na 24 u</string>
     <string name="calibrate_connect_first">Sluit eerst de sensor aan om te kalibreren.</string>
+    <string name="anytime_calibration_sent_status">Kalibratie verzonden; wachten op sensor</string>
+    <string name="anytime_calibration_accepted_status">Kalibratie geaccepteerd; geldt vanaf meting #%1$d</string>
+    <string name="anytime_calibration_used_status">Kalibratie gebruikt bij meting #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Kalibratie verzenden mislukt</string>
     <string name="calibrate_sensor_title">Kalibreer sensor</string>
     <string name="calibration_deleted">Kalibratie verwijderd</string>
     <string name="calibration_profile_exported">Kalibratieprofiel geëxporteerd</string>

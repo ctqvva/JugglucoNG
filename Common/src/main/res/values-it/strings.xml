@@ -992,6 +992,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Calibrare</string>
     <string name="calibrate_after_24h">Calibra dopo 24 h</string>
     <string name="calibrate_connect_first">Collegare prima il sensore per calibrarlo.</string>
+    <string name="anytime_calibration_sent_status">Calibrazione inviata; in attesa del sensore</string>
+    <string name="anytime_calibration_accepted_status">Calibrazione accettata; si applica dalla lettura #%1$d</string>
+    <string name="anytime_calibration_used_status">Calibrazione usata alla lettura #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Invio calibrazione non riuscito</string>
     <string name="calibrate_sensor_title">Calibrare il sensore</string>
     <string name="calibration_deleted">Calibrazione cancellata</string>
     <string name="calibration_profile_exported">Profilo di calibrazione esportato</string>

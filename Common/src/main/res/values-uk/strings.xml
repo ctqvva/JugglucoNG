@@ -1016,6 +1016,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Відкалібрувати</string>
     <string name="calibrate_after_24h">Калібрувати через 24 год</string>
     <string name="calibrate_connect_first">Спочатку підключіть датчик для калібрування.</string>
+    <string name="anytime_calibration_sent_status">Калібрування надіслано; очікування датчика</string>
+    <string name="anytime_calibration_accepted_status">Калібрування прийнято; застосовується з показу #%1$d</string>
+    <string name="anytime_calibration_used_status">Калібрування використано для показу #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Не вдалося надіслати калібрування</string>
     <string name="calibrate_sensor_title">Відкалібрувати датчик</string>
     <string name="calibration_deleted">Калібрування видалено</string>
     <string name="calibration_profile_exported">Профіль калібрування експортовано</string>

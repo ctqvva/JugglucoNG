@@ -1030,6 +1030,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="calibrate_action">Kalibre et</string>
     <string name="calibrate_after_24h">24 saat sonra kalibre et</string>
     <string name="calibrate_connect_first">Kalibre etmek için önce sensörü bağlayın.</string>
+    <string name="anytime_calibration_sent_status">Kalibrasyon gönderildi; sensör bekleniyor</string>
+    <string name="anytime_calibration_accepted_status">Kalibrasyon kabul edildi; #%1$d okumasından itibaren uygulanır</string>
+    <string name="anytime_calibration_used_status">Kalibrasyon #%1$d okumasında kullanıldı: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Kalibrasyon gönderilemedi</string>
     <string name="calibrate_sensor_title">Sensörü Kalibre Et</string>
     <string name="calibration_deleted">Kalibrasyon silindi</string>
     <string name="calibration_profile_exported">Kalibrasyon profili dışa aktarıldı</string>

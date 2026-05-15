@@ -1040,6 +1040,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibrate_action">Kalibrieren</string>
     <string name="calibrate_after_24h">Nach 24 h kalibrieren</string>
     <string name="calibrate_connect_first">Zum Kalibrieren zuerst den Sensor anschließen.</string>
+    <string name="anytime_calibration_sent_status">Kalibrierung gesendet; warte auf Sensor</string>
+    <string name="anytime_calibration_accepted_status">Kalibrierung akzeptiert; gilt ab Messung #%1$d</string>
+    <string name="anytime_calibration_used_status">Kalibrierung bei Messung #%1$d verwendet: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Kalibrierung konnte nicht gesendet werden</string>
     <string name="calibrate_sensor_title">Sensor kalibrieren</string>
     <string name="calibration_deleted">Kalibrierung gelöscht</string>
     <string name="calibration_profile_exported">Kalibrierungsprofil exportiert</string>

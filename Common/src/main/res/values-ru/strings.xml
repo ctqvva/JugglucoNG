@@ -1038,6 +1038,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Калибровка</string>
     <string name="calibrate_after_24h">Калибровка через 24 ч</string>
     <string name="calibrate_connect_first">Сначала подключите датчик для калибровки.</string>
+    <string name="anytime_calibration_sent_status">Калибровка отправлена; ожидание датчика</string>
+    <string name="anytime_calibration_accepted_status">Калибровка принята; применяется с показания #%1$d</string>
+    <string name="anytime_calibration_used_status">Калибровка применена к показанию #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Не удалось отправить калибровку</string>
     <string name="calibrate_sensor_title">Калибровка датчика</string>
     <string name="calibration_deleted">Калибровка удалена</string>
     <string name="calibration_profile_exported">Калибровочный профиль экспортирован.</string>

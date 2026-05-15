@@ -1018,6 +1018,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">校准</string>
     <string name="calibrate_after_24h">24小时后校准</string>
     <string name="calibrate_connect_first">首先连接传感器进行校准。</string>
+    <string name="anytime_calibration_sent_status">校准已发送；正在等待传感器</string>
+    <string name="anytime_calibration_accepted_status">校准已接受；从第 %1$d 次读数开始应用</string>
+    <string name="anytime_calibration_used_status">校准已用于第 %1$d 次读数：%2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">校准发送失败</string>
     <string name="calibrate_sensor_title">校准传感器</string>
     <string name="calibration_deleted">校准已删除</string>
     <string name="calibration_profile_exported">导出校准配置文件</string>

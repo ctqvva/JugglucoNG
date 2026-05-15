@@ -1001,6 +1001,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Адкалібраваць</string>
     <string name="calibrate_after_24h">Каліброўка праз 24 гадз</string>
     <string name="calibrate_connect_first">Спачатку падключыце датчык для каліброўкі.</string>
+    <string name="anytime_calibration_sent_status">Каліброўка адпраўлена; чаканне датчыка</string>
+    <string name="anytime_calibration_accepted_status">Каліброўка прынята; прымяняецца з паказання #%1$d</string>
+    <string name="anytime_calibration_used_status">Каліброўка выкарыстана для паказання #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Не ўдалося адправіць каліброўку</string>
     <string name="calibrate_sensor_title">Адкалібраваць датчык</string>
     <string name="calibration_deleted">Каліброўка выдалена</string>
     <string name="calibration_profile_exported">Профіль каліброўкі экспартаваны</string>

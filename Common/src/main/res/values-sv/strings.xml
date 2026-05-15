@@ -1002,6 +1002,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_action">Kalibrera</string>
     <string name="calibrate_after_24h">Kalibrera efter 24 h</string>
     <string name="calibrate_connect_first">Anslut sensorn först för att kalibrera.</string>
+    <string name="anytime_calibration_sent_status">Kalibrering skickad; väntar på sensor</string>
+    <string name="anytime_calibration_accepted_status">Kalibrering accepterad; gäller från avläsning #%1$d</string>
+    <string name="anytime_calibration_used_status">Kalibrering använd vid avläsning #%1$d: %2$.0f mg/dL</string>
+    <string name="anytime_calibration_send_failed_status">Kunde inte skicka kalibrering</string>
     <string name="calibrate_sensor_title">Kalibrera sensor</string>
     <string name="calibration_deleted">Kalibrering raderad</string>
     <string name="calibration_profile_exported">Kalibreringsprofil exporterad</string>
