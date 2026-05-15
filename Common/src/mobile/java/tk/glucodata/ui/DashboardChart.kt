@@ -153,6 +153,24 @@ private const val PREVIEW_WINDOW_DURATION_MS = 24L * 60L * 60L * 1000L
 private val PreviewWindowHeight = 58.dp
 private val PreviewWindowOuterPadding = 12.dp
 
+internal fun coerceChartYToDrawableRange(
+    value: Float,
+    chartHeight: Float,
+    edgeInset: Float
+): Float {
+    val safeHeight = if (chartHeight.isFinite() && chartHeight > 0f) chartHeight else 0f
+    val safeInset = if (edgeInset.isFinite() && edgeInset > 0f) edgeInset else 0f
+    if (!value.isFinite()) return safeHeight / 2f
+
+    val minY = safeInset
+    val maxY = safeHeight - safeInset
+    return if (maxY >= minY) {
+        value.coerceIn(minY, maxY)
+    } else {
+        value.coerceIn(0f, safeHeight)
+    }
+}
+
 private fun smoothChartSeries(
     points: List<GlucosePoint>,
     halfWindowMs: Long,
@@ -2653,7 +2671,12 @@ fun InteractiveGlucoseChart(
                     }
 
                     if (visibleEventMarkers.isNotEmpty()) {
-                        val eventRailY = (chartHeight - 10.dp.toPx()).coerceAtLeast(8.dp.toPx())
+                        val eventRailY = coerceChartYToDrawableRange(
+                            chartHeight - 10.dp.toPx(),
+                            chartHeight,
+                            8.dp.toPx()
+                        )
+                        val markerEdgeInset = 6.dp.toPx()
                         visibleEventMarkers.forEach { marker ->
                             val markerX = timeToDataX(marker.timestamp)
                             if (markerX !in 0f..dataWidth) return@forEach
@@ -2661,11 +2684,11 @@ fun InteractiveGlucoseChart(
                             val markerY = marker.chartGlucoseValue
                                 ?.let(::valToY)
                                 ?.takeIf { it.isFinite() }
-                                ?.coerceIn(6.dp.toPx(), chartHeight - 6.dp.toPx())
+                                ?.let { coerceChartYToDrawableRange(it, chartHeight, markerEdgeInset) }
                                 ?: marker.chartYFraction
                                     ?.let { fraction -> chartHeight - (fraction.coerceIn(0f, 1f) * chartHeight) }
                                     ?.takeIf { it.isFinite() }
-                                    ?.coerceIn(6.dp.toPx(), chartHeight - 6.dp.toPx())
+                                    ?.let { coerceChartYToDrawableRange(it, chartHeight, markerEdgeInset) }
                                 ?: eventRailY
                             if (marker.type == JournalEntryType.ACTIVITY && marker.durationMinutes != null) {
                                 val endX = timeToDataX(marker.timestamp + marker.durationMinutes.coerceAtLeast(1) * 60_000L)
@@ -2703,11 +2726,12 @@ fun InteractiveGlucoseChart(
                 if (journalActionTimestamp != null && selectedPoint == null && journalActionTimestamp in viewportStart..viewportEnd) {
                     val actionX = timeToDataX(journalActionTimestamp)
                     if (actionX in 0f..width) {
+                        val actionEdgeInset = 12.dp.toPx()
                         val actionMarkerY = journalActionDisplayValue
                             ?.let(::valToY)
                             ?.takeIf { it.isFinite() }
-                            ?.coerceIn(12.dp.toPx(), chartHeight - 12.dp.toPx())
-                            ?: (chartHeight - 12.dp.toPx())
+                            ?.let { coerceChartYToDrawableRange(it, chartHeight, actionEdgeInset) }
+                            ?: coerceChartYToDrawableRange(chartHeight - actionEdgeInset, chartHeight, actionEdgeInset)
                         drawLine(
                             color = primaryColor.copy(alpha = 0.22f + (0.14f * journalActionIndicatorProgress)),
                             start = Offset(actionX, 0f),
