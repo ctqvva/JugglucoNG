@@ -977,6 +977,8 @@ public:
     deupdated();
 
     closesocksone(index, getupdatedata()->allhosts + index);
+    if (newhost && !connections[index])
+      connections[index] = new TCPConnect(index);
     if (startthreads) {
       if (newthread)
         startthread(index, tohost);

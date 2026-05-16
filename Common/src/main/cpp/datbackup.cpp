@@ -123,8 +123,8 @@ int updateone::numbertypes() {
 #endif
 
 int updateone::update() {
-    Connect *connect=getConnect();    
-    if(!connect->isConnectedSender())
+    Connect *connect=getConnect();
+    if(!connect || !connect->isConnectedSender())
         return 0;
     crypt_t *pass=getcrypt();
 
