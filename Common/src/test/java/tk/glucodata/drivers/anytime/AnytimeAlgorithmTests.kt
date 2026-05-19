@@ -1,7 +1,9 @@
 package tk.glucodata.drivers.anytime
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AnytimeAlgorithmTests {
@@ -104,5 +106,13 @@ class AnytimeAlgorithmTests {
 
         assertEquals(AnytimeConstants.ALGO_MMOL_FLOOR.toFloat(), result.mmol, 0.001f)
         assertEquals(20.8f, result.rawMgdl, 0.1f)
+    }
+
+    @Test
+    fun referenceBgStaysAttachedAfterTargetGlucoseId() {
+        assertFalse(AnytimeAlgorithm.shouldAttachReferenceBg(3724, 3725, 1080))
+        assertTrue(AnytimeAlgorithm.shouldAttachReferenceBg(3725, 3725, 1080))
+        assertTrue(AnytimeAlgorithm.shouldAttachReferenceBg(3727, 3725, 1080))
+        assertFalse(AnytimeAlgorithm.shouldAttachReferenceBg(3727, 3725, 0))
     }
 }

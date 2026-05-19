@@ -2,13 +2,16 @@
 //
 // CRITICAL: This package and class name must match the symbols exported from
 // the vendor library exactly:
+//   Java_ist_com_sdk_AlgorithmTools_algorithmLatestGlucose
+//   Java_ist_com_sdk_AlgorithmTools_algorithmGlucose
 //   Java_ist_com_sdk_AlgorithmTools_algorithm
 //   Java_ist_com_sdk_AlgorithmTools_decodeCT
 //   Java_ist_com_sdk_AlgorithmTools_getVersion
 //
 // `System.loadLibrary("algorithm-jni")` looks up libalgorithm-jni.so under
-// jniLibs/{abi}/. If the library isn't bundled, AnytimeAlgorithm catches the
-// resulting UnsatisfiedLinkError and falls back to its pure-Kotlin path.
+// jniLibs/{abi}/. Keep arm64-v8a and armeabi-v7a on the same vendor SDK family:
+// arm64 devices otherwise silently miss the official latest/history calibration
+// entry points and fall back to the weaker legacy DataInput path.
 
 package ist.com.sdk
 

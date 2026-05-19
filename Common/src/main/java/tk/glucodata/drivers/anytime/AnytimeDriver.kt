@@ -8,6 +8,8 @@ package tk.glucodata.drivers.anytime
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
+import tk.glucodata.drivers.ManagedSensorCalibrationRecord
+import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.ManagedSensorCurrentSnapshot
 import tk.glucodata.drivers.ManagedSensorMaintenanceDriver
 import tk.glucodata.drivers.ManagedSensorUiFamily
@@ -20,6 +22,15 @@ data class AnytimeCurrentSnapshot(
     val rawValue: Float = Float.NaN, // raw Iw current (nA), for diagnostic display
     val rate: Float = Float.NaN,
     val sensorGen: Int = 0,
+)
+
+data class AnytimeReferenceCalibrationRecord(
+    val targetGlucoseId: Int,
+    val referenceMgdlTimes10: Int,
+    val acceptedAtMs: Long = 0L,
+    val appliedGlucoseId: Int = 0,
+    val appliedAtMs: Long = 0L,
+    val outputMgdlTimes10: Int = 0,
 )
 
 interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDriver {
@@ -55,6 +66,8 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
     fun requestHistoryBackfill(): Boolean
 
     fun getCurrentSnapshot(maxAgeMillis: Long): AnytimeCurrentSnapshot? = null
+
+    fun getReferenceCalibrationRecords(): List<AnytimeReferenceCalibrationRecord> = emptyList()
 
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
         val snap = getCurrentSnapshot(maxAgeMillis) ?: return null
@@ -106,6 +119,27 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
             supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = supportsManualCalibration(),
             supportsHardwareReset = supportsResetAction(),
+            vendorCalibrations = runCatching {
+                getReferenceCalibrationRecords().map { record ->
+                    ManagedSensorCalibrationRecord(
+                        index = record.targetGlucoseId,
+                        referenceGlucoseMgDl = (record.referenceMgdlTimes10 + 5) / 10,
+                        timeOffsetMinutes = 0,
+                        timestampMs = record.acceptedAtMs,
+                        cf = Float.NaN,
+                        offset = Float.NaN,
+                        isValid = record.referenceMgdlTimes10 > 0,
+                        source = ManagedSensorCalibrationSource.ANYTIME,
+                        appliedGlucoseId = record.appliedGlucoseId,
+                        appliedAtMs = record.appliedAtMs,
+                        outputGlucoseMgDl = if (record.outputMgdlTimes10 > 0) {
+                            (record.outputMgdlTimes10 + 5) / 10
+                        } else {
+                            0
+                        },
+                    )
+                }
+            }.getOrDefault(emptyList()),
             isVendorConnected = callback.mActiveBluetoothDevice != null,
             isSensorExpired = runCatching { isSensorExpired() }.getOrDefault(false),
             sensorRemainingHours = runCatching { getSensorRemainingHours() }.getOrDefault(-1),

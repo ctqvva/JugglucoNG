@@ -16,6 +16,7 @@ import tk.glucodata.Natives
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.bluediag
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
+import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.ManagedSensorIdentityRegistry
 import tk.glucodata.drivers.ManagedSensorMaintenanceDriver
 import tk.glucodata.drivers.ManagedSensorUiFamily
@@ -84,7 +85,7 @@ data class SensorInfo(
     val detailedStatus: String = "",
     val isActive: Boolean = false,  // True if this is the primary data source
     val isVendorPaired: Boolean = false,  // AiDex: has saved vendor pairing keys
-    val vendorCalibrations: List<VendorCalibrationInfo> = emptyList(),  // AiDex: calibration records from sensor
+    val vendorCalibrations: List<VendorCalibrationInfo> = emptyList(),  // Vendor calibration records/events
     val isVendorConnected: Boolean = false,  // AiDex: vendor BLE stack actively connected
     val batteryMillivolts: Int = 0,  // AiDex: sensor battery voltage in mV (0 = not yet received)
     val batteryPercent: Int = -1,  // MQ: vendor reports battery as percent, not voltage
@@ -105,7 +106,7 @@ data class SensorInfo(
     val color: Color get() = SensorColors.getColor(serial)
 }
 
-/** UI-friendly calibration record from the AiDex sensor */
+/** UI-friendly calibration record/event from a managed sensor. */
 data class VendorCalibrationInfo(
     val index: Int,
     val referenceGlucoseMgDl: Int,
@@ -113,7 +114,11 @@ data class VendorCalibrationInfo(
     val timestampMs: Long,
     val cf: Float,
     val offset: Float,
-    val isValid: Boolean
+    val isValid: Boolean,
+    val source: ManagedSensorCalibrationSource = ManagedSensorCalibrationSource.GENERIC,
+    val appliedGlucoseId: Int = 0,
+    val appliedAtMs: Long = 0L,
+    val outputGlucoseMgDl: Int = 0
 )
 
 
@@ -280,7 +285,11 @@ class SensorViewModel : ViewModel() {
                 timestampMs = record.timestampMs,
                 cf = record.cf,
                 offset = record.offset,
-                isValid = record.isValid
+                isValid = record.isValid,
+                source = record.source,
+                appliedGlucoseId = record.appliedGlucoseId,
+                appliedAtMs = record.appliedAtMs,
+                outputGlucoseMgDl = record.outputGlucoseMgDl
             )
         }
         val isAiDex = snapshot.uiFamily == ManagedSensorUiFamily.AIDEX

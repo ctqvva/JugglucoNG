@@ -146,6 +146,7 @@ import tk.glucodata.QRmake
 import tk.glucodata.R
 import tk.glucodata.MainActivity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
 import android.widget.Toast
 import tk.glucodata.data.journal.JournalEntry
@@ -1756,7 +1757,11 @@ fun SensorCard(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (calExpanded) "Show less" else "Show all $calCount",
+                                        text = if (calExpanded) {
+                                            stringResource(R.string.show_less)
+                                        } else {
+                                            stringResource(R.string.show_all_count, calCount)
+                                        },
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -2051,6 +2056,141 @@ fun SensorCard(
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
+                }
+
+                if (sensor.vendorCalibrations.any { it.source == ManagedSensorCalibrationSource.ANYTIME }) {
+                    val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
+                    val calDateFormat = java.text.SimpleDateFormat("dd MMM HH:mm", java.util.Locale.getDefault())
+                    val anytimeCals = sensor.vendorCalibrations
+                        .filter { it.source == ManagedSensorCalibrationSource.ANYTIME }
+                    val calCount = anytimeCals.size
+                    val collapsible = calCount > 3
+                    var calExpanded by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+                    val visibleCals = if (collapsible && !calExpanded) {
+                        anytimeCals.take(3)
+                    } else {
+                        anytimeCals
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        tonalElevation = 1.dp
+                    ) {
+                        Column(modifier = Modifier.animateContentSize()) {
+                            Text(
+                                text = stringResource(R.string.previous_calibrations),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                            visibleCals.forEachIndexed { idx, cal ->
+                                if (idx > 0) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 12.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    )
+                                }
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val displayGlucose = tk.glucodata.ui.util.GlucoseFormatter.formatFromMgDl(
+                                            cal.referenceGlucoseMgDl.toFloat(),
+                                            isMmol
+                                        )
+                                        Text(
+                                            text = displayGlucose,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        val timeText = if (cal.timestampMs > 0) {
+                                            calDateFormat.format(java.util.Date(cal.timestampMs))
+                                        } else {
+                                            stringResource(R.string.anytime_calibration_target_reading, cal.index)
+                                        }
+                                        Text(
+                                            text = timeText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier.padding(top = 2.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.anytime_calibration_target_reading, cal.index),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = if (cal.appliedGlucoseId > 0) {
+                                                stringResource(R.string.anytime_calibration_applied_reading, cal.appliedGlucoseId)
+                                            } else {
+                                                stringResource(R.string.anytime_calibration_pending_record)
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (cal.outputGlucoseMgDl > 0) {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.anytime_calibration_algorithm_output,
+                                                tk.glucodata.ui.util.GlucoseFormatter.formatFromMgDl(
+                                                    cal.outputGlucoseMgDl.toFloat(),
+                                                    isMmol
+                                                )
+                                            ),
+                                            modifier = Modifier.padding(top = 2.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            if (collapsible) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                                        .clickable { calExpanded = !calExpanded }
+                                        .heightIn(min = 48.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (calExpanded) {
+                                            stringResource(R.string.show_less)
+                                        } else {
+                                            stringResource(R.string.show_all_count, calCount)
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = if (calExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

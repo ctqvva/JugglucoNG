@@ -16,6 +16,10 @@
 //   anytime_bound_<id>       → 1/0 ("known bound from previous session")
 //   anytime_ref_bg_x10_<id>  → latest accepted fingerstick reference, mg/dL × 10
 //   anytime_ref_bg_id_<id>   → glucose id the reference applies to
+//   anytime_ref_bg_applied_id_<id>
+//                            → latest reference glucose id already observed by the algorithm
+//   anytime_ref_bg_history_<id>
+//                            → compact accepted/applied fingerstick calibration event list
 //   anytime_raw_history_<id> → compact raw id/Ib/Iw/T history for JNI restore
 //   anytime_ct5_cipher_<id>  → CT5 session cipher byte (0..255), -1 if unknown
 //   anytime_ct5_randomb_<id> → CT5 reconnect identity randomB, hex encoded
@@ -197,6 +201,79 @@ object AnytimeRegistry {
         editor.apply()
     }
 
+    @JvmStatic fun loadReferenceBgAppliedGlucoseId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgAppliedGlucoseId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    @JvmStatic
+    fun loadReferenceBgHistory(c: Context, id: String): List<AnytimeReferenceCalibrationRecord> {
+        val encoded = prefs(c).getString(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id, null).orEmpty()
+        if (encoded.isBlank()) return emptyList()
+        return encoded.split(';')
+            .mapNotNull { token ->
+                if (token.isBlank()) return@mapNotNull null
+                val parts = token.split(',')
+                if (parts.size != 6) return@mapNotNull null
+                val targetId = parts[0].toIntOrNull() ?: return@mapNotNull null
+                val refX10 = parts[1].toIntOrNull() ?: return@mapNotNull null
+                val acceptedAt = parts[2].toLongOrNull() ?: return@mapNotNull null
+                val appliedId = parts[3].toIntOrNull() ?: return@mapNotNull null
+                val appliedAt = parts[4].toLongOrNull() ?: return@mapNotNull null
+                val outputX10 = parts[5].toIntOrNull() ?: return@mapNotNull null
+                if (targetId <= 0 || refX10 <= 0) return@mapNotNull null
+                AnytimeReferenceCalibrationRecord(
+                    targetGlucoseId = targetId,
+                    referenceMgdlTimes10 = refX10,
+                    acceptedAtMs = acceptedAt.coerceAtLeast(0L),
+                    appliedGlucoseId = appliedId.coerceAtLeast(0),
+                    appliedAtMs = appliedAt.coerceAtLeast(0L),
+                    outputMgdlTimes10 = outputX10.coerceAtLeast(0),
+                )
+            }
+            .distinctBy { it.targetGlucoseId }
+            .sortedWith(compareByDescending<AnytimeReferenceCalibrationRecord> { it.acceptedAtMs }
+                .thenByDescending { it.targetGlucoseId })
+    }
+
+    @JvmStatic
+    fun saveReferenceBgHistory(c: Context, id: String, records: Collection<AnytimeReferenceCalibrationRecord>) {
+        val ordered = records
+            .asSequence()
+            .filter { it.targetGlucoseId > 0 && it.referenceMgdlTimes10 > 0 }
+            .distinctBy { it.targetGlucoseId }
+            .sortedWith(compareByDescending<AnytimeReferenceCalibrationRecord> { it.acceptedAtMs }
+                .thenByDescending { it.targetGlucoseId })
+            .take(12)
+            .toList()
+        val editor = prefs(c).edit()
+        if (ordered.isEmpty()) {
+            editor.remove(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id).apply()
+            return
+        }
+        val encoded = buildString(ordered.size * 40) {
+            ordered.forEach { rec ->
+                append(rec.targetGlucoseId)
+                append(',')
+                append(rec.referenceMgdlTimes10.coerceAtLeast(0))
+                append(',')
+                append(rec.acceptedAtMs.coerceAtLeast(0L))
+                append(',')
+                append(rec.appliedGlucoseId.coerceAtLeast(0))
+                append(',')
+                append(rec.appliedAtMs.coerceAtLeast(0L))
+                append(',')
+                append(rec.outputMgdlTimes10.coerceAtLeast(0))
+                append(';')
+            }
+        }
+        editor.putString(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id, encoded).apply()
+    }
+
     @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int =
         prefs(c).getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
     @JvmStatic fun saveCt5CipherKey(c: Context, id: String, key: Int) {
@@ -302,6 +379,8 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_BOUND_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)

@@ -15,6 +15,7 @@ import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
 import tk.glucodata.drivers.ManagedSensorCalibrationRecord
+import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.ManagedSensorMaintenanceDriver
 import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.ManagedSensorUiSignals
@@ -119,6 +120,7 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
                     cf = record.cf,
                     offset = record.offset,
                     isValid = record.isValid,
+                    source = ManagedSensorCalibrationSource.AIDEX,
                 )
             }
         }.getOrDefault(emptyList())

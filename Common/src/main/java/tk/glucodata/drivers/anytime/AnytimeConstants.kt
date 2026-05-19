@@ -448,6 +448,8 @@ object AnytimeConstants {
     const val PREF_BOUND_PREFIX = "anytime_bound_"
     const val PREF_REF_BG_MGDL_TIMES10_PREFIX = "anytime_ref_bg_x10_"
     const val PREF_REF_BG_GLUCOSE_ID_PREFIX = "anytime_ref_bg_id_"
+    const val PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX = "anytime_ref_bg_applied_id_"
+    const val PREF_REF_BG_HISTORY_PREFIX = "anytime_ref_bg_history_"
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"

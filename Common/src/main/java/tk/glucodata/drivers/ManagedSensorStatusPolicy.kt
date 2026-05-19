@@ -103,19 +103,28 @@ object ManagedSensorStatusPolicy {
             officialEndMs > startTimeMs -> officialEndMs
             else -> fallbackEndMs
         }
-        val totalMs = (endMs - startTimeMs).coerceAtLeast(1L)
+        val reportedAgeHours = sensorAgeHours.takeIf { it >= 0 }?.toLong()
+        val reportedRemainingHours = sensorRemainingHours.takeIf { it >= 0 }?.toLong()?.coerceAtLeast(0L)
+        val reportedTotalHours = if (reportedAgeHours != null && reportedRemainingHours != null) {
+            (reportedAgeHours + reportedRemainingHours).coerceAtLeast(1L)
+        } else {
+            null
+        }
+        val totalMs = reportedTotalHours
+            ?.let { it * HOUR_MS }
+            ?: (endMs - startTimeMs).coerceAtLeast(1L)
 
-        val remainingHours = sensorRemainingHours
-            .takeIf { it >= 0 }
-            ?.toLong()
-            ?.coerceAtLeast(0L)
+        val remainingHours = reportedRemainingHours
             ?: ((endMs - nowMs).coerceAtLeast(0L) / HOUR_MS)
 
-        val usedMs = (totalMs - (remainingHours * HOUR_MS)).coerceIn(0L, totalMs)
+        val usedMs = reportedAgeHours
+            ?.let { (it * HOUR_MS).coerceIn(0L, totalMs) }
+            ?: (totalMs - (remainingHours * HOUR_MS)).coerceIn(0L, totalMs)
         val progress = (usedMs.toFloat() / totalMs).coerceIn(0f, 1f)
-        val totalDays = ((totalMs + DAY_MS - 1L) / DAY_MS).coerceAtLeast(1L)
-        val computedCurrentDay = sensorAgeHours
-            .takeIf { it >= 0 }
+        val totalDays = reportedTotalHours
+            ?.let { ((it + 23L) / 24L).coerceAtLeast(1L) }
+            ?: ((totalMs + DAY_MS - 1L) / DAY_MS).coerceAtLeast(1L)
+        val computedCurrentDay = reportedAgeHours
             ?.let { (it / 24L) + 1L }
             ?: ((usedMs / DAY_MS) + 1L)
         val currentDay = computedCurrentDay.coerceIn(1L, totalDays).toInt()

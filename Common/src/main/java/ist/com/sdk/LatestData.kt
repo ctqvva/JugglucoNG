@@ -169,9 +169,16 @@ class LatestData {
         if (family == EGattMessage.CT3 ||
             family == EGattMessage.CT3_PLUS ||
             family == EGattMessage.CT3_YUWELL ||
-            family == EGattMessage.CT3_ULTRASONIC ||
-            family == EGattMessage.CT4
+            family == EGattMessage.CT3_ULTRASONIC
         ) {
+            if ((algorithm == 12 || algorithm == 9) && voltage == 0) {
+                algorithm = 3
+            } else if (algorithm == 3 && voltage == 1) {
+                algorithm = 9
+            }
+            return
+        }
+        if (family == EGattMessage.CT4) {
             if (algorithm == 10 && voltage == 0) {
                 algorithm = 3
             } else if (algorithm == 3 && voltage == 1) {

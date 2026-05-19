@@ -82,6 +82,13 @@ object AnytimeAlgorithm {
         val mgdl: Float get() = mgdlTimes10 / 10f
     }
 
+    internal fun shouldAttachReferenceBg(
+        recordGlucoseId: Int,
+        referenceGlucoseId: Int,
+        referenceMgdlTimes10: Int,
+    ): Boolean =
+        referenceGlucoseId in 1..recordGlucoseId && referenceMgdlTimes10 > 0
+
     /**
      * Run the algorithm on a single raw record.
      *
@@ -213,7 +220,7 @@ object AnytimeAlgorithm {
                 setSensorInfo(calibration.rawQr)
                 setTransmitterName(sensorIdName, calibration.voltageFlag)
                 setAlgorithm(nativeAlgorithm(family, calibration.voltageFlag))
-                if (record.glucoseId == lastReferenceBgGlucoseId && lastReferenceBgMgdlTimes10 > 0) {
+                if (shouldAttachReferenceBg(record.glucoseId, lastReferenceBgGlucoseId, lastReferenceBgMgdlTimes10)) {
                     setNewBgToGlucoseId(lastReferenceBgGlucoseId)
                     setNewBgValue(lastReferenceBgMgdlTimes10 / 10)
                 }
@@ -249,7 +256,7 @@ object AnytimeAlgorithm {
         return runCatching {
             val eventIds: IntArray
             val bgValues: IntArray
-            if (lastReferenceBgGlucoseId in 1..record.glucoseId && lastReferenceBgMgdlTimes10 > 0) {
+            if (shouldAttachReferenceBg(record.glucoseId, lastReferenceBgGlucoseId, lastReferenceBgMgdlTimes10)) {
                 eventIds = intArrayOf(lastReferenceBgGlucoseId)
                 bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
             } else {
@@ -301,7 +308,7 @@ object AnytimeAlgorithm {
         return runCatching {
             val eventIds: IntArray?
             val bgValues: IntArray?
-            if (lastReferenceBgGlucoseId in 1..record.glucoseId && lastReferenceBgMgdlTimes10 > 0) {
+            if (shouldAttachReferenceBg(record.glucoseId, lastReferenceBgGlucoseId, lastReferenceBgMgdlTimes10)) {
                 eventIds = intArrayOf(lastReferenceBgGlucoseId)
                 bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
             } else {
@@ -531,18 +538,20 @@ object AnytimeAlgorithm {
     }
 
     private fun nativeAlgorithm(family: AnytimeConstants.FamilyEntry, voltageFlag: Int): Int {
-        val switchable = when (family.family) {
+        return when (family.family) {
             AnytimeConstants.Family.CT3,
             AnytimeConstants.Family.CT3_PLUS,
             AnytimeConstants.Family.CT3_YUWELL,
-            AnytimeConstants.Family.CT3_ULTRASONIC,
-            AnytimeConstants.Family.CT4 -> true
-            else -> false
-        }
-        if (!switchable) return family.algorithm
-        return when {
-            family.algorithm == 10 && voltageFlag == 0 -> 3
-            family.algorithm == 3 && voltageFlag == 1 -> 10
+            AnytimeConstants.Family.CT3_ULTRASONIC -> when {
+                (family.algorithm == 12 || family.algorithm == 9) && voltageFlag == 0 -> 3
+                family.algorithm == 3 && voltageFlag == 1 -> 9
+                else -> family.algorithm
+            }
+            AnytimeConstants.Family.CT4 -> when {
+                family.algorithm == 10 && voltageFlag == 0 -> 3
+                family.algorithm == 3 && voltageFlag == 1 -> 10
+                else -> family.algorithm
+            }
             else -> family.algorithm
         }
     }
