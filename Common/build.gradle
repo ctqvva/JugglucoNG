@@ -88,7 +88,7 @@ android {
         //compileSdk 36
         applicationId "tk.glucodata.ng"
 
-         versionName '0.9.7-Alpha'
+         versionName '0.9.8-Alpha'
 //    multiDexEnabled true
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
