@@ -327,6 +327,85 @@ Natives.addGlucoseEntry(dataptr, System.currentTimeMillis(), glucoseMgDl, readin
 
 ---
 
+---
+
+## Vendor native library: libmdkjnidemo.so
+
+The EasyTouch APK includes `libmdkjnidemo.so` (arm64-v8a, 18 KB) — a glucose prediction filter. Using it ensures identical smoothing to the official app.
+
+### Exported JNI symbols (confirmed via `strings`)
+```
+glucose_predict_task        — process one batch of raw samples
+glucose_predict_get_predict — retrieve current predicted value
+glucose_predict_reset       — reset filter state
+
+Java_com_example_shengk_jni008_JniUtil_predictGlucose
+Java_com_example_shengk_jni008_JniUtil_getPredictGlucose
+Java_com_example_shengk_jni008_JniUtil_glucosePredictReset
+```
+
+The JNI symbols bind to Java class `com.example.shengk.jni008.JniUtil`. To call them without modifying the `.so`, create a stub class with the same fully-qualified name.
+
+### Loading pattern (mirrors BlecommLoader.java)
+```kotlin
+// MedtrumNativeLoader.kt
+object MedtrumNativeLoader {
+    @Volatile private var loaded = false
+
+    fun ensureLoaded(): Boolean {
+        if (loaded) return true
+        return try {
+            System.loadLibrary("mdkjnidemo")  // bundled in jniLibs/
+            loaded = true
+            true
+        } catch (t: Throwable) {
+            Log.e("MedtrumNativeLoader", "Failed to load libmdkjnidemo", t)
+            false
+        }
+    }
+}
+```
+
+### JNI stub class
+```java
+// com/example/shengk/jni008/JniUtil.java
+package com.example.shengk.jni008;
+
+public final class JniUtil {
+    // method signatures TBD — infer from symbol ABI or BLE sniff of values
+    public static native float getPredictGlucose();
+    public static native void glucosePredictReset();
+    public static native void predictGlucose(float rawMgDl);  // signature TBD
+}
+```
+
+> **⚠️ Method signatures TBD.** The `.so` is compiled for AArch64. Use `readelf -Ws libmdkjnidemo.so` or a disassembler to confirm argument types before writing the stub. The `matrix_*` functions suggest float arrays are involved.
+
+### Integration in parseCgmField
+```kotlin
+// After extracting glucoseRaw from the 5-byte field:
+if (MedtrumNativeLoader.ensureLoaded()) {
+    JniUtil.predictGlucose(glucoseRaw.toFloat())  // feed raw value
+    val predicted = JniUtil.getPredictGlucose()    // get smoothed result
+    Natives.addGlucoseEntry(dataptr, timestampMs, predicted.toInt(), glucoseRaw.toFloat(), statusFlags)
+} else {
+    // Fallback: use raw value without vendor prediction
+    Natives.addGlucoseEntry(dataptr, timestampMs, glucoseRaw, glucoseRaw.toFloat(), statusFlags)
+}
+```
+
+### Build system changes
+```groovy
+// Common/build.gradle — add to medtrum flavor or main sourceSets:
+sourceSets {
+    main {
+        jniLibs.srcDirs += ['src/main/jniLibs']  // place libmdkjnidemo.so here
+    }
+}
+```
+
+---
+
 ## Files to create
 
 | File | Action |
@@ -337,5 +416,9 @@ Natives.addGlucoseEntry(dataptr, System.currentTimeMillis(), glucoseMgDl, readin
 | `drivers/medtrum/MedtrumCrypt.kt` | Create (port from AndroidAPS) |
 | `drivers/medtrum/MedtrumIdentityAdapter.kt` | Create |
 | `drivers/medtrum/MedtrumPersistence.kt` | Create |
+| `drivers/medtrum/MedtrumNativeLoader.kt` | Create |
+| `com/example/shengk/jni008/JniUtil.java` | Create (JNI stub) |
+| `jniLibs/arm64-v8a/libmdkjnidemo.so` | Add (from APK) |
+| `jniLibs/armeabi-v7a/libmdkjnidemo.so` | Add (from APK) |
 | `drivers/ManagedSensorIdentityRegistry.kt` | Modify: add `MedtrumIdentityAdapter` |
 | `SensorSourceResolver.java` | Modify: add `SENSOR_KIND_MEDTRUM = 0x50` |
