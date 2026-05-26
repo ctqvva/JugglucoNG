@@ -49,3 +49,4 @@ hs_err_pid*
 out/
 tmp/
 Common/printmappingout.txt
+.worktrees/
