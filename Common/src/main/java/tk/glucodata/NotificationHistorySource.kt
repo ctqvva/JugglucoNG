@@ -73,7 +73,7 @@ object NotificationHistorySource {
                 rawValue /= MGDL_PER_MMOL
             }
 
-            val candidate = GlucosePoint(timestamp, value, rawValue)
+            val candidate = GlucosePoint(timestamp, value, rawValue, resolvedSerial)
             val existing = orderedPoints[timestamp]
             if (existing == null || shouldReplace(existing, candidate)) {
                 orderedPoints[timestamp] = candidate

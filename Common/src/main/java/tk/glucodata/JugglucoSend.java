@@ -66,11 +66,16 @@ static void broadcastglucose(String SerialNumber, ExchangeGlucosePayload payload
 	intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
 	for(var name:names) {
 		if(name!=null) {
-		      {if(doLog) {Log.i(LOG_ID,name);};};
-	      	      intent.setPackage(name);
-		      context.sendBroadcast(intent);
-		      }
-	   	}
+			try {
+				context.getPackageManager().getPackageInfo(name, 0);
+			} catch (Exception e) {
+				continue;
+			}
+			{if(doLog) {Log.i(LOG_ID,name);};};
+			intent.setPackage(name);
+			context.sendBroadcast(intent);
+			}
+		}
 	}
 	/*
 static void broadcastglucose(String SerialNumber, int mgdl, float gl, float rate, int alarm, long timmsec) {

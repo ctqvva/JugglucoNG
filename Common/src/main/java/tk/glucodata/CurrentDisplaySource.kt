@@ -523,7 +523,8 @@ object CurrentDisplaySource {
         val candidate = GlucosePoint(
             current.timeMillis,
             liveAuto.takeIf { it.isFinite() && it > 0.1f } ?: 0f,
-            liveRawDirect ?: 0f
+            liveRawDirect ?: 0f,
+            current.sensorId
         )
         if (points.isEmpty()) {
             return listOf(candidate)
@@ -563,7 +564,12 @@ object CurrentDisplaySource {
             livePoint.rawValue.takeIf { it.isFinite() && it > 0.1f }
                 ?: historyPoint.rawValue
         }
-        val merged = GlucosePoint(historyPoint.timestamp, mergedValue, mergedRawValue)
+        val merged = GlucosePoint(
+            historyPoint.timestamp,
+            mergedValue,
+            mergedRawValue,
+            historyPoint.sensorSerial.takeIf { it.isNotBlank() } ?: livePoint.sensorSerial
+        )
         merged.color = historyPoint.color
         return merged
     }

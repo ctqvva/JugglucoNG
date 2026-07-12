@@ -36,6 +36,11 @@ private static long lastActivatedStartSec;
     private static void sendIntent(Context context,Intent intent) {
 	intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
 	for(var name:librenames) {
+		try {
+			context.getPackageManager().getPackageInfo(name, 0);
+		} catch (Exception e) {
+			continue;
+		}
 		intent.setPackage(name);
 		context.sendBroadcast(intent);
 		{if(doLog) {Log.i(LOG_ID,"send to "+name);};};

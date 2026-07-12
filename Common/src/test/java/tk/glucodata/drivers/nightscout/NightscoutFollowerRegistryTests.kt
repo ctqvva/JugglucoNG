@@ -132,9 +132,15 @@ class NightscoutFollowerRegistryTests {
     }
 
     @Test
-    fun normalizeUrl_preservesExistingScheme() {
-        assertEquals("http://example.com", NightscoutFollowerRegistry.normalizeUrl("http://example.com"))
+    fun normalizeUrl_rejectsPlainHttpScheme() {
+        assertEquals("", NightscoutFollowerRegistry.normalizeUrl("http://example.com"))
+        assertFalse(NightscoutFollowerRegistry.isSecureUrlInput("http://example.com"))
+    }
+
+    @Test
+    fun normalizeUrl_preservesHttpsScheme() {
         assertEquals("https://example.com", NightscoutFollowerRegistry.normalizeUrl("https://example.com"))
+        assertTrue(NightscoutFollowerRegistry.isSecureUrlInput("https://example.com"))
     }
 
     @Test

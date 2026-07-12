@@ -95,6 +95,23 @@ fun ApiSourceSettingsScreen(navController: NavController) {
     fun persist(connect: Boolean = false) {
         val seconds = pollSeconds.toIntOrNull()?.coerceAtLeast(30)
             ?: ApiGlucoseSourceRegistry.DEFAULT_POLL_SECONDS
+        if (!ApiGlucoseSourceRegistry.isSecureUrlInput(url)) {
+            enabled = false
+            ApiGlucoseSourceRegistry.saveConfig(
+                context = context,
+                enabled = false,
+                preset = preset,
+                url = url,
+                token = token,
+                peerId = peerId,
+                apiVersion = apiVersion,
+                headers = headers,
+                format = format,
+                pollSeconds = seconds,
+            )
+            Toast.makeText(context, context.getString(R.string.api_source_https_required), Toast.LENGTH_SHORT).show()
+            return
+        }
         if (connect && enabled) {
             val sensorId = ApiGlucoseSourceRegistry.enableSourceSensor(
                 context = context,

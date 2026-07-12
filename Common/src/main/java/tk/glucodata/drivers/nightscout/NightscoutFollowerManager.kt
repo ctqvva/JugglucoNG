@@ -37,6 +37,8 @@ class NightscoutFollowerManager(
         private const val HISTORY_COUNT = 288
         private const val TREATMENT_COUNT = 512
         private const val MMOL_TO_MGDL = 18.0182f
+        private const val MAX_REASONABLE_MGDL = 1200.0
+        private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
     }
 
     private enum class Phase {
@@ -345,14 +347,14 @@ class NightscoutFollowerManager(
     private fun parseEntry(entry: JSONObject?): VirtualGlucoseSensorBridge.Reading? {
         entry ?: return null
         val mgdl = entry.optDouble("sgv", Double.NaN)
-            .takeIf { it.isFinite() && it > 0.0 }
-            ?: entry.optDouble("mbg", Double.NaN).takeIf { it.isFinite() && it > 0.0 }
+            .takeIf { it.isFinite() && it > 0.0 && it <= MAX_REASONABLE_MGDL }
+            ?: entry.optDouble("mbg", Double.NaN).takeIf { it.isFinite() && it > 0.0 && it <= MAX_REASONABLE_MGDL }
             ?: return null
         val timestampMs = when {
             entry.has("date") -> entry.optLong("date", 0L)
             entry.has("mills") -> entry.optLong("mills", 0L)
             else -> 0L
-        }.takeIf { it > 0L } ?: return null
+        }.takeIf { it > 0L && it <= System.currentTimeMillis() + MAX_FUTURE_TIMESTAMP_DRIFT_MS } ?: return null
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestampMs,
             glucoseMgdl = mgdl.toFloat(),

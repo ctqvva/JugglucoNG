@@ -35,15 +35,18 @@ object NightscoutFollowerRegistry {
             ?.removeSuffix("/")
             ?.takeIf { it.isNotEmpty() }
             ?.let { raw ->
-                if (raw.startsWith("http://", ignoreCase = true) ||
-                    raw.startsWith("https://", ignoreCase = true)
-                ) {
-                    raw
-                } else {
-                    "https://$raw"
+                when {
+                    raw.startsWith("https://", ignoreCase = true) -> raw
+                    raw.startsWith("http://", ignoreCase = true) -> ""
+                    else -> "https://$raw"
                 }
             }
             .orEmpty()
+
+    fun isSecureUrlInput(url: String?): Boolean {
+        val raw = url?.trim().orEmpty()
+        return raw.isEmpty() || !raw.startsWith("http://", ignoreCase = true)
+    }
 
     fun deriveSensorId(url: String?): String {
         val normalized = normalizeUrl(url)

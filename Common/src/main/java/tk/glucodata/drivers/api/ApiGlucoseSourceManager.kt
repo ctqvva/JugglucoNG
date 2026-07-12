@@ -465,18 +465,7 @@ class ApiGlucoseSourceManager(
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return emptyList()
         importJournalPayload(trimmed)
-        val objects = when {
-            trimmed.startsWith("[") -> jsonArrayObjects(JSONArray(trimmed))
-            else -> {
-                val root = JSONObject(trimmed)
-                when {
-                    root.optJSONArray("readings") != null -> jsonArrayObjects(root.getJSONArray("readings"))
-                    root.optJSONArray("entries") != null -> jsonArrayObjects(root.getJSONArray("entries"))
-                    else -> listOf(root)
-                }
-            }
-        }
-        return objects.mapNotNull(::parseJsonReading)
+        return ApiGlucoseSourcePayloadParser.parseOutboundJson(trimmed)
     }
 
     private fun parseMessageText(message: String): List<VirtualGlucoseSensorBridge.Reading> {
@@ -500,49 +489,32 @@ class ApiGlucoseSourceManager(
 
     private fun parseJsonReading(entry: JSONObject): VirtualGlucoseSensorBridge.Reading? {
         val primaryMgdl = firstFiniteField(
-            entry,
-            "glucose_mgdl",
-            "sgv",
-            "mgdl",
-            "calibrated_glucose_mgdl",
-            "calibrated_mgdl",
-            "calibratedMgdl"
+            entry, "glucose_mgdl", "sgv", "mgdl",
+            "calibrated_glucose_mgdl", "calibrated_mgdl", "calibratedMgdl"
         ) ?: firstFiniteField(
-            entry,
-            "glucose_mmol",
-            "mmol",
-            "calibrated_glucose_mmol",
-            "calibrated_mmol"
-        )?.let { it * MGDL_PER_MMOLL } ?: return null
+            entry, "glucose_mmol", "mmol",
+            "calibrated_glucose_mmol", "calibrated_mmol"
+        )?.let { it * MGDL_PER_MMOLL }
+            ?: return null
 
         val autoMgdl = firstFiniteField(
-            entry,
-            "auto_glucose_mgdl",
-            "auto_mgdl",
-            "autoMgdl",
-            "uncalibrated_glucose_mgdl",
-            "uncalibrated_mgdl"
+            entry, "auto_glucose_mgdl", "auto_mgdl", "autoMgdl",
+            "uncalibrated_glucose_mgdl", "uncalibrated_mgdl"
         ) ?: firstFiniteField(
-            entry,
-            "auto_glucose_mmol",
-            "auto_mmol",
-            "uncalibrated_glucose_mmol",
-            "uncalibrated_mmol"
-        )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+            entry, "auto_glucose_mmol", "auto_mmol", "autoMmol",
+            "uncalibrated_glucose_mmol", "uncalibrated_mmol"
+        )?.let { it * MGDL_PER_MMOLL }
+            ?: Double.NaN
 
         val calibratedMgdl = if (autoMgdl.isFinite() && autoMgdl > 0.0) {
             primaryMgdl
         } else {
             firstFiniteField(
-                entry,
-                "calibrated_glucose_mgdl",
-                "calibrated_mgdl",
-                "calibratedMgdl"
+                entry, "calibrated_glucose_mgdl", "calibrated_mgdl", "calibratedMgdl"
             ) ?: firstFiniteField(
-                entry,
-                "calibrated_glucose_mmol",
-                "calibrated_mmol"
-            )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+                entry, "calibrated_glucose_mmol", "calibrated_mmol"
+            )?.let { it * MGDL_PER_MMOLL }
+                ?: Double.NaN
         }
 
         val timestamp = normalizeTimestamp(
@@ -711,16 +683,9 @@ class ApiGlucoseSourceManager(
 
     private fun parseJsonRawMgdl(entry: JSONObject): Double? {
         val explicit = firstFiniteField(
-            entry,
-            "raw_glucose_mgdl",
-            "raw_mgdl",
-            "rawMgdl",
-            "raw_gluc_mgdl"
+            entry, "raw_glucose_mgdl", "raw_mgdl", "rawMgdl", "raw_gluc_mgdl"
         ) ?: firstFiniteField(
-            entry,
-            "raw_glucose_mmol",
-            "raw_mmol",
-            "rawMmol"
+            entry, "raw_glucose_mmol", "raw_mmol", "rawMmol"
         )?.let { it * MGDL_PER_MMOLL }
         if (explicit != null) return explicit
 
@@ -785,14 +750,8 @@ class ApiGlucoseSourceManager(
             in 1_000_000_000L..9_999_999_999L -> raw * 1_000L
             in 1_000_000_000_000L..9_999_999_999_999L -> raw
             in 10_000_000_000_000L..99_999_999_999_999L -> {
-                val repaired = raw / 10L
-                if (raw % 10L == 0L && isPlausibleTimestamp(repaired)) {
-                    Log.w(TAG, "Repaired API source timestamp $raw -> $repaired")
-                    repaired
-                } else {
-                    logRejectedTimestamp(raw, "unsupported precision", sourcePreview)
-                    return null
-                }
+                logRejectedTimestamp(raw, "unsupported precision (14-digit)", sourcePreview)
+                return null
             }
             in 1_000_000_000_000_000L..9_999_999_999_999_999L -> raw / 1_000L
             in 1_000_000_000_000_000_000L..Long.MAX_VALUE -> raw / 1_000_000L
@@ -828,4 +787,141 @@ class ApiGlucoseSourceManager(
 
     private fun urlEncode(value: String): String =
         URLEncoder.encode(value, "UTF-8")
+}
+
+internal object ApiGlucoseSourcePayloadParser {
+    private const val MGDL_PER_MMOLL = 18.0182f
+    private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
+    private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
+
+    fun parseOutboundJson(body: String): List<VirtualGlucoseSensorBridge.Reading> {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        val objects = when {
+            trimmed.startsWith("[") -> jsonArrayObjects(JSONArray(trimmed))
+            else -> {
+                val root = JSONObject(trimmed)
+                when {
+                    root.optJSONArray("readings") != null -> jsonArrayObjects(root.getJSONArray("readings"))
+                    root.optJSONArray("entries") != null -> jsonArrayObjects(root.getJSONArray("entries"))
+                    else -> listOf(root)
+                }
+            }
+        }
+        return objects.mapNotNull(::parseJsonReading)
+    }
+
+    fun parseJsonReading(entry: JSONObject): VirtualGlucoseSensorBridge.Reading? {
+        val primaryMgdl = firstFiniteField(
+            entry, "glucose_mgdl", "sgv", "mgdl",
+            "calibrated_glucose_mgdl", "calibrated_mgdl", "calibratedMgdl"
+        ) ?: firstFiniteField(
+            entry, "glucose_mmol", "mmol",
+            "calibrated_glucose_mmol", "calibrated_mmol"
+        )?.let { it * MGDL_PER_MMOLL }
+            ?: return null
+
+        val autoMgdl = firstFiniteField(
+            entry, "auto_glucose_mgdl", "auto_mgdl", "autoMgdl",
+            "uncalibrated_glucose_mgdl", "uncalibrated_mgdl"
+        ) ?: firstFiniteField(
+            entry, "auto_glucose_mmol", "auto_mmol", "autoMmol",
+            "uncalibrated_glucose_mmol", "uncalibrated_mmol"
+        )?.let { it * MGDL_PER_MMOLL }
+            ?: Double.NaN
+
+        val calibratedMgdl = if (autoMgdl.isFinite() && autoMgdl > 0.0) {
+            primaryMgdl
+        } else {
+            firstFiniteField(
+                entry, "calibrated_glucose_mgdl", "calibrated_mgdl", "calibratedMgdl"
+            ) ?: firstFiniteField(
+                entry, "calibrated_glucose_mmol", "calibrated_mmol"
+            )?.let { it * MGDL_PER_MMOLL }
+                ?: Double.NaN
+        }
+
+        val timestamp = normalizeTimestamp(
+            firstLong(
+                entry.optLong("timestamp", 0L),
+                entry.optLong("date", 0L),
+                entry.optLong("mills", 0L),
+                entry.optLong("datetime", 0L),
+            )
+        ) ?: return null
+
+        val rate = firstFiniteAny(entry.optDouble("rate_mgdl_per_min", Double.NaN))?.toFloat()
+            ?: firstFiniteAny(entry.optDouble("rate_mmol_per_min", Double.NaN))
+                ?.let { (it * MGDL_PER_MMOLL).toFloat() }
+            ?: Float.NaN
+
+        val rawMgdl = parseJsonRawMgdl(entry) ?: Double.NaN
+
+        return VirtualGlucoseSensorBridge.Reading(
+            timestampMs = timestamp,
+            glucoseMgdl = primaryMgdl.toFloat(),
+            autoMgdl = autoMgdl.toFloat(),
+            calibratedMgdl = calibratedMgdl.toFloat(),
+            rawMgdl = rawMgdl.toFloat(),
+            rate = rate,
+        )
+    }
+
+    private fun jsonArrayObjects(array: JSONArray): List<JSONObject> {
+        val objects = ArrayList<JSONObject>(array.length())
+        for (index in 0 until array.length()) {
+            array.optJSONObject(index)?.let(objects::add)
+        }
+        return objects
+    }
+
+    private fun parseJsonRawMgdl(entry: JSONObject): Double? {
+        val explicit = firstFiniteField(
+            entry, "raw_glucose_mgdl", "raw_mgdl", "rawMgdl", "raw_gluc_mgdl"
+        ) ?: firstFiniteField(
+            entry, "raw_glucose_mmol", "raw_mmol", "rawMmol"
+        )?.let { it * MGDL_PER_MMOLL }
+        if (explicit != null) return explicit
+
+        val rawValue = firstFiniteField(entry, "raw_value", "raw") ?: return null
+        val unit = entry.optString("raw_unit", "")
+            .ifBlank { entry.optString("display_unit", "") }
+            .ifBlank { entry.optString("unit", "") }
+            .lowercase(Locale.US)
+        return when {
+            unit.contains("mmol") -> rawValue * MGDL_PER_MMOLL
+            unit.contains("mg") -> rawValue
+            rawValue in 1.0..40.0 -> rawValue * MGDL_PER_MMOLL
+            rawValue in 40.0..600.0 -> rawValue
+            else -> null
+        }
+    }
+
+    private fun firstFiniteAny(vararg values: Double): Double? =
+        values.firstOrNull { it.isFinite() }
+
+    private fun firstFiniteField(entry: JSONObject, vararg keys: String): Double? =
+        keys.asSequence()
+            .map { key -> entry.optDouble(key, Double.NaN) }
+            .firstOrNull { it.isFinite() && it > 0.0 }
+
+    private fun firstLong(vararg values: Long): Long =
+        values.firstOrNull { it > 0L } ?: 0L
+
+    private fun normalizeTimestamp(raw: Long): Long? {
+        if (raw <= 0L) return null
+        val millis = when (raw) {
+            in 1_000_000_000L..9_999_999_999L -> raw * 1_000L
+            in 1_000_000_000_000L..9_999_999_999_999L -> raw
+            in 1_000_000_000_000_000L..9_999_999_999_999_999L -> raw / 1_000L
+            in 1_000_000_000_000_000_000L..Long.MAX_VALUE -> raw / 1_000_000L
+            else -> return null
+        }
+        return millis.takeIf(::isPlausibleTimestamp)
+    }
+
+    private fun isPlausibleTimestamp(timestampMs: Long): Boolean {
+        val maxAccepted = System.currentTimeMillis() + MAX_FUTURE_TIMESTAMP_DRIFT_MS
+        return timestampMs in MIN_REASONABLE_TIMESTAMP_MS..maxAccepted
+    }
 }

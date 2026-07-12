@@ -136,4 +136,18 @@ object MQManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
             false
         }
     }
+
+    override fun isExpired(sensorId: String?): Boolean {
+        val canonical = resolveCanonicalSensorId(sensorId) ?: return false
+        SensorBluetooth.mygatts()
+            .mapNotNull { it as? MQDriver }
+            .firstOrNull { it.matchesManagedSensorId(canonical) }
+            ?.let { return it.isSensorExpired() }
+
+        val context = Applic.app ?: return false
+        val record = MQRegistry.findRecord(context, canonical) ?: return false
+        val startAtMs = MQRegistry.loadSensorStartAt(context, record.sensorId)
+        if (startAtMs <= 0L) return false
+        return System.currentTimeMillis() >= startAtMs + MQProfileResolver.resolve().ratedLifetimeMs()
+    }
 }

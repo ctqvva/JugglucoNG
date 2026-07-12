@@ -26,6 +26,7 @@
 //
 // Created by jka on 27-11-20.
 //
+#include <cmath>
 #include <cinttypes>
 #include <future>
 #include <jni.h>
@@ -1218,6 +1219,10 @@ extern "C" JNIEXPORT void JNICALL fromjava(addGlucoseInjection)(
     return;
 
   if (timestamp > 0) {
+    if (!std::isfinite(glucose) || glucose <= 0.0f || glucose > 1200.0f) {
+      env->ReleaseStringUTFChars(sensorId, str);
+      return;
+    }
     int ind = -1;
     auto *list = sensors->sensorlist();
     if (list) {
@@ -1368,6 +1373,10 @@ static void addGlucoseStreamInternal(JNIEnv *env, jlong timestamp, jfloat glucos
     return;
 
   if (timestamp > 0) {
+    if (!std::isfinite(glucose) || glucose <= 0.0f || glucose > 1200.0f) {
+      env->ReleaseStringUTFChars(sensorId, str);
+      return;
+    }
     if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
       if (hist->error()) {
         env->ReleaseStringUTFChars(sensorId, str);

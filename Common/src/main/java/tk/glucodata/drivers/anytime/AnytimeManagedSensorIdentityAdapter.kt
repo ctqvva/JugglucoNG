@@ -132,4 +132,19 @@ object AnytimeManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
         // The driver owns Room storage end-to-end (mirrors MQ semantics).
         return false
     }
+
+    override fun isExpired(sensorId: String?): Boolean {
+        val canonical = resolveCanonicalSensorId(sensorId) ?: return false
+        SensorBluetooth.mygatts()
+            .mapNotNull { it as? AnytimeDriver }
+            .firstOrNull { it.matchesManagedSensorId(canonical) }
+            ?.let { return it.isSensorExpired() }
+
+        val context = Applic.app ?: return false
+        val record = AnytimeRegistry.findRecord(context, canonical) ?: return false
+        val startAtMs = AnytimeRegistry.loadSensorStartAt(context, record.sensorId)
+        if (startAtMs <= 0L) return false
+        return System.currentTimeMillis() >=
+            startAtMs + AnytimeProfileResolver.resolve(record.displayName).ratedLifetimeMs()
+    }
 }

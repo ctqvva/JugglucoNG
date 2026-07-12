@@ -160,6 +160,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
     fun persistSettings(connectFollower: Boolean = false) {
         val uploadActive = isActive && mode == NightscoutMode.UPLOAD
         val followActive = isActive && mode == NightscoutMode.FOLLOW
+        if (followActive && !NightscoutFollowerRegistry.isSecureUrlInput(url)) {
+            Toast.makeText(context, context.getString(R.string.nightscout_follow_https_required), Toast.LENGTH_SHORT).show()
+            return
+        }
         val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
 
         Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, isV3)
@@ -190,6 +194,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
     }
 
     fun requireUrl(): Boolean {
+        if (!NightscoutFollowerRegistry.isSecureUrlInput(url)) {
+            Toast.makeText(context, context.getString(R.string.nightscout_follow_https_required), Toast.LENGTH_SHORT).show()
+            return false
+        }
         if (NightscoutFollowerRegistry.normalizeUrl(url).isBlank()) {
             Toast.makeText(context, context.getString(R.string.nightscout_follow_url_required), Toast.LENGTH_SHORT).show()
             return false

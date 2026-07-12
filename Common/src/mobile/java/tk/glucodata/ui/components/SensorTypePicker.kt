@@ -29,7 +29,8 @@ enum class SensorType {
     AIDEX,
     ICANHEALTH,
     MQ,
-    ANYTIME
+    ANYTIME,
+    OTTAI
 }
 
 /**
@@ -114,6 +115,12 @@ fun SensorTypePicker(
                 icon = Icons.Default.QrCodeScanner,
                 titleRes = R.string.caresens_air_sensor,
                 subtitleRes = R.string.caresens_air_sensor_picker_desc
+            ),
+            SensorTypeEntry(
+                type = SensorType.OTTAI,
+                icon = Icons.Default.Bluetooth,
+                titleRes = R.string.ottai_sensor,
+                subtitleRes = R.string.ottai_sensor_picker_desc
             ),
         )
     }

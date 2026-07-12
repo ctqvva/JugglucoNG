@@ -185,7 +185,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.inDisplayUnit(isMmol).map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue, p.sensorSerial)
                 }
             }
         }
@@ -211,7 +211,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 HistoryRepository()
                     .getHistoryForDisplaySensor(serial, startTime)
                     .inDisplayUnit(isMmol)
-                    .map { p -> tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue) }
+                    .map { p -> tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue, p.sensorSerial) }
             }
         }
         
@@ -231,7 +231,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue, p.sensorSerial)
                 }
             }
         }

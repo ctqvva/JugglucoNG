@@ -87,6 +87,11 @@ static void broadcastglucose(ExchangeGlucosePayload payload,long sensorStartmsec
     intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
     for(var name:names) {
         if(name!=null) {
+            try {
+                context.getPackageManager().getPackageInfo(name, 0);
+            } catch (Exception e) {
+                continue;
+            }
             intent.setPackage(name);
             context.sendBroadcast(intent);
             {if(doLog) {Log.i(LOG_ID,name);};};

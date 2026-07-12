@@ -32,7 +32,7 @@ object DisplayTrendSource {
             return history
         }
 
-        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue)
+        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue, current.sensorId)
         if (history.isEmpty()) {
             return listOf(candidate)
         }

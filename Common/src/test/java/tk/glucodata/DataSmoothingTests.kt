@@ -117,4 +117,27 @@ class DataSmoothingTests {
             )
         )
     }
+
+    @Test
+    fun smoothNativePointsGroupsBySensorSerial() {
+        val points = listOf(
+            GlucosePoint(0L, 100f, 90f, "A"),
+            GlucosePoint(0L, 300f, 290f, "B"),
+            GlucosePoint(60_000L, 160f, 150f, "A"),
+            GlucosePoint(60_000L, 360f, 350f, "B"),
+            GlucosePoint(120_000L, 100f, 90f, "A"),
+            GlucosePoint(120_000L, 300f, 290f, "B")
+        )
+
+        val smoothed = DataSmoothing.smoothNativePoints(
+            points = points,
+            smoothingMinutes = 2,
+            collapseChunks = false
+        )
+
+        val middleA = smoothed.single { it.timestamp == 60_000L && it.sensorSerial == "A" }
+        val middleB = smoothed.single { it.timestamp == 60_000L && it.sensorSerial == "B" }
+        assertEquals(120f, middleA.value, 0.01f)
+        assertEquals(320f, middleB.value, 0.01f)
+    }
 }

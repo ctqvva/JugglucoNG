@@ -18,6 +18,7 @@ object VirtualGlucoseSensorBridge {
     private const val MMOL_TO_MGDL = 18.0182f
     private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
     private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
+    private const val MAX_REASONABLE_RATE_MGDL_PER_MIN = 30.0f
 
     data class Reading(
         val timestampMs: Long,
@@ -159,7 +160,7 @@ object VirtualGlucoseSensorBridge {
         }
 
         val rawMgdl = reading.rawMgdl.takeIf { it.isFinite() && it > 0f } ?: 0f
-        val rate = reading.rate.takeIf { it.isFinite() } ?: 0f
+        val rate = sanitizeCurrentRate(reading.rate)
         HistorySyncAccess.storeCurrentReadingAsync(
             reading.timestampMs,
             reading.storageGlucoseMgdl,
@@ -206,6 +207,9 @@ object VirtualGlucoseSensorBridge {
                 (reading.storageGlucoseMgdl.isFinite() && reading.storageGlucoseMgdl > 0f) ||
                     (reading.rawMgdl.isFinite() && reading.rawMgdl > 0f)
             )
+
+    internal fun sanitizeCurrentRate(rate: Float): Float =
+        rate.takeIf { it.isFinite() && kotlin.math.abs(it) <= MAX_REASONABLE_RATE_MGDL_PER_MIN } ?: 0f
 
     private fun isPlausibleTimestamp(timestampMs: Long, nowMs: Long): Boolean =
         timestampMs in MIN_REASONABLE_TIMESTAMP_MS..(nowMs + MAX_FUTURE_TIMESTAMP_DRIFT_MS)

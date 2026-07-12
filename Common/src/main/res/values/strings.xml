@@ -930,6 +930,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_sensor_desc">Pair a Glutec / MQ CGM transmitter via Bluetooth</string>
     <string name="anytime_sensor">Anytime / Yuwell 4 / 4H / 5</string>
     <string name="anytime_sensor_desc">Pair an Anytime / Yuwell CT3 CGM transmitter via Bluetooth</string>
+    <string name="ottai_sensor">Ottai CGM</string>
+    <string name="ottai_sensor_desc">Pair an Ottai CGM sensor via Bluetooth</string>
+    <string name="ottai_sensor_picker_desc">Cloud login + Bluetooth pairing</string>
 
     <!-- Anytime/Yuwell Setup Wizard Strings -->
     <string name="anytime_setup_title">Anytime / Yuwell Setup</string>
@@ -1381,6 +1384,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_use_v3_api">Use Nightscout v3 API</string>
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
     <string name="nightscout_follow_url_required">Enter a Nightscout URL first</string>
+    <string name="nightscout_follow_https_required">Nightscout follower requires an HTTPS URL</string>
     <string name="nightscout_mode_upload">Upload</string>
     <string name="nightscout_mode_follow">Follow</string>
     <string name="nightscout_test_connection">Test connection</string>
@@ -2016,6 +2020,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_master_desc">Import glucose from a polling API as a read-only sensor</string>
     <string name="api_source_url_required">Complete source settings first</string>
     <string name="api_source_credentials_required">Enter token and chat ID for this source</string>
+    <string name="api_source_https_required">API source requires an HTTPS URL</string>
     <string name="api_source_url_label">Source URL</string>
     <string name="api_source_format">Format</string>
     <string name="api_source_format_json">Glucose JSON</string>
@@ -2058,4 +2063,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_schedule_until">Until</string>
     <string name="sensor_display_select">Select display sensor</string>
     <string name="sensor_display_selected">Display sensor selected</string>
+
+    <!-- Ottai CGM Setup Wizard Strings -->
+    <string name="ottai_setup_title">Ottai CGM Setup</string>
+    <string name="ottai_login_title">Sign in to Ottai Cloud</string>
+    <string name="ottai_username">Username</string>
+    <string name="ottai_password">Password</string>
+    <string name="ottai_sign_in">Sign In</string>
+    <string name="ottai_sensor_mac">Sensor MAC Address</string>
+    <string name="ottai_mac_label">12-hex MAC (e.g. 08FD5266CCB5)</string>
+    <string name="ottai_fetch_materials">Fetch Sensor Materials</string>
 </resources>

@@ -184,6 +184,14 @@ object SensorIdentity {
     }
 
     @JvmStatic
+    fun isExpired(sensorId: String?): Boolean {
+        val raw = normalized(sensorId) ?: return false
+        val canonical = canonicalOrRaw(raw) ?: raw
+        return ManagedSensorIdentityRegistry.isExpired(canonical) ||
+            ManagedSensorIdentityRegistry.isExpired(raw)
+    }
+
+    @JvmStatic
     fun resolveMainSensor(): String? {
         return resolveAvailableMainSensor(
             selectedMain = Natives.lastsensorname(),

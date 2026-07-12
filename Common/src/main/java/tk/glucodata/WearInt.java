@@ -67,6 +67,15 @@ private static int getBatteryLevel() { //From xDrip
         } 
 
 */
+    private static boolean isPackageInstalled(String packageName) {
+        try {
+            Applic.app.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 static void alarm(String value ) {
     Intent intent = new Intent(ACTION_WATCH_COMMUNICATION_SENDER);
     Bundle bundle=new Bundle();
@@ -76,6 +85,7 @@ static void alarm(String value ) {
     intent.putExtras(bundle);
     intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
     for(final var el:mapsettings.keySet()) {
+        if (!isPackageInstalled(el)) continue;
         intent.setPackage(el);
         Applic.app.sendBroadcast(intent);
     }
@@ -98,6 +108,7 @@ static void missingalarm(long timmsec)  {
     intent.putExtras(bundle);
     intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
     for(final var el:mapsettings.keySet()) {
+        if (!isPackageInstalled(el)) continue;
         intent.setPackage(el);
         Applic.app.sendBroadcast(intent);
     }
@@ -297,6 +308,7 @@ static void sendglucose(int mgdl,float rate, int alarm, long timmsec)  {
 //    mapsettings.forEach((pack, settings) -> {
 
     for(final var el:mapsettings.entrySet()) {
+        if (!isPackageInstalled(el.getKey())) continue;
     	var intent=mksendglucoseintent(el.getValue(),mgdl,rate,alarm, timmsec);
     	intent.putExtra( "FUNCTION","update_bg");
     	intent.setPackage(el.getKey());
@@ -306,6 +318,7 @@ static void sendglucose(int mgdl,float rate, int alarm, long timmsec)  {
 
 static void sendglucose(ExchangeGlucosePayload payload, int alarm)  {
     for(final var el:mapsettings.entrySet()) {
+        if (!isPackageInstalled(el.getKey())) continue;
         var intent=mksendglucoseintent(el.getValue(),payload.primaryMgdl,payload.trendRate,payload.trendName,alarm, payload.timeMillis);
         intent.putExtra( "FUNCTION","update_bg");
         intent.setPackage(el.getKey());

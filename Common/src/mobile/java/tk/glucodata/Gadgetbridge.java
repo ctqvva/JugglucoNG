@@ -78,6 +78,11 @@ private static void sendglucose(WeatherSpec weatherSpec,String glstr,float gl,fl
         weatherSpec.todayMinTemp=(int)kelvin(gl%10);
            }
 
+            try {
+                Applic.app.getPackageManager().getPackageInfo("nodomain.freeyourgadget.gadgetbridge", 0);
+            } catch (Exception e) {
+                return;
+            }
             Intent intent = new Intent();
             intent.putExtra(WEATHER_EXTRA,weatherSpec);
             intent.setPackage("nodomain.freeyourgadget.gadgetbridge");

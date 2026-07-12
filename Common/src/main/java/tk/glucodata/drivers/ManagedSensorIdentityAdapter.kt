@@ -45,4 +45,6 @@ interface ManagedSensorIdentityAdapter {
     fun hasNativeSensorBacking(sensorId: String?): Boolean? = null
 
     fun shouldUseNativeHistorySync(sensorId: String?): Boolean? = null
+
+    fun isExpired(sensorId: String?): Boolean = false
 }

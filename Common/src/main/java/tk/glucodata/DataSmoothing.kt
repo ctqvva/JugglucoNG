@@ -178,21 +178,60 @@ object DataSmoothing {
             return points
         }
 
-        val smoothedAuto = smoothSeries(points, halfWindowMs, useRawValue = false)
-        val smoothedRaw = smoothSeries(points, halfWindowMs, useRawValue = true)
-        val smoothed = ArrayList<GlucosePoint>(points.size)
-        points.indices.forEach { index ->
-            val source = points[index]
-            val point = GlucosePoint(source.timestamp, smoothedAuto[index], smoothedRaw[index])
-            point.color = source.color
-            smoothed.add(point)
+        if (points.any { !it.sensorSerial.isNullOrBlank() }) {
+            return smoothSensorGroups(
+                points = points,
+                halfWindowMs = halfWindowMs,
+                collapseChunks = collapseChunks,
+                collapseMinutes = collapseIntervalMinutes(sanitizedMinutes)
+            )
         }
 
+        val smoothed = smoothSingleSensorPoints(points, halfWindowMs)
         return if (collapseChunks) {
             collapsePointsForDisplay(smoothed, collapseIntervalMinutes(sanitizedMinutes))
         } else {
             smoothed
         }
+    }
+
+    private fun smoothSensorGroups(
+        points: List<GlucosePoint>,
+        halfWindowMs: Long,
+        collapseChunks: Boolean,
+        collapseMinutes: Int
+    ): List<GlucosePoint> {
+        val grouped = points.groupBy { it.sensorSerial?.takeIf(String::isNotBlank).orEmpty() }
+        return grouped.values
+            .flatMap { group ->
+                val smoothed = if (group.size >= 3) {
+                    smoothSingleSensorPoints(group, halfWindowMs)
+                } else {
+                    group
+                }
+                if (collapseChunks) {
+                    collapsePointsForDisplay(smoothed, collapseMinutes)
+                } else {
+                    smoothed
+                }
+            }
+            .sortedBy { it.timestamp }
+    }
+
+    private fun smoothSingleSensorPoints(
+        points: List<GlucosePoint>,
+        halfWindowMs: Long
+    ): List<GlucosePoint> {
+        val smoothedAuto = smoothSeries(points, halfWindowMs, useRawValue = false)
+        val smoothedRaw = smoothSeries(points, halfWindowMs, useRawValue = true)
+        val smoothed = ArrayList<GlucosePoint>(points.size)
+        points.indices.forEach { index ->
+            val source = points[index]
+            val point = GlucosePoint(source.timestamp, smoothedAuto[index], smoothedRaw[index], source.sensorSerial)
+            point.color = source.color
+            smoothed.add(point)
+        }
+        return smoothed
     }
 
     private fun smoothSeries(

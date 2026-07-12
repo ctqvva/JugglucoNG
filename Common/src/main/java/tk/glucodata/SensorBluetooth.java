@@ -770,6 +770,8 @@ public class SensorBluetooth {
                 addSelectionCandidate(candidates, seen, cb.SerialNumber);
             }
         }
+        candidates.removeIf(SensorIdentity::isExpired);
+        Collections.sort(candidates, String.CASE_INSENSITIVE_ORDER);
         return SensorIdentity.resolveAvailableMainSensor(
                 Natives.lastsensorname(),
                 candidates.isEmpty() ? null : candidates.get(0),

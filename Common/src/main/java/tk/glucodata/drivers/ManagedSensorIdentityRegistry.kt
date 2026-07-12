@@ -10,6 +10,7 @@ import tk.glucodata.drivers.anytime.AnytimeManagedSensorIdentityAdapter
 import tk.glucodata.drivers.icanhealth.ICanHealthManagedSensorIdentityAdapter
 import tk.glucodata.drivers.mq.MQManagedSensorIdentityAdapter
 import tk.glucodata.drivers.nightscout.NightscoutFollowerIdentityAdapter
+import tk.glucodata.drivers.ottai.OttaiManagedSensorIdentityAdapter
 
 object ManagedSensorIdentityRegistry {
     val all: List<ManagedSensorIdentityAdapter> = listOf(
@@ -19,6 +20,7 @@ object ManagedSensorIdentityRegistry {
         MQManagedSensorIdentityAdapter,
         NightscoutFollowerIdentityAdapter,
         ApiGlucoseSourceIdentityAdapter,
+        OttaiManagedSensorIdentityAdapter,
     )
 
     private fun orderedAdapters(sensorId: String?, context: Context?): Sequence<ManagedSensorIdentityAdapter> {
@@ -77,9 +79,22 @@ object ManagedSensorIdentityRegistry {
             .mapNotNull { it.shouldUseNativeHistorySync(sensorId) }
             .firstOrNull()
 
+    fun isExpired(sensorId: String?): Boolean =
+        orderedAdapters(sensorId, Applic.app).any { it.isExpired(sensorId) }
+
     fun removePersistedSensor(context: Context, sensorId: String?) {
-        all.forEach { it.removePersistedSensor(context, sensorId) }
-        ManagedSensorViewModeStore.clear(context, sensorId)
-        SensorIdentity.invalidateCaches()
+        val normalized = sensorId?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val ownersBeforeRemoval = all.filter { it.hasPersistedManagedRecord(normalized) }
+        if (ownersBeforeRemoval.isNotEmpty()) {
+            ownersBeforeRemoval.first().removePersistedSensor(context, sensorId)
+        } else {
+            all.forEach { it.removePersistedSensor(context, sensorId) }
+        }
+        val stillPersisted = ownersBeforeRemoval.size > 1 ||
+            all.any { it.hasPersistedManagedRecord(normalized) }
+        if (!stillPersisted) {
+            ManagedSensorViewModeStore.clear(context, sensorId)
+            SensorIdentity.invalidateCaches()
+        }
     }
 }

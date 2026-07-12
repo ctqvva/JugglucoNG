@@ -69,6 +69,12 @@ class NightscoutFollowerIntegrationTests {
         assertNull(parseEntryRaw(entry))
     }
 
+    @Test
+    fun parseEntry_sgvAboveReasonableLimit_returnsNull() {
+        val entry = mapOf("sgv" to 1200.1, "mills" to 1718928000000L)
+        assertNull(parseEntryRaw(entry))
+    }
+
     // ---------- parseEntry: mbg field (manual blood glucose) ----------
 
     @Test
@@ -133,6 +139,12 @@ class NightscoutFollowerIntegrationTests {
     }
 
     @Test
+    fun parseEntry_futureTimestampBeyondDrift_returnsNull() {
+        val entry = mapOf("sgv" to 142.0, "mills" to System.currentTimeMillis() + 11L * 60L * 1000L)
+        assertNull(parseEntryRaw(entry))
+    }
+
+    @Test
     fun parseEntry_nullEntry_returnsNull() {
         assertNull(parseEntryRaw(null))
     }
@@ -166,13 +178,15 @@ class NightscoutFollowerIntegrationTests {
     }
 
     @Test
-    fun normalizeUrl_httpPreserved() {
-        assertEquals("http://example.com", NightscoutFollowerRegistry.normalizeUrl("http://example.com"))
+    fun normalizeUrl_httpRejected() {
+        assertEquals("", NightscoutFollowerRegistry.normalizeUrl("http://example.com"))
+        assertFalse(NightscoutFollowerRegistry.isSecureUrlInput("http://example.com"))
     }
 
     @Test
     fun normalizeUrl_httpsPreserved() {
         assertEquals("https://example.com", NightscoutFollowerRegistry.normalizeUrl("https://example.com"))
+        assertTrue(NightscoutFollowerRegistry.isSecureUrlInput("https://example.com"))
     }
 
     @Test
@@ -190,7 +204,8 @@ class NightscoutFollowerIntegrationTests {
     @Test
     fun normalizeUrl_portPreserved() {
         assertEquals("https://example.com:1337", NightscoutFollowerRegistry.normalizeUrl("example.com:1337"))
-        assertEquals("http://example.com:8080", NightscoutFollowerRegistry.normalizeUrl("http://example.com:8080"))
+        assertEquals("", NightscoutFollowerRegistry.normalizeUrl("http://example.com:8080"))
+        assertFalse(NightscoutFollowerRegistry.isSecureUrlInput("http://example.com:8080"))
     }
 
     @Test
@@ -414,13 +429,17 @@ object NightscoutFollowerManagerTestBridge {
  * allowing reliable unit testing of the parsing contract.
  */
 object NightscoutFollowerManagerTestUtil {
+    private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
+    private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
+    private const val MAX_REASONABLE_MGDL = 1200.0
+
     @JvmStatic
     fun parseEntry(entry: Map<String, Any?>?): VirtualGlucoseSensorBridge.Reading? {
         entry ?: return null
         val sgv = (entry["sgv"] as? Number)?.toDouble()
-            ?.takeIf { it.isFinite() && it > 0.0 }
+            ?.takeIf { it.isFinite() && it > 0.0 && it <= MAX_REASONABLE_MGDL }
         val mbg = (entry["mbg"] as? Number)?.toDouble()
-            ?.takeIf { it.isFinite() && it > 0.0 }
+            ?.takeIf { it.isFinite() && it > 0.0 && it <= MAX_REASONABLE_MGDL }
         val mgdl = sgv ?: mbg ?: return null
 
         val dateVal = entry["date"]
@@ -429,11 +448,14 @@ object NightscoutFollowerManagerTestUtil {
             dateVal != null -> (dateVal as? Number)?.toLong() ?: 0L
             millsVal != null -> (millsVal as? Number)?.toLong() ?: 0L
             else -> 0L
-        }.takeIf { it > 0L } ?: return null
+        }.takeIf(::isPlausibleTimestamp) ?: return null
 
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestampMs,
             glucoseMgdl = mgdl.toFloat(),
         )
     }
+
+    private fun isPlausibleTimestamp(timestampMs: Long): Boolean =
+        timestampMs in MIN_REASONABLE_TIMESTAMP_MS..(System.currentTimeMillis() + MAX_FUTURE_TIMESTAMP_DRIFT_MS)
 }
