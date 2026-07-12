@@ -261,7 +261,7 @@ static public void updateall() {
 		}
 	if(getJugglucobroadcast()) {
 		var juglis=actionListeners(JugglucoSend.ACTION);
-		Natives.seteverSenseRecepters(juglis.toArray(new String[juglis.size()]));
+		Natives.setglucodataRecepters(juglis.toArray(new String[juglis.size()]));
 		}
 	}
 }
