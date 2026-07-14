@@ -725,6 +725,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="alert_persistent_high">Aanhoudend hoog</string>
     <string name="alert_sensor_expiry">Sensor verloopt</string>
     <string name="missed_reading_channel_description">Alerts when no glucose reading arrives for the configured duration</string>
+    <string name="sustained_low_toggle">Aanhoudend laag vereisen</string>
+    <string name="sustained_low_duration">Aanhoudende duur</string>
+    <string name="sustained_low_toggle_desc">Alleen waarschuwen als de glucose gedurende de gekozen tijd onder de drempel blijft. Voorkomt korte compressie-lows door de sensor.</string>
+    <string name="sustained_low_alert_suffix"> (aanhoudend %1$d min)</string>
     <string name="sensor_expiry_channel_description">Alerts when the current sensor is nearing expiry</string>
     <string name="alert_value_available">Waarde beschikbaar</string>
     <string name="alert_very_high">Zeer hoog</string>
