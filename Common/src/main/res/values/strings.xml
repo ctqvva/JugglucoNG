@@ -2203,4 +2203,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Postpone 2 hours</string>
     <string name="sibionics_reset_reminder_channel">Sibionics reset reminders</string>
     <string name="sibionics_reset_reminder_channel_desc">Reminders and actions for resetting Sibionics 2 before it expires</string>
+    <string name="journal_show_all_records">All records</string>
+    <string name="journal_show_selected_day">Selected day</string>
 </resources>

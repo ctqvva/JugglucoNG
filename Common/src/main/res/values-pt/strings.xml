@@ -1955,4 +1955,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Adiar 2 horas</string>
     <string name="sibionics_reset_reminder_channel">Lembretes de reposição Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Lembretes e ações para repor o Sibionics 2 antes de expirar</string>
+    <string name="journal_show_all_records">Todos os registos</string>
+    <string name="journal_show_selected_day">Dia selecionado</string>
 </resources>

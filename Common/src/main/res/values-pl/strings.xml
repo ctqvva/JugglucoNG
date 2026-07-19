@@ -1989,4 +1989,6 @@
     <string name="sibionics_reset_postpone">Odłóż o 2 godziny</string>
     <string name="sibionics_reset_reminder_channel">Przypomnienia o resecie Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Przypomnienia i działania do resetowania Sibionics 2 przed wygaśnięciem</string>
+    <string name="journal_show_all_records">Wszystkie wpisy</string>
+    <string name="journal_show_selected_day">Wybrany dzień</string>
 </resources>

@@ -136,10 +136,7 @@ private fun HistoryRoute(
     val graphHigh by dashboardViewModel.graphHigh.collectAsStateWithLifecycle()
     val targetLow by dashboardViewModel.targetLow.collectAsStateWithLifecycle()
     val targetHigh by dashboardViewModel.targetHigh.collectAsStateWithLifecycle()
-    val chartSmoothingMinutes by dashboardViewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
-    val dataSmoothingCollapseChunks by dashboardViewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
-    val dataSmoothingExchangeOnly by dashboardViewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    val graphSmoothingLevel by dashboardViewModel.graphSmoothingLevel.collectAsStateWithLifecycle()
     val previewWindowMode by dashboardViewModel.previewWindowMode.collectAsStateWithLifecycle()
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
@@ -169,8 +166,7 @@ private fun HistoryRoute(
         graphHigh = graphHigh,
         targetLow = targetLow,
         targetHigh = targetHigh,
-        graphSmoothingMinutes = visualSmoothingMinutes,
-        collapseSmoothedData = dataSmoothingCollapseChunks,
+        graphSmoothingLevel = graphSmoothingLevel,
         previewWindowMode = previewWindowMode,
         calibrations = calibrations,
         title = title,
@@ -284,10 +280,7 @@ private fun JournalRoute(
     val graphHigh by dashboardViewModel.graphHigh.collectAsStateWithLifecycle()
     val targetLow by dashboardViewModel.targetLow.collectAsStateWithLifecycle()
     val targetHigh by dashboardViewModel.targetHigh.collectAsStateWithLifecycle()
-    val chartSmoothingMinutes by dashboardViewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
-    val dataSmoothingCollapseChunks by dashboardViewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
-    val dataSmoothingExchangeOnly by dashboardViewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    val graphSmoothingLevel by dashboardViewModel.graphSmoothingLevel.collectAsStateWithLifecycle()
     val previewWindowMode by dashboardViewModel.previewWindowMode.collectAsStateWithLifecycle()
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
@@ -295,7 +288,6 @@ private fun JournalRoute(
     val journalEntries by dashboardViewModel.journalEntries.collectAsStateWithLifecycle()
     val journalInsulinPresets by dashboardViewModel.journalInsulinPresets.collectAsStateWithLifecycle()
     val journalFoods by dashboardViewModel.journalFoods.collectAsStateWithLifecycle()
-    val journalEiobDisplayEnabled by dashboardViewModel.journalEiobDisplayEnabled.collectAsStateWithLifecycle()
     val appChartRangeColorsEnabled by dashboardViewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
     val predictionCarbRatioGramsPerUnit by dashboardViewModel.predictionCarbRatioGramsPerUnit.collectAsStateWithLifecycle()
     val predictionInsulinSensitivityMgDlPerUnit by dashboardViewModel.predictionInsulinSensitivityMgDlPerUnit.collectAsStateWithLifecycle()
@@ -336,8 +328,7 @@ private fun JournalRoute(
         graphHigh = graphHigh,
         targetLow = targetLow,
         targetHigh = targetHigh,
-        graphSmoothingMinutes = visualSmoothingMinutes,
-        collapseSmoothedData = dataSmoothingCollapseChunks,
+        graphSmoothingLevel = graphSmoothingLevel,
         previewWindowMode = previewWindowMode,
         calibrations = calibrations,
         journalEntries = journalEntries,
@@ -367,7 +358,6 @@ private fun JournalRoute(
         showTitle = showTitle,
         useStatusBarsPadding = useStatusBarsPadding,
         bottomContentPadding = bottomContentPadding,
-        showEiob = journalEiobDisplayEnabled,
         chartRangeColors = appChartRangeColorsEnabled
     )
 

@@ -110,10 +110,9 @@ fun ExpressiveSettingsScreen(
     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)
     val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsState()
     val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
-    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
+    val graphSmoothingLevel by viewModel.graphSmoothingLevel.collectAsState()
+    val exchangeSmoothingMinutes by viewModel.exchangeSmoothingMinutes.collectAsState()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
@@ -180,19 +179,26 @@ fun ExpressiveSettingsScreen(
         ThemeMode.LIGHT -> stringResource(R.string.theme_light)
         ThemeMode.DARK -> stringResource(R.string.theme_dark)
     }
-    val graphSmoothingLabel = if (chartSmoothingMinutes <= 0) {
+    val graphSmoothingLabel = if (graphSmoothingLevel <= 0 && exchangeSmoothingMinutes <= 0) {
         stringResource(R.string.graph_smoothing_none)
     } else {
-        val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(chartSmoothingMinutes)
         buildList {
-            add(stringResource(R.string.minutes_short_format, chartSmoothingMinutes))
-            if (dataSmoothingExchangeOnly) {
-                add(stringResource(R.string.data_smoothing_exchange_only_title))
-            } else if (dataSmoothingGraphOnly) {
-                add(stringResource(R.string.data_smoothing_graph_only_title))
+            if (graphSmoothingLevel > 0) {
+                add("${stringResource(R.string.data_smoothing_graph_only_title)} ×$graphSmoothingLevel")
             }
-            if (dataSmoothingCollapseChunks) {
-                add(stringResource(R.string.data_smoothing_collapse_summary_format, collapseIntervalMinutes))
+            if (exchangeSmoothingMinutes > 0) {
+                add(
+                    "${stringResource(R.string.data_smoothing_exchange_only_title)} " +
+                        stringResource(R.string.minutes_short_format, exchangeSmoothingMinutes)
+                )
+                if (dataSmoothingCollapseChunks) {
+                    add(
+                        stringResource(
+                            R.string.data_smoothing_collapse_summary_format,
+                            DataSmoothing.collapseIntervalMinutes(exchangeSmoothingMinutes)
+                        )
+                    )
+                }
             }
         }.joinToString(" · ")
     }

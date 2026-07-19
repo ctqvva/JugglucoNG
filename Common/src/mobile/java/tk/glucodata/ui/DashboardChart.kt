@@ -140,6 +140,7 @@ import tk.glucodata.DataSmoothing
 import tk.glucodata.data.journal.JournalActiveInsulinSummary
 import tk.glucodata.data.journal.JournalChartMarker
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.JournalPeriodSummary
 import tk.glucodata.data.prediction.GlucosePredictionPoint
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
@@ -243,6 +244,7 @@ private fun smoothChartSeries(
     selector: (GlucosePoint) -> Float
 ): FloatArray {
     val size = points.size
+    val latestTimestamp = points.maxOfOrNull { it.timestamp } ?: return FloatArray(0)
     val prefixSums = DoubleArray(size + 1)
     val prefixCounts = IntArray(size + 1)
 
@@ -276,11 +278,14 @@ private fun smoothChartSeries(
         }
 
         val count = prefixCounts[windowEndExclusive] - prefixCounts[windowStart]
-        result[index] = if (count > 0) {
+        val average = if (count > 0) {
             ((prefixSums[windowEndExclusive] - prefixSums[windowStart]) / count).toFloat()
         } else {
             original
         }
+        val smoothingWeight = ((latestTimestamp - timestamp).toFloat() / halfWindowMs.toFloat())
+            .coerceIn(0f, 1f)
+        result[index] = original + ((average - original) * smoothingWeight)
     }
 
     return result
@@ -288,15 +293,13 @@ private fun smoothChartSeries(
 
 private fun buildSmoothedChartData(
     points: List<GlucosePoint>,
-    smoothingMinutes: Int,
-    collapseIntoChunks: Boolean
+    smoothingMinutes: Int
 ): List<GlucosePoint> {
     if (smoothingMinutes <= 0 || points.size < 3) return points
 
     val halfWindowMs = (smoothingMinutes * 60_000L) / 2L
     if (halfWindowMs <= 0L) return points
 
-    val collapsedInterval = DataSmoothing.collapseIntervalMinutes(smoothingMinutes)
     val result = ArrayList<GlucosePoint>(points.size)
 
     GlucosePointSegments.split(points).forEach { segment ->
@@ -319,46 +322,10 @@ private fun buildSmoothedChartData(
             }
         }
 
-        if (collapseIntoChunks) {
-            result.addAll(collapseSmoothedChartData(smoothedSegment, collapsedInterval))
-        } else {
-            result.addAll(smoothedSegment)
-        }
+        result.addAll(smoothedSegment)
     }
 
     return result
-}
-
-private fun collapseSmoothedChartData(
-    points: List<GlucosePoint>,
-    smoothingMinutes: Int
-): List<GlucosePoint> {
-    if (points.isEmpty() || smoothingMinutes <= 0) return points
-    val bucketDurationMs = smoothingMinutes * 60_000L
-    val openBucket = System.currentTimeMillis() / bucketDurationMs
-    val collapsed = ArrayList<GlucosePoint>()
-    var activeBucket = Long.MIN_VALUE
-    var pending: GlucosePoint? = null
-
-    points.forEach { point ->
-        val bucket = point.timestamp / bucketDurationMs
-        if (bucket != activeBucket) {
-            if (activeBucket < openBucket) {
-                pending?.let(collapsed::add)
-            }
-            activeBucket = bucket
-        }
-        pending = point
-    }
-
-    if (activeBucket < openBucket) {
-        pending?.let(collapsed::add)
-    }
-    return when {
-        collapsed.isNotEmpty() -> collapsed
-        points.isNotEmpty() -> listOf(points.last())
-        else -> points
-    }
 }
 
 private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
@@ -644,12 +611,12 @@ fun DashboardChartSection(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    journalPeriodSummary: JournalPeriodSummary? = null,
     showEiob: Boolean = true,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
-    graphSmoothingMinutes: Int = 0,
-    collapseSmoothedData: Boolean = false,
+    graphSmoothingLevel: Int = 0,
     previewWindowMode: Int = 0,
     graphLow: Float,
     graphHigh: Float,
@@ -686,12 +653,12 @@ fun DashboardChartSection(
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
+                        journalPeriodSummary = journalPeriodSummary,
                         showEiob = showEiob,
                         appChartRangeColors = appChartRangeColors,
                         predictionPoints = predictionPoints,
                         predictionSeries = predictionSeries,
-                        graphSmoothingMinutes = graphSmoothingMinutes,
-                        collapseSmoothedData = collapseSmoothedData,
+                        graphSmoothingLevel = graphSmoothingLevel,
                         previewWindowMode = previewWindowMode,
                         graphLow = graphLow,
                         graphHigh = graphHigh,
@@ -751,12 +718,12 @@ fun InteractiveGlucoseChart(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    journalPeriodSummary: JournalPeriodSummary? = null,
     showEiob: Boolean = true,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
-    graphSmoothingMinutes: Int = 0,
-    collapseSmoothedData: Boolean = false,
+    graphSmoothingLevel: Int = 0,
     previewWindowMode: Int = 0,
     graphLow: Float,
     graphHigh: Float,
@@ -904,13 +871,20 @@ fun InteractiveGlucoseChart(
     val safeData = remember(fullData) {
         if (fullData is java.util.RandomAccess) fullData else ArrayList(fullData)
     }
-    val renderData = remember(safeData, graphSmoothingMinutes, collapseSmoothedData) {
-        buildSmoothedChartData(safeData, graphSmoothingMinutes, collapseSmoothedData)
+    // Viewport scale is part of the visual smoothing contract. Zooming out
+    // increases the window; zooming in keeps short-range detail visible.
+    var visibleDuration by rememberSaveable {
+        mutableLongStateOf((selectedTimeRange?.hours?.toLong() ?: 3L) * 60L * 60L * 1000L)
+    }
+    val effectiveGraphSmoothingMinutes = remember(graphSmoothingLevel, visibleDuration) {
+        DataSmoothing.graphWindowMinutes(graphSmoothingLevel, visibleDuration)
+    }
+    val renderData = remember(safeData, effectiveGraphSmoothingMinutes) {
+        buildSmoothedChartData(safeData, effectiveGraphSmoothingMinutes)
     }
     val peerChartSeries = remember(
         multiSensorDisplay,
-        graphSmoothingMinutes,
-        collapseSmoothedData
+        effectiveGraphSmoothingMinutes
     ) {
         multiSensorDisplay.series.mapNotNull { series ->
             if (series.points.size < 2) return@mapNotNull null
@@ -918,7 +892,7 @@ fun InteractiveGlucoseChart(
                 sensorId = series.sensorId,
                 viewMode = series.viewMode,
                 color = Color(series.colorArgb),
-                points = buildSmoothedChartData(series.points, graphSmoothingMinutes, collapseSmoothedData)
+                points = buildSmoothedChartData(series.points, effectiveGraphSmoothingMinutes)
             )
         }
     }
@@ -935,13 +909,11 @@ fun InteractiveGlucoseChart(
         val logical = SensorIdentity.resolveAppSensorId(primarySerial) ?: primarySerial
         SensorColors.getColor(logical.orEmpty())
     }
-    val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
-        if (graphSmoothingMinutes > 0) renderData else safeData
-    }
+    val interactionData = safeData
     val uiRefreshRevision by UiRefreshBus.revision.collectAsState()
     val calibrationRevision = tk.glucodata.CalibrationAccess.getRevision()
-    val calibratedValueResolver = remember(renderData, calibrationRevision, uiRefreshRevision) {
-        CalibratedValueResolver(renderData)
+    val calibratedValueResolver = remember(safeData, calibrationRevision, uiRefreshRevision) {
+        CalibratedValueResolver(safeData)
     }
 
     // --- FORMATTERS & TOOLS (Hoisted for Performance) ---
@@ -1017,13 +989,6 @@ fun InteractiveGlucoseChart(
     // Jitter fix: Track the auto-scroll job to cancel it on user interaction
     var autoScrollJob by remember { mutableStateOf<Job?>(null) }
 
-    // FIX: Single source of truth for duration, initialized from range but independent thereafter.
-    // Explicit key "visibleDuration" ensures it's saved/restored correctly across recompositions and navigations.
-    // NOTE: Removed 'key' parameter to fix deprecation warning. Relying on default saving.
-    // We now manage 'lastAppliedTimeRange' to ensure manual zooms aren't overwritten.
-    var visibleDuration by rememberSaveable { 
-        mutableLongStateOf((selectedTimeRange?.hours?.toLong() ?: 3L) * 60L * 60L * 1000L) 
-    }
     fun liveEndTimeFor(latestTimestamp: Long, durationMillis: Long): Long {
         if (!hasPredictionOverlay || latestTimestamp <= 0L || predictionEndTimestamp <= latestTimestamp) {
             return maxOf(latestTimestamp, System.currentTimeMillis())
@@ -3652,6 +3617,44 @@ fun InteractiveGlucoseChart(
                                         ),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                journalPeriodSummary?.let { period ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "${stringResource(R.string.journal_metric_insulin_today)}: " +
+                                            "${unitsLabel(period.insulinUnits)} U",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = buildString {
+                                            append(stringResource(R.string.journal_metric_carbs_today))
+                                            append(": ${unitsLabel(period.carbsGrams)} g")
+                                            if (period.proteinGrams > 0f) {
+                                                append(" · ")
+                                                append(
+                                                    stringResource(
+                                                        R.string.journal_food_protein_short,
+                                                        unitsLabel(period.proteinGrams)
+                                                    )
+                                                )
+                                            }
+                                            if (period.fatGrams > 0f) {
+                                                append(" · ")
+                                                append(
+                                                    stringResource(
+                                                        R.string.journal_food_fat_short,
+                                                        unitsLabel(period.fatGrams)
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = "${stringResource(R.string.journal_metric_activity_today)}: " +
+                                            stringResource(R.string.minutes_short_format, period.activityMinutes),
+                                        style = MaterialTheme.typography.bodySmall
                                     )
                                 }
                             }

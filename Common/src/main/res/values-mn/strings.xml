@@ -2066,4 +2066,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">2 цагаар хойшлуулах</string>
     <string name="sibionics_reset_reminder_channel">Sibionics дахин тохируулах сануулга</string>
     <string name="sibionics_reset_reminder_channel_desc">Sibionics 2 дуусахаас өмнө дахин тохируулах сануулга ба үйлдэл</string>
+    <string name="journal_show_all_records">Бүх бичлэг</string>
+    <string name="journal_show_selected_day">Сонгосон өдөр</string>
 </resources>

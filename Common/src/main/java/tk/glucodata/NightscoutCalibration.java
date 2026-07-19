@@ -154,7 +154,7 @@ public final class NightscoutCalibration {
             if (Applic.app == null || !DataSmoothing.shouldCollapseExchangeOutputs(Applic.app)) {
                 return 0;
             }
-            final int minutes = DataSmoothing.collapseIntervalMinutes(DataSmoothing.getMinutes(Applic.app));
+            final int minutes = DataSmoothing.collapseIntervalMinutes(DataSmoothing.exchangeSmoothingMinutes(Applic.app));
             return minutes > 0 ? minutes * 60 : 0;
         } catch (Throwable ignored) {
             return 0;

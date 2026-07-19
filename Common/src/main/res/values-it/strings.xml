@@ -1944,4 +1944,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Rimanda di 2 ore</string>
     <string name="sibionics_reset_reminder_channel">Promemoria reimpostazione Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Promemoria e azioni per reimpostare Sibionics 2 prima della scadenza</string>
+    <string name="journal_show_all_records">Tutti i record</string>
+    <string name="journal_show_selected_day">Giorno selezionato</string>
 </resources>

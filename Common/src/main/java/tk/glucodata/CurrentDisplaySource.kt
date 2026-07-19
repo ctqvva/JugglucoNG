@@ -153,9 +153,11 @@ object CurrentDisplaySource {
         }
         val resolvedSensorId = preferredSensorId ?: SensorIdentity.resolveMainSensor()
         val isMmol = Applic.unit == 1
-        val smoothingMinutes = DataSmoothing.getMinutes(Applic.app)
-        val smoothAllData = DataSmoothing.shouldSmoothLocalData(Applic.app)
-        val collapseChunks = smoothAllData && DataSmoothing.collapseChunks(Applic.app)
+        // Local current glucose and labels always stay on actual sensor values.
+        // Smoothing is now split into a visual graph path and an outbound path.
+        val smoothingMinutes = 0
+        val smoothAllData = false
+        val collapseChunks = false
         val liveHistoryWindowMs = historyWindowMs.coerceAtLeast(LIVE_CONTEXT_WINDOW_MS)
         val historyStart = (targetTimeMillis - liveHistoryWindowMs).coerceAtLeast(0L)
         val recentPoints = try {
@@ -241,18 +243,16 @@ object CurrentDisplaySource {
     }
 
     private fun localSmoothingMode(): SmoothingMode {
-        val smoothingMinutes = DataSmoothing.getMinutes(Applic.app)
-        val smoothAllData = DataSmoothing.shouldSmoothLocalData(Applic.app)
         return SmoothingMode(
-            smoothAllData = smoothAllData,
-            smoothingMinutes = smoothingMinutes,
-            collapseChunks = smoothAllData && DataSmoothing.collapseChunks(Applic.app)
+            smoothAllData = false,
+            smoothingMinutes = 0,
+            collapseChunks = false
         )
     }
 
     private fun exchangeSmoothingMode(): SmoothingMode {
-        val smoothingMinutes = DataSmoothing.getMinutes(Applic.app)
-        val smoothExchangeData = DataSmoothing.shouldSmoothExchangeOutputs(Applic.app)
+        val smoothingMinutes = DataSmoothing.exchangeSmoothingMinutes(Applic.app)
+        val smoothExchangeData = smoothingMinutes > 0
         return SmoothingMode(
             smoothAllData = smoothExchangeData,
             smoothingMinutes = smoothingMinutes,

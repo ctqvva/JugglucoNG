@@ -1,7 +1,6 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,79 +41,30 @@ class DataSmoothingTests {
     }
 
     @Test
-    fun shouldSmoothExchangeOutputsFollowsAllDataScopeByDefault() {
-        assertTrue(
-            DataSmoothing.shouldSmoothExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = false,
-                exchangeOutputsOnly = false
-            )
-        )
+    fun graphWindowTracksViewportScaleAndSelectedStrength() {
+        val oneHour = 60L * 60L * 1000L
+        val oneDay = 24L * oneHour
 
-        assertFalse(
-            DataSmoothing.shouldSmoothExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = true,
-                exchangeOutputsOnly = false
-            )
-        )
-
+        assertEquals(0, DataSmoothing.graphWindowMinutes(0, oneDay))
+        assertTrue(DataSmoothing.graphWindowMinutes(2, oneHour) <= 2)
+        assertTrue(DataSmoothing.graphWindowMinutes(2, oneDay) >= 7)
         assertTrue(
-            DataSmoothing.shouldSmoothExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = true,
-                exchangeOutputsOnly = true
-            )
+            DataSmoothing.graphWindowMinutes(3, oneDay) >=
+                DataSmoothing.graphWindowMinutes(1, oneDay)
         )
     }
 
     @Test
-    fun shouldSmoothExchangeOutputsRequiresEnabledSmoothingWindow() {
-        assertFalse(
-            DataSmoothing.shouldSmoothExchangeOutputs(
-                smoothingMinutes = 0,
-                graphOnly = false,
-                exchangeOutputsOnly = true
-            )
-        )
-    }
-
-    @Test
-    fun shouldCollapseExchangeOutputsRequiresEffectiveExchangeSmoothing() {
-        assertFalse(
-            DataSmoothing.shouldCollapseExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = true,
-                exchangeOutputsOnly = false,
-                collapseChunks = true
-            )
+    fun smoothingPreservesLatestActualValue() {
+        val points = listOf(
+            GlucosePoint(0L, 100f, 100f),
+            GlucosePoint(60_000L, 100f, 100f),
+            GlucosePoint(120_000L, 160f, 160f)
         )
 
-        assertTrue(
-            DataSmoothing.shouldCollapseExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = false,
-                exchangeOutputsOnly = false,
-                collapseChunks = true
-            )
-        )
+        val smoothed = DataSmoothing.smoothNativePoints(points, 3, false, preserveLatestEndpoint = true)
 
-        assertTrue(
-            DataSmoothing.shouldCollapseExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = true,
-                exchangeOutputsOnly = true,
-                collapseChunks = true
-            )
-        )
-
-        assertFalse(
-            DataSmoothing.shouldCollapseExchangeOutputs(
-                smoothingMinutes = 5,
-                graphOnly = false,
-                exchangeOutputsOnly = false,
-                collapseChunks = false
-            )
-        )
+        assertEquals(160f, smoothed.last().value, 0.001f)
+        assertEquals(160f, smoothed.last().rawValue, 0.001f)
     }
 }

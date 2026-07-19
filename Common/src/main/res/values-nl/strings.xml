@@ -1997,4 +1997,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sibionics_reset_postpone">2 uur uitstellen</string>
     <string name="sibionics_reset_reminder_channel">Sibionics-resetherinneringen</string>
     <string name="sibionics_reset_reminder_channel_desc">Herinneringen en acties om Sibionics 2 vóór afloop te resetten</string>
+    <string name="journal_show_all_records">Alle registraties</string>
+    <string name="journal_show_selected_day">Geselecteerde dag</string>
 </resources>

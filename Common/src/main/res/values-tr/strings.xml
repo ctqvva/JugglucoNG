@@ -1982,4 +1982,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sibionics_reset_postpone">2 saat ertele</string>
     <string name="sibionics_reset_reminder_channel">Sibionics sıfırlama hatırlatıcıları</string>
     <string name="sibionics_reset_reminder_channel_desc">Sibionics 2 süresi dolmadan önce sıfırlama hatırlatıcıları ve işlemleri</string>
+    <string name="journal_show_all_records">Tüm kayıtlar</string>
+    <string name="journal_show_selected_day">Seçili gün</string>
 </resources>

@@ -2000,4 +2000,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Отложить на 2 часа</string>
     <string name="sibionics_reset_reminder_channel">Напоминания о сбросе Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Напоминания и действия для сброса Sibionics 2 до истечения срока</string>
+    <string name="journal_show_all_records">Все записи</string>
+    <string name="journal_show_selected_day">Выбранный день</string>
 </resources>

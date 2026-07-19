@@ -2026,4 +2026,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Відкласти на 2 години</string>
     <string name="sibionics_reset_reminder_channel">Нагадування про скидання Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Нагадування та дії для скидання Sibionics 2 до завершення строку</string>
+    <string name="journal_show_all_records">Усі записи</string>
+    <string name="journal_show_selected_day">Вибраний день</string>
 </resources>

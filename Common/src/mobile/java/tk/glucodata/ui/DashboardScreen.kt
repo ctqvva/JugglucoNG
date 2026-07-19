@@ -150,8 +150,10 @@ import tk.glucodata.UiRefreshBus
 import android.widget.Toast
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.JournalActiveInsulinSummary
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
+import tk.glucodata.data.journal.JournalPeriodSummaryCalculator
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
@@ -159,6 +161,7 @@ import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalFloatingActionMenu
+import tk.glucodata.ui.journal.JournalExpandableFab
 import tk.glucodata.ui.journal.JournalInlineChip
 import tk.glucodata.ui.journal.JournalSettingsScreen
 import tk.glucodata.data.journal.JournalIobCalculator
@@ -302,11 +305,7 @@ fun DashboardScreen(
     val targetHigh by viewModel.targetHigh.collectAsState()
     val veryLowThreshold by viewModel.veryLowThreshold.collectAsState()
     val veryHighThreshold by viewModel.veryHighThreshold.collectAsState()
-    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    val graphSmoothingLevel by viewModel.graphSmoothingLevel.collectAsState()
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
@@ -356,6 +355,7 @@ fun DashboardScreen(
     var journalActionSuggestedGlucoseMgDl by remember { mutableStateOf<Float?>(null) }
     var journalActionSuggestedAmountFraction by remember { mutableStateOf<Float?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
+    var dashboardFabExpanded by rememberSaveable { mutableStateOf(false) }
     var journalNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var dashboardChartViewport by remember { mutableStateOf<ChartViewportSnapshot?>(null) }
 
@@ -383,6 +383,31 @@ fun DashboardScreen(
             JournalIobCalculator.buildActiveInsulinSummary(scopedJournalEntries, journalPresetsById, journalNow)
         }
     }
+    val todayRange = remember(journalNow) {
+        val zone = java.time.ZoneId.systemDefault()
+        val date = java.time.Instant.ofEpochMilli(journalNow).atZone(zone).toLocalDate()
+        val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        start until date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+    val journalTodaySummary = remember(scopedJournalEntries, todayRange) {
+        JournalPeriodSummaryCalculator.calculate(
+            entries = scopedJournalEntries,
+            startMillisInclusive = todayRange.first,
+            endMillisExclusive = todayRange.last + 1L
+        )
+    }
+    val dashboardInsulinSummary = activeInsulinSummary ?: journalTodaySummary
+        .takeIf { it.eventCount > 0 }
+        ?.let {
+            JournalActiveInsulinSummary(
+                activeEntryCount = 0,
+                totalUnits = 0f,
+                weightedActivityPercent = 0,
+                nextEndingAt = null,
+                iobUnits = 0f,
+                eiobUnits = 0f
+            )
+        }
     val predictionSettings = remember(
         predictiveSimulationEnabled,
         predictionTrendMomentumEnabled,
@@ -403,19 +428,9 @@ fun DashboardScreen(
             foodMacrosEnabled = journalEnabled && journalFoodMacrosEnabled
         )
     }
-    val consumerHistory = remember(
-        glucoseHistory,
-        visualSmoothingMinutes,
-        dataSmoothingGraphOnly,
-        dataSmoothingCollapseChunks
-    ) {
-        buildSmoothedConsumerHistory(
-            points = glucoseHistory,
-            smoothingMinutes = visualSmoothingMinutes,
-            smoothOnlyGraph = dataSmoothingGraphOnly,
-            collapseChunks = dataSmoothingCollapseChunks
-        )
-    }
+    // Prediction, current values, rows and chart hit-testing all use actual
+    // readings. Visual graph smoothing is applied only inside DashboardChart.
+    val consumerHistory = glucoseHistory
     val predictionSeries = remember(
         journalEnabled,
         predictionSettings,
@@ -746,9 +761,12 @@ fun DashboardScreen(
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
-        // FAB removed - empty state now has inline cards
     ) { padding ->
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
             val latestPoint = remember(glucoseHistory) {
                 val tail = glucoseHistory.lastOrNull()
                 if (tail == null || glucoseHistory.size < 2) {
@@ -1323,12 +1341,12 @@ fun DashboardScreen(
                                     multiSensorDisplay = multiSensorDisplay,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
-                                    activeInsulinSummary = activeInsulinSummary,
+                                    activeInsulinSummary = dashboardInsulinSummary,
+                                    journalPeriodSummary = journalTodaySummary,
                                     showEiob = journalEiobDisplayEnabled,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
-                                    graphSmoothingMinutes = visualSmoothingMinutes,
-                                    collapseSmoothedData = dataSmoothingCollapseChunks,
+                                    graphSmoothingLevel = graphSmoothingLevel,
                                     previewWindowMode = previewWindowMode,
                                     graphLow = graphLow,
                                     graphHigh = graphHigh,
@@ -1506,12 +1524,12 @@ fun DashboardScreen(
                                     multiSensorDisplay = multiSensorDisplay,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
-                                    activeInsulinSummary = activeInsulinSummary,
+                                    activeInsulinSummary = dashboardInsulinSummary,
+                                    journalPeriodSummary = journalTodaySummary,
                                     showEiob = journalEiobDisplayEnabled,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
-                                    graphSmoothingMinutes = visualSmoothingMinutes,
-                                    collapseSmoothedData = dataSmoothingCollapseChunks,
+                                    graphSmoothingLevel = graphSmoothingLevel,
                                     previewWindowMode = previewWindowMode,
                                     graphLow = graphLow,
                                     graphHigh = graphHigh,
@@ -1713,6 +1731,38 @@ fun DashboardScreen(
                     }
                 }
             }
+            }
+
+            if (journalEnabled && hasSensorContext) {
+                JournalExpandableFab(
+                    expanded = dashboardFabExpanded,
+                    onExpandedChange = {
+                        dashboardFabExpanded = it
+                        if (it) clearJournalAction()
+                    },
+                    onTypeSelected = { type ->
+                        val timestamp = System.currentTimeMillis()
+                        val latestGlucoseMgDl = latestPoint?.value?.let { value ->
+                            if (isMmolUnit) tk.glucodata.ui.util.GlucoseFormatter.mmolToMg(value) else value
+                        }
+                        lastJournalType = type
+                        dashboardFabExpanded = false
+                        journalEditorRequest = JournalEditorRequest(
+                            type = type,
+                            timestamp = timestamp,
+                            suggestedGlucoseMgDl = latestGlucoseMgDl,
+                            suggestedChartAnchorGlucoseMgDl = latestGlucoseMgDl
+                                .takeIf { type == JournalEntryType.FINGERSTICK }
+                        )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = 20.dp,
+                            bottom = padding.calculateBottomPadding() + 20.dp
+                        )
+                        .zIndex(4f)
+                )
             }
         }
     }

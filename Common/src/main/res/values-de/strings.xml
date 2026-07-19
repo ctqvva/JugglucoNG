@@ -2018,4 +2018,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sibionics_reset_postpone">2 Stunden verschieben</string>
     <string name="sibionics_reset_reminder_channel">Sibionics-Reset-Erinnerungen</string>
     <string name="sibionics_reset_reminder_channel_desc">Erinnerungen und Aktionen zum Zurücksetzen von Sibionics 2 vor Ablauf</string>
+    <string name="journal_show_all_records">Alle Einträge</string>
+    <string name="journal_show_selected_day">Ausgewählter Tag</string>
 </resources>

@@ -268,17 +268,14 @@ class DashboardViewModel(
     private val _notificationChartEnabled = MutableStateFlow(true)
     val notificationChartEnabled = _notificationChartEnabled.asStateFlow()
 
-    private val _chartSmoothingMinutes = MutableStateFlow(0)
-    val chartSmoothingMinutes = _chartSmoothingMinutes.asStateFlow()
+    private val _graphSmoothingLevel = MutableStateFlow(0)
+    val graphSmoothingLevel = _graphSmoothingLevel.asStateFlow()
 
-    private val _dataSmoothingGraphOnly = MutableStateFlow(true)
-    val dataSmoothingGraphOnly = _dataSmoothingGraphOnly.asStateFlow()
+    private val _exchangeSmoothingMinutes = MutableStateFlow(0)
+    val exchangeSmoothingMinutes = _exchangeSmoothingMinutes.asStateFlow()
 
     private val _dataSmoothingCollapseChunks = MutableStateFlow(false)
     val dataSmoothingCollapseChunks = _dataSmoothingCollapseChunks.asStateFlow()
-
-    private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
-    val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
 
     private val _previewWindowMode = MutableStateFlow(0)
     val previewWindowMode = _previewWindowMode.asStateFlow()
@@ -579,10 +576,9 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         migrateTargetRangeDefaultsIfNeeded(prefs, isMmol)
         _notificationChartEnabled.value = prefs.getBoolean("notification_chart_enabled", true)
-        _chartSmoothingMinutes.value = DataSmoothing.getMinutes(context)
-        _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
+        _graphSmoothingLevel.value = DataSmoothing.graphSmoothingLevel(context)
+        _exchangeSmoothingMinutes.value = DataSmoothing.exchangeSmoothingMinutes(context)
         _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
-        _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
         _journalEnabled.value = journalEnabled
@@ -1244,29 +1240,19 @@ class DashboardViewModel(
         tk.glucodata.Notify.showoldglucose()
     }
 
-    fun setChartSmoothingMinutes(minutes: Int) {
+    fun setGraphSmoothingLevel(level: Int) {
         val context = tk.glucodata.Applic.app
-        val sanitized = DataSmoothing.sanitizeMinutes(minutes)
-        DataSmoothing.setMinutes(context, sanitized)
-        _chartSmoothingMinutes.value = sanitized
+        val sanitized = DataSmoothing.sanitizeGraphLevel(level)
+        DataSmoothing.setGraphSmoothingLevel(context, sanitized)
+        _graphSmoothingLevel.value = sanitized
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
-    fun setDataSmoothingEnabled(enabled: Boolean) {
+    fun setExchangeSmoothingMinutes(minutes: Int) {
         val context = tk.glucodata.Applic.app
-        DataSmoothing.setEnabled(context, enabled)
-        _chartSmoothingMinutes.value = DataSmoothing.getMinutes(context)
-        refreshCurrentDisplayAfterSmoothingChange()
-    }
-
-    fun setDataSmoothingGraphOnly(enabled: Boolean) {
-        val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setSmoothOnlyExchangeOutputs(context, false)
-            _dataSmoothingExchangeOnly.value = false
-        }
-        DataSmoothing.setGraphOnly(context, enabled)
-        _dataSmoothingGraphOnly.value = enabled
+        val sanitized = DataSmoothing.sanitizeExchangeMinutes(minutes)
+        DataSmoothing.setExchangeSmoothingMinutes(context, sanitized)
+        _exchangeSmoothingMinutes.value = sanitized
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
@@ -1274,17 +1260,6 @@ class DashboardViewModel(
         val context = tk.glucodata.Applic.app
         DataSmoothing.setCollapseChunks(context, enabled)
         _dataSmoothingCollapseChunks.value = enabled
-        refreshCurrentDisplayAfterSmoothingChange()
-    }
-
-    fun setDataSmoothingExchangeOnly(enabled: Boolean) {
-        val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setGraphOnly(context, false)
-            _dataSmoothingGraphOnly.value = false
-        }
-        DataSmoothing.setSmoothOnlyExchangeOutputs(context, enabled)
-        _dataSmoothingExchangeOnly.value = enabled
         refreshCurrentDisplayAfterSmoothingChange()
     }
 

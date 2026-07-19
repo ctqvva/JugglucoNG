@@ -2021,4 +2021,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Адкласці на 2 гадзіны</string>
     <string name="sibionics_reset_reminder_channel">Напаміны пра перазапуск Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Напаміны і дзеянні для перазапуску Sibionics 2 да заканчэння тэрміну</string>
+    <string name="journal_show_all_records">Усе запісы</string>
+    <string name="journal_show_selected_day">Выбраны дзень</string>
 </resources>

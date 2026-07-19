@@ -3,7 +3,6 @@
 package tk.glucodata.ui.journal
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,10 +31,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,12 +49,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
-import kotlinx.coroutines.delay
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
-import tk.glucodata.data.journal.JournalIobCalculator
+import tk.glucodata.data.journal.JournalPeriodSummary
+import tk.glucodata.data.journal.JournalPeriodSummaryCalculator
 import tk.glucodata.ui.ChartViewportSnapshot
 import tk.glucodata.ui.DashboardChartSection
 import tk.glucodata.ui.GlucosePoint
@@ -62,6 +62,7 @@ import tk.glucodata.ui.JournalTimelineRow
 import tk.glucodata.ui.ReadingRow
 import tk.glucodata.ui.TimeRange
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -90,8 +91,7 @@ fun JournalScreen(
     graphHigh: Float,
     targetLow: Float,
     targetHigh: Float,
-    graphSmoothingMinutes: Int,
-    collapseSmoothedData: Boolean,
+    graphSmoothingLevel: Int,
     previewWindowMode: Int,
     calibrations: List<tk.glucodata.data.calibration.CalibrationEntity>,
     journalEntries: List<JournalEntry>,
@@ -107,7 +107,6 @@ fun JournalScreen(
     showTitle: Boolean = true,
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp,
-    showEiob: Boolean = true,
     chartRangeColors: Boolean = false
 ) {
     val view = LocalView.current
@@ -123,6 +122,7 @@ fun JournalScreen(
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
+    var showAllRecords by rememberSaveable { mutableStateOf(false) }
 
     val selectedTypes = remember(selectedTypeFilters) {
         selectedTypeFilters.mapNotNull { name ->
@@ -132,21 +132,124 @@ fun JournalScreen(
     val filteredEntries = remember(journalEntries, selectedTypes) {
         journalEntries.filter { it.type in selectedTypes }
     }
-    val sections = remember(filteredEntries, sortedHistory) { buildJournalSections(filteredEntries, sortedHistory) }
+    val zone = remember { ZoneId.systemDefault() }
+    val viewportMidpoint = viewportSnapshot?.let { snapshot ->
+        snapshot.startMillis + ((snapshot.endMillis - snapshot.startMillis) / 2L)
+    }
+    val selectedTimestamp = viewportSnapshot?.selectedPoint?.timestamp
+        ?: viewportMidpoint
+        ?: sortedHistory.lastOrNull()?.timestamp
+        ?: journalEntries.maxOfOrNull { it.timestamp }
+        ?: System.currentTimeMillis()
+    val selectedDate = remember(selectedTimestamp, zone) {
+        Instant.ofEpochMilli(selectedTimestamp).atZone(zone).toLocalDate()
+    }
+    val selectedDayStart = remember(selectedDate, zone) {
+        selectedDate.atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+    val selectedDayEnd = remember(selectedDate, zone) {
+        selectedDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+    val selectedDateLabel = remember(selectedDate) {
+        SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(selectedDayStart))
+    }
+    val selectedDayEntries = remember(filteredEntries, selectedDayStart, selectedDayEnd) {
+        filteredEntries.filter { it.timestamp in selectedDayStart until selectedDayEnd }
+    }
+    val ledgerEntries = if (showAllRecords) filteredEntries else selectedDayEntries
+    val sections = remember(ledgerEntries, sortedHistory) { buildJournalSections(ledgerEntries, sortedHistory) }
+    val periodSummary = remember(journalEntries, selectedDayStart, selectedDayEnd) {
+        JournalPeriodSummaryCalculator.calculate(journalEntries, selectedDayStart, selectedDayEnd)
+    }
     val markers = remember(filteredEntries, presetsById, foodsById, unit, sortedHistory) {
         buildJournalChartMarkers(filteredEntries, presetsById, unit, sortedHistory, foodsById)
     }
     val entriesById = remember(filteredEntries) { filteredEntries.associateBy { it.id } }
-    val selectedTimestamp = viewportSnapshot?.selectedPoint?.timestamp
-        ?: sortedHistory.lastOrNull()?.timestamp
-        ?: journalEntries.maxOfOrNull { it.timestamp }
-        ?: System.currentTimeMillis()
     val selectedDisplayGlucose = viewportSnapshot?.selectedPoint?.value
+        ?: viewportSnapshot?.visiblePoints?.minByOrNull { kotlin.math.abs(it.timestamp - selectedTimestamp) }?.value
+    val isLandscape = rememberAdaptiveWindowMetrics().isLandscape
+
+    LaunchedEffect(selectedDate) {
+        showAllRecords = false
+    }
 
     fun clearChartAction() {
         chartActionTimestamp = null
         chartActionDisplayValue = null
         chartActionAmountFraction = null
+    }
+
+    val chartPanel: @Composable (Modifier) -> Unit = { chartModifier ->
+        Box(modifier = chartModifier) {
+            DashboardChartSection(
+                modifier = Modifier.matchParentSize(),
+                appChartRangeColors = chartRangeColors,
+                glucoseHistory = sortedHistory,
+                journalMarkers = markers,
+                graphSmoothingLevel = graphSmoothingLevel,
+                previewWindowMode = previewWindowMode,
+                graphLow = graphLow,
+                graphHigh = graphHigh,
+                targetLow = targetLow,
+                targetHigh = targetHigh,
+                unit = unit,
+                viewMode = viewMode,
+                calibrations = calibrations,
+                onTimeRangeSelected = { selectedChartRange = it },
+                selectedTimeRange = selectedChartRange,
+                isExpanded = false,
+                expandedProgress = 0f,
+                onToggleExpanded = null,
+                onPointClick = {
+                    clearChartAction()
+                    onPointClick?.invoke(it)
+                },
+                onCalibrationClick = null,
+                onTimelineTap = { suggestion ->
+                    if (chartActionTimestamp != null && !suggestion.forceMenu) {
+                        clearChartAction()
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } else {
+                        chartActionTimestamp = suggestion.timestamp
+                        chartActionDisplayValue = suggestion.suggestedDisplayGlucose
+                        chartActionAmountFraction = suggestion.normalizedYFraction
+                        view.performHapticFeedback(
+                            if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
+                            else HapticFeedbackConstants.CLOCK_TICK
+                        )
+                    }
+                },
+                journalActionTimestamp = chartActionTimestamp,
+                journalActionDisplayValue = chartActionDisplayValue,
+                onDismissJournalAction = { clearChartAction() },
+                onJournalMarkerClick = { entryId ->
+                    entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
+                },
+                onViewportSnapshotChanged = { viewportSnapshot = it }
+            )
+
+            chartActionTimestamp?.let { actionTimestamp ->
+                JournalFloatingActionMenu(
+                    visible = true,
+                    selectedTimestamp = actionTimestamp,
+                    viewportSnapshot = viewportSnapshot,
+                    menuTopOffset = 40.dp,
+                    menuItemSpacing = 6.dp,
+                    menuYOffset = (-36).dp,
+                    modifier = Modifier.matchParentSize(),
+                    onTypeSelected = { type ->
+                        onAddJournalEntry(
+                            actionTimestamp,
+                            type,
+                            chartActionDisplayValue,
+                            chartActionAmountFraction
+                        )
+                        clearChartAction()
+                        fabExpanded = false
+                    }
+                )
+            }
+        }
     }
 
     Box(
@@ -155,6 +258,78 @@ fun JournalScreen(
             .background(MaterialTheme.colorScheme.background)
             .then(if (useStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
     ) {
+        if (isLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(0.34f)
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = bottomContentPadding)
+                ) {
+                    if (showTitle) {
+                        item(key = "journal-landscape-title") {
+                            JournalHeader(
+                                onOpenFoodLibrary = onOpenFoodLibrary,
+                                onOpenInsulinLibrary = onOpenInsulinLibrary
+                            )
+                        }
+                    }
+                    item(key = "journal-landscape-filter") {
+                        JournalTypeFilter(
+                            selectedTypes = selectedTypes,
+                            onToggle = { type ->
+                                selectedTypeFilters = if (type in selectedTypes) {
+                                    selectedTypes.filterNot { it == type }.map { it.name }
+                                } else {
+                                    (selectedTypes + type).map { it.name }
+                                }
+                                clearChartAction()
+                            }
+                        )
+                    }
+                    item(key = "journal-landscape-scope") {
+                        JournalRecordScopeRow(
+                            showAllRecords = showAllRecords,
+                            selectedDateLabel = selectedDateLabel,
+                            onToggle = { showAllRecords = !showAllRecords }
+                        )
+                    }
+                    journalLedgerItems(
+                        sections = sections,
+                        unit = unit,
+                        viewMode = viewMode,
+                        sensorId = sensorId,
+                        calibrations = calibrations,
+                        presetsById = presetsById,
+                        foodsById = foodsById,
+                        selectedTypes = selectedTypes,
+                        onJournalEntryClick = onJournalEntryClick,
+                        onAddJournalEntry = onAddJournalEntry
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(0.66f)
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    JournalMetricsPanel(
+                        summary = periodSummary,
+                        dateLabel = selectedDateLabel,
+                        compact = true
+                    )
+                    if (sortedHistory.isNotEmpty()) {
+                        chartPanel(Modifier.weight(1f).fillMaxWidth())
+                    }
+                }
+            }
+        } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
@@ -175,90 +350,20 @@ fun JournalScreen(
 
             item(key = "journal-metrics") {
                 JournalMetricsPanel(
-                    entries = journalEntries,
-                    presetsById = presetsById,
-                    showEiob = showEiob
+                    summary = periodSummary,
+                    dateLabel = selectedDateLabel,
+                    compact = false
                 )
             }
 
             if (sortedHistory.isNotEmpty()) {
                 item(key = "journal-chart") {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
+                    chartPanel(
+                        Modifier
                             .fillMaxWidth()
                             .height(if (showTitle) 324.dp else 348.dp)
-                    ) {
-                        DashboardChartSection(
-                            modifier = Modifier.matchParentSize(),
-                            appChartRangeColors = chartRangeColors,
-                            glucoseHistory = sortedHistory,
-                            journalMarkers = markers,
-                            graphSmoothingMinutes = graphSmoothingMinutes,
-                            collapseSmoothedData = collapseSmoothedData,
-                            previewWindowMode = previewWindowMode,
-                            graphLow = graphLow,
-                            graphHigh = graphHigh,
-                            targetLow = targetLow,
-                            targetHigh = targetHigh,
-                            unit = unit,
-                            viewMode = viewMode,
-                            calibrations = calibrations,
-                            onTimeRangeSelected = { selectedChartRange = it },
-                            selectedTimeRange = selectedChartRange,
-                            isExpanded = false,
-                            expandedProgress = 0f,
-                            onToggleExpanded = null,
-                            onPointClick = {
-                                clearChartAction()
-                                onPointClick?.invoke(it)
-                            },
-                            onCalibrationClick = null,
-                            onTimelineTap = { suggestion ->
-                                if (chartActionTimestamp != null && !suggestion.forceMenu) {
-                                    clearChartAction()
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                } else {
-                                    chartActionTimestamp = suggestion.timestamp
-                                    chartActionDisplayValue = suggestion.suggestedDisplayGlucose
-                                    chartActionAmountFraction = suggestion.normalizedYFraction
-                                    view.performHapticFeedback(
-                                        if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
-                                        else HapticFeedbackConstants.CLOCK_TICK
-                                    )
-                                }
-                            },
-                            journalActionTimestamp = chartActionTimestamp,
-                            journalActionDisplayValue = chartActionDisplayValue,
-                            onDismissJournalAction = { clearChartAction() },
-                            onJournalMarkerClick = { entryId ->
-                                entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
-                            },
-                            onViewportSnapshotChanged = { viewportSnapshot = it }
-                        )
-
-                        chartActionTimestamp?.let { actionTimestamp ->
-                            JournalFloatingActionMenu(
-                                visible = true,
-                                selectedTimestamp = actionTimestamp,
-                                viewportSnapshot = viewportSnapshot,
-                                menuTopOffset = 40.dp,
-                                menuItemSpacing = 6.dp,
-                                menuYOffset = (-36).dp,
-                                modifier = Modifier.matchParentSize(),
-                                onTypeSelected = { type ->
-                                    onAddJournalEntry(
-                                        actionTimestamp,
-                                        type,
-                                        chartActionDisplayValue,
-                                        chartActionAmountFraction
-                                    )
-                                    clearChartAction()
-                                    fabExpanded = false
-                                }
-                            )
-                        }
-                    }
+                    )
                 }
             }
 
@@ -277,95 +382,27 @@ fun JournalScreen(
                 )
             }
 
-            if (sections.isEmpty()) {
-                item(key = "journal-empty") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.journal_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                sections.forEachIndexed { sectionIndex, section ->
-                    item(key = "journal-date-${section.date.toEpochDay()}") {
-                        Text(
-                            text = section.label,
-                            modifier = Modifier.padding(
-                                start = 16.dp,
-                                top = if (sectionIndex == 0) 12.dp else 18.dp,
-                                bottom = 8.dp
-                            ),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    itemsIndexed(
-                        items = section.items,
-                        key = { index, item ->
-                            "${item.timestamp}-${item.entries.joinToString(",") { it.id.toString() }}-$index"
-                        }
-                    ) { index, item ->
-                        val point = item.point
-                        if (point != null) {
-                            val sectionPoints = section.items.mapNotNull(JournalLedgerItem::point)
-                            val pointIndex = sectionPoints.indexOfFirst { it.timestamp == point.timestamp }
-                                .takeIf { it >= 0 }
-                                ?: index
-                            ReadingRow(
-                                point = point,
-                                unit = unit,
-                                viewMode = viewMode,
-                                index = pointIndex,
-                                totalCount = section.items.size,
-                                history = sectionPoints,
-                                sensorId = sensorId,
-                                calibrations = calibrations,
-                                journalEntries = item.entries,
-                                journalPresetsById = presetsById,
-                                journalFoodsById = foodsById,
-                                journalChipExpanded = true,
-                                onJournalEntryClick = onJournalEntryClick,
-                                highlightLeadRow = false,
-                                showLeadingAction = false,
-                                onLeadingActionClick = {
-                                    onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), point.value, null)
-                                },
-                                isGroupStart = index == 0,
-                                isGroupEnd = index == section.items.lastIndex,
-                                dividerHorizontalInset = 0.dp,
-                                onValueClick = {
-                                    onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), point.value, null)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            JournalTimelineRow(
-                                timestamp = item.timestamp,
-                                unit = unit,
-                                journalEntries = item.entries,
-                                journalPresetsById = presetsById,
-                                journalFoodsById = foodsById,
-                                onJournalEntryClick = onJournalEntryClick,
-                                onAddJournalEntry = {
-                                    onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), null, null)
-                                },
-                                index = index,
-                                totalCount = section.items.size,
-                                dividerHorizontalInset = 0.dp,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
+            item(key = "journal-record-scope") {
+                JournalRecordScopeRow(
+                    showAllRecords = showAllRecords,
+                    selectedDateLabel = selectedDateLabel,
+                    onToggle = { showAllRecords = !showAllRecords }
+                )
             }
+
+            journalLedgerItems(
+                sections = sections,
+                unit = unit,
+                viewMode = viewMode,
+                sensorId = sensorId,
+                calibrations = calibrations,
+                presetsById = presetsById,
+                foodsById = foodsById,
+                selectedTypes = selectedTypes,
+                onJournalEntryClick = onJournalEntryClick,
+                onAddJournalEntry = onAddJournalEntry
+            )
+        }
         }
 
         JournalExpandableFab(
@@ -386,6 +423,138 @@ fun JournalScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = 20.dp)
         )
+    }
+}
+
+@Composable
+private fun JournalRecordScopeRow(
+    showAllRecords: Boolean,
+    selectedDateLabel: String,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (showAllRecords) stringResource(R.string.journal_title) else selectedDateLabel,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TextButton(onClick = onToggle) {
+            Text(
+                stringResource(
+                    if (showAllRecords) R.string.journal_show_selected_day
+                    else R.string.journal_show_all_records
+                )
+            )
+        }
+    }
+}
+
+private fun LazyListScope.journalLedgerItems(
+    sections: List<JournalDateSection>,
+    unit: String,
+    viewMode: Int,
+    sensorId: String?,
+    calibrations: List<tk.glucodata.data.calibration.CalibrationEntity>,
+    presetsById: Map<Long, JournalInsulinPreset>,
+    foodsById: Map<Long, JournalFood>,
+    selectedTypes: List<JournalEntryType>,
+    onJournalEntryClick: ((JournalEntry) -> Unit)?,
+    onAddJournalEntry: (Long, JournalEntryType?, Float?, Float?) -> Unit
+) {
+    if (sections.isEmpty()) {
+        item(key = "journal-ledger-empty") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.journal_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        return
+    }
+
+    sections.forEachIndexed { sectionIndex, section ->
+        item(key = "journal-ledger-date-${section.date.toEpochDay()}") {
+            Text(
+                text = section.label,
+                modifier = Modifier.padding(
+                    start = 16.dp,
+                    top = if (sectionIndex == 0) 12.dp else 18.dp,
+                    bottom = 8.dp
+                ),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        itemsIndexed(
+            items = section.items,
+            key = { index, item ->
+                "ledger-${item.timestamp}-${item.entries.joinToString(",") { it.id.toString() }}-$index"
+            }
+        ) { index, item ->
+            val point = item.point
+            if (point != null) {
+                val sectionPoints = section.items.mapNotNull(JournalLedgerItem::point)
+                val pointIndex = sectionPoints.indexOfFirst { it.timestamp == point.timestamp }
+                    .takeIf { it >= 0 }
+                    ?: index
+                ReadingRow(
+                    point = point,
+                    unit = unit,
+                    viewMode = viewMode,
+                    index = pointIndex,
+                    totalCount = section.items.size,
+                    history = sectionPoints,
+                    sensorId = sensorId,
+                    calibrations = calibrations,
+                    journalEntries = item.entries,
+                    journalPresetsById = presetsById,
+                    journalFoodsById = foodsById,
+                    journalChipExpanded = true,
+                    onJournalEntryClick = onJournalEntryClick,
+                    highlightLeadRow = false,
+                    showLeadingAction = false,
+                    onLeadingActionClick = {
+                        onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), point.value, null)
+                    },
+                    isGroupStart = index == 0,
+                    isGroupEnd = index == section.items.lastIndex,
+                    dividerHorizontalInset = 0.dp,
+                    onValueClick = {
+                        onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), point.value, null)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                JournalTimelineRow(
+                    timestamp = item.timestamp,
+                    unit = unit,
+                    journalEntries = item.entries,
+                    journalPresetsById = presetsById,
+                    journalFoodsById = foodsById,
+                    onJournalEntryClick = onJournalEntryClick,
+                    onAddJournalEntry = {
+                        onAddJournalEntry(item.timestamp, selectedTypes.singleOrNull(), null, null)
+                    },
+                    index = index,
+                    totalCount = section.items.size,
+                    dividerHorizontalInset = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
 }
 
@@ -431,160 +600,77 @@ private fun JournalHeader(
 
 @Composable
 private fun JournalMetricsPanel(
-    entries: List<JournalEntry>,
-    presetsById: Map<Long, JournalInsulinPreset>,
-    showEiob: Boolean
+    summary: JournalPeriodSummary,
+    dateLabel: String,
+    compact: Boolean
 ) {
-    // Tick the clock so IOB/eIOB keep decaying while the screen stays open
-    // (mirrors the dashboard's journalNow ticker).
-    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(entries) {
-        nowMillis = System.currentTimeMillis()
-        while (true) {
-            delay(30_000L)
-            nowMillis = System.currentTimeMillis()
+    val foodDetail = buildList {
+        add(dateLabel)
+        if (summary.proteinGrams > 0f) {
+            add(stringResource(R.string.journal_food_protein_short, formatJournalMetric(summary.proteinGrams)))
         }
+        if (summary.fatGrams > 0f) {
+            add(stringResource(R.string.journal_food_fat_short, formatJournalMetric(summary.fatGrams)))
+        }
+    }.joinToString(" · ")
+    val cards: @Composable (Modifier) -> Unit = { cardModifier ->
+        JournalMetricCard(
+            title = stringResource(R.string.journal_type_food),
+            value = "${formatJournalMetric(summary.carbsGrams, wholeNumber = true)} g",
+            detail = foodDetail,
+            icon = Icons.Default.Restaurant,
+            type = JournalEntryType.CARBS,
+            modifier = cardModifier
+        )
+        JournalMetricCard(
+            title = stringResource(R.string.journal_type_insulin),
+            value = "${formatJournalMetric(summary.insulinUnits)} U",
+            detail = dateLabel,
+            icon = Icons.Default.Vaccines,
+            type = JournalEntryType.INSULIN,
+            modifier = cardModifier
+        )
+        JournalMetricCard(
+            title = stringResource(R.string.journal_type_activity),
+            value = stringResource(R.string.minutes_short_format, summary.activityMinutes),
+            detail = dateLabel,
+            icon = Icons.Default.DirectionsRun,
+            type = JournalEntryType.ACTIVITY,
+            modifier = cardModifier
+        )
     }
-    val zone = remember { ZoneId.systemDefault() }
-    val startOfDayMillis = remember(nowMillis, zone) {
-        LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
-    }
-    val todaysEntries = remember(entries, startOfDayMillis, nowMillis) {
-        entries.filter { it.timestamp in startOfDayMillis..nowMillis }
-    }
-    val activeInsulin = remember(entries, presetsById, nowMillis) {
-        JournalIobCalculator.buildActiveInsulinSummary(entries, presetsById, nowMillis)
-    }
-    val iobUnits = activeInsulin?.iobUnits?.coerceAtLeast(0f) ?: 0f
-    val eiobUnits = activeInsulin?.eiobUnits?.coerceAtLeast(0f) ?: 0f
-    val activeUntilFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val eiobText = if (showEiob) {
-        stringResource(R.string.journal_metric_eiob, formatJournalMetric(eiobUnits))
-    } else {
-        null
-    }
-    val untilText = activeInsulin?.nextEndingAt?.let { endingAt ->
-        stringResource(R.string.journal_active_insulin_until, activeUntilFormatter.format(Date(endingAt)))
-    }
-    val activeInsulinDetail = if (activeInsulin == null) {
-        stringResource(R.string.journal_no_active_insulin)
-    } else {
-        listOfNotNull(eiobText, untilText).joinToString(" · ")
-            .ifEmpty { stringResource(R.string.journal_active_now_percent, activeInsulin.weightedActivityPercent) }
-    }
-    val foodToday = todaysEntries
-        .filter { it.type == JournalEntryType.CARBS }
-        .sumOf { (it.amount ?: 0f).toDouble() }
-        .toFloat()
-    val insulinToday = todaysEntries
-        .filter { it.type == JournalEntryType.INSULIN }
-        .sumOf { (it.amount ?: 0f).toDouble() }
-        .toFloat()
-    val activityMinutesToday = todaysEntries
-        .filter { it.type == JournalEntryType.ACTIVITY }
-        .sumOf { (it.durationMinutes ?: 0).toInt() }
 
-    var iobDetailsExpanded by rememberSaveable { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (compact) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            JournalMetricCard(
-                title = stringResource(R.string.journal_metric_iob),
-                value = "${formatJournalMetric(iobUnits)} U",
-                detail = activeInsulinDetail,
-                icon = Icons.Default.Vaccines,
-                type = JournalEntryType.INSULIN,
-                modifier = Modifier.weight(1f),
-                onClick = if (activeInsulin != null) {
-                    { iobDetailsExpanded = !iobDetailsExpanded }
-                } else {
-                    null
-                }
-            )
-            JournalMetricCard(
-                title = stringResource(R.string.journal_type_food),
-                value = "${formatJournalMetric(foodToday, wholeNumber = true)} g",
-                detail = stringResource(
-                    R.string.journal_events_today,
-                    todaysEntries.count { it.type == JournalEntryType.CARBS }
-                ),
-                icon = Icons.Default.Restaurant,
-                type = JournalEntryType.CARBS,
-                modifier = Modifier.weight(1f)
-            )
+            cards(Modifier.weight(1f))
         }
-        AnimatedVisibility(visible = iobDetailsExpanded && activeInsulin != null) {
-            activeInsulin?.let { summary ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    color = journalTypeSelectedContainerColor(
-                        JournalEntryType.INSULIN,
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    ).copy(alpha = 0.68f)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = buildString {
-                                append(
-                                    stringResource(
-                                        R.string.journal_iob_expanded,
-                                        formatJournalMetric(summary.iobUnits.coerceAtLeast(0f))
-                                    )
-                                )
-                                if (showEiob) {
-                                    append(" · ")
-                                    append(
-                                        stringResource(
-                                            R.string.journal_eiob_expanded,
-                                            formatJournalMetric(summary.eiobUnits.coerceAtLeast(0f))
-                                        )
-                                    )
-                                }
-                            },
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.journal_active_insulin_summary,
-                                summary.activeEntryCount,
-                                formatJournalMetric(summary.totalUnits),
-                                summary.weightedActivityPercent
-                            ),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        summary.nextEndingAt?.let { endingAt ->
-                            Text(
-                                text = stringResource(
-                                    R.string.journal_active_insulin_until,
-                                    activeUntilFormatter.format(Date(endingAt))
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                JournalMetricCard(
+                    title = stringResource(R.string.journal_type_food),
+                    value = "${formatJournalMetric(summary.carbsGrams, wholeNumber = true)} g",
+                    detail = foodDetail,
+                    icon = Icons.Default.Restaurant,
+                    type = JournalEntryType.CARBS,
+                    modifier = Modifier.weight(1f)
+                )
+                JournalMetricCard(
+                    title = stringResource(R.string.journal_type_insulin),
+                    value = "${formatJournalMetric(summary.insulinUnits)} U",
+                    detail = dateLabel,
+                    icon = Icons.Default.Vaccines,
+                    type = JournalEntryType.INSULIN,
+                    modifier = Modifier.weight(1f)
+                )
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalMetricCard(
-                title = stringResource(R.string.journal_metric_insulin_today),
-                value = "${formatJournalMetric(insulinToday)} U",
-                detail = stringResource(R.string.journal_type_insulin),
-                icon = Icons.Default.Vaccines,
-                type = JournalEntryType.INSULIN,
-                modifier = Modifier.weight(1f)
-            )
-            JournalMetricCard(
-                title = stringResource(R.string.journal_metric_activity_today),
-                value = stringResource(R.string.minutes_short_format, activityMinutesToday),
-                detail = stringResource(R.string.journal_type_activity),
+                title = stringResource(R.string.journal_type_activity),
+                value = stringResource(R.string.minutes_short_format, summary.activityMinutes),
+                detail = dateLabel,
                 icon = Icons.Default.DirectionsRun,
                 type = JournalEntryType.ACTIVITY,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }

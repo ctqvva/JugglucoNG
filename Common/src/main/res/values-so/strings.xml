@@ -2191,4 +2191,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sibionics_reset_postpone">Dib u dhig 2 saacadood</string>
     <string name="sibionics_reset_reminder_channel">Xusuusinta dib-u-dejinta Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Xusuusin iyo ficillo lagu dib u dejiyo Sibionics 2 ka hor intuusan dhicin</string>
+    <string name="journal_show_all_records">Dhammaan diiwaannada</string>
+    <string name="journal_show_selected_day">Maalinta la doortay</string>
 </resources>

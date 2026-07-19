@@ -1970,4 +1970,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">推迟 2 小时</string>
     <string name="sibionics_reset_reminder_channel">Sibionics 重置提醒</string>
     <string name="sibionics_reset_reminder_channel_desc">Sibionics 2 到期前的重置提醒和操作</string>
+    <string name="journal_show_all_records">全部记录</string>
+    <string name="journal_show_selected_day">所选日期</string>
 </resources>

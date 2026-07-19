@@ -1960,4 +1960,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_postpone">Reporter de 2 heures</string>
     <string name="sibionics_reset_reminder_channel">Rappels de réinitialisation Sibionics</string>
     <string name="sibionics_reset_reminder_channel_desc">Rappels et actions pour réinitialiser Sibionics 2 avant son expiration</string>
+    <string name="journal_show_all_records">Tous les enregistrements</string>
+    <string name="journal_show_selected_day">Jour sélectionné</string>
 </resources>
