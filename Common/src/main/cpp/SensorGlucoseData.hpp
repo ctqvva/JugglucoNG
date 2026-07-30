@@ -50,6 +50,7 @@ inline int getpagesize(void) {
 } */
 #include "config.h"
 
+#include "directstreammaintenance.hpp"
 #include "inout.hpp"
 
 #include "net/backup.hpp"
@@ -717,6 +718,22 @@ public:
     if (!polls.data() || !rawpolls.data() || !temppolls.data())
       return 0;
     return std::min({polls.size(), rawpolls.size(), temppolls.size()});
+  }
+  bool ensurePollStorageCapacity(size_t minimumRecords) {
+    auto *info = getinfo();
+    const int recordsPerDay = 24 * streamperhour();
+    if (!info || recordsPerDay <= 0)
+      return false;
+    const size_t requiredDays =
+        (minimumRecords + recordsPerDay - 1) / recordsPerDay;
+    if (requiredDays > std::numeric_limits<uint8_t>::max())
+      return false;
+    if (!directstream::ensurePollStorageCapacity(
+            polls, rawpolls, temppolls, getsensordir(), minimumRecords))
+      return false;
+    info->days =
+        std::max<uint8_t>(info->days, static_cast<uint8_t>(requiredDays));
+    return true;
   }
   bool validPollIndex(int64_t index) const {
     return index >= 0 &&
