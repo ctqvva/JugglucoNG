@@ -34,6 +34,7 @@ import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.logd
 import tk.glucodata.logi
+import tk.glucodata.NightscoutUploadWake
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
@@ -344,6 +345,14 @@ class OttaiBleManager(
 
     private val handlerThread = HandlerThread("Ottai-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
+    private val nativeGlucoseMirror = OttaiNativeGlucoseMirror(
+        writeNative = { timestampSec, glucose, temperatureC, sensorId ->
+            Natives.addGlucoseStreamWithTemp(timestampSec, glucose, temperatureC, sensorId)
+        },
+        wakeNightscout = { source, timestampMs ->
+            NightscoutUploadWake.afterLiveNativeWrite(source, timestampMs)
+        },
+    )
 
     // Recent abnormal-disconnect timestamps (status!=0), pruned to UNSTABLE_LINK_WINDOW_MS;
     // feeds the fast-params hold and is only touched under its own lock (binder threads).
@@ -2336,6 +2345,7 @@ class OttaiBleManager(
         if (live && toPersist.size == 1) {
             val reading = toPersist.single()
             HistorySyncAccess.storeCurrentReadingAsync(reading.sampleMs, reading.mgdl, 0f, 0f, id)
+            mirrorDecodedReadingsIntoNative(id, toPersist, live = true)
             return
         }
         val timestamps = LongArray(toPersist.size) { index -> toPersist[index].sampleMs }
@@ -2343,6 +2353,31 @@ class OttaiBleManager(
         // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
         val rawValues = FloatArray(toPersist.size) { 0f }
         HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+        mirrorDecodedReadingsIntoNative(id, toPersist, live)
+    }
+
+    private fun mirrorDecodedReadingsIntoNative(
+        id: String,
+        readings: List<EmittedReading>,
+        live: Boolean,
+    ) {
+        runCatching {
+            ensureNativePresenceShell("glucose-mirror")
+            val timestampsMs = LongArray(readings.size) { readings[it].sampleMs }
+            val glucoseMgdl = FloatArray(readings.size) { readings[it].mgdl }
+            val temperaturesC = FloatArray(readings.size) { readings[it].temperatureC }
+            val storedCount = nativeGlucoseMirror.mirror(
+                id,
+                timestampsMs,
+                glucoseMgdl,
+                temperaturesC,
+                live,
+            )
+            if (storedCount > 0) {
+                applyActivatedWearToNative(id)
+                Natives.wakebackup()
+            }
+        }.onFailure { Log.stack(TAG, "mirrorDecodedReadingsIntoNative", it) }
     }
 
     /** Keeps the per-sample skin temperature so the stats screen can chart it. */
