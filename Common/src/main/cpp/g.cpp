@@ -1543,6 +1543,21 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorStreamCapacity)(
   return ready ? JNI_TRUE : JNI_FALSE;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL fromjava(ensureSensorStreamCapacity)(
+    JNIEnv *env, jclass cl, jstring sensorId, jint minimumRecords) {
+  if (!sensors || !sensorId || minimumRecords <= 0)
+    return JNI_FALSE;
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  if (!str)
+    return JNI_FALSE;
+  SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0);
+  const bool ready =
+      hist && !hist->error() &&
+      hist->ensurePollStorageCapacity(static_cast<size_t>(minimumRecords));
+  env->ReleaseStringUTFChars(sensorId, str);
+  return ready ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT void JNICALL fromjava(rebaseDirectStreamWindow)(
     JNIEnv *env, jclass cl, jstring sensorId, jlong startTimeSec) {
   if (!sensors || !sensorId || startTimeSec <= 0)
