@@ -93,6 +93,15 @@ class OttaiLifetimeTests {
     }
 
     @Test
+    fun nativeStreamCapacityCoversAcceptedLifetimeWithinSupportedBounds() {
+        assertEquals(21_600, OttaiBleManager.nativeStreamCapacityMinutesFor(0L))
+        assertEquals(21_600, OttaiBleManager.nativeStreamCapacityMinutesFor(14L * DAY_MS))
+        assertEquals(36_000, OttaiBleManager.nativeStreamCapacityMinutesFor(25L * DAY_MS))
+        assertEquals(43_200, OttaiBleManager.nativeStreamCapacityMinutesFor(30L * DAY_MS))
+        assertEquals(43_200, OttaiBleManager.nativeStreamCapacityMinutesFor(40L * DAY_MS))
+    }
+
+    @Test
     fun endedSensorRecoveryIsLimitedToStatusFourInsideManagedLifetime() {
         val start = 1_000_000L
 

@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "directstreammaintenance.hpp"
 #include "settings/settings.hpp"
 #include "share/logs.hpp"
 #include "sensoren.hpp"
@@ -977,6 +978,25 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(wakeNightscoutForLiveReading)
     if(source)
         env->ReleaseStringUTFChars(jsource,source);
     return ready?JNI_TRUE:JNI_FALSE;
+    }
+extern "C" JNIEXPORT jboolean JNICALL fromjava(rewindNightscoutForSensor)
+    (JNIEnv *env,jclass clazz,jstring sensorId) {
+    if(!sensors || !settings || !sensorId)
+        return JNI_FALSE;
+    const char *name=env->GetStringUTFChars(sensorId,nullptr);
+    if(!name)
+        return JNI_FALSE;
+    SensorGlucoseData *sens=sensors->gethistshort(name);
+    env->ReleaseStringUTFChars(sensorId,name);
+    if(!sens || sens->error())
+        return JNI_FALSE;
+    const int target=sens->sensorIndex;
+    sens->getinfo()->nightiter=0;
+    settings->data()->nightsensor=directstream::nightSensorAfterRewind(
+        settings->data()->nightsensor,target);
+    if(target>=0 && target<maxRecentNightUploadSensors)
+        recentNightUploads[target]={};
+    return JNI_TRUE;
     }
 extern "C" JNIEXPORT void JNICALL fromjava(resetuploader) (JNIEnv *env, jclass clazz) {
     reset();

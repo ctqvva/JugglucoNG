@@ -34,6 +34,7 @@ import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.logd
 import tk.glucodata.logi
+import tk.glucodata.NightscoutUploadWake
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
@@ -131,6 +132,7 @@ class OttaiBleManager(
         // enough to cover an NFC wake plus a couple of advertisement bursts.
         private const val FRESH_ACTIVATION_ADVERTISEMENT_TIMEOUT_MS = 120_000L
         private const val RECORD_INTERVAL_MS = 60_000L
+        private const val DAY_MS = 24L * 60L * RECORD_INTERVAL_MS
         // How close two independently-derived activation starts must be to corroborate each
         // other. Both are (wall clock - dataNo * interval); the wall clocks differ by the poll
         // gap and each is floored to the record minute, so a genuine pair agrees within a couple
@@ -320,6 +322,19 @@ class OttaiBleManager(
             pendingDurationMs.takeIf {
                 commandStatus == 3 && activationCommandAcknowledged && it > 0L
             } ?: 0L
+
+        internal fun nativeStreamCapacityMinutesFor(acceptedMaxActiveMs: Long): Int {
+            val acceptedDays = if (acceptedMaxActiveMs <= 0L) {
+                OttaiConstants.DEFAULT_RATED_LIFETIME_DAYS.toLong()
+            } else {
+                (acceptedMaxActiveMs + DAY_MS - 1L) / DAY_MS
+            }
+            val capacityDays = acceptedDays.coerceIn(
+                OttaiConstants.DEFAULT_RATED_LIFETIME_DAYS.toLong(),
+                OttaiConstants.EXTENDED_LIFETIME_DAYS.toLong(),
+            )
+            return (capacityDays * 24L * 60L).toInt()
+        }
     }
 
     enum class Phase { IDLE, CONNECTING, DISCOVERING, ENABLING_NOTIFY, AUTH, STREAMING }
@@ -344,6 +359,16 @@ class OttaiBleManager(
 
     private val handlerThread = HandlerThread("Ottai-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
+    private val nativeGlucoseMirror = OttaiNativeGlucoseMirror(
+        prepareNative = ::prepareNativeGlucoseMirror,
+        writeNative = { timestampSec, glucose, temperatureC, sensorId ->
+            Natives.addGlucoseStreamWithTemp(timestampSec, glucose, temperatureC, sensorId)
+        },
+        rewindNightscout = Natives::rewindNightscoutForSensor,
+        wakeNightscout = { source, timestampMs ->
+            NightscoutUploadWake.afterLiveNativeWrite(source, timestampMs)
+        },
+    )
 
     // Recent abnormal-disconnect timestamps (status!=0), pruned to UNSTABLE_LINK_WINDOW_MS;
     // feeds the fast-params hold and is only touched under its own lock (binder threads).
@@ -2336,6 +2361,7 @@ class OttaiBleManager(
         if (live && toPersist.size == 1) {
             val reading = toPersist.single()
             HistorySyncAccess.storeCurrentReadingAsync(reading.sampleMs, reading.mgdl, 0f, 0f, id)
+            mirrorDecodedReadingsIntoNative(id, toPersist, live = true)
             return
         }
         val timestamps = LongArray(toPersist.size) { index -> toPersist[index].sampleMs }
@@ -2343,6 +2369,39 @@ class OttaiBleManager(
         // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
         val rawValues = FloatArray(toPersist.size) { 0f }
         HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+        mirrorDecodedReadingsIntoNative(id, toPersist, live)
+    }
+
+    private fun mirrorDecodedReadingsIntoNative(
+        id: String,
+        readings: List<EmittedReading>,
+        live: Boolean,
+    ) {
+        runCatching {
+            val glucoseMgdl = FloatArray(readings.size) { readings[it].mgdl }
+            val temperaturesC = FloatArray(readings.size) { readings[it].temperatureC }
+            val reliableStartMs = nativePresenceStartTimeMs()
+            val storedCount = if (live) {
+                nativeGlucoseMirror.mirrorLive(
+                    sensorId = id,
+                    reliableStartMs = reliableStartMs,
+                    timestampsMs = LongArray(readings.size) { readings[it].sampleMs },
+                    glucoseMgdl = glucoseMgdl,
+                    temperaturesC = temperaturesC,
+                )
+            } else {
+                nativeGlucoseMirror.mirrorHistory(
+                    sensorId = id,
+                    reliableStartMs = reliableStartMs,
+                    dataNos = IntArray(readings.size) { readings[it].dataNo },
+                    glucoseMgdl = glucoseMgdl,
+                    temperaturesC = temperaturesC,
+                )
+            }
+            if (storedCount > 0) {
+                Natives.wakebackup()
+            }
+        }.onFailure { Log.stack(TAG, "mirrorDecodedReadingsIntoNative", it) }
     }
 
     /** Keeps the per-sample skin temperature so the stats screen can chart it. */
@@ -2451,6 +2510,33 @@ class OttaiBleManager(
             Natives.ensureSensorShell(id, (startMs / 1000L).coerceAtLeast(1L))
             applyActivatedWearToNative(id)
         }.onFailure { Log.stack(TAG, "ensureNativePresenceShell($reason)", it) }
+    }
+
+    private fun prepareNativeGlucoseMirror(
+        id: String,
+        reliableStartMs: Long,
+    ): Boolean {
+        if (id.isBlank() || reliableStartMs <= 0L) return false
+        return runCatching {
+            val sensorPtr = Natives.ensureSensorShell(
+                id,
+                (reliableStartMs / 1000L).coerceAtLeast(1L),
+            )
+            if (sensorPtr == 0L) {
+                false
+            } else {
+                applyActivatedWearToNative(id)
+                val minimumRecords = nativeStreamCapacityMinutesFor(activatedMaxActiveMs)
+                if (!Natives.ensureSensorStreamCapacity(id, minimumRecords)) {
+                    Log.e(TAG, "native glucose mirror capacity failed id=$id records=$minimumRecords")
+                    false
+                } else {
+                    true
+                }
+            }
+        }.onFailure {
+            Log.stack(TAG, "prepareNativeGlucoseMirror", it)
+        }.getOrDefault(false)
     }
 
     /** Real activated lifetime in whole days (rounded), or 0 if unknown. */
