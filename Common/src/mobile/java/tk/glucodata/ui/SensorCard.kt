@@ -1420,9 +1420,7 @@ fun SensorCard(
                        DataRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
                     }
 
-                    if (sensor.isMq && sensor.batteryPercent >= 0) {
-                        DataRow(stringResource(R.string.sensor_battery_voltage), "${sensor.batteryPercent}%")
-                    } else if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
+                    if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
                         // Anytime: surface both percent and voltage — voltage is the
                         // health-critical metric (low-battery cutoff is 4.05 V on CT3).
                         val voltsText = String.format(java.util.Locale.getDefault(), "%.2f V", sensor.batteryMillivolts / 1000.0)
@@ -1432,6 +1430,8 @@ fun SensorCard(
                             voltsText
                         }
                         DataRow(stringResource(R.string.sensor_battery_voltage), combined)
+                    } else if (sensor.batteryPercent >= 0) {
+                        DataRow(stringResource(R.string.sensor_battery_voltage), "${sensor.batteryPercent}%")
                     } else if (sensor.batteryMillivolts > 0) {
                         DataRow(stringResource(R.string.sensor_battery_voltage), String.format(java.util.Locale.getDefault(), "%.3f V", sensor.batteryMillivolts / 1000.0))
                     }

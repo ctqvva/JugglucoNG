@@ -76,8 +76,8 @@ data class SensorInfo(
     val isVendorPaired: Boolean = false,  // AiDex: has saved vendor pairing keys
     val vendorCalibrations: List<VendorCalibrationInfo> = emptyList(),  // Vendor calibration records/events
     val isVendorConnected: Boolean = false,  // AiDex: vendor BLE stack actively connected
-    val batteryMillivolts: Int = 0,  // AiDex: sensor battery voltage in mV (0 = not yet received)
-    val batteryPercent: Int = -1,  // MQ: vendor reports battery as percent, not voltage
+    val batteryMillivolts: Int = 0,  // Sensor battery voltage in mV (0 = not yet received)
+    val batteryPercent: Int = -1,  // Sensor battery percentage (-1 = not yet received)
     val isSensorExpired: Boolean = false,  // AiDex: sensor has reported itself as expired
     // Edit 58a/58b/58c: Parsed sensor metadata from vendor protocol
     val sensorRemainingHours: Int = -1,  // AiDex: hours remaining (-1 = unknown)
