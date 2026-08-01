@@ -941,6 +941,15 @@ class SensorViewModel : ViewModel() {
          }
     }
 
+    fun refreshSensorBattery(serial: String): Boolean {
+        val driver = findGatt(serial) as? ManagedBluetoothSensorDriver ?: return false
+        return runCatching { driver.requestBatteryRefresh() }
+            .onFailure {
+                android.util.Log.e("SensorVM", "Battery refresh failed to queue for $serial", it)
+            }
+            .getOrDefault(false)
+    }
+
     fun clearCalibration(serial: String) {
         val gatt = findGatt(serial)
         if (gatt != null && gatt.dataptr != 0L) {

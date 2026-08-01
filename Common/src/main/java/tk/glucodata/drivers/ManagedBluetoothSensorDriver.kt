@@ -122,6 +122,9 @@ interface ManagedBluetoothSensorDriver {
 
     fun softReconnect() {}
 
+    /** Requests a fresh optional battery telemetry read without reconnecting. */
+    fun requestBatteryRefresh(): Boolean = false
+
     /**
      * The system Bluetooth adapter became unavailable. Physical BLE drivers must
      * discard only their current transport/session state here; this is not a
