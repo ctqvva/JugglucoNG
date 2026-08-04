@@ -2250,4 +2250,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_pinned_remove">从主页移除</string>
     <string name="stats_pinned_already">已固定</string>
     <string name="stats_pinned_remove_short">移除</string>
+    <string name="aidex_pairing_key_backup">配对密钥备份</string>
+    <string name="aidex_pairing_key_backup_warning">此文件包含传感器配对凭据。请妥善私密保存；它可用于在其他设备上恢复同一传感器。</string>
+    <string name="aidex_pairing_key_saved">配对密钥备份已保存</string>
+    <string name="aidex_pairing_key_unavailable">尚无已验证的配对密钥</string>
+    <string name="aidex_restore_pairing_key">恢复配对密钥备份</string>
+    <string name="aidex_pairing_key_restored">配对密钥已恢复。请选择匹配的传感器。</string>
+    <string name="aidex_pairing_key_restore_failed">这不是有效的 AiDex 配对密钥备份</string>
+    <string name="aidex_pairing_key_conflict">此传感器已保存其他密钥；未覆盖任何内容</string>
 </resources>

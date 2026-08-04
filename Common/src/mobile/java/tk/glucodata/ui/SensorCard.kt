@@ -9,6 +9,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -53,6 +55,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsItem
@@ -219,6 +222,7 @@ fun SensorCard(
     var showSensorCalibrateDialog by remember { mutableStateOf(false) }
     var showAnytimeClearCalibrationDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
+    var showAiDexKeyBackupDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
     var calibrationInputText by remember { mutableStateOf("") }
@@ -230,6 +234,29 @@ fun SensorCard(
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
     val scope = rememberCoroutineScope() // Fix: Add missing scope
+    var pendingAiDexKeyBackup by remember { mutableStateOf<String?>(null) }
+    val aiDexKeyExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val payload = pendingAiDexKeyBackup
+        pendingAiDexKeyBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.aidex_pairing_key_saved else R.string.aidex_pairing_key_unavailable,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
 
@@ -1114,6 +1141,40 @@ fun SensorCard(
         }
     }
 
+    if (showAiDexKeyBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAiDexKeyBackupDialog = false },
+            title = { Text(stringResource(R.string.aidex_pairing_key_backup)) },
+            text = { Text(stringResource(R.string.aidex_pairing_key_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial)
+                        showAiDexKeyBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.aidex_pairing_key_unavailable,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAiDexKeyBackup = payload
+                            val bareSerial = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
+                                .canonicalBareSerial(sensor.serial)
+                            aiDexKeyExportLauncher.launch("JugglucoNG-AiDex-$bareSerial.aidexkey")
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showAiDexUnpairDialog) {
         AlertDialog(
             onDismissRequest = { showAiDexUnpairDialog = false },
@@ -1813,6 +1874,26 @@ fun SensorCard(
                         Text(
                             if (sensor.resetCompensationActive) stringResource(R.string.correcting) else stringResource(R.string.resettitle),
                             maxLines = 1
+                        )
+                    }
+                    val hasExportablePairKey = remember(sensor.serial, sensor.isVendorPaired) {
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial) != null
+                    }
+                    FilledTonalIconButton(
+                        onClick = { showAiDexKeyBackupDialog = true },
+                        enabled = hasExportablePairKey,
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = stringResource(R.string.aidex_pairing_key_backup),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     // Pair / Unpair toggle — right (weight 1f = fills remaining space, prominent)

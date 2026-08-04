@@ -2235,4 +2235,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_pinned_remove">Remover do Painel</string>
     <string name="stats_pinned_already">fixado</string>
     <string name="stats_pinned_remove_short">Remover</string>
+    <string name="aidex_pairing_key_backup">Cópia da chave de emparelhamento</string>
+    <string name="aidex_pairing_key_backup_warning">Este ficheiro contém a credencial de emparelhamento do sensor. Guarde-o de forma privada e segura; permite restaurar o mesmo sensor noutro dispositivo.</string>
+    <string name="aidex_pairing_key_saved">Cópia da chave de emparelhamento guardada</string>
+    <string name="aidex_pairing_key_unavailable">Ainda não existe uma chave de emparelhamento verificada</string>
+    <string name="aidex_restore_pairing_key">Restaurar chave de emparelhamento</string>
+    <string name="aidex_pairing_key_restored">Chave de emparelhamento restaurada. Selecione o sensor correspondente.</string>
+    <string name="aidex_pairing_key_restore_failed">Este ficheiro não é uma cópia válida de chave AiDex</string>
+    <string name="aidex_pairing_key_conflict">Já existe uma chave diferente para este sensor; nada foi substituído</string>
 </resources>

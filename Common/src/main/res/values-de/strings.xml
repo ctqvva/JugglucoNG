@@ -2273,4 +2273,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_pinned_remove">Vom Dashboard entfernen</string>
     <string name="stats_pinned_already">angeheftet</string>
     <string name="stats_pinned_remove_short">Entfernen</string>
+    <string name="aidex_pairing_key_backup">Sicherung des Kopplungsschlüssels</string>
+    <string name="aidex_pairing_key_backup_warning">Diese Datei enthält den Kopplungsschlüssel des Sensors. Bewahre sie vertraulich auf; damit kann derselbe Sensor auf einem anderen Gerät wiederhergestellt werden.</string>
+    <string name="aidex_pairing_key_saved">Sicherung des Kopplungsschlüssels gespeichert</string>
+    <string name="aidex_pairing_key_unavailable">Noch kein geprüfter Kopplungsschlüssel verfügbar</string>
+    <string name="aidex_restore_pairing_key">Kopplungsschlüssel wiederherstellen</string>
+    <string name="aidex_pairing_key_restored">Kopplungsschlüssel wiederhergestellt. Wähle den passenden Sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">Dies ist keine gültige AiDex-Schlüsselsicherung</string>
+    <string name="aidex_pairing_key_conflict">Für diesen Sensor ist bereits ein anderer Schlüssel gespeichert; nichts wurde überschrieben</string>
 </resources>
