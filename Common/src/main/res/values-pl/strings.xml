@@ -2269,4 +2269,12 @@
     <string name="stats_pinned_remove">Usuń z Pulpitu</string>
     <string name="stats_pinned_already">przypięte</string>
     <string name="stats_pinned_remove_short">Usuń</string>
+    <string name="aidex_pairing_key_backup">Kopia klucza parowania</string>
+    <string name="aidex_pairing_key_backup_warning">Ten plik zawiera klucz parowania sensora. Przechowuj go prywatnie i bezpiecznie; pozwala przywrócić ten sam sensor na innym urządzeniu.</string>
+    <string name="aidex_pairing_key_saved">Zapisano kopię klucza parowania</string>
+    <string name="aidex_pairing_key_unavailable">Zweryfikowany klucz parowania nie jest jeszcze dostępny</string>
+    <string name="aidex_restore_pairing_key">Przywróć klucz parowania</string>
+    <string name="aidex_pairing_key_restored">Przywrócono klucz parowania. Wybierz pasujący sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">To nie jest prawidłowa kopia klucza AiDex</string>
+    <string name="aidex_pairing_key_conflict">Dla tego sensora zapisano już inny klucz; niczego nie nadpisano</string>
 </resources>

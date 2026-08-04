@@ -2262,4 +2262,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stats_pinned_remove">Panodan kaldır</string>
     <string name="stats_pinned_already">sabit</string>
     <string name="stats_pinned_remove_short">Kaldır</string>
+    <string name="aidex_pairing_key_backup">Eşleştirme anahtarı yedeği</string>
+    <string name="aidex_pairing_key_backup_warning">Bu dosya sensörün eşleştirme anahtarını içerir. Gizli ve güvenli saklayın; aynı sensörü başka bir cihazda geri yükleyebilir.</string>
+    <string name="aidex_pairing_key_saved">Eşleştirme anahtarı yedeği kaydedildi</string>
+    <string name="aidex_pairing_key_unavailable">Henüz doğrulanmış bir eşleştirme anahtarı yok</string>
+    <string name="aidex_restore_pairing_key">Eşleştirme anahtarını geri yükle</string>
+    <string name="aidex_pairing_key_restored">Eşleştirme anahtarı geri yüklendi. Eşleşen sensörü seçin.</string>
+    <string name="aidex_pairing_key_restore_failed">Bu geçerli bir AiDex anahtar yedeği değil</string>
+    <string name="aidex_pairing_key_conflict">Bu sensör için farklı bir anahtar zaten kayıtlı; hiçbir şeyin üzerine yazılmadı</string>
 </resources>

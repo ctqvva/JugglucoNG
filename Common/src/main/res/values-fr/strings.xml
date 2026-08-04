@@ -2240,4 +2240,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_pinned_remove">Retirer du Tableau de bord</string>
     <string name="stats_pinned_already">épinglé</string>
     <string name="stats_pinned_remove_short">Retirer</string>
+    <string name="aidex_pairing_key_backup">Sauvegarde de la clé d’association</string>
+    <string name="aidex_pairing_key_backup_warning">Ce fichier contient l’identifiant d’association du capteur. Conservez-le en lieu sûr et privé ; il permet de restaurer le même capteur sur un autre appareil.</string>
+    <string name="aidex_pairing_key_saved">Sauvegarde de la clé d’association enregistrée</string>
+    <string name="aidex_pairing_key_unavailable">Aucune clé d’association vérifiée n’est encore disponible</string>
+    <string name="aidex_restore_pairing_key">Restaurer une clé d’association</string>
+    <string name="aidex_pairing_key_restored">Clé d’association restaurée. Sélectionnez le capteur correspondant.</string>
+    <string name="aidex_pairing_key_restore_failed">Ce fichier n’est pas une sauvegarde de clé AiDex valide</string>
+    <string name="aidex_pairing_key_conflict">Une autre clé est déjà enregistrée pour ce capteur ; rien n’a été remplacé</string>
 </resources>

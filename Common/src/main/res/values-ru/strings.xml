@@ -2277,4 +2277,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_pinned_remove">Убрать с главного</string>
     <string name="stats_pinned_already">закреплено</string>
     <string name="stats_pinned_remove_short">Убрать</string>
+    <string name="aidex_pairing_key_backup">Резервная копия ключа сопряжения</string>
+    <string name="aidex_pairing_key_backup_warning">Этот файл содержит ключ сопряжения датчика. Храните его конфиденциально: с его помощью можно восстановить тот же датчик на другом устройстве.</string>
+    <string name="aidex_pairing_key_saved">Резервная копия ключа сопряжения сохранена</string>
+    <string name="aidex_pairing_key_unavailable">Проверенный ключ сопряжения пока недоступен</string>
+    <string name="aidex_restore_pairing_key">Восстановить ключ сопряжения</string>
+    <string name="aidex_pairing_key_restored">Ключ сопряжения восстановлен. Выберите соответствующий датчик.</string>
+    <string name="aidex_pairing_key_restore_failed">Это не резервная копия ключа AiDex</string>
+    <string name="aidex_pairing_key_conflict">Для этого датчика уже сохранён другой ключ; ничего не перезаписано</string>
 </resources>

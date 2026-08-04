@@ -2349,4 +2349,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_pinned_remove">Хяналтын самбараас хасах</string>
     <string name="stats_pinned_already">бэхлэгдсэн</string>
     <string name="stats_pinned_remove_short">Хасах</string>
+    <string name="aidex_pairing_key_backup">Хослуулах түлхүүрийн нөөц</string>
+    <string name="aidex_pairing_key_backup_warning">Энэ файл мэдрэгчийн хослуулах түлхүүрийг агуулна. Нууц, аюулгүй хадгална уу; өөр төхөөрөмж дээр ижил мэдрэгчийг сэргээхэд ашиглаж болно.</string>
+    <string name="aidex_pairing_key_saved">Хослуулах түлхүүрийн нөөцийг хадгаллаа</string>
+    <string name="aidex_pairing_key_unavailable">Баталгаажсан хослуулах түлхүүр хараахан алга</string>
+    <string name="aidex_restore_pairing_key">Хослуулах түлхүүрийн нөөцийг сэргээх</string>
+    <string name="aidex_pairing_key_restored">Хослуулах түлхүүрийг сэргээв. Тохирох мэдрэгчийг сонгоно уу.</string>
+    <string name="aidex_pairing_key_restore_failed">Энэ нь AiDex түлхүүрийн хүчинтэй нөөц биш байна</string>
+    <string name="aidex_pairing_key_conflict">Энэ мэдрэгчид өөр түлхүүр аль хэдийн хадгалагдсан; юу ч дарж бичсэнгүй</string>
 </resources>

@@ -2277,4 +2277,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stats_pinned_remove">Van Dashboard verwijderen</string>
     <string name="stats_pinned_already">vastgezet</string>
     <string name="stats_pinned_remove_short">Verwijderen</string>
+    <string name="aidex_pairing_key_backup">Back-up van koppelingssleutel</string>
+    <string name="aidex_pairing_key_backup_warning">Dit bestand bevat de koppelingssleutel van de sensor. Bewaar het privé en veilig; hiermee kan dezelfde sensor op een ander apparaat worden hersteld.</string>
+    <string name="aidex_pairing_key_saved">Back-up van koppelingssleutel opgeslagen</string>
+    <string name="aidex_pairing_key_unavailable">Er is nog geen geverifieerde koppelingssleutel beschikbaar</string>
+    <string name="aidex_restore_pairing_key">Koppelingssleutel herstellen</string>
+    <string name="aidex_pairing_key_restored">Koppelingssleutel hersteld. Selecteer de bijbehorende sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">Dit is geen geldige AiDex-sleutelback-up</string>
+    <string name="aidex_pairing_key_conflict">Voor deze sensor is al een andere sleutel opgeslagen; er is niets overschreven</string>
 </resources>

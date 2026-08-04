@@ -10,6 +10,51 @@ import org.junit.Test
 class AiDexRuntimePolicyTests {
 
     @Test
+    fun pairKeyStartAction_neverFreshPairsAnExistingBondWithoutSavedKey() {
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
+                hasSavedPairKey = false,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
+                hasSavedPairKey = true,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR_ONCE,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                bondStateAtConnection = BluetoothDevice.BOND_NONE,
+                hasSavedPairKey = false,
+            )
+        )
+    }
+
+    @Test
+    fun savedKeyFailures_retryBoundedlyThenUseBroadcastWithoutClearingKey() {
+        assertEquals(
+            AiDexRuntimePolicy.SavedKeyFailureAction.RETRY_CLEAN_GATT,
+            AiDexRuntimePolicy.decideSavedKeyFailureAction(2, 3)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.SavedKeyFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideSavedKeyFailureAction(3, 3)
+        )
+    }
+
+    @Test
+    fun persistedPairKeyClearsOnlyAfterSuccessfulDeleteBondAck() {
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(false, 0x00))
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x01))
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0xFF))
+        assertTrue(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x00))
+    }
+
+    @Test
     fun initialAssistDelay_waitsForInitialHistoryWindow() {
         val delayMs = AiDexRuntimePolicy.initialAssistDelayMs(
             nowMs = 16_000L,
@@ -543,7 +588,7 @@ class AiDexRuntimePolicyTests {
     }
 
     @Test
-    fun decideInvalidSetupRecoveryAction_escalatesToBondResetOnlyForUnvalidatedBond() {
+    fun decideInvalidSetupRecoveryAction_neverRemovesBondAutomatically() {
         assertEquals(
             AiDexRuntimePolicy.InvalidSetupRecoveryAction.RECONNECT,
             AiDexRuntimePolicy.decideInvalidSetupRecoveryAction(
@@ -554,7 +599,7 @@ class AiDexRuntimePolicyTests {
             )
         )
         assertEquals(
-            AiDexRuntimePolicy.InvalidSetupRecoveryAction.REMOVE_BOND_AND_RECONNECT,
+            AiDexRuntimePolicy.InvalidSetupRecoveryAction.RECONNECT,
             AiDexRuntimePolicy.decideInvalidSetupRecoveryAction(
                 consecutiveRecoveries = 2,
                 bondState = BluetoothDevice.BOND_BONDED,

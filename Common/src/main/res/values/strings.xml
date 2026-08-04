@@ -2458,4 +2458,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_reset_reminder_channel_desc">Reminders and actions for resetting Sibionics 2 before it expires</string>
     <string name="stats_span_days">%1$d days</string>
     <string name="stats_window_24h">24H</string>
+    <string name="aidex_pairing_key_backup">Pairing key backup</string>
+    <string name="aidex_pairing_key_backup_warning">This file contains the sensor pairing credential. Store it privately; it can restore the same sensor on another device.</string>
+    <string name="aidex_pairing_key_saved">Pairing key backup saved</string>
+    <string name="aidex_pairing_key_unavailable">No verified pairing key is available yet</string>
+    <string name="aidex_restore_pairing_key">Restore pairing key backup</string>
+    <string name="aidex_pairing_key_restored">Pairing key restored. Select the matching sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">This is not a valid AiDex pairing key backup</string>
+    <string name="aidex_pairing_key_conflict">A different key is already stored for this sensor; nothing was overwritten</string>
 </resources>

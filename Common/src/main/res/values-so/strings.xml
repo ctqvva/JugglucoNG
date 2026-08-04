@@ -2442,4 +2442,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="stats_pinned_remove">Ka saar Dashboard-ka</string>
     <string name="stats_pinned_already">lagu dhejiyay</string>
     <string name="stats_pinned_remove_short">Ka saar</string>
+    <string name="aidex_pairing_key_backup">Kaydka furaha isku-xidhka</string>
+    <string name="aidex_pairing_key_backup_warning">Faylkani wuxuu xanbaarsan yahay furaha isku-xidhka dareemaha. Si gaar ah oo ammaan ah u kaydi; waxaa lagu soo celin karaa isla dareemaha qalab kale.</string>
+    <string name="aidex_pairing_key_saved">Kaydka furaha isku-xidhka waa la keydiyey</string>
+    <string name="aidex_pairing_key_unavailable">Weli ma jiro fure isku-xidh oo la xaqiijiyey</string>
+    <string name="aidex_restore_pairing_key">Soo celi furaha isku-xidhka</string>
+    <string name="aidex_pairing_key_restored">Furaha isku-xidhka waa la soo celiyey. Dooro dareemaha ku habboon.</string>
+    <string name="aidex_pairing_key_restore_failed">Kani ma aha kayd fure AiDex oo sax ah</string>
+    <string name="aidex_pairing_key_conflict">Fure kale ayaa hore loogu kaydiyey dareemahan; waxba lama dul-qorin</string>
 </resources>
