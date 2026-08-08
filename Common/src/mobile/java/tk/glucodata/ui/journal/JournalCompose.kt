@@ -57,6 +57,7 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +69,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,6 +93,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.text.DecimalFormat
@@ -2514,73 +2517,85 @@ fun JournalInlineChip(
         ?: insulinPreset?.let { Color(it.accentColor) }
         ?: journalTypeColor(entry.type)
     val chipContent = journalInlineChipContent(entry, insulinPreset, food, unit, expanded)
-    Surface(
-        modifier = modifier.widthIn(max = if (expanded) 320.dp else 180.dp),
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
-        shape = RoundedCornerShape(if (expanded) 18.dp else 14.dp)
+    val inheritedMinimumInteractiveSize = LocalMinimumInteractiveComponentSize.current
+    CompositionLocalProvider(
+        LocalMinimumInteractiveComponentSize provides if (expanded) {
+            inheritedMinimumInteractiveSize
+        } else {
+            // Compact ledger chips keep their visual bounds for flow measurement. Compose's
+            // pointer hit expansion still supplies the platform minimum touch target without
+            // inserting invisible vertical space between wrapped chip lines.
+            Dp.Unspecified
+        }
     ) {
-        Row(
-            modifier = Modifier.padding(
-                horizontal = if (expanded) 11.dp else 10.dp,
-                vertical = if (expanded) 9.dp else 7.dp
-            ),
-            verticalAlignment = if (expanded) Alignment.Top else Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 8.dp)
+        Surface(
+            modifier = modifier.widthIn(max = if (expanded) 320.dp else 180.dp),
+            onClick = onClick,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(if (expanded) 18.dp else 14.dp)
         ) {
-            Icon(
-                imageVector = journalTypeIcon(entry.type),
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier
-                    .padding(top = if (expanded) 2.dp else 0.dp)
-                    .size(if (expanded) 18.dp else 14.dp)
-            )
-            if (expanded) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+            Row(
+                modifier = Modifier.padding(
+                    horizontal = if (expanded) 11.dp else 10.dp,
+                    vertical = if (expanded) 9.dp else 7.dp
+                ),
+                verticalAlignment = if (expanded) Alignment.Top else Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 8.dp)
+            ) {
+                Icon(
+                    imageVector = journalTypeIcon(entry.type),
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier
+                        .padding(top = if (expanded) 2.dp else 0.dp)
+                        .size(if (expanded) 18.dp else 14.dp)
+                )
+                if (expanded) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = chipContent.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (chipContent.value == null) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            fontWeight = if (chipContent.value == null) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 2,
+                            softWrap = true,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        chipContent.value?.let { value ->
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        chipContent.detail?.let { detail ->
+                            Text(
+                                text = detail,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                } else {
                     Text(
                         text = chipContent.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (chipContent.value == null) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        fontWeight = if (chipContent.value == null) FontWeight.SemiBold else FontWeight.Medium,
-                        maxLines = 2,
-                        softWrap = true,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    chipContent.value?.let { value ->
-                        Text(
-                            text = value,
-                            style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    chipContent.detail?.let { detail ->
-                        Text(
-                            text = detail,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
-            } else {
-                Text(
-                    text = chipContent.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
