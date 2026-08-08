@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -242,7 +243,13 @@ fun ReadingRow(
             val hasInlineJournalEntries = journalEntries.isNotEmpty() && onJournalEntryClick != null
             val useClassicLayout = !hasInlineJournalEntries
             val rowMinHeight = if (journalChipExpanded && hasInlineJournalEntries) 64.dp else 48.dp
-            val valueMinWidth = if (showLeadingAction || hasInlineJournalEntries) 104.dp else 124.dp
+            val valueMinWidth = when {
+                // The value already measures at its natural width. Reserving another
+                // 104 dp here forced three short journal chips onto two lines.
+                hasInlineJournalEntries -> 80.dp
+                showLeadingAction -> 104.dp
+                else -> 124.dp
+            }
             val leadingActionSlotWidth = 44.dp
             val trendSlotWidth = 30.dp
             val timeStyle = MaterialTheme.typography.bodySmall
@@ -582,18 +589,12 @@ fun ReadingRow(
                                 .defaultMinSize(minHeight = rowMinHeight)
                                 .padding(
                                     top = if (journalChipExpanded) 8.dp else 0.dp,
-                                    end = 12.dp,
+                                    end = 8.dp,
                                     bottom = if (journalChipExpanded) 8.dp else 0.dp
                                 ),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                // The chips carry their own vertical padding. Eight more dp
-                                // made a wrapped item read as a detached third row.
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
+                            TightJournalFlowRow(modifier = Modifier.fillMaxWidth()) {
                                 journalEntries.forEach { entry ->
                                     JournalInlineChip(
                                         entry = entry,
@@ -664,6 +665,72 @@ fun ReadingRow(
                 }
             }
         )
+    }
+}
+
+/**
+ * A deliberately small flow layout for reading-row journal chips.
+ *
+ * Foundation's general [FlowRow] is useful elsewhere in this file, but its line stride in
+ * this minimum-height row left substantially more space than the requested arrangement
+ * between wrapped chip bounds. This layout owns only the two facts the row needs: pack at
+ * natural width and advance by the measured tallest chip plus exactly [verticalSpacing].
+ */
+@Composable
+private fun TightJournalFlowRow(
+    modifier: Modifier = Modifier,
+    horizontalSpacing: Dp = 6.dp,
+    verticalSpacing: Dp = 4.dp,
+    content: @Composable () -> Unit
+) {
+    Layout(
+        modifier = modifier,
+        content = content
+    ) { measurables, constraints ->
+        val horizontalSpacingPx = horizontalSpacing.roundToPx()
+        val verticalSpacingPx = verticalSpacing.roundToPx()
+        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(childConstraints) }
+        val xPositions = IntArray(placeables.size)
+        val yPositions = IntArray(placeables.size)
+        val availableWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else Int.MAX_VALUE
+
+        var x = 0
+        var y = 0
+        var lineHeight = 0
+        var usedWidth = 0
+
+        placeables.forEachIndexed { index, placeable ->
+            val nextWidth = if (x == 0) {
+                placeable.width
+            } else {
+                x + horizontalSpacingPx + placeable.width
+            }
+            if (x > 0 && nextWidth > availableWidth) {
+                y += lineHeight + verticalSpacingPx
+                x = 0
+                lineHeight = 0
+            } else if (x > 0) {
+                x += horizontalSpacingPx
+            }
+
+            xPositions[index] = x
+            yPositions[index] = y
+            x += placeable.width
+            lineHeight = maxOf(lineHeight, placeable.height)
+            usedWidth = maxOf(usedWidth, x)
+        }
+
+        val contentHeight = if (placeables.isEmpty()) 0 else y + lineHeight
+        val requestedWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else usedWidth
+        val layoutWidth = requestedWidth.coerceIn(constraints.minWidth, constraints.maxWidth)
+        val layoutHeight = contentHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
+
+        layout(layoutWidth, layoutHeight) {
+            placeables.forEachIndexed { index, placeable ->
+                placeable.placeRelative(xPositions[index], yPositions[index])
+            }
+        }
     }
 }
 
