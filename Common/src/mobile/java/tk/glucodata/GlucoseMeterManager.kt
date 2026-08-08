@@ -11,6 +11,7 @@ import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.glucosemeter.SatelliteMeterCredentials
 
 data class GlucoseMeterSnapshot(
     val index: Int,
@@ -23,6 +24,17 @@ data class GlucoseMeterSnapshot(
 
 /** Compose-facing facade over the legacy, protocol-capable glucose meter runtime. */
 object GlucoseMeterManager {
+    fun satelliteCode(): String = SatelliteMeterCredentials.load()
+
+    fun isSatelliteCodeValid(code: String): Boolean = SatelliteMeterCredentials.isValid(code)
+
+    fun updateSatelliteCode(code: String) {
+        SatelliteMeterCredentials.save(code)
+        if (SatelliteMeterCredentials.isValid(code)) {
+            BluetoothGlucoseMeter.retrySatelliteSessions()
+        }
+    }
+
     fun configuredMeters(): List<GlucoseMeterSnapshot> =
         (0 until Natives.GlucoseMeterCount()).mapNotNull(::snapshot)
 

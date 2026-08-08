@@ -101,6 +101,9 @@ object DisplayTrendSource {
         isMmol: Boolean,
         fallbackRate: Float = 0f
     ): Float {
+        current?.let { snapshot ->
+            VendorTrendRate.resolve(snapshot.sensorId, snapshot.timeMillis)?.let { return it }
+        }
         val points = recentPoints ?: emptyList()
         val useRaw = viewMode == 1 || viewMode == 3
         if (hasUsableTrendHistory(points, useRaw)) {

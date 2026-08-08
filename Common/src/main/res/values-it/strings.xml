@@ -730,6 +730,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meterlist">"Glucose Meters"</string>
     <string name="glucose_meters_desc">Collega glucometri Bluetooth</string>
     <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout.</string>
+    <string name="satellite_meter_title">Glucometro Satellite (Сателлит+)</string>
+    <string name="satellite_meter_code_label">PIN o codice etichetta</string>
+    <string name="satellite_meter_code_desc">Inserisci il PIN di 3 cifre o il codice più lungo stampato sotto l’etichetta QR/DataMatrix del glucometro. Viene usato a ogni connessione Bluetooth.</string>
     <string name="glucose_meters_configured">Glucometri configurati</string>
     <string name="glucose_meters_none">Nessun glucometro configurato</string>
     <string name="glucose_meters_none_desc">Trova un glucometro nelle vicinanze per iniziare a importare le misurazioni.</string>

@@ -14,7 +14,7 @@ class DataOutput {
     @JvmField var BGICount: Int = 0
     @JvmField var warnCode: Int = 0
     @JvmField var errorCode: Int = 0
-    @JvmField var trend: Int = 6
+    @JvmField var trend: Int = tk.glucodata.drivers.anytime.AnytimeTrend.NONE
     @JvmField var calibrationStatus: Int = -1
     @JvmField var data_quality: Int = 0
     @JvmField var hypoglycemiaEarlyWarnMinutes: Int = 0

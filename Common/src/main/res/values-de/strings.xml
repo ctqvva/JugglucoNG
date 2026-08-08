@@ -404,6 +404,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="meterlist">"Blutzuckermessgeräte"</string>
 <string name="glucose_meters_desc">Bluetooth-Blutzuckermessgeräte verbinden</string>
 <string name="glucose_meters_journal_desc">Messwerte werden als Blutzuckereinträge im Tagebuch gespeichert und können an Nightscout gesendet werden.</string>
+<string name="satellite_meter_title">Satellite-Messgerät (Сателлит+)</string>
+<string name="satellite_meter_code_label">PIN oder Etikettencode</string>
+<string name="satellite_meter_code_desc">Gib die dreistellige PIN oder den längeren Code unter dem QR-/DataMatrix-Etikett am Messgerät ein. Er wird bei jeder Bluetooth-Verbindung verwendet.</string>
 <string name="glucose_meters_configured">Eingerichtete Messgeräte</string>
 <string name="glucose_meters_none">Keine Messgeräte eingerichtet</string>
 <string name="glucose_meters_none_desc">Ein Messgerät in der Nähe suchen, um Messwerte zu importieren.</string>

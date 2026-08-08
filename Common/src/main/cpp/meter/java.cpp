@@ -72,6 +72,52 @@ struct MeterSaveResult {
   bool recentLegacyValue{};
 };
 
+static MeterSaveResult storeDecodedGlucoseMeter(GlucoseMeter *meter,
+                                                jint meterIndex,
+                                                uint32_t timestamp,
+                                                float mgdL) {
+  if (!meter) {
+    LOGGER("GlucoseMeterSave no meter at %d\n", meterIndex);
+    return {};
+  }
+  if (!std::isfinite(mgdL) || mgdL <= 0.0f) {
+    LOGGER("GlucoseMeterSave invalid glucose %.2f\n", mgdL);
+    return {};
+  }
+  MeterSaveResult result;
+  if (timestamp <= meter->lastTime)
+    return result;
+
+  result.timestamp = timestamp;
+  result.mgdlTenths = std::lround(mgdL * 10.0f);
+  result.stored = true;
+
+  const auto bloodvar = settings->data()->bloodvar;
+  if (bloodvar < maxvarnr) {
+    float displayValue;
+    if (settings->data()->unit == 1) {
+      displayValue = std::round(convertmultmmol * 100.0f * mgdL) * .1f;
+    } else {
+      displayValue = std::roundf(mgdL);
+    }
+    Numdata *numda = getherenums();
+    if (Num *num = numda->numsaveonly(timestamp, displayValue, bloodvar, 0)) {
+      uint32_t now = time(nullptr);
+      if (abs((int)(now - timestamp)) < 60) {
+        addCalibration(timestamp, bloodvar, num, numda);
+        if (backup)
+          backup->wakebackup(Backup::wakenums);
+        setnumchanged(now);
+        result.recentLegacyValue = true;
+      }
+    }
+  } else {
+    LOGAR("GlucoseMeterSave: no legacy blood glucose label set; journal only");
+  }
+  meter->lastTime = timestamp;
+  return result;
+}
+
 static MeterSaveResult saveGlucoseMeter(JNIEnv *env, jint meterIndex,
                                         jbyteArray value) {
   const auto arlen = env->GetArrayLength(value);
@@ -106,37 +152,8 @@ static MeterSaveResult saveGlucoseMeter(JNIEnv *env, jint meterIndex,
          ctime_r(&ort, timebuf1), meter->timeoffset, timeoffset,
          ctime_r(&cort, timebuf2));
 #endif
-  MeterSaveResult result;
-  if (timcorrected > meter->lastTime) {
-    result.timestamp = timcorrected;
-    result.mgdlTenths = std::lround(mgdL * 10.0f);
-    result.stored = true;
-
-    const auto bloodvar = settings->data()->bloodvar;
-    if (bloodvar < maxvarnr) {
-      float displayValue;
-      if (settings->data()->unit == 1) {
-        displayValue = std::round(convertmultmmol * 100.0f * mgdL) * .1f;
-      } else {
-        displayValue = std::roundf(mgdL);
-      }
-      Numdata *numda = getherenums();
-      if (Num *num =
-              numda->numsaveonly(timcorrected, displayValue, bloodvar, 0)) {
-        uint32_t now = time(nullptr);
-        if (abs((int)(now - timcorrected)) < 60) {
-          addCalibration(timcorrected, bloodvar, num, numda);
-          if (backup)
-            backup->wakebackup(Backup::wakenums);
-          setnumchanged(now);
-          result.recentLegacyValue = true;
-        }
-      }
-    } else {
-      LOGAR("GlucoseMeterSave: no legacy blood glucose label set; journal only");
-    }
-    meter->lastTime = timcorrected;
-  }
+  MeterSaveResult result =
+      storeDecodedGlucoseMeter(meter, meterIndex, timcorrected, mgdL);
   meter->nextIndex = glu->index + 1;
   return result;
 }
@@ -149,6 +166,32 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(GlucoseMeterSave)(
 extern "C" JNIEXPORT jlongArray JNICALL fromjava(GlucoseMeterSaveResult)(
     JNIEnv *env, jclass cl, jint meterIndex, jbyteArray value) {
   const auto result = saveGlucoseMeter(env, meterIndex, value);
+  if (!result.stored)
+    return nullptr;
+  const jlong data[]{static_cast<jlong>(result.timestamp) * 1000LL,
+                     static_cast<jlong>(result.mgdlTenths),
+                     result.recentLegacyValue ? 1LL : 0LL};
+  jlongArray out = env->NewLongArray(3);
+  if (out)
+    env->SetLongArrayRegion(out, 0, 3, data);
+  return out;
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(GlucoseMeterSaveDecodedResult)(
+    JNIEnv *env, jclass cl, jint meterIndex, jlong timestampMillis,
+    jint mgdlTenths) {
+  const auto timestampSeconds = timestampMillis / 1000LL;
+  const auto now = static_cast<jlong>(time(nullptr));
+  if (timestampMillis <= 0 || timestampSeconds > static_cast<jlong>(UINT32_MAX) ||
+      timestampSeconds > now + 24LL * 60LL * 60LL ||
+      mgdlTenths < 200 || mgdlTenths > 7000) {
+    LOGAR("GlucoseMeterSaveDecodedResult invalid input");
+    return nullptr;
+  }
+  GlucoseMeter *meter = settings->data()->getGlucoseMeter(meterIndex);
+  const auto result = storeDecodedGlucoseMeter(
+      meter, meterIndex, static_cast<uint32_t>(timestampSeconds),
+      static_cast<float>(mgdlTenths) / 10.0f);
   if (!result.stored)
     return nullptr;
   const jlong data[]{static_cast<jlong>(result.timestamp) * 1000LL,

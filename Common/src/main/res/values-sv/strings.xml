@@ -810,6 +810,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meterlist">"Glucose Meters"</string>
     <string name="glucose_meters_desc">Anslut Bluetooth-blodsockermätare</string>
     <string name="glucose_meters_journal_desc">Mätvärden sparas som blodsockerposter i journalen och kan skickas till Nightscout.</string>
+    <string name="satellite_meter_title">Satellite-mätare (Сателлит+)</string>
+    <string name="satellite_meter_code_label">PIN eller etikettkod</string>
+    <string name="satellite_meter_code_desc">Ange den tresiffriga PIN-koden eller den längre koden under QR-/DataMatrix-etiketten på mätaren. Den används vid varje Bluetooth-anslutning.</string>
     <string name="glucose_meters_configured">Konfigurerade mätare</string>
     <string name="glucose_meters_none">Inga mätare konfigurerade</string>
     <string name="glucose_meters_none_desc">Hitta en mätare i närheten för att börja importera mätvärden.</string>

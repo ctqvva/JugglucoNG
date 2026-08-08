@@ -805,6 +805,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meterlist">"Glucose Meters"</string>
     <string name="glucose_meters_desc">Падключэнне Bluetooth-глюкометраў</string>
     <string name="glucose_meters_journal_desc">Вынікі захоўваюцца як запісы глюкозы крыві ў дзённіку і могуць адпраўляцца ў Nightscout.</string>
+    <string name="satellite_meter_title">Глюкометр «Сателлит+»</string>
+    <string name="satellite_meter_code_label">PIN або код з этыкеткі</string>
+    <string name="satellite_meter_code_desc">Увядзіце 3-значны PIN або даўжэйшы код, надрукаваны пад QR/DataMatrix на глюкометры. Ён выкарыстоўваецца пры кожным Bluetooth-падключэнні.</string>
     <string name="glucose_meters_configured">Наладжаныя глюкометры</string>
     <string name="glucose_meters_none">Глюкометры не наладжаны</string>
     <string name="glucose_meters_none_desc">Знайдзіце глюкометр паблізу, каб пачаць імпарт вынікаў.</string>
