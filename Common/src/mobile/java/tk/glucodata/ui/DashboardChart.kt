@@ -562,7 +562,8 @@ private fun PreviewWindowNavigator(
                 for (index in startIdx until endExclusive) {
                     val value = activeValue(index)
                     if (!value.isFinite() || value < 0.1f) {
-                        started = false
+                        // No value in the active lane is not a hole in it — the gap check
+                        // below still measures elapsed time. See the main chart's AUTO branch.
                         continue
                     }
                     val timestamp = renderData[index].timestamp
@@ -2527,7 +2528,9 @@ fun InteractiveGlucoseChart(
                             val point = points[i]
                             val value = if (useRaw) point.rawValue else point.value
                             if (!value.isFinite() || value <= 0.1f) {
-                                first = true
+                                // No value in this lane is not a hole in it — the gap check
+                                // below still measures elapsed time. See the main chart's
+                                // AUTO branch.
                                 continue
                             }
                             val px = timeToDataX(point.timestamp)
@@ -2699,7 +2702,9 @@ fun InteractiveGlucoseChart(
 
                             val v = renderPoint.rawValue
                             if (v.isNaN() || v < 0.1f) {
-                                rawFirst = true
+                                // Nothing to say about the raw line, which is not the same as
+                                // a break in it — see the AUTO branch below. NFC 15-minute
+                                // history records carry an algorithm value and no raw lane.
                             } else {
                                 val rawY = chartHeight - ((v - cYMin) * yScale)
                                 val py = rawY.coerceIn(-2000f, chartHeight + 2000f)
@@ -2738,7 +2743,21 @@ fun InteractiveGlucoseChart(
 
                             val v = renderPoint.value
                             if (v.isNaN() || v < 0.1f) {
-                                autoFirst = true
+                                // A point with no value for THIS series is not a hole in it.
+                                // The two lanes are populated by different sources: an NFC
+                                // scan's per-minute trend is raw-only (saveScanTrend() in
+                                // share/savehistory.cpp — only Abbott's library can turn a
+                                // raw sample into a reading, and only for the current
+                                // minute), while 15-minute history records are algorithm-only.
+                                // Breaking here made every history point in NFC-only mode a
+                                // single-point run between two raw-only minutes, which is
+                                // what drew the chart as a field of dots (issue #166).
+                                //
+                                // Skipping keeps the real rule intact: gapThreshold below
+                                // still measures elapsed time against the last point that
+                                // actually had a value, and a minute with neither value
+                                // never becomes a point at all (appendPollHistory() in
+                                // g.cpp), so genuine holes are still holes.
                             } else {
                                 val autoY = chartHeight - ((v - cYMin) * yScale)
                                 val py = autoY.coerceIn(-2000f, chartHeight + 2000f)
@@ -2769,7 +2788,8 @@ fun InteractiveGlucoseChart(
                         if (hasCalibration) {
                             val baseV = if (isRawModeChart) renderPoint.rawValue else renderPoint.value
                             if (!baseV.isFinite() || baseV <= 0.1f) {
-                                calFirst = true
+                                // No value in the lane calibration is applied to: skip the
+                                // point rather than break the line — see the AUTO branch.
                                 continue
                             }
                             if (!calFirst && kotlin.math.abs(px - calLastX) < 0.8f) {
