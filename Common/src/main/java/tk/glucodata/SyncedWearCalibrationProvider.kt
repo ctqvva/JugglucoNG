@@ -5,11 +5,16 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
     private const val PREFS = "tk.glucodata_preferences"
     private const val KEY = "wear_synced_calibration_v1"
 
-    @Volatile
-    private var payload: WearCalibrationPayload? = null
+    // Keyed by canonical sensor id. A single slot meant a second sensor's serve
+    // overwrote the first one's anchors, so whichever sensor reported last was
+    // the only one that stayed calibrated.
+    private val payloads = java.util.concurrent.ConcurrentHashMap<String, WearCalibrationPayload>()
 
     @Volatile
     private var restored = false
+
+    private fun keyOf(sensorId: String): String =
+        (runCatching { SensorIdentity.resolveAppSensorId(sensorId) }.getOrNull() ?: sensorId).lowercase()
 
     /**
      * The payload used to live only in memory, so every app restart left the
@@ -18,28 +23,35 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
      * on each reopen. Persist it so the choice is stable across restarts.
      */
     @Synchronized
-    private fun restoreLocked(): WearCalibrationPayload? {
-        if (restored) return payload
+    private fun restoreLocked() {
+        if (restored) return
         restored = true
         runCatching {
-            val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            val encoded = prefs?.getString(KEY, null) ?: return@runCatching
-            payload = WearCalibrationPayload.decode(android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP))
+            val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE) ?: return@runCatching
+            prefs.all.keys
+                .filter { it == KEY || it.startsWith("$KEY.") }
+                .forEach { prefKey ->
+                    val encoded = prefs.getString(prefKey, null) ?: return@forEach
+                    val decoded = WearCalibrationPayload.decode(
+                        android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP),
+                    ) ?: return@forEach
+                    payloads[keyOf(decoded.sensorId)] = decoded
+                }
         }.onFailure { Log.stack("SyncedWearCalibration", "restore", it) }
-        return payload
     }
 
     @Synchronized
     fun update(next: WearCalibrationPayload) {
         if (next.sensorId.isBlank()) return
         restoreLocked()
-        val current = payload
+        val key = keyOf(next.sensorId)
+        val current = payloads[key]
         if (current != null && next.revision < current.revision) return
-        payload = next
+        payloads[key] = next
         runCatching {
             val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             prefs?.edit()?.putString(
-                KEY,
+                "$KEY.$key",
                 android.util.Base64.encodeToString(WearCalibrationPayload.encode(next), android.util.Base64.NO_WRAP),
             )?.apply()
         }.onFailure { Log.stack("SyncedWearCalibration", "persist", it) }
@@ -124,8 +136,10 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         return finalMgdl / toMgdl
     }
 
-    override fun shouldHideInitialWhenCalibrated(): Boolean =
-        (payload ?: restoreLocked())?.hideInitialWhenCalibrated == true
+    override fun shouldHideInitialWhenCalibrated(): Boolean {
+        restoreLocked()
+        return payloads.values.any { it.hideInitialWhenCalibrated }
+    }
 
     override fun getActiveCalibrationAnchors(sensorId: String?, isRawMode: Boolean): DoubleArray {
         val current = matchingPayload(sensorId) ?: return DoubleArray(0)
@@ -136,15 +150,22 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         return mode(current, isRawMode).anchorsMgdl.copyOf()
     }
 
-    override fun getRevision(): Long = payload?.revision ?: 0L
+    override fun getRevision(): Long {
+        restoreLocked()
+        return payloads.values.maxOfOrNull { it.revision } ?: 0L
+    }
 
     private fun mode(payload: WearCalibrationPayload, isRawMode: Boolean): WearCalibrationMode =
         if (isRawMode) payload.raw else payload.auto
 
     private fun matchingPayload(sensorId: String?): WearCalibrationPayload? {
-        val current = payload ?: restoreLocked() ?: return null
-        return current.takeIf {
-            sensorId.isNullOrBlank() || SensorIdentity.matches(it.sensorId, sensorId)
-        }
+        restoreLocked()
+        if (payloads.isEmpty()) return null
+        val requested = sensorId?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return payloads.values.maxByOrNull { it.revision }
+        payloads[keyOf(requested)]?.let { return it }
+        // Fall back to an identity match: the phone may name the sensor
+        // differently from the id the caller happens to hold.
+        return payloads.values.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
     }
 }

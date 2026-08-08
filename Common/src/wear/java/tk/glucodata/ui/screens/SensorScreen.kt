@@ -3,6 +3,7 @@ package tk.glucodata.ui.screens
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -120,16 +121,31 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                 val details = remember(row, revision, now / SENSOR_TICK_MS) {
                     loadWearSensorPresentation(row.serial, now)
                 }
+                // Tapping a sensor makes the rest of the app follow it; tapping the
+                // one already shown hands the choice back to "whichever is
+                // reporting". With two sensors there was previously no way to say.
+                val displayed = tk.glucodata.ui.WearSensorSelection.isDisplayed(row.serial)
                 Column(
                     Modifier.fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(20.dp))
+                        .background(
+                            if (displayed) MaterialTheme.colorScheme.surfaceContainerHigh
+                            else MaterialTheme.colorScheme.surfaceContainer,
+                            RoundedCornerShape(20.dp),
+                        )
+                        .clickable {
+                            tk.glucodata.ui.WearSensorSelection.pin(
+                                if (tk.glucodata.ui.WearSensorSelection.pinned() != null && displayed) null
+                                else row.serial,
+                            )
+                        }
                         .padding(horizontal = 14.dp, vertical = 13.dp),
                 ) {
                     Text(
                         text = details.serial,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (row.isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        color = if (displayed || row.isCurrent) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurface,
                     )
                     val connection = details.connectionStatus.ifEmpty {
                         if (row.isConnected) stringResource(R.string.status_connected) else ""

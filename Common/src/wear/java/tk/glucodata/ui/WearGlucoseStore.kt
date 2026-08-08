@@ -84,6 +84,15 @@ object WearGlucoseStore {
     private val _snapshot = MutableStateFlow(Snapshot())
     val snapshot = _snapshot.asStateFlow()
 
+    /**
+     * A load that never returns must not freeze the display. Reads go through
+     * native and Room; with several sensors in play one can take far longer than
+     * expected, and the in-flight flag then blocked every later refresh — the
+     * screen simply stopped at whatever it last had, which is indistinguishable
+     * from the app hanging.
+     */
+    private const val LOAD_STUCK_AFTER_MS = 45_000L
+
     private val started = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
     @Volatile private var reloadPending = false
@@ -134,8 +143,14 @@ object WearGlucoseStore {
             return
         }
         if (!loading.compareAndSet(false, true)) {
-            reloadPending = true
-            return
+            val stuckFor = now - lastLoadStartedAt
+            if (stuckFor < LOAD_STUCK_AFTER_MS) {
+                reloadPending = true
+                return
+            }
+            // Been "loading" far too long to be real. Take the flag back rather
+            // than leave the screen frozen for good.
+            Log.w(TAG, "previous history load still running after ${stuckFor / 1000}s; starting another")
         }
         lastLoadStartedAt = now
         scope.launch {
@@ -169,7 +184,9 @@ object WearGlucoseStore {
         val isMmol = runCatching { Applic.unit == 1 }.getOrDefault(false)
         val isRawMode = currentRawMode()
         val horizonStart = now - horizonMs
-        val sensor = runCatching { NotificationHistorySource.resolveSensorSerial() }.getOrNull()
+        // Which of several sensors the screens follow, rather than whatever
+        // native happens to call "main".
+        val sensor = WearSensorSelection.resolve()
         val points = runCatching {
             NotificationHistorySource.getDisplayHistory(horizonStart, isMmol, sensor)
         }.getOrDefault(emptyList())

@@ -30,6 +30,9 @@ import tk.glucodata.Log.doLog
  */
 object WearSync2 {
     private const val LOG_ID = "WearSync2"
+
+    /** Bounds the message volume when several sensors are running at once. */
+    private const val MAX_SERVED_SENSORS = 4
     private const val VERSION = 1
     private const val MAX_TRIPLES_PER_CHUNK = 360 // ~8.6KB; smaller messages survive better
     private const val CHUNK_SPACING_MS = 400L
@@ -196,11 +199,36 @@ object WearSync2 {
     private fun wearCompanionEnabled(): Boolean =
         runCatching { Applic.useWearos() }.getOrDefault(false)
 
+    /**
+     * Every sensor worth sending, freshest first.
+     *
+     * Only the phone's "main" sensor used to be served, so with two sensors
+     * running the watch could never see the other one at all — and if the main
+     * one happened to be the stale one, the watch sat on an hour-old reading
+     * while the live sensor was never mentioned.
+     */
+    private fun serveSerials(): List<String> {
+        val seen = HashSet<String>()
+        val out = ArrayList<String>()
+        fun add(candidate: String?) {
+            val serial = candidate?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return
+            val canonical = (SensorIdentity.resolveAppSensorId(serial) ?: serial).lowercase()
+            if (seen.add(canonical)) out.add(serial)
+        }
+        runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()?.let(::add)
+        runCatching { Natives.activeSensors() }.getOrNull()?.forEach(::add)
+        runCatching { Natives.lastsensorname() }.getOrNull()?.let(::add)
+        return out.take(MAX_SERVED_SENSORS)
+    }
+
     private fun serveSince(fromSec: Long) {
         if (!wearCompanionEnabled()) return
-        val serial = runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()
-            ?: runCatching { Natives.lastsensorname() }.getOrNull().takeUnless { it.isNullOrEmpty() }
-            ?: return
+        val serials = serveSerials()
+        if (serials.isEmpty()) return
+        serials.forEach { serial -> serveSensorSince(serial, fromSec) }
+    }
+
+    private fun serveSensorSince(serial: String, fromSec: Long) {
         sendCalibration(serial)
         // Serve what the phone itself displays, not the native stream. For a
         // managed driver the native store only goes back to the moment native
