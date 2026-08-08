@@ -2454,4 +2454,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Lägg till %1$d doser</string>
     <string name="insulin_pen_doses_added">%1$d doser tillagda i dagboken</string>
     <string name="insulin_pens_journal_off">Dagboken är avstängd, så inlästa doser skulle inte visas någonstans.</string>
+    <string name="insulin_pen_full_read">Läs hela loggen nästa gång</string>
+    <string name="insulin_pen_full_read_armed">Redo — håll pennan mot telefonen</string>
+    <string name="insulin_pen_full_read_desc">En penna sparar månader av doser och behöver flera sekunders stadig kontakt. Använd detta för att gå längre bakåt än senaste importen.</string>
 </resources>

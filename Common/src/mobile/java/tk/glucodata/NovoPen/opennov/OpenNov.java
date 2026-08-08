@@ -48,6 +48,7 @@ public class OpenNov extends MyByteBuffer {
     }
 
     public OpContext processTag(final Tag tag) {
+        final var machine = new Machine();
         try {
             var isoDep = IsoDep.get(tag);
             this.ts = new T4Transceiver(isoDep);
@@ -63,7 +64,6 @@ public class OpenNov extends MyByteBuffer {
                 int errors = 0;
                 int transactions = 0;
                 FSA fsa = FSA.read();
-                var machine = new Machine();
                 while (fsa.doRead()
                         && errors < MAX_ERRORS
                         && transactions < 200) {
@@ -95,7 +95,7 @@ public class OpenNov extends MyByteBuffer {
                 if (fsa.doRead()) {
                     {if(doLog) {Log.d(TAG, "Overall failure to read");};};
                     isoDep.close();
-                    return null;
+                    return whatWasRead(machine);
                 }
 
                 isoDep.close();
@@ -107,7 +107,24 @@ public class OpenNov extends MyByteBuffer {
         } catch (Exception e) {
             Log.stack(TAG, "Got crash in handler: " , e);
         }
-        return null;
+        return whatWasRead(machine);
     }
 
+    /**
+     * A pen holding months of doses takes many seconds of steady contact to read out, and a
+     * hand moves. Losing the tag two thirds of the way through used to discard everything
+     * that had already arrived and report a failed read; the segments delivered up to that
+     * point are perfectly good, and the pen sends its newest doses first, so a partial read
+     * is the interesting part of the log. Returns null only when nothing usable arrived.
+     */
+    private OpContext whatWasRead(final Machine machine) {
+        var context = machine.context;
+        if (context.specification != null
+                && context.specification.getSerial() != null
+                && !context.doses.isEmpty()) {
+            Log.i(TAG, "Partial read kept: " + context.doses.size() + " segment(s)");
+            return context;
+        }
+        return null;
+    }
 }

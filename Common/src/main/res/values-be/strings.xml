@@ -2521,4 +2521,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Дадаць доз: %1$d</string>
     <string name="insulin_pen_doses_added">Дададзена доз у дзённік: %1$d</string>
     <string name="insulin_pens_journal_off">Дзённік выключаны, таму імпартаваныя дозы нідзе не з\'явяцца.</string>
+    <string name="insulin_pen_full_read">Наступным разам счытаць увесь журнал</string>
+    <string name="insulin_pen_full_read_armed">Гатова — паднясіце ручку да тэлефона</string>
+    <string name="insulin_pen_full_read_desc">Ручка захоўвае дозы за некалькі месяцаў, і поўнае счытванне займае некалькі секунд без адрыву. Так можна ўзяць даныя старэйшыя за апошні імпарт.</string>
 </resources>

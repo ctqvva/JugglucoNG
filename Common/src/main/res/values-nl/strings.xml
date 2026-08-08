@@ -2497,4 +2497,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_add_doses">%1$d doses toevoegen</string>
     <string name="insulin_pen_doses_added">%1$d doses toegevoegd aan het dagboek</string>
     <string name="insulin_pens_journal_off">Het dagboek staat uit, dus ingelezen doses worden nergens getoond.</string>
+    <string name="insulin_pen_full_read">Volgende keer het hele logboek lezen</string>
+    <string name="insulin_pen_full_read_armed">Klaar — houd de pen tegen de telefoon</string>
+    <string name="insulin_pen_full_read_desc">Een pen bewaart maanden aan doses en heeft enkele seconden stabiel contact nodig. Hiermee ga je verder terug dan de laatste import.</string>
 </resources>

@@ -2569,4 +2569,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_add_doses">%1$d тун нэмэх</string>
     <string name="insulin_pen_doses_added">Тэмдэглэлд %1$d тун нэмэгдлээ</string>
     <string name="insulin_pens_journal_off">Тэмдэглэл унтраалттай тул оруулсан тунгууд хаана ч харагдахгүй.</string>
+    <string name="insulin_pen_full_read">Дараагийн удаа бүх бүртгэлийг унших</string>
+    <string name="insulin_pen_full_read_armed">Бэлэн — үзгээ утсандаа ойртуулна уу</string>
+    <string name="insulin_pen_full_read_desc">Үзэг хэдэн сарын тунг хадгалдаг бөгөөд бүрэн уншихад хэдэн секунд тогтвортой хүрэлцээ шаардана. Сүүлийн оруулснаас цааш ухахад ашиглана.</string>
 </resources>

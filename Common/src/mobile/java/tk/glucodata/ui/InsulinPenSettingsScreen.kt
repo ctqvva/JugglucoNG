@@ -1,9 +1,13 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
 
 package tk.glucodata.ui
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,22 +15,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Contactless
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -156,13 +161,14 @@ fun InsulinPenSettingsScreen(navController: NavController) {
     }
 
     editing?.let { pen ->
-        PenDialog(
+        PenDetailSheet(
             pen = pen,
             presets = selectableInsulins,
             onDismiss = { editingSerial = null },
             onSelected = { preset ->
                 InsulinPenManager.setInsulin(pen.serial, preset.id, preset.displayName)
             },
+            onArmFullRead = { InsulinPenManager.armFullRead(pen.serial) },
             onForget = {
                 editingSerial = null
                 forgetTarget = pen
@@ -230,70 +236,78 @@ private fun HowToScanCard() {
 }
 
 /**
- * One pen holds one insulin, so the only thing there is to set is which one — plus the way
- * out when the pen is finished.
+ * A pen has more to it than one setting — which insulin it holds, a way to pull its whole
+ * log, and a way out when it is finished — so it gets a sheet rather than a dialog.
  */
 @Composable
-private fun PenDialog(
+private fun PenDetailSheet(
     pen: InsulinPen,
     presets: List<JournalInsulinPreset>,
     onDismiss: () -> Unit,
     onSelected: (JournalInsulinPreset) -> Unit,
+    onArmFullRead: () -> Unit,
     onForget: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.insulin_pen_name, pen.serial)) },
-        text = {
-            Column {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+            Text(
+                stringResource(R.string.insulin_pen_name, pen.serial),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.size(4.dp))
+            Text(
+                penSubtitle(pen),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.size(16.dp))
+            Text(
+                stringResource(R.string.insulin_pen_choose_insulin),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.size(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                presets.forEach { preset ->
+                    FilterChip(
+                        selected = preset.id == pen.insulinPresetId,
+                        onClick = { onSelected(preset) },
+                        label = { Text(preset.displayName) },
+                    )
+                }
+            }
+
+            Spacer(Modifier.size(24.dp))
+            OutlinedButton(
+                onClick = onArmFullRead,
+                enabled = !pen.fullReadArmed,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            ) {
                 Text(
-                    stringResource(R.string.insulin_pen_choose_insulin),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.size(8.dp))
-                InsulinPresetOptions(
-                    presets = presets,
-                    selectedId = pen.insulinPresetId,
-                    onSelected = onSelected,
+                    stringResource(
+                        if (pen.fullReadArmed) {
+                            R.string.insulin_pen_full_read_armed
+                        } else {
+                            R.string.insulin_pen_full_read
+                        }
+                    )
                 )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onForget) {
+            Text(
+                stringResource(R.string.insulin_pen_full_read_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+
+            Spacer(Modifier.size(8.dp))
+            TextButton(onClick = onForget, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     stringResource(R.string.insulin_pen_forget),
                     color = MaterialTheme.colorScheme.error,
                 )
-            }
-        },
-    )
-}
-
-@Composable
-internal fun InsulinPresetOptions(
-    presets: List<JournalInsulinPreset>,
-    selectedId: Long,
-    onSelected: (JournalInsulinPreset) -> Unit,
-) {
-    Column {
-        presets.forEach { preset ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .selectable(
-                        selected = preset.id == selectedId,
-                        onClick = { onSelected(preset) },
-                    )
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = preset.id == selectedId, onClick = { onSelected(preset) })
-                Spacer(Modifier.width(12.dp))
-                Text(preset.displayName, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

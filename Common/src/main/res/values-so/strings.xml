@@ -2657,4 +2657,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_add_doses">Ku dar %1$d qiyaas</string>
     <string name="insulin_pen_doses_added">%1$d qiyaas ayaa xusuus-qorka lagu daray</string>
     <string name="insulin_pens_journal_off">Xusuus-qorka waa la damiyay, sidaas darteed qiyaasaha la soo geliyo meelna kama muuqan doonaan.</string>
+    <string name="insulin_pen_full_read">Marka xigta akhri xusuusta oo dhan</string>
+    <string name="insulin_pen_full_read_armed">Diyaar — qalinka taabsii taleefanka</string>
+    <string name="insulin_pen_full_read_desc">Qalinku wuxuu hayaa qiyaaso bilo ah, akhrintooda dhammaystiran waxay u baahan tahay dhowr ilbiriqsi oo taabasho degan ah. Isticmaal si aad uga gudubto wixii ugu dambeeyay ee la soo geliyay.</string>
 </resources>

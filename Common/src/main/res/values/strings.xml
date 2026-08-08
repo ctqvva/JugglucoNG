@@ -2679,4 +2679,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Add %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses added to the journal</string>
     <string name="insulin_pens_journal_off">The journal is switched off, so imported doses would not be shown anywhere.</string>
+    <string name="insulin_pen_full_read">Read the whole log next time</string>
+    <string name="insulin_pen_full_read_armed">Ready — hold the pen to the phone</string>
+    <string name="insulin_pen_full_read_desc">A pen keeps months of doses and takes several seconds of steady contact to read out. Use this to go back further than the last import.</string>
 </resources>

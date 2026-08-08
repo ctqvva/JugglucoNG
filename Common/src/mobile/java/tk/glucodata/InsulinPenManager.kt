@@ -30,6 +30,8 @@ data class InsulinPen(
     /** Newest dose second imported from this pen; the "nothing new" gate reads it. */
     val lastImportedDoseSeconds: Long = 0L,
     val importedDoseCount: Int = 0,
+    /** One-shot: ignore the cursor on the next scan and offer the pen's whole log. */
+    val fullReadArmed: Boolean = false,
 )
 
 /**
@@ -86,45 +88,62 @@ object InsulinPenManager {
         persist()
     }
 
+    /** Arms the next scan of this pen to walk its whole log instead of stopping at the cursor. */
+    fun armFullRead(serial: String) {
+        update(serial) { it.copy(fullReadArmed = true) }
+    }
+
     /**
      * Called from the NFC protocol thread while the pen is still in the field, to stop
      * reading segments once everything they hold is already in the journal.
+     *
+     * The pen sends newest first, so once a chunk's newest dose is one we already have,
+     * everything behind it is older and known too.
      */
     @JvmStatic
     fun isFullyImported(serial: String?, referenceTimeSeconds: Long, raw: ByteArray?): Boolean {
-        val known = serial?.let(::pen)?.lastImportedDoseSeconds ?: return false
-        if (known <= 0L) return false
+        val known = serial?.let(::pen) ?: return false
+        if (known.fullReadArmed) return false
+        val cursor = known.lastImportedDoseSeconds
+        if (cursor <= 0L) return false
         val newest = PenDoseParser.parse(referenceTimeSeconds, raw, nowSeconds())
             .maxOfOrNull(PenDose::timestampSeconds)
             ?: return false
-        return newest <= known
+        return newest <= cursor
     }
 
-    /** Entry point for a completed pen read: decodes the chunks and offers them for review. */
+    /**
+     * Entry point for a finished pen read — including a partial one, which is the normal
+     * case for a pen holding hundreds of doses. "New" means not already in the journal,
+     * so re-scanning after a read that got cut short is safe and shows no duplicates.
+     */
     @JvmStatic
     fun onScanned(serial: String, chunks: List<OpContext.Doses>) {
-        val now = nowSeconds()
-        val doses = PenDoseParser.merge(
-            chunks.map { PenDoseParser.parse(it.referencetime, it.rawdoses, now) }
-        )
         val known = pen(serial)
-        update(serial) { it.copy(lastScanAt = System.currentTimeMillis()) }
-
-        val cutoff = now - REVIEW_WINDOW_SECONDS
-        val alreadyImported = known?.lastImportedDoseSeconds ?: 0L
-        val fresh = doses.filter { it.timestampSeconds > cutoff && it.timestampSeconds > alreadyImported }
-        if (fresh.isEmpty()) {
-            Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
-            return
-        }
-        val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
-        InsulinPenScanBus.offer(
-            PenScanResult(
-                serial = serial,
-                doses = fresh.sortedByDescending(PenDose::timestampSeconds),
-                preselectFromSeconds = preselectFrom,
+        update(serial) { it.copy(lastScanAt = System.currentTimeMillis(), fullReadArmed = false) }
+        scope.launch {
+            val now = nowSeconds()
+            val doses = PenDoseParser.merge(
+                chunks.map { PenDoseParser.parse(it.referencetime, it.rawdoses, now) }
             )
-        )
+            val cutoff = now - REVIEW_WINDOW_SECONDS
+            val repository = JournalRepository()
+            val fresh = doses
+                .filter { it.timestampSeconds > cutoff }
+                .filterNot { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
+            if (fresh.isEmpty()) {
+                Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
+                return@launch
+            }
+            val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
+            InsulinPenScanBus.offer(
+                PenScanResult(
+                    serial = serial,
+                    doses = fresh.sortedByDescending(PenDose::timestampSeconds),
+                    preselectFromSeconds = preselectFrom,
+                )
+            )
+        }
     }
 
     /**
@@ -178,8 +197,9 @@ object InsulinPenManager {
                 Log.e(LOG_ID, "Failed to journal pen dose: ${Log.stackline(error)}")
             }
         }
-        // The cursor moves to the newest dose the reader accepted, so anything older they
-        // left unticked stays declined instead of being offered again at every scan.
+        // The cursor is the "stop reading" mark for the next tap, not the dedupe rule —
+        // that is the source record id. Anything older the reader left unticked stays
+        // declined unless they ask for a full read.
         val newest = doses.maxOf(PenDose::timestampSeconds)
         update(serial) {
             it.copy(
@@ -224,6 +244,7 @@ object InsulinPenManager {
                     .put("lastScanAt", pen.lastScanAt)
                     .put("lastDose", pen.lastImportedDoseSeconds)
                     .put("count", pen.importedDoseCount)
+                    .put("fullRead", pen.fullReadArmed)
             )
         }
         prefs.edit().putString(PENS_KEY, array.toString()).apply()
@@ -244,6 +265,7 @@ object InsulinPenManager {
                     lastScanAt = item.optLong("lastScanAt", 0L),
                     lastImportedDoseSeconds = item.optLong("lastDose", 0L),
                     importedDoseCount = item.optInt("count", 0),
+                    fullReadArmed = item.optBoolean("fullRead", false),
                 )
             }
         }.getOrElse { error ->

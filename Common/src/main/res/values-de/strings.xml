@@ -2493,4 +2493,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_add_doses">%1$d Dosen hinzufügen</string>
     <string name="insulin_pen_doses_added">%1$d Dosen ins Tagebuch übernommen</string>
     <string name="insulin_pens_journal_off">Das Tagebuch ist ausgeschaltet, übernommene Dosen würden nirgends erscheinen.</string>
+    <string name="insulin_pen_full_read">Beim nächsten Mal das ganze Protokoll lesen</string>
+    <string name="insulin_pen_full_read_armed">Bereit — Pen an das Telefon halten</string>
+    <string name="insulin_pen_full_read_desc">Ein Pen speichert Monate an Dosen und braucht mehrere Sekunden ruhigen Kontakt. Damit gehen Sie weiter zurück als bis zum letzten Import.</string>
 </resources>

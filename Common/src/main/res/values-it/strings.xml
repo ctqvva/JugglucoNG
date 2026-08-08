@@ -2444,4 +2444,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Aggiungi %1$d dosi</string>
     <string name="insulin_pen_doses_added">%1$d dosi aggiunte al diario</string>
     <string name="insulin_pens_journal_off">Il diario è disattivato, quindi le dosi importate non verrebbero mostrate.</string>
+    <string name="insulin_pen_full_read">Leggi tutto lo storico al prossimo scan</string>
+    <string name="insulin_pen_full_read_armed">Pronto — avvicina la penna al telefono</string>
+    <string name="insulin_pen_full_read_desc">Una penna conserva mesi di dosi e richiede alcuni secondi di contatto stabile. Serve per andare più indietro dell\'ultima importazione.</string>
 </resources>

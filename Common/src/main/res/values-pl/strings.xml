@@ -2488,4 +2488,7 @@
     <string name="insulin_pen_add_doses">Dodaj dawki: %1$d</string>
     <string name="insulin_pen_doses_added">Dodano dawki do dziennika: %1$d</string>
     <string name="insulin_pens_journal_off">Dziennik jest wyłączony, więc zaimportowane dawki nigdzie się nie pojawią.</string>
+    <string name="insulin_pen_full_read">Następnym razem odczytaj cały dziennik</string>
+    <string name="insulin_pen_full_read_armed">Gotowe — przyłóż wstrzykiwacz do telefonu</string>
+    <string name="insulin_pen_full_read_desc">Wstrzykiwacz przechowuje dawki z wielu miesięcy i wymaga kilku sekund stabilnego kontaktu. Pozwala sięgnąć dalej niż ostatni import.</string>
 </resources>

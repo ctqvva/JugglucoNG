@@ -2455,4 +2455,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Adicionar %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses adicionadas ao diário</string>
     <string name="insulin_pens_journal_off">O diário está desligado, por isso as doses importadas não apareceriam em lado nenhum.</string>
+    <string name="insulin_pen_full_read">Ler todo o histórico da próxima vez</string>
+    <string name="insulin_pen_full_read_armed">Pronto — encoste a caneta ao telemóvel</string>
+    <string name="insulin_pen_full_read_desc">Uma caneta guarda meses de doses e precisa de alguns segundos de contacto estável. Serve para recuar mais do que a última importação.</string>
 </resources>

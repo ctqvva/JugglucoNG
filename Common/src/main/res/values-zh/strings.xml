@@ -2470,4 +2470,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">添加 %1$d 条剂量</string>
     <string name="insulin_pen_doses_added">已向日志添加 %1$d 条剂量</string>
     <string name="insulin_pens_journal_off">日志已关闭，导入的剂量将无处显示。</string>
+    <string name="insulin_pen_full_read">下次读取完整记录</string>
+    <string name="insulin_pen_full_read_armed">已就绪 — 把笔贴近手机</string>
+    <string name="insulin_pen_full_read_desc">胰岛素笔会保存数月的剂量，完整读取需要数秒的稳定贴合。用这个可以取回上次导入之前的记录。</string>
 </resources>

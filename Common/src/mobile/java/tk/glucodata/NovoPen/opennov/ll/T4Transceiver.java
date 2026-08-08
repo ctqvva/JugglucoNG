@@ -50,14 +50,25 @@ public class T4Transceiver extends MyByteBuffer {
     private int mlcMax = -1;
     private int mleMax = -1;
 
+    /**
+     * Set once the tag leaves the field. Every later transceive on a closed tag throws
+     * IllegalStateException("Call connect() first!"), which used to escape the retry loops
+     * as a crash; there is nothing left to talk to, so stop asking.
+     */
+    private boolean lost = false;
+
+    public boolean tagLost() {
+        return lost;
+    }
 
     public T4Reply t4Transceive(byte[] bytes, final T4Reply reply) {
-        if (bytes == null) return null;
+        if (bytes == null || lost) return null;
         try {
 	    byte[] res=tag.transceive(bytes);
 	     {if(doLog) {Log.i(TAG,"transceive(" +HexDump.toHexString(bytes)+")="+HexDump.toHexString(res));};};
             return T4Reply.parse(res, reply);
         } catch (TagLostException e) {
+            lost = true;
             {if(doLog) {Log.d(TAG, "Tag was lost");};};
             try {
                 tag.close();
@@ -66,6 +77,9 @@ public class T4Transceiver extends MyByteBuffer {
             }
         } catch (IOException e) {
             Log.stack(TAG, "Exception during transceive: ", e);
+        } catch (IllegalStateException e) {
+            lost = true;
+            {if(doLog) {Log.d(TAG, "Tag is no longer connected");};};
         }
         return null;
     }
@@ -181,6 +195,10 @@ static   private byte[] getT4read(int offset, int len) {
     public byte[] readFromLinkLayer() {
        var readLength = getT4read(0,2);
         for (int i = 0; i < MAX_RETRY; i++) {
+            if (lost) {
+                {if(doLog) {Log.d(TAG, "Tag lost, abandoning read");};};
+                return null;
+            }
             if (!tag.isConnected()) {
                 {if(doLog) {Log.d(TAG, "Tag lost");};};
                 return null;
@@ -206,6 +224,7 @@ static   private byte[] getT4read(int offset, int len) {
 
             T4Reply reply = null;
             for (var readCmd : reads) {
+                if (lost) return null;
                 for (int retry = 0; retry < MAX_RETRY; retry++) {
                     reply = t4Transceive(readCmd, reply);
                     if (reply == null) {

@@ -167,4 +167,78 @@ class PenDoseParserTests {
     fun handlesNullPayload() {
         assertTrue(PenDoseParser.parse(reference, null, now).isEmpty())
     }
+
+    /**
+     * First segment of a real NovoPen 6 (serial G252101365, firmware 01.08.01), captured
+     * from a device trace on 2026-08-08. Anchors the record layout to hardware rather than
+     * to a reading of the native decoder.
+     */
+    private val deviceSegment = hexBytes(
+        "00C72CAB FF00 0028 08000000" +
+            "00C72C93 FF00 0028 08000000" +
+            "00C66413 FF00 003C 08000000" +
+            "00C61045 FF00 0014 08000000" +
+            "00C5D78F FF00 001E 08000000" +
+            "00C5D774 FF00 0028 08000000" +
+            "00C55B57 FF00 0014 08000000" +
+            "00C515E7 FF00 0014 08000000" +
+            "00C51588 FF00 000A 08000000" +
+            "00C51586 FF00 000A 08000000" +
+            "00C51584 FF00 000A 08000000" +
+            "00C51582 FF00 0014 08000000" +
+            "00C51580 FF00 000A 08000000" +
+            "00C51506 FF00 0028 08000000" +
+            "00C4BE9C FF00 001E 08000000" +
+            "00C488C5 FF00 001E 08000000" +
+            "00C48897 FF00 0028 08000000" +
+            "00C41C3B FF00 000A 08000000"
+    )
+
+    /** The pen's own relative-time counter at the moment this segment was read. */
+    private val devicePenClock = 13_065_895L
+    private val deviceReference = now - devicePenClock
+
+    @Test
+    fun decodesARealPenSegment() {
+        val doses = PenDoseParser.parse(deviceReference, deviceSegment, now)
+
+        assertEquals(18, doses.size)
+        // Newest record in the segment: 4.0 U, 12796 s before the read.
+        val newest = doses.last()
+        assertEquals(4.0f, newest.units, 0.001f)
+        assertEquals(now - 12_796L, newest.timestampSeconds)
+        // Whole segment is 1–6 U, which is what this pen actually delivers.
+        assertTrue(doses.all { it.units in 1.0f..6.0f })
+    }
+
+    @Test
+    fun realPenSegmentArrivesNewestFirstAndIsSorted() {
+        val doses = PenDoseParser.parse(deviceReference, deviceSegment, now)
+
+        // On the wire the newest record comes first; the parser hands back oldest first.
+        assertEquals(deviceReference + 12_852_283L, doses.first().timestampSeconds)
+        assertEquals(deviceReference + 13_053_099L, doses.last().timestampSeconds)
+        assertEquals(doses.map { it.timestampSeconds }.sorted(), doses.map { it.timestampSeconds })
+    }
+
+    @Test
+    fun flagsTheAirShotBurstInTheRealSegment() {
+        val doses = PenDoseParser.parse(deviceReference, deviceSegment, now)
+        val burst = doses.filter { it.timestampSeconds >= deviceReference + 12_916_096L &&
+            it.timestampSeconds <= deviceReference + 12_916_104L }
+
+        assertEquals(5, burst.size)
+        // Four 1–2 U shots two seconds apart get flagged. The last of the burst does not:
+        // the next dose is 95 s later, past the window. The reviewer unticks it if it was
+        // an air shot too — better than the parser guessing therapy away.
+        assertEquals(4, burst.count(PenDose::priming))
+        assertFalse(burst.last().priming)
+    }
+
+    private fun hexBytes(hex: String): ByteArray {
+        val clean = hex.replace(" ", "")
+        return ByteArray(clean.length / 2) { index ->
+            clean.substring(index * 2, index * 2 + 2).toInt(16).toByte()
+        }
+    }
 }

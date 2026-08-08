@@ -2460,4 +2460,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_add_doses">Ajouter %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses ajoutées au journal</string>
     <string name="insulin_pens_journal_off">Le journal est désactivé : les doses importées ne seraient affichées nulle part.</string>
+    <string name="insulin_pen_full_read">Lire tout l\'historique la prochaine fois</string>
+    <string name="insulin_pen_full_read_armed">Prêt — approchez le stylo du téléphone</string>
+    <string name="insulin_pen_full_read_desc">Un stylo conserve des mois de doses et demande plusieurs secondes de contact stable. Ceci permet de remonter au-delà du dernier import.</string>
 </resources>
