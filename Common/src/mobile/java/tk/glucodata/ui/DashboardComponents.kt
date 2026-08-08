@@ -5,7 +5,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -843,6 +842,8 @@ fun DashboardCombinedHeader(
     }
 
     val sensorCard: @Composable (Modifier) -> Unit = { modifier ->
+        var sensorContentWidthPx by remember { mutableStateOf(0) }
+        val sensorDensity = LocalDensity.current
         Card(
             modifier = modifier,
              colors = CardDefaults.cardColors(
@@ -856,11 +857,17 @@ fun DashboardCombinedHeader(
                 bottomStart = sensorBottomStart
             )
         ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { sensorContentWidthPx = it.width }
+            ) {
                 // The calendar repeats what the lifecycle text already says. Keep it only
                 // when the sensor card has genuine room; unlike text, decorative line art
                 // should disappear before Compose measures it into a crushed remainder.
-                val showLifecycleCalendar = !adaptiveMetrics.isCompact && maxWidth >= 150.dp
+                val sensorContentWidth = with(sensorDensity) { sensorContentWidthPx.toDp() }
+                val showLifecycleCalendar = !adaptiveMetrics.isCompact &&
+                    sensorContentWidth >= 150.dp
                 // Dynamic Fill Layer
                 if (sensorProgress > 0f) {
                     val fillColor = when {
