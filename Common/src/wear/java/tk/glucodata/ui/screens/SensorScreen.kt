@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +82,8 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
     var forgetTarget by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf<String?>(null)
     }
+    val storeSnapshot by tk.glucodata.ui.WearGlucoseStore.snapshot.collectAsState()
+    val displayedSensor = storeSnapshot.sensorId
     var revision by remember { mutableLongStateOf(0L) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val sensors = remember(revision) { loadSensors() }
@@ -130,13 +134,16 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                 // Tapping a sensor makes the rest of the app follow it; tapping the
                 // one already shown hands the choice back to "whichever is
                 // reporting". With two sensors there was previously no way to say.
-                val displayed = tk.glucodata.ui.WearSensorSelection.isDisplayed(row.serial)
+                val displayed = displayedSensor != null &&
+                    tk.glucodata.SensorIdentity.matches(displayedSensor, row.serial)
                 Column(
                     Modifier.fillMaxWidth()
+                        // Clip before the background and the click, so the ripple
+                        // follows the card's corners instead of a square.
+                        .clip(RoundedCornerShape(20.dp))
                         .background(
                             if (displayed) MaterialTheme.colorScheme.surfaceContainerHigh
                             else MaterialTheme.colorScheme.surfaceContainer,
-                            RoundedCornerShape(20.dp),
                         )
                         .combinedClickable(
                             onClick = {

@@ -42,13 +42,6 @@ object WearSensorSelection {
         WearGlucoseStore.refresh(force = true)
     }
 
-    /** True when this sensor is the one the screens are showing. */
-    @JvmStatic
-    fun isDisplayed(sensorId: String?): Boolean {
-        val displayed = resolve() ?: return false
-        return sensorId != null && SensorIdentity.matches(displayed, sensorId)
-    }
-
     /**
      * The sensor the screens should draw. Falls back to the resolver the rest of
      * the app uses when there is nothing to choose between.
