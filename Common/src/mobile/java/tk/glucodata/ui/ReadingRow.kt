@@ -542,9 +542,17 @@ fun ReadingRow(
                         .fillMaxWidth()
                         .heightIn(min = rowMinHeight)
                         .padding(start = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    // A wrapping FlowRow is taller than the reading itself. Centering all
+                    // three siblings against that total height moved the time and glucose
+                    // between the first and second chip lines, breaking the row's visual
+                    // baseline. The fixed-height leading/trailing slots now stay anchored
+                    // to the first chip line; a one-line flow keeps exactly the same centre.
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.defaultMinSize(minHeight = rowMinHeight),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = java.text.SimpleDateFormat(
                                 "HH:mm",
@@ -582,7 +590,9 @@ fun ReadingRow(
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                // The chips carry their own vertical padding. Eight more dp
+                                // made a wrapped item read as a detached third row.
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 journalEntries.forEach { entry ->
                                     JournalInlineChip(
