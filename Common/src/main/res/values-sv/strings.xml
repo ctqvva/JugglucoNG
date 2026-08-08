@@ -2457,4 +2457,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read">Läs hela loggen nästa gång</string>
     <string name="insulin_pen_full_read_armed">Redo — håll pennan mot telefonen</string>
     <string name="insulin_pen_full_read_desc">En penna sparar månader av doser och behöver flera sekunders stadig kontakt. Använd detta för att gå längre bakåt än senaste importen.</string>
+    <string name="insulin_pen_read_cut_short">Pennan togs bort för tidigt. Håll den mot telefonen tills den vibrerar.</string>
 </resources>

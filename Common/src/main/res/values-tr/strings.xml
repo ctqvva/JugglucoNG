@@ -2485,4 +2485,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_full_read">Bir dahaki sefere tüm kaydı oku</string>
     <string name="insulin_pen_full_read_armed">Hazır — kalemi telefona tutun</string>
     <string name="insulin_pen_full_read_desc">Bir kalem aylarca dozu saklar ve tamamının okunması birkaç saniye sabit temas ister. Son aktarımdan daha geriye gitmek için kullanın.</string>
+    <string name="insulin_pen_read_cut_short">Kalem çok erken uzaklaştı. Telefon titreyene kadar kalemi tutun.</string>
 </resources>

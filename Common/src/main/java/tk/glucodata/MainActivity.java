@@ -904,6 +904,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     long nexttime = 0L;
 
+    /**
+     * Separate guard for insulin pens. A pen read that lost contact is retried by the user
+     * within a second — that is what a person does when a tap does not take — and the five
+     * second guard that keeps a sensor tap from being processed twice used to swallow the
+     * retry silently, so the app looked like it had stopped reading pens altogether.
+     */
+    private long nextpentime = 0L;
+
+    private static boolean isPenTag(String[] techs) {
+        return techs != null && techs.length > 0 && "android.nfc.tech.IsoDep".equals(techs[0]);
+    }
+
     synchronized void startnfc(Tag tag) {
         // Ottai debug ISO15693 dump (read-only): consumes the tap only when the
         // setup wizard's NFC-dump mode is active; otherwise falls through to Libre.
@@ -916,10 +928,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             return;
         }
+        var techs = tag.getTechList();
+        final boolean pen = !isWearable && isPenTag(techs);
         long nu = System.currentTimeMillis();
-        if (nu < nexttime)
-            return;
-        nexttime = nu + 1000 * 5;
+        if (pen) {
+            if (nu < nextpentime)
+                return;
+            nextpentime = nu + 1000;
+        } else {
+            if (nu < nexttime)
+                return;
+            nexttime = nu + 1000 * 5;
+        }
 
         runOnUiThread(() -> {
             if (curve != null) {
@@ -935,7 +955,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
 
         );
-        var techs = tag.getTechList();
         String all = "onTagDiscovered: ";
 
         if (techs != null) {
@@ -961,6 +980,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             ;
                         }
                             tk.glucodata.NovoPen.Scan.onTag(this, tag);
+                            // A full pen read takes seconds. Taps that arrived while it
+                            // was running are queued on this monitor and would each start
+                            // another read of the same pen, so re-arm the guard from now.
+                            nextpentime = System.currentTimeMillis() + 1000;
                             return;
                     }
                 }

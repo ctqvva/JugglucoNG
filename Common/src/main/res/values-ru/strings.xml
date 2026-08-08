@@ -2500,4 +2500,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read">В следующий раз считать весь журнал</string>
     <string name="insulin_pen_full_read_armed">Готово — поднесите ручку к телефону</string>
     <string name="insulin_pen_full_read_desc">Ручка хранит дозы за несколько месяцев, и на полное считывание нужно несколько секунд без отрыва. Так можно взять данные старше последнего импорта.</string>
+    <string name="insulin_pen_read_cut_short">Ручку убрали слишком рано. Держите её у телефона, пока он не завибрирует.</string>
 </resources>

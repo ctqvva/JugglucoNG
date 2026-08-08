@@ -2572,4 +2572,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_full_read">Дараагийн удаа бүх бүртгэлийг унших</string>
     <string name="insulin_pen_full_read_armed">Бэлэн — үзгээ утсандаа ойртуулна уу</string>
     <string name="insulin_pen_full_read_desc">Үзэг хэдэн сарын тунг хадгалдаг бөгөөд бүрэн уншихад хэдэн секунд тогтвортой хүрэлцээ шаардана. Сүүлийн оруулснаас цааш ухахад ашиглана.</string>
+    <string name="insulin_pen_read_cut_short">Үзгийг хэт эрт авчихлаа. Утас чичрэх хүртэл барина уу.</string>
 </resources>

@@ -65,7 +65,12 @@ public class Scan {
             return;
         }
         if (op == null) {
+            // The pen answered, so it is in range and understood — the read just did not
+            // last long enough. Telling the reader to hold still beats "try again".
             Log.e(LOG_ID, "processTag failed");
+            failure(vibrator);
+            Applic.Toaster(act.getString(R.string.insulin_pen_read_cut_short));
+            return;
         } else if (op.specification == null) {
             Log.e(LOG_ID, "op.specification==null");
         } else if (op.specification.getSerial() == null) {

@@ -2463,4 +2463,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read">Lire tout l\'historique la prochaine fois</string>
     <string name="insulin_pen_full_read_armed">Prêt — approchez le stylo du téléphone</string>
     <string name="insulin_pen_full_read_desc">Un stylo conserve des mois de doses et demande plusieurs secondes de contact stable. Ceci permet de remonter au-delà du dernier import.</string>
+    <string name="insulin_pen_read_cut_short">Le stylo a été retiré trop tôt. Maintenez-le contre le téléphone jusqu\'à ce qu\'il vibre.</string>
 </resources>

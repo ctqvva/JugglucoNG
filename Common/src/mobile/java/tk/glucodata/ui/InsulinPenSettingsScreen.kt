@@ -62,6 +62,7 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
 
 @Composable
@@ -147,7 +148,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     itemsIndexed(pens, key = { _, pen -> pen.serial }) { index, pen ->
                         SettingsItem(
                             title = stringResource(R.string.insulin_pen_name, pen.serial),
-                            subtitle = penSubtitle(pen),
+                            subtitle = penRowSubtitle(pen),
                             icon = Icons.Default.Vaccines,
                             iconTint = MaterialTheme.colorScheme.primary,
                             showArrow = true,
@@ -257,7 +258,7 @@ private fun PenDetailSheet(
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                penSubtitle(pen),
+                penDetailSubtitle(pen),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -313,20 +314,37 @@ private fun PenDetailSheet(
     }
 }
 
+/**
+ * The row answers the two questions worth answering without opening anything: which insulin
+ * is in the pen, and whether it has been read recently. The dose count lives in the sheet —
+ * on a small screen at a large font it pushed this to three wrapped lines.
+ */
 @Composable
-private fun penSubtitle(pen: InsulinPen): String {
+private fun penRowSubtitle(pen: InsulinPen): String {
+    val insulin = pen.insulinName ?: stringResource(R.string.insulin_pen_insulin_unset)
+    return "$insulin \u00b7 ${lastReadText(pen)}"
+}
+
+@Composable
+private fun penDetailSubtitle(pen: InsulinPen): String {
     val insulin = pen.insulinName ?: stringResource(R.string.insulin_pen_insulin_unset)
     val doses = stringResource(R.string.insulin_pen_dose_count, pen.importedDoseCount)
-    val scan = if (pen.lastScanAt > 0L) {
-        stringResource(
-            R.string.insulin_pen_last_read,
-            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                .format(Date(pen.lastScanAt))
-        )
+    return "$insulin \u00b7 $doses \u00b7 ${lastReadText(pen)}"
+}
+
+@Composable
+private fun lastReadText(pen: InsulinPen): String {
+    if (pen.lastScanAt <= 0L) return stringResource(R.string.insulin_pen_never_read)
+    val today = Calendar.getInstance()
+    val read = Calendar.getInstance().apply { timeInMillis = pen.lastScanAt }
+    val sameDay = today.get(Calendar.YEAR) == read.get(Calendar.YEAR) &&
+        today.get(Calendar.DAY_OF_YEAR) == read.get(Calendar.DAY_OF_YEAR)
+    val format = if (sameDay) {
+        DateFormat.getTimeInstance(DateFormat.SHORT)
     } else {
-        stringResource(R.string.insulin_pen_never_read)
+        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
     }
-    return "$insulin · $doses · $scan"
+    return stringResource(R.string.insulin_pen_last_read, format.format(Date(pen.lastScanAt)))
 }
 
 /** Presets are the journal's insulin library; a pen is tagged with one of them. */
