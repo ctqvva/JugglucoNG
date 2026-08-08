@@ -6,6 +6,7 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.WaterDrop
@@ -45,7 +47,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -549,12 +550,9 @@ fun ReadingRow(
                         .fillMaxWidth()
                         .heightIn(min = rowMinHeight)
                         .padding(start = 16.dp),
-                    // A wrapping FlowRow is taller than the reading itself. Centering all
-                    // three siblings against that total height moved the time and glucose
-                    // between the first and second chip lines, breaking the row's visual
-                    // baseline. The fixed-height leading/trailing slots now stay anchored
-                    // to the first chip line; a one-line flow keeps exactly the same centre.
-                    verticalAlignment = Alignment.Top
+                    // Compact dashboard chips never change the reading row's height. Detailed
+                    // journal chips may still wrap in their dedicated expanded presentation.
+                    verticalAlignment = if (journalChipExpanded) Alignment.Top else Alignment.CenterVertically
                 ) {
                     Row(
                         modifier = Modifier.defaultMinSize(minHeight = rowMinHeight),
@@ -594,16 +592,41 @@ fun ReadingRow(
                                 ),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            TightJournalFlowRow(modifier = Modifier.fillMaxWidth()) {
-                                journalEntries.forEach { entry ->
-                                    JournalInlineChip(
-                                        entry = entry,
-                                        unit = unit,
-                                        insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
-                                        food = entry.foodId?.let(journalFoodsById::get),
-                                        expanded = journalChipExpanded,
-                                        onClick = { onJournalEntryClick?.invoke(entry) }
-                                    )
+                            if (journalChipExpanded) {
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    journalEntries.forEach { entry ->
+                                        JournalInlineChip(
+                                            entry = entry,
+                                            unit = unit,
+                                            insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
+                                            food = entry.foodId?.let(journalFoodsById::get),
+                                            expanded = true,
+                                            onClick = { onJournalEntryClick?.invoke(entry) }
+                                        )
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    journalEntries.forEach { entry ->
+                                        JournalInlineChip(
+                                            entry = entry,
+                                            unit = unit,
+                                            insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
+                                            food = entry.foodId?.let(journalFoodsById::get),
+                                            expanded = false,
+                                            onClick = { onJournalEntryClick?.invoke(entry) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -665,72 +688,6 @@ fun ReadingRow(
                 }
             }
         )
-    }
-}
-
-/**
- * A deliberately small flow layout for reading-row journal chips.
- *
- * Foundation's general [FlowRow] is useful elsewhere in this file, but its line stride in
- * this minimum-height row left substantially more space than the requested arrangement
- * between wrapped chip bounds. This layout owns only the two facts the row needs: pack at
- * natural width and advance by the measured tallest chip plus exactly [verticalSpacing].
- */
-@Composable
-private fun TightJournalFlowRow(
-    modifier: Modifier = Modifier,
-    horizontalSpacing: Dp = 6.dp,
-    verticalSpacing: Dp = 4.dp,
-    content: @Composable () -> Unit
-) {
-    Layout(
-        modifier = modifier,
-        content = content
-    ) { measurables, constraints ->
-        val horizontalSpacingPx = horizontalSpacing.roundToPx()
-        val verticalSpacingPx = verticalSpacing.roundToPx()
-        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val placeables = measurables.map { it.measure(childConstraints) }
-        val xPositions = IntArray(placeables.size)
-        val yPositions = IntArray(placeables.size)
-        val availableWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else Int.MAX_VALUE
-
-        var x = 0
-        var y = 0
-        var lineHeight = 0
-        var usedWidth = 0
-
-        placeables.forEachIndexed { index, placeable ->
-            val nextWidth = if (x == 0) {
-                placeable.width
-            } else {
-                x + horizontalSpacingPx + placeable.width
-            }
-            if (x > 0 && nextWidth > availableWidth) {
-                y += lineHeight + verticalSpacingPx
-                x = 0
-                lineHeight = 0
-            } else if (x > 0) {
-                x += horizontalSpacingPx
-            }
-
-            xPositions[index] = x
-            yPositions[index] = y
-            x += placeable.width
-            lineHeight = maxOf(lineHeight, placeable.height)
-            usedWidth = maxOf(usedWidth, x)
-        }
-
-        val contentHeight = if (placeables.isEmpty()) 0 else y + lineHeight
-        val requestedWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else usedWidth
-        val layoutWidth = requestedWidth.coerceIn(constraints.minWidth, constraints.maxWidth)
-        val layoutHeight = contentHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
-
-        layout(layoutWidth, layoutHeight) {
-            placeables.forEachIndexed { index, placeable ->
-                placeable.placeRelative(xPositions[index], yPositions[index])
-            }
-        }
     }
 }
 
