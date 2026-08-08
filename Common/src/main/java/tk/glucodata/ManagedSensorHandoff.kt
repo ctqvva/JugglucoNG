@@ -23,6 +23,11 @@ object ManagedSensorHandoff {
         "icanhealth_sensors",
         "mq_sensors",
         "ottai_sensors",
+        // Sibionics was missing here and below, so a handoff carried nothing at
+        // all about a Sibionics sensor: the watch received the takeover, had no
+        // record, no auth material and no session state, and sat on "waiting to
+        // connect" for good.
+        "sibionics_managed_sensors",
     )
     private val managedKeyPrefixes = arrayOf(
         "aidex_",
@@ -30,6 +35,7 @@ object ManagedSensorHandoff {
         "icanhealth_",
         "mq_",
         "ottai_",
+        "sibionics_",
         "api_glucose_source_",
         "nightscout_follower_",
         "view_mode_",
@@ -210,6 +216,15 @@ object ManagedSensorHandoff {
         }
         editor.putStringSet(key, merged)
     }
+
+    /**
+     * Whether a per-sensor preference key would travel with a handoff. Exposed so
+     * a test can pin every managed driver's namespace: a driver missing from the
+     * lists above hands over a sensor the other device cannot connect to, and
+     * nothing else fails loudly enough to notice.
+     */
+    internal fun exportsKeyForSensor(key: String, sensorId: String): Boolean =
+        shouldExportKey(key, "", setOf(sensorId), MAIN_PREFS)
 
     private fun keyMatchesCandidate(key: String, candidates: Set<String>): Boolean =
         candidates.any { candidate ->
