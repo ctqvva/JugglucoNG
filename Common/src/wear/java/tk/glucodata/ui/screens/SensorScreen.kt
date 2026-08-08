@@ -3,7 +3,9 @@ package tk.glucodata.ui.screens
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,7 +75,11 @@ private fun loadSensors(): List<SensorRow> = runCatching {
 }.getOrDefault(emptyList())
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) {
+    var forgetTarget by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf<String?>(null)
+    }
     var revision by remember { mutableLongStateOf(0L) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val sensors = remember(revision) { loadSensors() }
@@ -132,12 +138,17 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                             else MaterialTheme.colorScheme.surfaceContainer,
                             RoundedCornerShape(20.dp),
                         )
-                        .clickable {
-                            tk.glucodata.ui.WearSensorSelection.pin(
-                                if (tk.glucodata.ui.WearSensorSelection.pinned() != null && displayed) null
-                                else row.serial,
-                            )
-                        }
+                        .combinedClickable(
+                            onClick = {
+                                tk.glucodata.ui.WearSensorSelection.pin(
+                                    if (tk.glucodata.ui.WearSensorSelection.pinned() != null && displayed) null
+                                    else row.serial,
+                                )
+                            },
+                            // Long press offers to drop a sensor this watch holds
+                            // on its own, which the phone cannot remove for it.
+                            onLongClick = { forgetTarget = row.serial },
+                        )
                         .padding(horizontal = 14.dp, vertical = 13.dp),
                 ) {
                     Text(
@@ -147,6 +158,17 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         color = if (displayed || row.isCurrent) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurface,
                     )
+                    if (forgetTarget == row.serial) {
+                        androidx.wear.compose.material3.Button(
+                            onClick = {
+                                forgetTarget = null
+                                tk.glucodata.ui.WearSensorSelection.pin(null)
+                                tk.glucodata.WearSync2.forgetSensorLocally(row.serial)
+                            },
+                            label = { Text(stringResource(R.string.wear_sensor_forget)) },
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
+                    }
                     val connection = details.connectionStatus.ifEmpty {
                         if (row.isConnected) stringResource(R.string.status_connected) else ""
                     }

@@ -44,4 +44,5 @@
     <string name="wear_reading_actions_title">Reading</string>
     <string name="wear_calibration_edit">Edit calibration</string>
     <string name="wear_journal_delete">Delete</string>
+    <string name="wear_sensor_forget">Forget sensor</string>
 </resources>

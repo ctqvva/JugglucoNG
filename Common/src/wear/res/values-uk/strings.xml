@@ -19,4 +19,5 @@
     <string name="wear_reading_actions_title">Показник</string>
     <string name="wear_calibration_edit">Змінити калібрування</string>
     <string name="wear_journal_delete">Видалити</string>
+    <string name="wear_sensor_forget">Забути сенсор</string>
 </resources>

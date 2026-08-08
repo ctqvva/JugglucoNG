@@ -93,6 +93,20 @@ object WearGlucoseStore {
      */
     private const val LOAD_STUCK_AFTER_MS = 45_000L
 
+    /**
+     * Calibrated values keyed by reading timestamp, dropped whenever the anchors
+     * or the sensor change.
+     *
+     * The history the store reads is uncalibrated — correction happens at display
+     * time — so every point has to go through the shared computation. Doing that
+     * for a whole horizon on each minute tick would be thousands of fits per
+     * refresh, when in practice only the newest reading is new.
+     */
+    private val calibratedByTime = HashMap<Long, Float>()
+    private val calibratedRawByTime = HashMap<Long, Float>()
+    @Volatile private var calibrationCacheKey: String? = null
+    private const val CALIBRATION_CACHE_MAX = 25_000
+
     private val started = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
     @Volatile private var reloadPending = false
@@ -187,7 +201,7 @@ object WearGlucoseStore {
         // Which of several sensors the screens follow, rather than whatever
         // native happens to call "main".
         val sensor = WearSensorSelection.resolve()
-        val points = runCatching {
+        val rawPoints = runCatching {
             NotificationHistorySource.getDisplayHistory(horizonStart, isMmol, sensor)
         }.getOrDefault(emptyList())
             .filter { it.timestamp in horizonStart..now && it.value.isFinite() && it.value > 0f }
@@ -197,6 +211,7 @@ object WearGlucoseStore {
                 isRawMode,
             )
         }.getOrDefault(DoubleArray(0))
+        val points = calibrate(rawPoints, sensor, isRawMode)
 
         _snapshot.value = Snapshot(
             points = points,
@@ -207,6 +222,55 @@ object WearGlucoseStore {
             sensorId = sensor,
             loadedAtMs = now,
         )
+    }
+
+    /**
+     * Applies the user's calibration to a series, as the phone does at display
+     * time. Before this the watch drew whatever was stored, which since the
+     * lanes started travelling uncalibrated meant raw values everywhere.
+     */
+    private fun calibrate(
+        points: List<GlucosePoint>,
+        sensor: String?,
+        isRawMode: Boolean,
+    ): List<GlucosePoint> {
+        if (points.isEmpty()) return points
+        val hasCalibration = runCatching {
+            CalibrationAccess.hasActiveCalibration(isRawMode, sensor)
+        }.getOrDefault(false)
+        if (!hasCalibration) return points
+
+        val revision = runCatching { CalibrationAccess.getRevision() }.getOrDefault(0L)
+        val key = "${sensor.orEmpty()}|$isRawMode|$revision"
+        synchronized(calibratedByTime) {
+            if (calibrationCacheKey != key) {
+                calibrationCacheKey = key
+                calibratedByTime.clear()
+                calibratedRawByTime.clear()
+            }
+            if (calibratedByTime.size > CALIBRATION_CACHE_MAX) {
+                calibratedByTime.clear()
+                calibratedRawByTime.clear()
+            }
+        }
+
+        fun corrected(value: Float, timestamp: Long, rawLane: Boolean): Float {
+            if (!value.isFinite() || value <= 0f) return value
+            val cache = if (rawLane) calibratedRawByTime else calibratedByTime
+            synchronized(calibratedByTime) { cache[timestamp] }?.let { return it }
+            val result = runCatching {
+                CalibrationAccess.getCalibratedValue(value, timestamp, rawLane, false, sensor)
+            }.getOrDefault(value).takeIf { it.isFinite() && it > 0f } ?: value
+            synchronized(calibratedByTime) { cache[timestamp] = result }
+            return result
+        }
+
+        return points.map { point ->
+            val value = corrected(point.value, point.timestamp, isRawMode)
+            val raw = corrected(point.rawValue, point.timestamp, true)
+            if (value == point.value && raw == point.rawValue) point
+            else GlucosePoint(point.timestamp, value, raw)
+        }
     }
 
     private fun currentRawMode(): Boolean {

@@ -20,5 +20,6 @@
     <string name="wear_reading_actions_title">Messwert</string>
     <string name="wear_calibration_edit">Kalibrierung bearbeiten</string>
     <string name="wear_journal_delete">Löschen</string>
+    <string name="wear_sensor_forget">Sensor entfernen</string>
 </resources>
 

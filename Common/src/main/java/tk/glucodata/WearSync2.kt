@@ -98,6 +98,33 @@ object WearSync2 {
                 val serialBytes = ByteArray(len); buf.get(serialBytes)
                 val serial = String(serialBytes, Charsets.UTF_8)
                 if (serial.isEmpty()) return@execute
+                removeSensorRecord(serial)
+            }.onFailure { Log.stack(LOG_ID, "onRemove", it) }
+        }
+    }
+
+    /**
+     * Drops a sensor the watch holds on its own.
+     *
+     * A sensor the watch connected to directly after a handoff exists nowhere
+     * else, so the phone can never tell it to go away — the only way to be rid of
+     * it was to clear the watch app's data.
+     */
+    @JvmStatic
+    fun forgetSensorLocally(serial: String?) {
+        val target = serial?.trim().orEmpty()
+        if (target.isEmpty()) return
+        executor.execute {
+            runCatching {
+                Log.i(LOG_ID, "forgetting $target on this device")
+                removeSensorRecord(target)
+            }.onFailure { Log.stack(LOG_ID, "forgetSensorLocally", it) }
+        }
+    }
+
+    private fun removeSensorRecord(serial: String) {
+        run {
+            run {
                 // Resolve this while the managed record still exists; after it
                 // is removed, a native short alias (for example P225043JMV)
                 // can no longer be related back to SIBI:P225043JMV safely.
@@ -116,8 +143,8 @@ object WearSync2 {
                 }
                 SensorBluetooth.updateDevices()
                 UiRefreshBus.requestDataRefresh()
-                if (doLog) Log.i(LOG_ID, "mirrored removal of $serial")
-            }.onFailure { Log.stack(LOG_ID, "onRemove", it) }
+                if (doLog) Log.i(LOG_ID, "removed $serial")
+            }
         }
     }
 

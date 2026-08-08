@@ -19,4 +19,5 @@
     <string name="wear_reading_actions_title">Mesure</string>
     <string name="wear_calibration_edit">Modifier la calibration</string>
     <string name="wear_journal_delete">Supprimer</string>
+    <string name="wear_sensor_forget">Oublier le capteur</string>
 </resources>
