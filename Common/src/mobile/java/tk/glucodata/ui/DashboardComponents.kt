@@ -862,12 +862,25 @@ fun DashboardCombinedHeader(
                     .fillMaxSize()
                     .onSizeChanged { sensorContentWidthPx = it.width }
             ) {
-                // The calendar repeats what the lifecycle text already says. Keep it only
-                // when the sensor card has genuine room; unlike text, decorative line art
-                // should disappear before Compose measures it into a crushed remainder.
-                val sensorContentWidth = with(sensorDensity) { sensorContentWidthPx.toDp() }
-                val showLifecycleCalendar = !adaptiveMetrics.isCompact &&
-                    sensorContentWidth >= 150.dp
+                val lifecycleText = if (sensorHoursRemaining <= 24) "$sensorHoursRemaining" + "h" else daysRemaining
+                val lifecycleStyle = MaterialTheme.typography.labelLarge
+                val lifecycleTextMeasurer = rememberTextMeasurer()
+                val lifecycleTextWidthPx = remember(lifecycleText, lifecycleStyle) {
+                    lifecycleTextMeasurer.measure(
+                        text = lifecycleText,
+                        style = lifecycleStyle,
+                        maxLines = 1
+                    ).size.width
+                }
+                val lifecycleCalendarChromePx = with(sensorDensity) {
+                    // Card padding on both sides, the text/icon gap and the icon itself.
+                    (16.dp * 2 + 8.dp + 14.dp).roundToPx()
+                }
+                // Hide decorative line art only when this exact text/icon composition cannot
+                // fit. Window density classes are intentionally irrelevant: they describe the
+                // whole screen, not the real space inside this card.
+                val showLifecycleCalendar = sensorContentWidthPx == 0 ||
+                    lifecycleTextWidthPx + lifecycleCalendarChromePx <= sensorContentWidthPx
                 // Dynamic Fill Layer
                 if (sensorProgress > 0f) {
                     val fillColor = when {
@@ -939,7 +952,6 @@ fun DashboardCombinedHeader(
 
                     // 2. Main Status / Days (Hero Value)
                     // Priority: Status if critical, else Days "1 / 14"
-                    val lifecycleText = if (sensorHoursRemaining <= 24) "$sensorHoursRemaining" + "h" else daysRemaining
                     val heroOwnsAwaitingStatus = resolvedDataState.isAwaitingData &&
                         statusCopy != null &&
                         lifecycleText.isNotEmpty()
