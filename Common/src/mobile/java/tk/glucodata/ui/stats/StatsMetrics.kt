@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -73,6 +74,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -984,7 +986,8 @@ internal fun PinnedMetricChip(
     spec: MetricSpec,
     modifier: Modifier = Modifier,
     tir: TimeInRangeBreakdown? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    contentScale: Float = 1f
 ) {
     // Changing the window swaps every number in the strip at once. Sliding them out and
     // the replacements in says "this is the same metric over a different window"; a hard
@@ -1010,7 +1013,7 @@ internal fun PinnedMetricChip(
                 scaleX = pressScale
                 scaleY = pressScale
             }
-            .clip(statsCardShape(16.dp, 10.dp))
+            .clip(statsCardShape(16.dp * contentScale, 10.dp * contentScale))
             .background(tone.copy(alpha = 0.11f).compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh))
             .then(
                 if (onClick != null) {
@@ -1023,17 +1026,17 @@ internal fun PinnedMetricChip(
                     Modifier
                 }
             )
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 10.dp * contentScale, vertical = 8.dp * contentScale),
+        horizontalArrangement = Arrangement.spacedBy(8.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp * contentScale)
         ) {
             Text(
                 text = spec.title,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.scalePinnedStyle(contentScale),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1048,17 +1051,26 @@ internal fun PinnedMetricChip(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFeatureSettings = "tnum",
                         fontWeight = FontWeight.SemiBold
-                    ),
+                    ).scalePinnedStyle(contentScale),
                     color = tone,
                     maxLines = 1
                 )
             }
         }
         if (tir != null) {
-            TirVerticalBar(tir = tir, modifier = Modifier.fillMaxHeight())
+            TirVerticalBar(
+                tir = tir,
+                modifier = Modifier.fillMaxHeight(),
+                width = 4.dp * contentScale
+            )
         }
     }
 }
+
+private fun TextStyle.scalePinnedStyle(scale: Float): TextStyle = copy(
+    fontSize = if (fontSize.isSp) fontSize * scale else fontSize,
+    lineHeight = if (lineHeight.isSp) lineHeight * scale else lineHeight
+)
 
 /**
  * The strip's house transition for a value replacing another in the same slot: the old
@@ -1170,20 +1182,29 @@ internal fun PinnedStatsStrip(
 
     // Cells in reading order: the window pill, then each pinned metric, then the add
     // slot if there is still room.
-    val cells = buildList<@Composable (Modifier) -> Unit> {
-        add { cellModifier ->
+    val windowLabel = stringResource(window.labelResId)
+    val pinnedSpecs = pinned.map { metric ->
+        metricSpec(metric, pinnedState.summary, pinnedState.targets, pinnedState.unit)
+    }
+    val hasAddChip = pinned.size < StatsLayoutStore.MAX_DASHBOARD_METRICS
+    val addLabel = stringResource(R.string.stats_pinned_add)
+    val cells = buildList<@Composable (Modifier, Float) -> Unit> {
+        add { cellModifier, contentScale ->
             PinnedWindowPill(
-                label = stringResource(window.labelResId),
+                label = windowLabel,
                 onClick = onCycleWindow,
-                modifier = cellModifier
+                modifier = cellModifier,
+                contentScale = contentScale
             )
         }
         pinned.forEachIndexed { index, metric ->
-            add { cellModifier ->
+            val spec = pinnedSpecs[index]
+            add { cellModifier, contentScale ->
                 PinnedMetricChip(
-                    spec = metricSpec(metric, pinnedState.summary, pinnedState.targets, pinnedState.unit),
+                    spec = spec,
                     tir = pinnedState.summary.tir.takeIf { metric == StatsMetric.TIME_IN_RANGE },
                     modifier = cellModifier.metricDrag(metric, dragState),
+                    contentScale = contentScale,
                     onClick = {
                         // A long press that became a drag must not also open the picker.
                         if (dragState.dragging == null) editingSlot = index
@@ -1191,26 +1212,81 @@ internal fun PinnedStatsStrip(
                 )
             }
         }
-        if (pinned.size < StatsLayoutStore.MAX_DASHBOARD_METRICS) {
-            add { cellModifier ->
+        if (hasAddChip) {
+            add { cellModifier, contentScale ->
                 PinnedAddChip(
                     onClick = { editingSlot = -1 },
-                    modifier = cellModifier
+                    modifier = cellModifier,
+                    contentScale = contentScale
                 )
             }
         }
     }
 
     if (rows <= 1) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        BoxWithConstraints(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
-            cells.forEachIndexed { index, cell ->
-                // The pill keeps its natural width; the metrics share what is left.
-                cell(if (index == 0) Modifier.fillMaxHeight() else Modifier.weight(1f).fillMaxHeight())
+            val density = LocalDensity.current
+            val textMeasurer = rememberTextMeasurer()
+            fun textWidth(text: String, style: TextStyle): Dp = with(density) {
+                textMeasurer.measure(
+                    text = AnnotatedString(text),
+                    style = style,
+                    maxLines = 1
+                ).size.width.toDp()
+            }
+
+            // Like the chart's range picker, this row has a content-sized preferred width.
+            // Low display density can expose hundreds of extra dp on a phone; equal weights
+            // interpreted that as a request for giant empty tiles. On a normal narrow screen
+            // the same preferred cells shrink together, preserving the established layout.
+            val windowCellWidth = (
+                textWidth(windowLabel, MaterialTheme.typography.labelMedium) + 31.dp
+            ).coerceAtLeast(62.dp)
+            val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
+                maxOf(
+                    textWidth(spec.title, MaterialTheme.typography.labelSmall),
+                    textWidth(spec.value, MaterialTheme.typography.titleMedium)
+                ) + 28.dp
+            }?.coerceIn(96.dp, 124.dp) ?: 96.dp
+            val addCellWidth = if (hasAddChip) {
+                (textWidth(addLabel, MaterialTheme.typography.labelMedium) + 42.dp)
+                    .coerceIn(88.dp, 124.dp)
+            } else {
+                0.dp
+            }
+            val baseGap = 8.dp
+            val preferredWidth = windowCellWidth +
+                metricCellWidth * pinnedSpecs.size +
+                addCellWidth +
+                baseGap * (cells.size - 1).coerceAtLeast(0)
+            val contentScale = if (preferredWidth > 0.dp) {
+                (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
+            } else {
+                1f
+            }
+            val cellWidths = buildList {
+                add(windowCellWidth)
+                repeat(pinnedSpecs.size) { add(metricCellWidth) }
+                if (hasAddChip) add(addCellWidth)
+            }
+
+            Row(
+                modifier = Modifier
+                    .width((preferredWidth * contentScale).coerceAtMost(maxWidth))
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(baseGap * contentScale)
+            ) {
+                cells.forEachIndexed { index, cell ->
+                    cell(
+                        Modifier
+                            .width(cellWidths[index] * contentScale)
+                            .fillMaxHeight(),
+                        contentScale
+                    )
+                }
             }
         }
     } else {
@@ -1229,7 +1305,7 @@ internal fun PinnedStatsStrip(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     rowCells.forEach { cell ->
-                        cell(Modifier.weight(1f).fillMaxHeight())
+                        cell(Modifier.weight(1f).fillMaxHeight(), 1f)
                     }
                     repeat(perRow - rowCells.size) {
                         Spacer(modifier = Modifier.weight(1f))
@@ -1267,7 +1343,8 @@ internal fun PinnedStatsStrip(
 @Composable
 private fun PinnedAddChip(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentScale: Float = 1f
 ) {
     // Same press response as the metric chips it sits beside — a row of three cells where
     // only two react to a finger reads as one of them being broken.
@@ -1284,26 +1361,26 @@ private fun PinnedAddChip(
                 scaleX = pressScale
                 scaleY = pressScale
             }
-            .clip(statsCardShape(16.dp, 10.dp))
+            .clip(statsCardShape(16.dp * contentScale, 10.dp * contentScale))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f))
             .clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
                 onClick = onClick
             )
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = 10.dp * contentScale, vertical = 8.dp * contentScale),
+        horizontalArrangement = Arrangement.spacedBy(6.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.Add,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(16.dp * contentScale)
         )
         Text(
             text = stringResource(R.string.stats_pinned_add),
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.scalePinnedStyle(contentScale),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -1465,7 +1542,8 @@ private fun MetricSheetRow(
 private fun PinnedWindowPill(
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentScale: Float = 1f
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -1480,16 +1558,16 @@ private fun PinnedWindowPill(
                 scaleX = pressScale
                 scaleY = pressScale
             }
-            .clip(statsCardShape(16.dp, 10.dp))
+            .clip(statsCardShape(16.dp * contentScale, 10.dp * contentScale))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
                 onClick = onClick
             )
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(1.dp)
+        horizontalArrangement = Arrangement.spacedBy(1.dp * contentScale)
     ) {
         // "Today" and "3d" are very different widths, and the metric chips share out
         // whatever the pill leaves. Morphing that width is what stops a tap on the pill
@@ -1501,10 +1579,10 @@ private fun PinnedWindowPill(
         ) { text ->
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelLarge.copy(
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontFeatureSettings = "tnum",
                     fontWeight = FontWeight.SemiBold
-                ),
+                ).scalePinnedStyle(contentScale),
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 softWrap = false
@@ -1514,7 +1592,7 @@ private fun PinnedWindowPill(
             imageVector = Icons.Default.UnfoldMore,
             contentDescription = stringResource(R.string.stats_window_label),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(14.dp * contentScale)
         )
     }
 }

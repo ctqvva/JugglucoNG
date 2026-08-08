@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -330,7 +331,8 @@ fun DashboardCombinedHeader(
     } else {
         null
     }
-    val isLandscape = rememberAdaptiveWindowMetrics().isLandscape
+    val adaptiveMetrics = rememberAdaptiveWindowMetrics()
+    val isLandscape = adaptiveMetrics.isLandscape
     val cornerWeights = remember(trendResult.velocity) { trendCornerWeightsFromVelocity(trendResult.velocity) }
     val cornerAnimSpec = spring<Dp>(
         dampingRatio = Spring.DampingRatioLowBouncy,
@@ -520,7 +522,12 @@ fun DashboardCombinedHeader(
                     .onSizeChanged { heroContentWidthPx = it.width }
             ) {
                 val heroWidthDp = with(density) { heroContentWidthPx.toDp() }
-                val heroWidthClass = if (heroContentWidthPx > 0) {
+                val heroWidthClass = if (adaptiveMetrics.isCompact && !isLandscape) {
+                    // A low-density / large-font phone reports abundant dp width even though
+                    // the physical canvas is still a phone. Width alone would select the
+                    // largest display type and make the header dominate the viewport.
+                    AdaptiveContentWidthClass.Compact
+                } else if (heroContentWidthPx > 0) {
                     adaptiveContentWidthClass(
                         width = heroWidthDp,
                         compactMax = 180.dp,
@@ -849,7 +856,11 @@ fun DashboardCombinedHeader(
                 bottomStart = sensorBottomStart
             )
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                // The calendar repeats what the lifecycle text already says. Keep it only
+                // when the sensor card has genuine room; unlike text, decorative line art
+                // should disappear before Compose measures it into a crushed remainder.
+                val showLifecycleCalendar = !adaptiveMetrics.isCompact && maxWidth >= 150.dp
                 // Dynamic Fill Layer
                 if (sensorProgress > 0f) {
                     val fillColor = when {
@@ -937,11 +948,20 @@ fun DashboardCombinedHeader(
                                 text = mainText,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = sensorContentColor,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = if (!showingStatus &&
+                                    (sensorHoursRemaining <= 24 || showLifecycleCalendar)
+                                ) {
+                                    Modifier.weight(1f, fill = false)
+                                } else {
+                                    Modifier
+                                }
                             )
 
-                             // Icon: Always show for Main sensor, regardless of count
-                             if (!showingStatus) {
+                             if (!showingStatus &&
+                                 (sensorHoursRemaining <= 24 || showLifecycleCalendar)
+                             ) {
                                  Spacer(modifier = Modifier.width(8.dp))
 
                                  if (sensorHoursRemaining <= 24) {
@@ -952,7 +972,7 @@ fun DashboardCombinedHeader(
                                           modifier = Modifier.size(14.dp),
                                           cycleDuration = duration
                                       )
-                                 } else {
+                                 } else if (showLifecycleCalendar) {
                                       // Normal: Custom Calendar with Page Flip
                                       CustomCalendarIcon(
                                           color = sensorContentColor.copy(alpha = 0.6f),
