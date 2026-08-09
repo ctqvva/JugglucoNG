@@ -431,6 +431,9 @@ object WearSync2 {
                 }
                 var written = 0
                 var earliest = 0L
+                val stamps = LongArray(count)
+                val values = FloatArray(count)
+                val raws = FloatArray(count)
                 for (i in 0 until count) {
                     val t = buf.long
                     val auto10 = buf.int
@@ -445,7 +448,29 @@ object WearSync2 {
                     }
                     val rawMgdl = if (raw10 > 0) raw10 / 10f else 0f
                     Natives.addGlucoseStreamWithRawTemp(t, auto10 / 100f, rawMgdl, 0f, serial)
+                    stamps[written] = t * 1000L
+                    values[written] = auto10 / 10f
+                    raws[written] = rawMgdl
                     written++
+                }
+                // The phone reads its history from Room and never looks at native,
+                // so readings taken over by the watch landed somewhere the phone
+                // does not display. Put them where the phone actually looks.
+                if (written > 0 && !Applic.isWearable) {
+                    HistorySyncAccess.storeSensorHistoryBatchAsync(
+                        serial,
+                        stamps.copyOf(written),
+                        values.copyOf(written),
+                        raws.copyOf(written),
+                    )
+                    val newest = written - 1
+                    HistorySyncAccess.storeCurrentReadingAsync(
+                        stamps[newest],
+                        values[newest],
+                        raws[newest],
+                        0f,
+                        serial,
+                    )
                 }
                 if (written > 0) {
                     // The companion follows the phone's served sensor: after a
