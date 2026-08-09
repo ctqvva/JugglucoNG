@@ -960,12 +960,16 @@ fun DashboardScreen(
             }
             val density = LocalDensity.current
             var measuredHeaderHeightPx by rememberSaveable { mutableIntStateOf(0) }
-            var measuredReadingRowHeightPx by rememberSaveable { mutableIntStateOf(0) }
+            var measuredReadingBaselineHeightPx by rememberSaveable { mutableIntStateOf(0) }
             val measuredHeaderHeight = with(density) {
                 if (measuredHeaderHeightPx > 0) measuredHeaderHeightPx.toDp() else heroFallbackHeight
             }
-            val measuredReadingRowHeight = with(density) {
-                if (measuredReadingRowHeightPx > 0) measuredReadingRowHeightPx.toDp() else fallbackReadingRowHeight
+            val measuredReadingBaselineHeight = with(density) {
+                if (measuredReadingBaselineHeightPx > 0) {
+                    measuredReadingBaselineHeightPx.toDp()
+                } else {
+                    fallbackReadingRowHeight
+                }
             }
 
             // --- GESTURE-CONTROLLED CHART EXPANSION (Nested Scroll) ---
@@ -989,10 +993,10 @@ fun DashboardScreen(
             val boundedFullscreenChartItemHeight = fullscreenChartItemHeight.coerceAtLeast(0.dp)
             val middleChartItemHeight = remember(
                 boundedFullscreenChartItemHeight,
-                measuredReadingRowHeight,
+                measuredReadingBaselineHeight,
                 middleVisibleReadingRows
             ) {
-                (boundedFullscreenChartItemHeight - (measuredReadingRowHeight * middleVisibleReadingRows))
+                (boundedFullscreenChartItemHeight - (measuredReadingBaselineHeight * middleVisibleReadingRows))
                     .coerceIn(0.dp, boundedFullscreenChartItemHeight)
             }
             val boundedMiddleChartItemHeight = middleChartItemHeight
@@ -1001,10 +1005,10 @@ fun DashboardScreen(
             val collapsedChartItemHeight = remember(
                 boundedFullscreenChartItemHeight,
                 boundedMiddleChartItemHeight,
-                measuredReadingRowHeight,
+                measuredReadingBaselineHeight,
                 defaultVisibleReadingRows
             ) {
-                (boundedFullscreenChartItemHeight - (measuredReadingRowHeight * defaultVisibleReadingRows))
+                (boundedFullscreenChartItemHeight - (measuredReadingBaselineHeight * defaultVisibleReadingRows))
                     .coerceIn(0.dp, boundedMiddleChartItemHeight)
             }
             val boundedCollapsedChartItemHeight = collapsedChartItemHeight
@@ -1882,15 +1886,12 @@ fun DashboardScreen(
                                 onDeleteReading = { point ->
                                     viewModel.deleteHistoryReading(point, sensorName)
                                 },
-                                modifier = Modifier
-                                    .then(
-                                        if (index == 0) {
-                                            Modifier.onSizeChanged { measuredReadingRowHeightPx = it.height }
-                                        } else {
-                                            Modifier
-                                        }
-                                    )
-                                    .animateItem()
+                                onBaselineHeightMeasured = if (index == 0) {
+                                    { measuredReadingBaselineHeightPx = it }
+                                } else {
+                                    null
+                                },
+                                modifier = Modifier.animateItem()
                             )
                         }
                     }

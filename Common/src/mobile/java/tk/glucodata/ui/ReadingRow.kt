@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -94,6 +95,7 @@ fun ReadingRow(
     isGroupStart: Boolean = index == 0,
     isGroupEnd: Boolean = index == totalCount - 1,
     dividerHorizontalInset: Dp = 16.dp,
+    onBaselineHeightMeasured: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // --- DYNAMIC COLOR LOGIC ---
@@ -510,6 +512,13 @@ fun ReadingRow(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (onBaselineHeightMeasured != null) {
+                                Modifier.onSizeChanged { onBaselineHeightMeasured(it.height) }
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -554,7 +563,15 @@ fun ReadingRow(
                     verticalAlignment = Alignment.Top
                 ) {
                     Row(
-                        modifier = Modifier.defaultMinSize(minHeight = rowMinHeight),
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = rowMinHeight)
+                            .then(
+                                if (onBaselineHeightMeasured != null) {
+                                    Modifier.onSizeChanged { onBaselineHeightMeasured(it.height) }
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
