@@ -2501,4 +2501,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_full_read_armed">Klaar — houd de pen tegen de telefoon</string>
     <string name="insulin_pen_full_read_desc">Een pen bewaart maanden aan doses en heeft enkele seconden stabiel contact nodig. Hiermee ga je verder terug dan de laatste import.</string>
     <string name="insulin_pen_read_cut_short">De pen ging te snel weg. Houd hem tegen de telefoon tot deze trilt.</string>
+    <string name="status_watch_reading">De horloge leest deze sensor</string>
 </resources>

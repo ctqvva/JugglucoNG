@@ -2683,4 +2683,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Ready — hold the pen to the phone</string>
     <string name="insulin_pen_full_read_desc">A pen keeps months of doses and takes several seconds of steady contact to read out. Use this to go back further than the last import.</string>
     <string name="insulin_pen_read_cut_short">The pen moved away too soon. Hold it against the phone until it vibrates.</string>
+    <string name="status_watch_reading">Watch is reading this sensor</string>
 </resources>

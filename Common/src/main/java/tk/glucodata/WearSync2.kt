@@ -276,8 +276,16 @@ object WearSync2 {
         // two disagreed by 0.1. Quantising here to the value the phone actually
         // displays survives that round trip, because 1.8 mg/dL steps stay
         // distinct at mg/dL resolution.
+        // The watch keeps whole mg/dL in native storage, and 0.1 mmol/L is
+        // 1.8 mg/dL, so a value sent to it is snapped to steps that survive that
+        // rounding. The phone keeps floats in Room and needs no such help — and
+        // snapping on the way there would be actively harmful, because each side
+        // now calibrates the value itself and a raw input that differs by up to
+        // 0.9 mg/dL is exactly how the two ended up 0.1 mmol/L apart.
+        val quantiseForNativeStore = !Applic.isWearable
         val displayQuantum = if (Applic.unit == 1) MGDL_PER_MMOL / 10.0 else 1.0
         fun wireValue(mgdl: Float): Long {
+            if (!quantiseForNativeStore) return Math.round(mgdl * 10.0)
             val quantised = Math.round(mgdl / displayQuantum) * displayQuantum
             return Math.round(quantised * 10.0)
         }

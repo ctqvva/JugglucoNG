@@ -516,7 +516,17 @@ class SensorViewModel : ViewModel() {
                             else -> status
                         }
 
+                        // Handed to the watch: the driver here is paused and its
+                        // last connection event ("Loss of signal") describes how
+                        // this device stopped reading, not what is happening to
+                        // the sensor — which the watch is reading perfectly well.
+                        val handedToWatch = runCatching {
+                            tk.glucodata.SensorOwnershipRuntime.hasStoodDown(gatt.SerialNumber)
+                        }.getOrDefault(false)
+
                         val finalStatus = when {
+                            handedToWatch ->
+                                tk.glucodata.Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
                             warmupStatus != null -> warmupStatus
                             nativeStatus.isNotEmpty() -> nativeStatus
                             // Pass through custom status strings from GATT callbacks (e.g., "Connected, waiting for data...", "Connected, raw values received")

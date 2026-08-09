@@ -2525,4 +2525,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Гатова — паднясіце ручку да тэлефона</string>
     <string name="insulin_pen_full_read_desc">Ручка захоўвае дозы за некалькі месяцаў, і поўнае счытванне займае некалькі секунд без адрыву. Так можна ўзяць даныя старэйшыя за апошні імпарт.</string>
     <string name="insulin_pen_read_cut_short">Ручку прыбралі занадта рана. Трымайце яе каля тэлефона, пакуль ён не завібруе.</string>
+    <string name="status_watch_reading">Гадзіннік чытае гэты сэнсар</string>
 </resources>
