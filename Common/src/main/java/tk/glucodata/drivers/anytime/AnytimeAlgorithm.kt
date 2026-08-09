@@ -397,7 +397,7 @@ object AnytimeAlgorithm {
             ibNa = record.ibNa,
             iwNa = record.iwNa,
             temperatureC = record.temperatureC,
-            trend = 6, // TREND_NONE — linear path doesn't compute trend
+            trend = AnytimeTrend.NONE,
             errorCode = 0,
             warnCode = 0,
             source = Source.LINEAR,

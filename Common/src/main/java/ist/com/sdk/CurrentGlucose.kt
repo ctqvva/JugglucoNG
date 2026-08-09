@@ -25,7 +25,7 @@ class CurrentGlucose {
     @JvmField var bgMGAdvice: Int = 0
     @JvmField var bgCount: Int = 0
     @JvmField var bgICount: Int = 0
-    @JvmField var trend: Int = 6
+    @JvmField var trend: Int = tk.glucodata.drivers.anytime.AnytimeTrend.NONE
     @JvmField var errorCode: Int = 0
     @JvmField var warnCode: Int = 0
     @JvmField var calibrationStatus: Int = -1

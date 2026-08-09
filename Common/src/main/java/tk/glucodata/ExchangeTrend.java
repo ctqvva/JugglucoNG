@@ -76,6 +76,13 @@ public final class ExchangeTrend {
     }
 
     public static ExchangeTrend resolve(String sensorId, long timeMillis, float fallbackRate) {
+        final int vendorIndex = VendorTrendRate.resolveExchangeTrendIndex(sensorId, timeMillis);
+        if (vendorIndex != UNKNOWN) {
+            final Float vendorRate = VendorTrendRate.resolve(sensorId, timeMillis);
+            return new ExchangeTrend(vendorIndex,
+                    vendorRate == null ? fallbackRate : vendorRate,
+                    "vendor");
+        }
         final ExchangeTrend cached = fromCache(sensorId, timeMillis);
         if (cached.isKnown()) {
             return cached;
