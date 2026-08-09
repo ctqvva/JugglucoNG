@@ -1,6 +1,5 @@
 package tk.glucodata.ui.stats
 
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -66,7 +65,7 @@ class StatsLayoutTests {
     fun theDashboardStartsWithLevelSpreadAndTimeInRange() {
         val pinned = StatsLayoutState().dashboardMetrics
         assertEquals(listOf(StatsMetric.TIME_IN_RANGE, StatsMetric.AVERAGE, StatsMetric.CV), pinned)
-        assertEquals(StatsLayoutStore.MAX_DASHBOARD_METRICS, pinned.size)
+        assertEquals(3, pinned.size)
         // GMI is a fourteen-day regression; over the strip's default window it is the mean
         // in a percent sign, so it is not one of the three that ship pinned.
         assertTrue(StatsMetric.GMI !in pinned)
@@ -126,8 +125,9 @@ class StatsLayoutTests {
     }
 
     @Test
-    fun theDashboardStripHoldsThreeMetricsBesideThePeriodControl() {
-        assertEquals(3, StatsLayoutStore.MAX_DASHBOARD_METRICS)
+    fun theDashboardStartsWithThreeMetricsAndAllowsAFourth() {
+        assertEquals(3, StatsLayoutState().dashboardMetrics.size)
+        assertEquals(4, StatsLayoutStore.MAX_DASHBOARD_METRICS)
     }
 
     @Test
@@ -135,9 +135,7 @@ class StatsLayoutTests {
         assertTrue(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Regular,
-                preferredWidth = 385.dp,
-                availableWidth = 420.dp
+                layoutDensity = AdaptiveLayoutDensity.Regular
             )
         )
     }
@@ -147,29 +145,13 @@ class StatsLayoutTests {
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Compact,
-                preferredWidth = 385.dp,
-                availableWidth = 420.dp
+                layoutDensity = AdaptiveLayoutDensity.Compact
             )
         )
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Medium,
-                layoutDensity = AdaptiveLayoutDensity.Regular,
-                preferredWidth = 385.dp,
-                availableWidth = 700.dp
-            )
-        )
-    }
-
-    @Test
-    fun overflowingNormalPhoneUsesTheAdaptiveStatsStrip() {
-        assertFalse(
-            shouldUseEstablishedPinnedStatsPhoneLayout(
-                widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Regular,
-                preferredWidth = 430.dp,
-                availableWidth = 420.dp
+                layoutDensity = AdaptiveLayoutDensity.Regular
             )
         )
     }

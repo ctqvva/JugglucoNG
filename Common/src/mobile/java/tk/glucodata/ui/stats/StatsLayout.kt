@@ -148,12 +148,8 @@ object StatsLayoutStore {
     private const val LAYOUT_VERSION = 5
     private const val KEY_DASHBOARD = "stats_layout_dashboard_metrics"
 
-    /**
-     * Cap on pinned dashboard metrics. The strip is one row and the period control
-     * takes the fourth slot, so three is what actually fits without shrinking the
-     * numbers past reading size.
-     */
-    const val MAX_DASHBOARD_METRICS = 3
+    /** The dashboard starts with three metrics, but users can pin one more. */
+    const val MAX_DASHBOARD_METRICS = 4
 
     private val _state = MutableStateFlow(StatsLayoutState())
     val state: StateFlow<StatsLayoutState> = _state.asStateFlow()
