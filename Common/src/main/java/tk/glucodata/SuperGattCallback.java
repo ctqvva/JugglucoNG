@@ -666,10 +666,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getTrendName(),
                     exchangePayload.getTrendRate(),
                     alarm);
+        // Readings travel to whichever device is not holding the sensor, so the
+        // watch pushes too when it is the one reading.
+        WearSync2.pushTail();
         if (!isWearable) {
             app.numdata.sendglucose(SerialNumber, tim, gl, thresholdchange(rate), alarm | 0x10);
             GlucoseWidget.update();
-            WearSync2.pushTail();
             // Keep the webserver's /pebble IOB in step with the journal,
             // independent of whether any broadcast target is configured.
             JournalIobAccess.pushWatchserver(System.currentTimeMillis());

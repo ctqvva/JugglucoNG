@@ -256,7 +256,9 @@ object WearSync2 {
     }
 
     private fun serveSensorSince(serial: String, fromSec: Long) {
-        sendCalibration(serial)
+        // Calibrations live on the phone; the watch must not echo back the
+        // anchors it was given or the two would fight over the revision.
+        if (!Applic.isWearable) sendCalibration(serial)
         // Serve what the phone itself displays, not the native stream. For a
         // managed driver the native store only goes back to the moment native
         // mirroring started, while Room holds the sensor's whole life — that,

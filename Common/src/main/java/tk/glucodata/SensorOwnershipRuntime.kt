@@ -29,6 +29,17 @@ object SensorOwnershipRuntime {
     /** Three missed announcements before the peer counts as gone. */
     private const val PEER_SILENT_AFTER_MS = 3L * ANNOUNCE_INTERVAL_MS + 15_000L
 
+    /**
+     * How long the phone lets go for, when the user hands a sensor to the watch.
+     *
+     * Long enough for a scan and connect, short enough that a watch which cannot
+     * take the sensor costs at most this much data before the phone resumes.
+     */
+    private const val YIELD_WINDOW_MS = 3L * 60L * 1000L
+
+    /** After a failed handover, how long before offering the watch another go. */
+    private const val YIELD_RETRY_INTERVAL_MS = 15L * 60L * 1000L
+
     /** Reconnect delay when taking a sensor back, in ms. */
     private const val RESUME_DELAY_MS = 200L
 
@@ -41,6 +52,7 @@ object SensorOwnershipRuntime {
     private val peerSerials = ConcurrentHashMap<String, String>()
     private val localReadings = ConcurrentHashMap<String, Long>()
     private val releasedLocally = ConcurrentHashMap<String, Boolean>()
+    private val yieldStartedAt = ConcurrentHashMap<String, Long>()
 
     @Volatile private var started = false
 
@@ -120,14 +132,17 @@ object SensorOwnershipRuntime {
         val now = System.currentTimeMillis()
         sensors().forEach { serial ->
             val id = key(serial)
+            val peer = peerReports[id]
+            val intent = intentFor(serial)
             val shouldRead = SensorOwnershipPolicy.shouldReadLocally(
                 isPhone = !Applic.isWearable,
-                localAllowed = localAllowed(serial),
+                intent = intent,
                 localHasConnection = holdsLiveConnection(serial),
                 localLastReadingMs = localReadings[id] ?: 0L,
-                peer = peerReports[id],
+                peer = peer,
                 nowMs = now,
                 peerSilentAfterMs = PEER_SILENT_AFTER_MS,
+                yieldUntilMs = yieldDeadline(id, intent, peer, now),
             )
             val released = releasedLocally[id] == true
             when {
@@ -138,14 +153,68 @@ object SensorOwnershipRuntime {
     }
 
     /**
-     * The user's intent. The phone is always allowed to read — it is the fallback
-     * when anything goes wrong — while the watch only takes a sensor it was told
-     * to take.
+     * What this device should do with a sensor.
+     *
+     * The watch always takes what it can: with no assignment it only ends up
+     * reading a sensor the phone has stopped reading, which is the automatic
+     * "whichever device can reach it" behaviour. The phone stands aside only
+     * where the user has actually assigned the sensor to the watch.
      */
-    private fun localAllowed(serial: String): Boolean {
-        if (!Applic.isWearable) return true
-        return runCatching { WearSensorClaim.isDirectRequested() }.getOrDefault(false)
+    private fun intentFor(serial: String): SensorOwnershipPolicy.Intent {
+        if (Applic.isWearable) return SensorOwnershipPolicy.Intent.TAKE
+        return if (assignedToWatch()) {
+            SensorOwnershipPolicy.Intent.YIELD
+        } else {
+            SensorOwnershipPolicy.Intent.TAKE
+        }
     }
+
+    /**
+     * Until when this device stays off the sensor.
+     *
+     * The window opens when the handover starts and closes once it expires; if
+     * the watch took the sensor in the meantime the ordinary rules keep the phone
+     * off anyway. A handover that failed is retried periodically, so a watch that
+     * was out of range gets another chance without the user touching anything.
+     */
+    private fun yieldDeadline(
+        id: String,
+        intent: SensorOwnershipPolicy.Intent,
+        peer: SensorOwnershipPolicy.PeerReport?,
+        now: Long,
+    ): Long {
+        if (intent != SensorOwnershipPolicy.Intent.YIELD) {
+            yieldStartedAt.remove(id)
+            return 0L
+        }
+        // The peer has it: no window needed, the normal rules apply.
+        if (peer?.owns == true) {
+            yieldStartedAt.remove(id)
+            return 0L
+        }
+        val started = yieldStartedAt[id]
+        if (started == null) {
+            yieldStartedAt[id] = now
+            Log.i(LOG_ID, "handing $id to the watch: standing down for ${YIELD_WINDOW_MS / 1000}s")
+            return now + YIELD_WINDOW_MS
+        }
+        if (now < started + YIELD_WINDOW_MS) return started + YIELD_WINDOW_MS
+        if (now >= started + YIELD_RETRY_INTERVAL_MS) {
+            yieldStartedAt[id] = now
+            Log.i(LOG_ID, "offering $id to the watch again")
+            return now + YIELD_WINDOW_MS
+        }
+        // Window spent and the watch did not take it: read it ourselves again.
+        return 0L
+    }
+
+    /** Whether the user has assigned the sensor to the watch, read from prefs. */
+    private fun assignedToWatch(): Boolean = runCatching {
+        Applic.app
+            ?.getSharedPreferences("wear_routing_request", android.content.Context.MODE_PRIVATE)
+            ?.all
+            ?.any { (key, value) -> key.startsWith("direct.") && value == true }
+    }.getOrNull() ?: false
 
     private fun release(serial: String) {
         val gatt = findGatt(serial) ?: return

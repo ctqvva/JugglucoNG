@@ -3,6 +3,7 @@ package tk.glucodata
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.SensorOwnershipPolicy.Intent
 import tk.glucodata.SensorOwnershipPolicy.PeerReport
 import tk.glucodata.SensorOwnershipPolicy.shouldReadLocally
 
@@ -16,18 +17,20 @@ class SensorOwnershipPolicyTests {
 
     private fun decide(
         isPhone: Boolean = true,
-        localAllowed: Boolean = true,
+        intent: Intent = Intent.TAKE,
         localHasConnection: Boolean = false,
         localLastReadingMs: Long = 0L,
         peer: PeerReport? = null,
+        yieldUntilMs: Long = 0L,
     ) = shouldReadLocally(
         isPhone = isPhone,
-        localAllowed = localAllowed,
+        intent = intent,
         localHasConnection = localHasConnection,
         localLastReadingMs = localLastReadingMs,
         peer = peer,
         nowMs = now,
         peerSilentAfterMs = silentAfter,
+        yieldUntilMs = yieldUntilMs,
     )
 
     @Test
@@ -57,8 +60,8 @@ class SensorOwnershipPolicyTests {
     @Test
     fun neverTakesASensorTheUserAssignedElsewhere() {
         // Even with the peer gone: the user said this device must not read it.
-        assertFalse(decide(localAllowed = false, peer = null))
-        assertFalse(decide(localAllowed = false, localHasConnection = true, peer = null))
+        assertFalse(decide(intent = Intent.NEVER, peer = null))
+        assertFalse(decide(intent = Intent.NEVER, localHasConnection = true, peer = null))
     }
 
     @Test
@@ -80,7 +83,7 @@ class SensorOwnershipPolicyTests {
 
         val phoneDecides = shouldReadLocally(
             isPhone = true,
-            localAllowed = true,
+            intent = Intent.TAKE,
             localHasConnection = true,
             localLastReadingMs = readingOnPhone,
             peer = PeerReport(true, readingOnWatch, now - 1_000L),
@@ -89,7 +92,7 @@ class SensorOwnershipPolicyTests {
         )
         val watchDecides = shouldReadLocally(
             isPhone = false,
-            localAllowed = true,
+            intent = Intent.TAKE,
             localHasConnection = true,
             localLastReadingMs = readingOnWatch,
             peer = PeerReport(true, readingOnPhone, now - 1_000L),
@@ -106,7 +109,7 @@ class SensorOwnershipPolicyTests {
         val sameReading = now - 10_000L
         val phoneDecides = shouldReadLocally(
             isPhone = true,
-            localAllowed = true,
+            intent = Intent.TAKE,
             localHasConnection = true,
             localLastReadingMs = sameReading,
             peer = PeerReport(true, sameReading, now - 1_000L),
@@ -115,7 +118,7 @@ class SensorOwnershipPolicyTests {
         )
         val watchDecides = shouldReadLocally(
             isPhone = false,
-            localAllowed = true,
+            intent = Intent.TAKE,
             localHasConnection = true,
             localLastReadingMs = sameReading,
             peer = PeerReport(true, sameReading, now - 1_000L),
@@ -152,7 +155,7 @@ class SensorOwnershipPolicyTests {
                         for (age in received) {
                             val phone = shouldReadLocally(
                                 isPhone = true,
-                                localAllowed = true,
+                                intent = Intent.TAKE,
                                 localHasConnection = phoneConn,
                                 localLastReadingMs = phoneRead,
                                 peer = PeerReport(watchConn, watchRead, age),
@@ -161,7 +164,7 @@ class SensorOwnershipPolicyTests {
                             )
                             val watch = shouldReadLocally(
                                 isPhone = false,
-                                localAllowed = true,
+                                intent = Intent.TAKE,
                                 localHasConnection = watchConn,
                                 localLastReadingMs = watchRead,
                                 peer = PeerReport(phoneConn, phoneRead, age),
@@ -178,5 +181,51 @@ class SensorOwnershipPolicyTests {
                 }
             }
         }
+    }
+
+    @Test
+    fun handingOverLetsGoSoTheOtherDeviceCanConnect() {
+        // A sensor that serves one client can only be handed over by actually
+        // releasing it, so during the window this device must not read.
+        assertFalse(
+            decide(
+                intent = Intent.YIELD,
+                localHasConnection = true,
+                localLastReadingMs = now,
+                peer = PeerReport(owns = false, lastReadingMs = 0L, receivedAtMs = now - 1_000L),
+                yieldUntilMs = now + 60_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun aHandoverThatFailsGivesTheSensorBackRatherThanLosingIt() {
+        // Window spent, peer still has not taken it: read it again.
+        assertTrue(
+            decide(
+                intent = Intent.YIELD,
+                peer = PeerReport(owns = false, lastReadingMs = 0L, receivedAtMs = now - 1_000L),
+                yieldUntilMs = now - 1L,
+            ),
+        )
+    }
+
+    @Test
+    fun onceTheOtherDeviceHasItTheWindowIsIrrelevant() {
+        val peerHasIt = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - 5_000L)
+        assertFalse(decide(intent = Intent.YIELD, peer = peerHasIt, yieldUntilMs = 0L))
+        assertFalse(decide(intent = Intent.TAKE, peer = peerHasIt))
+    }
+
+    @Test
+    fun aHandoverStillEndsWithSomebodyReadingIfTheOtherDeviceVanishes() {
+        // Assigned away, window spent, peer silent entirely.
+        assertTrue(
+            decide(
+                intent = Intent.YIELD,
+                peer = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - silentAfter - 1),
+                yieldUntilMs = now - 1L,
+            ),
+        )
     }
 }

@@ -11,6 +11,26 @@ package tk.glucodata
  * reading it, which loses glucose data.
  */
 object SensorOwnershipPolicy {
+    /** What this device is meant to do with a sensor. */
+    enum class Intent {
+        /** Read it whenever the peer is not. */
+        TAKE,
+
+        /**
+         * Stand aside so the peer can connect, but only until a deadline.
+         *
+         * Sensors that serve one client at a time cannot be handed over any
+         * other way: the peer can never get a reading — and so can never claim
+         * ownership — while this device holds the connection. The deadline is
+         * what stops that becoming "nobody reads it": once it passes without the
+         * peer taking over, this device goes back to reading.
+         */
+        YIELD,
+
+        /** Never read it; the user assigned it elsewhere. */
+        NEVER,
+    }
+
     /** What the other device last told us about a sensor. */
     data class PeerReport(
         /** The peer says it holds a live connection and is getting readings. */
@@ -33,16 +53,21 @@ object SensorOwnershipPolicy {
      */
     fun shouldReadLocally(
         isPhone: Boolean,
-        localAllowed: Boolean,
+        intent: Intent,
         localHasConnection: Boolean,
         localLastReadingMs: Long,
         peer: PeerReport?,
         nowMs: Long,
         peerSilentAfterMs: Long,
+        yieldUntilMs: Long = 0L,
     ): Boolean {
         // The user's choice comes first: never grab a sensor we were told to
         // leave alone.
-        if (!localAllowed) return false
+        if (intent == Intent.NEVER) return false
+
+        // Handing over: let go long enough for the peer to actually connect.
+        // Bounded, so a peer that cannot take it does not leave the sensor unread.
+        if (intent == Intent.YIELD && nowMs < yieldUntilMs) return false
 
         // Nothing heard, or nothing heard recently enough to trust: read. The
         // peer may be out of range, powered off, or its app killed, and none of
