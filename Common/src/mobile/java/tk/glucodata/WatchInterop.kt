@@ -195,9 +195,6 @@ object WatchInterop {
             // that existing protocol response then disables phone BLE. Turning
             // direct mode off can safely resume phone BLE immediately.
             if (!directOnWatch) {
-                // Also clears any release the watch's claim had triggered, so the
-                // phone does not stay off the sensor after direct mode is off.
-                WearPhoneBleRelease.onWatchUnreachable()
                 val context = MainActivity.thisone ?: Applic.app ?: return false
                 Applic.setbluetooth(context, true)
             }

@@ -153,6 +153,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     /** Mark a live reading accepted by this local BLE callback. */
     protected final void markLocalReadingAccepted(long sampleTimeMs) {
         WearSensorClaim.onLocalReadingAccepted(SerialNumber, sampleTimeMs);
+        SensorOwnershipRuntime.noteLocalReading(SerialNumber, sampleTimeMs);
     }
 
     public void disconnect() {

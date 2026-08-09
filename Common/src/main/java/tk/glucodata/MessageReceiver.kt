@@ -74,7 +74,9 @@ class MessageReceiver: WearableListenerService() {
                 if (!isWearable) WearSync2.onRequest(data)
             }
             MessageSender.SYNC2_CHUNK_PATH -> {
-                if (isWearable) WearSync2.onChunk(data)
+                // Either device may be the one holding the sensor, so both accept
+                // readings; WearSync2 drops any for a sensor it reads itself.
+                WearSync2.onChunk(data)
             }
             MessageSender.SYNC2_CAL_PATH -> {
                 if (isWearable) WearSync2.onCalibration(data)
@@ -96,6 +98,10 @@ class MessageReceiver: WearableListenerService() {
             }
             MessageSender.JOURNAL_DATA_PATH -> {
                 if (isWearable) WearJournalSync.onServed(data)
+            }
+            MessageSender.SENSOR_OWNERSHIP_PATH -> {
+                // Both devices arbitrate, so neither side is gated here.
+                SensorOwnershipRuntime.onPeerReport(data)
             }
             MessageSender.JOURNAL_CMD_PATH -> {
                 if (!isWearable) WearJournalSync.onCommand(data)

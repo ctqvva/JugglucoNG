@@ -41,9 +41,6 @@ object WearSensorClaimStatus {
             Log.i(LOG_ID, "watch claim state node=$nodeId ${previous ?: "unknown"} -> $state")
             _revision.value = _revision.value + 1L
         }
-        // Every report, not only transitions: the heartbeat is what keeps the
-        // phone off a sensor the watch is reading.
-        WearPhoneBleRelease.onWatchClaim(state)
     }
 
     @JvmStatic
@@ -323,6 +320,17 @@ object WearSensorClaim {
      * quietly stopped scanning for the sensor it was supposed to own, with
      * nothing on either screen saying so.
      */
+    /** The persisted user intent: has this watch been told to take the sensor. */
+    @JvmStatic
+    fun isDirectRequested(): Boolean {
+        if (!Applic.isWearable) return false
+        if (directRequested) return true
+        return runCatching {
+            Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                ?.getBoolean(KEY_DIRECT_REQUESTED, false)
+        }.getOrNull() ?: false
+    }
+
     @JvmStatic
     fun restoreOnStart() {
         if (!Applic.isWearable) return

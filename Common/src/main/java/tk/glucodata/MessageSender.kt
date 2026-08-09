@@ -316,6 +316,7 @@ companion object {
     const val JOURNAL_REQ_PATH = "/sync2/journal/req"
     const val JOURNAL_DATA_PATH = "/sync2/journal"
     const val JOURNAL_CMD_PATH = "/sync2/journal/cmd"
+    const val SENSOR_OWNERSHIP_PATH = "/sync2/own"
     val scope = CoroutineScope(Dispatchers.IO+SupervisorJob()  )
     private var messagesender: MessageSender? = null
     @Volatile private var wearableApiUnavailable = false

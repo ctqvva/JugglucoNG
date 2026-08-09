@@ -906,6 +906,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 MessageSender.sendnetinfo();
             }
             Specific.start(this);
+            SensorOwnershipRuntime.start();
             if (isWearable) {
                 tk.glucodata.glucosecomplication.GlucoseValue.updateall();
                 // Direct sensor mode has to survive a restart of the watch app,

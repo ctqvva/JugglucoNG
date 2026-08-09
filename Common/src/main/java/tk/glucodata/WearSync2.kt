@@ -421,6 +421,12 @@ object WearSync2 {
                     if (doLog) Log.i(LOG_ID, "ignored stale chunk for removed sensor $serial")
                     return@execute
                 }
+                // Chunks now travel in whichever direction ownership points, so
+                // the receiving side must not be reading the same sensor itself.
+                if (SensorOwnershipRuntime.readsLocally(serial)) {
+                    if (doLog) Log.i(LOG_ID, "ignored chunk for $serial: this device is reading it")
+                    return@execute
+                }
                 var written = 0
                 var earliest = 0L
                 for (i in 0 until count) {
