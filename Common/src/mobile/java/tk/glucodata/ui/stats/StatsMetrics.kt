@@ -84,7 +84,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.util.AdaptiveLayoutDensity
+import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
+import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import java.util.Locale
 
 /**
@@ -1167,6 +1170,7 @@ internal fun PinnedStatsStrip(
     LaunchedEffect(window) { statsViewModel.setPinnedWindow(window) }
     val pinnedState by statsViewModel.pinnedState.collectAsState()
     if (pinned.isEmpty() || pinnedState.summary.readingCount == 0) return
+    val adaptiveMetrics = rememberAdaptiveWindowMetrics()
 
     // -1 means the picker was opened from the add slot.
     var editingSlot by remember { mutableStateOf<Int?>(null) }
@@ -1188,18 +1192,19 @@ internal fun PinnedStatsStrip(
     }
     val hasAddChip = pinned.size < StatsLayoutStore.MAX_DASHBOARD_METRICS
     val addLabel = stringResource(R.string.stats_pinned_add)
-    val cells = buildList<@Composable (Modifier, Float) -> Unit> {
-        add { cellModifier, contentScale ->
+    val cells = buildList<@Composable (Modifier, Float, Boolean) -> Unit> {
+        add { cellModifier, contentScale, compactContent ->
             PinnedWindowPill(
                 label = windowLabel,
                 onClick = onCycleWindow,
                 modifier = cellModifier,
-                contentScale = contentScale
+                contentScale = contentScale,
+                compactContent = compactContent
             )
         }
         pinned.forEachIndexed { index, metric ->
             val spec = pinnedSpecs[index]
-            add { cellModifier, contentScale ->
+            add { cellModifier, contentScale, _ ->
                 PinnedMetricChip(
                     spec = spec,
                     tir = pinnedState.summary.tir.takeIf { metric == StatsMetric.TIME_IN_RANGE },
@@ -1213,7 +1218,7 @@ internal fun PinnedStatsStrip(
             }
         }
         if (hasAddChip) {
-            add { cellModifier, contentScale ->
+            add { cellModifier, contentScale, _ ->
                 PinnedAddChip(
                     onClick = { editingSlot = -1 },
                     modifier = cellModifier,
@@ -1238,11 +1243,10 @@ internal fun PinnedStatsStrip(
                 ).size.width.toDp()
             }
 
-            // Like the chart's range picker, this row has a content-sized preferred width.
-            // Low display density can expose hundreds of extra dp on a phone; equal weights
-            // interpreted that as a request for giant empty tiles. On a normal narrow screen
-            // the same preferred cells shrink together, preserving the established layout.
-            val windowCellWidth = (
+            val normalWindowCellWidth = (
+                textWidth(windowLabel, MaterialTheme.typography.labelLarge) + 31.dp
+            ).coerceAtLeast(62.dp)
+            val compactWindowCellWidth = (
                 textWidth(windowLabel, MaterialTheme.typography.labelMedium) + 31.dp
             ).coerceAtLeast(62.dp)
             val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
@@ -1258,34 +1262,72 @@ internal fun PinnedStatsStrip(
                 0.dp
             }
             val baseGap = 8.dp
-            val preferredWidth = windowCellWidth +
+            val normalPreferredWidth = normalWindowCellWidth +
                 metricCellWidth * pinnedSpecs.size +
                 addCellWidth +
                 baseGap * (cells.size - 1).coerceAtLeast(0)
-            val contentScale = if (preferredWidth > 0.dp) {
-                (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
-            } else {
-                1f
-            }
-            val cellWidths = buildList {
-                add(windowCellWidth)
-                repeat(pinnedSpecs.size) { add(metricCellWidth) }
-                if (hasAddChip) add(addCellWidth)
-            }
+            val useEstablishedPhoneLayout = shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = adaptiveMetrics.widthClass,
+                layoutDensity = adaptiveMetrics.layoutDensity,
+                preferredWidth = normalPreferredWidth,
+                availableWidth = maxWidth
+            )
 
-            Row(
-                modifier = Modifier
-                    .width((preferredWidth * contentScale).coerceAtMost(maxWidth))
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(baseGap * contentScale)
-            ) {
-                cells.forEachIndexed { index, cell ->
-                    cell(
-                        Modifier
-                            .width(cellWidths[index] * contentScale)
-                            .fillMaxHeight(),
-                        contentScale
-                    )
+            if (useEstablishedPhoneLayout) {
+                // Preserve the dashboard's established phone composition: the window pill
+                // takes its natural width and the metric cards share every remaining pixel.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(baseGap)
+                ) {
+                    cells.forEachIndexed { index, cell ->
+                        cell(
+                            if (index == 0) {
+                                Modifier.fillMaxHeight()
+                            } else {
+                                Modifier.weight(1f).fillMaxHeight()
+                            },
+                            1f,
+                            false
+                        )
+                    }
+                }
+            } else {
+                // Only constrained accessibility layouts and wider dp canvases use the
+                // range-picker-like content width. Scale the composition as one unit when
+                // even that preferred width does not fit.
+                val preferredWidth = compactWindowCellWidth +
+                    metricCellWidth * pinnedSpecs.size +
+                    addCellWidth +
+                    baseGap * (cells.size - 1).coerceAtLeast(0)
+                val contentScale = if (preferredWidth > 0.dp) {
+                    (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
+                } else {
+                    1f
+                }
+                val cellWidths = buildList {
+                    add(compactWindowCellWidth)
+                    repeat(pinnedSpecs.size) { add(metricCellWidth) }
+                    if (hasAddChip) add(addCellWidth)
+                }
+
+                Row(
+                    modifier = Modifier
+                        .width((preferredWidth * contentScale).coerceAtMost(maxWidth))
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(baseGap * contentScale)
+                ) {
+                    cells.forEachIndexed { index, cell ->
+                        cell(
+                            Modifier
+                                .width(cellWidths[index] * contentScale)
+                                .fillMaxHeight(),
+                            contentScale,
+                            true
+                        )
+                    }
                 }
             }
         }
@@ -1305,7 +1347,7 @@ internal fun PinnedStatsStrip(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     rowCells.forEach { cell ->
-                        cell(Modifier.weight(1f).fillMaxHeight(), 1f)
+                        cell(Modifier.weight(1f).fillMaxHeight(), 1f, false)
                     }
                     repeat(perRow - rowCells.size) {
                         Spacer(modifier = Modifier.weight(1f))
@@ -1338,6 +1380,15 @@ internal fun PinnedStatsStrip(
         )
     }
 }
+
+internal fun shouldUseEstablishedPinnedStatsPhoneLayout(
+    widthClass: AdaptiveWindowWidthClass,
+    layoutDensity: AdaptiveLayoutDensity,
+    preferredWidth: Dp,
+    availableWidth: Dp
+): Boolean = widthClass == AdaptiveWindowWidthClass.Compact &&
+    layoutDensity != AdaptiveLayoutDensity.Compact &&
+    preferredWidth <= availableWidth
 
 /** Empty slot inviting a metric, shown only while there is room for one. */
 @Composable
@@ -1543,7 +1594,8 @@ private fun PinnedWindowPill(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    contentScale: Float = 1f
+    contentScale: Float = 1f,
+    compactContent: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -1579,7 +1631,11 @@ private fun PinnedWindowPill(
         ) { text ->
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(
+                style = (if (compactContent) {
+                    MaterialTheme.typography.labelMedium
+                } else {
+                    MaterialTheme.typography.labelLarge
+                }).copy(
                     fontFeatureSettings = "tnum",
                     fontWeight = FontWeight.SemiBold
                 ).scalePinnedStyle(contentScale),

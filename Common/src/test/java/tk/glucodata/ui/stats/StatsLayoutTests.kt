@@ -1,8 +1,12 @@
 package tk.glucodata.ui.stats
 
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.ui.util.AdaptiveLayoutDensity
+import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 
 /**
  * The pure parts of the arrange-mode layout: reordering and what ends up visible.
@@ -124,6 +128,50 @@ class StatsLayoutTests {
     @Test
     fun theDashboardStripHoldsThreeMetricsBesideThePeriodControl() {
         assertEquals(3, StatsLayoutStore.MAX_DASHBOARD_METRICS)
+    }
+
+    @Test
+    fun normalPhoneKeepsTheEstablishedFullWidthStatsStrip() {
+        assertTrue(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                layoutDensity = AdaptiveLayoutDensity.Regular,
+                preferredWidth = 385.dp,
+                availableWidth = 420.dp
+            )
+        )
+    }
+
+    @Test
+    fun constrainedOrWideDpLayoutsUseTheAdaptiveStatsStrip() {
+        assertFalse(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                layoutDensity = AdaptiveLayoutDensity.Compact,
+                preferredWidth = 385.dp,
+                availableWidth = 420.dp
+            )
+        )
+        assertFalse(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Medium,
+                layoutDensity = AdaptiveLayoutDensity.Regular,
+                preferredWidth = 385.dp,
+                availableWidth = 700.dp
+            )
+        )
+    }
+
+    @Test
+    fun overflowingNormalPhoneUsesTheAdaptiveStatsStrip() {
+        assertFalse(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                layoutDensity = AdaptiveLayoutDensity.Regular,
+                preferredWidth = 430.dp,
+                availableWidth = 420.dp
+            )
+        )
     }
 
     @Test
