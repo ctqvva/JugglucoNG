@@ -427,6 +427,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meterlist">"Глюкоз хэмжигч төхөөрөмжүүд"</string>
     <string name="glucose_meters_desc">Bluetooth глюкоз хэмжигч холбоно уу</string>
     <string name="glucose_meters_journal_desc">Хэмжилтүүд өдрийн тэмдэглэлд цусан дахь глюкозын бичлэгээр хадгалагдаж, Nightscout руу илгээгдэх боломжтой.</string>
+    <string name="satellite_meter_title">Satellite (Сателлит+) глюкоз хэмжигч</string>
+    <string name="satellite_meter_code_label">PIN эсвэл шошгоны код</string>
+    <string name="satellite_meter_code_desc">3 оронтой PIN эсвэл хэмжигчийн QR/DataMatrix шошгоны доор хэвлэсэн урт кодыг оруулна уу. Энэ кодыг Bluetooth холболт бүрд ашиглана.</string>
     <string name="glucose_meters_configured">Тохируулсан хэмжигчүүд</string>
     <string name="glucose_meters_none">Хэмжигч тохируулаагүй</string>
     <string name="glucose_meters_none_desc">Хэмжилт импортлохын тулд ойролцоох хэмжигчийг олно уу.</string>

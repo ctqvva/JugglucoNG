@@ -52,7 +52,13 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import tk.glucodata.glucosemeter.SatelliteMeterCredentials;
+import tk.glucodata.glucosemeter.SatelliteMeterProtocol;
+import tk.glucodata.glucosemeter.SatelliteMeterSession;
+import tk.glucodata.glucosemeter.SatelliteSessionUpdate;
 
 public  class GlucoseMeterGatt  extends BluetoothGattCallback {
     MeterList.MeterView view=null;
@@ -98,6 +104,8 @@ long foundtime=0L;
  private static final String RecordsCharUUID = "00002a52-0000-1000-8000-00805f9b34fb";
  private static final String DateTimeCharUUID = "00002a08-0000-1000-8000-00805f9b34fb";
  private static final String IsensTimeCharUUID ="0000fff1-0000-1000-8000-00805f9b34fb";
+ private static final String SatelliteRxCharUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+ private static final String SatelliteTxCharUUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
 
 
@@ -108,6 +116,10 @@ private  BluetoothGattCharacteristic GlucoseChar;
 private  BluetoothGattCharacteristic ContextChar;
 private  BluetoothGattCharacteristic RecordsChar;
 private  BluetoothGattCharacteristic ManufacturerNameChar;
+private BluetoothGattCharacteristic SatelliteRxChar;
+private BluetoothGattCharacteristic SatelliteTxChar;
+private SatelliteMeterSession satelliteSession;
+private boolean satelliteMode=false;
 
 
 
@@ -115,8 +127,13 @@ private boolean discovered=false;
 private boolean discover(BluetoothGatt bluetoothGatt) {
     var services=bluetoothGatt.getServices();
     boolean success=false;
+    satelliteMode=false;
+    SatelliteRxChar=null;
+    SatelliteTxChar=null;
+    satelliteSession=null;
     for(var ser:services) {
         if(doLog) Log.i(LOG_ID,"service: "+ser.getUuid().toString());
+        final boolean satelliteService=ser.getUuid().equals(SatelliteMeterProtocol.SERVICE_UUID);
         var chars=ser.getCharacteristics();
         for(var s:chars) {
             var uuid=s.getUuid().toString();
@@ -129,10 +146,18 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
                 case GlucoseCharUUID: GlucoseChar=s;success=true;break;
                 case ContextCharUUID: ContextChar=s;break;
                 case RecordsCharUUID: RecordsChar=s;break;
+                case SatelliteRxCharUUID: if(satelliteService) SatelliteRxChar=s;break;
+                case SatelliteTxCharUUID: if(satelliteService) SatelliteTxChar=s;break;
                 }
             }
         }
-    if(success)  {
+    if(SatelliteRxChar!=null && SatelliteTxChar!=null) {
+        satelliteMode=true;
+        success=true;
+        if(doLog) Log.i(LOG_ID,"Satellite Nordic UART service discovered");
+        beginSatelliteSession(bluetoothGatt);
+    }
+    else if(success)  {
         if(doLog) Log.i(LOG_ID,"discover succesfull");
         tryer( ()->
             {
@@ -147,6 +172,18 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
     return success;
     }
 
+private void beginSatelliteSession(BluetoothGatt gatt) {
+    final String pin=SatelliteMeterProtocol.resolvePin(SatelliteMeterCredentials.load());
+    if(pin==null) {
+        Log.e(LOG_ID,"Satellite meter code is missing or invalid");
+        return;
+    }
+    satelliteSession=new SatelliteMeterSession(pin,System.currentTimeMillis());
+    if(!enableNotification(gatt,SatelliteTxChar)) {
+        Log.e(LOG_ID,"Could not enable Satellite notifications");
+    }
+}
+
 long receivedTime=0L;
 boolean newvalues=false;
     @Override
@@ -156,6 +193,9 @@ boolean newvalues=false;
         if(doLog)
             Log.showbytes("Meter: onCharacteristicChanged "+uuid,value);
         switch(uuid) {
+            case SatelliteTxCharUUID:
+                processSatelliteResponse(gatt,value);
+                break;
             case GlucoseCharUUID:
                 final long[] saved = Natives.GlucoseMeterSaveResult(meterIndex,value);
                 if(saved != null && saved.length >= 2) {
@@ -181,6 +221,44 @@ boolean newvalues=false;
             }
 
     }
+
+private synchronized void processSatelliteResponse(BluetoothGatt gatt, byte[] value) {
+    final SatelliteMeterSession session=satelliteSession;
+    if(session==null) {
+        Log.e(LOG_ID,"Ignoring Satellite response without an active session");
+        return;
+    }
+    final SatelliteSessionUpdate update=session.onNotification(value);
+    if(update.getError()!=null) {
+        Log.e(LOG_ID,update.getError());
+    }
+    if(update.getComplete()) {
+        persistSatelliteReadings(update.getReadings());
+        satelliteSession=null;
+        return;
+    }
+    final byte[] command=update.getCommand();
+    if(command!=null) {
+        tryer(()->writeSatellite(gatt,command));
+    }
+}
+
+private void persistSatelliteReadings(List<SatelliteMeterProtocol.Reading> readings) {
+    boolean stored=false;
+    for(final SatelliteMeterProtocol.Reading reading:readings) {
+        final long[] saved=Natives.GlucoseMeterSaveDecodedResult(
+            meterIndex,reading.getTimestampMillis(),reading.getMgdlTenths());
+        if(saved==null || saved.length<2) continue;
+        stored=true;
+        GlucoseMeterJournalBridge.record(meterIndex,saved[0],saved[1]);
+        if(saved.length>=3 && saved[2]!=0L) newvalues=true;
+    }
+    if(stored) {
+        receivedTime=System.currentTimeMillis();
+        updateview();
+        Applic.app.redraw();
+    }
+}
 
 
 private boolean firstRecordonly=false;
@@ -320,6 +398,7 @@ boolean connected=false;
            disconnectedTime=tim;
            updateview();
            connected=false;
+           satelliteSession=null;
             if(bondstate == BluetoothDevice.BOND_BONDING) {
                    {if(doLog) {Log.i(LOG_ID, "BOND_BONDING");};};
                    }
@@ -368,6 +447,17 @@ static private          byte[] VerioGetTcounterCMD={0x20, 0x02};
         {if(doLog){Log.showbytes(LOG_ID + " writeCharacteristic: "+cha.getUuid().toString(), data);};}
         return true;
     }
+
+private boolean writeSatellite(BluetoothGatt gatt,byte[] command) {
+    final BluetoothGattCharacteristic characteristic=SatelliteRxChar;
+    if(characteristic==null || !characteristic.setValue(command)) {
+        Log.e(LOG_ID,"Could not prepare Satellite command");
+        return false;
+    }
+    final boolean written=gatt.writeCharacteristic(characteristic);
+    if(doLog) Log.i(LOG_ID,written ? "Satellite command written" : "Satellite command write failed");
+    return written;
+}
 //s/\<\([a-zA-Z0-9]*\).writeCharacteristic(\([^,]*\),\([^)]*\))/writer(\1,\2,\3)
 
 private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
@@ -383,6 +473,18 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
             {if(doLog){showbytes("GlucoseMeter: onDescriptorWrite char: " + uuid + " desc: " + bluetoothGattDescriptor.getUuid().toString() + " status=" + status, value);};}
             }
         switch(uuid) {
+           case SatelliteTxCharUUID:
+                if(status!=GATT_SUCCESS) {
+                    Log.e(LOG_ID,"Satellite notification descriptor failed: "+status);
+                    satelliteSession=null;
+                    break;
+                }
+                final SatelliteMeterSession session=satelliteSession;
+                if(session!=null) {
+                    final byte[] command=session.notificationsEnabled().getCommand();
+                    if(command!=null) tryer(()->writeSatellite(bluetoothGatt,command));
+                }
+                break;
            case GlucoseCharUUID:
                 tryer(()->enableIndication(bluetoothGatt, RecordsChar));
                 break;
@@ -547,6 +649,13 @@ public void disconnect() {
         {if(doLog) {Log.i(LOG_ID,"Disconnect mBluetoothGatt==null");};};
       }
     }
+
+void retrySatelliteSession() {
+    if(satelliteMode) {
+        satelliteSession=null;
+        disconnect();
+    }
+}
  public boolean connectActiveDevice(long delayMillis) {
     if(doLog) {Log.i(LOG_ID,"connectDevice("+delayMillis+") "+ meterIndex);};
     Runnable connect=getConnectDevice();

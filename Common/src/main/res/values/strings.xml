@@ -452,6 +452,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
  <string name="meterlist">"Glucose Meters"</string>
  <string name="glucose_meters_desc">Connect Bluetooth glucose meters</string>
  <string name="glucose_meters_journal_desc">Readings are saved as blood glucose entries in the Journal and can be sent to Nightscout.</string>
+ <string name="satellite_meter_title">Satellite (Сателлит+) meter</string>
+ <string name="satellite_meter_code_label">PIN or label code</string>
+ <string name="satellite_meter_code_desc">Enter the 3-digit PIN or the longer code printed below the QR/DataMatrix label on the meter. It is used for each Bluetooth connection.</string>
  <string name="glucose_meters_configured">Configured meters</string>
  <string name="glucose_meters_none">No meters configured</string>
  <string name="glucose_meters_none_desc">Find a nearby meter to start importing readings.</string>

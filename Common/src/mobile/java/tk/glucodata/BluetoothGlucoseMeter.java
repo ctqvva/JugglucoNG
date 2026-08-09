@@ -107,6 +107,11 @@ private static void removeReceivers() {
     }
 
 static  GlucoseMeterGatt[] meterGatts;
+public static void retrySatelliteSessions() {
+    final var gatts=meterGatts;
+    if(gatts==null) return;
+    for(final var gatt:gatts) gatt.retrySatelliteSession();
+}
 public static void getDevices() {
     final int[] devices=Natives.getActiveGlucoseMeters( );
     final int len=devices.length;

@@ -863,6 +863,9 @@
     <string name="meterlist">"Glukometry"</string>
     <string name="glucose_meters_desc">Połącz glukometry Bluetooth</string>
     <string name="glucose_meters_journal_desc">Pomiary są zapisywane jako wpisy glikemii w dzienniku i mogą być wysyłane do Nightscout.</string>
+    <string name="satellite_meter_title">Glukometr Satellite (Сателлит+)</string>
+    <string name="satellite_meter_code_label">PIN lub kod z etykiety</string>
+    <string name="satellite_meter_code_desc">Wpisz 3-cyfrowy PIN lub dłuższy kod wydrukowany pod etykietą QR/DataMatrix na glukometrze. Jest używany przy każdym połączeniu Bluetooth.</string>
     <string name="glucose_meters_configured">Skonfigurowane glukometry</string>
     <string name="glucose_meters_none">Brak skonfigurowanych glukometrów</string>
     <string name="glucose_meters_none_desc">Znajdź pobliski glukometr, aby rozpocząć import pomiarów.</string>

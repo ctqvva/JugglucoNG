@@ -449,6 +449,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
  <string name="meterlist">"Glucose mitir"</string>
  <string name="glucose_meters_desc">Ku xir mitirrada gulukoosta Bluetooth</string>
  <string name="glucose_meters_journal_desc">Cabbirrada waxaa loogu kaydiyaa gulukoosta dhiigga ee diiwaanka waxaana loo diri karaa Nightscout.</string>
+ <string name="satellite_meter_title">Mitirka Satellite (Сателлит+)</string>
+ <string name="satellite_meter_code_label">PIN ama koodhka summadda</string>
+ <string name="satellite_meter_code_desc">Geli PIN-ka 3 lambar ah ama koodhka dheer ee ku qoran hoosta summadda QR/DataMatrix ee mitirka. Waxa la isticmaalaa xiriir kasta oo Bluetooth ah.</string>
  <string name="glucose_meters_configured">Mitirrada la habeeyey</string>
  <string name="glucose_meters_none">Mitir lama habayn</string>
  <string name="glucose_meters_none_desc">Raadi mitir kuu dhow si aad u soo dejiso cabbirrada.</string>
