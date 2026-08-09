@@ -130,7 +130,7 @@ object JournalIobCalculator {
             activeEntryCount = active.size,
             totalUnits = totalUnits,
             weightedActivityPercent = ((weightedActivity / totalUnits) * 100f).roundToInt().coerceIn(0, 100),
-            nextEndingAt = active.minOfOrNull { it.first.preset.activeEndAt(it.first.timestampMillis) },
+            activeUntil = active.maxOfOrNull { it.first.preset.activeEndAt(it.first.timestampMillis) },
             iobUnits = active.sumOf { (it.first.amountUnits * it.third).toDouble() }.toFloat(),
             eiobUnits = active.sumOf { (it.first.amountUnits * it.third * it.second).toDouble() }.toFloat()
         )

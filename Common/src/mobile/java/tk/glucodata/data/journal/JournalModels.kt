@@ -181,7 +181,7 @@ data class JournalActiveInsulinSummary(
     val activeEntryCount: Int,
     val totalUnits: Float,
     val weightedActivityPercent: Int,
-    val nextEndingAt: Long?,
+    val activeUntil: Long?,
     val iobUnits: Float = 0f,
     val eiobUnits: Float = 0f
 )

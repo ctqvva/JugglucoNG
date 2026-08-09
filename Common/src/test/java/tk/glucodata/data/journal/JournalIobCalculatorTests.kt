@@ -246,6 +246,24 @@ class JournalIobCalculatorTests {
     }
 
     @Test
+    fun summaryRemainsActiveUntilLatestDoseEnds() {
+        val preset = trianglePreset()
+        val presets = mapOf(preset.id to preset)
+        val laterDoseTime = doseTime + minutes(30)
+        val summary = JournalIobCalculator.buildActiveInsulinSummary(
+            listOf(
+                model(2f),
+                model(4.5f, timestamp = laterDoseTime)
+            ),
+            presets,
+            doseTime + minutes(45)
+        )
+
+        assertNotNull(summary)
+        assertEquals(preset.activeEndAt(laterDoseTime), summary!!.activeUntil)
+    }
+
+    @Test
     fun summaryNullWhenAllDosesExpired() {
         val presets = mapOf(1L to trianglePreset())
         val summary = JournalIobCalculator.buildActiveInsulinSummary(

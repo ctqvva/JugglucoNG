@@ -3680,7 +3680,7 @@ fun InteractiveGlucoseChart(
                 val totalUnitsLabel = summary?.let { unitsLabel(it.totalUnits) }
                 val remainingLabel = formatRemainingDuration(
                     LocalContext.current,
-                    summary?.nextEndingAt?.minus(System.currentTimeMillis())
+                    summary?.activeUntil?.minus(System.currentTimeMillis())
                 )
                 val forecastRecommendationAmount = remember(
                     forecastDoseRecommendation?.kind,
@@ -3867,12 +3867,12 @@ fun InteractiveGlucoseChart(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            summary.nextEndingAt?.let { nextEndingAt ->
+                            summary.activeUntil?.let { activeUntil ->
                                 Text(
                                     text = stringResource(
                                         R.string.journal_active_insulin_until,
                                         java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
-                                            .format(java.util.Date(nextEndingAt))
+                                            .format(java.util.Date(activeUntil))
                                     ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant

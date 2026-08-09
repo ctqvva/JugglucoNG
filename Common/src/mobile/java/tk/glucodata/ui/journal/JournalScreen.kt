@@ -498,7 +498,7 @@ private fun JournalMetricsPanel(
     } else {
         null
     }
-    val untilText = activeInsulin?.nextEndingAt?.let { endingAt ->
+    val untilText = activeInsulin?.activeUntil?.let { endingAt ->
         stringResource(R.string.journal_active_insulin_until, activeUntilFormatter.format(Date(endingAt)))
     }
     val activeInsulinDetail = if (activeInsulin == null) {
@@ -590,7 +590,7 @@ private fun JournalMetricsPanel(
                             ),
                             style = MaterialTheme.typography.titleSmall
                         )
-                        summary.nextEndingAt?.let { endingAt ->
+                        summary.activeUntil?.let { endingAt ->
                             Text(
                                 text = stringResource(
                                     R.string.journal_active_insulin_until,
