@@ -98,6 +98,19 @@ object SensorOwnershipRuntime {
         return holdsLiveConnection(target)
     }
 
+    /**
+     * True when this device deliberately let a sensor go to the other one.
+     *
+     * Distinct from simply having no connection: a driver that briefly drops out
+     * is still the authority on its own last reading, whereas one we stood down
+     * from is holding a value that stopped being current the moment we released.
+     */
+    @JvmStatic
+    fun hasStoodDown(serial: String?): Boolean {
+        val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
+        return releasedLocally[key(target)] == true
+    }
+
     /** The peer told us what it is holding. */
     @JvmStatic
     fun onPeerReport(data: ByteArray?) {

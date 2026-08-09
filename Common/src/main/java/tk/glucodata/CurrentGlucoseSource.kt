@@ -37,8 +37,14 @@ object CurrentGlucoseSource {
         val now = System.currentTimeMillis()
         val targetSensor = preferredSensorId ?: SensorIdentity.resolveMainSensor()
 
-        val callback = getFromCallback(now, maxAgeMillis)
-        val managed = getFromManaged(now, maxAgeMillis, targetSensor)
+        // A sensor we handed to the other device leaves its driver holding the
+        // last value it read. That value stopped being current at the handover,
+        // so preferring it made the display alternate between the stale reading
+        // and the fresh ones arriving from the device that now holds the sensor.
+        val stoodDown = runCatching { SensorOwnershipRuntime.hasStoodDown(targetSensor) }
+            .getOrDefault(false)
+        val callback = if (stoodDown) null else getFromCallback(now, maxAgeMillis)
+        val managed = if (stoodDown) null else getFromManaged(now, maxAgeMillis, targetSensor)
         val native = if (targetSensor == null || SensorIdentity.hasNativeSensorBacking(targetSensor)) {
             getFromNative(now, maxAgeMillis)
         } else {
