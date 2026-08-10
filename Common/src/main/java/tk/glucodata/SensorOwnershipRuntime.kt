@@ -225,9 +225,13 @@ object SensorOwnershipRuntime {
             yieldStartedAt.remove(id)
             return 0L
         }
-        // The peer has it: no window needed, the normal rules apply.
+        // The peer has it: no window needed, the normal rules apply. Record when
+        // that was, rather than forgetting the handover happened — otherwise the
+        // moment the peer loses the sensor looks like a fresh handover and opens
+        // a new window, so a watch dropping its connection put the phone into a
+        // blackout instead of straight back onto the sensor.
         if (peer?.owns == true) {
-            yieldStartedAt.remove(id)
+            yieldStartedAt[id] = now
             return 0L
         }
         val started = yieldStartedAt[id]
