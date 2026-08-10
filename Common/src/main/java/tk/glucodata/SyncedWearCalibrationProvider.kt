@@ -14,7 +14,7 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
     private var restored = false
 
     private fun keyOf(sensorId: String): String =
-        (runCatching { SensorIdentity.resolveAppSensorId(sensorId) }.getOrNull() ?: sensorId).lowercase()
+        (runCatching { SensorIdentity.canonicalSensorId(sensorId) }.getOrNull() ?: sensorId).lowercase()
 
     /**
      * The payload used to live only in memory, so every app restart left the
@@ -83,19 +83,28 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         // Older phones corrected on the way out; correcting again would double it.
         if (current.valuesPrecalibrated || current.overwriteSensorValues) return value
         if (!value.isFinite() || value <= 0f) return value
-        val anchors = mode(current, isRawMode).anchorsMgdl
-        if (anchors.isEmpty()) return value
-        val isMmol = runCatching { Applic.unit == 1 }.getOrDefault(false)
-        // The anchors are canonical mg/dL while the value passed in is in display
-        // units, so convert into mg/dL, correct, and convert back.
-        val toMgdl = if (isMmol) MGDL_PER_MMOL else 1f
+        val watchUnitMgdlPerUnit = if (runCatching { Applic.unit == 1 }.getOrDefault(false)) MGDL_PER_MMOL else 1f
+        return calibrateWithPayload(value, timestamp, isRawMode, watchUnitMgdlPerUnit, current)
+    }
+
+    /** Pure seam used to pin phone/watch unit parity without Android state. */
+    internal fun calibrateWithPayload(
+        value: Float,
+        timestamp: Long,
+        isRawMode: Boolean,
+        watchUnitMgdlPerUnit: Float,
+        payload: WearCalibrationPayload,
+    ): Float {
+        val anchors = mode(payload, isRawMode).anchorsMgdl
+        if (anchors.isEmpty() || !value.isFinite() || value <= 0f) return value
+        val sourceScale = payload.sourceUnitMgdlPerUnit.toFloat()
         val points = ArrayList<tk.glucodata.data.calibration.CalPoint>(anchors.size / 3)
         var offset = 0
         while (offset + 2 < anchors.size) {
             points.add(
                 tk.glucodata.data.calibration.CalPoint(
-                    x = anchors[offset],
-                    y = anchors[offset + 1],
+                    x = anchors[offset] / sourceScale,
+                    y = anchors[offset + 1] / sourceScale,
                     timestamp = anchors[offset + 2].toLong(),
                 ),
             )
@@ -103,37 +112,38 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         }
         if (points.isEmpty()) return value
         val sorted = points.sortedBy { it.timestamp }
+        val tuning = if (isRawMode) payload.rawTuning else payload.tuning
         val resolved = tk.glucodata.data.calibration.CalibrationMath.resolvePointsForTimestamp(
             allPoints = sorted,
             targetTimestamp = timestamp,
             earliestPoint = sorted.firstOrNull(),
-            tuning = current.tuning,
+            tuning = tuning,
         )
         if (resolved.isEmpty()) return value
-        val mgdl = value * toMgdl
+        val sourceValue = value * watchUnitMgdlPerUnit / sourceScale
         val computation = tk.glucodata.data.calibration.CalibrationMath.computeAlgorithm(
-            algorithm = current.tuning.algorithm,
-            targetValue = mgdl.toDouble(),
+            algorithm = tuning.algorithm,
+            targetValue = sourceValue.toDouble(),
             targetTimestamp = timestamp,
             points = resolved,
-            tuning = current.tuning,
+            tuning = tuning,
         )
-        val correctedMgdl = tk.glucodata.data.calibration.CalibrationMath.sanitizeCalibratedValue(
+        val correctedSource = tk.glucodata.data.calibration.CalibrationMath.sanitizeCalibratedValue(
             computation.prediction,
-            mgdl,
+            sourceValue,
         )
-        val finalMgdl = if (current.tuning.applyToPast) {
-            correctedMgdl
+        val finalSource = if (tuning.applyToPast) {
+            correctedSource
         } else {
             tk.glucodata.data.calibration.CalibrationMath.applyPastPolicy(
-                originalValue = mgdl,
-                calibratedValue = correctedMgdl,
+                originalValue = sourceValue,
+                calibratedValue = correctedSource,
                 targetTimestamp = timestamp,
                 points = resolved,
             )
         }
-        if (!finalMgdl.isFinite() || finalMgdl <= 0f) return value
-        return finalMgdl / toMgdl
+        if (!finalSource.isFinite() || finalSource <= 0f) return value
+        return (finalSource * sourceScale / watchUnitMgdlPerUnit).toFloat()
     }
 
     override fun shouldHideInitialWhenCalibrated(): Boolean {

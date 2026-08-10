@@ -17,6 +17,7 @@ object WearRoutingRequest {
     private const val PREFS = "wear_routing_request"
     private const val KEY_DIRECT = "direct."
     private const val KEY_ENTER = "enter."
+    private const val KEY_SENSOR = "sensor."
 
     private fun prefs() = Applic.app
         ?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -31,10 +32,18 @@ object WearRoutingRequest {
 
     @JvmStatic
     fun record(nodeId: String, direct: Boolean, enter: Boolean) {
-        prefs()?.edit()
+        val editor = prefs()?.edit()
             ?.putBoolean(KEY_DIRECT + nodeId, direct)
             ?.putBoolean(KEY_ENTER + nodeId, enter)
-            ?.apply()
+            ?: return
+        if (direct) {
+            SensorIdentity.canonicalSensorId(SensorIdentity.resolveMainSensor())
+                ?.takeIf { it.isNotBlank() }
+                ?.let { editor.putString(KEY_SENSOR + nodeId, it) }
+        } else {
+            editor.remove(KEY_SENSOR + nodeId)
+        }
+        editor.apply()
     }
 
     /** Dropped when routing is reset to defaults, so nothing stale is shown. */
@@ -43,6 +52,7 @@ object WearRoutingRequest {
         prefs()?.edit()
             ?.remove(KEY_DIRECT + nodeId)
             ?.remove(KEY_ENTER + nodeId)
+            ?.remove(KEY_SENSOR + nodeId)
             ?.apply()
     }
 }

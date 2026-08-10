@@ -17,6 +17,13 @@ object SensorOwnershipPolicy {
         TAKE,
 
         /**
+         * This device is the user's assigned owner. Keep or acquire the sensor
+         * even while a stale peer report still says the other device has it.
+         * The peer's matching [YIELD] intent makes the two decisions converge.
+         */
+        PREFER,
+
+        /**
          * Stand aside so the peer can connect, but only until a deadline.
          *
          * Sensors that serve one client at a time cannot be handed over any
@@ -77,6 +84,17 @@ object SensorOwnershipPolicy {
 
         // The peer is there but not reading it either.
         if (!peer!!.owns) return true
+
+        // The assigned watch must not tear down a proven live GATT because the
+        // phone's last pre-release announcement has the same reading timestamp.
+        // That exact race caused the first hardware handoff to collapse.
+        if (intent == Intent.PREFER) return true
+
+        // The user assigned this sensor to the peer. A local reconnect at the
+        // same minute must not win it back on the phone tie-breaker; that was
+        // the ownership flap seen on hardware. A current peer ownership proof
+        // keeps the assignment until the peer drops or goes silent.
+        if (intent == Intent.YIELD) return false
 
         // The peer is reading it and we are not: leave it to them.
         if (!localHasConnection) return false

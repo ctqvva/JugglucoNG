@@ -9,24 +9,22 @@ import tk.glucodata.Log.doLog
 
 /**
  * Wear Sync v2: the plan-of-record replacement for the legacy mirror tunnel.
- * One mechanism for live values AND history backfill: the watch asks for
- * everything since a timestamp, the phone answers with chunked
- * [time, auto*10, raw*10] triples served straight from native storage, the
- * watch writes them back through the idempotent minute-addressed stream API.
- * New readings on the phone push a small tail chunk through the same path, so
- * repeats are free and there is no session state to corrupt.
+ * One mechanism carries live values and history backfill in either direction:
+ * the receiver asks for everything since a timestamp, the current owner answers
+ * with ordered [time, auto*10, raw*10] chunks, and the receiver writes them
+ * through its idempotent history path. Tail pushes use the same wire format, so
+ * repeats are harmless and there is no session state to corrupt.
  *
  * Wire format (big-endian), version 1:
- *  request  (watch→phone, SYNC2_REQ_PATH):  [u8 ver][i64 fromSec]
- *  chunk    (phone→watch, SYNC2_CHUNK_PATH):
+ *  request  (receiver→owner, SYNC2_REQ_PATH):  [u8 ver][i64 fromSec]
+ *  chunk    (owner→receiver, SYNC2_CHUNK_PATH):
  *   [u8 ver][u8 flags bit0=final][u16 count][u8 serialLen][serial utf8]
  *   [count × (i64 timeSec, i32 auto10, i32 raw10)]
  *  calibration (phone→watch, SYNC2_CAL_PATH): see [WearCalibrationPayload].
  *
- * The phone calibrates each served lane through CalibrationManager before it goes on the wire.
- * The companion therefore renders exactly the same selected algorithm and history policy without
- * maintaining a second calibration implementation. The calibration message carries the active
- * anchors for chart markers and tells the Wear provider not to apply them a second time.
+ * The wire carries source readings. The calibration payload supplies both mode
+ * configurations and the phone's fitting unit so the watch can reproduce the
+ * same unit-sensitive calculation rather than applying a second approximation.
  */
 object WearSync2 {
     private const val LOG_ID = "WearSync2"
@@ -35,7 +33,6 @@ object WearSync2 {
     private const val MAX_SERVED_SENSORS = 4
     private const val VERSION = 1
     private const val MAX_TRIPLES_PER_CHUNK = 360 // ~8.6KB; smaller messages survive better
-    private const val CHUNK_SPACING_MS = 400L
     private const val TAIL_TRIPLES = 8
     private const val PUSH_THROTTLE_MS = 45_000L
     // A sensor runs for weeks; a 24h horizon meant the watch could never show
@@ -239,8 +236,8 @@ object WearSync2 {
         val out = ArrayList<String>()
         fun add(candidate: String?) {
             val serial = candidate?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return
-            val canonical = (SensorIdentity.resolveAppSensorId(serial) ?: serial).lowercase()
-            if (seen.add(canonical)) out.add(serial)
+            val canonical = SensorIdentity.canonicalSensorId(serial) ?: serial
+            if (seen.add(canonical.lowercase())) out.add(canonical)
         }
         runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()?.let(::add)
         runCatching { Natives.activeSensors() }.getOrNull()?.forEach(::add)
@@ -259,36 +256,21 @@ object WearSync2 {
         // Calibrations live on the phone; the watch must not echo back the
         // anchors it was given or the two would fight over the revision.
         if (!Applic.isWearable) sendCalibration(serial)
-        // Serve what the phone itself displays, not the native stream. For a
-        // managed driver the native store only goes back to the moment native
-        // mirroring started, while Room holds the sensor's whole life — that,
-        // not the horizon, is why the watch never got more than a few hours of
-        // a five-day sensor. These values are already calibrated (they come
-        // from the display path), so no further calibration is applied below.
+        // Serve the phone's authoritative Room-backed source lanes, not only the
+        // native stream. For a managed driver native storage can begin after
+        // Room history, which otherwise truncates the watch chart. Calibration
+        // remains a display operation and is reproduced from the payload.
         val points = runCatching {
             NotificationHistorySource.getRawHistory(fromSec * 1000L, serial)
         }.getOrDefault(emptyList())
             .filter { it.timestamp > 0L && GlucoseValuePlausibility.isPlausibleMgdl(it.value) }
             .sortedBy { it.timestamp }
         if (points.isEmpty()) return
-        // Native storage keeps whole mg/dL and 0.1 mmol/L is 1.8 mg/dL, so a
-        // value the phone rounds up could round back down on the watch and the
-        // two disagreed by 0.1. Quantising here to the value the phone actually
-        // displays survives that round trip, because 1.8 mg/dL steps stay
-        // distinct at mg/dL resolution.
-        // The watch keeps whole mg/dL in native storage, and 0.1 mmol/L is
-        // 1.8 mg/dL, so a value sent to it is snapped to steps that survive that
-        // rounding. The phone keeps floats in Room and needs no such help — and
-        // snapping on the way there would be actively harmful, because each side
-        // now calibrates the value itself and a raw input that differs by up to
-        // 0.9 mg/dL is exactly how the two ended up 0.1 mmol/L apart.
-        val quantiseForNativeStore = !Applic.isWearable
-        val displayQuantum = if (Applic.unit == 1) MGDL_PER_MMOL / 10.0 else 1.0
-        fun wireValue(mgdl: Float): Long {
-            if (!quantiseForNativeStore) return Math.round(mgdl * 10.0)
-            val quantised = Math.round(mgdl / displayQuantum) * displayQuantum
-            return Math.round(quantised * 10.0)
-        }
+        // Preserve the source precision on the wire. The earlier display-unit
+        // snap was not a measured fix: native storage still stores whole mg/dL,
+        // so snapping to 1.80182 mg/dL steps changed the calibration input
+        // without preserving that step after ingest.
+        fun wireValue(mgdl: Float): Long = Math.round(mgdl * 10.0)
         val triples = LongArray(points.size * 3)
         points.forEachIndexed { i, point ->
             triples[i * 3] = point.timestamp / 1000L
@@ -303,12 +285,14 @@ object WearSync2 {
         while (index < total) {
             val count = minOf(MAX_TRIPLES_PER_CHUNK, total - index)
             val final = index + count >= total
-            // MessageClient is best-effort: firing the whole backfill as a
-            // burst of ~14KB messages meant only the last one survived, so the
-            // watch showed a single chunk (10h) of a 24h history. Space them
-            // out and let the transport drain between sends.
-            if (chunks > 0) Thread.sleep(CHUNK_SPACING_MS)
-            sendChunk(serial, triples, index, count, final)
+            // Oldest first, with transport completion awaited. If the link
+            // drops, stop here; the receiver's next incremental request resumes
+            // from the contiguous prefix instead of leaving holes behind a
+            // newer last timestamp.
+            if (!sendChunk(serial, triples, index, count, final)) {
+                Log.w(LOG_ID, "history send stopped for $serial at $index/$total")
+                break
+            }
             chunks++
             index += count
         }
@@ -322,8 +306,9 @@ object WearSync2 {
     @JvmStatic
     fun serveStatus(): ServeStatus = ServeStatus(lastServedMs.get(), lastServedChunkCount.get())
 
-    private fun sendChunk(serial: String, triples: LongArray, offset: Int, count: Int, final: Boolean) {
-        val serialBytes = serial.toByteArray(Charsets.UTF_8)
+    private fun sendChunk(serial: String, triples: LongArray, offset: Int, count: Int, final: Boolean): Boolean {
+        val canonical = SensorIdentity.canonicalSensorId(serial) ?: serial
+        val serialBytes = canonical.toByteArray(Charsets.UTF_8)
         val buf = ByteBuffer.allocate(1 + 1 + 2 + 1 + serialBytes.size + count * 16)
         buf.put(VERSION.toByte())
         buf.put(if (final) 1 else 0)
@@ -343,19 +328,13 @@ object WearSync2 {
             val raw10 = triples[base + 2].toInt()
             buf.putInt(if (GlucoseValuePlausibility.isPlausibleMgdl(raw10 / 10f)) raw10 else 0)
         }
-        MessageSender.sendSyncMessage(MessageSender.SYNC2_CHUNK_PATH, buf.array())
+        return MessageSender.sendSyncMessageAwait(MessageSender.SYNC2_CHUNK_PATH, buf.array())
     }
 
 
-    /**
-     * The name this device already stores a sensor under, if any, so incoming
-     * readings join it rather than starting a parallel one.
-     */
-    private fun existingSensorNameFor(serial: String): String? = runCatching {
-        Natives.activeSensors()
-            ?.firstOrNull { known -> SensorIdentity.matches(known, serial) }
-            ?.takeIf { it.isNotBlank() }
-    }.getOrNull()
+    /** Canonical storage name, so an alias cannot create a parallel record. */
+    private fun existingSensorNameFor(serial: String): String? =
+        SensorIdentity.canonicalSensorId(serial)
 
     private fun sendCalibration(serial: String) {
         // Never publish "no calibration" off the back of a failed load: the watch
@@ -374,6 +353,8 @@ object WearSync2 {
             hideInitialWhenCalibrated = CalibrationAccess.shouldHideInitialWhenCalibrated(),
             overwriteSensorValues = CalibrationAccess.shouldOverwriteSensorValues(),
             tuning = CalibrationAccess.tuningForMode(false),
+            rawTuning = CalibrationAccess.tuningForMode(true),
+            sourceUnitMgdlPerUnit = if (Applic.unit == 1) MGDL_PER_MMOL else 1.0,
             auto = WearCalibrationMode(canonicalAnchors(serial, false)),
             raw = WearCalibrationMode(canonicalAnchors(serial, true)),
         )

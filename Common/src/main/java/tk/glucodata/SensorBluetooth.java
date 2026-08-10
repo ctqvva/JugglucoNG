@@ -102,6 +102,9 @@ public class SensorBluetooth {
             boolean shouldnotscan = true;
             final var now = System.currentTimeMillis();
             for (var cb : wasblue.gattcallbacks) {
+                if (SensorOwnershipRuntime.blocksLocalConnection(cb.SerialNumber)) {
+                    continue;
+                }
                 shouldnotscan = (cb.reconnect(now) && shouldnotscan);
             }
             if (!shouldnotscan) {
@@ -337,7 +340,7 @@ public class SensorBluetooth {
                         ? null
                         : scanResult.getScanRecord().getDeviceName();
                 SuperGattCallback cb = getCallback(scanResult.getDevice(), advertisedName, scanResult);
-                if (cb != null) {
+                if (cb != null && !SensorOwnershipRuntime.blocksLocalConnection(cb.SerialNumber)) {
                     cb.onScanResult(scanResult);
                 }
             }
@@ -1583,6 +1586,12 @@ public class SensorBluetooth {
             Log.i(LOG_ID, "checkandconnect(" + cb.SerialNumber + "," + delay + ")");
         }
         ;
+        if (SensorOwnershipRuntime.blocksLocalConnection(cb.SerialNumber)) {
+            if (doLog) {
+                Log.i(LOG_ID, "checkandconnect skipped: ownership released " + cb.SerialNumber);
+            }
+            return false;
+        }
         BluetoothAdapter adapter = mBluetoothAdapter;
         if (adapter == null && mBluetoothManager != null) {
             try {

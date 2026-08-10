@@ -1106,9 +1106,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 ;
             }
             ;
-            if (stop || (dataptr == 0L && !allowConnectWithoutDataptr())) {
+            if (stop || SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)
+                    || (dataptr == 0L && !allowConnectWithoutDataptr())) {
                 if (doLog) {
-                    Log.i(LOG_ID, SerialNumber + " getConnectDevice: cancelled (stop=" + stop + ", dataptr=" + dataptr + ")");
+                    Log.i(LOG_ID, SerialNumber + " getConnectDevice: cancelled (stop=" + stop
+                            + ", ownershipReleased=" + SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)
+                            + ", dataptr=" + dataptr + ")");
                 }
                 return;
             }
@@ -1211,7 +1214,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             Log.i(LOG_ID, "connectDevice(" + delayMillis + ") " + SerialNumber);
         }
         ;
-        if (stop || (dataptr == 0L && !allowConnectWithoutDataptr())) {
+        if (stop || SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)
+                || (dataptr == 0L && !allowConnectWithoutDataptr())) {
             return false;
         }
         if (connectPending) {

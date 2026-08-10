@@ -218,6 +218,53 @@ class SensorOwnershipPolicyTests {
     }
 
     @Test
+    fun assignedWatchKeepsOwnershipEvenWhenPhoneReconnectsOnTheSameTimestamp() {
+        val peerHasIt = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - 1_000L)
+        assertFalse(
+            decide(
+                intent = Intent.YIELD,
+                localHasConnection = true,
+                localLastReadingMs = now,
+                peer = peerHasIt,
+            ),
+        )
+    }
+
+    @Test
+    fun assignedWatchDoesNotReleaseForThePhonesStaleExactTimestampReport() {
+        val stalePhoneReport = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - 1_000L)
+        assertTrue(
+            decide(
+                isPhone = false,
+                intent = Intent.PREFER,
+                localHasConnection = true,
+                localLastReadingMs = now,
+                peer = stalePhoneReport,
+            ),
+        )
+    }
+
+    @Test
+    fun assignedWatchMayAcquireWhileThePhonesPreReleaseReportIsStillCurrent() {
+        val preReleasePhoneReport = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - 1_000L)
+        assertTrue(
+            decide(
+                isPhone = false,
+                intent = Intent.PREFER,
+                localHasConnection = false,
+                peer = preReleasePhoneReport,
+            ),
+        )
+    }
+
+    @Test
+    fun revokingAssignmentEndsAnOpenYieldWindowWhenPeerDoesNotOwnIt() {
+        val peerIdle = PeerReport(owns = false, lastReadingMs = 0L, receivedAtMs = now - 1_000L)
+        assertFalse(decide(intent = Intent.YIELD, peer = peerIdle, yieldUntilMs = now + 60_000L))
+        assertTrue(decide(intent = Intent.TAKE, peer = peerIdle, yieldUntilMs = now + 60_000L))
+    }
+
+    @Test
     fun aHandoverStillEndsWithSomebodyReadingIfTheOtherDeviceVanishes() {
         // Assigned away, window spent, peer silent entirely.
         assertTrue(

@@ -92,6 +92,23 @@ object SensorIdentity {
         return resolved
     }
 
+    /**
+     * One logical id for protocol/state keys.
+     *
+     * Managed records resolve vendor aliases, while native storage resolves its
+     * short names back to the full sensor name. Running both here prevents a
+     * handoff from changing identity merely because one side learned more about
+     * the sensor than the other.
+     */
+    @JvmStatic
+    fun canonicalSensorId(sensorId: String?): String? {
+        val raw = normalized(sensorId) ?: return null
+        val managed = resolveAppSensorId(raw) ?: raw
+        val native = resolveNativeBackedCanonicalSensorId(managed)
+            ?: resolveNativeBackedCanonicalSensorId(raw)
+        return native?.let { resolveAppSensorId(it) ?: it } ?: managed
+    }
+
     @JvmStatic
     fun resolveNativeSensorName(sensorId: String?): String? {
         val raw = normalized(sensorId) ?: return null

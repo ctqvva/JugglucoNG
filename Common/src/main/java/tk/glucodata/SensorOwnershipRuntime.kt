@@ -56,13 +56,13 @@ object SensorOwnershipRuntime {
     /** Serials as the peer spells them, so we can answer about sensors we lack. */
     private val peerSerials = ConcurrentHashMap<String, String>()
     private val localReadings = ConcurrentHashMap<String, Long>()
-    private val releasedLocally = ConcurrentHashMap<String, Boolean>()
+    private val releaseState = SensorOwnershipReleaseState(::key)
     private val yieldStartedAt = ConcurrentHashMap<String, Long>()
 
     @Volatile private var started = false
 
     private fun key(serial: String): String =
-        (runCatching { SensorIdentity.resolveAppSensorId(serial) }.getOrNull() ?: serial).lowercase()
+        (runCatching { SensorIdentity.canonicalSensorId(serial) }.getOrNull() ?: serial).lowercase()
 
     /** Starts announcing and reconciling. Safe to call repeatedly. */
     @JvmStatic
@@ -99,7 +99,7 @@ object SensorOwnershipRuntime {
     @JvmStatic
     fun readsLocally(serial: String?): Boolean {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
-        if (releasedLocally[key(target)] == true) return false
+        if (releaseState.isReleased(target)) return false
         return holdsLiveConnection(target)
     }
 
@@ -113,7 +113,14 @@ object SensorOwnershipRuntime {
     @JvmStatic
     fun hasStoodDown(serial: String?): Boolean {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
-        return releasedLocally[key(target)] == true
+        return releaseState.isReleased(target)
+    }
+
+    /** Hard gate consulted at every route to connectGatt while the peer owns it. */
+    @JvmStatic
+    fun blocksLocalConnection(serial: String?): Boolean {
+        val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
+        return releaseState.isReleased(target)
     }
 
     /** The peer told us what it is holding. */
@@ -182,7 +189,7 @@ object SensorOwnershipRuntime {
                 peerSilentAfterMs = PEER_SILENT_AFTER_MS,
                 yieldUntilMs = yieldDeadline(id, intent, peer, now),
             )
-            val released = releasedLocally[id] == true
+            val released = releaseState.isReleased(serial)
             when {
                 !shouldRead && !released -> release(serial)
                 shouldRead && released -> resume(serial)
@@ -199,8 +206,14 @@ object SensorOwnershipRuntime {
      * where the user has actually assigned the sensor to the watch.
      */
     private fun intentFor(serial: String): SensorOwnershipPolicy.Intent {
-        if (Applic.isWearable) return SensorOwnershipPolicy.Intent.TAKE
-        return if (assignedToWatch()) {
+        if (Applic.isWearable) {
+            return if (WearSensorClaim.isDirectRequested()) {
+                SensorOwnershipPolicy.Intent.PREFER
+            } else {
+                SensorOwnershipPolicy.Intent.TAKE
+            }
+        }
+        return if (assignedToWatch(serial)) {
             SensorOwnershipPolicy.Intent.YIELD
         } else {
             SensorOwnershipPolicy.Intent.TAKE
@@ -251,17 +264,33 @@ object SensorOwnershipRuntime {
     }
 
     /** Whether the user has assigned the sensor to the watch, read from prefs. */
-    private fun assignedToWatch(): Boolean = runCatching {
-        Applic.app
+    private fun assignedToWatch(serial: String): Boolean = runCatching {
+        val prefs = Applic.app
             ?.getSharedPreferences("wear_routing_request", android.content.Context.MODE_PRIVATE)
-            ?.all
-            ?.any { (key, value) -> key.startsWith("direct.") && value == true }
-    }.getOrNull() ?: false
+            ?: return@runCatching false
+        val requestedNodes = prefs.all
+            .filter { (prefKey, value) -> prefKey.startsWith("direct.") && value == true }
+            .keys
+            .map { it.removePrefix("direct.") }
+        requestedNodes.any { nodeId ->
+            val assigned = prefs.getString("sensor.$nodeId", null)
+            if (!assigned.isNullOrBlank()) {
+                SensorIdentity.matches(assigned, serial)
+            } else {
+                // Absence-only migration for requests saved by older builds:
+                // they meant the sensor selected when direct mode was enabled,
+                // not every sensor on the phone.
+                SensorIdentity.matches(SensorIdentity.resolveMainSensor(), serial)
+            }
+        }
+    }.getOrDefault(false)
 
     private fun release(serial: String) {
-        val gatt = findGatt(serial) ?: return
-        releasedLocally[key(serial)] = true
+        // Mark first. A callback may be created after this reconciliation; it
+        // must still be unable to connect.
+        releaseState.release(serial)
         Log.i(LOG_ID, "standing down from $serial: the other device is reading it")
+        val gatt = findGatt(serial) ?: return
         runCatching {
             gatt.setPause(true)
             gatt.disconnect()
@@ -269,7 +298,7 @@ object SensorOwnershipRuntime {
     }
 
     private fun resume(serial: String) {
-        releasedLocally.remove(key(serial))
+        releaseState.resume(serial)
         val gatt = findGatt(serial) ?: return
         Log.i(LOG_ID, "taking $serial back: the other device is no longer reading it")
         runCatching {

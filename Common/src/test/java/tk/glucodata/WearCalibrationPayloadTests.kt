@@ -15,6 +15,14 @@ class WearCalibrationPayloadTests {
             revision = 42L,
             valuesPrecalibrated = true,
             hideInitialWhenCalibrated = true,
+            sourceUnitMgdlPerUnit = 18.0182,
+            rawTuning = tk.glucodata.data.calibration.CalibrationTuning(
+                algorithm = "xdrip_median_slope",
+                weightMode = "stable",
+                applyToPast = true,
+                lockPastHistory = false,
+                keepDisabledHistory = true,
+            ),
             auto = WearCalibrationMode(
                 doubleArrayOf(100.0, 110.0, 1_700_000_000_000.0),
             ),
@@ -33,8 +41,64 @@ class WearCalibrationPayloadTests {
         assertEquals(payload.revision, decoded.revision)
         assertTrue(decoded.valuesPrecalibrated)
         assertTrue(decoded.hideInitialWhenCalibrated)
+        assertEquals(payload.sourceUnitMgdlPerUnit, decoded.sourceUnitMgdlPerUnit, 0.0)
+        assertEquals(payload.rawTuning, decoded.rawTuning)
         assertArrayEquals(payload.auto.anchorsMgdl, decoded.auto.anchorsMgdl, 0.0)
         assertArrayEquals(payload.raw.anchorsMgdl, decoded.raw.anchorsMgdl, 0.0)
+    }
+
+    @Test
+    fun watchRunsCalibrationInThePhonesSourceUnit() {
+        val timestamp = 1_786_358_640_000L
+        val scale = 18.0182
+        val tuning = tk.glucodata.data.calibration.CalibrationTuning(
+            algorithm = "adaptive_ensemble",
+            weightMode = "fresh",
+            applyToPast = true,
+            lockPastHistory = true,
+            keepDisabledHistory = false,
+        )
+        val phoneUnitAnchors = doubleArrayOf(
+            4.1, 5.0, (timestamp - 6 * 3_600_000L).toDouble(),
+            4.8, 5.6, (timestamp - 3 * 3_600_000L).toDouble(),
+            5.2, 5.5, (timestamp - 60_000L).toDouble(),
+        )
+        val payload = WearCalibrationPayload(
+            sensorId = "6CA04230E260",
+            revision = 1L,
+            valuesPrecalibrated = false,
+            hideInitialWhenCalibrated = false,
+            auto = WearCalibrationMode(phoneUnitAnchors.copyOf().also { packed ->
+                for (index in packed.indices step 3) {
+                    packed[index] *= scale
+                    packed[index + 1] *= scale
+                }
+            }),
+            raw = WearCalibrationMode(DoubleArray(0)),
+            tuning = tuning,
+            sourceUnitMgdlPerUnit = scale,
+        )
+        val inputMmol = 4.05f
+        val points = phoneUnitAnchors.toList().chunked(3).map {
+            tk.glucodata.data.calibration.CalPoint(it[0], it[1], it[2].toLong())
+        }
+        val expected = tk.glucodata.data.calibration.CalibrationMath.computeAlgorithm(
+            tuning.algorithm,
+            inputMmol.toDouble(),
+            timestamp,
+            points,
+            tuning,
+        ).prediction.toFloat()
+
+        val actual = SyncedWearCalibrationProvider.calibrateWithPayload(
+            inputMmol,
+            timestamp,
+            false,
+            scale.toFloat(),
+            payload,
+        )
+
+        assertEquals(expected, actual, 0.0001f)
     }
 
     @Test

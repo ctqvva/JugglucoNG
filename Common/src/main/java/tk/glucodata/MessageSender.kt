@@ -455,6 +455,19 @@ companion object {
         return true
     }
 
+    /**
+     * Ordered history transport. Completion of sendMessage is awaited before
+     * the next chunk is submitted, so a deep backfill cannot turn into dozens
+     * of concurrent best-effort sends that arrive out of order or disappear.
+     */
+    @JvmStatic
+    public fun sendSyncMessageAwait(path: String, data: ByteArray): Boolean {
+        if (!outgoingAllowed()) return false
+        val sender = messagesender ?: return false
+        val targets = sender.nodes?.takeIf { it.isNotEmpty() } ?: return false
+        return targets.all { node -> sender.nameSendMessageResult(node.id, path, data) }
+    }
+
     @Keep
     @JvmStatic
     public fun sendDatawithName(ident: String, data: ByteArray): Boolean {
