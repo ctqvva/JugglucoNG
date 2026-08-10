@@ -47,34 +47,53 @@ object OttaiParser {
 
     const val HEADER_SIZE = 8
     const val BLE_RECORD_SIZE = 8
-    /** V1.7 firmware (vE1.2.x) packs 9-byte live records with a different field layout. */
-    const val BLE_RECORD_SIZE_V17 = 9
+    /** E1.2 firmware packs 9-byte live records with a different field layout. */
+    const val BLE_RECORD_SIZE_E12 = 9
     const val PARSER_RECORD_SIZE = 12
     const val INVALID_DATA_NO = 65535
 
     /**
      * Choose the BLE record size for a decrypted payload.
      *
-     * Confirmed firmware families are DETERMINISTIC — V1.7 ships 9-byte records, V1.5
-     * ships 8-byte — so for those we just trust the version string; no guessing. Only a
-     * genuinely UNKNOWN version is inferred from the data, and that inference uses the
-     * vendor's OWN validity gate (raw current >= 1000, temperature <= 45 — a1.a.b), not a
-     * made-up physiological band: a cold reading is still valid, while the mis-aligned
-     * layout loses because it decodes an impossible current/temperature (e.g. 505 °C).
+     * The layout discriminator is the firmware's E-number, NOT its V-number. Both
+     * E1.1.4(V1.7.S2530.1) and E1.2.3(V1.7.SH2542.1) say "V1.7" while shipping different
+     * records — 8-byte and 9-byte respectively — so treating "V1.7" as confirmation of the
+     * 9-byte layout mis-framed every E1.1 sensor: in the 2026-08-11 Syai trace the device
+     * put 20 records in a 168-byte frame (8 + 20*8, next frame front=20) and the parser read
+     * 17, decoding temperatures like 571 °C and storing a fabricated 38.7 mmol/L.
+     *
+     * Only E-families decoded on hardware are trusted outright. Anything else is inferred
+     * from the data, and that inference uses the vendor's OWN validity gate (raw current
+     * >= 1000, temperature <= 45 — a1.a.b), not a made-up physiological band: a cold reading
+     * is still valid, while the mis-aligned layout loses because it decodes an impossible
+     * current/temperature (e.g. 505 °C).
      * 9-byte: current[0:2], temp[7:9]; 8-byte: current[4:6], temp[6:8].
      */
     internal fun chooseRecordSize(payload: ByteArray, deviceVersion: String): Int {
         confirmedRecordSize(deviceVersion)?.let { return it }
-        val nine = vendorValidCount(payload, BLE_RECORD_SIZE_V17, curLo = 0, tempLo = 7)
+        val nine = vendorValidCount(payload, BLE_RECORD_SIZE_E12, curLo = 0, tempLo = 7)
         val eight = vendorValidCount(payload, BLE_RECORD_SIZE, curLo = 4, tempLo = 6)
-        return if (nine > eight) BLE_RECORD_SIZE_V17 else BLE_RECORD_SIZE
+        return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
     }
 
+    /** E major.minor -> record size, for the firmware families we have decoded on hardware. */
+    private val CONFIRMED_E_FAMILIES = mapOf(
+        "1.1" to BLE_RECORD_SIZE,     // E1.1.4(V1.7.S2530.1) — Syai, 8-byte
+        "1.2" to BLE_RECORD_SIZE_E12, // E1.2.3(V1.7.SH2542.1) — 9-byte
+    )
+
+    /** Leading E-number of a version string: `E1.1.4(...)`, `vE1.2.3(...)`. */
+    private val E_NUMBER = Regex("""(?:^|[^0-9A-Za-z])v?e(\d+)\.(\d+)""", RegexOption.IGNORE_CASE)
+
     /** Record size for firmware whose live format we've directly confirmed; null = unknown. */
-    private fun confirmedRecordSize(deviceVersion: String): Int? = when {
-        deviceVersion.contains("V1.7", ignoreCase = true) -> BLE_RECORD_SIZE_V17
-        deviceVersion.contains("V1.5", ignoreCase = true) -> BLE_RECORD_SIZE
-        else -> null
+    private fun confirmedRecordSize(deviceVersion: String): Int? {
+        E_NUMBER.find(deviceVersion)
+            ?.let { CONFIRMED_E_FAMILIES["${it.groupValues[1]}.${it.groupValues[2]}"] }
+            ?.let { return it }
+        // Pre-E-number strings. V1.5 is unambiguous — no 9-byte V1.5 exists. V1.7 is the
+        // ambiguous one and is deliberately absent: it falls through to the structural
+        // inference rather than asserting a layout the V-number cannot tell us.
+        return if (deviceVersion.contains("V1.5", ignoreCase = true)) BLE_RECORD_SIZE else null
     }
 
     /** Records that pass the vendor temp/current validity gate (a1.a.b) under [recSize]. */
@@ -109,14 +128,14 @@ object OttaiParser {
         if (payload.size <= HEADER_SIZE) return emptyList()
         val front = frontDataNo(payload)
         val bleSize = chooseRecordSize(payload, deviceVersion)
-        val nineByte = bleSize == BLE_RECORD_SIZE_V17
+        val nineByte = bleSize == BLE_RECORD_SIZE_E12
         val bodyLen = payload.size - HEADER_SIZE
         val count = bodyLen / bleSize
         if (count <= 0) return emptyList()
         val out = ArrayList<ByteArray>(count)
         for (i in 0 until count) {
             val src = HEADER_SIZE + i * bleSize
-            // V1.7 notifies pad the frame tail with zero records; skip them so the live
+            // E1.2 notifies pad the frame tail with zero records; skip them so the live
             // path's records.last() lands on the real sample.
             if (nineByte && (0 until bleSize).all { payload[src + it].toInt() == 0 }) continue
             val dataNo = (front + i) and 0xFFFF
@@ -124,7 +143,7 @@ object OttaiParser {
             rec[2] = (dataNo and 0xFF).toByte()
             rec[3] = ((dataNo ushr 8) and 0xFF).toByte()
             if (nineByte) {
-                // Transcode the 9-byte V1.7 record into the 12-byte parser layout so
+                // Transcode the 9-byte E1.2 record into the 12-byte parser layout so
                 // parseRecord/formula stay unchanged. The 16-bit runtime counter wraps,
                 // so derive runtime from dataNo (= minutes since activation) instead.
                 val runtime = dataNo * 60

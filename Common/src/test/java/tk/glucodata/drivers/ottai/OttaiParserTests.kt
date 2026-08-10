@@ -122,18 +122,54 @@ class OttaiParserTests {
 
     @Test
     fun chooseRecordSize_confirmedVersionsAreDeterministic() {
-        // Confirmed families trust the version string outright — no structural guessing.
+        // Confirmed E-families trust the version string outright — no structural guessing.
         val nineData = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
         val eightData = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
-        assertEquals(OttaiParser.BLE_RECORD_SIZE_V17, OttaiParser.chooseRecordSize(nineData, "E1.2.3(V1.7.SH2542.1)"))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(nineData, "E1.2.3(V1.7.SH2542.1)"))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(nineData, "vE1.2.3(V1.7.SH2542.1)"))
         assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(eightData, "V1.5.S2428.1"))
+    }
+
+    @Test
+    fun chooseRecordSize_e11IsEightByteDespiteSayingV17() {
+        // The 2026-08-11 Syai regression: E1.1.4 and E1.2.3 both say "V1.7" and ship different
+        // records, so the V-number cannot decide. E1.1 is 8-byte even when handed a payload
+        // whose 9-byte reading would otherwise look structurally plausible.
+        val nineLookingData = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(nineLookingData, "E1.1.4(V1.7.S2530.1)"),
+        )
+    }
+
+    @Test
+    fun frameRecords_e11SyaiFrameKeepsEveryRecord() {
+        // Frame shape from the trace: 8-byte header + 20 records in 168 bytes, front=0, so the
+        // device's next frame starts at 20. Read as 9-byte it yields 17 and loses 17..19.
+        val payload = ByteArray(168).also { p ->
+            p[4] = 0; p[5] = 0 // frontDataNo = 0
+            for (i in 0 until 20) {
+                val src = 8 + i * 8
+                p[src] = 5                       // voltage
+                p[src + 4] = 0x0C; p[src + 5] = 0x1E // current = 7692 LE
+                p[src + 6] = 0xA4.toByte(); p[src + 7] = 0x0C // temp = 32.36 C LE
+            }
+        }
+        val recs = OttaiParser.frameRecords(payload, "E1.1.4(V1.7.S2530.1)")
+        assertEquals(20, recs.size)
+        assertEquals(19, OttaiParser.parseRecord(recs.last()).dataNo)
+        val r = OttaiParser.parseRecord(recs[0])
+        assertEquals(7692, r.rawCurrent)
+        assertEquals(32.36, r.temperatureC, 1e-9)
     }
 
     @Test
     fun chooseRecordSize_picksNineForUnknownNineByteFirmware() {
         // A brand-new version string we've never enumerated still works, by structure alone.
         val payload = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
-        assertEquals(OttaiParser.BLE_RECORD_SIZE_V17, OttaiParser.chooseRecordSize(payload, "E9.9.9(V3.1.ZZ0000.0)"))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(payload, "E9.9.9(V3.1.ZZ0000.0)"))
+        // Including a bare V1.7 with no E-number: ambiguous by name, decided by the data.
+        assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(payload, "V1.7.SH2542.1"))
     }
 
     @Test
