@@ -34,8 +34,14 @@ object SensorOwnershipRuntime {
      *
      * Long enough for a scan and connect, short enough that a watch which cannot
      * take the sensor costs at most this much data before the phone resumes.
+     *
+     * Measured: a Galaxy Watch took about three and a half minutes to find and
+     * connect to an Ottai the phone had just released, so three minutes had the
+     * phone reclaiming the sensor moments before the watch got it and handing it
+     * over again straight after. Six leaves room for a slower scan without
+     * doubling what a failed handover costs.
      */
-    private const val YIELD_WINDOW_MS = 3L * 60L * 1000L
+    private const val YIELD_WINDOW_MS = 6L * 60L * 1000L
 
     /** After a failed handover, how long before offering the watch another go. */
     private const val YIELD_RETRY_INTERVAL_MS = 15L * 60L * 1000L
@@ -127,6 +133,26 @@ object SensorOwnershipRuntime {
         executor.execute { runCatching { reconcile() }.onFailure { Log.stack(LOG_ID, "reconcile", it) } }
     }
 
+    /**
+     * The peer's report for a sensor, matched by identity rather than by an
+     * exact key.
+     *
+     * A device spells a sensor differently depending on what it knows about it —
+     * the watch answered about "6CA04230E260" until it took the sensor, then
+     * switched to the short alias "230E260". Keyed lookups missed from that
+     * moment on, so the phone never heard that the handover had succeeded, gave
+     * up and took the sensor back.
+     */
+    private fun peerReportFor(serial: String): SensorOwnershipPolicy.PeerReport? {
+        peerReports[key(serial)]?.let { return it }
+        return peerSerials.entries
+            .asSequence()
+            .filter { (_, spelling) -> SensorIdentity.matches(spelling, serial) }
+            .mapNotNull { (id, _) -> peerReports[id] }
+            // Several spellings of one sensor: trust the most recent word.
+            .maxByOrNull { it.receivedAtMs }
+    }
+
     private fun announceAndReconcile() {
         announce()
         reconcile()
@@ -145,7 +171,7 @@ object SensorOwnershipRuntime {
         val now = System.currentTimeMillis()
         sensors().forEach { serial ->
             val id = key(serial)
-            val peer = peerReports[id]
+            val peer = peerReportFor(serial)
             val intent = intentFor(serial)
             val shouldRead = SensorOwnershipPolicy.shouldReadLocally(
                 isPhone = !Applic.isWearable,
