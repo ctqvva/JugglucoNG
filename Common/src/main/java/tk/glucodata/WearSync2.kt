@@ -347,6 +347,16 @@ object WearSync2 {
     }
 
 
+    /**
+     * The name this device already stores a sensor under, if any, so incoming
+     * readings join it rather than starting a parallel one.
+     */
+    private fun existingSensorNameFor(serial: String): String? = runCatching {
+        Natives.activeSensors()
+            ?.firstOrNull { known -> SensorIdentity.matches(known, serial) }
+            ?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
     private fun sendCalibration(serial: String) {
         // Never publish "no calibration" off the back of a failed load: the watch
         // corrects its own readings from these anchors now, so an empty set it
@@ -425,8 +435,14 @@ object WearSync2 {
                 val count = buf.short.toInt() and 0xFFFF
                 val serialLen = buf.get().toInt() and 0xFF
                 val serialBytes = ByteArray(serialLen); buf.get(serialBytes)
-                val serial = String(serialBytes, Charsets.UTF_8)
-                if (serial.isEmpty() || count <= 0) return@execute
+                val wireSerial = String(serialBytes, Charsets.UTF_8)
+                if (wireSerial.isEmpty() || count <= 0) return@execute
+                // One physical sensor is spelled several ways — the full serial
+                // and a short native alias — and creating a store for whichever
+                // spelling happened to arrive gave the watch a second, empty
+                // sensor record that then won the display and showed "No data".
+                // Everything lands on the record this device already has.
+                val serial = existingSensorNameFor(wireSerial) ?: wireSerial
                 if (shouldIgnoreRemovedSensor(serial)) {
                     if (doLog) Log.i(LOG_ID, "ignored stale chunk for removed sensor $serial")
                     return@execute
