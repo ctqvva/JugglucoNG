@@ -176,12 +176,29 @@ void receivetimeout(int sock,int secs) {
    tv.tv_sec = secs;
    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
    }
+
+bool socketSupportsTcpOptions(int sock) {
+  sockaddr_storage address{};
+  socklen_t length = sizeof(address);
+  if (sock < 0 || getsockname(sock, reinterpret_cast<sockaddr *>(&address),
+                              &length) != 0) {
+    return false;
+  }
+  return address.ss_family == AF_INET || address.ss_family == AF_INET6;
+}
+
 void sendtimeout(int sock,int secs) {
    LOGGERTAG("sendtimeout(%d,%d)\n",sock,secs);
    struct timeval tv;
    tv.tv_usec = 0;
    tv.tv_sec = secs;
    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO , (const char*)&tv, sizeof tv);
+
+ // Wear MessageClient is bridged through an AF_UNIX socketpair. Its normal
+ // send timeout is valid, but IPPROTO_TCP options are not; attempting them on
+ // every pump creation produced pages of ENOPROTOOPT noise.
+ if (!socketSupportsTcpOptions(sock))
+   return;
 
  const int  user_timeout = 94000;
   if (setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, &user_timeout, sizeof(user_timeout))) {

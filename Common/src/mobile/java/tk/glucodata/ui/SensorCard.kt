@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.Notify
 import tk.glucodata.R
+import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
@@ -1165,7 +1166,12 @@ fun SensorCard(
         )
     }
 
-    val isStreaming = sensor.streaming
+    val isLocallyStreaming = sensor.streaming
+    val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
+    // A watch-owned sensor is operational even though this phone's local BLE
+    // callback is deliberately paused. Rendering that as Disabled made a
+    // healthy forwarded stream look like a sensor failure.
+    val isStreaming = isLocallyStreaming || isHandedOff
     val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
     val currentSnapshot = remember(refreshRevision, sensor.serial, sensor.viewMode) {
         CurrentDisplaySource.resolveCurrent(
@@ -1357,27 +1363,46 @@ fun SensorCard(
                             }
                         }
 
-                        // Logic: Show Pause if running, Play if stopped (to resume)
-                        IconButton(
-                            onClick = {
-                                if (isStreaming) {
-                                    android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
-                                    viewModel.disconnectSensor(sensor.serial)
-                                } else {
-                                    android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
-                                    viewModel.reconnectSensor(sensor.serial, false)
-                                }
-                            },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(MaterialTheme.colorScheme.surfaceDim.copy(alpha=0.5f), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = if (isStreaming) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Toggle Sensor",
-                                modifier = Modifier.size(26.dp),
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
+                        if (isHandedOff) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        CircleShape,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Watch,
+                                    contentDescription = sensor.detailedStatus,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                        } else {
+                            // Logic: Show Pause if running, Play if stopped (to resume)
+                            IconButton(
+                                onClick = {
+                                    if (isLocallyStreaming) {
+                                        android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
+                                        viewModel.disconnectSensor(sensor.serial)
+                                    } else {
+                                        android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
+                                        viewModel.reconnectSensor(sensor.serial, false)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceDim.copy(alpha=0.5f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = if (isLocallyStreaming) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = "Toggle Sensor",
+                                    modifier = Modifier.size(26.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
 //                } // Close Column (content)

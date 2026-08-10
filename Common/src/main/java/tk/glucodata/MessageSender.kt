@@ -386,6 +386,23 @@ companion object {
         companionEnabled = enabled
         companionEnabledAt = System.currentTimeMillis()
         if (!enabled) shutdownwearos()
+        syncNativeWearTransportState(enabled)
+    }
+
+    /**
+     * The native mirror owns a persisted host for each Wear node. Disabling the
+     * Java receiver alone leaves those hosts active across process restart, so
+     * they continue opening TCP/Data Layer pumps even though WearOS is off.
+     */
+    @JvmStatic
+    fun syncNativeWearTransportState(enabled: Boolean) {
+        runCatching {
+            repeat(Natives.backuphostNr()) { index ->
+                if (Natives.isWearOS(index)) {
+                    Natives.setHostDeactivated(index, !enabled)
+                }
+            }
+        }.onFailure { Log.stack(LOG_ID, "sync native Wear transport enabled=$enabled", it) }
     }
 
     /** Drops the transport so nothing is left holding nodes or streaming. */

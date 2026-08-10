@@ -77,6 +77,33 @@ class OttaiNativeGlucoseMirrorTests {
     }
 
     @Test
+    fun historyUsesOneNativeBatchWithNativeUnits() {
+        var batch: NativeBatch? = null
+        val wakes = mutableListOf<Pair<String, Long>>()
+        val mirror = OttaiNativeGlucoseMirror(
+            writeNative = { _, _, _, _ -> error("per-row writer must not run") },
+            wakeNightscout = { source, timestampMs -> wakes += source to timestampMs },
+            writeNativeBatch = { timestampsSec, glucoses, temperatures, sensorId ->
+                batch = NativeBatch(timestampsSec, glucoses, temperatures, sensorId)
+                timestampsSec.size
+            },
+        )
+
+        val stored = mirror.mirrorHistory(
+            sensorId = "AABBCCDDEEFF",
+            timestampsMs = longArrayOf(60_000L, 120_000L, 180_000L),
+            glucoseMgdl = floatArrayOf(100f, 110f, 126f),
+            temperaturesC = floatArrayOf(32f, 32.5f, 33f),
+        )
+
+        assertEquals(3, stored)
+        assertEquals(listOf(60L, 120L, 180L), batch!!.timestampsSec.toList())
+        assertEquals(12.6f, batch!!.glucoses.last(), 0.0001f)
+        assertEquals("AABBCCDDEEFF", batch!!.sensorId)
+        assertEquals(listOf("ottai-history" to 180_000L), wakes)
+    }
+
+    @Test
     fun historyBatchThatStoresNothingDoesNotWakeNightscout() {
         val wakes = mutableListOf<Pair<String, Long>>()
         val mirror = OttaiNativeGlucoseMirror(
@@ -121,6 +148,13 @@ class OttaiNativeGlucoseMirrorTests {
         val timestampSec: Long,
         val glucose: Float,
         val temperatureC: Float,
+        val sensorId: String,
+    )
+
+    private data class NativeBatch(
+        val timestampsSec: LongArray,
+        val glucoses: FloatArray,
+        val temperaturesC: FloatArray,
         val sensorId: String,
     )
 }

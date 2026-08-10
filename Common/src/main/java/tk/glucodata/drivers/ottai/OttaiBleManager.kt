@@ -554,6 +554,9 @@ class OttaiBleManager(
         wakeNightscout = { source, timestampMs ->
             NightscoutUploadWake.afterLiveNativeWrite(source, timestampMs)
         },
+        writeNativeBatch = { timestampsSec, glucose, temperaturesC, sensorId ->
+            Natives.addGlucoseStreamBatchWithTemp(timestampsSec, glucose, temperaturesC, sensorId)
+        },
     )
     // Recent abnormal-disconnect timestamps (status!=0), pruned to UNSTABLE_LINK_WINDOW_MS;
     // feeds the fast-params hold and is only touched under its own lock (binder threads).

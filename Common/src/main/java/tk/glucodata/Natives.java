@@ -719,6 +719,8 @@ public class Natives {
 
         public static native boolean addGlucoseStreamWithTemp(long time, float glucose, float temperatureC, String sensorId);
 
+        public static native int addGlucoseStreamBatchWithTemp(long[] times, float[] glucoses, float[] temperatures, String sensorId);
+
         public static native boolean addGlucoseStreamWithRawTemp(long time, float glucose, float rawGlucose, float temperatureC, String sensorId);
 
         public static native long ensureSensorShell(String sensorId, long startTimeSec);

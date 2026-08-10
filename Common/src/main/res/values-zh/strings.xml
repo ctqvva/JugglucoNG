@@ -2474,4 +2474,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">已就绪 — 把笔贴近手机</string>
     <string name="insulin_pen_full_read_desc">胰岛素笔会保存数月的剂量，完整读取需要数秒的稳定贴合。用这个可以取回上次导入之前的记录。</string>
     <string name="insulin_pen_read_cut_short">笔移开得太早了。请贴住手机直到它振动。</string>
+    <string name="status_watch_reading">手表正在读取此传感器</string>
 </resources>

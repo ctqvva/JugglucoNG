@@ -335,6 +335,8 @@ extern bool networkpresent;
 
 void receiversockopt(int new_fd) {
     LOGGERTAG("receiversockopt(%d)\n",new_fd);
+    extern bool socketSupportsTcpOptions(int sock);
+    if (socketSupportsTcpOptions(new_fd)) {
        const int keepalive = 1;
        if(setsockopt(new_fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) < 0) {
         flerrortag("setsockopt(%d,SO_KEEPALIVE, ) failed",new_fd);
@@ -382,6 +384,7 @@ void receiversockopt(int new_fd) {
          }
     else
       LOGGER("KEEPINTVL=%d\n",retalive);
+    }
 
 extern void sendtimeout(int sock,int secs);
      sendtimeout(new_fd,60);

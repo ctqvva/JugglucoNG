@@ -2448,4 +2448,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Pronto — avvicina la penna al telefono</string>
     <string name="insulin_pen_full_read_desc">Una penna conserva mesi di dosi e richiede alcuni secondi di contatto stabile. Serve per andare più indietro dell\'ultima importazione.</string>
     <string name="insulin_pen_read_cut_short">La penna si è allontanata troppo presto. Tienila sul telefono finché non vibra.</string>
+    <string name="status_watch_reading">L\'orologio sta leggendo questo sensore</string>
 </resources>

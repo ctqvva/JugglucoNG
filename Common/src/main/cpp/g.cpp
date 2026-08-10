@@ -1361,6 +1361,84 @@ static int compactRawMgdl(jfloat rawGlucose) {
   return (int)roundf(rawGlucose * mgdlToMmol * 10.0f);
 }
 
+static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensorId,
+                                     jlong timestamp, jfloat glucose,
+                                     jfloat rawGlucose, jfloat temperatureC,
+                                     bool overwriteRaw, bool overwriteTemp,
+                                     bool quiet, int *rewindFrom) {
+  if (!hist || hist->error() || timestamp <= 0)
+    return false;
+  auto *info = hist->getinfo();
+  if (!info)
+    return false;
+
+  uint32_t start = info->starttime;
+  if (!start && timestamp > 3600) {
+    start = timestamp - 3600;
+    info->starttime = start;
+    syncListStarttime(hist, start);
+  }
+
+  int lifeCount = 0;
+  if (start > 0 && timestamp >= start)
+    lifeCount = (timestamp - start) / 60;
+  const uint16_t mgVal = (uint16_t)(glucose * 10.0f);
+
+  if (!hist->validPollIndex(lifeCount)) {
+    // Capacity failures remain loud even for a bulk reconciliation: unlike a
+    // successful duplicate write, this is lost medical data.
+    LOGGER("%s: live reading at %lld DROPPED, lifeCount=%lld outside poll "
+           "capacity=%zu (starttime=%u)\n",
+           sensorId, (long long)timestamp, (long long)lifeCount,
+           hist->pollStorageCapacity(), start);
+    return false;
+  }
+
+  int preservedRaw = 0;
+  uint16_t preservedTemp = 0;
+  const ScanData *pollsbuf = hist->getPollsData();
+  const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
+  if (hist->hasStreamID(lifeCount)) {
+    const RawData *rawbuf = hist->getRawPollsData();
+    if (rawbuf)
+      preservedRaw = rawbuf[lifeCount].raw;
+    preservedTemp = hist->getTempForPoll(lifeCount);
+  }
+  if (overwriteRaw && rawGlucose > 0.0f)
+    preservedRaw = compactRawMgdl(rawGlucose);
+  if (overwriteTemp && temperatureC > 0.0f)
+    preservedTemp = static_cast<uint16_t>(temperatureC * 10.0f);
+
+  const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
+                                             mgVal, timestamp);
+  const bool stored = quiet
+                          ? hist->savepollallIDsQuiet<60>(
+                                timestamp, lifeCount, mgVal, 0, change,
+                                preservedRaw, preservedTemp)
+                          : hist->savepollallIDs<60>(
+                                timestamp, lifeCount, mgVal, 0, change,
+                                preservedRaw, preservedTemp);
+  if (!stored)
+    return false;
+
+  if (fillsPollGap && lifeCount <= UINT16_MAX && info->nightiter > lifeCount) {
+    if (!quiet) {
+      LOGGER("%s: poll %d backfilled behind Nightscout cursor %u; rewinding\n",
+             sensorId, lifeCount, (unsigned)info->nightiter);
+    }
+    __atomic_store_n(&info->nightiter, (uint16_t)lifeCount, __ATOMIC_RELAXED);
+  }
+  if (backup) {
+    if (rewindFrom) {
+      *rewindFrom = *rewindFrom < 0 ? lifeCount : std::min(*rewindFrom, lifeCount);
+    } else {
+      hist->backstream(lifeCount);
+      hist->backhistory(lifeCount);
+    }
+  }
+  return true;
+}
+
 static bool addGlucoseStreamInternal(JNIEnv *env, jlong timestamp, jfloat glucose,
                                      jfloat rawGlucose, jfloat temperatureC,
                                      jstring sensorId, bool overwriteRaw,
@@ -1374,94 +1452,12 @@ static bool addGlucoseStreamInternal(JNIEnv *env, jlong timestamp, jfloat glucos
   bool stored = false;
   if (timestamp > 0) {
     if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
-      if (hist->error()) {
-        env->ReleaseStringUTFChars(sensorId, str);
-        return false;
-      }
       seedDirectStreamStateIfMissing(hist, timestamp);
-      auto *info = hist->getinfo();
-      if (!info) {
-        env->ReleaseStringUTFChars(sensorId, str);
-        return false;
-      }
-
-      uint32_t start = info->starttime;
-      if (!start && timestamp > 3600) {
-        start = timestamp - 3600;
-        info->starttime = start;
-        syncListStarttime(hist, start);
-      }
-
-      int lifeCount = 0;
-      if (start > 0 && timestamp >= start) {
-        lifeCount = (timestamp - start) / 60;
-      }
-
-      uint16_t mgVal = (uint16_t)(glucose * 10.0f);
-
-      // Use savepollallIDs to update the stream data (index = lifeCount).
-      // Preserve existing raw/temperature channels when overwriting auto value
-      // so calibrated stream rewrites don't zero out raw data.
-      if (hist->validPollIndex(lifeCount)) {
-        int preservedRaw = 0;
-        uint16_t preservedTemp = 0;
-        // A slot holding no value before this write is a gap being filled — backfill arriving
-        // behind the Nightscout cursor, which only ever advances and would otherwise skip it
-        // for good. Note it now, rewind after the store. Guarded on empty->filled so that
-        // rewriting values that are already there (calibration replays) cannot put the
-        // uploader into a resend loop: each gap can trigger at most one rewind.
-        const ScanData *pollsbuf = hist->getPollsData();
-        const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
-        if (hist->hasStreamID(lifeCount)) {
-          const RawData *rawbuf = hist->getRawPollsData();
-          if (rawbuf) {
-            preservedRaw = rawbuf[lifeCount].raw;
-          }
-          preservedTemp = hist->getTempForPoll(lifeCount);
-        }
-        if (overwriteRaw && rawGlucose > 0.0f) {
-          preservedRaw = compactRawMgdl(rawGlucose);
-        }
-        if (overwriteTemp && temperatureC > 0.0f) {
-          preservedTemp = static_cast<uint16_t>(temperatureC * 10.0f);
-        }
-        // Managed drivers (Sibionics et al.) report no rate of their own. Storing a
-        // literal 0.0f here made every exchange payload read "Flat" forever; derive
-        // one from the poll series instead, and store NAN when it cannot be derived
-        // so downstream serializers emit no arrow rather than a wrong one.
-        const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                                   mgVal, timestamp);
-        hist->savepollallIDs<60>(timestamp, lifeCount, mgVal, 0, change,
-                                 preservedRaw, preservedTemp);
-        stored = true;
-        // nightiter is uint16_t, so a sensor long enough to index past it (46-day Sibionics)
-        // already cannot be tracked by it; leave those alone rather than truncate.
-        if (fillsPollGap && lifeCount <= UINT16_MAX) {
-          if (auto *pollinfo = hist->getinfo();
-              pollinfo && pollinfo->nightiter > lifeCount) {
-            LOGGER("%s: poll %d backfilled behind Nightscout cursor %u; rewinding\n", str,
-                   lifeCount, (unsigned)pollinfo->nightiter);
-            __atomic_store_n(&pollinfo->nightiter, (uint16_t)lifeCount, __ATOMIC_RELAXED);
-          }
-        }
-        if (backup) {
-          // Kotlin calibration rewrites touch historical stream points. Rewind
-          // both stream and history mirror cursors so followers receive the
-          // updated minute range and can replace existing Room rows.
-          hist->backstream(lifeCount);
-          hist->backhistory(lifeCount);
-        }
-      } else {
-        // Dropping a live reading here used to be completely silent: the caller
-        // saw only stored=false, so an Ottai that outgrew its 15-day poll map on
-        // entering extended wear stopped feeding native storage — and therefore
-        // Nightscout — with nothing in the log to say so. Never fail quietly.
-        LOGGER("%s: live reading at %lld DROPPED, lifeCount=%lld outside poll "
-               "capacity=%zu (starttime=%u)\n",
-               str, (long long)timestamp, (long long)lifeCount,
-               hist->pollStorageCapacity(), start);
-      }
-      setstreaming(hist);
+      stored = storeGlucoseStreamSample(
+          hist, str, timestamp, glucose, rawGlucose, temperatureC,
+          overwriteRaw, overwriteTemp, false, nullptr);
+      if (stored)
+        setstreaming(hist);
     }
   }
   env->ReleaseStringUTFChars(sensorId, str);
@@ -1483,6 +1479,61 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(addGlucoseStreamWithTemp)(
                                   sensorId, false, true)
              ? JNI_TRUE
              : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
+    JNIEnv *env, jclass cl, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray temperatures, jstring sensorId) {
+  if (!sensors || !timestamps || !glucoses || !temperatures || !sensorId)
+    return 0;
+  const jsize count = env->GetArrayLength(timestamps);
+  if (count <= 0 || env->GetArrayLength(glucoses) != count ||
+      env->GetArrayLength(temperatures) != count)
+    return 0;
+
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  jlong *timeValues = env->GetLongArrayElements(timestamps, nullptr);
+  jfloat *glucoseValues = env->GetFloatArrayElements(glucoses, nullptr);
+  jfloat *temperatureValues = env->GetFloatArrayElements(temperatures, nullptr);
+  if (!str || !timeValues || !glucoseValues || !temperatureValues) {
+    if (temperatureValues)
+      env->ReleaseFloatArrayElements(temperatures, temperatureValues, JNI_ABORT);
+    if (glucoseValues)
+      env->ReleaseFloatArrayElements(glucoses, glucoseValues, JNI_ABORT);
+    if (timeValues)
+      env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
+    if (str)
+      env->ReleaseStringUTFChars(sensorId, str);
+    return 0;
+  }
+
+  jint stored = 0;
+  jlong firstTimestamp = 0;
+  for (jsize index = 0; index < count && firstTimestamp <= 0; ++index)
+    firstTimestamp = timeValues[index];
+  if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
+    seedDirectStreamStateIfMissing(hist, firstTimestamp);
+    int rewindFrom = -1;
+    for (jsize index = 0; index < count; ++index) {
+      if (storeGlucoseStreamSample(
+              hist, str, timeValues[index], glucoseValues[index], 0.0f,
+              temperatureValues[index], false, true, true, &rewindFrom)) {
+        ++stored;
+      }
+    }
+    if (rewindFrom >= 0 && backup) {
+      hist->backstream(rewindFrom);
+      hist->backhistory(rewindFrom);
+    }
+    if (stored > 0)
+      setstreaming(hist);
+  }
+
+  env->ReleaseFloatArrayElements(temperatures, temperatureValues, JNI_ABORT);
+  env->ReleaseFloatArrayElements(glucoses, glucoseValues, JNI_ABORT);
+  env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
+  env->ReleaseStringUTFChars(sensorId, str);
+  return stored;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(addGlucoseStreamWithRawTemp)(

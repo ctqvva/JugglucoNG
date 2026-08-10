@@ -12,6 +12,8 @@ import tk.glucodata.Applic
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
+import tk.glucodata.SensorHandoffUiState
+import tk.glucodata.SensorOwnershipRuntime
 import tk.glucodata.SensorVisuals
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.Natives
@@ -91,7 +93,8 @@ data class SensorInfo(
     val resetCompensationActive: Boolean = false,  // AiDex: whether initialization bias compensation is active
     val resetCompensationStatus: String = "",  // AiDex: human-readable compensation status (e.g. "Phase 1: ×1.176 (23h left)")
     val isSelectedForDisplay: Boolean = false,
-    val assignedColorArgb: Int = SensorVisuals.colorArgb(serial)
+    val assignedColorArgb: Int = SensorVisuals.colorArgb(serial),
+    val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -349,6 +352,14 @@ class SensorViewModel : ViewModel() {
         } else {
             ""
         }
+        val handoffUiState = SensorOwnershipRuntime.handoffUiState(snapshot.serial)
+        val handoffStatus = when (handoffUiState) {
+            SensorHandoffUiState.HANDING_TO_WATCH ->
+                Applic.app.getString(tk.glucodata.R.string.wear_claim_state_requesting)
+            SensorHandoffUiState.STREAMING_FROM_WATCH ->
+                Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
+            SensorHandoffUiState.NONE -> null
+        }
         return SensorInfo(
             serial = snapshot.serial,
             displayName = snapshot.displayName
@@ -356,7 +367,7 @@ class SensorViewModel : ViewModel() {
                 .takeIf { SensorIdentity.isUsableSensorId(it) }
                 ?: snapshot.serial,
             deviceAddress = snapshot.deviceAddress,
-            connectionStatus = detailsConnectionStatus,
+            connectionStatus = if (handoffUiState == SensorHandoffUiState.NONE) detailsConnectionStatus else "",
             starttime = if (snapshot.startTimeMs > 0) bluediag.datestr(snapshot.startTimeMs) else "",
             streaming = snapshot.isUiEnabled,
             rssi = snapshot.rssi,
@@ -385,7 +396,7 @@ class SensorViewModel : ViewModel() {
             supportsHardwareReset = snapshot.supportsHardwareReset,
             supportsClearCalibration = snapshot.supportsClearCalibration,
             sensorDetailTelemetry = snapshot.sensorDetailTelemetry,
-            detailedStatus = snapshot.subtitleStatus.ifBlank {
+            detailedStatus = handoffStatus ?: snapshot.subtitleStatus.ifBlank {
                 snapshot.detailedStatus.ifBlank { snapshot.connectionStatus }
             },
             isActive = snapshot.isActive,
@@ -401,7 +412,8 @@ class SensorViewModel : ViewModel() {
             vendorHardware = snapshot.vendorHardware,
             vendorModel = snapshot.vendorModel,
             resetCompensationActive = snapshot.resetCompensationActive,
-            resetCompensationStatus = snapshot.resetCompensationStatus
+            resetCompensationStatus = snapshot.resetCompensationStatus,
+            handoffUiState = handoffUiState,
         )
     }
 
@@ -520,13 +532,15 @@ class SensorViewModel : ViewModel() {
                         // last connection event ("Loss of signal") describes how
                         // this device stopped reading, not what is happening to
                         // the sensor — which the watch is reading perfectly well.
-                        val handedToWatch = runCatching {
-                            tk.glucodata.SensorOwnershipRuntime.hasStoodDown(gatt.SerialNumber)
-                        }.getOrDefault(false)
+                        val handoffUiState = runCatching {
+                            SensorOwnershipRuntime.handoffUiState(gatt.SerialNumber)
+                        }.getOrDefault(SensorHandoffUiState.NONE)
 
                         val finalStatus = when {
-                            handedToWatch ->
-                                tk.glucodata.Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
+                            handoffUiState == SensorHandoffUiState.HANDING_TO_WATCH ->
+                                Applic.app.getString(tk.glucodata.R.string.wear_claim_state_requesting)
+                            handoffUiState == SensorHandoffUiState.STREAMING_FROM_WATCH ->
+                                Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
                             warmupStatus != null -> warmupStatus
                             nativeStatus.isNotEmpty() -> nativeStatus
                             // Pass through custom status strings from GATT callbacks (e.g., "Connected, waiting for data...", "Connected, raw values received")
@@ -571,7 +585,8 @@ class SensorViewModel : ViewModel() {
                             supportsDisplayModes = false,
                             supportsManualCalibration = false,
                             detailedStatus = displayStatus,
-                            isActive = isActiveSensor
+                            isActive = isActiveSensor,
+                            handoffUiState = handoffUiState,
                         )
                     }
                 } catch (e: Exception) {

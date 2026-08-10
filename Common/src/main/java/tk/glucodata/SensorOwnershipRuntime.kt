@@ -6,6 +6,22 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+enum class SensorHandoffUiState {
+    NONE,
+    HANDING_TO_WATCH,
+    STREAMING_FROM_WATCH,
+}
+
+internal fun resolveSensorHandoffUiState(
+    releasedLocally: Boolean,
+    peerOwns: Boolean,
+    peerReportFresh: Boolean,
+): SensorHandoffUiState = when {
+    !releasedLocally -> SensorHandoffUiState.NONE
+    peerOwns && peerReportFresh -> SensorHandoffUiState.STREAMING_FROM_WATCH
+    else -> SensorHandoffUiState.HANDING_TO_WATCH
+}
+
 /**
  * Keeps exactly one device reading each sensor, and hands it over when that
  * device stops being able to.
@@ -121,6 +137,21 @@ object SensorOwnershipRuntime {
     fun blocksLocalConnection(serial: String?): Boolean {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
         return releaseState.isReleased(target)
+    }
+
+    /** Phone UI state for the deliberate gap and the subsequent watch-owned stream. */
+    @JvmStatic
+    fun handoffUiState(serial: String?): SensorHandoffUiState {
+        if (Applic.isWearable) return SensorHandoffUiState.NONE
+        val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) }
+            ?: return SensorHandoffUiState.NONE
+        val peer = peerReportFor(target)
+        val now = System.currentTimeMillis()
+        return resolveSensorHandoffUiState(
+            releasedLocally = releaseState.isReleased(target),
+            peerOwns = peer?.owns == true,
+            peerReportFresh = peer != null && now - peer.receivedAtMs <= PEER_SILENT_AFTER_MS,
+        )
     }
 
     /** The peer told us what it is holding. */

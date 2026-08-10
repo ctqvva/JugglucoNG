@@ -820,6 +820,10 @@ public class Applic extends Application implements androidx.work.Configuration.P
         if (!initproccalled) {
             if (!numio.setlibrary(this))
                 return false;
+            // Native backup hosts are restored before the Java Wear transport.
+            // Honour the persisted companion switch immediately, otherwise a
+            // disabled Wear host reconnects during every process start.
+            MessageSender.syncNativeWearTransportState(useWearos());
             // First thing after the natives are up, so Log reaches trace.log: whatever killed the
             // previous process is otherwise lost. Both apps died inside the 2026-08-01 jamming
             // storm and 767s of the downtime is unattributed purely because no log line says why.

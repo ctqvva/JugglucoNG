@@ -3,6 +3,7 @@ package tk.glucodata.drivers.ottai
 internal class OttaiNativeGlucoseMirror(
     private val writeNative: (Long, Float, Float, String) -> Boolean,
     private val wakeNightscout: (String, Long) -> Unit,
+    private val writeNativeBatch: ((LongArray, FloatArray, FloatArray, String) -> Int)? = null,
 ) {
     fun mirrorLive(
         sensorId: String,
@@ -37,6 +38,18 @@ internal class OttaiNativeGlucoseMirror(
     ): Int {
         require(timestampsMs.size == glucoseMgdl.size)
         require(timestampsMs.size == temperaturesC.size)
+
+        writeNativeBatch?.let { writeBatch ->
+            val timestampsSec = LongArray(timestampsMs.size) { timestampsMs[it] / 1000L }
+            val nativeGlucose = FloatArray(glucoseMgdl.size) { glucoseMgdl[it] / 10f }
+            val stored = writeBatch(timestampsSec, nativeGlucose, temperaturesC, sensorId)
+            if (stored > 0) {
+                timestampsMs.asSequence().filter { it > 0L }.maxOrNull()?.let {
+                    wakeNightscout("ottai-history", it)
+                }
+            }
+            return stored
+        }
 
         var storedCount = 0
         var newestStoredMs = 0L

@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.SensorOwnershipPolicy.Intent
@@ -273,6 +274,26 @@ class SensorOwnershipPolicyTests {
                 peer = PeerReport(owns = true, lastReadingMs = now, receivedAtMs = now - silentAfter - 1),
                 yieldUntilMs = now - 1L,
             ),
+        )
+    }
+
+    @Test
+    fun phoneUiDistinguishesHandoffFromAProvenWatchStream() {
+        assertEquals(
+            SensorHandoffUiState.NONE,
+            resolveSensorHandoffUiState(false, peerOwns = true, peerReportFresh = true),
+        )
+        assertEquals(
+            SensorHandoffUiState.HANDING_TO_WATCH,
+            resolveSensorHandoffUiState(true, peerOwns = false, peerReportFresh = true),
+        )
+        assertEquals(
+            SensorHandoffUiState.HANDING_TO_WATCH,
+            resolveSensorHandoffUiState(true, peerOwns = true, peerReportFresh = false),
+        )
+        assertEquals(
+            SensorHandoffUiState.STREAMING_FROM_WATCH,
+            resolveSensorHandoffUiState(true, peerOwns = true, peerReportFresh = true),
         )
     }
 }
