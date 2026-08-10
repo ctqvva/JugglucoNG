@@ -32,16 +32,15 @@ object SensorOwnershipRuntime {
     /**
      * How long the phone lets go for, when the user hands a sensor to the watch.
      *
-     * Long enough for a scan and connect, short enough that a watch which cannot
-     * take the sensor costs at most this much data before the phone resumes.
-     *
-     * Measured: a Galaxy Watch took about three and a half minutes to find and
-     * connect to an Ottai the phone had just released, so three minutes had the
-     * phone reclaiming the sensor moments before the watch got it and handing it
-     * over again straight after. Six leaves room for a slower scan without
-     * doubling what a failed handover costs.
+     * This window is the one time neither device is reading, so it is kept as
+     * short as a handover allows. It was briefly widened to six minutes after a
+     * watch took three and a half to connect; that doubled the outage whenever
+     * the watch could not take the sensor at all, which is the more common case
+     * and the more costly one. A handover that needs longer than this should be
+     * fixed by having the watch say it is actively scanning, not by making the
+     * gap bigger.
      */
-    private const val YIELD_WINDOW_MS = 6L * 60L * 1000L
+    private const val YIELD_WINDOW_MS = 3L * 60L * 1000L
 
     /** After a failed handover, how long before offering the watch another go. */
     private const val YIELD_RETRY_INTERVAL_MS = 15L * 60L * 1000L
