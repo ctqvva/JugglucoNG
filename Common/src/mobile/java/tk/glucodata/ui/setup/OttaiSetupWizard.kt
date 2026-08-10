@@ -154,6 +154,8 @@ private fun fetchOttaiMaterials(
     // materials (incl. the cgmDeviceMethodVO method) — without needing to re-bind. Previously-used
     // account sensors can still be recovered by a temporary bind/unbind when listDevices supplied
     // the deviceVersion required by the bind endpoint.
+    var failure: OttaiCloudClient.CloudFailure? = null
+
     fun viaValidate(): OttaiRegistry.DeviceMaterials? {
         val resp = OttaiCloudClient.validateByMac(context, canonical) ?: return null
         return OttaiCloudClient.toMaterials(context, canonical, resp)?.takeIf { it.authKeys != null }
@@ -165,14 +167,15 @@ private fun fetchOttaiMaterials(
         return OttaiCloudClient.toMaterials(context, boundId, resp)?.takeIf { it.authKeys != null }
     }
     fun viaTemporaryBind(): OttaiRegistry.DeviceMaterials? {
-        // Deliberately still gated on a deviceVersion supplied by an explicit tap on the account
-        // device list. Looking it up by MAC would make this route reachable from the auto-fetch
-        // effect, which is keyed on the cloud id and runs on every edit of the MAC field and on
-        // every QR scan — and bindForMaterials POSTs activeTime = now(), which the server echoes
-        // back and saveMaterials persists. Typing the MAC of a sensor that is currently running
-        // would then silently reset its start time, the exact corruption class that produces a
-        // poisoned dataNo ceiling. Reaching this route must stay a deliberate act.
-        val version = deviceVersion?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        // Account-list selections supply the real version. Syai additionally permits recovery of
+        // an expired sensor outside the signed-in account; allow its known bind metadata only
+        // after validate explicitly returned OutOfProduceTime. Other manually-entered IDs remain
+        // unable to reach the state-changing bind/unbind fallback.
+        val version = OttaiCloudClient.materialBindDeviceVersion(
+            context,
+            deviceVersion,
+            failure?.code,
+        ) ?: return null
         val resp = OttaiCloudClient.bindForMaterials(
             context,
             canonical,
@@ -183,7 +186,6 @@ private fun fetchOttaiMaterials(
         if (!OttaiConstants.matchesCanonicalOrKnownNativeAlias(boundId, canonical)) return null
         return OttaiCloudClient.toMaterials(context, canonical, resp)?.takeIf { it.authKeys != null }
     }
-    var failure: OttaiCloudClient.CloudFailure? = null
     fun step(route: () -> OttaiRegistry.DeviceMaterials?): OttaiRegistry.DeviceMaterials? =
         route().also { if (it == null && failure == null) failure = OttaiCloudClient.lastFailure }
     val m = step { viaValidate() } ?: step { viaBound() } ?: step { viaTemporaryBind() }

@@ -47,6 +47,7 @@ object OttaiCloudClient {
     // unbound") — observed 12 times in a row while activating a replacement sensor on
     // 2026-07-29, with the UI showing only the generic "no materials for this cloud ID".
     const val BIZ_ALREADY_BINDING = "AppUser_AlreadyBinding"
+    const val BIZ_OUT_OF_PRODUCE_TIME = "AppDevice_OutOfProduceTime"
     // The server already considers the sensor finished. For [unbind] that is the state the caller
     // was asking for, so it counts as released. Not yet observed on-device.
     const val BIZ_END_USING = "AppDevice_EndUsing"
@@ -200,6 +201,32 @@ object OttaiCloudClient {
 
     /** Backend host for the signed-in account (CN api.ottai.com vs global seas.ottai.com). */
     private fun base(ctx: Context): String = OttaiRegistry.loadApiBase(ctx)
+
+    /**
+     * The composite bind endpoint requires a deviceVersion even when Syai allows recovering a
+     * sensor which is not present in the signed-in account. This value comes from an exported
+     * Syai E1.1.4 / V1.7 sensor and is used only as bind request metadata; the response remains
+     * authoritative for the recovered sensor's persisted version and materials.
+     */
+    internal const val SYAI_MATERIAL_BIND_DEVICE_VERSION = "E1.1.4(V1.7.S2530.1)"
+
+    internal fun materialBindDeviceVersion(
+        apiBase: String,
+        selectedDeviceVersion: String?,
+        failureCode: String?,
+    ): String? {
+        selectedDeviceVersion?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+        return SYAI_MATERIAL_BIND_DEVICE_VERSION.takeIf {
+            apiBase == OttaiConstants.API_BASE_SYAI &&
+                failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)
+        }
+    }
+
+    fun materialBindDeviceVersion(
+        ctx: Context,
+        selectedDeviceVersion: String?,
+        failureCode: String?,
+    ): String? = materialBindDeviceVersion(base(ctx), selectedDeviceVersion, failureCode)
 
     /** GET /user/apiToken — sig over (ts). Returns the apiToken or null. */
     fun getApiToken(

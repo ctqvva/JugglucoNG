@@ -2,9 +2,60 @@ package tk.glucodata.drivers.ottai
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class OttaiCloudHeadersTests {
+
+    @Test
+    fun syaiExpiredRecoveryUsesKnownBindVersionWithoutAccountMembership() {
+        assertEquals(
+            OttaiCloudClient.SYAI_MATERIAL_BIND_DEVICE_VERSION,
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_SYAI,
+                null,
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
+    }
+
+    @Test
+    fun syaiRecoveryFallbackIsNotUsedForOtherFailuresOrBackends() {
+        assertNull(
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_SYAI,
+                null,
+                "AppDevice_AlreadyUsed",
+            ),
+        )
+        assertNull(
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE,
+                null,
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
+        assertNull(
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_GLOBAL,
+                null,
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
+    }
+
+    @Test
+    fun selectedSensorVersionAlwaysWinsMaterialRecovery() {
+        assertEquals(
+            "vE1.2.3(V1.7.SH2542.1)",
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_SYAI,
+                " vE1.2.3(V1.7.SH2542.1) ",
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
+    }
+
     @Test
     fun syaiWebAccountUsesGlobalMobileApi() {
         assertEquals(
