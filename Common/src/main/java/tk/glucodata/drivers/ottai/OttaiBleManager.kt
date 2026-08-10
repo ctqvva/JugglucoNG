@@ -104,7 +104,7 @@ class OttaiBleManager(
         // recording the window in the persisted hole ledger (retried when the chain is idle;
         // only arrived data or the cross-session attempt cap removes a hole).
         private const val HISTORY_PAGE_TIMEOUT_MS = 12_000L
-        private const val HISTORY_MAX_RETRIES = 3
+        internal const val HISTORY_MAX_RETRIES = 3
         // Hole ledger: requested-but-undelivered history windows, persisted per sensor (see
         // historyHoles). Attempts are cross-session; the size cap bounds the pref for a
         // runaway overshoot. Overflow drops the OLDEST window and loses those records, so the
@@ -300,6 +300,22 @@ class OttaiBleManager(
 
         internal fun previousDataNoForHistory(previousDataNo: Int, liveDataNo: Int): Int =
             if (isPersistedDataNoAheadOfLive(previousDataNo, liveDataNo)) -1 else previousDataNo
+
+        /**
+         * The watchdog retry budget after a history frame lands for the in-flight chunk.
+         *
+         * Refunded only when the frame carries the window FURTHER than every earlier frame for
+         * the same chunk ([chunkBestDataNo]), not merely when it carries something. A chunk
+         * whose tail cannot be decoded re-delivers the same records on every retry, and
+         * refunding on that never let the bound be reached: the 2026-08-11 Syai trace shows
+         * "retry 1/3" on [37,50) re-issued every 13 s for the rest of the connection. With the
+         * budget spent the window goes to the hole ledger and the chain moves on.
+         */
+        internal fun historyRetriesAfterFrame(
+            retries: Int,
+            frameMaxDataNo: Int,
+            chunkBestDataNo: Int,
+        ): Int = if (frameMaxDataNo > chunkBestDataNo) 0 else retries
 
         internal fun shouldDiffStoredHistory(previousDataNo: Int, diffRetryPending: Boolean): Boolean =
             previousDataNo < 0 || diffRetryPending
@@ -655,6 +671,10 @@ class OttaiBleManager(
     @Volatile private var activeHistoryEndExclusive = -1
     @Volatile private var activeHistoryStart = -1
     @Volatile private var historyRetryCount = 0
+    // Furthest dataNo delivered for the window currently in flight; -1 for a window not yet
+    // heard from. Guards the retry budget against a chunk that keeps re-delivering its head
+    // (see historyRetriesAfterFrame). Reset in issueHistoryRequest when the window changes.
+    @Volatile private var historyChunkBestDataNo = -1
     // Persisted ledger of requested-but-undelivered history windows. A gap-driven request
     // records its window here at request time; only actually-arrived data (or the cross-
     // session attempt cap) removes it — so watchdog skips, chain teardown, disconnects and
@@ -3721,6 +3741,11 @@ class OttaiBleManager(
         val issued = writeChar(gatt, OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_HISTORY_REQUEST, payload)
         if (issued) {
             lastHistoryRequestAtMs = now
+            // A watchdog retry re-issues the identical window and must keep its progress marker;
+            // any other window is a fresh one and starts with nothing delivered.
+            if (start != activeHistoryStart || start + count != activeHistoryEndExclusive) {
+                historyChunkBestDataNo = -1
+            }
             activeHistoryStart = start
             activeHistoryEndExclusive = start + count
             armHistoryWatchdog()
@@ -3768,9 +3793,12 @@ class OttaiBleManager(
         if (activeEndExclusive <= 0) return pendingHistoryReason != null
         // Callers pass the ceiling-filtered plausible list: only plausible progress resets the
         // stall budget or completes the window, so a corrupt frame can neither starve the
-        // watchdog bound nor mark the chunk done.
+        // watchdog bound nor mark the chunk done. "Progress" means further than this chunk has
+        // ever reached — a frame that only repeats records already delivered leaves the budget
+        // alone, so a window whose tail never decodes runs out of retries instead of forever.
         val maxDataNo = readings.maxOfOrNull { it.record.dataNo } ?: return false
-        historyRetryCount = 0
+        historyRetryCount = historyRetriesAfterFrame(historyRetryCount, maxDataNo, historyChunkBestDataNo)
+        if (maxDataNo > historyChunkBestDataNo) historyChunkBestDataNo = maxDataNo
         if (maxDataNo + 1 < activeEndExclusive) {
             // Partial chunk — restart the stall timer so a later dropped frame is still caught.
             armHistoryWatchdog()
@@ -3850,6 +3878,7 @@ class OttaiBleManager(
         handler.removeCallbacks(pendingHistoryChunkRunnable)
         cancelHistoryWatchdog()
         historyRetryCount = 0
+        historyChunkBestDataNo = -1
         pendingHistoryReason = null
         pendingHistoryNextStart = 0
         pendingHistoryEndExclusive = 0

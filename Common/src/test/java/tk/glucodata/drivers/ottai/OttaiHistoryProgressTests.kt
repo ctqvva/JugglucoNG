@@ -28,6 +28,48 @@ class OttaiHistoryProgressTests {
     }
 
     @Test
+    fun aFrameThatReachesFurtherRefundsTheRetryBudget() {
+        assertEquals(0, OttaiBleManager.historyRetriesAfterFrame(retries = 2, frameMaxDataNo = 44, chunkBestDataNo = 40))
+        // First frame for a window: nothing delivered yet, so anything is progress.
+        assertEquals(0, OttaiBleManager.historyRetriesAfterFrame(retries = 1, frameMaxDataNo = 0, chunkBestDataNo = -1))
+    }
+
+    @Test
+    fun aFrameThatRepeatsWhatWeHaveKeepsTheRetryBudgetSpent() {
+        // The Syai stall: the chunk's tail never decodes, so every retry re-delivers the same
+        // records. Refunding on that is what made the watchdog re-request forever.
+        assertEquals(2, OttaiBleManager.historyRetriesAfterFrame(retries = 2, frameMaxDataNo = 44, chunkBestDataNo = 44))
+        assertEquals(2, OttaiBleManager.historyRetriesAfterFrame(retries = 2, frameMaxDataNo = 40, chunkBestDataNo = 44))
+    }
+
+    @Test
+    fun anUndeliverableChunkExhaustsItsRetriesInsteadOfLoopingForever() {
+        // Replay of chunk [37,50) from the 2026-08-11 trace: every frame tops out at 44, so the
+        // window can never complete. Walk the watchdog/frame cycle and require it to terminate.
+        val endExclusive = 50
+        var retries = 0
+        var best = -1
+        var cycles = 0
+        var gaveUp = false
+        while (cycles++ < 100) {
+            // Frame lands: the same two plausible records, 40 and 44.
+            val frameMax = 44
+            retries = OttaiBleManager.historyRetriesAfterFrame(retries, frameMax, best)
+            if (frameMax > best) best = frameMax
+            assertTrue("window must stay incomplete for this replay", frameMax + 1 < endExclusive)
+            // Watchdog fires on the stalled window.
+            if (retries < OttaiBleManager.HISTORY_MAX_RETRIES) {
+                retries++
+            } else {
+                gaveUp = true
+                break
+            }
+        }
+        assertTrue("chunk must reach the retry bound and be ledgered", gaveUp)
+        assertEquals(OttaiBleManager.HISTORY_MAX_RETRIES, retries)
+    }
+
+    @Test
     fun backfillPercentTracksTheRunningChain() {
         // A full re-add fetches ~19000 records in 270-record chunks over several minutes:
         // one chunk in is 270/18856, i.e. 1%.
