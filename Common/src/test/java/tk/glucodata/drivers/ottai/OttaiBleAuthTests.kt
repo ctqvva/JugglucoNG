@@ -107,15 +107,16 @@ class OttaiBleAuthTests {
     }
 
     @Test
-    fun appTime3_incrementsAndReorders() {
-        // deviceTime LE32 = 1 -> inc = 2 -> low3 = [2,0,0] -> time3 = [b2,b0,b1] = [0,2,0]
+    fun appTime3_matchesOfficialBigEndianEncoding() {
+        // Official transform: parse deviceTime BIG-endian, +1, then emit bytes [inc>>24, inc>>16, inc>>8].
+        // deviceTime BE = 0x01000000 -> inc = 0x01000001 -> [0x01, 0x00, 0x00]
         val t3 = OttaiBleAuth.appTime3(byteArrayOf(1, 0, 0, 0))
         assertEquals(3, t3.size)
-        assertArrayEq(byteArrayOf(0, 2, 0), t3)
+        assertArrayEq(byteArrayOf(1, 0, 0), t3)
 
-        // deviceTime LE32 = 0x0000FFFF=65535 -> inc=65536=0x010000 -> low3=[00,00,01] -> [b2,b0,b1]=[01,00,00]
+        // deviceTime BE = 0xFFFF0000 -> inc = 0xFFFF0001 -> [0xFF, 0xFF, 0x00]
         val t3b = OttaiBleAuth.appTime3(byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0, 0))
-        assertArrayEq(byteArrayOf(1, 0, 0), t3b)
+        assertArrayEq(byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0), t3b)
     }
 
     @Test
