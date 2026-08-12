@@ -781,6 +781,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         ;
         super.onResume();
         thisone = this;
+        // Bluetooth was turned on while no Activity could show the permission
+        // dialog (companion message, handoff, restart). Now there is one.
+        if (Applic.scanPermissionPending && Applic.Nativesloaded && Natives.getusebluetooth()) {
+            finepermission();
+        }
         if (curve != null) {
             if (!curve.waitnfc) {
                 {
@@ -1298,6 +1303,32 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private boolean gaverational = false;
     private boolean locationPermissionRequestInFlight = false;
 
+    /**
+     * True when a scan permission is missing and the system will no longer show
+     * the runtime dialog for it, so the only way left is the app's settings.
+     */
+    private boolean permissionBlocked() {
+        if (Build.VERSION.SDK_INT < 23) {
+            return false;
+        }
+        for (var perm : Applic.hasPermissions(this, Applic.foregroundscanpermissions)) {
+            if (!shouldShowRequestPermissionRationale(perm)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void openAppSettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", getPackageName(), null))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "openAppSettings", th);
+        }
+    }
+
     private void requestLocationPermissions(String[] permissions) {
         if (locationPermissionRequestInFlight) {
             return;
@@ -1316,6 +1347,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
         ;
         if (Build.VERSION.SDK_INT >= 23) {
+            // Whatever happens below, this Activity is now handling the ask, so
+            // it must not be repeated from onResume as well.
+            Applic.scanPermissionPending = false;
             if (locationPermissionRequestInFlight) {
                 return false;
             }
@@ -1472,6 +1506,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     // setbluetoothmain(false);
                     Applic.argToaster(this, "No permission. Sensor via Bluetooth turned off", Toast.LENGTH_LONG);
 
+                    if (isWearable && permissionBlocked()) {
+                        // The system will not show the dialog again. On a watch
+                        // the app's permission screen takes a lot of scrolling
+                        // to find, so offer to open it directly.
+                        bluediag.returntoblue = false;
+                        help.basehelp(R.string.nearbypermission, this, l -> openAppSettings());
+                        break;
+                    }
                     if (!gaverational) {
                         bluediag.returntoblue = false;
                         if (Build.VERSION.SDK_INT > 30) {

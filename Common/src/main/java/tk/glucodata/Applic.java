@@ -417,6 +417,55 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    /**
+     * On the watch Bluetooth is nearly always switched on by something that has
+     * no Activity: the phone's /bluetooth message, a sensor handoff, or
+     * WearSensorClaim re-arming direct mode while the process starts. Those
+     * paths cannot show the runtime dialog, so the scan only ever failed with a
+     * toast and the permission had to be granted by hand in the system app
+     * settings. Remember that it is still needed, and ask as soon as
+     * MainActivity is up again.
+     */
+    static volatile boolean scanPermissionPending = false;
+
+    private static long scanPermissionToastMillis = 0L;
+    private static final long SCANPERMISSION_TOAST_INTERVAL = 60000L;
+
+    /**
+     * Asks for the scan (NEARBY DEVICES / location) permission when an Activity
+     * is available, and otherwise marks it pending for the next resume.
+     *
+     * @return true when the permission is already there or the dialog could be
+     *         shown.
+     */
+    static boolean requestScanPermission() {
+        if (Build.VERSION.SDK_INT < 23 || mayscan()) {
+            scanPermissionPending = false;
+            return true;
+        }
+        var main = MainActivity.thisone;
+        if (main == null) {
+            scanPermissionPending = true;
+            return false;
+        }
+        return main.finepermission();
+    }
+
+    /**
+     * A scan needed the permission and did not have it: ask for it if we can,
+     * and keep the toast from repeating on every retry.
+     */
+    static void missingScanPermission() {
+        requestScanPermission();
+        final long now = android.os.SystemClock.elapsedRealtime();
+        if (scanPermissionToastMillis != 0L && now - scanPermissionToastMillis < SCANPERMISSION_TOAST_INTERVAL) {
+            return;
+        }
+        scanPermissionToastMillis = now;
+        Toaster((Build.VERSION.SDK_INT > 30) ? R.string.turn_on_nearby_devices_permission
+                : R.string.turn_on_location_permission);
+    }
+
     static boolean canBluetooth() {
         if (Build.VERSION.SDK_INT > 30) {
             return Applic.hasPermissions(app, scanpermissions).length == 0;
@@ -931,6 +980,10 @@ public class Applic extends Application implements androidx.work.Configuration.P
         ;
         Natives.setusebluetooth(on);
         if (on) {
+            // The caller is often a message handler or a restart path, not the
+            // Activity, so this is the only moment where we know Bluetooth is
+            // wanted and can still ask for the permission it needs.
+            requestScanPermission();
             Applic.app.initbluetooth(on, activity, activity instanceof MainActivity);
         } else {
             Applic.dontusebluetooth();

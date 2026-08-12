@@ -212,7 +212,7 @@ public class SensorBluetooth {
         } catch (Throwable e) {
             Log.stack(LOG_ID, "getCallback", e);
             if (!Applic.canBluetooth())
-                Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+                Applic.missingScanPermission();
             return null;
         }
     }
@@ -290,7 +290,7 @@ public class SensorBluetooth {
         } catch (Throwable e) {
             Log.stack(LOG_ID, "checkdevice", e);
             if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
-                Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+                Applic.missingScanPermission();
             return true;
         }
     }
@@ -461,7 +461,7 @@ public class SensorBluetooth {
                 } catch (Throwable e) {
                     Log.stack(LOG_ID, e);
                     if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
-                        Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+                        Applic.missingScanPermission();
                     return false;
                 }
                 return true;
@@ -653,8 +653,9 @@ public class SensorBluetooth {
         ;
         var main = MainActivity.thisone;
         if (!((main == null && Applic.mayscan()) || (main != null && main.finepermission()))) {
-            Applic.Toaster((Build.VERSION.SDK_INT > 30) ? R.string.turn_on_nearby_devices_permission
-                    : R.string.turn_on_location_permission);
+            // Without an Activity the permission cannot be asked for here; note
+            // it so the next resume does, instead of only toasting forever.
+            Applic.missingScanPermission();
             return true;
         }
 
@@ -2096,7 +2097,7 @@ public class SensorBluetooth {
         }
         ;
         if (!Applic.canBluetooth()) {
-            Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+            Applic.missingScanPermission();
             Log.e(LOG_ID, "No Blueotooth permission");
             return false;
         }
