@@ -42,7 +42,6 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -151,9 +150,6 @@ internal fun InteractiveWearChartPanel(
     showRangeOverlay: Boolean = true,
     onRangeIndexChange: ((Int) -> Unit)? = null,
     onGestureOwnership: ((Boolean) -> Unit)? = null,
-    // Raised while a reading is selected, so a host that draws its own header
-    // over this panel can free the band the scrub chip parks in.
-    onScrubChange: ((Boolean) -> Unit)? = null,
     headlineTopPadding: androidx.compose.ui.unit.Dp = 3.dp,
 ) {
     var rangeIndex by remember { mutableIntStateOf(initialRangeIndex.coerceIn(CHART_RANGES.indices)) }
@@ -206,7 +202,6 @@ internal fun InteractiveWearChartPanel(
     LaunchedEffect(rangeIndexOverride) {
         rangeIndexOverride?.let { rangeIndex = it.coerceIn(CHART_RANGES.indices) }
     }
-    LaunchedEffect(selected != null) { onScrubChange?.invoke(selected != null) }
     // New data shifts "now": follow it while parked at the right edge, otherwise
     // just keep the panned viewport inside the available range.
     LaunchedEffect(data.start, data.end) {
@@ -299,7 +294,24 @@ internal fun InteractiveWearChartPanel(
                 onGestureOwnership = onGestureOwnership,
                 modifier = Modifier.fillMaxSize().padding(top = 24.dp, bottom = 8.dp),
             )
-            if (showRangeOverlay) {
+            // The selected reading's time takes the range chip's place: same
+            // pill, same spot, so the swap costs no layout and the bottom is
+            // never left holding two chips in the one gap between axis labels.
+            val scrubbed = selected
+            if (scrubbed != null) {
+                WearChartChip(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                ) {
+                    Text(
+                        timeFormat.format(Date(scrubbed.timestamp)),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            } else if (showRangeOverlay) {
                 WearChartRangeChip(
                     rangeIndex = rangeIndex,
                     onClick = {
@@ -309,12 +321,11 @@ internal fun InteractiveWearChartPanel(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
                 )
             }
-            // Value and time travel together in one chip parked in the header
-            // band, where the host has made room for it, rather than as two
-            // readouts laid over the trace. The selection line, not proximity,
-            // is what ties it to a reading; it only tracks the cursor
-            // horizontally so the eye has somewhere to go.
-            selected?.let { point ->
+            // The value butts straight against the bottom of the host's header,
+            // so it sits in the band the hero already occupies rather than out
+            // over the trace. It tracks the cursor horizontally; the selection
+            // line is what actually ties it to a reading.
+            scrubbed?.let { point ->
                 val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
                     autoValue = point.value,
                     rawValue = point.rawValue,
@@ -333,31 +344,20 @@ internal fun InteractiveWearChartPanel(
                             edgeInset = 16.dp,
                         ),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            tk.glucodata.ui.buildGlucoseString(
-                                dvs = dvs,
-                                primaryColor = onSurface,
-                                secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
-                                unitColor = onSurfaceVariant.copy(alpha = 0.6f),
-                                tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
-                            ),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontFeatureSettings = "tnum",
-                            ),
-                            maxLines = 1,
-                        )
-                        Text(
-                            timeFormat.format(Date(point.timestamp)),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFeatureSettings = "tnum",
-                            ),
-                            color = onSurfaceVariant.copy(alpha = 0.85f),
-                            maxLines = 1,
-                            modifier = Modifier.padding(start = 7.dp),
-                        )
-                    }
+                    Text(
+                        tk.glucodata.ui.buildGlucoseString(
+                            dvs = dvs,
+                            primaryColor = onSurface,
+                            secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
+                            unitColor = onSurfaceVariant.copy(alpha = 0.6f),
+                            tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
+                        ),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        maxLines = 1,
+                    )
                 }
             }
             if (data.points.isEmpty()) {
@@ -383,7 +383,7 @@ private fun WearChartChip(
     Box(
         modifier
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f), CircleShape)
-            .padding(horizontal = 11.dp, vertical = 4.dp),
+            .padding(horizontal = 9.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center,
     ) {
         content()
@@ -427,11 +427,11 @@ internal fun WearChartRangeChip(
         CHART_RANGES[rangeIndex.coerceIn(CHART_RANGES.indices)].let { h ->
             if (h >= 48) "${h / 24}d" else "${h}h"
         },
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelMedium,
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f), CircleShape)
             .pointerInput(Unit) { detectTapGestures { onClick() } }
-            .padding(horizontal = 11.dp, vertical = 4.dp),
+            .padding(horizontal = 9.dp, vertical = 3.dp),
     )
 }
 
