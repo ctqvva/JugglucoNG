@@ -23,6 +23,7 @@ package tk.glucodata
 
 import android.content.Intent
 import com.google.android.gms.wearable.*
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic.isWearable
 import tk.glucodata.Log.doLog
@@ -38,6 +39,16 @@ class MessageReceiver: WearableListenerService() {
         super.onMessageReceived(messageEvent)
         val data= messageEvent.getData();
         val path= messageEvent.path
+        if (!isWearable && !MessageSender.outgoingAllowed()) {
+            val now = System.currentTimeMillis()
+            val previous = lastDisabledMessageLogMs.get()
+            if (now - previous >= DISABLED_MESSAGE_LOG_INTERVAL_MS &&
+                lastDisabledMessageLogMs.compareAndSet(previous, now)
+            ) {
+                Log.i(LOG_ID, "ignoring Wear messages: companion disabled")
+            }
+            return
+        }
         Log.i(LOG_ID,"onMessageReceived start $path"  )
         when(path) {
             MessageSender.DEFAULTS_PATH ->  {
@@ -136,6 +147,10 @@ class MessageReceiver: WearableListenerService() {
                 }
             }
             MessageSender.NET_PATH   -> {
+                // The switch may have changed after this callback entered. Do
+                // not let an in-flight /netinfo recreate the native Wear host
+                // after shutdown has just deactivated it.
+                if (!isWearable && !MessageSender.outgoingAllowed()) return
                 MessageSender.markNetInfoExchanged()
                 val sender = tk.glucodata.MessageSender.getMessageSender()
                 if (sender == null) {
@@ -239,6 +254,8 @@ class MessageReceiver: WearableListenerService() {
 
  companion object {
    private const val LOG_ID = "MessageReceiver"
+   private const val DISABLED_MESSAGE_LOG_INTERVAL_MS = 60_000L
+   private val lastDisabledMessageLogMs = AtomicLong(0L)
     private const val offbyte:Byte=0
     fun booldata(data:ByteArray):Boolean {
         return data[0]!=offbyte

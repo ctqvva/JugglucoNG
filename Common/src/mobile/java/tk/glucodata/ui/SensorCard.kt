@@ -1364,18 +1364,18 @@ fun SensorCard(
                         }
 
                         if (isHandedOff) {
-                            Box(
+                            IconButton(
+                                onClick = { viewModel.returnSensorToPhone(sensor.serial) },
                                 modifier = Modifier
                                     .size(48.dp)
                                     .background(
                                         MaterialTheme.colorScheme.secondaryContainer,
                                         CircleShape,
                                     ),
-                                contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Watch,
-                                    contentDescription = sensor.detailedStatus,
+                                    imageVector = Icons.Default.PhoneAndroid,
+                                    contentDescription = stringResource(R.string.return_sensor_to_phone),
                                     modifier = Modifier.size(24.dp),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )

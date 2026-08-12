@@ -2460,4 +2460,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">Uma caneta guarda meses de doses e precisa de alguns segundos de contacto estável. Serve para recuar mais do que a última importação.</string>
     <string name="insulin_pen_read_cut_short">A caneta afastou-se cedo demais. Mantenha-a no telemóvel até vibrar.</string>
     <string name="status_watch_reading">O relógio está a ler este sensor</string>
+    <string name="return_sensor_to_phone">Devolver o sensor ao telemóvel</string>
 </resources>

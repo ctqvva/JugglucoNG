@@ -281,19 +281,83 @@ class SensorOwnershipPolicyTests {
     fun phoneUiDistinguishesHandoffFromAProvenWatchStream() {
         assertEquals(
             SensorHandoffUiState.NONE,
-            resolveSensorHandoffUiState(false, peerOwns = true, peerReportFresh = true),
+            resolveSensorHandoffUiState(
+                companionEnabled = true,
+                releasedLocally = false,
+                peerOwns = true,
+                peerReportFresh = true,
+            ),
         )
         assertEquals(
             SensorHandoffUiState.HANDING_TO_WATCH,
-            resolveSensorHandoffUiState(true, peerOwns = false, peerReportFresh = true),
+            resolveSensorHandoffUiState(
+                companionEnabled = true,
+                releasedLocally = true,
+                peerOwns = false,
+                peerReportFresh = true,
+            ),
         )
         assertEquals(
             SensorHandoffUiState.HANDING_TO_WATCH,
-            resolveSensorHandoffUiState(true, peerOwns = true, peerReportFresh = false),
+            resolveSensorHandoffUiState(
+                companionEnabled = true,
+                releasedLocally = true,
+                peerOwns = true,
+                peerReportFresh = false,
+            ),
         )
         assertEquals(
             SensorHandoffUiState.STREAMING_FROM_WATCH,
-            resolveSensorHandoffUiState(true, peerOwns = true, peerReportFresh = true),
+            resolveSensorHandoffUiState(
+                companionEnabled = true,
+                releasedLocally = true,
+                peerOwns = true,
+                peerReportFresh = true,
+            ),
+        )
+    }
+
+    @Test
+    fun disabledCompanionCannotOwnThePhoneUiOrSensorIntent() {
+        assertEquals(
+            SensorHandoffUiState.NONE,
+            resolveSensorHandoffUiState(
+                companionEnabled = false,
+                releasedLocally = true,
+                peerOwns = true,
+                peerReportFresh = true,
+            ),
+        )
+        assertEquals(
+            Intent.TAKE,
+            resolveSensorOwnershipIntent(
+                isWearable = false,
+                companionEnabled = false,
+                directRequested = false,
+                assignedToWatch = true,
+            ),
+        )
+    }
+
+    @Test
+    fun enabledCompanionStillHonoursExplicitWatchAssignment() {
+        assertEquals(
+            Intent.YIELD,
+            resolveSensorOwnershipIntent(
+                isWearable = false,
+                companionEnabled = true,
+                directRequested = false,
+                assignedToWatch = true,
+            ),
+        )
+        assertEquals(
+            Intent.PREFER,
+            resolveSensorOwnershipIntent(
+                isWearable = true,
+                companionEnabled = true,
+                directRequested = true,
+                assignedToWatch = false,
+            ),
         )
     }
 }

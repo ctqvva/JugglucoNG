@@ -22,6 +22,10 @@ object WearRoutingRequest {
     private fun prefs() = Applic.app
         ?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    data class DirectSensorRoute(
+        val nodeId: String,
+    )
+
     @JvmStatic
     fun directRequested(nodeId: String): Boolean =
         prefs()?.getBoolean(KEY_DIRECT + nodeId, false) ?: false
@@ -44,6 +48,47 @@ object WearRoutingRequest {
             editor.remove(KEY_SENSOR + nodeId)
         }
         editor.apply()
+    }
+
+    /**
+     * Revoke every direct route for [serial] and return the watches that need a
+     * stop command. The in-memory preference change is immediate, so ownership
+     * arbitration cannot release the phone again while the command is in flight.
+     */
+    @JvmStatic
+    fun revokeSensor(serial: String): List<DirectSensorRoute> = revokeMatching { assigned ->
+        SensorIdentity.matches(assigned, serial)
+    }
+
+    /** Global Wear-off means no watch remains assigned to a sensor. */
+    @JvmStatic
+    fun revokeAllDirectSensors(): List<DirectSensorRoute> = revokeMatching { true }
+
+    private fun revokeMatching(matches: (String) -> Boolean): List<DirectSensorRoute> {
+        val shared = prefs() ?: return emptyList()
+        val snapshot = shared.all
+        val routes = snapshot.entries
+            .asSequence()
+            .filter { (key, value) -> key.startsWith(KEY_DIRECT) && value == true }
+            .mapNotNull { (key, _) ->
+                val nodeId = key.removePrefix(KEY_DIRECT).takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                val assigned = (snapshot[KEY_SENSOR + nodeId] as? String)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: SensorIdentity.resolveMainSensor()
+                    ?: ""
+                if (!matches(assigned)) return@mapNotNull null
+                DirectSensorRoute(nodeId = nodeId)
+            }
+            .toList()
+        if (routes.isEmpty()) return routes
+        val editor = shared.edit()
+        routes.forEach { route ->
+            editor.putBoolean(KEY_DIRECT + route.nodeId, false)
+            editor.remove(KEY_SENSOR + route.nodeId)
+        }
+        editor.apply()
+        return routes
     }
 
     /** Dropped when routing is reset to defaults, so nothing stale is shown. */

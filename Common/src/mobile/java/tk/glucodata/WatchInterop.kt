@@ -67,6 +67,15 @@ object WatchInterop {
         return try {
             val pm = app.packageManager
             val receiver = ComponentName(app, MessageReceiver::class.java)
+            val revokedRoutes = if (enabled) {
+                emptyList()
+            } else {
+                // Send the stop while the transport is still allowed. Disabling
+                // the component first used to strand the watch on sensor BLE.
+                WearRoutingRequest.revokeAllDirectSensors().also { routes ->
+                    routes.forEach { route -> MessageSender.sendDirectSensorStop(route.nodeId) }
+                }
+            }
             val targetState = if (enabled) {
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED
             } else {
@@ -81,6 +90,10 @@ object WatchInterop {
                 MessageSender.initwearos(app)
                 MessageSender.getMessageSender()?.finddevices()
                 Natives.networkpresent()
+            } else if (revokedRoutes.isNotEmpty()) {
+                // Direct routing had turned local collection off. Restore it as
+                // part of the same user action that disabled the companion.
+                Applic.setbluetooth(app, true)
             }
             true
         } catch (_: Throwable) {
@@ -215,6 +228,22 @@ object WatchInterop {
             }
         }
         return applyWearNodeRouting(nodeId, isGalaxy, directOnWatch, enterOnWatch)
+    }
+
+    /** Revoke this sensor's watch route and reconnect it on the phone. */
+    @JvmStatic
+    fun returnSensorToPhone(serial: String): Boolean {
+        val app = Applic.app ?: return false
+        return try {
+            val routes = WearRoutingRequest.revokeSensor(serial)
+            routes.forEach { route -> MessageSender.sendDirectSensorStop(route.nodeId) }
+            SensorOwnershipRuntime.requestPhoneOwnership(serial)
+            Applic.setbluetooth(app, true)
+            true
+        } catch (th: Throwable) {
+            Log.stack("WatchInterop", "returnSensorToPhone($serial)", th)
+            false
+        }
     }
 
     @JvmStatic

@@ -1175,6 +1175,16 @@ class SensorViewModel : ViewModel() {
         }
     }
 
+    fun returnSensorToPhone(serial: String) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            if (!tk.glucodata.WatchInterop.returnSensorToPhone(serial)) {
+                android.util.Log.e("SensorVM", "Unable to return $serial from watch to phone")
+            }
+            UiRefreshBus.requestStatusRefresh()
+            refreshSensors()
+        }
+    }
+
     fun wipeSensorData(serial: String) {
         val gatt = findGatt(serial)
         if (gatt != null && gatt.dataptr != 0L) {

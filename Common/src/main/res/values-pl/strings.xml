@@ -2493,4 +2493,5 @@
     <string name="insulin_pen_full_read_desc">Wstrzykiwacz przechowuje dawki z wielu miesięcy i wymaga kilku sekund stabilnego kontaktu. Pozwala sięgnąć dalej niż ostatni import.</string>
     <string name="insulin_pen_read_cut_short">Wstrzykiwacz został odsunięty za wcześnie. Trzymaj go przy telefonie, aż zawibruje.</string>
     <string name="status_watch_reading">Zegarek odczytuje ten czujnik</string>
+    <string name="return_sensor_to_phone">Przenieś sensor z powrotem na telefon</string>
 </resources>

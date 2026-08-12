@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,5 +29,6 @@ class SensorOwnershipReleaseStateTests {
         state.release("6CA04230E260")
 
         assertTrue(state.isReleased("230E260"))
+        assertEquals(setOf("6ca04230e260"), state.releasedSerials())
     }
 }

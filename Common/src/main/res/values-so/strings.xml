@@ -2662,4 +2662,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_full_read_desc">Qalinku wuxuu hayaa qiyaaso bilo ah, akhrintooda dhammaystiran waxay u baahan tahay dhowr ilbiriqsi oo taabasho degan ah. Isticmaal si aad uga gudubto wixii ugu dambeeyay ee la soo geliyay.</string>
     <string name="insulin_pen_read_cut_short">Qalinka ayaa goor hore laga fogeeyay. Ku hay taleefanka ilaa uu gariiro.</string>
     <string name="status_watch_reading">Saacaddu waxay akhrinaysaa dareemahan</string>
+    <string name="return_sensor_to_phone">Dareemaha ku celi telefoonka</string>
 </resources>

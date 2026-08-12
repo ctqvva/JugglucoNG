@@ -13,13 +13,27 @@ enum class SensorHandoffUiState {
 }
 
 internal fun resolveSensorHandoffUiState(
+    companionEnabled: Boolean,
     releasedLocally: Boolean,
     peerOwns: Boolean,
     peerReportFresh: Boolean,
 ): SensorHandoffUiState = when {
+    !companionEnabled -> SensorHandoffUiState.NONE
     !releasedLocally -> SensorHandoffUiState.NONE
     peerOwns && peerReportFresh -> SensorHandoffUiState.STREAMING_FROM_WATCH
     else -> SensorHandoffUiState.HANDING_TO_WATCH
+}
+
+internal fun resolveSensorOwnershipIntent(
+    isWearable: Boolean,
+    companionEnabled: Boolean,
+    directRequested: Boolean,
+    assignedToWatch: Boolean,
+): SensorOwnershipPolicy.Intent = when {
+    isWearable && directRequested -> SensorOwnershipPolicy.Intent.PREFER
+    isWearable -> SensorOwnershipPolicy.Intent.TAKE
+    companionEnabled && assignedToWatch -> SensorOwnershipPolicy.Intent.YIELD
+    else -> SensorOwnershipPolicy.Intent.TAKE
 }
 
 /**
@@ -93,6 +107,12 @@ object SensorOwnershipRuntime {
             ANNOUNCE_INTERVAL_MS,
             TimeUnit.MILLISECONDS,
         )
+        if (!Applic.isWearable && !MessageSender.outgoingAllowed()) {
+            executor.execute {
+                runCatching { recoverDisabledCompanionRouting() }
+                    .onFailure { Log.stack(LOG_ID, "recover disabled companion routing", it) }
+            }
+        }
         Log.i(LOG_ID, "sensor ownership arbitration started")
     }
 
@@ -145,18 +165,66 @@ object SensorOwnershipRuntime {
         if (Applic.isWearable) return SensorHandoffUiState.NONE
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) }
             ?: return SensorHandoffUiState.NONE
+        val companionEnabled = MessageSender.outgoingAllowed()
+        if (!companionEnabled) return SensorHandoffUiState.NONE
         val peer = peerReportFor(target)
         val now = System.currentTimeMillis()
         return resolveSensorHandoffUiState(
+            companionEnabled = companionEnabled,
             releasedLocally = releaseState.isReleased(target),
             peerOwns = peer?.owns == true,
             peerReportFresh = peer != null && now - peer.receivedAtMs <= PEER_SILENT_AFTER_MS,
         )
     }
 
+    /**
+     * The global companion switch is an ownership boundary, not only a transport
+     * preference. When it goes off, stale routing and peer reports must not keep
+     * the phone released from its sensor.
+     */
+    @JvmStatic
+    fun onCompanionEnabledChanged(enabled: Boolean) {
+        if (Applic.isWearable) return
+        executor.execute {
+            runCatching {
+                if (!enabled) {
+                    peerReports.clear()
+                    peerSerials.clear()
+                    yieldStartedAt.clear()
+                    resumeReleasedSensors("WearOS companion disabled")
+                }
+                reconcile()
+                UiRefreshBus.requestStatusRefresh()
+            }.onFailure { Log.stack(LOG_ID, "companion enabled=$enabled", it) }
+        }
+    }
+
+    /** User explicitly revoked a handoff from the sensor card. */
+    @JvmStatic
+    fun requestPhoneOwnership(serial: String?) {
+        if (Applic.isWearable) return
+        val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return
+        executor.execute {
+            runCatching {
+                forgetPeerReport(target)
+                yieldStartedAt.remove(key(target))
+                if (releaseState.isReleased(target)) {
+                    resume(target, "requested on phone")
+                } else if (!holdsLiveConnection(target)) {
+                    findGatt(target)?.let { gatt ->
+                        gatt.setPause(false)
+                        gatt.connectDevice(RESUME_DELAY_MS)
+                    }
+                }
+                UiRefreshBus.requestStatusRefresh()
+            }.onFailure { Log.stack(LOG_ID, "requestPhoneOwnership($target)", it) }
+        }
+    }
+
     /** The peer told us what it is holding. */
     @JvmStatic
     fun onPeerReport(data: ByteArray?) {
+        if (!Applic.isWearable && !MessageSender.outgoingAllowed()) return
         val report = decode(data) ?: return
         peerSerials[key(report.first)] = report.first
         peerReports[key(report.first)] = SensorOwnershipPolicy.PeerReport(
@@ -206,10 +274,11 @@ object SensorOwnershipRuntime {
 
     private fun reconcile() {
         val now = System.currentTimeMillis()
+        val companionEnabled = Applic.isWearable || MessageSender.outgoingAllowed()
         sensors().forEach { serial ->
             val id = key(serial)
-            val peer = peerReportFor(serial)
-            val intent = intentFor(serial)
+            val peer = if (companionEnabled) peerReportFor(serial) else null
+            val intent = intentFor(serial, companionEnabled)
             val shouldRead = SensorOwnershipPolicy.shouldReadLocally(
                 isPhone = !Applic.isWearable,
                 intent = intent,
@@ -236,20 +305,13 @@ object SensorOwnershipRuntime {
      * "whichever device can reach it" behaviour. The phone stands aside only
      * where the user has actually assigned the sensor to the watch.
      */
-    private fun intentFor(serial: String): SensorOwnershipPolicy.Intent {
-        if (Applic.isWearable) {
-            return if (WearSensorClaim.isDirectRequested()) {
-                SensorOwnershipPolicy.Intent.PREFER
-            } else {
-                SensorOwnershipPolicy.Intent.TAKE
-            }
-        }
-        return if (assignedToWatch(serial)) {
-            SensorOwnershipPolicy.Intent.YIELD
-        } else {
-            SensorOwnershipPolicy.Intent.TAKE
-        }
-    }
+    private fun intentFor(serial: String, companionEnabled: Boolean): SensorOwnershipPolicy.Intent =
+        resolveSensorOwnershipIntent(
+            isWearable = Applic.isWearable,
+            companionEnabled = companionEnabled,
+            directRequested = Applic.isWearable && WearSensorClaim.isDirectRequested(),
+            assignedToWatch = !Applic.isWearable && assignedToWatch(serial),
+        )
 
     /**
      * Until when this device stays off the sensor.
@@ -316,6 +378,55 @@ object SensorOwnershipRuntime {
         }
     }.getOrDefault(false)
 
+    /**
+     * Upgrade recovery for builds that switched Wear off but left a direct
+     * assignment and a paused driver behind. A stale direct request is the
+     * evidence that this pause belonged to handoff; ordinary user-paused
+     * sensors are left alone.
+     */
+    private fun recoverDisabledCompanionRouting() {
+        if (Applic.isWearable || MessageSender.outgoingAllowed()) return
+        val context = Applic.app ?: return
+        val prefs = context.getSharedPreferences(
+            "wear_routing_request",
+            android.content.Context.MODE_PRIVATE,
+        )
+        val directNodes = prefs.all
+            .filter { (prefKey, value) -> prefKey.startsWith("direct.") && value == true }
+            .keys
+            .map { it.removePrefix("direct.") }
+            .filter { it.isNotBlank() }
+        if (directNodes.isEmpty()) return
+
+        val fallback = SensorIdentity.resolveMainSensor()
+        val assignedSensors = directNodes.mapNotNull { nodeId ->
+            prefs.getString("sensor.$nodeId", null)?.takeIf { it.isNotBlank() } ?: fallback
+        }.distinctBy(::key)
+        directNodes.forEach { nodeId -> MessageSender.sendDirectSensorStop(nodeId) }
+        val editor = prefs.edit()
+        directNodes.forEach { nodeId ->
+            editor.putBoolean("direct.$nodeId", false)
+            editor.remove("sensor.$nodeId")
+        }
+        editor.apply()
+
+        peerReports.clear()
+        peerSerials.clear()
+        yieldStartedAt.clear()
+        assignedSensors.forEach { serial ->
+            releaseState.resume(serial)
+            findGatt(serial)?.let { gatt ->
+                gatt.setPause(false)
+            }
+        }
+        Applic.setbluetooth(context, true)
+        UiRefreshBus.requestStatusRefresh()
+        Log.i(
+            LOG_ID,
+            "recovered ${assignedSensors.size} phone sensor(s) from stale disabled-Wear routing",
+        )
+    }
+
     private fun release(serial: String) {
         // Mark first. A callback may be created after this reconciliation; it
         // must still be unable to connect.
@@ -328,14 +439,35 @@ object SensorOwnershipRuntime {
         }.onFailure { Log.stack(LOG_ID, "release($serial)", it) }
     }
 
-    private fun resume(serial: String) {
+    private fun resume(serial: String, reason: String = "the other device is no longer reading it") {
         releaseState.resume(serial)
         val gatt = findGatt(serial) ?: return
-        Log.i(LOG_ID, "taking $serial back: the other device is no longer reading it")
+        Log.i(LOG_ID, "taking $serial back: $reason")
         runCatching {
             gatt.setPause(false)
             gatt.connectDevice(RESUME_DELAY_MS)
         }.onFailure { Log.stack(LOG_ID, "resume($serial)", it) }
+    }
+
+    private fun resumeReleasedSensors(reason: String) {
+        val releasedByKey = LinkedHashMap<String, String>()
+        releaseState.releasedSerials().forEach { serial -> releasedByKey[key(serial)] = serial }
+        sensors().forEach { serial ->
+            if (releaseState.isReleased(serial)) releasedByKey[key(serial)] = serial
+        }
+        releasedByKey.values.forEach { resume(it, reason) }
+    }
+
+    private fun forgetPeerReport(serial: String) {
+        val matchingKeys = peerSerials.entries
+            .filter { (id, spelling) -> id == key(serial) || SensorIdentity.matches(spelling, serial) }
+            .map { it.key }
+            .toMutableSet()
+        matchingKeys.add(key(serial))
+        matchingKeys.forEach { id ->
+            peerReports.remove(id)
+            peerSerials.remove(id)
+        }
     }
 
     /**

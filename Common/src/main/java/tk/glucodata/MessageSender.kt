@@ -387,6 +387,30 @@ companion object {
         companionEnabledAt = System.currentTimeMillis()
         if (!enabled) shutdownwearos()
         syncNativeWearTransportState(enabled)
+        SensorOwnershipRuntime.onCompanionEnabledChanged(enabled)
+    }
+
+    /**
+     * One fail-safe message is allowed while shutting the companion down: tell
+     * a directly connected watch to release sensor BLE. This bypasses the normal
+     * outgoing gate deliberately, because that gate is being closed by the same
+     * user action.
+     */
+    @JvmStatic
+    fun sendDirectSensorStop(nodeId: String): Boolean {
+        if (isWearable || nodeId.isBlank()) return false
+        val context = Applic.app ?: return false
+        if (!GoogleServices.isPlayServicesAvailable(context)) return false
+        return runCatching {
+            Wearable.getMessageClient(context)
+                .sendMessage(nodeId, BLUETOOTH_PATH, byteArrayOf(0))
+                .addOnFailureListener { th ->
+                    Log.stack(LOG_ID, "stop direct sensor on $nodeId", th)
+                }
+            true
+        }.onFailure { th ->
+            Log.stack(LOG_ID, "queue direct sensor stop on $nodeId", th)
+        }.getOrDefault(false)
     }
 
     /**

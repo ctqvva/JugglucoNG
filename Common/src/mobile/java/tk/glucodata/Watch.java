@@ -26,17 +26,9 @@ import static android.view.View.VISIBLE;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.mgdLmult;
 import static tk.glucodata.Log.doLog;
-import static tk.glucodata.MessageSender.initwearos;
 import static tk.glucodata.settings.Settings.removeContentView;
 import static tk.glucodata.util.getbutton;
 import static tk.glucodata.util.getcheckbox;
-import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
-import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
-import static android.content.pm.PackageManager.DONT_KILL_APP;
-
-import android.app.Application;
-import android.content.ComponentName;
-import android.content.pm.PackageManager;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -46,20 +38,10 @@ static private float glucose=80f;
 static private float trend=-5.2f;
 static private final  String LOG_ID="Watch";
 
-static private void enableMessageReceiver(boolean val) {
-    try{
-       Application app= Applic.app;
-       PackageManager manage = app.getPackageManager();
-       ComponentName scan= new ComponentName(app, tk.glucodata.MessageReceiver.class);
-       int com=val?COMPONENT_ENABLED_STATE_ENABLED:COMPONENT_ENABLED_STATE_DISABLED;
-       manage.setComponentEnabledSetting(scan,com , DONT_KILL_APP);
-      }
-    catch (Throwable e) {
-        Log.stack(LOG_ID,e);
-        }
-    }
 static private void setuseWearos(boolean value) {
-    enableMessageReceiver(value);
+    if (!WatchInterop.setWearOsEnabled(value)) {
+        Log.e(LOG_ID,"Unable to change WearOS companion state to "+value);
+    }
     }
 static public void show(MainActivity context) {
        var notify=getcheckbox(context,context.getString(R.string.notify), Notify.alertwatch);
@@ -146,16 +128,6 @@ static public void show(MainActivity context) {
     wearbox.setOnCheckedChangeListener(
              (buttonView,  isChecked) -> {
             setuseWearos(isChecked);
-             if(isChecked) {
-                 if(!useWearos) {
-                    initwearos(Applic.app);
-                    }
-                else  {
-                    var sender=tk.glucodata.MessageSender.getMessageSender();
-                    if(sender!=null) sender.finddevices();
-                    }
-                Natives.networkpresent();
-                }
             wearossettings.setVisibility(isChecked?VISIBLE:INVISIBLE);
              });
 
@@ -215,6 +187,3 @@ static public void show(MainActivity context) {
     
 
 }
-
-
-

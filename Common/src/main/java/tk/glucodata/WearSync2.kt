@@ -410,6 +410,9 @@ object WearSync2 {
     fun onChunk(data: ByteArray?) {
         executor.execute {
             runCatching {
+                if (!Applic.isWearable && !wearCompanionEnabled()) {
+                    return@runCatching
+                }
                 val buf = ByteBuffer.wrap(data ?: return@execute)
                 if (buf.get().toInt() != VERSION) return@execute
                 val final = buf.get().toInt() and 1 != 0

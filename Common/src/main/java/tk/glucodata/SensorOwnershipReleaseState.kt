@@ -23,4 +23,6 @@ internal class SensorOwnershipReleaseState(
     }
 
     fun isReleased(serial: String): Boolean = released[keyOf(serial)] == true
+
+    fun releasedSerials(): Set<String> = released.keys.toSet()
 }
