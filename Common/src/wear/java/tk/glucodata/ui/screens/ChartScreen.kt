@@ -42,6 +42,9 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
@@ -266,7 +269,12 @@ internal fun InteractiveWearChartPanel(
                 selected = selected,
                 selectionColor = selectionColor,
                 formatTime = { timeFormat.format(Date(it)) },
-                onSelect = { selected = it },
+                // Tapping the selected reading again clears it. There was no way
+                // to leave scrubbing short of panning, which now also matters
+                // for getting the range chip back.
+                onSelect = { picked ->
+                    selected = picked?.takeIf { it.timestamp != selected?.timestamp }
+                },
                 onViewportChange = { start, end ->
                     clampedViewport(data, start, end).let {
                         viewportStart = it.first
@@ -286,29 +294,69 @@ internal fun InteractiveWearChartPanel(
                 onGestureOwnership = onGestureOwnership,
                 modifier = Modifier.fillMaxSize().padding(top = 24.dp, bottom = 8.dp),
             )
-            if (showRangeOverlay) WearChartRangeChip(
-                rangeIndex = rangeIndex,
-                onClick = {
-                    rangeIndex = (rangeIndex + 1) % CHART_RANGES.size
-                    onRangeIndexChange?.invoke(rangeIndex)
-                },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
-            )
-            val headline = selected?.let {
-                val raw = plausibleRawValue(it, isMmol)
-                val primary = if (primaryRaw && raw != null) raw else it.value
-                val secondary = if (showSecondary) {
-                    if (primaryRaw) it.value else raw
-                } else null
-                val values = if (secondary != null) {
-                    "${formatWearGlucose(primary, isMmol)} / ${formatWearGlucose(secondary, isMmol)}"
-                } else {
-                    formatWearGlucose(primary, isMmol)
+            // While scrubbing, the time of the selected reading takes the range
+            // chip's place: they are the same size and sit in the same spot, so
+            // the swap costs no layout and the bottom never holds two chips
+            // fighting for the one gap between the axis labels.
+            val scrubbed = selected
+            if (scrubbed != null) {
+                WearChartChip(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                ) {
+                    Text(
+                        timeFormat.format(Date(scrubbed.timestamp)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
                 }
-                "$values  ${timeFormat.format(Date(it.timestamp))}"
+            } else if (showRangeOverlay) {
+                WearChartRangeChip(
+                    rangeIndex = rangeIndex,
+                    onClick = {
+                        rangeIndex = (rangeIndex + 1) % CHART_RANGES.size
+                        onRangeIndexChange?.invoke(rangeIndex)
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                )
             }
-            headline?.let {
-                Text(it, style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.TopCenter).padding(top = headlineTopPadding))
+            // The value rides above the cursor as it does on the phone, rather
+            // than sitting unbacked across the middle of the curve where it
+            // collided with the trace and the axis labels alike.
+            scrubbed?.let { point ->
+                val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
+                    autoValue = point.value,
+                    rawValue = point.rawValue,
+                    viewMode = viewMode,
+                    isMmol = isMmol,
+                )
+                val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+                val onSurface = MaterialTheme.colorScheme.onSurface
+                WearChartChip(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = headlineTopPadding)
+                        .cursorAnchored(
+                            fraction = (point.timestamp - viewportStart).toFloat() /
+                                (viewportEnd - viewportStart).toFloat().coerceAtLeast(1f),
+                            edgeInset = 20.dp,
+                        ),
+                ) {
+                    Text(
+                        tk.glucodata.ui.buildGlucoseString(
+                            dvs = dvs,
+                            primaryColor = onSurface,
+                            secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
+                            unitColor = onSurfaceVariant.copy(alpha = 0.6f),
+                            tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
+                        ),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        maxLines = 1,
+                    )
+                }
             }
             if (data.points.isEmpty()) {
                 Text(
@@ -320,6 +368,52 @@ internal fun InteractiveWearChartPanel(
             }
     }
 }
+
+/**
+ * The chart's chip shell: the tonal pill the range control already used, reused
+ * so the scrub readouts read as the same family rather than as loose text.
+ */
+@Composable
+private fun WearChartChip(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f), CircleShape)
+            .padding(horizontal = 11.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+/**
+ * Centres this element on [fraction] of the parent's width — the cursor's
+ * position — and keeps it wholly on screen.
+ *
+ * The phone can let its scrub card hang off the plot and rely on the margins.
+ * A round watch has no margins: a chip centred on a cursor near either end
+ * disappears under the bezel, so it is clamped to [edgeInset] instead, which
+ * leaves the selection line to say precisely which reading is meant.
+ */
+private fun Modifier.cursorAnchored(fraction: Float, edgeInset: Dp): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints.copy(minWidth = 0))
+        if (!constraints.hasBoundedWidth) {
+            return@layout layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+        }
+        val parentWidth = constraints.maxWidth
+        val inset = edgeInset.roundToPx()
+        val centred = (parentWidth * fraction.coerceIn(0f, 1f)).toInt() - placeable.width / 2
+        val minX = inset.coerceAtMost((parentWidth - placeable.width).coerceAtLeast(0))
+        val maxX = (parentWidth - placeable.width - inset).coerceAtLeast(minX)
+        // Span the full width so the chip's own bounds stay inside this node
+        // rather than being drawn outside a narrow one.
+        layout(parentWidth, placeable.height) {
+            placeable.placeRelative(centred.coerceIn(minX, maxX), 0)
+        }
+    }
 
 @Composable
 internal fun WearChartRangeChip(
