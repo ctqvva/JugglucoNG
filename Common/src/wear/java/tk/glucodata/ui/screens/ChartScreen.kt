@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -150,6 +151,9 @@ internal fun InteractiveWearChartPanel(
     showRangeOverlay: Boolean = true,
     onRangeIndexChange: ((Int) -> Unit)? = null,
     onGestureOwnership: ((Boolean) -> Unit)? = null,
+    // Raised while a reading is selected, so a host that draws its own header
+    // over this panel can free the band the scrub chip parks in.
+    onScrubChange: ((Boolean) -> Unit)? = null,
     headlineTopPadding: androidx.compose.ui.unit.Dp = 3.dp,
 ) {
     var rangeIndex by remember { mutableIntStateOf(initialRangeIndex.coerceIn(CHART_RANGES.indices)) }
@@ -202,6 +206,7 @@ internal fun InteractiveWearChartPanel(
     LaunchedEffect(rangeIndexOverride) {
         rangeIndexOverride?.let { rangeIndex = it.coerceIn(CHART_RANGES.indices) }
     }
+    LaunchedEffect(selected != null) { onScrubChange?.invoke(selected != null) }
     // New data shifts "now": follow it while parked at the right edge, otherwise
     // just keep the panned viewport inside the available range.
     LaunchedEffect(data.start, data.end) {
@@ -294,23 +299,7 @@ internal fun InteractiveWearChartPanel(
                 onGestureOwnership = onGestureOwnership,
                 modifier = Modifier.fillMaxSize().padding(top = 24.dp, bottom = 8.dp),
             )
-            // While scrubbing, the time of the selected reading takes the range
-            // chip's place: they are the same size and sit in the same spot, so
-            // the swap costs no layout and the bottom never holds two chips
-            // fighting for the one gap between the axis labels.
-            val scrubbed = selected
-            if (scrubbed != null) {
-                WearChartChip(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
-                ) {
-                    Text(
-                        timeFormat.format(Date(scrubbed.timestamp)),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
-                }
-            } else if (showRangeOverlay) {
+            if (showRangeOverlay) {
                 WearChartRangeChip(
                     rangeIndex = rangeIndex,
                     onClick = {
@@ -320,10 +309,12 @@ internal fun InteractiveWearChartPanel(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
                 )
             }
-            // The value rides above the cursor as it does on the phone, rather
-            // than sitting unbacked across the middle of the curve where it
-            // collided with the trace and the axis labels alike.
-            scrubbed?.let { point ->
+            // Value and time travel together in one chip parked in the header
+            // band, where the host has made room for it, rather than as two
+            // readouts laid over the trace. The selection line, not proximity,
+            // is what ties it to a reading; it only tracks the cursor
+            // horizontally so the eye has somewhere to go.
+            selected?.let { point ->
                 val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
                     autoValue = point.value,
                     rawValue = point.rawValue,
@@ -339,23 +330,34 @@ internal fun InteractiveWearChartPanel(
                         .cursorAnchored(
                             fraction = (point.timestamp - viewportStart).toFloat() /
                                 (viewportEnd - viewportStart).toFloat().coerceAtLeast(1f),
-                            edgeInset = 20.dp,
+                            edgeInset = 16.dp,
                         ),
                 ) {
-                    Text(
-                        tk.glucodata.ui.buildGlucoseString(
-                            dvs = dvs,
-                            primaryColor = onSurface,
-                            secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
-                            unitColor = onSurfaceVariant.copy(alpha = 0.6f),
-                            tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
-                        ),
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontFeatureSettings = "tnum",
-                        ),
-                        maxLines = 1,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            tk.glucodata.ui.buildGlucoseString(
+                                dvs = dvs,
+                                primaryColor = onSurface,
+                                secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
+                                unitColor = onSurfaceVariant.copy(alpha = 0.6f),
+                                tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
+                            ),
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontFeatureSettings = "tnum",
+                            ),
+                            maxLines = 1,
+                        )
+                        Text(
+                            timeFormat.format(Date(point.timestamp)),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
+                            color = onSurfaceVariant.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            modifier = Modifier.padding(start = 7.dp),
+                        )
+                    }
                 }
             }
             if (data.points.isEmpty()) {

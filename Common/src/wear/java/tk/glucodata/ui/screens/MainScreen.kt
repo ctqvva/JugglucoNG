@@ -1,6 +1,7 @@
 package tk.glucodata.ui.screens
 
 import android.text.format.DateFormat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -134,6 +136,7 @@ fun MainScreen(
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var chartRangeIndex by remember { mutableIntStateOf(0) }
     var chartOwnsDrag by remember { mutableStateOf(false) }
+    var scrubbing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         WearGlucoseStore.start()
@@ -170,6 +173,12 @@ fun MainScreen(
                 // The chart IS the first screen: it takes the entire viewport
                 // and the hero floats over it instead of stacking above.
                 Box(Modifier.fillParentMaxHeight(0.86f).fillMaxWidth()) {
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    // Where the hero actually ends, measured rather than guessed:
+                    // the scrub chip docks straight underneath it, and the hero
+                    // changes height when it shrinks for scrubbing or when the
+                    // user's font scale moves.
+                    var heroBottom by remember { mutableStateOf(HERO_TOP_OFFSET) }
                     InteractiveWearChartPanel(
                         initialRangeIndex = 0,
                         requestInitialFocus = false,
@@ -177,7 +186,8 @@ fun MainScreen(
                         showRangeOverlay = true,
                         onRangeIndexChange = { chartRangeIndex = it },
                         onGestureOwnership = { chartOwnsDrag = it },
-                        headlineTopPadding = 58.dp,
+                        onScrubChange = { scrubbing = it },
+                        headlineTopPadding = heroBottom + 3.dp,
                         modifier = Modifier.fillMaxSize(),
                     )
                     if (newestReading != null && status.hasData) {
@@ -188,11 +198,21 @@ fun MainScreen(
                             stale = status.isStale,
                             sensorId = snap?.sensorId,
                             velocity = velocities[newestReading.timestamp] ?: 0f,
+                            // Scrubbing turns the hero into a reference value —
+                            // the reading being read is the selected one — so it
+                            // gives up its size to make room for the scrub chip
+                            // instead of the chip covering the curve.
+                            compact = scrubbing,
                             // Sits as high as the clock allows so the big value
                             // overlaps as little of the curve as possible.
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
-                                .offset(y = (-18).dp),
+                                .offset(y = -HERO_TOP_OFFSET)
+                                .onSizeChanged {
+                                    heroBottom = with(density) {
+                                        (it.height.toDp() - HERO_TOP_OFFSET).coerceAtLeast(0.dp)
+                                    }
+                                },
                         )
                     } else {
                         Column(
@@ -440,6 +460,9 @@ internal fun readingValueStyle(
 ): androidx.compose.ui.text.TextStyle =
     if (viewMode == 2 || viewMode == 3) dualLane else singleLane
 
+/** How far the hero is lifted above the chart's top edge. */
+internal val HERO_TOP_OFFSET = 18.dp
+
 @Composable
 internal fun HeroCard(
     point: GlucosePoint,
@@ -448,6 +471,7 @@ internal fun HeroCard(
     stale: Boolean,
     sensorId: String?,
     velocity: Float,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // The big number must be the same value the readings row below shows: the
@@ -487,10 +511,14 @@ internal fun HeroCard(
                 isMmol = isMmol,
             )
         }
+        val valueSize by animateFloatAsState(
+            targetValue = if (compact) 24f else 44f,
+            label = "HeroValueSize",
+        )
         Text(
             dvs.primaryStr,
             style = MaterialTheme.typography.displayLarge.copy(
-                fontSize = 44.sp,
+                fontSize = valueSize.sp,
                 fontWeight = FontWeight.SemiBold,
             ),
             color = valueColor,
@@ -498,8 +526,9 @@ internal fun HeroCard(
         )
         // The extra lanes ride alongside rather than inline at hero size: nine
         // characters at 44sp run off the side of a round screen, and the point
-        // of the secondary lane is comparison, not prominence.
-        val extraLanes = listOfNotNull(dvs.secondaryStr, dvs.tertiaryStr)
+        // of the secondary lane is comparison, not prominence. Compact drops
+        // them entirely — the scrub chip below is showing both lanes already.
+        val extraLanes = if (compact) emptyList() else listOfNotNull(dvs.secondaryStr, dvs.tertiaryStr)
         if (extraLanes.isNotEmpty()) {
             Column(
                 Modifier.padding(start = 5.dp),
@@ -519,7 +548,7 @@ internal fun HeroCard(
         TrendArrowCanvas(
             velocity = velocity,
             pulseKey = point.timestamp,
-            modifier = Modifier.size(28.dp).padding(start = 4.dp),
+            modifier = Modifier.size(if (compact) 18.dp else 28.dp).padding(start = 4.dp),
             color = valueColor,
         )
     }
