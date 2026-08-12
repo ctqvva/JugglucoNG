@@ -10,7 +10,9 @@ import kotlinx.coroutines.launch
 import tk.glucodata.Applic
 import tk.glucodata.CalibrationAccess
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.DataSmoothing
 import tk.glucodata.GlucosePoint
+import tk.glucodata.GlucoseSmoothing
 import tk.glucodata.Log
 import tk.glucodata.NotificationHistorySource
 import tk.glucodata.SensorIdentity
@@ -222,7 +224,10 @@ object WearGlucoseStore {
                 isRawMode,
             )
         }.getOrDefault(DoubleArray(0))
-        val points = calibrate(rawPoints, sensor, isRawMode)
+        // Calibrate first, then smooth: smoothing a lane and correcting the
+        // result is not the same as correcting each reading and smoothing those,
+        // and the phone corrects at display time before its chart pipeline runs.
+        val points = smooth(calibrate(rawPoints, sensor, isRawMode))
 
         _snapshot.value = Snapshot(
             points = points,
@@ -281,6 +286,37 @@ object WearGlucoseStore {
             val raw = corrected(point.rawValue, point.timestamp, true)
             if (value == point.value && raw == point.rawValue) point
             else GlucosePoint(point.timestamp, value, raw)
+        }
+    }
+
+    /**
+     * Applies the user's smoothing setting, which the watch used to ignore
+     * outright: the same sensor drew a smooth curve on the phone and a noisy
+     * one here. The settings are mirrored from the phone with the rest of the
+     * preferences, and the pipeline is the phone's own.
+     *
+     * "Smooth exchange outputs only" means the displayed series stays raw, so
+     * [DataSmoothing.graphSmoothingMinutes] — not the plain minutes value — is
+     * what decides, exactly as the dashboard decides it.
+     */
+    private fun smooth(points: List<GlucosePoint>): List<GlucosePoint> {
+        val context = Applic.app ?: return points
+        val minutes = runCatching { DataSmoothing.graphSmoothingMinutes(context) }.getOrDefault(0)
+        if (minutes <= 0) return points
+        val collapse = runCatching { DataSmoothing.collapseChunks(context) }.getOrDefault(false)
+        return runCatching {
+            GlucoseSmoothing.smooth(
+                points = points,
+                smoothingMinutes = minutes,
+                collapseIntoChunks = collapse,
+                timestamp = { it.timestamp },
+                value = { it.value },
+                rawValue = { it.rawValue },
+                withValues = { point, auto, raw -> GlucosePoint(point.timestamp, auto, raw) },
+            )
+        }.getOrElse {
+            Log.stack(TAG, "smooth", it)
+            points
         }
     }
 

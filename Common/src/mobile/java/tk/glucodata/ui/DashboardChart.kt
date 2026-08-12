@@ -250,129 +250,20 @@ internal fun previewCenterTimeContainingViewport(
     }
 }
 
-private fun smoothChartSeries(
-    points: List<GlucosePoint>,
-    halfWindowMs: Long,
-    selector: (GlucosePoint) -> Float
-): FloatArray {
-    val size = points.size
-    val prefixSums = DoubleArray(size + 1)
-    val prefixCounts = IntArray(size + 1)
-
-    for (index in 0 until size) {
-        val value = selector(points[index])
-        val valid = value.isFinite() && value >= 0.1f
-        prefixSums[index + 1] = prefixSums[index] + if (valid) value.toDouble() else 0.0
-        prefixCounts[index + 1] = prefixCounts[index] + if (valid) 1 else 0
-    }
-
-    val result = FloatArray(size)
-    var windowStart = 0
-    var windowEndExclusive = 0
-
-    for (index in 0 until size) {
-        val original = selector(points[index])
-        if (!original.isFinite() || original < 0.1f) {
-            result[index] = original
-            continue
-        }
-
-        val timestamp = points[index].timestamp
-        val minTime = timestamp - halfWindowMs
-        val maxTime = timestamp + halfWindowMs
-
-        while (windowStart < size && points[windowStart].timestamp < minTime) {
-            windowStart++
-        }
-        while (windowEndExclusive < size && points[windowEndExclusive].timestamp <= maxTime) {
-            windowEndExclusive++
-        }
-
-        val count = prefixCounts[windowEndExclusive] - prefixCounts[windowStart]
-        result[index] = if (count > 0) {
-            ((prefixSums[windowEndExclusive] - prefixSums[windowStart]) / count).toFloat()
-        } else {
-            original
-        }
-    }
-
-    return result
-}
-
 private fun buildSmoothedChartData(
     points: List<GlucosePoint>,
     smoothingMinutes: Int,
     collapseIntoChunks: Boolean
-): List<GlucosePoint> {
-    if (smoothingMinutes <= 0 || points.size < 3) return points
-
-    val halfWindowMs = (smoothingMinutes * 60_000L) / 2L
-    if (halfWindowMs <= 0L) return points
-
-    val collapsedInterval = DataSmoothing.collapseIntervalMinutes(smoothingMinutes)
-    val result = ArrayList<GlucosePoint>(points.size)
-
-    GlucosePointSegments.split(points).forEach { segment ->
-        val smoothedSegment = if (segment.size < 3) {
-            segment
-        } else {
-            val smoothedAuto = smoothChartSeries(segment, halfWindowMs) { it.value }
-            val smoothedRaw = smoothChartSeries(segment, halfWindowMs) { it.rawValue }
-
-            ArrayList<GlucosePoint>(segment.size).apply {
-                segment.indices.forEach { index ->
-                    val point = segment[index]
-                    add(
-                        point.copy(
-                            value = smoothedAuto[index],
-                            rawValue = smoothedRaw[index]
-                        )
-                    )
-                }
-            }
-        }
-
-        if (collapseIntoChunks) {
-            result.addAll(collapseSmoothedChartData(smoothedSegment, collapsedInterval))
-        } else {
-            result.addAll(smoothedSegment)
-        }
-    }
-
-    return result
-}
-
-private fun collapseSmoothedChartData(
-    points: List<GlucosePoint>,
-    smoothingMinutes: Int
-): List<GlucosePoint> {
-    if (points.isEmpty() || smoothingMinutes <= 0) return points
-    val bucketDurationMs = smoothingMinutes * 60_000L
-    val openBucket = System.currentTimeMillis() / bucketDurationMs
-    val collapsed = ArrayList<GlucosePoint>()
-    var activeBucket = Long.MIN_VALUE
-    var pending: GlucosePoint? = null
-
-    points.forEach { point ->
-        val bucket = point.timestamp / bucketDurationMs
-        if (bucket != activeBucket) {
-            if (activeBucket < openBucket) {
-                pending?.let(collapsed::add)
-            }
-            activeBucket = bucket
-        }
-        pending = point
-    }
-
-    if (activeBucket < openBucket) {
-        pending?.let(collapsed::add)
-    }
-    return when {
-        collapsed.isNotEmpty() -> collapsed
-        points.isNotEmpty() -> listOf(points.last())
-        else -> points
-    }
-}
+): List<GlucosePoint> = tk.glucodata.GlucoseSmoothing.smooth(
+    points = points,
+    smoothingMinutes = smoothingMinutes,
+    collapseIntoChunks = collapseIntoChunks,
+    timestamp = { it.timestamp },
+    value = { it.value },
+    rawValue = { it.rawValue },
+    sensorSerial = { it.sensorSerial },
+    withValues = { point, auto, raw -> point.copy(value = auto, rawValue = raw) }
+)
 
 private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
     private val rawComputed = BooleanArray(points.size)

@@ -1751,6 +1751,9 @@ class DashboardViewModel(
             _currentGlucose.value = resolved.primaryStr
             _currentRate.value = resolved.rate.takeIf { it.isFinite() } ?: 0f
         }
+        // Every smoothing setter funnels through here, so this is the one place
+        // the watch needs telling; it smooths with the same settings.
+        tk.glucodata.WearPrefsSync.push()
     }
 
     private fun requestHistoryRecoverySync(serial: String, reason: String) {

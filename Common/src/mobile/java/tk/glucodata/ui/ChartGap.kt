@@ -27,11 +27,9 @@ import androidx.compose.ui.geometry.Offset
  * than nothing at all.
  */
 internal object ChartGap {
-    private const val HISTORY_INTERVAL_MS = 15L * 60L * 1000L
-    private const val WRITE_DRIFT_MS = 60L * 1000L
-    private const val MARGIN_MS = 60L * 1000L
-
-    const val THRESHOLD_MS = HISTORY_INTERVAL_MS + WRITE_DRIFT_MS + MARGIN_MS
+    // The derivation above now lives with the constant in
+    // tk.glucodata.GlucoseChartGap, which the watch's smoothing needs too.
+    const val THRESHOLD_MS = tk.glucodata.GlucoseChartGap.THRESHOLD_MS
 }
 
 /**

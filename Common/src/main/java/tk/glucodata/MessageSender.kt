@@ -249,6 +249,13 @@ private fun nodeSendmessage(node:Node,path:String,data:ByteArray) {
     public fun sendGlucoseColors(nodeName:String,data:ByteArray) {
         nameSendMessage(nodeName,GLUCOSE_COLORS_PATH,data)
      }
+    /** Broadcasts the mirrored display preferences (smoothing, prediction). */
+    public fun sendWearPrefs(data:ByteArray) {
+        sendmessage(WEAR_PREFS_PATH,data)
+     }
+    public fun sendWearPrefs(nodeName:String,data:ByteArray) {
+        nameSendMessage(nodeName,WEAR_PREFS_PATH,data)
+     }
     public fun sendbluetooth( node:Node,on:Boolean) {
          sendbluetooth( node.id,on);
      }
@@ -310,6 +317,7 @@ companion object {
     const val DEFAULTS_PATH = "/defaults"
     const val SETTINGS_PATH = "/settings"
     const val GLUCOSE_COLORS_PATH = "/glucosecolors"
+    const val WEAR_PREFS_PATH = "/displayprefs"
     const val BLUETOOTH_PATH = "/bluetooth"
     const val DATA_PATH = "/data"
     const val MESSAGES_PATH = "/messages"

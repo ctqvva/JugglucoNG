@@ -89,6 +89,7 @@ class MessageReceiver: WearableListenerService() {
                     // watch that missed the change-time push would keep the
                     // compiled-in defaults for good.
                     GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
+                    WearPrefsSync.pushIfChanged(messageEvent.sourceNodeId)
                 }
             }
             MessageSender.SYNC2_CHUNK_PATH -> {
@@ -209,6 +210,16 @@ class MessageReceiver: WearableListenerService() {
                  Natives.ontbytesettings(data)
                     Notify.mkunitstr(Applic.app,Natives.getunit())
                 }
+             MessageSender.WEAR_PREFS_PATH -> {
+                 // The phone owns these settings; the watch only mirrors them,
+                 // so smoothing and prediction behave the same on both.
+                 // apply() raises UiRefreshBus, which is what the watch's history
+                 // store listens on; this file compiles into both variants, so it
+                 // must not name a wear-only class directly.
+                 if (isWearable && WearPrefsSync.apply(Applic.app, data) == 0) {
+                     Log.w(LOG_ID, "unusable display-prefs payload; keeping current settings")
+                 }
+                }
              MessageSender.GLUCOSE_COLORS_PATH -> {
                  // The phone owns the palette; the watch only mirrors it, so a
                  // preset or custom band edit shows on both without a rebuild.
@@ -245,6 +256,7 @@ class MessageReceiver: WearableListenerService() {
                      // off or unpaired then missed them; the handshake is the
                      // one point where it is certain to be listening.
                      GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
+                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                      val sender = tk.glucodata.MessageSender.getMessageSender()
                      if (sender == null) {
                          Log.d(LOG_ID, "3: messagesender==null")
