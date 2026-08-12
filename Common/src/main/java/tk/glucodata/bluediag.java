@@ -758,6 +758,11 @@ public class bluediag {
                             final int currentMode = Natives.getViewMode(gatt.dataptr);
                             if (currentMode != pos) {
                                 Natives.setViewMode(gatt.dataptr, pos);
+                                // The persisted store is what every surface reads
+                                // when no driver is live; writing native alone
+                                // would leave this choice invisible to them.
+                                tk.glucodata.drivers.ManagedSensorViewModeStore.INSTANCE.write(
+                                        Applic.app, gatt.SerialNumber, pos);
                                 act.requestRender();
                             }
                         }

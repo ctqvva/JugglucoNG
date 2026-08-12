@@ -6,13 +6,8 @@ import androidx.compose.material.icons.rounded.TrendingFlat
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import tk.glucodata.R
 import kotlin.math.abs
 
@@ -108,39 +103,5 @@ fun getDisplayValues(
     )
 }
 
-fun buildGlucoseString(
-    dvs: DisplayValues,
-    primaryColor: Color,
-    secondaryColor: Color,
-    unitColor: Color,
-    includeUnit: Boolean = false,
-    unit: String = "",
-    tertiaryColor: Color? = null
-): AnnotatedString {
-    return buildAnnotatedString {
-        withStyle(SpanStyle(color = primaryColor)) {
-            append(dvs.primaryStr)
-
-            // If single value, append unit here if requested
-            if (includeUnit && dvs.secondaryStr == null) {
-                append(" ")
-                withStyle(SpanStyle(color = unitColor)) {
-                    append(unit)
-                }
-            }
-        }
-        if (dvs.secondaryStr != null) {
-            append(" · ")
-            withStyle(SpanStyle(color = secondaryColor)) {
-                append(dvs.secondaryStr)
-            }
-        }
-        // Tertiary value (when 3 values exist)
-        if (dvs.tertiaryStr != null) {
-            append(" · ")
-            withStyle(SpanStyle(color = tertiaryColor ?: secondaryColor.copy(alpha = 0.5f))) {
-                append(dvs.tertiaryStr)
-            }
-        }
-    }
-}
+// buildGlucoseString moved to src/main (GlucoseValueText.kt), same package, so
+// the watch renders the auto/raw lanes with the identical span hierarchy.

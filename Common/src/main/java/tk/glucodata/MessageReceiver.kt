@@ -202,6 +202,15 @@ class MessageReceiver: WearableListenerService() {
                  Natives.ontbytesettings(data)
                     Notify.mkunitstr(Applic.app,Natives.getunit())
                 }
+             MessageSender.GLUCOSE_COLORS_PATH -> {
+                 // The phone owns the palette; the watch only mirrors it, so a
+                 // preset or custom band edit shows on both without a rebuild.
+                 if (isWearable) {
+                     if (!GlucoseColorSync.apply(Applic.app, data)) {
+                         Log.w(LOG_ID, "unusable glucose colour payload; keeping current scheme")
+                     }
+                 }
+                }
              MessageSender.MESSAGES_PATH -> {
                  val sender=tk.glucodata.MessageSender.getMessageSender()
                  if(sender==null) {
@@ -225,6 +234,10 @@ class MessageReceiver: WearableListenerService() {
                      // Fresh watch: serve the full sync2 backfill alongside the
                      // legacy start flow.
                      WearSync2.serveAll()
+                     // Colours are pushed on every change, but a watch that was
+                     // off or unpaired then missed them; the handshake is the
+                     // one point where it is certain to be listening.
+                     GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
                      val sender = tk.glucodata.MessageSender.getMessageSender()
                      if (sender == null) {
                          Log.d(LOG_ID, "3: messagesender==null")

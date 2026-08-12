@@ -49,7 +49,6 @@ import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.DisplayDataState
 import tk.glucodata.GlucosePoint
-import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.Natives
 import tk.glucodata.NotificationHistorySource
 import tk.glucodata.R
@@ -68,14 +67,45 @@ private fun sensorPresent(): Boolean = runCatching {
     Natives.activeSensors()?.isNotEmpty() == true
 }.getOrDefault(false)
 
-internal fun glucoseColor(snapshot: CurrentDisplaySource.Snapshot): Color {
-    val fallback = tk.glucodata.ui.WearColorPrefs.inRangeColor()
-    return Color(runCatching {
-        GlucoseRangeColors.colorForValue(
-            snapshot.primaryValue, Natives.targetlow(), Natives.targethigh(),
-            Natives.alarmverylow(), Natives.alarmveryhigh(), fallback, true, snapshot.isMmol,
-        )
-    }.getOrDefault(fallback))
+/**
+ * The band colour for an alarm's value, or null while it is in range so the
+ * caller keeps its own neutral tone. An alarm is worth colouring outright —
+ * unlike the routine readouts, which follow the phone's value-colour setting.
+ */
+internal fun glucoseColor(snapshot: CurrentDisplaySource.Snapshot): Color? =
+    tk.glucodata.ui.WearGlucoseColors.bandColorOrNull(snapshot.primaryValue, snapshot.isMmol)
+
+/** The lane a view mode shows first, which is what a colour rule must judge. */
+internal fun primaryLaneValue(point: GlucosePoint, viewMode: Int): Float =
+    if (viewMode == 1 || viewMode == 3) {
+        point.rawValue.takeIf { it.isFinite() && it > 0f } ?: point.value
+    } else {
+        point.value
+    }
+
+/**
+ * Trend velocity for each of [rows], each measured over the ~35 minutes of
+ * [history] leading up to that reading — the same window the hero uses, so a
+ * row's arrow and the hero's agree on the newest reading.
+ */
+internal fun rowVelocities(
+    history: List<GlucosePoint>,
+    rows: List<GlucosePoint>,
+    useRaw: Boolean,
+    isMmol: Boolean,
+): Map<Long, Float> {
+    if (rows.isEmpty() || history.isEmpty()) return emptyMap()
+    val windowMs = 35 * 60_000L
+    return rows.associate { row ->
+        val from = row.timestamp - windowMs
+        val window = history.filter { it.timestamp in from..row.timestamp }
+        val velocity = if (window.size >= 2) {
+            TrendAccess.calculateVelocity(window, useRaw, isMmol).takeIf { it.isFinite() } ?: 0f
+        } else {
+            0f
+        }
+        row.timestamp to velocity
+    }
 }
 
 internal fun trendArrow(rate: Float): String = runCatching {
@@ -115,8 +145,14 @@ fun MainScreen(
     // main-thread history read on every refresh, on top of the chart's.
     val storeSnapshot by WearGlucoseStore.snapshot.collectAsState()
     val isMmol = snapshot?.isMmol ?: storeSnapshot.isMmol
+    val viewMode = storeSnapshot.viewMode
     val recent = remember(storeSnapshot) { WearGlucoseStore.recent(count = 6) }
     val newestReading = recent.firstOrNull()
+    // One pass over the shared history gives every row its own arrow, instead of
+    // each row walking the snapshot again on the main thread.
+    val velocities = remember(storeSnapshot, recent, isMmol) {
+        rowVelocities(storeSnapshot.points, recent, storeSnapshot.isRawMode, isMmol)
+    }
 
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
@@ -148,8 +184,10 @@ fun MainScreen(
                         HeroCard(
                             point = newestReading,
                             isMmol = isMmol,
+                            viewMode = viewMode,
                             stale = status.isStale,
                             sensorId = snap?.sensorId,
+                            velocity = velocities[newestReading.timestamp] ?: 0f,
                             // Sits as high as the clock allows so the big value
                             // overlaps as little of the curve as possible.
                             modifier = Modifier
@@ -178,8 +216,10 @@ fun MainScreen(
             if (recent.isNotEmpty()) {
                 items(recent, key = { it.timestamp }) { point ->
                     ReadingRow(
-                        point,
-                        isMmol,
+                        point = point,
+                        isMmol = isMmol,
+                        viewMode = viewMode,
+                        velocity = velocities[point.timestamp] ?: 0f,
                         // Tapping a reading acts on that reading, as on the
                         // phone: it calibrates against it, or edits the
                         // calibration it already carries.
@@ -288,10 +328,11 @@ private fun SensorCard(
 private fun ReadingRow(
     point: GlucosePoint,
     isMmol: Boolean,
+    viewMode: Int,
+    velocity: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val color = rangeColor(point.value, isMmol)
     val context = LocalContext.current
     val formatter = remember(context) { DateFormat.getTimeFormat(context) }
     val action = remember(point.timestamp) { ReadingActions.resolve(point.timestamp) }
@@ -299,7 +340,7 @@ private fun ReadingRow(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(color.copy(alpha = 0.13f))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -324,53 +365,162 @@ private fun ReadingRow(
                 )
             }
         }
-        Text(formatWearGlucose(point.value, isMmol), style = MaterialTheme.typography.titleMedium, color = color)
+        WearGlucoseValue(
+            point = point,
+            isMmol = isMmol,
+            viewMode = viewMode,
+            style = readingValueStyle(viewMode),
+            primaryColor = tk.glucodata.ui.WearGlucoseColors.valueColor(
+                primaryLaneValue(point, viewMode),
+                isMmol,
+                MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+        // The phone puts a trend arrow on every reading row; the watch showed it
+        // on the hero alone, so a row said nothing about direction.
+        TrendArrowCanvas(
+            velocity = velocity,
+            pulseKey = null,
+            modifier = Modifier.size(14.dp).padding(start = 6.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
+
+/**
+ * A reading rendered in the sensor's view mode: the auto lane, the raw lane, or
+ * both as "4,4 · 3,1" with the secondary lane subdued, exactly as the phone
+ * draws it. Values arrive from [tk.glucodata.ui.WearGlucoseStore] already
+ * calibrated, so no correction is applied a second time here.
+ */
+@Composable
+internal fun WearGlucoseValue(
+    point: GlucosePoint,
+    isMmol: Boolean,
+    viewMode: Int,
+    style: androidx.compose.ui.text.TextStyle,
+    primaryColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val dvs = remember(point.timestamp, point.value, point.rawValue, viewMode, isMmol) {
+        tk.glucodata.ui.DisplayValueResolver.resolve(
+            autoValue = point.value,
+            rawValue = point.rawValue,
+            viewMode = viewMode,
+            isMmol = isMmol,
+        )
+    }
+    val secondary = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+    Text(
+        text = tk.glucodata.ui.buildGlucoseString(
+            dvs = dvs,
+            primaryColor = primaryColor,
+            secondaryColor = secondary,
+            unitColor = secondary.copy(alpha = 0.6f),
+            tertiaryColor = secondary.copy(alpha = 0.55f),
+        ),
+        // Time, value and arrow have to share a narrow round screen; wrapping a
+        // two-lane value onto a second line would break the row's rhythm.
+        style = style,
+        maxLines = 1,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Row-sized style for a reading. A second lane roughly doubles the width the
+ * value needs, so the dual modes step down one size rather than crowd out the
+ * arrow; a single lane keeps the row's usual [singleLane] size.
+ */
+@Composable
+internal fun readingValueStyle(
+    viewMode: Int,
+    singleLane: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+    dualLane: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium,
+): androidx.compose.ui.text.TextStyle =
+    if (viewMode == 2 || viewMode == 3) dualLane else singleLane
 
 @Composable
 internal fun HeroCard(
     point: GlucosePoint,
     isMmol: Boolean,
+    viewMode: Int,
     stale: Boolean,
     sensorId: String?,
+    velocity: Float,
     modifier: Modifier = Modifier,
 ) {
     // The big number must be the same value the readings row below shows: the
     // hero used to resolve its own snapshot through CurrentDisplaySource while
     // the list came from NotificationHistorySource, so the two disagreed and
     // the hero looked stale against its own list.
-    val rangeColor = rangeColor(point.value, isMmol)
-    // The arrow needs about half an hour of context; take it from the shared
-    // snapshot rather than reading the store again on the main thread.
-    val storeSnapshot by WearGlucoseStore.snapshot.collectAsState()
-    val points = remember(storeSnapshot, point.timestamp) {
-        val from = point.timestamp - 35 * 60_000L
-        storeSnapshot.points.filter { it.timestamp in from..point.timestamp }
+    val primaryValue = remember(point.value, point.rawValue, viewMode) {
+        primaryLaneValue(point, viewMode)
     }
-    val velocity = remember(points, isMmol) {
-        TrendAccess.calculateVelocity(points, false, isMmol)
-            .takeIf { points.size >= 2 && it.isFinite() } ?: 0f
+    val neutral = MaterialTheme.colorScheme.onSurface
+    // Same rule as the phone hero: the number is neutral unless the user has
+    // value range colours on, and the container carries the band tint instead.
+    val valueColor = if (stale) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        tk.glucodata.ui.WearGlucoseColors.valueColor(primaryValue, isMmol, neutral)
     }
+    val scrim = MaterialTheme.colorScheme.background.copy(alpha = 0.60f)
+    val tint = tk.glucodata.ui.WearGlucoseColors.heroTint(primaryValue, isMmol, isFresh = !stale)
+    val background = tint?.let { (tone, fraction) ->
+        androidx.compose.ui.graphics.lerp(scrim, tone.copy(alpha = scrim.alpha), fraction)
+    } ?: scrim
     // Floating pill over the chart: wraps content, translucent scrim so the
     // curve stays visible behind it.
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.60f))
+            .background(background)
             .padding(horizontal = 12.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val dvs = remember(point.timestamp, point.value, point.rawValue, viewMode, isMmol) {
+            tk.glucodata.ui.DisplayValueResolver.resolve(
+                autoValue = point.value,
+                rawValue = point.rawValue,
+                viewMode = viewMode,
+                isMmol = isMmol,
+            )
+        }
         Text(
-            formatWearGlucose(point.value, isMmol),
-            style = MaterialTheme.typography.displayLarge.copy(fontSize = 44.sp, fontWeight = FontWeight.SemiBold),
-            color = if (stale) MaterialTheme.colorScheme.onSurfaceVariant else rangeColor,
+            dvs.primaryStr,
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontSize = 44.sp,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = valueColor,
+            maxLines = 1,
         )
+        // The extra lanes ride alongside rather than inline at hero size: nine
+        // characters at 44sp run off the side of a round screen, and the point
+        // of the secondary lane is comparison, not prominence.
+        val extraLanes = listOfNotNull(dvs.secondaryStr, dvs.tertiaryStr)
+        if (extraLanes.isNotEmpty()) {
+            Column(
+                Modifier.padding(start = 5.dp),
+                horizontalAlignment = Alignment.Start,
+            ) {
+                extraLanes.forEachIndexed { index, lane ->
+                    Text(
+                        lane,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            .copy(alpha = if (index == 0) 0.85f else 0.6f),
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
         TrendArrowCanvas(
             velocity = velocity,
             pulseKey = point.timestamp,
             modifier = Modifier.size(28.dp).padding(start = 4.dp),
-            color = if (stale) MaterialTheme.colorScheme.onSurfaceVariant else rangeColor,
+            color = valueColor,
         )
     }
 }

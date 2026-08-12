@@ -94,8 +94,11 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
     }
     val context = LocalContext.current
     val dateFormat = remember(context) { DateFormat.getMediumDateFormat(context) }
-    val currentSensor = sensors.firstOrNull { it.isCurrent }?.serial
-    val viewMode = remember(currentSensor, revision) {
+    // The mode belongs to whichever sensor the screens actually draw — pinning a
+    // second sensor otherwise left this row editing the other one's mode.
+    val currentSensor = displayedSensor
+        ?: sensors.firstOrNull { it.isCurrent }?.serial
+    val viewMode = remember(currentSensor, revision, storeSnapshot.viewMode) {
         tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(currentSensor)
     }
 
@@ -241,6 +244,11 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         onClick = {
                             val nextMode = (viewMode + 1) % 4
                             if (tk.glucodata.CurrentDisplaySource.setViewModeForSensor(currentSensor, nextMode)) {
+                                // Force the reload rather than let the bus's
+                                // coalescing window hold it: this is a direct
+                                // tap, and a few seconds of the old lanes reads
+                                // as the control having done nothing.
+                                tk.glucodata.ui.WearGlucoseStore.refresh(force = true)
                                 UiRefreshBus.requestDataRefresh()
                             }
                         },

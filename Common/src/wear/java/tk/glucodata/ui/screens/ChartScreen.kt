@@ -152,7 +152,9 @@ internal fun InteractiveWearChartPanel(
     LaunchedEffect(Unit) { WearGlucoseStore.start() }
     val storeSnapshot by WearGlucoseStore.snapshot.collectAsState()
     val isMmol = storeSnapshot.isMmol
-    val viewMode = if (storeSnapshot.isRawMode) 1 else 0
+    // The full mode, not a raw/auto boolean: collapsing it here meant the
+    // second trace of auto+raw / raw+auto could never be drawn.
+    val viewMode = storeSnapshot.viewMode
     val data = remember(storeSnapshot, rangeIndex) {
         chartDataFrom(storeSnapshot, CHART_RANGES[rangeIndex])
     }
@@ -215,10 +217,14 @@ internal fun InteractiveWearChartPanel(
 
     val primaryRaw = viewMode == 1 || viewMode == 3
     val showSecondary = viewMode == 2 || viewMode == 3
+    val neutralLineColor = MaterialTheme.colorScheme.onSurface
     val lineColor = data.points.lastOrNull()?.let {
-        rangeColor(if (primaryRaw) plausibleRawValue(it, isMmol) ?: it.value else it.value, isMmol)
-    }
-        ?: Color(tk.glucodata.ui.WearColorPrefs.inRangeColor())
+        rangeColor(
+            if (primaryRaw) plausibleRawValue(it, isMmol) ?: it.value else it.value,
+            isMmol,
+            neutralLineColor,
+        )
+    } ?: neutralLineColor
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.13f)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val targetColor = Color(GlucoseRangeColors.inRange(true))

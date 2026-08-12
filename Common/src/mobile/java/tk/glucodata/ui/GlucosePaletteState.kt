@@ -86,10 +86,12 @@ object GlucosePaletteState {
     // Compose recomposes on its own via [revision], but the ongoing notification
     // is a rendered bitmap that only refreshes on a new reading. Repaint it now
     // so a palette change is visible there immediately, not minutes later.
+    // The watch mirrors the same scheme, and only learns of a change when told.
     private fun refreshNotification() {
         try {
             tk.glucodata.Notify.showoldglucose()
         } catch (_: Throwable) {
         }
+        tk.glucodata.GlucoseColorSync.push()
     }
 }

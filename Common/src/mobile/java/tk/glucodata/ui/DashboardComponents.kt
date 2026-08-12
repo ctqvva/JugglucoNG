@@ -131,13 +131,6 @@ private data class TrendCornerWeights(
     val bottomStart: Float
 )
 
-private enum class GlucoseRangeBand {
-    VERY_LOW,
-    LOW,
-    HIGH,
-    VERY_HIGH
-}
-
 private data class GlucoseHeroTone(
     val tint: Color,
     val blendFraction: Float
@@ -154,16 +147,8 @@ private fun fallbackVeryLowThreshold(isMmol: Boolean): Float = GlucoseRangeColor
 
 private fun fallbackVeryHighThreshold(isMmol: Boolean): Float = GlucoseRangeColors.defaultVeryHigh(isMmol)
 
-private fun rangeColorForBand(band: GlucoseRangeBand, isDark: Boolean): Color =
-    Color(
-        when (band) {
-            GlucoseRangeBand.VERY_LOW -> GlucoseRangeColors.veryLow(isDark)
-            GlucoseRangeBand.LOW -> GlucoseRangeColors.low(isDark)
-            GlucoseRangeBand.HIGH -> GlucoseRangeColors.high(isDark)
-            GlucoseRangeBand.VERY_HIGH -> GlucoseRangeColors.veryHigh(isDark)
-        }
-    )
-
+// The band/severity maths lives in tk.glucodata.GlucoseValueTone so the watch
+// paints from the same computation instead of its own approximation.
 private fun glucoseHeroTone(
     value: Float?,
     isFreshData: Boolean,
@@ -173,40 +158,17 @@ private fun glucoseHeroTone(
     targetHigh: Float,
     veryLowThreshold: Float,
     veryHighThreshold: Float
-): GlucoseHeroTone? {
-    val currentValue = value?.takeIf { it.isFinite() && it > 0f } ?: return null
-    if (!isFreshData) return null
-
-    val low = targetLow.takeIf { it.isFinite() && it > 0f } ?: fallbackLowThreshold(isMmol)
-    val highCandidate = targetHigh.takeIf { it.isFinite() && it > low } ?: fallbackHighThreshold(isMmol)
-    val high = highCandidate.coerceAtLeast(low + 0.1f)
-    val veryLow = (veryLowThreshold.takeIf { it.isFinite() && it > 0f } ?: fallbackVeryLowThreshold(isMmol))
-        .coerceAtMost(low - 0.1f)
-    val veryHigh = (veryHighThreshold.takeIf { it.isFinite() && it > 0f } ?: fallbackVeryHighThreshold(isMmol))
-        .coerceAtLeast(high + 0.1f)
-
-    fun bandTone(band: GlucoseRangeBand, severity: Float): GlucoseHeroTone {
-        val safeSeverity = severity.coerceIn(0f, 1f)
-        val blend = lerpFloat(0.12f, if (isDark) 0.24f else 0.22f, safeSeverity)
-        return GlucoseHeroTone(
-            tint = rangeColorForBand(band, isDark),
-            blendFraction = blend
-        )
-    }
-
-    return when {
-        currentValue <= veryLow -> bandTone(GlucoseRangeBand.VERY_LOW, 1f)
-        currentValue < low -> {
-            val severity = ((low - currentValue) / (low - veryLow).coerceAtLeast(0.1f)).coerceIn(0f, 1f)
-            bandTone(GlucoseRangeBand.LOW, severity)
-        }
-        currentValue >= veryHigh -> bandTone(GlucoseRangeBand.VERY_HIGH, 1f)
-        currentValue > high -> {
-            val severity = ((currentValue - high) / (veryHigh - high).coerceAtLeast(0.1f)).coerceIn(0f, 1f)
-            bandTone(GlucoseRangeBand.HIGH, severity)
-        }
-        else -> null
-    }
+): GlucoseHeroTone? = tk.glucodata.GlucoseValueTone.heroTone(
+    value = value,
+    isDark = isDark,
+    isMmol = isMmol,
+    targetLow = targetLow,
+    targetHigh = targetHigh,
+    veryLowThreshold = veryLowThreshold,
+    veryHighThreshold = veryHighThreshold,
+    isFreshData = isFreshData
+)?.let { tone ->
+    GlucoseHeroTone(tint = Color(tone.tintArgb), blendFraction = tone.blendFraction)
 }
 
 private fun trendCornerWeightsFromVelocity(velocity: Float): TrendCornerWeights {

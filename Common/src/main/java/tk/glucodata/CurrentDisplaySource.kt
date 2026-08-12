@@ -625,10 +625,21 @@ object CurrentDisplaySource {
     @JvmStatic
     fun resolveViewModeForSensor(sensorName: String?): Int = resolveSensorViewMode(sensorName)
 
-    /** Updates the same resolved driver identity used by [resolveViewModeForSensor]. */
+    /**
+     * Updates the same resolved driver identity used by [resolveViewModeForSensor].
+     *
+     * The persisted store is always written, not just the driver and native
+     * copies. On a watch following a phone-held sensor there is no local driver
+     * and often no native data pointer either, so every earlier path returned
+     * false and the mode control did nothing at all.
+     */
     @JvmStatic
     fun setViewModeForSensor(sensorName: String?, mode: Int): Boolean {
         val normalized = tk.glucodata.drivers.ManagedSensorViewModeStore.sanitize(mode)
+        if (sensorName.isNullOrEmpty()) {
+            return false
+        }
+        tk.glucodata.drivers.ManagedSensorViewModeStore.write(Applic.app, sensorName, normalized)
         tk.glucodata.drivers.ManagedSensorRuntime.resolveDriver(sensorName)?.let { driver ->
             driver.viewMode = normalized
             val ptr = driver.getManagedUiSnapshot()?.dataptr ?: 0L
@@ -637,16 +648,15 @@ object CurrentDisplaySource {
             }
             return true
         }
-        if (sensorName.isNullOrEmpty() || !SensorIdentity.hasNativeSensorBacking(sensorName)) {
-            return false
-        }
-        return runCatching {
-            val dataptr = Natives.getdataptr(sensorName)
-            if (dataptr == 0L) false else {
-                Natives.setViewMode(dataptr, normalized)
-                true
+        if (SensorIdentity.hasNativeSensorBacking(sensorName)) {
+            runCatching {
+                val dataptr = Natives.getdataptr(sensorName)
+                if (dataptr != 0L) {
+                    Natives.setViewMode(dataptr, normalized)
+                }
             }
-        }.getOrDefault(false)
+        }
+        return true
     }
 
     private fun resolveSensorViewMode(sensorName: String?): Int {
@@ -655,6 +665,12 @@ object CurrentDisplaySource {
         }
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName)
             ?.let { return it.viewMode }
+        // No live driver: the persisted choice outranks native. Native only
+        // carries a mode for sensors this device streams itself, so on a watch
+        // following a phone-held sensor it reports a permanent 0 and used to
+        // shadow whatever the user picked. Every writer keeps the store current.
+        tk.glucodata.drivers.ManagedSensorViewModeStore.readOrNull(Applic.app, sensorName)
+            ?.let { return it }
         if (!SensorIdentity.hasNativeSensorBacking(sensorName)) {
             return 0
         }

@@ -57,11 +57,18 @@ object WearGlucoseStore {
         val anchors: DoubleArray = DoubleArray(0),
         val horizonStartMs: Long = 0L,
         val isMmol: Boolean = false,
-        val isRawMode: Boolean = false,
+        /** auto / raw / auto+raw / raw+auto, as the phone numbers them. */
+        val viewMode: Int = 0,
         val sensorId: String? = null,
         val loadedAtMs: Long = 0L,
     ) {
         val isLoaded: Boolean get() = loadedAtMs > 0L
+
+        /** True when the raw lane is the one shown first. */
+        val isRawMode: Boolean get() = viewMode == 1 || viewMode == 3
+
+        /** True when a second lane is shown beside the primary one. */
+        val showsSecondary: Boolean get() = viewMode == 2 || viewMode == 3
 
         // Generated equals/hashCode would compare the anchor array by identity,
         // and every reload allocates a new one; Compose would then treat each
@@ -72,7 +79,7 @@ object WearGlucoseStore {
             return loadedAtMs == other.loadedAtMs &&
                 horizonStartMs == other.horizonStartMs &&
                 isMmol == other.isMmol &&
-                isRawMode == other.isRawMode &&
+                viewMode == other.viewMode &&
                 sensorId == other.sensorId &&
                 points === other.points
         }
@@ -196,11 +203,15 @@ object WearGlucoseStore {
     private fun loadHorizon(horizonMs: Long) {
         val now = System.currentTimeMillis()
         val isMmol = runCatching { Applic.unit == 1 }.getOrDefault(false)
-        val isRawMode = currentRawMode()
         val horizonStart = now - horizonMs
         // Which of several sensors the screens follow, rather than whatever
         // native happens to call "main".
         val sensor = WearSensorSelection.resolve()
+        // The mode belongs to the sensor being displayed; resolving it from
+        // whatever native called "main" showed one sensor's readings under
+        // another's mode as soon as the user pinned a second sensor.
+        val viewMode = viewModeFor(sensor)
+        val isRawMode = viewMode == 1 || viewMode == 3
         val rawPoints = runCatching {
             NotificationHistorySource.getDisplayHistory(horizonStart, isMmol, sensor)
         }.getOrDefault(emptyList())
@@ -218,7 +229,7 @@ object WearGlucoseStore {
             anchors = anchors,
             horizonStartMs = horizonStart,
             isMmol = isMmol,
-            isRawMode = isRawMode,
+            viewMode = viewMode,
             sensorId = sensor,
             loadedAtMs = now,
         )
@@ -273,19 +284,18 @@ object WearGlucoseStore {
         }
     }
 
-    private fun currentRawMode(): Boolean {
-        val mode = runCatching {
-            val sensor = NotificationHistorySource.resolveSensorSerial()
-            CurrentDisplaySource.resolveViewModeForSensor(sensor).coerceIn(0, 3)
-        }.getOrDefault(0)
-        return mode == 1 || mode == 3
-    }
+    private fun viewModeFor(sensor: String?): Int = runCatching {
+        val resolved = sensor ?: NotificationHistorySource.resolveSensorSerial()
+        CurrentDisplaySource.resolveViewModeForSensor(resolved).coerceIn(0, 3)
+    }.getOrDefault(0)
+
+    /** The sensor the screens follow, and the mode it is displayed in. */
+    fun currentSensor(): String? =
+        runCatching { WearSensorSelection.resolve() }.getOrNull()
+            ?: runCatching { NotificationHistorySource.resolveSensorSerial() }.getOrNull()
 
     /** The view mode the snapshot was loaded with, for screens that show it. */
-    fun viewMode(): Int = runCatching {
-        val sensor = NotificationHistorySource.resolveSensorSerial()
-        CurrentDisplaySource.resolveViewModeForSensor(sensor).coerceIn(0, 3)
-    }.getOrDefault(0)
+    fun viewMode(): Int = viewModeFor(currentSensor())
 
     /** Newest first, for the reading lists. */
     fun recent(count: Int, withinMs: Long = 6L * HOUR_MS): List<GlucosePoint> {

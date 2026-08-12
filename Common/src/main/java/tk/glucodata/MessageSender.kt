@@ -242,6 +242,13 @@ private fun nodeSendmessage(node:Node,path:String,data:ByteArray) {
     val data=Natives.bytesettings()
     sendmessage(SETTINGS_PATH,data)
     } */
+    /** Broadcasts the glucose colour scheme so the watch paints what the phone does. */
+    public fun sendGlucoseColors(data:ByteArray) {
+        sendmessage(GLUCOSE_COLORS_PATH,data)
+     }
+    public fun sendGlucoseColors(nodeName:String,data:ByteArray) {
+        nameSendMessage(nodeName,GLUCOSE_COLORS_PATH,data)
+     }
     public fun sendbluetooth( node:Node,on:Boolean) {
          sendbluetooth( node.id,on);
      }
@@ -302,6 +309,7 @@ companion object {
     const val ASKFORSTART_PATH = "/askforstart"
     const val DEFAULTS_PATH = "/defaults"
     const val SETTINGS_PATH = "/settings"
+    const val GLUCOSE_COLORS_PATH = "/glucosecolors"
     const val BLUETOOTH_PATH = "/bluetooth"
     const val DATA_PATH = "/data"
     const val MESSAGES_PATH = "/messages"

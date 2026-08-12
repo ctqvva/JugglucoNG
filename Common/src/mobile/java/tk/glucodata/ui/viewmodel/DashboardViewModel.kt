@@ -1425,6 +1425,8 @@ class DashboardViewModel(
         prefs.edit().putBoolean(GLUCOSE_RANGE_COLORS_KEY, enabled).apply()
         _glucoseValueRangeColorsEnabled.value = enabled
         refreshNotificationPredictionSurfaces(context)
+        // Travels with the palette: the watch colours its readings by the same rule.
+        tk.glucodata.GlucoseColorSync.push()
     }
 
     fun setDashboardShowDelta(enabled: Boolean) {
