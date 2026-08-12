@@ -1816,9 +1816,27 @@ class OttaiBleManager(
         readChar(gatt, OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME)
     }
 
+    @Deprecated("Deprecated in Java")
     @Suppress("DEPRECATION")
     override fun onCharacteristicRead(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) {
-        val value = ch.value ?: ByteArray(0)
+        handleCharacteristicRead(gatt, ch, ch.value ?: ByteArray(0), status)
+    }
+
+    override fun onCharacteristicRead(
+        gatt: BluetoothGatt,
+        ch: BluetoothGattCharacteristic,
+        value: ByteArray,
+        status: Int,
+    ) {
+        handleCharacteristicRead(gatt, ch, value, status)
+    }
+
+    private fun handleCharacteristicRead(
+        gatt: BluetoothGatt,
+        ch: BluetoothGattCharacteristic,
+        value: ByteArray,
+        status: Int,
+    ) {
         noteGattActivity()
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "read err ${ch.uuid.toString().take(8)} status=$status phase=$phase")
@@ -2091,12 +2109,8 @@ class OttaiBleManager(
         val (x, y) = OttaiBleAuth.publicCoords(kp.public as ECPublicKey)
         appPubX = x; appPubY = y
         appTime3 = OttaiBleAuth.appTime3(deviceTimeBytes)
-        // The sensor rotates which of its keys is valid over its life (~day 15 for a
-        // 30-day unit) and broadcasts the current one as deviceParamIndex. Mirror it for
-        // the app's half of the handshake — a random pick auth'd early (one lucky index
-        // held while streaming) but failed intermittently after a rotation, recovering
-        // only by chance on reconnect. Coerce in case of a malformed device index.
-        appIndex = deviceParamIndex.coerceIn(0, keys.size - 1)
+        // The official client independently selects a random key for the app half.
+        appIndex = (0 until keys.size).random()
         val param = OttaiBleAuth.appAuthParameter(appIndex, appTime3, appPubX, appPubY)
         authStep = AuthStep.WRITE_APP_PARAM
         writeChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_APP_PARAM, param)

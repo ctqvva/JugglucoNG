@@ -43,15 +43,15 @@ object OttaiBleAuth {
         return kpg.generateKeyPair()
     }
 
-    /** p.r — BigInteger to bytes: strip leading 0x00 sign byte, left-pad to min 24. */
+    /** P-256 coordinate: strip the BigInteger sign byte and left-pad to exactly 32 bytes. */
     fun coordBytes(value: BigInteger): ByteArray {
         var b = value.toByteArray()
         if (b.isNotEmpty() && b[0] == 0.toByte()) {
             b = b.copyOfRange(1, b.size)
         }
-        if (b.size >= 24) return b
-        val out = ByteArray(24)
-        System.arraycopy(b, 0, out, 24 - b.size, b.size)
+        if (b.size >= 32) return b
+        val out = ByteArray(32)
+        System.arraycopy(b, 0, out, 32 - b.size, b.size)
         return out
     }
 
