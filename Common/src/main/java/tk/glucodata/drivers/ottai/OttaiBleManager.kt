@@ -461,6 +461,25 @@ class OttaiBleManager(
             return homeAddress ?: recordAddress ?: normalized
         }
 
+        /**
+         * Signature verification is advisory on the normal known-address path because the
+         * recovered verifier is not authoritative enough to abort an otherwise valid handshake.
+         * Candidate discovery must preserve that same behaviour for the sensor's persisted
+         * address, while still rejecting an unverified name-only neighbour.
+         */
+        internal fun isKnownActivationAddress(
+            candidateAddress: String?,
+            homeAddress: String?,
+            recordAddress: String?,
+        ): Boolean {
+            val candidate = OttaiConstants.normalizeBleAddress(candidateAddress, allowPlain = false)
+                ?: return false
+            val known = OttaiConstants.normalizeBleAddress(homeAddress, allowPlain = false)
+                ?: OttaiConstants.normalizeBleAddress(recordAddress, allowPlain = false)
+                ?: return false
+            return candidate.equals(known, ignoreCase = true)
+        }
+
         internal fun shouldHoldFastParams(
             intervalUnits: Int,
             latency: Int,
@@ -1822,8 +1841,17 @@ class OttaiBleManager(
             }
             OttaiConstants.CHAR_AUTH_SIGN -> {
                 if (!verifyDeviceSign(value) && activationCandidateProbeActive) {
-                    rejectActivationCandidate(gatt)
-                    return
+                    if (isKnownActivationAddress(
+                            candidateAddress = gatt.device?.address,
+                            homeAddress = activationCandidateHomeAddress,
+                            recordAddress = ownRecordAddress(),
+                        )
+                    ) {
+                        continueKnownAddressCandidate(gatt)
+                    } else {
+                        rejectActivationCandidate(gatt)
+                        return
+                    }
                 }
                 writeAppParam(gatt)
             }
@@ -1979,7 +2007,7 @@ class OttaiBleManager(
     private fun verifyDeviceSign(deviceSign: ByteArray): Boolean {
         val keys = authKeys ?: return false
         if (deviceParamIndex !in keys.indices) {
-            Log.w(TAG, "device index oob")
+            Log.w(TAG, "device index oob index=$deviceParamIndex keyCount=${keys.size}")
             return false
         }
         val authKeyHex = OttaiCrypto.bytesToHex(keys[deviceParamIndex])
@@ -2017,6 +2045,24 @@ class OttaiBleManager(
             replayDeferredActivationCandidateCgmInfo()
         }
         return ok
+    }
+
+    private fun continueKnownAddressCandidate(gatt: BluetoothGatt) {
+        val address = OttaiConstants.normalizeBleAddress(gatt.device?.address, allowPlain = false)
+        activationRetryAddress = address ?: activationRetryAddress
+        activationCandidateProbeActive = false
+        activationCandidateDiscoveryPending = false
+        activationCandidateHomeAddress = null
+        awaitingFreshActivationAdvertisement = false
+        handler.removeCallbacks(freshActivationAdvertisementTimeoutRunnable)
+        rejectedActivationCandidateAddresses.clear()
+        mActiveDeviceAddress = address ?: mActiveDeviceAddress
+        SerialNumber?.let { sensorId ->
+            Applic.app?.let { OttaiNfcWakeReminder.cancel(it, sensorId) }
+            OttaiNfc.disarmActivationRetry(sensorId)
+        }
+        Log.w(TAG, "known-address candidate signature unverified; continuing normal auth address=$address")
+        replayDeferredActivationCandidateCgmInfo()
     }
 
     private fun rejectActivationCandidate(gatt: BluetoothGatt) {

@@ -111,6 +111,28 @@ class OttaiReconnectPolicyTests {
     }
 
     @Test
+    fun exactKnownAddressKeepsNormalAuthenticationBehaviour() {
+        assertTrue(
+            OttaiBleManager.isKnownActivationAddress(
+                candidateAddress = ours,
+                homeAddress = ours.lowercase(),
+                recordAddress = null,
+            ),
+        )
+    }
+
+    @Test
+    fun nameOnlyNeighbourStillRequiresVerifiedSignature() {
+        assertFalse(
+            OttaiBleManager.isKnownActivationAddress(
+                candidateAddress = stranger,
+                homeAddress = ours,
+                recordAddress = ours,
+            ),
+        )
+    }
+
+    @Test
     fun theRegistryRecordBacksUpAMissingHomeAddress() {
         // The second entry into candidate discovery used not to capture a home address at all,
         // which made the restore a no-op on that path.
