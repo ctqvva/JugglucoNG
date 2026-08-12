@@ -22,6 +22,11 @@ import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedSensorUiSignals
 
 object OttaiRegistry {
+
+    enum class SessionProfile {
+        WATCH,
+        CN_PHONE,
+    }
     private const val TAG = OttaiConstants.TAG
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val PREF_DRAFT_SENSORS_KEY = "ottai_draft_sensors"
@@ -110,6 +115,21 @@ object OttaiRegistry {
 
     @JvmStatic fun saveApiBase(c: Context, v: String) {
         prefs(c).edit().putString(OttaiConstants.PREF_API_BASE, v).apply()
+    }
+
+    /** Missing means a legacy token issued to the recovered watch client. Never relabel tokens. */
+    internal fun parseSessionProfile(stored: String?): SessionProfile =
+        runCatching { SessionProfile.valueOf(stored ?: SessionProfile.WATCH.name) }
+            .getOrDefault(SessionProfile.WATCH)
+
+    @JvmStatic fun loadSessionProfile(c: Context): SessionProfile =
+        parseSessionProfile(prefs(c).getString(OttaiConstants.PREF_SESSION_PROFILE, null))
+
+    @JvmStatic fun saveSessionProfile(c: Context, profile: SessionProfile?) {
+        prefs(c).edit().apply {
+            if (profile == null) remove(OttaiConstants.PREF_SESSION_PROFILE)
+            else putString(OttaiConstants.PREF_SESSION_PROFILE, profile.name)
+        }.apply()
     }
 
     /** Stable per-install device id used in the cloud signature + deviceId header. */
@@ -296,13 +316,13 @@ object OttaiRegistry {
     // ---- per-sensor materials ----
 
     @JvmStatic
-    fun saveMaterials(context: Context, sensorId: String, m: DeviceMaterials) {
+    fun saveMaterials(context: Context, sensorId: String, m: DeviceMaterials): Boolean {
         val id = resolveCanonicalSensorId(context, sensorId)
             ?: OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
         val existing = loadMaterials(context, id)
         val coefficient = m.coefficient.ifBlank { existing.coefficient }
         val method = OttaiMethodDefaults.resolve(m.method.ifBlank { existing.method }, coefficient)
-        prefs(context).edit().apply {
+        val saved = prefs(context).edit().apply {
             putString(OttaiConstants.PREF_KEYA_PREFIX + id, m.keyAHex)
             putString(OttaiConstants.PREF_METHOD_PREFIX + id, method)
             putString(OttaiConstants.PREF_COEFF_PREFIX + id, coefficient)
@@ -312,10 +332,16 @@ object OttaiRegistry {
             putLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, m.preheatPeriodMs)
             putString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, m.deviceVersion)
             putInt(OttaiConstants.PREF_DEVICE_ID_PREFIX + id, m.deviceId)
-        }.apply()
+        }.commit()
+        if (!saved) {
+            Log.w(OttaiConstants.TAG, "failed to persist materials for $id")
+            return false
+        }
+        Log.i(OttaiConstants.TAG, "persisted materials for $id")
         // Stored auth material decides which record findRecord prefers, which feeds the memoized
         // SensorIdentity.resolveAppSensorId — refresh it so a newly-material-backed id resolves.
         tk.glucodata.SensorIdentity.invalidateCaches()
+        return true
     }
 
     @JvmStatic
@@ -573,7 +599,7 @@ object OttaiRegistry {
             context, id, o.optString("bleAddress"),
             o.optString("displayName").ifBlank { OttaiConstants.DEFAULT_DISPLAY_NAME },
         )
-        saveMaterials(
+        if (!saveMaterials(
             context, id,
             DeviceMaterials(
                 keyAHex = keyA,
@@ -586,7 +612,7 @@ object OttaiRegistry {
                 deviceVersion = o.optString("deviceVersion"),
                 deviceId = o.optInt("deviceId", 0),
             ),
-        )
+        )) return null
         // Older exports carry provisionalActiveTimeMs; ignore it rather than adopting another
         // device's guess as this one's activation start. A local live anchor establishes the real
         // start here, and until it does, no start beats a wrong one.

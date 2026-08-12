@@ -133,6 +133,7 @@ private const val OTTAI_SCAN_LOG = "OttaiBleScanPanel"
 private data class OttaiMaterialFetch(
     val materials: OttaiRegistry.DeviceMaterials?,
     val failure: OttaiCloudClient.CloudFailure? = null,
+    val validatedDeviceVersion: String = "",
 )
 
 /**
@@ -145,6 +146,7 @@ private fun fetchOttaiMaterials(
     mac: String,
     deviceVersion: String? = null,
     historicalActiveTimeMs: Long = 0L,
+    allowV3Bind: Boolean = false,
 ): OttaiMaterialFetch {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return OttaiMaterialFetch(null) }
     OttaiRegistry.loadMaterials(context, canonical).takeIf { it.authKeys != null }
@@ -155,9 +157,13 @@ private fun fetchOttaiMaterials(
     // account sensors can still be recovered by a temporary bind/unbind when listDevices supplied
     // the deviceVersion required by the bind endpoint.
     var failure: OttaiCloudClient.CloudFailure? = null
+    var validation: OttaiCloudClient.DeviceValidation? = null
 
     fun viaValidate(): OttaiRegistry.DeviceMaterials? {
-        val resp = OttaiCloudClient.validateByMac(context, canonical) ?: return null
+        val result = OttaiCloudClient.validateForSetup(context, canonical) ?: return null
+        validation = result
+        val resp = result.device
+        if (resp.keyA.isBlank()) return null
         return OttaiCloudClient.toMaterials(context, canonical, resp)?.takeIf { it.authKeys != null }
     }
     fun viaBound(): OttaiRegistry.DeviceMaterials? {
@@ -167,10 +173,10 @@ private fun fetchOttaiMaterials(
         return OttaiCloudClient.toMaterials(context, boundId, resp)?.takeIf { it.authKeys != null }
     }
     fun viaTemporaryBind(): OttaiRegistry.DeviceMaterials? {
-        // Account-list selections supply the real version. Syai additionally permits recovery of
-        // an expired sensor outside the signed-in account; allow its known bind metadata only
-        // after validate explicitly returned OutOfProduceTime. Other manually-entered IDs remain
-        // unable to reach the state-changing bind/unbind fallback.
+        // Account-list selections supply the real version. Syai and global Ottai additionally
+        // permit recovery of an expired sensor outside the signed-in account; allow their known
+        // bind metadata only after validate explicitly returned OutOfProduceTime. Other manually
+        // entered IDs remain unable to reach the state-changing bind/unbind fallback.
         val version = OttaiCloudClient.materialBindDeviceVersion(
             context,
             deviceVersion,
@@ -186,18 +192,42 @@ private fun fetchOttaiMaterials(
         if (!OttaiConstants.matchesCanonicalOrKnownNativeAlias(boundId, canonical)) return null
         return OttaiCloudClient.toMaterials(context, canonical, resp)?.takeIf { it.authKeys != null }
     }
+    fun viaV3Bind(): OttaiRegistry.DeviceMaterials? {
+        val validated = validation?.takeIf { it.requiresV3Bind }?.device ?: return null
+        if (!allowV3Bind) return null
+        val version = validated.deviceVersion.ifBlank { deviceVersion.orEmpty() }
+        val resp = OttaiCloudClient.bindV3(context, canonical, version) ?: return null
+        val boundId = OttaiConstants.canonicalSensorId(resp.mac).ifBlank { canonical }
+        if (!OttaiConstants.matchesCanonicalOrKnownNativeAlias(boundId, canonical)) return null
+        return OttaiCloudClient.toMaterials(context, canonical, resp)?.takeIf { it.authKeys != null }
+    }
     fun step(route: () -> OttaiRegistry.DeviceMaterials?): OttaiRegistry.DeviceMaterials? =
         route().also { if (it == null && failure == null) failure = OttaiCloudClient.lastFailure }
-    val m = step { viaValidate() } ?: step { viaBound() } ?: step { viaTemporaryBind() }
-        ?: return OttaiMaterialFetch(null, failure)
+    val direct = step { viaValidate() } ?: step { viaBound() } ?: step { viaV3Bind() }
+    val m = direct ?: run {
+        // A successful V3 validation selects the V3 contract for this device. If bindV3 is
+        // refused, do not issue a second state-changing bind with the incompatible legacy body;
+        // preserve the V3 failure and leave the account binding untouched.
+        if (validation?.requiresV3Bind == true) {
+            return OttaiMaterialFetch(null, failure, validation?.device?.deviceVersion.orEmpty())
+        }
+        step { viaTemporaryBind() }
+            ?: return OttaiMaterialFetch(null, failure, validation?.device?.deviceVersion.orEmpty())
+    }
     OttaiRegistry.saveDraftRecord(
         context,
         canonical,
         OttaiConstants.macWithColons(canonical),
         OttaiConstants.DEFAULT_DISPLAY_NAME,
     )
-    OttaiRegistry.saveMaterials(context, canonical, m)
-    return OttaiMaterialFetch(m)
+    if (!OttaiRegistry.saveMaterials(context, canonical, m)) {
+        return OttaiMaterialFetch(
+            null,
+            OttaiCloudClient.CloudFailure("Could not save sensor materials"),
+            validation?.device?.deviceVersion.orEmpty(),
+        )
+    }
+    return OttaiMaterialFetch(m, validatedDeviceVersion = validation?.device?.deviceVersion.orEmpty())
 }
 
 /**
@@ -452,7 +482,9 @@ fun OttaiSetupWizard(
             if (OttaiConstants.canonicalSensorId(cloudId) == canonical) {
                 val materials = fetched?.materials
                 currentMaterials = materials
-                if (!materials?.deviceVersion.isNullOrBlank()) selectedDeviceVersion = materials?.deviceVersion.orEmpty()
+                val fetchedVersion = materials?.deviceVersion?.takeIf { it.isNotBlank() }
+                    ?: fetched?.validatedDeviceVersion?.takeIf { it.isNotBlank() }
+                if (fetchedVersion != null) selectedDeviceVersion = fetchedVersion
                 materialLoading = false
                 status = if (materials != null) "" else ottaiMaterialFailureMessage(context, fetched?.failure)
             }
@@ -696,6 +728,7 @@ fun OttaiSetupWizard(
                                         canonical,
                                         selected?.deviceVersion ?: selectedDeviceVersion,
                                         selected?.bindTime ?: 0L,
+                                        allowV3Bind = true,
                                     )
                                     if (fetched.materials == null) return@runCatching fetched to false
                                     val explicitBle = OttaiConstants.normalizeBleAddress(bleAddress, allowPlain = false)

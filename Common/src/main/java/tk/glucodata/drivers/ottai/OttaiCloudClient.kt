@@ -1,8 +1,8 @@
 // OttaiCloudClient.kt — Ottai cloud bootstrap (login + validate + bind).
 //
-// Presents as the watch app (com.ottai.tag.watch) because that protocol is fully
-// recovered: header set + MD5 signature seed from NetManager (1.1.0 decompile).
-// The account/token is app-agnostic, so a phone-number SMS login works here.
+// Legacy sessions present as the recovered watch app. New CN SMS sessions present as the
+// current phone app. Tokens must stay on the identity that issued them: the CN backend rejects
+// a valid token if subsequent requests switch between these profiles.
 //
 // Geoblock: only CN-backend (api.ottai.com) requests carry forwarded-IP headers set to a China IP
 // (that backend is geoblocked to China). GLOBAL (seas.ottai.com) / SYAI (api.syai.com) requests send
@@ -35,8 +35,10 @@ object OttaiCloudClient {
 
     // Recovered MD5 signature seed (NetManager.f1540b). Reviewed driver code only.
     private const val SEED = "dy7234hbnrnfh7q89eru8ybfn899"
-    private const val APP_NAME = "ottai-watch"
-    private const val PKG = "com.ottai.tag.watch"
+    private const val WATCH_APP_NAME = "ottai-watch"
+    private const val WATCH_PKG = "com.ottai.tag.watch"
+    private const val PHONE_APP_NAME = "ottai"
+    private const val PHONE_PKG = "com.ottai.tag"
     private const val TIMEOUT_MS = 30_000
     private const val TEMPORARY_UNBIND_DELAY_MS = 2_000L
     internal const val TEMPORARY_MATERIAL_UNBIND_METHOD = "PUT"
@@ -48,6 +50,7 @@ object OttaiCloudClient {
     // 2026-07-29, with the UI showing only the generic "no materials for this cloud ID".
     const val BIZ_ALREADY_BINDING = "AppUser_AlreadyBinding"
     const val BIZ_OUT_OF_PRODUCE_TIME = "AppDevice_OutOfProduceTime"
+    const val BIZ_UPGRADE_VERSION = "AppDevice_Upgrade_Version"
     // The server already considers the sensor finished. For [unbind] that is the state the caller
     // was asking for, so it counts as released. Not yet observed on-device.
     const val BIZ_END_USING = "AppDevice_EndUsing"
@@ -95,6 +98,12 @@ object OttaiCloudClient {
         val deviceId: Int,
     )
 
+    data class DeviceValidation(
+        val device: DeviceResp,
+        /** New CN firmware exposes metadata through V3, then supplies keyA only from bindV3. */
+        val requiresV3Bind: Boolean,
+    )
+
     // ---- signature / headers ----
 
     private fun md5Hex(s: String): String {
@@ -108,24 +117,46 @@ object OttaiCloudClient {
         return sb.toString()
     }
 
-    /** MD5("ottai-watch" + "ottai-watch:a:"+deviceId + ts + args.join("") + SEED). */
-    private fun sign(deviceId: String, ts: Long, vararg args: String): String =
-        md5Hex(APP_NAME + "$APP_NAME:a:$deviceId" + ts + args.joinToString("") + SEED)
+    internal fun signForProfile(
+        profile: OttaiRegistry.SessionProfile,
+        deviceId: String,
+        ts: Long,
+        vararg args: String,
+    ): String {
+        val appName = if (profile == OttaiRegistry.SessionProfile.CN_PHONE) PHONE_APP_NAME else WATCH_APP_NAME
+        return md5Hex(appName + "$appName:a:$deviceId" + ts + args.joinToString("") + SEED)
+    }
+
+    private fun activeProfile(ctx: Context, apiBase: String): OttaiRegistry.SessionProfile =
+        if (apiBase == OttaiConstants.API_BASE) OttaiRegistry.loadSessionProfile(ctx)
+        else OttaiRegistry.SessionProfile.WATCH
 
     private fun headers(
         ctx: Context,
         ts: Long,
         apiBase: String,
         authorizationOverride: String? = null,
+        profileOverride: OttaiRegistry.SessionProfile? = null,
     ): MutableMap<String, String> {
         val deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx)
         val token = authorizationOverride ?: OttaiRegistry.loadAccessToken(ctx)
+        val profile = profileOverride ?: activeProfile(ctx, apiBase)
+        if (profile == OttaiRegistry.SessionProfile.CN_PHONE) {
+            return cnPhoneHeaders(
+                deviceId = deviceId,
+                accessToken = token,
+                timestamp = ts,
+                traceId = UUID.randomUUID().toString(),
+            ).toMutableMap().apply {
+                if (token.isBlank()) remove("Authorization")
+            }
+        }
         val offsetSec = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000
         val h = mutableMapOf(
-            "appName" to APP_NAME,
+            "appName" to WATCH_APP_NAME,
             "versionName" to "1.1.0",
             "versionCode" to "244301",
-            "packageName" to PKG,
+            "packageName" to WATCH_PKG,
             "ua" to "Android_Watch_Ottai_Arc",
             "timezone" to offsetSec.toString(),
             "timeZoneName" to TimeZone.getDefault().id,
@@ -133,7 +164,7 @@ object OttaiCloudClient {
             "traceId" to "trace_testtest",
             "timestamp" to ts.toString(),
             "country" to "zh_CN",
-            "deviceId" to "$APP_NAME:a:$deviceId",
+            "deviceId" to "$WATCH_APP_NAME:a:$deviceId",
         )
         // Geoblock bypass — forge a CN source IP ONLY for the CN backend (api.ottai.com), which is
         // geoblocked to China and REQUIRES a CN IP. The GLOBAL (seas.ottai.com) and SYAI (api.syai.com)
@@ -151,13 +182,8 @@ object OttaiCloudClient {
         return h
     }
 
-    /**
-     * Header identity used by the current CN phone app for the temporary bind/unbind material
-     * recovery cycle. Past-produce-date sensors are rejected by validate-by-MAC, while this
-     * phone endpoint still returns their keyA/method/coefficient. Keep this profile out of normal
-     * validation and activation: it exists only to reproduce that read-and-release workflow.
-     */
-    internal fun temporaryMaterialHeaders(
+    /** Exact client identity used by current CN phone-app sessions. */
+    internal fun cnPhoneHeaders(
         deviceId: String,
         accessToken: String,
         timestamp: Long,
@@ -165,19 +191,19 @@ object OttaiCloudClient {
     ): Map<String, String> = mapOf(
         "User-Agent" to "Dart/3.8 (dart:io)",
         "ua" to "Android",
-        "deviceId" to "ottai:a:$deviceId",
+        "deviceId" to "$PHONE_APP_NAME:a:$deviceId",
         "applicationType" to "ottai_main",
-        "appName" to "ottai",
-        "versionCode" to "260721",
+        "appName" to PHONE_APP_NAME,
+        "versionCode" to "263121",
         "country" to "CN",
         "language" to "zh",
         "timezone" to "28800",
-        "packageName" to "com.ottai.tag",
+        "packageName" to PHONE_PKG,
         "productModel" to "MB",
         "unit" to "mmol_L",
         "timeZoneName" to "Asia/Shanghai",
         "deviceModel" to "SM-A205FN",
-        "versionName" to "1.34.0",
+        "versionName" to "1.55.0",
         "X-Forwarded-For" to OttaiConstants.CN_FORWARD_IP,
         "X-Real-IP" to OttaiConstants.CN_FORWARD_IP,
         "CF-Connecting-IP" to OttaiConstants.CN_FORWARD_IP,
@@ -186,14 +212,6 @@ object OttaiCloudClient {
         "traceId" to traceId,
         "Authorization" to accessToken,
     )
-
-    private fun temporaryMaterialHeaders(ctx: Context, timestamp: Long): Map<String, String> =
-        temporaryMaterialHeaders(
-            deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx),
-            accessToken = OttaiRegistry.loadAccessToken(ctx),
-            timestamp = timestamp,
-            traceId = UUID.randomUUID().toString(),
-        )
 
     private fun now(): Long = System.currentTimeMillis()
 
@@ -209,17 +227,16 @@ object OttaiCloudClient {
      * authoritative for the recovered sensor's persisted version and materials.
      */
     internal const val SYAI_MATERIAL_BIND_DEVICE_VERSION = "E1.1.4(V1.7.S2530.1)"
-
     internal fun materialBindDeviceVersion(
         apiBase: String,
         selectedDeviceVersion: String?,
         failureCode: String?,
     ): String? {
         selectedDeviceVersion?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
-        return SYAI_MATERIAL_BIND_DEVICE_VERSION.takeIf {
-            apiBase == OttaiConstants.API_BASE_SYAI &&
-                failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)
-        }
+        if (!failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)) return null
+        // Only the Syai expired-recovery path is observed working. A hardcoded GLOBAL bind version
+        // was tried and never accepted (see cloud-gate findings), so it is intentionally not here.
+        return SYAI_MATERIAL_BIND_DEVICE_VERSION.takeIf { apiBase == OttaiConstants.API_BASE_SYAI }
     }
 
     fun materialBindDeviceVersion(
@@ -233,21 +250,24 @@ object OttaiCloudClient {
         ctx: Context,
         apiBase: String = base(ctx),
         authorizationOverride: String? = null,
+        profileOverride: OttaiRegistry.SessionProfile? = null,
     ): String? {
         val ts = now()
         val deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx)
-        val sig = sign(deviceId, ts)
+        val profile = profileOverride ?: activeProfile(ctx, apiBase)
+        val sig = signForProfile(profile, deviceId, ts)
         val resp = httpGet(
             apiBase + OttaiConstants.EP_API_TOKEN,
             mapOf("signature" to sig),
-            headers(ctx, ts, apiBase, authorizationOverride),
+            headers(ctx, ts, apiBase, authorizationOverride, profile),
         )
         return resp?.optStringDeep("data")
     }
 
     /** POST /user/smsCode — needs apiToken; sig over (phone, apiToken). Returns requestId. */
     fun requestSmsCode(ctx: Context, phone: String): String? {
-        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE) ?: run { lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
+        val profile = OttaiRegistry.SessionProfile.CN_PHONE
+        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
         val ts = now()
         val deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx)
         val ph = normalizePhone(phone)
@@ -259,14 +279,19 @@ object OttaiCloudClient {
             // returns a requestId, but provisions the code under the wrong type, so the
             // subsequent smsLogin always fails with Sms_CodeInvalid. Not part of the signature.
             put("smsType", 1)
-            put("signature", sign(deviceId, ts, ph, apiToken))
+            put("signature", signForProfile(profile, deviceId, ts, ph, apiToken))
         }
-        val resp = httpPostJson(OttaiConstants.API_BASE + OttaiConstants.EP_SMS_CODE, body.toString(), headers(ctx, ts, OttaiConstants.API_BASE))
+        val resp = httpPostJson(
+            OttaiConstants.API_BASE + OttaiConstants.EP_SMS_CODE,
+            body.toString(),
+            headers(ctx, ts, OttaiConstants.API_BASE, "", profile),
+        )
         return resp?.optStringDeep("data")
     }
 
     /** POST /user/smsLogin — sig over (requestId, phone, validCode). Persists creds. */
     fun smsLogin(ctx: Context, phone: String, code: String, requestId: String): LoginResult? {
+        val profile = OttaiRegistry.SessionProfile.CN_PHONE
         val ts = now()
         val deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx)
         val ph = normalizePhone(phone)
@@ -275,9 +300,13 @@ object OttaiCloudClient {
             put("phone", ph)
             put("validCode", code)
             put("requestId", requestId)
-            put("signature", sign(deviceId, ts, requestId, ph, code))
+            put("signature", signForProfile(profile, deviceId, ts, requestId, ph, code))
         }
-        val resp = httpPostJson(OttaiConstants.API_BASE + OttaiConstants.EP_SMS_LOGIN, body.toString(), headers(ctx, ts, OttaiConstants.API_BASE)) ?: return null
+        val resp = httpPostJson(
+            OttaiConstants.API_BASE + OttaiConstants.EP_SMS_LOGIN,
+            body.toString(),
+            headers(ctx, ts, OttaiConstants.API_BASE, "", profile),
+        ) ?: return null
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
         val result = LoginResult(
             userId = data.optString("userId").orEmptyIfNull(),
@@ -286,9 +315,11 @@ object OttaiCloudClient {
         )
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, OttaiConstants.API_BASE)  // this account lives on the CN backend
+            OttaiRegistry.saveSessionProfile(ctx, profile)
             OttaiRegistry.saveAccessToken(ctx, result.accessToken)
             OttaiRegistry.saveGlucoseSecretKey(ctx, result.glucoseSecretKey)
             OttaiRegistry.saveUserId(ctx, result.userId)
+            Log.i(TAG, "CN login session profile=cn_phone")
         }
         return result
     }
@@ -326,7 +357,7 @@ object OttaiCloudClient {
             put("userName", acct)
             put("password", password)
             put("apiToken", apiToken)
-            put("signature", sign(deviceId, ts, apiToken, acct, password))
+            put("signature", signForProfile(OttaiRegistry.SessionProfile.WATCH, deviceId, ts, apiToken, acct, password))
         }
         val resp = httpPostJson(
             base + OttaiConstants.EP_ACCOUNT_LOGIN,
@@ -341,6 +372,7 @@ object OttaiCloudClient {
         )
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, base)  // subsequent validate/list/bind use this backend
+            OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
             OttaiRegistry.saveAccessToken(ctx, result.accessToken)
             OttaiRegistry.saveGlucoseSecretKey(ctx, result.glucoseSecretKey)
             OttaiRegistry.saveUserId(ctx, result.userId)
@@ -360,49 +392,136 @@ object OttaiCloudClient {
         OttaiRegistry.saveGlucoseSecretKey(ctx, null)
         OttaiRegistry.saveUserId(ctx, null)
         OttaiRegistry.saveAccountLogin(ctx, null)
+        OttaiRegistry.saveSessionProfile(ctx, null)
         OttaiRegistry.saveApiBase(ctx, OttaiConstants.API_BASE)  // reset to CN default
     }
 
-    fun validateByMac(ctx: Context, mac: String): DeviceResp? {
+    fun validateByMac(ctx: Context, mac: String): DeviceResp? =
+        validateForSetup(ctx, mac)?.device?.takeIf { it.keyA.isNotBlank() }
+
+    /**
+     * Read-only validation. Existing sensors retain the proven V2 GET flow. Current CN firmware
+     * answers V2 with AppDevice_Upgrade_Version and requires a V3 JSON POST; that response carries
+     * authoritative device metadata but deliberately no keyA.
+     */
+    fun validateForSetup(ctx: Context, mac: String): DeviceValidation? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
-        val ts = now()
+        if (canonical.isBlank()) return null
+        val apiBase = base(ctx)
         val deviceId = OttaiRegistry.loadOrCreateDeviceId(ctx)
-        val sig = sign(deviceId, ts, canonical)
+        val ts = now()
+        val profile = activeProfile(ctx, apiBase)
+        Log.i(TAG, "validate session profile=${profile.name.lowercase(Locale.ROOT)}")
         val resp = httpGet(
-            base(ctx) + OttaiConstants.EP_VALIDATE_BY_MAC,
-            mapOf("mac" to canonical, "signature" to sig),
-            headers(ctx, ts, base(ctx)),
+            apiBase + OttaiConstants.EP_VALIDATE_BY_MAC,
+            mapOf("mac" to canonical, "signature" to signForProfile(profile, deviceId, ts, canonical)),
+            headers(ctx, ts, apiBase, profileOverride = profile),
+        )
+        if (resp != null) {
+            parseDeviceResp(resp)?.let { return DeviceValidation(it, requiresV3Bind = false) }
+        }
+        if (apiBase != OttaiConstants.API_BASE || profile != OttaiRegistry.SessionProfile.CN_PHONE ||
+            !lastFailure?.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true)
+        ) return null
+
+        val v3Ts = now()
+        val body = JSONObject().apply {
+            put("mac", canonical)
+            put("signature", signForProfile(profile, deviceId, v3Ts, canonical))
+        }
+        val v3 = httpPostJson(
+            apiBase + OttaiConstants.EP_VALIDATE_BY_MAC_V3,
+            body.toString(),
+            headers(ctx, v3Ts, apiBase, profileOverride = profile),
         ) ?: return null
-        return parseDeviceResp(resp)
+        val device = parseDeviceResp(v3, requireKeyA = false) ?: return null
+        Log.i(TAG, "CN V3 validation ok mac=$canonical version=${device.deviceVersion}")
+        return DeviceValidation(device, requiresV3Bind = true)
     }
 
-    /** POST /deviceBind/composite/bind — unsigned; activates cloud-side, returns keyA. */
+    internal enum class BindContract { LEGACY, V3 }
+
+    /**
+     * Sensor-derived material the current CN app adds to the V3 bind body. Field names are confirmed
+     * from the latest CN app decompile (`~/Downloads/ottag1`, object pool). They are produced by the
+     * server-mediated Active_Auth handshake (BLE read authDev/authFlag -> POST /cgmAuth/verify ->
+     * write authHost/authFlag back to the sensor). The exact `sign` input string and the write
+     * framing still need a live frida capture; until [buildV3BindAuth] is implemented, bindV3 sends
+     * the MAC-only body and the server refuses it with AppDevice_Upgrade_Version — matching what we
+     * observe today. See AGENTS/archive/context-dumps/ottai-2026-08-12-cloud-gate-findings.md.
+     */
+    data class V3BindAuth(
+        val sign: String,
+        val colorBoxTailSn: String,
+        val keyC: String,
+        val boardType: String,
+    )
+
+    /** Build the observed bodies for the composite-bind endpoints. */
+    internal fun bindRequestBody(
+        mac: String,
+        deviceVersion: String,
+        userId: String?,
+        activeTimeMs: Long,
+        contract: BindContract,
+        v3Auth: V3BindAuth? = null,
+    ): JSONObject = JSONObject().apply {
+        put("mac", mac)
+        put("deviceType", "cgm")
+        put("deviceVersion", deviceVersion)
+        put("activeTime", activeTimeMs)
+        when (contract) {
+            BindContract.LEGACY -> put("userId", userId)
+            BindContract.V3 -> {
+                put("patientId", JSONObject.NULL)
+                put("newBindType", 2)
+                // Present only once Active_Auth has run; without it the server returns Upgrade_Version.
+                v3Auth?.let {
+                    put("sign", it.sign)
+                    put("colorBoxTailSn", it.colorBoxTailSn)
+                    put("keyC", it.keyC)
+                    put("boardType", it.boardType)
+                }
+            }
+        }
+    }
+
+    /** POST /deviceBind/composite/bind — unsigned; binds the cloud account and returns keyA. */
     fun bind(ctx: Context, mac: String, deviceVersion: String, userId: String): DeviceResp? =
-        bind(ctx, mac, deviceVersion, userId, null)
+        bind(ctx, mac, deviceVersion, userId, BindContract.LEGACY, null, null)
+
+    /**
+     * Current CN material bind for devices whose read-only validation selected the V3 contract.
+     * [v3Auth] carries the sensor-derived material from Active_Auth; when null (not yet wired) this
+     * still round-trips the endpoint but the server refuses it — useful for exercising the path.
+     */
+    fun bindV3(ctx: Context, mac: String, deviceVersion: String, v3Auth: V3BindAuth? = null): DeviceResp? =
+        bind(ctx, mac, deviceVersion, null, BindContract.V3, v3Auth, null)
 
     private fun bind(
         ctx: Context,
         mac: String,
         deviceVersion: String,
-        userId: String,
+        userId: String?,
+        contract: BindContract,
+        v3Auth: V3BindAuth?,
         headerOverride: ((Long) -> Map<String, String>)?,
     ): DeviceResp? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
-        if (canonical.isBlank() || deviceVersion.isBlank() || userId.isBlank()) {
-            lastFailure = CloudFailure("bind requires mac, deviceVersion and userId")
+        if (canonical.isBlank() || deviceVersion.isBlank() ||
+            (contract == BindContract.LEGACY && userId.isNullOrBlank())
+        ) {
+            lastFailure = CloudFailure(
+                if (contract == BindContract.LEGACY) "bind requires mac, deviceVersion and userId"
+                else "bind requires mac and deviceVersion",
+            )
             return null
         }
         val ts = now()
-        val body = JSONObject().apply {
-            put("mac", canonical)
-            put("deviceType", "cgm")
-            put("deviceVersion", deviceVersion)
-            put("activeTime", ts)
-            put("userId", userId)
-            put("newBindType", 2)
-        }
+        val body = bindRequestBody(canonical, deviceVersion, userId, ts, contract, v3Auth)
+        val endpoint = if (contract == BindContract.V3) OttaiConstants.EP_BIND_V3 else OttaiConstants.EP_BIND
         val requestHeaders = headerOverride?.invoke(ts) ?: headers(ctx, ts, base(ctx))
-        val resp = httpPostJson(base(ctx) + OttaiConstants.EP_BIND, body.toString(), requestHeaders) ?: return null
+        val resp = httpPostJson(base(ctx) + endpoint, body.toString(), requestHeaders) ?: return null
         return parseDeviceResp(resp)
     }
 
@@ -419,18 +538,12 @@ object OttaiCloudClient {
     ): DeviceResp? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
         val userId = OttaiRegistry.loadUserId(ctx)
-        val apiBase = base(ctx)
-        val phoneHeaders = if (apiBase == OttaiConstants.API_BASE) {
-            { ts: Long -> temporaryMaterialHeaders(ctx, ts) }
-        } else {
-            null
-        }
-        val resp = bind(ctx, canonical, deviceVersion.trim(), userId, phoneHeaders) ?: return null
+        val resp = bind(ctx, canonical, deviceVersion.trim(), userId, BindContract.LEGACY, null, null) ?: return null
         val bindFailure = lastFailure
         // The phone app waits before releasing the temporary binding. More importantly, never
         // return the synthetic activeTime=now from this request as the sensor's historical start.
         runCatching { Thread.sleep(TEMPORARY_UNBIND_DELAY_MS) }
-        val released = runCatching { unbind(ctx, canonical, phoneHeaders) }
+        val released = runCatching { unbind(ctx, canonical, null) }
             .onFailure { Log.w(TAG, "unbind after material fetch failed: ${it.message}") }
             .getOrDefault(false)
         if (!released) Log.w(TAG, "temporary material binding cleanup was not confirmed")
@@ -529,7 +642,7 @@ object OttaiCloudClient {
         return out
     }
 
-    private fun parseDeviceResp(resp: JSONObject): DeviceResp? {
+    private fun parseDeviceResp(resp: JSONObject, requireKeyA: Boolean = true): DeviceResp? {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
         val vo = data.optJSONObject("cgmDeviceRespVO") ?: data
         // method + coefficient (and their update-times) are authoritative in the dedicated
@@ -537,7 +650,7 @@ object OttaiCloudClient {
         // (e.g. V1.5) while the method VO has it — so prefer the method VO, fall back to vo.
         val mvo = data.optJSONObject("cgmDeviceMethodVO") ?: vo
         val keyA = vo.optString("keyA").orEmptyIfNull()
-        if (keyA.isBlank()) return null
+        if (requireKeyA && keyA.isBlank()) return null
         fun pick(key: String): String = mvo.optString(key).ifBlank { vo.optString(key) }
         fun pickTime(key: String): Long = mvo.optLongLoose(key).takeIf { it != 0L } ?: vo.optLongLoose(key)
         return DeviceResp(
@@ -846,6 +959,7 @@ object OttaiCloudClient {
         )
         if (result.accessToken.isNotBlank()) {
             OttaiRegistry.saveApiBase(ctx, mobileBase)
+            OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
             OttaiRegistry.saveAccessToken(ctx, result.accessToken)
             if (result.glucoseSecretKey.isNotBlank()) OttaiRegistry.saveGlucoseSecretKey(ctx, result.glucoseSecretKey)
             OttaiRegistry.saveUserId(ctx, result.userId)

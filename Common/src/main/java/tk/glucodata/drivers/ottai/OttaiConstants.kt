@@ -63,7 +63,14 @@ object OttaiConstants {
     const val EP_LOGOUT = "$PREFIX/user/logout"
     const val EP_GET_USER = "$PREFIX/user/getUser"
     const val EP_VALIDATE_BY_MAC = "$PREFIX/device/validateDeviceByMacV2"
+    const val EP_VALIDATE_BY_MAC_V3 = "$PREFIX/device/validateDeviceByMacV3"
     const val EP_BIND = "$PREFIX/deviceBind/composite/bind"
+    const val EP_BIND_V3 = "$PREFIX/deviceBind/composite/bindV3"
+    // Server side of the CN V3 Active_Auth handshake: the app reads authDev/authFlag off the sensor
+    // over BLE, posts them here, and the server returns authHost/authFlag to write back to the
+    // sensor before bindV3. Exact request/response shape pending a live capture — see
+    // AGENTS/archive/context-dumps/ottai-2026-08-12-cloud-gate-findings.md.
+    const val EP_CGM_AUTH_VERIFY = "$PREFIX/cgmAuth/verify"
     const val EP_UNBIND = "$PREFIX/deviceBind/unBindDevice"
     const val EP_GET_BIND_DEVICE = "$PREFIX/deviceBind/getBindDevice"
     const val EP_DEVICE_LIST = "$PREFIX/deviceBind/list"  // account's bound + past sensors (paged)
@@ -330,6 +337,7 @@ object OttaiConstants {
     const val PREF_USER_ID = "ottai_user_id"
     const val PREF_ACCOUNT_LOGIN = "ottai_account_login"  // login typed at sign-in (phone/email/username), display only
     const val PREF_API_BASE = "ottai_api_base"  // which backend the signed-in account is on (CN vs global)
+    const val PREF_SESSION_PROFILE = "ottai_session_profile"  // identity which issued the current access token
     const val PREF_KEYA_PREFIX = "ottai_keya_"            // decrypted 6x16 hex (192)
     const val PREF_METHOD_PREFIX = "ottai_method_"        // decrypted method text
     const val PREF_COEFF_PREFIX = "ottai_coeff_"          // decrypted coefficient CSV
