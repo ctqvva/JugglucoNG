@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -532,6 +533,27 @@ internal fun WearChart(
 
             val curve = buildCurve(primaryRaw)
             val secondaryCurve = if (showSecondary) buildCurve(!primaryRaw) else null
+            // The trace is banded by height, as the phone's is: the stretch that
+            // sits below target comes out low-coloured wherever it is in the
+            // window. Colouring the whole line from the newest reading — what
+            // the watch did — hid every excursion the moment it recovered.
+            val curveBrush = tk.glucodata.ui.GlucoseChartBands.verticalStops(
+                veryHigh = Color(GlucoseRangeColors.veryHigh(true)),
+                high = Color(GlucoseRangeColors.high(true)),
+                inRange = lineColor,
+                low = Color(GlucoseRangeColors.low(true)),
+                veryLow = Color(GlucoseRangeColors.veryLow(true)),
+                yVeryHigh = y(data.thresholds.veryHigh),
+                yHigh = y(data.thresholds.high),
+                yLow = y(data.thresholds.low),
+                yVeryLow = y(data.thresholds.veryLow),
+                chartHeightPx = size.height,
+                // The watch canvas is a fraction of the phone's; the phone's
+                // 18px fade would swallow the in-range band whole.
+                fadePx = 6.dp.toPx(),
+            ).takeIf { it.isNotEmpty() }?.let { stops ->
+                Brush.verticalGradient(*stops.toTypedArray(), startY = 0f, endY = size.height)
+            }
             val alarmDash = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
             val calibrationDrops = data.calibrations.mapNotNull { mark ->
                 if (mark.timestamp !in viewportStart..viewportEnd) return@mapNotNull null
@@ -582,7 +604,11 @@ internal fun WearChart(
                     drawContext.canvas.nativeCanvas.drawText(text, lineX, size.height - 2.dp.toPx(), textPaint)
                 }
                 secondaryCurve?.let { drawPath(it, rawColor, style = Stroke(1.35.dp.toPx())) }
-                if (viewportPoints.size >= 2) drawPath(curve, lineColor, style = Stroke(2.6.dp.toPx()))
+                if (viewportPoints.size >= 2) {
+                    val stroke = Stroke(2.6.dp.toPx())
+                    if (curveBrush != null) drawPath(curve, curveBrush, style = stroke)
+                    else drawPath(curve, lineColor, style = stroke)
+                }
                 calibrationDrops.forEach { drawPath(it, selectionColor) }
                 selectedState.value?.takeIf { it.timestamp in viewportStart..viewportEnd }?.let {
                     val sx = x(it.timestamp)

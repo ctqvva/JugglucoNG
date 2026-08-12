@@ -136,7 +136,9 @@ object GlucoseColorSync {
     @JvmStatic
     fun push() {
         runCatching {
-            MessageSender.getMessageSender()?.sendGlucoseColors(encode(Applic.app))
+            val payload = encode(Applic.app)
+            MessageSender.getMessageSender()?.sendGlucoseColors(payload)
+            lastSentHash = payload.contentHashCode()
         }.onFailure { Log.stack(LOG_ID, "push", it) }
     }
 
@@ -145,7 +147,34 @@ object GlucoseColorSync {
     fun pushTo(nodeName: String?) {
         val target = nodeName ?: return
         runCatching {
-            MessageSender.getMessageSender()?.sendGlucoseColors(target, encode(Applic.app))
+            val payload = encode(Applic.app)
+            MessageSender.getMessageSender()?.sendGlucoseColors(target, payload)
+            lastSentHash = payload.contentHashCode()
         }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
+    }
+
+    // What was last put on the wire, so the periodic re-push stays silent while
+    // nothing changes.
+    @Volatile private var lastSentHash: Int? = null
+
+    /**
+     * Pushes only when the scheme differs from the last one sent.
+     *
+     * Change-triggered pushes alone are not enough: a watch that was off, or
+     * that was installed after the user last touched the palette, would never
+     * hear about a scheme and sit on the compiled-in defaults indefinitely.
+     * This rides along with the sync the watch already asks for, so it converges
+     * on its own without adding chatter.
+     */
+    @JvmStatic
+    fun pushIfChanged(nodeName: String?) {
+        val target = nodeName ?: return
+        runCatching {
+            val payload = encode(Applic.app)
+            val hash = payload.contentHashCode()
+            if (hash == lastSentHash) return
+            MessageSender.getMessageSender()?.sendGlucoseColors(target, payload)
+            lastSentHash = hash
+        }.onFailure { Log.stack(LOG_ID, "pushIfChanged", it) }
     }
 }

@@ -82,7 +82,14 @@ class MessageReceiver: WearableListenerService() {
                 }
             }
             MessageSender.SYNC2_REQ_PATH -> {
-                if (!isWearable) WearSync2.onRequest(data)
+                if (!isWearable) {
+                    WearSync2.onRequest(data)
+                    // Rides along with the sync the watch already asks for, and
+                    // sends nothing while the scheme is unchanged. Without it a
+                    // watch that missed the change-time push would keep the
+                    // compiled-in defaults for good.
+                    GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
+                }
             }
             MessageSender.SYNC2_CHUNK_PATH -> {
                 // Either device may be the one holding the sensor, so both accept

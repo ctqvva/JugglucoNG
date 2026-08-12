@@ -2265,24 +2265,23 @@ fun InteractiveGlucoseChart(
                         if (appChartRangeColors) Color(GlucoseRangeColors.inRange(appRangeDark))
                         else primaryColor
                     )
-                    val fadePx = 18f
-                    val stops = mutableListOf<Pair<Float, Color>>()
-
-                    fun addStop(y: Float, color: Color) {
-                        stops += (y / chartHeightPx).coerceIn(0f, 1f) to color
-                    }
-
-                    addStop(0f, veryHighTint)
-                    addStop(limitYVeryHigh, veryHighTint)
-                    addStop(limitYHigh, highTint)
-                    addStop(limitYHigh + fadePx, inRangeTint)
-                    addStop(limitYLow - fadePx, inRangeTint)
-                    addStop(limitYLow, lowTint)
-                    addStop(limitYVeryLow, veryLowTint)
-                    addStop(chartHeightPx, veryLowTint)
+                    // Stop geometry lives in GlucoseChartBands so the watch's
+                    // curve bands on the same lines this one does.
+                    val stops = GlucoseChartBands.verticalStops(
+                        veryHigh = veryHighTint,
+                        high = highTint,
+                        inRange = inRangeTint,
+                        low = lowTint,
+                        veryLow = veryLowTint,
+                        yVeryHigh = limitYVeryHigh,
+                        yHigh = limitYHigh,
+                        yLow = limitYLow,
+                        yVeryLow = limitYVeryLow,
+                        chartHeightPx = chartHeightPx
+                    )
 
                     Brush.verticalGradient(
-                        *stops.sortedBy { it.first }.toTypedArray(),
+                        *stops.toTypedArray(),
                         startY = 0f,
                         endY = chartHeightPx
                     )
