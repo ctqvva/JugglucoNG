@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -45,7 +46,19 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
     companion object {
         private const val PERIODIC_REFRESH_MS = 60_000L
         private const val BROADCAST_FOLLOW_UP_MS = 750L
+        /** Two periodic drivers feed one refresh; anything sooner than this is the other one. */
+        private const val PERIODIC_MIN_INTERVAL_MS = 30_000L
         const val ACTION_IMMEDIATE_REFRESH = "tk.glucodata.action.AOD_IMMEDIATE_REFRESH"
+
+        /**
+         * A slow ellipse for burn-in, in dp. Consecutive entries always differ, so every
+         * tick produces a window layout the compositor has to act on — content-only
+         * invalidates can be swallowed by panels that self-refresh in ambient mode.
+         */
+        private val BURN_IN_STEPS_DP = arrayOf(
+            0 to 0, 3 to -2, 4 to 0, 3 to 2,
+            0 to 3, -3 to 2, -4 to 0, -3 to -2,
+        )
     }
 
     private var windowManager: WindowManager? = null
@@ -65,6 +78,8 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
     // Keep lock-screen position stable for the whole visible session.
     private var xOffset = 0
     private var yOffset = 0
+    private var burnInStep = 0
+    private var lastPeriodicRefreshElapsed = 0L
     private var currentOverlayPosition = "TOP"
     private var currentChartAnchorFraction = 0.5f
 
@@ -104,6 +119,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
                         }
                     }
                 }
+                Intent.ACTION_TIME_TICK -> refreshPeriodic("aod.overlay.refresh.tick")
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenOn = false
                     updateVisibility()
@@ -160,15 +176,27 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         updateVisibility()
     }
 
-    private val updateRunnable = object : Runnable {
-        override fun run() {
-            if (overlayView?.visibility == View.VISIBLE) {
-                BatteryTrace.bump("aod.overlay.refresh.periodic", logEvery = 20L)
-                updateOverlayContent()
-                applyBurnInProtection()
-                handler.postDelayed(this, PERIODIC_REFRESH_MS)
-            }
+    private val updateRunnable = Runnable { refreshPeriodic("aod.overlay.refresh.periodic") }
+
+    /**
+     * The handler leg runs on the uptime clock, which stops advancing while the SoC is
+     * suspended, so on its own it can stall for the whole ambient session. ACTION_TIME_TICK
+     * gives us a wall-clock minute the system delivers instead. Whichever arrives first wins
+     * and re-arms the other.
+     */
+    private fun refreshPeriodic(trace: String) {
+        if (overlayView?.visibility != View.VISIBLE) return
+        val now = SystemClock.elapsedRealtime()
+        if (lastPeriodicRefreshElapsed == 0L ||
+            now - lastPeriodicRefreshElapsed >= PERIODIC_MIN_INTERVAL_MS
+        ) {
+            lastPeriodicRefreshElapsed = now
+            BatteryTrace.bump(trace, logEvery = 20L)
+            advanceBurnInOffset()
+            updateOverlayContent()
         }
+        handler.removeCallbacks(updateRunnable)
+        handler.postDelayed(updateRunnable, PERIODIC_REFRESH_MS)
     }
 
     override fun onServiceConnected() {
@@ -180,6 +208,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_TIME_TICK)
             addAction(ACTION_IMMEDIATE_REFRESH)
             addAction("tk.glucodata.action.GLUCOSE_UPDATE")
         }
@@ -282,6 +311,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         cachedBaseOpacity = prefs.getFloat("aod_opacity", 1.0f)
         updateOverlayContent()
         applyBurnInProtection(force = true)
+        lastPeriodicRefreshElapsed = SystemClock.elapsedRealtime()
         handler.removeCallbacks(updateRunnable)
         handler.postDelayed(updateRunnable, PERIODIC_REFRESH_MS)
 
@@ -301,7 +331,8 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         sensorManager?.unregisterListener(this)
         handler.removeCallbacks(updateRunnable)
         handler.removeCallbacks(broadcastFollowUpRunnable)
-        
+        lastPeriodicRefreshElapsed = 0L
+
         // Remove the view entirely - instant disappearance like xDrip
         val view = overlayView
         if (view != null) {
@@ -319,8 +350,21 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         val positions = prefs.getStringSet("aod_positions", setOf("TOP")) ?: setOf("TOP")
         val activePositions = if (positions.isNotEmpty()) positions.toList() else listOf("TOP")
         currentOverlayPosition = activePositions.random()
-        xOffset = 0
-        yOffset = 0
+        burnInStep = 0
+        applyBurnInOffset()
+    }
+
+    /** Walk one step around the burn-in ellipse. Called once per periodic refresh. */
+    private fun advanceBurnInOffset() {
+        burnInStep = (burnInStep + 1) % BURN_IN_STEPS_DP.size
+        applyBurnInOffset()
+    }
+
+    private fun applyBurnInOffset() {
+        val (dx, dy) = BURN_IN_STEPS_DP[burnInStep]
+        val density = resources.displayMetrics.density
+        xOffset = (dx * density).toInt()
+        yOffset = (dy * density).toInt()
     }
     
     // Polling removed as requested
