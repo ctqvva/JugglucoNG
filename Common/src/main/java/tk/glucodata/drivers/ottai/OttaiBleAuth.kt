@@ -77,15 +77,16 @@ object OttaiBleAuth {
 
     /**
      * Build the 3-byte app auth time from the device's current-time bytes.
-     * The official client parses the bytes as one big-endian integer, adds one,
-     * then emits the low three bytes little-endian.
+     * The official client parses the bytes big-endian, adds one, emits four
+     * little-endian bytes, re-parses those big-endian, then emits three bytes
+     * little-endian. This is equivalent to selecting bits 24..8 in that order.
      */
     fun appTime3(deviceTimeBytes: ByteArray): ByteArray {
         val inc = BigInteger(1, deviceTimeBytes).add(BigInteger.ONE)
         return byteArrayOf(
-            inc.and(BigInteger.valueOf(0xFF)).toByte(),
-            inc.shiftRight(8).and(BigInteger.valueOf(0xFF)).toByte(),
+            inc.shiftRight(24).and(BigInteger.valueOf(0xFF)).toByte(),
             inc.shiftRight(16).and(BigInteger.valueOf(0xFF)).toByte(),
+            inc.shiftRight(8).and(BigInteger.valueOf(0xFF)).toByte(),
         )
     }
 
