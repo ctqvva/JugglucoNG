@@ -269,10 +269,10 @@ internal fun InteractiveWearChartPanel(
                 selected = selected,
                 selectionColor = selectionColor,
                 formatTime = { timeFormat.format(Date(it)) },
-                // Tapping the selected reading again clears it. There was no way
-                // to leave scrubbing short of panning, which now also matters
-                // for getting the range chip back.
-                onSelect = { picked ->
+                onSelect = { selected = it },
+                // Tapping the selected reading again clears it, which is the way
+                // out of scrubbing and what brings the range chip back.
+                onToggleSelect = { picked ->
                     selected = picked?.takeIf { it.timestamp != selected?.timestamp }
                 },
                 onViewportChange = { start, end ->
@@ -514,7 +514,10 @@ internal fun WearChart(
     selected: GlucosePoint?,
     selectionColor: Color,
     formatTime: (Long) -> String,
+    /** Drag scrubbing: follows the finger, always selects what is under it. */
     onSelect: (GlucosePoint?) -> Unit,
+    /** Tap: selects, or clears when the tapped reading is already selected. */
+    onToggleSelect: (GlucosePoint?) -> Unit,
     onViewportChange: ((Long, Long) -> Unit)? = null,
     onReset: (() -> Unit)? = null,
     modifier: Modifier,
@@ -554,18 +557,47 @@ internal fun WearChart(
                 }
             }
             .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { onSelect(pointAtLive(it.x, size.width, liveStart.value, liveEnd.value, livePoints.value)) },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        onSelect(pointAtLive(change.position.x, size.width, liveStart.value, liveEnd.value, livePoints.value))
-                    },
-                )
+                // Scrubbing holds gesture ownership for its whole duration, the
+                // same lever panning uses. Without it the parent list kept its
+                // scrolling live, so dragging the finger down off the curve
+                // pushed the whole screen away mid-scrub.
+                val ownership = onGestureOwnership ?: {}
+                var owned = false
+                fun release() {
+                    if (owned) {
+                        owned = false
+                        ownership(false)
+                    }
+                }
+                // Ownership must survive every exit, cancellation included: the
+                // pan path carries the same guard because a leaked claim leaves
+                // the screen unscrollable until the app is restarted.
+                try {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            owned = true
+                            ownership(true)
+                            onSelect(pointAtLive(it.x, size.width, liveStart.value, liveEnd.value, livePoints.value))
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            onSelect(pointAtLive(change.position.x, size.width, liveStart.value, liveEnd.value, livePoints.value))
+                        },
+                        onDragEnd = { release() },
+                        onDragCancel = { release() },
+                    )
+                } finally {
+                    release()
+                }
             }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { onReset?.invoke() },
-                    onTap = { onSelect(pointAt(it.x, size.width)) },
+                    // Only a tap toggles. Routing the drag through the same
+                    // callback made scrubbing flicker: the nearest reading stays
+                    // the same across many pixels of travel, and every repeat
+                    // read as "tapped the selected one again" and cleared it.
+                    onTap = { onToggleSelect(pointAt(it.x, size.width)) },
                 )
             }
     }
