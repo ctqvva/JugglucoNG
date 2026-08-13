@@ -1523,7 +1523,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">模型配置</string>
     <string name="predictive_model_profile_summary_single">全天使用一个配置</string>
     <string name="predictive_model_profile_summary_count">%1$d 个时段</string>
-    <string name="predictive_model_profile_explanation">碳水比和胰岛素敏感度按每条日志记录的时间选用。各时段无间隙地覆盖全天。</string>
+    <string name="predictive_model_profile_explanation">碳水比、胰岛素敏感度和默认碳水吸收率按每条日志记录的时间选用。明确选择的餐食曲线优先。各时段无间隙地覆盖全天。</string>
     <string name="predictive_add_time_period">添加时段</string>
     <string name="predictive_add_time_period_title">新时段开始于</string>
     <string name="predictive_edit_time_period_title">更改时段开始时间</string>

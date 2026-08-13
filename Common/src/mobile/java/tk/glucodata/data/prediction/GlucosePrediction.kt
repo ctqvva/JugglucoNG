@@ -33,7 +33,8 @@ data class PredictiveSimulationSettings(
         return modelProfile?.parametersAt(timestamp, profileTimeZone)
             ?: PredictionModelParameters(
                 carbRatioGramsPerUnit = carbRatioGramsPerUnit,
-                insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit
+                insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit,
+                carbAbsorptionGramsPerHour = carbAbsorptionGramsPerHour
             )
     }
 }
@@ -54,7 +55,6 @@ fun buildGlucosePrediction(
     if (baselineTime <= 0L) return emptyList()
 
     val isMmol = GlucoseFormatter.isMmol(unit)
-    val safeAbsorption = settings.carbAbsorptionGramsPerHour.coerceAtLeast(5f)
     val horizonMinutes = settings.horizonMinutes.coerceIn(30, 360)
     val relevantEntries = journalEntries.filter { entry ->
         entry.timestamp in (baselineTime - 36L * 60L * 60L * 1000L)..(baselineTime + horizonMinutes * 60_000L)
@@ -70,7 +70,10 @@ fun buildGlucosePrediction(
                 isMmol
             ),
             carbRatioGramsPerUnit = profile.carbRatioGramsPerUnit.coerceAtLeast(1f),
-            carbAbsorptionGramsPerHour = safeAbsorption,
+            carbAbsorptionGramsPerHour = profile.carbAbsorptionGramsPerHour.coerceIn(
+                PredictionModelProfile.CARB_ABSORPTION_MIN,
+                PredictionModelProfile.CARB_ABSORPTION_MAX
+            ),
             foodMacrosEnabled = settings.foodMacrosEnabled,
             insulinPresetsById = insulinPresetsById
         ).toDouble()

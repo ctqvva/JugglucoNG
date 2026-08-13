@@ -1513,7 +1513,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Profil du modèle</string>
     <string name="predictive_model_profile_summary_single">Un profil pour toute la journée</string>
     <string name="predictive_model_profile_summary_count">%1$d périodes</string>
-    <string name="predictive_model_profile_explanation">Le ratio glucides et la sensibilité à l\'insuline suivent l\'heure de chaque entrée du journal. Les périodes couvrent toute la journée sans interruption.</string>
+    <string name="predictive_model_profile_explanation">Le ratio glucides, la sensibilité à l\'insuline et l\'absorption des glucides par défaut suivent l\'heure de chaque entrée du journal. Une courbe de repas choisie explicitement est prioritaire. Les périodes couvrent toute la journée sans interruption.</string>
     <string name="predictive_add_time_period">Ajouter une période</string>
     <string name="predictive_add_time_period_title">La nouvelle période commence à</string>
     <string name="predictive_edit_time_period_title">Modifier le début de la période</string>

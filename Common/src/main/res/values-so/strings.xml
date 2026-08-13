@@ -1792,7 +1792,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_model_tuning">Qaabka astaanta</string>
     <string name="predictive_model_profile_summary_single">Hal qaab oo maalinta oo dhan ah</string>
     <string name="predictive_model_profile_summary_count">%1$d waqtiyo</string>
-    <string name="predictive_model_profile_explanation">Saamiga karbohaydraytka iyo dareenka insulintu waxay raacaan waqtiga gelinta joornaalka. Waqtiyadu maalinta oo dhan ayay daboolaan iyada oo aan farqi jirin.</string>
+    <string name="predictive_model_profile_explanation">Saamiga karbohaydraytka, dareenka insulinta iyo nuugista caadiga ah ee karbohaydraytku waxay raacaan waqtiga gelinta joornaalka. Qalooca cuntada ee si gaar ah loo doortay ayaa mudnaan leh. Waqtiyadu maalinta oo dhan ayay daboolaan iyada oo aan farqi jirin.</string>
     <string name="predictive_add_time_period">Ku dar waqti</string>
     <string name="predictive_add_time_period_title">Waqtiga cusub wuxuu bilaabmaa</string>
     <string name="predictive_edit_time_period_title">Beddel bilowga waqtiga</string>

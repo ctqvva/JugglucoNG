@@ -1581,7 +1581,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_model_tuning">Modellprofil</string>
     <string name="predictive_model_profile_summary_single">Ein Profil für den ganzen Tag</string>
     <string name="predictive_model_profile_summary_count">%1$d Zeiträume</string>
-    <string name="predictive_model_profile_explanation">Kohlenhydratfaktor und Insulinsensitivität richten sich nach der Uhrzeit des Journaleintrags. Die Zeiträume decken den ganzen Tag lückenlos ab.</string>
+    <string name="predictive_model_profile_explanation">Kohlenhydratfaktor, Insulinsensitivität und standardmäßige Kohlenhydrataufnahme richten sich nach der Uhrzeit des Journaleintrags. Eine ausdrücklich gewählte Mahlzeitenkurve hat Vorrang. Die Zeiträume decken den ganzen Tag lückenlos ab.</string>
     <string name="predictive_add_time_period">Zeitraum hinzufügen</string>
     <string name="predictive_add_time_period_title">Neuer Zeitraum beginnt um</string>
     <string name="predictive_edit_time_period_title">Beginn des Zeitraums ändern</string>

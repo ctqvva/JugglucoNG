@@ -1550,7 +1550,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Профиль модели</string>
     <string name="predictive_model_profile_summary_single">Один профиль на весь день</string>
     <string name="predictive_model_profile_summary_count">Периодов: %1$d</string>
-    <string name="predictive_model_profile_explanation">Углеводный коэффициент и чувствительность к инсулину выбираются по времени записи в журнале. Периоды без разрывов покрывают весь день.</string>
+    <string name="predictive_model_profile_explanation">Углеводный коэффициент, чувствительность к инсулину и стандартная скорость усвоения углеводов выбираются по времени записи в журнале. Явно выбранная кривая приёма пищи имеет приоритет. Периоды без разрывов покрывают весь день.</string>
     <string name="predictive_add_time_period">Добавить период</string>
     <string name="predictive_add_time_period_title">Начало нового периода</string>
     <string name="predictive_edit_time_period_title">Изменить начало периода</string>

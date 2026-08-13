@@ -1550,7 +1550,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_model_tuning">Modelprofiel</string>
     <string name="predictive_model_profile_summary_single">Eén profiel voor de hele dag</string>
     <string name="predictive_model_profile_summary_count">%1$d tijdsperioden</string>
-    <string name="predictive_model_profile_explanation">Koolhydraatratio en insulinegevoeligheid volgen het tijdstip van elke dagboekinvoer. De perioden beslaan de hele dag zonder onderbrekingen.</string>
+    <string name="predictive_model_profile_explanation">Koolhydraatratio, insulinegevoeligheid en standaard koolhydraatopname volgen het tijdstip van elke dagboekinvoer. Een expliciet gekozen maaltijdcurve heeft voorrang. De perioden beslaan de hele dag zonder onderbrekingen.</string>
     <string name="predictive_add_time_period">Tijdsperiode toevoegen</string>
     <string name="predictive_add_time_period_title">Nieuwe periode begint om</string>
     <string name="predictive_edit_time_period_title">Begin van periode wijzigen</string>

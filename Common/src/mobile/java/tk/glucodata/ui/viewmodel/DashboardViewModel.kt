@@ -128,7 +128,6 @@ class DashboardViewModel(
         const val JOURNAL_HEALTH_CONNECT_ACTIVITY_KEY = "dashboard_journal_health_connect_activity_enabled"
         const val PREDICTION_CARB_RATIO_KEY = "dashboard_prediction_carb_ratio_g_per_u"
         const val PREDICTION_INSULIN_SENSITIVITY_KEY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
-        const val PREDICTION_CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
         const val PREDICTION_HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
         const val PREDICTION_NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
@@ -364,7 +363,8 @@ class DashboardViewModel(
     private val _predictionModelProfile = MutableStateFlow(
         PredictionModelProfile.single(
             PREDICTION_CARB_RATIO_DEFAULT,
-            PREDICTION_INSULIN_SENSITIVITY_DEFAULT
+            PREDICTION_INSULIN_SENSITIVITY_DEFAULT,
+            PREDICTION_CARB_ABSORPTION_DEFAULT
         )
     )
     val predictionModelProfile = _predictionModelProfile.asStateFlow()
@@ -655,9 +655,8 @@ class DashboardViewModel(
         _predictionCarbRatioGramsPerUnit.value = _predictionModelProfile.value.blocks.first().carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value =
             _predictionModelProfile.value.blocks.first().insulinSensitivityMgDlPerUnit
-        _predictionCarbAbsorptionGramsPerHour.value = prefs
-            .getFloat(PREDICTION_CARB_ABSORPTION_KEY, PREDICTION_CARB_ABSORPTION_DEFAULT)
-            .coerceIn(10f, 90f)
+        _predictionCarbAbsorptionGramsPerHour.value =
+            _predictionModelProfile.value.blocks.first().carbAbsorptionGramsPerHour
         _predictionHorizonMinutes.value = prefs
             .getInt(PREDICTION_HORIZON_MINUTES_KEY, PREDICTION_HORIZON_MINUTES_DEFAULT)
             .coerceIn(30, 360)
@@ -1578,15 +1577,18 @@ class DashboardViewModel(
     fun updatePredictionModelBlock(
         startMinuteOfDay: Int,
         carbRatioGramsPerUnit: Float? = null,
-        insulinSensitivityMgDlPerUnit: Float? = null
+        insulinSensitivityMgDlPerUnit: Float? = null,
+        carbAbsorptionGramsPerHour: Float? = null
     ) {
         val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(1f)
         val normalizedSensitivity = insulinSensitivityMgDlPerUnit?.roundToStep(1f)
+        val normalizedAbsorption = carbAbsorptionGramsPerHour?.roundToStep(1f)
         persistPredictionModelProfile(
             _predictionModelProfile.value.updateBlock(
                 startMinuteOfDay = startMinuteOfDay,
                 carbRatioGramsPerUnit = normalizedCarbRatio,
-                insulinSensitivityMgDlPerUnit = normalizedSensitivity
+                insulinSensitivityMgDlPerUnit = normalizedSensitivity,
+                carbAbsorptionGramsPerHour = normalizedAbsorption
             )
         )
     }
@@ -1600,15 +1602,7 @@ class DashboardViewModel(
         val first = profile.blocks.first()
         _predictionCarbRatioGramsPerUnit.value = first.carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value = first.insulinSensitivityMgDlPerUnit
-        refreshNotificationPredictionSurfaces(context)
-    }
-
-    fun setPredictionCarbAbsorptionGramsPerHour(value: Float) {
-        val normalized = value.roundToStep(1f).coerceIn(10f, 90f)
-        val context = tk.glucodata.Applic.app
-        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-        prefs.edit().putFloat(PREDICTION_CARB_ABSORPTION_KEY, normalized).apply()
-        _predictionCarbAbsorptionGramsPerHour.value = normalized
+        _predictionCarbAbsorptionGramsPerHour.value = first.carbAbsorptionGramsPerHour
         refreshNotificationPredictionSurfaces(context)
     }
 

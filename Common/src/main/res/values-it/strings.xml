@@ -1497,7 +1497,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Profilo modello</string>
     <string name="predictive_model_profile_summary_single">Un profilo per tutto il giorno</string>
     <string name="predictive_model_profile_summary_count">%1$d fasce orarie</string>
-    <string name="predictive_model_profile_explanation">Il rapporto carboidrati e la sensibilità insulinica seguono l\'ora di ogni voce del diario. Le fasce coprono l\'intera giornata senza intervalli.</string>
+    <string name="predictive_model_profile_explanation">Il rapporto carboidrati, la sensibilità insulinica e l\'assorbimento predefinito dei carboidrati seguono l\'ora di ogni voce del diario. Una curva del pasto scelta esplicitamente ha la precedenza. Le fasce coprono l\'intera giornata senza intervalli.</string>
     <string name="predictive_add_time_period">Aggiungi fascia oraria</string>
     <string name="predictive_add_time_period_title">La nuova fascia inizia alle</string>
     <string name="predictive_edit_time_period_title">Modifica inizio fascia</string>

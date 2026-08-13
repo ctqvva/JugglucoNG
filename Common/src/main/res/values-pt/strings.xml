@@ -1508,7 +1508,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Perfil do modelo</string>
     <string name="predictive_model_profile_summary_single">Um perfil para o dia inteiro</string>
     <string name="predictive_model_profile_summary_count">%1$d períodos</string>
-    <string name="predictive_model_profile_explanation">A razão de carboidratos e a sensibilidade à insulina seguem o horário de cada registro no diário. Os períodos cobrem o dia inteiro sem lacunas.</string>
+    <string name="predictive_model_profile_explanation">A razão de carboidratos, a sensibilidade à insulina e a absorção padrão de carboidratos seguem o horário de cada registro no diário. Uma curva de refeição escolhida explicitamente tem prioridade. Os períodos cobrem o dia inteiro sem lacunas.</string>
     <string name="predictive_add_time_period">Adicionar período</string>
     <string name="predictive_add_time_period_title">O novo período começa às</string>
     <string name="predictive_edit_time_period_title">Alterar início do período</string>

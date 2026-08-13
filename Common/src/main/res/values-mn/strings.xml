@@ -1522,7 +1522,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_model_tuning">Model profile</string>
     <string name="predictive_model_profile_summary_single">Бүтэн өдрийн нэг профайл</string>
     <string name="predictive_model_profile_summary_count">%1$d цагийн үе</string>
-    <string name="predictive_model_profile_explanation">Нүүрс усны харьцаа болон инсулины мэдрэмжийг журналын бичлэг бүрийн цагаар сонгоно. Үеүд бүтэн өдрийг завсаргүй хамарна.</string>
+    <string name="predictive_model_profile_explanation">Нүүрс усны харьцаа, инсулины мэдрэмж болон нүүрс ус шингэх үндсэн хурдыг журналын бичлэг бүрийн цагаар сонгоно. Хоолны муруйг тусад нь сонгосон бол тэр нь давуу үйлчилнэ. Үеүд бүтэн өдрийг завсаргүй хамарна.</string>
     <string name="predictive_add_time_period">Цагийн үе нэмэх</string>
     <string name="predictive_add_time_period_title">Шинэ үе эхлэх цаг</string>
     <string name="predictive_edit_time_period_title">Үеийн эхлэх цагийг өөрчлөх</string>

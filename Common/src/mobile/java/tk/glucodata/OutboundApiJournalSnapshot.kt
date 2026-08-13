@@ -21,11 +21,10 @@ import tk.glucodata.data.journal.JournalIobCalculator
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
+import tk.glucodata.data.prediction.PredictionModelProfileStore
 
 object OutboundApiJournalSnapshot {
     private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val PREDICTION_CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
-    private const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
     private const val SNAPSHOT_EVENT_WINDOW_MS = 12L * 60L * 60L * 1000L
     private const val DEFAULT_ACTIVE_WINDOW_MS = 24L * 60L * 60L * 1000L
     private const val API_SOURCE_PREFIX = "api"
@@ -337,14 +336,13 @@ object OutboundApiJournalSnapshot {
 
     private fun activeCarbsGrams(entries: List<JournalEntryEntity>, atMillis: Long): Float {
         val prefs = Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        val absorptionGramsPerHour = prefs
-            .getFloat(PREDICTION_CARB_ABSORPTION_KEY, PREDICTION_CARB_ABSORPTION_DEFAULT)
-            .coerceIn(10f, 90f)
+        val profile = PredictionModelProfileStore.load(prefs)
         return entries.sumOf { entry ->
             if (JournalEntryType.fromStorage(entry.entryType) != JournalEntryType.CARBS) return@sumOf 0.0
             val grams = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@sumOf 0.0
             val absorptionMinutes = entry.durationMinutes?.toFloat()
-                ?: (grams / absorptionGramsPerHour * 60f).coerceIn(30f, 360f)
+                ?: (grams / profile.parametersAt(entry.timestamp).carbAbsorptionGramsPerHour * 60f)
+                    .coerceIn(30f, 360f)
             val progress = linearProgress(entry.timestamp, absorptionMinutes, atMillis)
             (grams * (1f - progress)).coerceAtLeast(0f).toDouble()
         }.toFloat()

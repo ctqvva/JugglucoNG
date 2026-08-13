@@ -1577,7 +1577,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Профіль мадэлі</string>
     <string name="predictive_model_profile_summary_single">Адзін профіль на ўвесь дзень</string>
     <string name="predictive_model_profile_summary_count">Перыядаў: %1$d</string>
-    <string name="predictive_model_profile_explanation">Вугляводны каэфіцыент і адчувальнасць да інсуліну выбіраюцца паводле часу запісу ў журнале. Перыяды без разрываў ахопліваюць увесь дзень.</string>
+    <string name="predictive_model_profile_explanation">Вугляводны каэфіцыент, адчувальнасць да інсуліну і стандартнае засваенне вугляводаў выбіраюцца паводле часу запісу ў журнале. Яўна зададзеная крывая прыёму ежы мае прыярытэт. Перыяды без разрываў ахопліваюць увесь дзень.</string>
     <string name="predictive_add_time_period">Дадаць перыяд</string>
     <string name="predictive_add_time_period_title">Пачатак новага перыяду</string>
     <string name="predictive_edit_time_period_title">Змяніць пачатак перыяду</string>

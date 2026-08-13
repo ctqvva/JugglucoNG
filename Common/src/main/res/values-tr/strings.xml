@@ -1535,7 +1535,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_model_tuning">Model profili</string>
     <string name="predictive_model_profile_summary_single">Tüm gün için tek profil</string>
     <string name="predictive_model_profile_summary_count">%1$d zaman aralığı</string>
-    <string name="predictive_model_profile_explanation">Karbonhidrat oranı ve insülin duyarlılığı, her günlük kaydının saatine göre seçilir. Zaman aralıkları tüm günü boşluksuz kapsar.</string>
+    <string name="predictive_model_profile_explanation">Karbonhidrat oranı, insülin duyarlılığı ve varsayılan karbonhidrat emilimi her günlük kaydının saatine göre seçilir. Açıkça seçilmiş bir öğün eğrisi önceliklidir. Zaman aralıkları tüm günü boşluksuz kapsar.</string>
     <string name="predictive_add_time_period">Zaman aralığı ekle</string>
     <string name="predictive_add_time_period_title">Yeni aralık şu saatte başlar</string>
     <string name="predictive_edit_time_period_title">Aralık başlangıcını değiştir</string>

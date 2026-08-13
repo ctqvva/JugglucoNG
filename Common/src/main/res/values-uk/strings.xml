@@ -1582,7 +1582,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Профіль моделі</string>
     <string name="predictive_model_profile_summary_single">Один профіль на весь день</string>
     <string name="predictive_model_profile_summary_count">Періодів: %1$d</string>
-    <string name="predictive_model_profile_explanation">Вуглеводний коефіцієнт і чутливість до інсуліну вибираються за часом запису в журналі. Періоди без розривів охоплюють увесь день.</string>
+    <string name="predictive_model_profile_explanation">Вуглеводний коефіцієнт, чутливість до інсуліну та стандартна швидкість засвоєння вуглеводів вибираються за часом запису в журналі. Явно вибрана крива прийому їжі має пріоритет. Періоди без розривів охоплюють увесь день.</string>
     <string name="predictive_add_time_period">Додати період</string>
     <string name="predictive_add_time_period_title">Початок нового періоду</string>
     <string name="predictive_edit_time_period_title">Змінити початок періоду</string>

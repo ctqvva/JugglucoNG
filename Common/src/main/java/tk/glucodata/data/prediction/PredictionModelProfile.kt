@@ -6,18 +6,21 @@ import java.util.TimeZone
 
 data class PredictionModelParameters(
     val carbRatioGramsPerUnit: Float,
-    val insulinSensitivityMgDlPerUnit: Float
+    val insulinSensitivityMgDlPerUnit: Float,
+    val carbAbsorptionGramsPerHour: Float = PredictionModelProfile.DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR
 )
 
 data class PredictionModelBlock(
     val startMinuteOfDay: Int,
     val carbRatioGramsPerUnit: Float,
-    val insulinSensitivityMgDlPerUnit: Float
+    val insulinSensitivityMgDlPerUnit: Float,
+    val carbAbsorptionGramsPerHour: Float
 ) {
     val parameters: PredictionModelParameters
         get() = PredictionModelParameters(
             carbRatioGramsPerUnit = carbRatioGramsPerUnit,
-            insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit
+            insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit,
+            carbAbsorptionGramsPerHour = carbAbsorptionGramsPerHour
         )
 }
 
@@ -49,7 +52,8 @@ data class PredictionModelProfile private constructor(
             blocks + PredictionModelBlock(
                 startMinuteOfDay = start,
                 carbRatioGramsPerUnit = inherited.carbRatioGramsPerUnit,
-                insulinSensitivityMgDlPerUnit = inherited.insulinSensitivityMgDlPerUnit
+                insulinSensitivityMgDlPerUnit = inherited.insulinSensitivityMgDlPerUnit,
+                carbAbsorptionGramsPerHour = inherited.carbAbsorptionGramsPerHour
             ),
             blocks.first().parameters
         )
@@ -75,7 +79,8 @@ data class PredictionModelProfile private constructor(
     fun updateBlock(
         startMinuteOfDay: Int,
         carbRatioGramsPerUnit: Float? = null,
-        insulinSensitivityMgDlPerUnit: Float? = null
+        insulinSensitivityMgDlPerUnit: Float? = null,
+        carbAbsorptionGramsPerHour: Float? = null
     ): PredictionModelProfile {
         if (blocks.none { it.startMinuteOfDay == startMinuteOfDay }) return this
         return create(
@@ -89,7 +94,10 @@ data class PredictionModelProfile private constructor(
                             ?: block.carbRatioGramsPerUnit,
                         insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit
                             ?.normalizeInsulinSensitivity()
-                            ?: block.insulinSensitivityMgDlPerUnit
+                            ?: block.insulinSensitivityMgDlPerUnit,
+                        carbAbsorptionGramsPerHour = carbAbsorptionGramsPerHour
+                            ?.normalizeCarbAbsorption()
+                            ?: block.carbAbsorptionGramsPerHour
                     )
                 }
             },
@@ -116,7 +124,8 @@ data class PredictionModelProfile private constructor(
         listOf(
             block.startMinuteOfDay,
             block.carbRatioGramsPerUnit,
-            block.insulinSensitivityMgDlPerUnit
+            block.insulinSensitivityMgDlPerUnit,
+            block.carbAbsorptionGramsPerHour
         ).joinToString(FIELD_SEPARATOR)
     }
 
@@ -129,24 +138,30 @@ data class PredictionModelProfile private constructor(
         const val CARB_RATIO_MAX = 30f
         const val INSULIN_SENSITIVITY_MIN = 10f
         const val INSULIN_SENSITIVITY_MAX = 180f
+        const val CARB_ABSORPTION_MIN = 10f
+        const val CARB_ABSORPTION_MAX = 90f
+        const val DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR = 35f
 
         private const val BLOCK_SEPARATOR = ";"
         private const val FIELD_SEPARATOR = ","
 
         fun single(
             carbRatioGramsPerUnit: Float,
-            insulinSensitivityMgDlPerUnit: Float
+            insulinSensitivityMgDlPerUnit: Float,
+            carbAbsorptionGramsPerHour: Float = DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR
         ): PredictionModelProfile {
             val fallback = PredictionModelParameters(
                 carbRatioGramsPerUnit = carbRatioGramsPerUnit.normalizeCarbRatio(),
-                insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit.normalizeInsulinSensitivity()
+                insulinSensitivityMgDlPerUnit = insulinSensitivityMgDlPerUnit.normalizeInsulinSensitivity(),
+                carbAbsorptionGramsPerHour = carbAbsorptionGramsPerHour.normalizeCarbAbsorption()
             )
             return create(
                 listOf(
                     PredictionModelBlock(
                         startMinuteOfDay = 0,
                         carbRatioGramsPerUnit = fallback.carbRatioGramsPerUnit,
-                        insulinSensitivityMgDlPerUnit = fallback.insulinSensitivityMgDlPerUnit
+                        insulinSensitivityMgDlPerUnit = fallback.insulinSensitivityMgDlPerUnit,
+                        carbAbsorptionGramsPerHour = fallback.carbAbsorptionGramsPerHour
                     )
                 ),
                 fallback
@@ -158,15 +173,21 @@ data class PredictionModelProfile private constructor(
             fallback: PredictionModelParameters
         ): PredictionModelProfile {
             if (encoded.isNullOrBlank()) {
-                return single(fallback.carbRatioGramsPerUnit, fallback.insulinSensitivityMgDlPerUnit)
+                return single(
+                    fallback.carbRatioGramsPerUnit,
+                    fallback.insulinSensitivityMgDlPerUnit,
+                    fallback.carbAbsorptionGramsPerHour
+                )
             }
             val parsed = encoded.split(BLOCK_SEPARATOR).mapNotNull { rawBlock ->
                 val fields = rawBlock.split(FIELD_SEPARATOR)
-                if (fields.size != 3) return@mapNotNull null
+                if (fields.size !in 3..4) return@mapNotNull null
                 val start = fields[0].toIntOrNull() ?: return@mapNotNull null
                 val carbRatio = fields[1].toFloatOrNull() ?: return@mapNotNull null
                 val sensitivity = fields[2].toFloatOrNull() ?: return@mapNotNull null
-                PredictionModelBlock(start, carbRatio, sensitivity)
+                val absorption = fields.getOrNull(3)?.toFloatOrNull()
+                    ?: fallback.carbAbsorptionGramsPerHour
+                PredictionModelBlock(start, carbRatio, sensitivity, absorption)
             }
             return create(parsed, fallback)
         }
@@ -177,7 +198,8 @@ data class PredictionModelProfile private constructor(
         ): PredictionModelProfile {
             val normalizedFallback = PredictionModelParameters(
                 carbRatioGramsPerUnit = fallback.carbRatioGramsPerUnit.normalizeCarbRatio(),
-                insulinSensitivityMgDlPerUnit = fallback.insulinSensitivityMgDlPerUnit.normalizeInsulinSensitivity()
+                insulinSensitivityMgDlPerUnit = fallback.insulinSensitivityMgDlPerUnit.normalizeInsulinSensitivity(),
+                carbAbsorptionGramsPerHour = fallback.carbAbsorptionGramsPerHour.normalizeCarbAbsorption()
             )
             val normalized = candidates
                 .asSequence()
@@ -191,7 +213,11 @@ data class PredictionModelProfile private constructor(
                         insulinSensitivityMgDlPerUnit = block.insulinSensitivityMgDlPerUnit
                             .takeIf(Float::isFinite)
                             ?.coerceIn(INSULIN_SENSITIVITY_MIN, INSULIN_SENSITIVITY_MAX)
-                            ?: normalizedFallback.insulinSensitivityMgDlPerUnit
+                            ?: normalizedFallback.insulinSensitivityMgDlPerUnit,
+                        carbAbsorptionGramsPerHour = block.carbAbsorptionGramsPerHour
+                            .takeIf(Float::isFinite)
+                            ?.coerceIn(CARB_ABSORPTION_MIN, CARB_ABSORPTION_MAX)
+                            ?: normalizedFallback.carbAbsorptionGramsPerHour
                     )
                 }
                 .distinctBy { it.startMinuteOfDay }
@@ -201,7 +227,8 @@ data class PredictionModelProfile private constructor(
                 normalized += PredictionModelBlock(
                     startMinuteOfDay = 0,
                     carbRatioGramsPerUnit = normalizedFallback.carbRatioGramsPerUnit,
-                    insulinSensitivityMgDlPerUnit = normalizedFallback.insulinSensitivityMgDlPerUnit
+                    insulinSensitivityMgDlPerUnit = normalizedFallback.insulinSensitivityMgDlPerUnit,
+                    carbAbsorptionGramsPerHour = normalizedFallback.carbAbsorptionGramsPerHour
                 )
                 normalized.sortBy { it.startMinuteOfDay }
             }
@@ -217,6 +244,11 @@ data class PredictionModelProfile private constructor(
             return takeIf(Float::isFinite)?.coerceIn(INSULIN_SENSITIVITY_MIN, INSULIN_SENSITIVITY_MAX)
                 ?: DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT
         }
+
+        private fun Float.normalizeCarbAbsorption(): Float {
+            return takeIf(Float::isFinite)?.coerceIn(CARB_ABSORPTION_MIN, CARB_ABSORPTION_MAX)
+                ?: DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR
+        }
     }
 }
 
@@ -224,6 +256,7 @@ object PredictionModelProfileStore {
     const val PROFILE_KEY = "dashboard_prediction_model_profile_v1"
     const val CARB_RATIO_KEY = "dashboard_prediction_carb_ratio_g_per_u"
     const val INSULIN_SENSITIVITY_KEY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
+    const val CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
     const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = 10f
     const val DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT = 54f
 
@@ -238,6 +271,12 @@ object PredictionModelProfileStore {
                 .coerceIn(
                     PredictionModelProfile.INSULIN_SENSITIVITY_MIN,
                     PredictionModelProfile.INSULIN_SENSITIVITY_MAX
+                ),
+            carbAbsorptionGramsPerHour = preferences
+                .getFloat(CARB_ABSORPTION_KEY, PredictionModelProfile.DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR)
+                .coerceIn(
+                    PredictionModelProfile.CARB_ABSORPTION_MIN,
+                    PredictionModelProfile.CARB_ABSORPTION_MAX
                 )
         )
         return PredictionModelProfile.decode(preferences.getString(PROFILE_KEY, null), fallback)
@@ -250,6 +289,7 @@ object PredictionModelProfileStore {
             .putString(PROFILE_KEY, profile.encode())
             .putFloat(CARB_RATIO_KEY, first.carbRatioGramsPerUnit)
             .putFloat(INSULIN_SENSITIVITY_KEY, first.insulinSensitivityMgDlPerUnit)
+            .putFloat(CARB_ABSORPTION_KEY, first.carbAbsorptionGramsPerHour)
             .apply()
     }
 

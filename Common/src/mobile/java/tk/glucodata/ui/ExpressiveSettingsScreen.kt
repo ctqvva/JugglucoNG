@@ -1132,7 +1132,6 @@ fun PredictiveSimulationSettingsScreen(
     val notificationChartPredictionEnabled by viewModel.predictiveSimulationNotificationChartEnabled.collectAsState()
     val trendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsState()
     val modelProfile by viewModel.predictionModelProfile.collectAsState()
-    val carbAbsorptionGramsPerHour by viewModel.predictionCarbAbsorptionGramsPerHour.collectAsState()
     val horizonMinutes by viewModel.predictionHorizonMinutes.collectAsState()
 
     Scaffold(
@@ -1222,18 +1221,6 @@ fun PredictiveSimulationSettingsScreen(
                         icon = Icons.Default.Schedule,
                         iconTint = MaterialTheme.colorScheme.secondary
                     )
-                }
-                item(key = "absorption") {
-                    PredictiveSimulationSettingsCard(enabled = predictiveSimulationEnabled) {
-                        PredictiveSimulationParameterRow(
-                            title = stringResource(R.string.predictive_carb_absorption),
-                            valueLabel = stringResource(R.string.predictive_absorption_value, carbAbsorptionGramsPerHour),
-                            value = carbAbsorptionGramsPerHour,
-                            valueRange = 10f..90f,
-                            enabled = predictiveSimulationEnabled,
-                            onValueChange = { viewModel.setPredictionCarbAbsorptionGramsPerHour(it) }
-                        )
-                    }
                 }
             }
         }

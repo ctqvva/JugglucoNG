@@ -1542,7 +1542,7 @@
     <string name="predictive_model_tuning">Profil modelu</string>
     <string name="predictive_model_profile_summary_single">Jeden profil na cały dzień</string>
     <string name="predictive_model_profile_summary_count">%1$d przedziałów czasu</string>
-    <string name="predictive_model_profile_explanation">Współczynnik węglowodanów i wrażliwość na insulinę są dobierane według czasu każdego wpisu w dzienniku. Przedziały obejmują całą dobę bez przerw.</string>
+    <string name="predictive_model_profile_explanation">Współczynnik węglowodanów, wrażliwość na insulinę i domyślne wchłanianie węglowodanów są dobierane według czasu każdego wpisu w dzienniku. Jawnie wybrana krzywa posiłku ma pierwszeństwo. Przedziały obejmują całą dobę bez przerw.</string>
     <string name="predictive_add_time_period">Dodaj przedział czasu</string>
     <string name="predictive_add_time_period_title">Nowy przedział zaczyna się o</string>
     <string name="predictive_edit_time_period_title">Zmień początek przedziału</string>

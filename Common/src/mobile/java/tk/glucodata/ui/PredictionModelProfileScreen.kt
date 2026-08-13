@@ -148,6 +148,12 @@ fun PredictionModelProfileScreen(
                             startMinuteOfDay = block.startMinuteOfDay,
                             insulinSensitivityMgDlPerUnit = value
                         )
+                    },
+                    onCarbAbsorptionChange = { value ->
+                        viewModel.updatePredictionModelBlock(
+                            startMinuteOfDay = block.startMinuteOfDay,
+                            carbAbsorptionGramsPerHour = value
+                        )
                     }
                 )
             }
@@ -276,7 +282,8 @@ private fun PredictionModelBlockCard(
     onEditStart: () -> Unit,
     onDelete: () -> Unit,
     onCarbRatioChange: (Float) -> Unit,
-    onSensitivityChange: (Float) -> Unit
+    onSensitivityChange: (Float) -> Unit,
+    onCarbAbsorptionChange: (Float) -> Unit
 ) {
     val sensitivityDisplay = remember(block.insulinSensitivityMgDlPerUnit, isMmol) {
         GlucoseFormatter.displayFromMgDl(block.insulinSensitivityMgDlPerUnit, isMmol)
@@ -344,6 +351,18 @@ private fun PredictionModelBlockCard(
                         if (isMmol) GlucoseFormatter.mmolToMg(displayValue) else displayValue
                     )
                 }
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
+            PredictiveSimulationParameterRow(
+                title = stringResource(R.string.predictive_carb_absorption),
+                valueLabel = stringResource(
+                    R.string.predictive_absorption_value,
+                    block.carbAbsorptionGramsPerHour
+                ),
+                value = block.carbAbsorptionGramsPerHour,
+                valueRange = PredictionModelProfile.CARB_ABSORPTION_MIN..PredictionModelProfile.CARB_ABSORPTION_MAX,
+                enabled = true,
+                onValueChange = onCarbAbsorptionChange
             )
         }
     }

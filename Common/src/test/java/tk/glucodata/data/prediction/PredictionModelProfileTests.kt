@@ -17,6 +17,7 @@ class PredictionModelProfileTests {
         assertEquals(0, profile.blocks.single().startMinuteOfDay)
         assertEquals(12f, profile.parametersAtMinute(0).carbRatioGramsPerUnit, 0f)
         assertEquals(65f, profile.parametersAtMinute(1439).insulinSensitivityMgDlPerUnit, 0f)
+        assertEquals(35f, profile.parametersAtMinute(1439).carbAbsorptionGramsPerHour, 0f)
     }
 
     @Test
@@ -26,12 +27,14 @@ class PredictionModelProfileTests {
             .updateBlock(
                 startMinuteOfDay = 8 * 60,
                 carbRatioGramsPerUnit = 15f,
-                insulinSensitivityMgDlPerUnit = 72f
+                insulinSensitivityMgDlPerUnit = 72f,
+                carbAbsorptionGramsPerHour = 24f
             )
 
         assertEquals(10f, profile.parametersAtMinute(7 * 60 + 59).carbRatioGramsPerUnit, 0f)
         assertEquals(15f, profile.parametersAtMinute(8 * 60).carbRatioGramsPerUnit, 0f)
         assertEquals(72f, profile.parametersAtMinute(23 * 60 + 59).insulinSensitivityMgDlPerUnit, 0f)
+        assertEquals(24f, profile.parametersAtMinute(23 * 60 + 59).carbAbsorptionGramsPerHour, 0f)
     }
 
     @Test
@@ -76,7 +79,12 @@ class PredictionModelProfileTests {
     fun serializedProfileRoundTripsInSortedOrder() {
         val original = PredictionModelProfile.single(10f, 54f)
             .addBlock(18 * 60)
-            .updateBlock(18 * 60, carbRatioGramsPerUnit = 8f, insulinSensitivityMgDlPerUnit = 40f)
+            .updateBlock(
+                18 * 60,
+                carbRatioGramsPerUnit = 8f,
+                insulinSensitivityMgDlPerUnit = 40f,
+                carbAbsorptionGramsPerHour = 20f
+            )
             .addBlock(8 * 60)
             .updateBlock(8 * 60, carbRatioGramsPerUnit = 16f, insulinSensitivityMgDlPerUnit = 75f)
 
@@ -86,5 +94,21 @@ class PredictionModelProfileTests {
         )
 
         assertEquals(original, restored)
+    }
+
+    @Test
+    fun legacyThreeFieldProfileInheritsGlobalAbsorption() {
+        val restored = PredictionModelProfile.decode(
+            "0,10.0,54.0;480,14.0,72.0",
+            PredictionModelParameters(
+                carbRatioGramsPerUnit = 9f,
+                insulinSensitivityMgDlPerUnit = 45f,
+                carbAbsorptionGramsPerHour = 42f
+            )
+        )
+
+        assertEquals(42f, restored.parametersAtMinute(0).carbAbsorptionGramsPerHour, 0f)
+        assertEquals(42f, restored.parametersAtMinute(480).carbAbsorptionGramsPerHour, 0f)
+        assertEquals(4, restored.encode().substringBefore(';').split(',').size)
     }
 }

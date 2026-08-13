@@ -1507,7 +1507,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Modellprofil</string>
     <string name="predictive_model_profile_summary_single">En profil för hela dagen</string>
     <string name="predictive_model_profile_summary_count">%1$d tidsperioder</string>
-    <string name="predictive_model_profile_explanation">Kolhydratkvot och insulinkänslighet följer tiden för varje journalpost. Perioderna täcker hela dagen utan luckor.</string>
+    <string name="predictive_model_profile_explanation">Kolhydratkvot, insulinkänslighet och standardvärdet för kolhydratupptag följer tiden för varje journalpost. En uttryckligen vald måltidskurva har företräde. Perioderna täcker hela dagen utan luckor.</string>
     <string name="predictive_add_time_period">Lägg till tidsperiod</string>
     <string name="predictive_add_time_period_title">Ny period börjar</string>
     <string name="predictive_edit_time_period_title">Ändra periodens start</string>

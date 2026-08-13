@@ -1995,7 +1995,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_model_tuning">Model profile</string>
     <string name="predictive_model_profile_summary_single">One profile for the full day</string>
     <string name="predictive_model_profile_summary_count">%1$d time periods</string>
-    <string name="predictive_model_profile_explanation">Carb ratio and insulin sensitivity follow the time of each journal entry. Periods cover the full day without gaps.</string>
+    <string name="predictive_model_profile_explanation">Carb ratio, insulin sensitivity, and default carb absorption follow the time of each journal entry. An explicit meal curve overrides the default. Periods cover the full day without gaps.</string>
     <string name="predictive_add_time_period">Add time period</string>
     <string name="predictive_add_time_period_title">New period starts at</string>
     <string name="predictive_edit_time_period_title">Change period start</string>
