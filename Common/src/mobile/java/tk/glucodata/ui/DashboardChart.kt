@@ -141,7 +141,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.SensorIdentity
-import tk.glucodata.UiRefreshBus
 import tk.glucodata.R
 import tk.glucodata.DataSmoothing
 import tk.glucodata.data.journal.JournalActiveInsulinSummary
@@ -873,10 +872,16 @@ fun InteractiveGlucoseChart(
     val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
         if (graphSmoothingMinutes > 0) renderData else safeData
     }
-    val uiRefreshRevision by UiRefreshBus.revision.collectAsState()
-    val calibrationRevision = tk.glucodata.CalibrationAccess.getRevision()
-    val calibratedValueResolver = remember(renderData, calibrationRevision, uiRefreshRevision) {
+    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
+    val calibratedValueResolver = remember(renderData, calibrationRevision) {
         CalibratedValueResolver(renderData)
+    }
+    val calibrationIsRawMode = viewMode == 1 || viewMode == 3
+    val visibleCalibrations = remember(calibrationRevision, calibrationIsRawMode, primarySerial) {
+        tk.glucodata.data.calibration.CalibrationManager.getVisibleCalibrations(
+            calibrationIsRawMode,
+            primarySerial
+        )
     }
 
     // --- FORMATTERS & TOOLS (Hoisted for Performance) ---
@@ -3008,11 +3013,8 @@ fun InteractiveGlucoseChart(
 
                 // --- 6. CALIBRATION MARKERS ---
                 // Draw permanent vertical lines for calibration points in visible range (respects mode)
-                val isRawModeMarkers = viewMode == 1 || viewMode == 3
-                val calibrations = tk.glucodata.data.calibration.CalibrationManager.getVisibleCalibrations(isRawModeMarkers)
-                val visibleCalibrations = calibrations.filter { it.timestamp in viewportStart..viewportEnd }
-
                 visibleCalibrations.forEach { cal ->
+                    if (cal.timestamp !in viewportStart..viewportEnd) return@forEach
                     val calX = timeToDataX(cal.timestamp)
                     if (calX in 0f..width) {
                         // Draw vertical line with opacity
@@ -4057,11 +4059,11 @@ fun InteractiveGlucoseChart(
 
             // --- CALIBRATION TOOLTIPS ---
             // Show permanent tooltips for calibration points in visible range (respects mode)
-            val isRawModeTooltip = viewMode == 1 || viewMode == 3
-            val calibrationsTooltip = tk.glucodata.data.calibration.CalibrationManager.getVisibleCalibrations(isRawModeTooltip)
             val viewportStartTooltip = overlayViewportStart
             val viewportEndTooltip = overlayViewportEnd
-            val visibleCalibrationsTooltip = calibrationsTooltip.filter { it.timestamp in viewportStartTooltip..viewportEndTooltip }
+            val visibleCalibrationsTooltip = visibleCalibrations.filter {
+                it.timestamp in viewportStartTooltip..viewportEndTooltip
+            }
 
             visibleCalibrationsTooltip.forEach { cal ->
                 val calXFraction = (cal.timestamp - viewportStartTooltip).toFloat() / overlayDuration
