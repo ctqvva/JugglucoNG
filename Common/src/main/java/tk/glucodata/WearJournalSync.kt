@@ -154,6 +154,7 @@ object WearJournalSync {
         val journal = runCatching { decode(data) }.getOrNull() ?: return
         store(data)
         cached = journal
+        _journal.value = journal
         Log.i(LOG_ID, "journal received: enabled=${journal.enabled} entries=${journal.entries.size}")
         UiRefreshBus.requestStatusRefresh()
     }
@@ -192,6 +193,22 @@ object WearJournalSync {
 
     @Volatile private var cached: Journal? = null
 
+    private val _journal = kotlinx.coroutines.flow.MutableStateFlow<Journal?>(null)
+
+    /**
+     * Watch: the journal as it stands, updated when the phone serves a new one.
+     *
+     * The screen used to poll the cache ten times at 600 ms and then give up,
+     * so a serve that arrived a moment late never appeared at all and the list
+     * stayed on whatever was cached from the last run.
+     */
+    @JvmStatic
+    val journal: kotlinx.coroutines.flow.StateFlow<Journal> by lazy {
+        _journal.value = cached()
+        @Suppress("UNCHECKED_CAST")
+        (_journal as kotlinx.coroutines.flow.StateFlow<Journal>)
+    }
+
     /** Watch: last journal the phone served, restored across app starts. */
     @JvmStatic
     fun cached(): Journal {
@@ -203,7 +220,30 @@ object WearJournalSync {
         }.getOrNull()
         val journal = stored?.let { runCatching { decode(it) }.getOrNull() } ?: Journal()
         cached = journal
+        _journal.value = journal
         return journal
+    }
+
+    /**
+     * Watch: shows an entry the user just added before the phone has served it
+     * back, so the list does not appear to swallow the tap. The next serve
+     * replaces it with the phone's own record.
+     */
+    @JvmStatic
+    fun addLocally(entry: Entry) {
+        val current = cached()
+        cached = current.copy(entries = (listOf(entry) + current.entries).sortedByDescending { it.timestampMs })
+        _journal.value = cached
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    /** Watch: drops an entry locally after asking the phone to delete it. */
+    @JvmStatic
+    fun removeLocally(id: Long) {
+        val current = cached()
+        cached = current.copy(entries = current.entries.filterNot { it.id == id })
+        _journal.value = cached
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private fun store(payload: ByteArray) {

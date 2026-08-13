@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,19 +58,13 @@ fun JournalScreen(
     onAddInsulin: () -> Unit,
     onAddCarbs: () -> Unit,
 ) {
-    var journal by remember { mutableStateOf(WearJournalSync.cached()) }
+    // Collected, not polled: the old loop checked the cache ten times at 600 ms
+    // and gave up, so a serve arriving a moment later never showed at all.
+    val journal by WearJournalSync.journal.collectAsState()
     val context = LocalContext.current
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
 
-    LaunchedEffect(Unit) {
-        WearJournalSync.requestSync()
-        // The serve arrives asynchronously; pick it up once it lands.
-        repeat(10) {
-            kotlinx.coroutines.delay(600L)
-            val latest = WearJournalSync.cached()
-            if (latest !== journal) journal = latest
-        }
-    }
+    LaunchedEffect(Unit) { WearJournalSync.requestSync() }
 
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
@@ -126,7 +121,7 @@ fun JournalScreen(
                     time = timeFormat.format(Date(entry.timestampMs)),
                     onDelete = {
                         WearJournalSync.sendDelete(entry.id, entry.timestampMs)
-                        journal = journal.copy(entries = journal.entries.filterNot { it.id == entry.id })
+                        WearJournalSync.removeLocally(entry.id)
                     },
                 )
             }
@@ -183,6 +178,12 @@ fun JournalEntryScreen(
     onDone: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    // A dose with no preset carries no insulin curve, so the forecast cannot
+    // model it — it would predict as though the dose never happened. Default to
+    // the first preset the phone sent and let the user step through them.
+    val presets = remember { WearJournalSync.cached().presets }
+    var presetIndex by remember { mutableStateOf(0) }
+    val preset = presets.getOrNull(presetIndex)
     val focusRequester = remember { FocusRequester() }
     val step = if (isInsulin) 0.5f else 5f
     val min = if (isInsulin) 0.5f else 5f
@@ -243,6 +244,20 @@ fun JournalEntryScreen(
                     modifier = Modifier.size(40.dp),
                 )
             }
+            if (isInsulin && presets.size > 1) {
+                Button(
+                    onClick = { presetIndex = (presetIndex + 1) % presets.size },
+                    label = { Text(preset?.name ?: "") },
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            } else if (isInsulin && preset != null) {
+                Text(
+                    text = preset.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
             Button(
                 enabled = !sending,
                 onClick = {
@@ -254,11 +269,26 @@ fun JournalEntryScreen(
                                 timestampMs = timestampMs.takeIf { it > 0L } ?: System.currentTimeMillis(),
                                 type = if (isInsulin) WearJournalSync.TYPE_INSULIN else WearJournalSync.TYPE_CARBS,
                                 amount = value,
+                                presetId = if (isInsulin) preset?.id ?: 0L else 0L,
                             )
                         }
                         resultOk = ok
                         sending = false
-                        if (ok) onDone()
+                        if (ok) {
+                            // Show it at once; the next serve replaces this with
+                            // the phone's own record.
+                            WearJournalSync.addLocally(
+                                WearJournalSync.Entry(
+                                    timestampMs = timestampMs.takeIf { it > 0L } ?: System.currentTimeMillis(),
+                                    id = 0L,
+                                    type = if (isInsulin) WearJournalSync.TYPE_INSULIN else WearJournalSync.TYPE_CARBS,
+                                    amount = value,
+                                    title = format(value) + if (isInsulin) " U" else " g",
+                                    presetId = if (isInsulin) preset?.id ?: 0L else 0L,
+                                )
+                            )
+                            onDone()
+                        }
                     }
                 },
                 label = { Text(stringResource(R.string.save)) },
