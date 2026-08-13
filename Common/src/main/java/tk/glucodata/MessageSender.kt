@@ -249,6 +249,21 @@ private fun nodeSendmessage(node:Node,path:String,data:ByteArray) {
     public fun sendGlucoseColors(nodeName:String,data:ByteArray) {
         nameSendMessage(nodeName,GLUCOSE_COLORS_PATH,data)
      }
+    /** Phone: reports the state of the on/off switches the watch can operate. */
+    public fun sendToggleState(data:ByteArray) {
+        sendmessage(TOGGLE_STATE_PATH,data)
+     }
+    public fun sendToggleState(nodeName:String,data:ByteArray) {
+        nameSendMessage(nodeName,TOGGLE_STATE_PATH,data)
+     }
+    /** Watch: asks the phone to flip a switch. */
+    public fun sendToggleCommand(data:ByteArray) {
+        sendmessage(TOGGLE_CMD_PATH,data)
+     }
+    /** Watch: asks the phone for the current state of every switch. */
+    public fun requestToggles() {
+        sendmessage(TOGGLE_REQ_PATH, byteArrayOf(1))
+     }
     /** Watch: asks the phone for the display preferences and colour scheme. */
     public fun requestWearPrefs() {
         sendmessage(WEAR_PREFS_REQ_PATH, byteArrayOf(1))
@@ -323,6 +338,9 @@ companion object {
     const val GLUCOSE_COLORS_PATH = "/glucosecolors"
     const val WEAR_PREFS_PATH = "/displayprefs"
     const val WEAR_PREFS_REQ_PATH = "/displayprefs/req"
+    const val TOGGLE_STATE_PATH = "/toggles"
+    const val TOGGLE_CMD_PATH = "/toggles/set"
+    const val TOGGLE_REQ_PATH = "/toggles/req"
     const val BLUETOOTH_PATH = "/bluetooth"
     const val DATA_PATH = "/data"
     const val MESSAGES_PATH = "/messages"

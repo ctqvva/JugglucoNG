@@ -2532,4 +2532,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Выкл. — налада ў тэлефоне</string>
     <string name="glucosechartcomplicationlabel">Графік глюкозы</string>
     <string name="wear_chart_complication">Графік глюкозы</string>
+    <string name="wear_exchange_title">Абмен</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">Трансляцыя xDrip</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">Вэб-сервер xDrip</string>
+    <string name="wear_exchange_phone_only">Nightscout, знешні API і трансляцыі са спісам атрымальнікаў наладжваюцца ў тэлефоне.</string>
 </resources>

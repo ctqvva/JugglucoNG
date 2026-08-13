@@ -157,7 +157,19 @@
                 <data android:host="*" android:pathPrefix="/askforstart" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/calibrate" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sync2" android:scheme="wear" />
-            </intent-filter>
+                <!-- Every path this service handles must be listed: a
+                     WearableListenerService is only delivered the prefixes its
+                     filter names, so an unlisted one is dropped in silence. -->
+                <data android:host="*" android:pathPrefix="/displayprefs" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/toggles" android:scheme="wear" />
+                            <data android:host="*" android:pathPrefix="/bluetooth" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/defaults" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/glucosecolors" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/sensorclaimstatus" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/sensorhandoff" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/settings" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/start" android:scheme="wear" />
+</intent-filter>
         </service>
 
         <!-- PackageInstaller session status for the in-app updater. Never exported: the commit

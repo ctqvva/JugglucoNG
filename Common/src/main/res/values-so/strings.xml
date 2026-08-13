@@ -2668,4 +2668,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="wear_prediction_off">Damin — taleefanka laga dejiyo</string>
     <string name="glucosechartcomplicationlabel">Garaafka gulukooska</string>
     <string name="wear_chart_complication">Garaafka gulukooska</string>
+    <string name="wear_exchange_title">Isweydaarsiga</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">Baahinta xDrip</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">Serfarka xDrip</string>
+    <string name="wear_exchange_phone_only">Nightscout, API-ga baxaya iyo baahinta qaataha waxaa lagu dejiyaa taleefanka.</string>
 </resources>

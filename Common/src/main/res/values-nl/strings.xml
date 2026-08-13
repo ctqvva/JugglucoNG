@@ -2508,4 +2508,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_prediction_off">Uit — ingesteld op telefoon</string>
     <string name="glucosechartcomplicationlabel">Glucosegrafiek</string>
     <string name="wear_chart_complication">Glucosegrafiek</string>
+    <string name="wear_exchange_title">Uitwisseling</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">xDrip-uitzending</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">xDrip-webserver</string>
+    <string name="wear_exchange_phone_only">Nightscout, de uitgaande API en de ontvangergebaseerde uitzendingen stel je op de telefoon in.</string>
 </resources>

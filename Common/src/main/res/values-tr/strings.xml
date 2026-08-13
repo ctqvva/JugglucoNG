@@ -2493,4 +2493,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wear_prediction_off">Kapalı — telefondan ayarlanır</string>
     <string name="glucosechartcomplicationlabel">Glukoz grafiği</string>
     <string name="wear_chart_complication">Glukoz grafiği</string>
+    <string name="wear_exchange_title">Veri alışverişi</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">xDrip yayını</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">xDrip web sunucusu</string>
+    <string name="wear_exchange_phone_only">Nightscout, giden API ve alıcı listeli yayınlar telefonda ayarlanır.</string>
 </resources>

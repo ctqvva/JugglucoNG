@@ -2690,4 +2690,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Off — set on phone</string>
     <string name="glucosechartcomplicationlabel">Glucose chart</string>
     <string name="wear_chart_complication">Glucose chart</string>
+    <string name="wear_exchange_title">Exchange</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">xDrip broadcast</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">xDrip web server</string>
+    <string name="wear_exchange_phone_only">Nightscout, the outbound API and the recipient-based broadcasts are set up on the phone.</string>
 </resources>

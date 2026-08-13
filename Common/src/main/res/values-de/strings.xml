@@ -2504,4 +2504,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="wear_prediction_off">Aus — am Telefon einstellen</string>
     <string name="glucosechartcomplicationlabel">Glukose-Diagramm</string>
     <string name="wear_chart_complication">Glukose-Diagramm</string>
+    <string name="wear_exchange_title">Datenaustausch</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">xDrip-Übertragung</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">xDrip-Webserver</string>
+    <string name="wear_exchange_phone_only">Nightscout, die ausgehende API und die empfängerbasierten Übertragungen werden am Telefon eingerichtet.</string>
 </resources>

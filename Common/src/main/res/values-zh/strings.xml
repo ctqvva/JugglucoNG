@@ -2481,4 +2481,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">关闭 — 在手机上设置</string>
     <string name="glucosechartcomplicationlabel">血糖图表</string>
     <string name="wear_chart_complication">血糖图表</string>
+    <string name="wear_exchange_title">数据交换</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">xDrip 广播</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">xDrip 网页服务器</string>
+    <string name="wear_exchange_phone_only">Nightscout、出站 API 和基于接收方的广播需在手机上设置。</string>
 </resources>

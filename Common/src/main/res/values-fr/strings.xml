@@ -2471,4 +2471,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Désactivé — réglé sur le téléphone</string>
     <string name="glucosechartcomplicationlabel">Courbe de glucose</string>
     <string name="wear_chart_complication">Courbe de glucose</string>
+    <string name="wear_exchange_title">Échange</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">Diffusion xDrip</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">Serveur web xDrip</string>
+    <string name="wear_exchange_phone_only">Nightscout, l’API sortante et les diffusions par destinataires se configurent sur le téléphone.</string>
 </resources>

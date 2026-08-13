@@ -37,6 +37,7 @@ object WearPrediction {
     private const val SENSITIVITY_DEFAULT = 54f
     private const val CARB_ABSORPTION_DEFAULT = 35f
     private const val HORIZON_DEFAULT = 120
+    private const val ENABLED_DEFAULT = true
     private const val STEP_MINUTES = 5
 
     /** Treatments older than this cannot still be acting. */
@@ -45,7 +46,9 @@ object WearPrediction {
     private fun prefs(): android.content.SharedPreferences? =
         Applic.app?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun isEnabled(): Boolean = prefs()?.getBoolean(KEY_ENABLED, false) ?: false
+    // Defaults track the phone's readers: predictive simulation and momentum
+    // are both on there unless the user turned them off.
+    fun isEnabled(): Boolean = prefs()?.getBoolean(KEY_ENABLED, ENABLED_DEFAULT) ?: false
 
     /**
      * The forecast from the end of [history], or empty when the simulation is
@@ -53,7 +56,7 @@ object WearPrediction {
      */
     fun forecast(history: List<GlucosePoint>, isMmol: Boolean): List<GlucosePredictionPoint> {
         val preferences = prefs() ?: return emptyList()
-        if (!preferences.getBoolean(KEY_ENABLED, false)) return emptyList()
+        if (!preferences.getBoolean(KEY_ENABLED, ENABLED_DEFAULT)) return emptyList()
         if (history.size < 2) return emptyList()
 
         val carbRatio = preferences.getFloat(KEY_CARB_RATIO, CARB_RATIO_DEFAULT).coerceAtLeast(1f)

@@ -25,21 +25,33 @@ object WearPrefsSync {
     private const val TYPE_BOOL = "b"
     private const val TYPE_FLOAT = "f"
 
-    /** The keys the phone owns, with the type each is stored as. */
-    private val MIRRORED: Map<String, String> = mapOf(
+    private class Mirrored(val type: String, val default: Any)
+
+    /**
+     * The keys the phone owns, with the type each is stored as and the default
+     * the phone reads it with.
+     *
+     * The default matters as much as the key. A setting the user has never
+     * touched is absent from the phone's preferences, so sending only what is
+     * stored sent nothing — and the watch fell back to its own default, which
+     * for the predictive simulation was the opposite of the phone's. It showed
+     * "off" on a phone where it was on. The effective value always travels now,
+     * and these defaults must stay in step with the phone's readers.
+     */
+    private val MIRRORED: Map<String, Mirrored> = mapOf(
         // Data smoothing — the window, and the three switches that decide
         // whether it reaches the graph at all.
-        "dashboard_chart_smoothing_minutes" to TYPE_INT,
-        "dashboard_data_smoothing_graph_only" to TYPE_BOOL,
-        "dashboard_data_smoothing_collapse_chunks" to TYPE_BOOL,
-        "dashboard_data_smoothing_exchange_outputs_only" to TYPE_BOOL,
-        // Predictive simulation.
-        "dashboard_predictive_simulation_enabled" to TYPE_BOOL,
-        "dashboard_prediction_trend_momentum_enabled" to TYPE_BOOL,
-        "dashboard_prediction_carb_ratio_g_per_u" to TYPE_FLOAT,
-        "dashboard_prediction_insulin_sensitivity_mgdl_per_u" to TYPE_FLOAT,
-        "dashboard_prediction_carb_absorption_g_per_h" to TYPE_FLOAT,
-        "dashboard_prediction_horizon_minutes" to TYPE_INT,
+        "dashboard_chart_smoothing_minutes" to Mirrored(TYPE_INT, 0),
+        "dashboard_data_smoothing_graph_only" to Mirrored(TYPE_BOOL, false),
+        "dashboard_data_smoothing_collapse_chunks" to Mirrored(TYPE_BOOL, false),
+        "dashboard_data_smoothing_exchange_outputs_only" to Mirrored(TYPE_BOOL, false),
+        // Predictive simulation. Both switches default on, as the phone reads them.
+        "dashboard_predictive_simulation_enabled" to Mirrored(TYPE_BOOL, true),
+        "dashboard_prediction_trend_momentum_enabled" to Mirrored(TYPE_BOOL, true),
+        "dashboard_prediction_carb_ratio_g_per_u" to Mirrored(TYPE_FLOAT, 10f),
+        "dashboard_prediction_insulin_sensitivity_mgdl_per_u" to Mirrored(TYPE_FLOAT, 54f),
+        "dashboard_prediction_carb_absorption_g_per_h" to Mirrored(TYPE_FLOAT, 35f),
+        "dashboard_prediction_horizon_minutes" to Mirrored(TYPE_INT, 120),
     )
 
     private fun prefs(context: Context) =
@@ -51,15 +63,20 @@ object WearPrefsSync {
         if (context == null) return ByteArray(0)
         val source = prefs(context)
         val text = buildString {
-            MIRRORED.forEach { (key, type) ->
-                if (!source.contains(key)) return@forEach
-                val raw = when (type) {
-                    TYPE_INT -> runCatching { source.getInt(key, 0).toString() }.getOrNull()
-                    TYPE_BOOL -> runCatching { source.getBoolean(key, false).toString() }.getOrNull()
-                    TYPE_FLOAT -> runCatching { source.getFloat(key, 0f).toString() }.getOrNull()
+            MIRRORED.forEach { (key, spec) ->
+                val raw = when (spec.type) {
+                    TYPE_INT -> runCatching {
+                        source.getInt(key, spec.default as Int).toString()
+                    }.getOrNull()
+                    TYPE_BOOL -> runCatching {
+                        source.getBoolean(key, spec.default as Boolean).toString()
+                    }.getOrNull()
+                    TYPE_FLOAT -> runCatching {
+                        source.getFloat(key, spec.default as Float).toString()
+                    }.getOrNull()
                     else -> null
                 } ?: return@forEach
-                append(type).append(':').append(key).append('=').append(raw).append('\n')
+                append(spec.type).append(':').append(key).append('=').append(raw).append('\n')
             }
         }
         return text.toByteArray(Charsets.UTF_8)
@@ -91,7 +108,7 @@ object WearPrefsSync {
             val raw = line.substring(valueSplit + 1)
             // An unknown key, or one that arrives as the wrong type, is skipped:
             // writing it would give this device a pref it cannot read back.
-            if (MIRRORED[key] != type) return@forEach
+            if (MIRRORED[key]?.type != type) return@forEach
             when (type) {
                 TYPE_INT -> raw.toIntOrNull()?.let { editor.putInt(key, it); written++ }
                 TYPE_BOOL -> raw.toBooleanStrictOrNull()?.let { editor.putBoolean(key, it); written++ }

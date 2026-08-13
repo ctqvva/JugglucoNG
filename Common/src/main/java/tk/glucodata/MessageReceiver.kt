@@ -90,6 +90,7 @@ class MessageReceiver: WearableListenerService() {
                     // compiled-in defaults for good.
                     GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
                     WearPrefsSync.pushIfChanged(messageEvent.sourceNodeId)
+                    WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
                 }
             }
             MessageSender.SYNC2_CHUNK_PATH -> {
@@ -210,6 +211,18 @@ class MessageReceiver: WearableListenerService() {
                  Natives.ontbytesettings(data)
                     Notify.mkunitstr(Applic.app,Natives.getunit())
                 }
+             MessageSender.TOGGLE_REQ_PATH -> {
+                 if (!isWearable) WearToggleSync.pushTo(messageEvent.sourceNodeId)
+                }
+             MessageSender.TOGGLE_CMD_PATH -> {
+                 // The phone owns these; it applies and then reports back what
+                 // it actually holds, so a refused switch snaps back on the
+                 // watch rather than showing a state that is not real.
+                 if (!isWearable) WearToggleSync.onCommand(data, messageEvent.sourceNodeId)
+                }
+             MessageSender.TOGGLE_STATE_PATH -> {
+                 if (isWearable) WearToggleSync.onState(data)
+                }
              MessageSender.WEAR_PREFS_REQ_PATH -> {
                  // Pull, not push. Relying on the phone to push at the right
                  // moment meant a watch whose app opened outside that window
@@ -218,6 +231,7 @@ class MessageReceiver: WearableListenerService() {
                  if (!isWearable) {
                      WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                      GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
+                     WearToggleSync.pushTo(messageEvent.sourceNodeId)
                  }
                 }
              MessageSender.WEAR_PREFS_PATH -> {

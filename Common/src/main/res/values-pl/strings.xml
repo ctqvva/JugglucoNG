@@ -2499,4 +2499,11 @@
     <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>
     <string name="glucosechartcomplicationlabel">Wykres glukozy</string>
     <string name="wear_chart_complication">Wykres glukozy</string>
+    <string name="wear_exchange_title">Wymiana danych</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">Transmisja xDrip</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">Serwer WWW xDrip</string>
+    <string name="wear_exchange_phone_only">Nightscout, wychodzące API i transmisje z listą odbiorców konfiguruje się w telefonie.</string>
 </resources>

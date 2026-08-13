@@ -2537,4 +2537,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Вимк. — налаштовується на телефоні</string>
     <string name="glucosechartcomplicationlabel">Графік глюкози</string>
     <string name="wear_chart_complication">Графік глюкози</string>
+    <string name="wear_exchange_title">Обмін даними</string>
+    <string name="exchange_toggle_libreview">LibreView</string>
+    <string name="exchange_toggle_xdrip_broadcast">Трансляція xDrip</string>
+    <string name="exchange_toggle_gadgetbridge">Gadgetbridge</string>
+    <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
+    <string name="exchange_toggle_xdrip_webserver">Вебсервер xDrip</string>
+    <string name="wear_exchange_phone_only">Nightscout, вихідний API та трансляції зі списком отримувачів налаштовуються на телефоні.</string>
 </resources>
