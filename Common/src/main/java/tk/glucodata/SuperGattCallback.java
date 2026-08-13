@@ -629,6 +629,32 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             tk.glucodata.glucosecomplication.GlucoseValue.updateall();
         }
 
+        emitExchangeOutputs(SerialNumber, gl, rate, alarm, timmsec, sensorstartmsec, tim, sensorgen,
+                sglucose.value, true);
+    }
+
+    /**
+     * Every outbound use of a reading: broadcasts, the outbound API, Nightscout
+     * and LibreView through numdata, the widget, and the xDrip / Gadgetbridge /
+     * EverSense / WearInt targets.
+     *
+     * Split out of {@link #dowithglucose} so a reading that arrived from the
+     * watch can travel exactly the same way. When the watch holds the sensor the
+     * phone's BLE callback never runs, so none of this fired and every exchange
+     * target silently stopped for as long as the watch owned the sensor.
+     *
+     * Deliberately excludes alarms, notifications and speech: those are wired
+     * into dowithglucose and stay there, so mirroring a reading cannot produce a
+     * second alarm for one the other device has already handled.
+     *
+     * @param pushToPeer false for a reading that came from the peer, so it is
+     *                   not immediately sent back to the device it came from.
+     */
+    static void emitExchangeOutputs(String SerialNumber, float gl, float rate, int alarm, long timmsec,
+            long sensorstartmsec, long tim, int sensorgen, String primaryText, boolean pushToPeer) {
+        final Applic app = Applic.app;
+        if (app == null)
+            return;
         final boolean shouldBroadcastMinuteUpdate = tim > nexttime;
         final boolean outboundApiEnabled = OutboundApiSettings.isEnabled(app);
         final boolean shouldResolveExchangePayload =
@@ -641,7 +667,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                         || doWearInt
                         || doGadgetbridge));
         final ExchangeGlucosePayload exchangePayload = shouldResolveExchangePayload
-                ? ExchangeGlucosePayload.resolve(SerialNumber, gl, rate, timmsec, sensorgen, sglucose.value)
+                ? ExchangeGlucosePayload.resolve(SerialNumber, gl, rate, timmsec, sensorgen, primaryText)
                 : null;
         final boolean collapseExchangeUpdates = DataSmoothing.shouldCollapseExchangeOutputs(app);
         final boolean shouldEmitExchangeUpdate =
@@ -667,8 +693,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getTrendRate(),
                     alarm);
         // Readings travel to whichever device is not holding the sensor, so the
-        // watch pushes too when it is the one reading.
-        WearSync2.pushTail();
+        // watch pushes too when it is the one reading. A reading that arrived
+        // from the peer is not sent straight back.
+        if (pushToPeer)
+            WearSync2.pushTail();
         if (!isWearable) {
             app.numdata.sendglucose(SerialNumber, tim, gl, thresholdchange(rate), alarm | 0x10);
             GlucoseWidget.update();
