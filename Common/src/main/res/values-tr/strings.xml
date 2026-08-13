@@ -2488,4 +2488,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_read_cut_short">Kalem çok erken uzaklaştı. Telefon titreyene kadar kalemi tutun.</string>
     <string name="status_watch_reading">Sensörü saat okuyor</string>
     <string name="return_sensor_to_phone">Sensörü telefona geri al</string>
+    <string name="wear_prediction_title">Tahmin</string>
+    <string name="wear_prediction_on">Açık — telefondan ayarlanır</string>
+    <string name="wear_prediction_off">Kapalı — telefondan ayarlanır</string>
 </resources>

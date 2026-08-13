@@ -38,6 +38,21 @@ fun SettingsScreen(
             // Reading colours are no longer a watch-local choice: the palette,
             // the band overrides and the "colour values by range" switch all
             // arrive from the phone, so the two surfaces cannot disagree.
+            // Same for the predictive simulation, which is shown here only so
+            // the state is visible from the wrist.
+            item {
+                WearNavigationRow(
+                    stringResource(R.string.wear_prediction_title),
+                    subtitle = stringResource(
+                        if (tk.glucodata.ui.WearPrediction.isEnabled()) {
+                            R.string.wear_prediction_on
+                        } else {
+                            R.string.wear_prediction_off
+                        },
+                    ),
+                    onClick = { tk.glucodata.UiRefreshBus.requestDataRefresh() },
+                )
+            }
             item {
                 Text(
                     text = BuildConfig.VERSION_NAME,

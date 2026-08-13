@@ -2575,4 +2575,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_read_cut_short">Үзгийг хэт эрт авчихлаа. Утас чичрэх хүртэл барина уу.</string>
     <string name="status_watch_reading">Цаг энэ мэдрэгчийг уншиж байна</string>
     <string name="return_sensor_to_phone">Мэдрэгчийг утсанд буцаах</string>
+    <string name="wear_prediction_title">Таамаглал</string>
+    <string name="wear_prediction_on">Ассан — утсанд тохируулна</string>
+    <string name="wear_prediction_off">Унтраасан — утсанд тохируулна</string>
 </resources>

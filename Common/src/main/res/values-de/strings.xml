@@ -2499,4 +2499,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_read_cut_short">Der Pen war zu kurz am Telefon. Halten Sie ihn dran, bis es vibriert.</string>
     <string name="status_watch_reading">Die Uhr liest diesen Sensor</string>
     <string name="return_sensor_to_phone">Sensor an Smartphone zurückgeben</string>
+    <string name="wear_prediction_title">Prognose</string>
+    <string name="wear_prediction_on">Ein — am Telefon einstellen</string>
+    <string name="wear_prediction_off">Aus — am Telefon einstellen</string>
 </resources>

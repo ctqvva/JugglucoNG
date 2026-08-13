@@ -2494,4 +2494,7 @@
     <string name="insulin_pen_read_cut_short">Wstrzykiwacz został odsunięty za wcześnie. Trzymaj go przy telefonie, aż zawibruje.</string>
     <string name="status_watch_reading">Zegarek odczytuje ten czujnik</string>
     <string name="return_sensor_to_phone">Przenieś sensor z powrotem na telefon</string>
+    <string name="wear_prediction_title">Prognoza</string>
+    <string name="wear_prediction_on">Włączona — ustawiana w telefonie</string>
+    <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>
 </resources>

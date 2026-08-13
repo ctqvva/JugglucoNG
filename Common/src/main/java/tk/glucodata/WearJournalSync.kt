@@ -25,7 +25,15 @@ import java.nio.charset.StandardCharsets
  */
 object WearJournalSync {
     private const val LOG_ID = "WearJournalSync"
-    const val VERSION = 1
+    /**
+     * 2 adds the preset id each insulin entry was dosed with, and each preset's
+     * activity curve, so the watch can model insulin on board rather than
+     * forecasting as though a dose never happened. A v1 payload still decodes;
+     * its entries simply carry no preset, and prediction treats them as
+     * unmodelled.
+     */
+    const val VERSION = 2
+    private const val MIN_VERSION = 1
 
     const val CMD_ADD = 1
     const val CMD_DELETE = 2
@@ -47,13 +55,30 @@ object WearJournalSync {
         val type: Int,
         val amount: Float,
         val title: String,
+        /** 0 when unknown, which is every entry from a v1 payload. */
+        val presetId: Long = 0L,
     )
 
     data class Preset(
         val id: Long,
         val units: Float,
         val name: String,
-    )
+        /** Activity curve as (minute, activity) pairs; empty from a v1 payload. */
+        val curveMinutes: IntArray = IntArray(0),
+        val curveActivity: FloatArray = FloatArray(0),
+    ) {
+        // Arrays compare by identity, and a decode allocates fresh ones every
+        // time, so a generated equals would call every payload a change.
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Preset) return false
+            return id == other.id && units == other.units && name == other.name &&
+                curveMinutes.contentEquals(other.curveMinutes) &&
+                curveActivity.contentEquals(other.curveActivity)
+        }
+
+        override fun hashCode(): Int = id.hashCode() * 31 + name.hashCode()
+    }
 
     data class Journal(
         val enabled: Boolean = false,
@@ -121,8 +146,9 @@ object WearJournalSync {
     @JvmStatic
     fun onServed(data: ByteArray?) {
         if (!Applic.isWearable || data == null || data.isEmpty()) return
-        if (data[0].toInt() != VERSION) {
-            Log.w(LOG_ID, "ignoring journal payload version=${data[0].toInt()}")
+        val version = data[0].toInt()
+        if (version < MIN_VERSION || version > VERSION) {
+            Log.w(LOG_ID, "ignoring journal payload version=$version")
             return
         }
         val journal = runCatching { decode(data) }.getOrNull() ?: return
@@ -194,7 +220,8 @@ object WearJournalSync {
     internal fun decode(data: ByteArray): Journal {
         val buffer = ByteBuffer.wrap(data)
         // Kept free of logging so it stays a pure codec, testable on the JVM.
-        if (buffer.get().toInt() != VERSION) return Journal()
+        val version = buffer.get().toInt()
+        if (version < MIN_VERSION || version > VERSION) return Journal()
         val enabled = buffer.get().toInt() != 0
         val entryCount = buffer.short.toInt() and 0xFFFF
         val entries = ArrayList<Entry>(entryCount)
@@ -207,7 +234,8 @@ object WearJournalSync {
             val titleLen = buffer.get().toInt() and 0xFF
             if (buffer.remaining() < titleLen) return@repeat
             val title = ByteArray(titleLen).also { buffer.get(it) }.toString(StandardCharsets.UTF_8)
-            entries.add(Entry(timestamp, id, type, amount, title))
+            val presetId = if (version >= 2 && buffer.remaining() >= 8) buffer.long else 0L
+            entries.add(Entry(timestamp, id, type, amount, title, presetId))
         }
         val presets = ArrayList<Preset>()
         if (buffer.remaining() >= 2) {
@@ -219,7 +247,20 @@ object WearJournalSync {
                 val nameLen = buffer.get().toInt() and 0xFF
                 if (buffer.remaining() < nameLen) return@repeat
                 val name = ByteArray(nameLen).also { buffer.get(it) }.toString(StandardCharsets.UTF_8)
-                presets.add(Preset(id, units, name))
+                var minutes = IntArray(0)
+                var activity = FloatArray(0)
+                if (version >= 2 && buffer.remaining() >= 1) {
+                    val curveCount = buffer.get().toInt() and 0xFF
+                    if (buffer.remaining() >= curveCount * 6) {
+                        minutes = IntArray(curveCount)
+                        activity = FloatArray(curveCount)
+                        for (index in 0 until curveCount) {
+                            minutes[index] = buffer.short.toInt() and 0xFFFF
+                            activity[index] = buffer.float
+                        }
+                    }
+                }
+                presets.add(Preset(id, units, name, minutes, activity))
             }
         }
         return Journal(enabled, entries.sortedByDescending { it.timestampMs }, presets)
@@ -229,7 +270,8 @@ object WearJournalSync {
     internal fun decodeCommand(data: ByteArray): Command? {
         if (data.size < 1 + 1 + 8 + 8 + 1 + 4 + 8) return null
         val buffer = ByteBuffer.wrap(data)
-        if (buffer.get().toInt() != VERSION) return null
+        val version = buffer.get().toInt()
+        if (version < MIN_VERSION || version > VERSION) return null
         return Command(
             command = buffer.get().toInt(),
             timestampMs = buffer.long,

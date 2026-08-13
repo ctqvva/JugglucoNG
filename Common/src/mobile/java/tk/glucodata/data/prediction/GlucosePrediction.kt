@@ -14,28 +14,8 @@ import java.util.TimeZone
 import kotlin.math.exp
 import kotlin.math.sqrt
 
-data class GlucosePredictionPoint(
-    val timestamp: Long,
-    val value: Float,
-    val confidence: Float,
-    /**
-     * [value] before the on-chart clamp, so it may sit below the display floor or even
-     * go negative. Dose maths must read this: the drawn value saturates at the floor,
-     * which made a 6 U and a 16 U dose forecast the same carb suggestion.
-     */
-    val unclampedValue: Float = value
-)
-
-enum class GlucosePredictionSeriesKind {
-    RAW,
-    AUTO,
-    CALIBRATED
-}
-
-data class GlucosePredictionSeries(
-    val kind: GlucosePredictionSeriesKind,
-    val points: List<GlucosePredictionPoint>
-)
+// GlucosePredictionPoint / GlucosePredictionSeries[Kind] now live beside the
+// kernel in src/main so the watch can name them too.
 
 data class PredictiveSimulationSettings(
     val enabled: Boolean,
@@ -75,10 +55,7 @@ fun buildGlucosePrediction(
 
     val isMmol = GlucoseFormatter.isMmol(unit)
     val safeAbsorption = settings.carbAbsorptionGramsPerHour.coerceAtLeast(5f)
-    val stepMinutes = settings.stepMinutes.coerceIn(3, 15)
     val horizonMinutes = settings.horizonMinutes.coerceIn(30, 360)
-    val targetCenter = ((targetLow + targetHigh) * 0.5f).takeIf { it.isFinite() && it > 0f }
-        ?: baseline.value
     val relevantEntries = journalEntries.filter { entry ->
         entry.timestamp in (baselineTime - 36L * 60L * 60L * 1000L)..(baselineTime + horizonMinutes * 60_000L)
     }
@@ -99,76 +76,19 @@ fun buildGlucosePrediction(
         ).toDouble()
     }.toFloat()
 
-    val trendSlopePerMinute = if (settings.trendMomentumEnabled) {
-        // Regress over journal-residualized samples so momentum carries only the slope
-        // the journal model does not already explain; the modelled part is re-added
-        // through journalDeltaAt below, and would otherwise be counted twice.
-        recentResidualSlopePerMinute(history, baselineTime, ::journalDeltaAt).let { slope ->
-            val maxSlope = if (isMmol) 0.16f else 3f
-            slope.coerceIn(-maxSlope, maxSlope)
-        }
-    } else {
-        0f
-    }
-
-    fun projectedDeltaAt(timestamp: Long): Float {
-        val minutesFuture = ((timestamp - baselineTime) / 60_000f).coerceAtLeast(0f)
-        val trend = trendSlopePerMinute * minutesFuture * exp(-minutesFuture / 70f)
-        val settling = (targetCenter - baseline.value) * (1f - exp(-minutesFuture / 240f)) * 0.18f
-        return trend + settling + journalDeltaAt(timestamp)
-    }
-
-    val lowClamp = if (isMmol) 1.0f else 18f
-    val highClamp = if (isMmol) 30f else 540f
-    return buildList {
-        add(GlucosePredictionPoint(baselineTime, baseline.value, confidence = 1f))
-        var minute = stepMinutes
-        while (minute <= horizonMinutes) {
-            val timestamp = baselineTime + minute * 60_000L
-            val progress = minute.toFloat() / horizonMinutes.toFloat()
-            val confidence = (0.88f - 0.62f * sqrt(progress)).coerceIn(0.18f, 0.88f)
-            val projected = baseline.value + projectedDeltaAt(timestamp)
-            add(
-                GlucosePredictionPoint(
-                    timestamp = timestamp,
-                    value = projected.coerceIn(lowClamp, highClamp),
-                    confidence = confidence,
-                    unclampedValue = projected
-                )
-            )
-            minute += stepMinutes
-        }
-    }
-}
-
-private fun recentResidualSlopePerMinute(
-    history: List<GlucosePoint>,
-    baselineTime: Long,
-    modeledDeltaAt: (Long) -> Float
-): Float {
-    val recent = history
-        .asReversed()
-        .asSequence()
-        .filter { it.timestamp <= baselineTime && baselineTime - it.timestamp <= 45L * 60L * 1000L }
-        .filter { it.value.isFinite() && it.value > 0.1f }
-        .take(10)
-        .toList()
-        .asReversed()
-    if (recent.size < 2) return 0f
-
-    val firstTime = recent.first().timestamp
-    val xs = recent.map { (it.timestamp - firstTime) / 60_000f }
-    val ys = recent.map { it.value - modeledDeltaAt(it.timestamp) }
-    val xMean = xs.average().toFloat()
-    val yMean = ys.average().toFloat()
-    var numerator = 0f
-    var denominator = 0f
-    for (index in recent.indices) {
-        val dx = xs[index] - xMean
-        numerator += dx * (ys[index] - yMean)
-        denominator += dx * dx
-    }
-    return if (denominator > 0.001f) numerator / denominator else 0f
+    // The forward simulation is shared with the watch; only the treatment
+    // model above is phone-specific, because only the phone holds the rich
+    // journal it reads.
+    return GlucosePredictionKernel.simulate(
+        history = history.map { GlucosePredictionKernel.Sample(it.timestamp, it.value) },
+        isMmol = isMmol,
+        trendMomentumEnabled = settings.trendMomentumEnabled,
+        horizonMinutes = settings.horizonMinutes,
+        stepMinutes = settings.stepMinutes,
+        targetLow = targetLow,
+        targetHigh = targetHigh,
+        journalDeltaAt = ::journalDeltaAt
+    )
 }
 
 private fun JournalEntry.projectedDisplayDelta(

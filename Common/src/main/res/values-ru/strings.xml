@@ -2503,4 +2503,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_read_cut_short">Ручку убрали слишком рано. Держите её у телефона, пока он не завибрирует.</string>
     <string name="status_watch_reading">Часы читают этот датчик</string>
     <string name="return_sensor_to_phone">Вернуть датчик на телефон</string>
+    <string name="wear_prediction_title">Прогноз</string>
+    <string name="wear_prediction_on">Вкл. — настраивается на телефоне</string>
+    <string name="wear_prediction_off">Выкл. — настраивается на телефоне</string>
 </resources>

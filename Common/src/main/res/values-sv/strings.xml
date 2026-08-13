@@ -2460,4 +2460,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_read_cut_short">Pennan togs bort för tidigt. Håll den mot telefonen tills den vibrerar.</string>
     <string name="status_watch_reading">Klockan läser av den här sensorn</string>
     <string name="return_sensor_to_phone">Flytta tillbaka sensorn till telefonen</string>
+    <string name="wear_prediction_title">Prognos</string>
+    <string name="wear_prediction_on">På — ställs in på telefonen</string>
+    <string name="wear_prediction_off">Av — ställs in på telefonen</string>
 </resources>

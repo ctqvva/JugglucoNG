@@ -2527,4 +2527,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_read_cut_short">Ручку прыбралі занадта рана. Трымайце яе каля тэлефона, пакуль ён не завібруе.</string>
     <string name="status_watch_reading">Гадзіннік чытае гэты сэнсар</string>
     <string name="return_sensor_to_phone">Вярнуць датчык на тэлефон</string>
+    <string name="wear_prediction_title">Прагноз</string>
+    <string name="wear_prediction_on">Укл. — налада ў тэлефоне</string>
+    <string name="wear_prediction_off">Выкл. — налада ў тэлефоне</string>
 </resources>

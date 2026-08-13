@@ -15,19 +15,30 @@ import org.junit.Test
  */
 class WearJournalSyncCodecTests {
 
+    /**
+     * Mirrors the phone's encoder. [version] lets these exercise the v1 shape a
+     * not-yet-updated phone still sends, alongside the current one.
+     */
     private fun payload(
         enabled: Boolean,
         entries: List<Triple<Long, Long, Pair<Int, Float>>>,
         titles: List<String>,
         presets: List<Pair<Long, String>> = emptyList(),
+        version: Int = WearJournalSync.VERSION,
+        entryPresetIds: List<Long> = List(entries.size) { 0L },
+        presetCurves: List<List<Pair<Int, Float>>> = List(presets.size) { emptyList() },
     ): ByteArray {
         val titleBytes = titles.map { it.toByteArray(StandardCharsets.UTF_8) }
         val presetBytes = presets.map { it.second.toByteArray(StandardCharsets.UTF_8) }
+        val entryExtra = if (version >= 2) 8 else 0
         val size = 1 + 1 + 2 +
-            entries.indices.sumOf { 8 + 8 + 1 + 4 + 1 + titleBytes[it].size } +
-            2 + presetBytes.sumOf { 8 + 4 + 1 + it.size }
+            entries.indices.sumOf { 8 + 8 + 1 + 4 + 1 + titleBytes[it].size + entryExtra } +
+            2 + presetBytes.indices.sumOf {
+                8 + 4 + 1 + presetBytes[it].size +
+                    if (version >= 2) 1 + presetCurves[it].size * 6 else 0
+            }
         val buffer = ByteBuffer.allocate(size)
-        buffer.put(WearJournalSync.VERSION.toByte())
+        buffer.put(version.toByte())
         buffer.put(if (enabled) 1 else 0)
         buffer.putShort(entries.size.toShort())
         entries.forEachIndexed { index, (timestamp, id, typeAmount) ->
@@ -37,6 +48,7 @@ class WearJournalSyncCodecTests {
             buffer.putFloat(typeAmount.second)
             buffer.put(titleBytes[index].size.toByte())
             buffer.put(titleBytes[index])
+            if (version >= 2) buffer.putLong(entryPresetIds[index])
         }
         buffer.putShort(presets.size.toShort())
         presets.forEachIndexed { index, (id, _) ->
@@ -44,8 +56,56 @@ class WearJournalSyncCodecTests {
             buffer.putFloat(Float.NaN)
             buffer.put(presetBytes[index].size.toByte())
             buffer.put(presetBytes[index])
+            if (version >= 2) {
+                val curve = presetCurves[index]
+                buffer.put(curve.size.toByte())
+                curve.forEach { (minute, activity) ->
+                    buffer.putShort(minute.toShort())
+                    buffer.putFloat(activity)
+                }
+            }
         }
         return buffer.array()
+    }
+
+    @Test
+    fun carriesThePresetIdAndCurveAPredictionNeeds() {
+        val data = payload(
+            enabled = true,
+            entries = listOf(Triple(9_000L, 8L, WearJournalSync.TYPE_INSULIN to 2.5f)),
+            titles = listOf("Insulin 2.5U"),
+            presets = listOf(3L to "Rapid"),
+            entryPresetIds = listOf(3L),
+            presetCurves = listOf(listOf(0 to 0f, 30 to 1f, 120 to 0.4f, 240 to 0f)),
+        )
+
+        val journal = WearJournalSync.decode(data)
+
+        assertEquals(3L, journal.entries[0].presetId)
+        assertEquals(4, journal.presets[0].curveMinutes.size)
+        assertEquals(240, journal.presets[0].curveMinutes[3])
+        assertEquals(1f, journal.presets[0].curveActivity[1], 0.0001f)
+    }
+
+    @Test
+    fun aV1PayloadStillDecodesWithoutTheNewFields() {
+        // An older phone sends no preset id and no curve; the watch must read
+        // the entries it can rather than reject the whole journal, and a
+        // prediction then treats those doses as unmodelled.
+        val data = payload(
+            enabled = true,
+            entries = listOf(Triple(9_000L, 8L, WearJournalSync.TYPE_INSULIN to 2.5f)),
+            titles = listOf("Insulin 2.5U"),
+            presets = listOf(3L to "Rapid"),
+            version = 1,
+        )
+
+        val journal = WearJournalSync.decode(data)
+
+        assertTrue(journal.enabled)
+        assertEquals(1, journal.entries.size)
+        assertEquals(0L, journal.entries[0].presetId)
+        assertEquals(0, journal.presets[0].curveMinutes.size)
     }
 
     @Test
@@ -102,12 +162,31 @@ class WearJournalSyncCodecTests {
             titles = listOf("Carbs 12g"),
         )
         // Cut inside the title: a short Data Layer message must not surface an
-        // entry with a mangled label.
-        val truncated = full.copyOf(full.size - 4)
+        // entry with a mangled label. The entry now ends with its preset id, so
+        // the cut has to clear that as well to reach the title — a payload
+        // truncated only inside the preset id is the v1 shape and decodes fine.
+        val entryTailBytes = 8 + 4
+        val truncated = full.copyOf(full.size - entryTailBytes)
 
         val journal = WearJournalSync.decode(truncated)
 
         assertTrue(journal.entries.isEmpty())
+    }
+
+    @Test
+    fun aPayloadCutInsideThePresetIdKeepsTheEntry() {
+        val full = payload(
+            enabled = true,
+            entries = listOf(Triple(1_000L, 1L, WearJournalSync.TYPE_CARBS to 12f)),
+            titles = listOf("Carbs 12g"),
+            entryPresetIds = listOf(9L),
+        )
+        // Everything the entry means is already read by this point; dropping the
+        // preset id is exactly what a v1 phone does.
+        val journal = WearJournalSync.decode(full.copyOf(full.size - 4))
+
+        assertEquals(1, journal.entries.size)
+        assertEquals(0L, journal.entries[0].presetId)
     }
 
     @Test

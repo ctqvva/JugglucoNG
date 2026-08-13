@@ -2503,4 +2503,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_read_cut_short">De pen ging te snel weg. Houd hem tegen de telefoon tot deze trilt.</string>
     <string name="status_watch_reading">De horloge leest deze sensor</string>
     <string name="return_sensor_to_phone">Sensor terug naar telefoon</string>
+    <string name="wear_prediction_title">Voorspelling</string>
+    <string name="wear_prediction_on">Aan — ingesteld op telefoon</string>
+    <string name="wear_prediction_off">Uit — ingesteld op telefoon</string>
 </resources>

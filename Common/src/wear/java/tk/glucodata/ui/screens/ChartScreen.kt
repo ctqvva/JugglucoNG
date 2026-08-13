@@ -90,6 +90,8 @@ internal data class WearChartData(
     val end: Long,
     val historyStart: Long,
     val isMmol: Boolean,
+    /** Forward simulation from the newest reading; empty when switched off. */
+    val prediction: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
 )
 
 private fun thresholds(isMmol: Boolean): ChartThresholds {
@@ -112,9 +114,8 @@ internal fun chartDataFrom(snapshot: WearGlucoseStore.Snapshot, hours: Int): Wea
     val now = System.currentTimeMillis()
     val duration = hours * HOUR_MS
     val start = now - duration
-    val end = now + (duration * RIGHT_GAP_FRACTION).toLong()
-    val historyStart = if (snapshot.isLoaded) snapshot.horizonStartMs else start
     val isMmol = snapshot.isMmol
+    val historyStart = if (snapshot.isLoaded) snapshot.horizonStartMs else start
     val conversion = if (isMmol) 18.0182f else 1f
     val anchors = snapshot.anchors
     val marks = anchors.indices.step(3).mapNotNull { offset ->
@@ -122,7 +123,18 @@ internal fun chartDataFrom(snapshot: WearGlucoseStore.Snapshot, hours: Int): Wea
         CalibrationMark(anchors[offset + 2].toLong(), anchors[offset + 1].toFloat() / conversion)
             .takeIf { it.timestamp in historyStart..now && it.value.isFinite() && it.value > 0f }
     }
-    return WearChartData(snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol)
+    val prediction = runCatching {
+        tk.glucodata.ui.WearPrediction.forecast(snapshot.points, isMmol)
+    }.getOrDefault(emptyList())
+    // The forecast runs past "now", so the window has to reach far enough to
+    // show it; without this it was drawn entirely inside the right-hand gap.
+    val end = maxOf(
+        now + (duration * RIGHT_GAP_FRACTION).toLong(),
+        prediction.lastOrNull()?.timestamp ?: 0L,
+    )
+    return WearChartData(
+        snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol, prediction,
+    )
 }
 
 private fun clampedViewport(data: WearChartData, start: Long, end: Long): Pair<Long, Long> {
@@ -630,6 +642,12 @@ internal fun WearChart(
                     }
                 }
             }
+            data.prediction.forEach { point ->
+                if (point.timestamp in viewportStart..viewportEnd && point.value.isFinite()) {
+                    minValue = minOf(minValue, point.value)
+                    maxValue = maxOf(maxValue, point.value)
+                }
+            }
             val padding = ((maxValue - minValue) * 0.12f).coerceAtLeast(if (data.isMmol) 0.4f else 8f)
             minValue = (minValue - padding).coerceAtLeast(floor)
             maxValue += padding
@@ -690,6 +708,26 @@ internal fun WearChart(
             ).takeIf { it.isNotEmpty() }?.let { stops ->
                 Brush.verticalGradient(*stops.toTypedArray(), startY = 0f, endY = size.height)
             }
+            // Drawn dashed and fading out, so it never reads as measured data.
+            val predictionPath = if (data.prediction.size >= 2) {
+                Path().apply {
+                    var started = false
+                    data.prediction.forEach { point ->
+                        if (!point.value.isFinite() || point.value <= 0f) return@forEach
+                        val px = x(point.timestamp)
+                        val py = y(point.value)
+                        if (!started) {
+                            moveTo(px, py)
+                            started = true
+                        } else {
+                            lineTo(px, py)
+                        }
+                    }
+                }
+            } else {
+                null
+            }
+            val predictionDash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
             val alarmDash = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
             val calibrationDrops = data.calibrations.mapNotNull { mark ->
                 if (mark.timestamp !in viewportStart..viewportEnd) return@mapNotNull null
@@ -738,6 +776,13 @@ internal fun WearChart(
                     drawLine(gridColor, Offset(lineX, 0f), Offset(lineX, size.height), 1f)
                     textPaint.textAlign = android.graphics.Paint.Align.CENTER
                     drawContext.canvas.nativeCanvas.drawText(text, lineX, size.height - 2.dp.toPx(), textPaint)
+                }
+                predictionPath?.let {
+                    drawPath(
+                        it,
+                        lineColor.copy(alpha = 0.55f),
+                        style = Stroke(1.8.dp.toPx(), pathEffect = predictionDash),
+                    )
                 }
                 secondaryCurve?.let { drawPath(it, rawColor, style = Stroke(1.35.dp.toPx())) }
                 if (viewportPoints.size >= 2) {

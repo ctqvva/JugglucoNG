@@ -28,6 +28,7 @@ object WearJournalBridge {
     /** Keeps a watch payload inside a single Data Layer message. */
     private const val MAX_ENTRIES = 60
     private const val MAX_TITLE_BYTES = 40
+    private const val MAX_CURVE_POINTS = 24
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -137,6 +138,16 @@ object WearJournalBridge {
         if (amount % 1f < 0.05f) amount.toInt().toString()
         else String.format(java.util.Locale.US, "%.1f", amount)
 
+    /**
+     * The preset's curve, capped so one payload stays inside a single Data
+     * Layer message. A preset that does not count toward IOB contributes no
+     * curve, which is how the phone's own model treats it.
+     */
+    private fun curvePointsOf(preset: JournalInsulinPreset): List<JournalCurvePoint> {
+        if (preset.isArchived || !preset.countsTowardIob) return emptyList()
+        return preset.curvePoints.take(MAX_CURVE_POINTS)
+    }
+
     private fun encode(
         entries: List<JournalEntry>,
         presets: List<JournalInsulinPreset>,
@@ -152,9 +163,14 @@ object WearJournalBridge {
                 if (it.size <= MAX_TITLE_BYTES) it else it.copyOf(MAX_TITLE_BYTES)
             }
         }
+        // v2 adds the preset id per entry and each preset's activity curve, so
+        // the watch can model insulin on board instead of predicting as though
+        // a dose never happened.
         val size = 1 + 1 + 2 +
-            encodedEntries.sumOf { 8 + 8 + 1 + 4 + 1 + it.second.size } +
-            2 + encodedPresets.sumOf { 8 + 4 + 1 + it.second.size }
+            encodedEntries.sumOf { 8 + 8 + 1 + 4 + 1 + it.second.size + 8 } +
+            2 + encodedPresets.sumOf {
+                8 + 4 + 1 + it.second.size + 1 + curvePointsOf(it.first).size * 6
+            }
         val buffer = ByteBuffer.allocate(size)
         buffer.put(WearJournalSync.VERSION.toByte())
         buffer.put(1)
@@ -166,6 +182,7 @@ object WearJournalBridge {
             buffer.putFloat(entry.amount ?: Float.NaN)
             buffer.put(title.size.toByte())
             buffer.put(title)
+            buffer.putLong(entry.insulinPresetId ?: 0L)
         }
         buffer.putShort(encodedPresets.size.toShort())
         encodedPresets.forEach { (preset, name) ->
@@ -173,6 +190,12 @@ object WearJournalBridge {
             buffer.putFloat(Float.NaN)
             buffer.put(name.size.toByte())
             buffer.put(name)
+            val curve = curvePointsOf(preset)
+            buffer.put(curve.size.toByte())
+            curve.forEach { point ->
+                buffer.putShort(point.minute.coerceIn(0, 0xFFFF).toShort())
+                buffer.putFloat(point.activity)
+            }
         }
         return buffer.array()
     }
