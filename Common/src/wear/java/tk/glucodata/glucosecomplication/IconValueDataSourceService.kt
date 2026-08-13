@@ -48,6 +48,13 @@ import tk.glucodata.R
 import java.lang.Math.min
 
 class IconValueDataSourceService: SuspendingComplicationDataSourceService()  {
+    /** The number, drawn with the app's palette rather than the legacy colours. */
+    private fun valueBitmap(text: String, timeMillis: Long): android.graphics.Bitmap {
+        val isMmol = ComplicationRenderer.isMmol()
+        val value = GlucoseComplicationData.currentReading()?.value ?: Float.NaN
+        return ComplicationRenderer.valueBitmap(128, text, value, isMmol)
+    }
+
 private var glview: GlucoseValue? =null
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
@@ -73,7 +80,7 @@ fun getview(type: ComplicationType):GlucoseValue {
                 MonochromaticImageComplicationData.Builder(
                     MonochromaticImage.Builder(
                         Icon.createWithBitmap(
-                            getview(type).getNumberBitmap(reading.text, reading.timeMillis, -1, now),
+                            valueBitmap(reading.text, reading.timeMillis),
                         ),
                     ).build(),
                     contentDescription = PlainComplicationText.Builder(text = "Glucose Value").build(),
@@ -106,7 +113,7 @@ fun getview(type: ComplicationType):GlucoseValue {
                  getview(type).getnovalue()
                  } else {
                      Log.i(LOG_ID,"MonochromaticImage ${glucose.text}")
-                    getview(type).getNumberBitmap(glucose.text,glucose.timeMillis,glucose.index,now)
+                    valueBitmap(glucose.text, glucose.timeMillis)
                      }
              val image=Icon.createWithBitmap(bitmap)
              val complicationPendingIntent = GlucoseComplicationData.tapAction()

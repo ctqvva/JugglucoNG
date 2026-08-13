@@ -42,6 +42,20 @@ import tk.glucodata.R
 import java.lang.Math.min
 
 class IconArrowDataSourceService: SuspendingComplicationDataSourceService()  {
+    /**
+     * Arrow plus the reading's time, drawn by ComplicationRenderer so the angle
+     * and colour match the app rather than the legacy geometry.
+     */
+    private fun arrowTimeBitmap(rate: Float, timeMillis: Long): android.graphics.Bitmap {
+        val isMmol = ComplicationRenderer.isMmol()
+        val value = GlucoseComplicationData.currentReading()?.value ?: Float.NaN
+        return ComplicationRenderer.arrowWithTimeBitmap(
+            ICON_PX, rate, timeMillis, ComplicationRenderer.valueColor(value, isMmol),
+        )
+    }
+
+    private val ICON_PX = 128
+
 private var glview: GlucoseValue? =null
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
@@ -73,7 +87,7 @@ fun getview(type: ComplicationType):GlucoseValue {
                 }
       return MonochromaticImageComplicationData.Builder(
 //          MonochromaticImage.Builder( Icon.createWithBitmap(getview(type).getArrowBitmap(rate))).build(),
-          MonochromaticImage.Builder( Icon.createWithBitmap(getview(type).getArrowTimeBitmap(time,rate))).build(),
+          MonochromaticImage.Builder( Icon.createWithBitmap(arrowTimeBitmap(rate, time))).build(),
 
             contentDescription = PlainComplicationText.Builder(text = "Glucose Arrow").build() )
             .setTapAction(GlucoseComplicationData.tapAction())
@@ -92,7 +106,7 @@ fun getview(type: ComplicationType):GlucoseValue {
                  } else {
                      Log.i(LOG_ID,"MonochromaticImage rate: ${glucose.rate}")
 //                    getview(type).getArrowBitmap(glucose.rate)
-                      getview(type).getArrowTimeBitmap(glucose.timeMillis,glucose.rate);
+                      arrowTimeBitmap(glucose.rate, glucose.timeMillis);
                      }
              val image=Icon.createWithBitmap(bitmap)
              val complicationPendingIntent = GlucoseComplicationData.tapAction()

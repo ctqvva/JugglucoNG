@@ -48,6 +48,20 @@ import tk.glucodata.R
 import java.lang.Math.min
 
 class ShortArrowValueDataSourceService: SuspendingComplicationDataSourceService()  {
+    /**
+     * Arrow plus the reading's time, drawn by ComplicationRenderer so the angle
+     * and colour match the app rather than the legacy geometry.
+     */
+    private fun arrowTimeBitmap(rate: Float, timeMillis: Long): android.graphics.Bitmap {
+        val isMmol = ComplicationRenderer.isMmol()
+        val value = GlucoseComplicationData.currentReading()?.value ?: Float.NaN
+        return ComplicationRenderer.arrowWithTimeBitmap(
+            ICON_PX, rate, timeMillis, ComplicationRenderer.valueColor(value, isMmol),
+        )
+    }
+
+    private val ICON_PX = 128
+
 private var glview: GlucoseValue? =null
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
@@ -67,7 +81,7 @@ fun getview(type: ComplicationType):GlucoseValue {
     override fun getPreviewData(type: ComplicationType): ComplicationData {
       val reading = GlucoseComplicationData.previewReading()
       val tapAction = GlucoseComplicationData.tapAction()
-      val icon=Icon.createWithBitmap( getview(type).getArrowTimeBitmap(reading.timeMillis,reading.rate));
+      val icon=Icon.createWithBitmap( arrowTimeBitmap(reading.rate, reading.timeMillis));
        Log.i(LOG_ID,"getPreviewData $type")
          return when (type) {
              SHORT_TEXT -> GlucoseComplicationData.shortValueData(
@@ -108,7 +122,7 @@ fun getview(type: ComplicationType):GlucoseValue {
          }
       else {
 
-            val bitmap=getview(type).getArrowTimeBitmap(glucose.timeMillis,glucose.rate);
+            val bitmap=arrowTimeBitmap(glucose.rate, glucose.timeMillis);
             Log.i(LOG_ID," glucose==${glucose.text}")
                 val image=Icon.createWithBitmap(bitmap)
              return when (type) {
