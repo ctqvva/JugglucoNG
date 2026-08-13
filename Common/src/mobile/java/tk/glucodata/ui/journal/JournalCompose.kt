@@ -5,6 +5,7 @@ package tk.glucodata.ui.journal
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -48,6 +49,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -64,6 +66,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -80,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -375,6 +380,7 @@ fun JournalEntrySheet(
     }
     var showDatePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
     var showTimePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
+    var noteFieldFocused by remember(existingEntry?.id) { mutableStateOf(false) }
     val saveInputs = draft.toInputs(unit, sensorSerialProvider(), presetsById, foodMacrosEnabled)
     val canSave = saveInputs.isNotEmpty()
     val calculatorProfile = remember(doseProfile, draft.timestamp) {
@@ -716,20 +722,46 @@ fun JournalEntrySheet(
             }
 
             item(key = "note_field") {
-                OutlinedTextField(
+                val noteFieldExpanded = draft.type == JournalEntryType.NOTE ||
+                        noteFieldFocused ||
+                        draft.note.contains('\n')
+                val noteFieldMinHeight by animateDpAsState(
+                    targetValue = when {
+                        draft.type == JournalEntryType.NOTE -> 132.dp
+                        noteFieldExpanded -> 96.dp
+                        else -> 56.dp
+                    },
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "journalNoteFieldHeight"
+                )
+                TextField(
                     value = draft.note,
                     onValueChange = { draft = draft.copy(note = it) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = if (draft.type == JournalEntryType.NOTE) 132.dp else 96.dp),
+                        .heightIn(min = noteFieldMinHeight)
+                        .onFocusChanged { noteFieldFocused = it.isFocused },
                     label = { Text(stringResource(R.string.journal_note_label)) },
-                    singleLine = false,
-                    maxLines = if (draft.type == JournalEntryType.NOTE) 5 else 3
+                    singleLine = !noteFieldExpanded,
+                    maxLines = when {
+                        draft.type == JournalEntryType.NOTE -> 5
+                        noteFieldExpanded -> 3
+                        else -> 1
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = Color.Transparent
+                    )
                 )
             }
 
             item(key = "save_button") {
-                FilledTonalButton(
+                Button(
                     onClick = {
                         if (canSave) {
                             if (saveInputs.size > 1) {
@@ -740,11 +772,10 @@ fun JournalEntrySheet(
                         }
                     },
                     enabled = canSave,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(
                         imageVector = journalTypeIcon(draft.type),
