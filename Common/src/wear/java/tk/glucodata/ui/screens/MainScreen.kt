@@ -85,29 +85,19 @@ internal fun primaryLaneValue(point: GlucosePoint, viewMode: Int): Float =
     }
 
 /**
- * Trend velocity for each of [rows], each measured over the ~35 minutes of
- * [history] leading up to that reading — the same window the hero uses, so a
- * row's arrow and the hero's agree on the newest reading.
+ * Trend velocity for each of [rows], measured over the ~35 minutes of [history]
+ * leading up to that reading — the same window the hero uses, so a row's arrow
+ * and the hero's agree on the newest reading.
+ *
+ * The sweep itself is in tk.glucodata.TrendWindows, where it can be tested;
+ * the wear source set is not on the unit-test classpath.
  */
 internal fun rowVelocities(
     history: List<GlucosePoint>,
     rows: List<GlucosePoint>,
     useRaw: Boolean,
     isMmol: Boolean,
-): Map<Long, Float> {
-    if (rows.isEmpty() || history.isEmpty()) return emptyMap()
-    val windowMs = 35 * 60_000L
-    return rows.associate { row ->
-        val from = row.timestamp - windowMs
-        val window = history.filter { it.timestamp in from..row.timestamp }
-        val velocity = if (window.size >= 2) {
-            TrendAccess.calculateVelocity(window, useRaw, isMmol).takeIf { it.isFinite() } ?: 0f
-        } else {
-            0f
-        }
-        row.timestamp to velocity
-    }
-}
+): Map<Long, Float> = tk.glucodata.TrendWindows.velocities(history, rows, useRaw, isMmol)
 
 internal fun trendArrow(rate: Float): String = runCatching {
     when (Natives.getxDripTrendName(rate)) {

@@ -257,15 +257,27 @@ internal object ComplicationRenderer {
 
     // -------------------------------------------------------------- sparkline
 
+    // One refresh asks every complication to redraw, and each was reading three
+    // hours of history for itself. They are all drawing the same window at the
+    // same instant, so the read is shared for a few seconds.
+    private const val SPARK_CACHE_MS = 5_000L
+    @Volatile private var sparkCache: List<GlucosePoint> = emptyList()
+    @Volatile private var sparkCacheAt = 0L
+
     /** Recent history for the sparkline, or empty when there is too little. */
     fun sparkPoints(isMmol: Boolean): List<GlucosePoint> {
         val now = System.currentTimeMillis()
+        val cached = sparkCache
+        if (cached.isNotEmpty() && now - sparkCacheAt < SPARK_CACHE_MS) return cached
         val from = now - SPARK_WINDOW_MS
-        return runCatching {
+        val points = runCatching {
             val sensor = NotificationHistorySource.resolveSensorSerial()
             NotificationHistorySource.getDisplayHistory(from, isMmol, sensor)
                 .filter { it.timestamp in from..now && it.value.isFinite() && it.value > 0f }
         }.getOrDefault(emptyList())
+        sparkCache = points
+        sparkCacheAt = now
+        return points
     }
 
     /**
