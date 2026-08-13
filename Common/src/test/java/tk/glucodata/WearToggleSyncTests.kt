@@ -61,7 +61,6 @@ class WearToggleSyncTests {
             ExchangeToggles.ID_PATCHED_LIBRE,
             ExchangeToggles.ID_XDRIP_BROADCAST,
             ExchangeToggles.ID_GLUCODATA,
-            ExchangeToggles.ID_EVERSENSE,
             ExchangeToggles.ID_GADGETBRIDGE,
             ExchangeToggles.ID_WATCHDRIP,
             ExchangeToggles.ID_XDRIP_WEBSERVER,

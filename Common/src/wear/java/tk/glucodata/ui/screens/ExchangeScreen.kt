@@ -35,7 +35,7 @@ import tk.glucodata.ui.WearSectionTitle
  * therefore returns on its own rather than showing a state that is not real.
  *
  * Outputs configured by a URL or a recipient list — Nightscout, the outbound
- * API, the Juggluco / patched-Libre / EverSense broadcasts — are not here: for
+ * API, the Juggluco / patched-Libre broadcasts — are not here: for
  * those "off" would mean discarding configuration, which a switch on a watch
  * should not do silently.
  */

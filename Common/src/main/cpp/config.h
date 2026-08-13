@@ -73,9 +73,7 @@
 //#ifndef NOLOG
 //#define SIHISTORY 1
 //#endif
-#ifndef WEAROS
-#define OLDEVERSENSE 1
-#else
+#ifdef WEAROS
 //#define DONTTALK 1
 #endif
 

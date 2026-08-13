@@ -355,31 +355,33 @@ private fun ReadingRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Same affordance the phone's rows carry: the row calibrates, the "+"
-        // logs against that reading's time.
-        if (onAddJournal != null) {
-            Box(
-                Modifier
-                    .padding(end = 8.dp)
-                    .size(22.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .clickable(onClick = onAddJournal),
-                contentAlignment = Alignment.Center,
-            ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "+",
+                    formatter.format(Date(point.timestamp)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Sits just right of the time, where the phone's rows put it:
+                // the row calibrates, the "+" logs against that reading.
+                if (onAddJournal != null) {
+                    Box(
+                        Modifier
+                            .padding(start = 6.dp)
+                            .size(20.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable(onClick = onAddJournal),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "+",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(
-                formatter.format(Date(point.timestamp)),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             // A reading that already carries a calibration shows it, so tapping
             // is understood as editing rather than adding another.
             if (action.hasCalibration) {

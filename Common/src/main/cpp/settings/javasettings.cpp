@@ -1439,21 +1439,6 @@ fromjava(setglucodataRecepters)(JNIEnv *env, jclass cl, jobjectArray jnames) {
                  broad->getmax());
 }
 
-extern "C" JNIEXPORT jobjectArray JNICALL
-fromjava(everSenseRecepters)(JNIEnv *env, jclass cl) {
-  return mkjavastringarray(env, &settings->data()->everSenseBroadcast);
-}
-extern "C" JNIEXPORT void JNICALL
-fromjava(seteverSenseRecepters)(JNIEnv *env, jclass cl, jobjectArray jnames) {
-  auto *broad = &settings->data()->everSenseBroadcast;
-  setstringarray(env, jnames, reinterpret_cast<BroadcastListeners<0> *>(broad),
-                 broad->getmax());
-}
-extern "C" JNIEXPORT jboolean JNICALL
-fromjava(geteverSensebroadcast)(JNIEnv *env, jclass cl) {
-  return settings->data()->everSenseBroadcast.nr;
-}
-
 extern "C" JNIEXPORT jboolean JNICALL fromjava(getxbroadcast)(JNIEnv *env,
                                                               jclass cl) {
   return settings->data()->xdripBroadcast.nr;

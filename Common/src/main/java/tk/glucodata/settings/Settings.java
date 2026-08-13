@@ -1521,7 +1521,6 @@ static private void exchanges(MainActivity context, View parent) {
         uploader.setOnClickListener(v -> tk.glucodata.NightPost.config(context, thelayout[0]));
         final CheckBox librelinkbroadcast = new CheckBox(context);
         final CheckBox libreview = new CheckBox(context);
-        final CheckBox everSensebroadcast = new CheckBox(context);
         final var healthconnect = (isWearable || Build.VERSION.SDK_INT < 28) ? null : getcheckbox(context, "Health Connect", Natives.gethealthConnect());
         final boolean wasxdrip = Natives.getuselibreview();
         final boolean usedlibrebroad = Natives.getlibrelinkused();
@@ -1530,8 +1529,6 @@ static private void exchanges(MainActivity context, View parent) {
         librelinkbroadcast.setText(R.string.patchedlibrebroadcast);
 
         librelinkbroadcast.setChecked(usedlibrebroad);
-        everSensebroadcast.setText(R.string.everSensebroadcast);
-        everSensebroadcast.setChecked(Natives.geteverSensebroadcast());
         if (Build.VERSION.SDK_INT >= 28) {
             healthconnect.setOnCheckedChangeListener((buttonView, isChecked) -> {
                         Natives.sethealthConnect(isChecked);
@@ -1571,20 +1568,9 @@ static private void exchanges(MainActivity context, View parent) {
                     if (!xdripdonthing[0]) {
                         xdripdonthing[0] = true;
                         librelinkbroadcast.setChecked(!isChecked);
-        //                Applic.argToaster(context,R.string.nolibrelink,Toast.LENGTH_LONG);
                         Broadcasts.setlibrereceivers(context, thelayout[0], librelinkbroadcast, xdripdonthing);
                     }
                 });
-
-        final boolean[] everSensenothing = {false};
-        everSensebroadcast.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                    if (!everSensenothing[0]) {
-                        everSensenothing[0] = true;
-                        everSensebroadcast.setChecked(!isChecked);
-                        Broadcasts.seteverSensereceivers(context, thelayout[0], everSensebroadcast, everSensenothing);
-                    }
-                }
-        );
         var help = getbutton(context, R.string.helpname);
       help.setOnClickListener(v->{help(R.string.exchangehelp,context); });
       var exportview=getbutton(context,R.string.export);
@@ -1597,7 +1583,7 @@ static private void exchanges(MainActivity context, View parent) {
         lay = new Layout(context, (l, w, h) -> {
             int[] ret = {w, h};
             return ret;
-        }, new View[]{everSensebroadcast,librelinkbroadcast},new View[]{xdripbroadcast, jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
+        }, new View[]{librelinkbroadcast, xdripbroadcast}, new View[]{jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
                 new View[]{help,meters, ok});
 
     final   int pad=(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0);

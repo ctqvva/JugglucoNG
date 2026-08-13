@@ -344,7 +344,6 @@
  <string name="shortoff">Wył</string>
  <string name="streamingenabled">&quot; Przesył strumienia aktywny&quot;</string>
  <string name="streamingnotenabled">&quot; Przesył strumienia nieaktywny&quot;</string>
-    <string name="everSensebroadcast">EverSense</string>
  <string name="threshold">Próg</string>
  <string name="untouchablequestion">Pływająca glukoza ma być niedotykalna?</string>
 
@@ -876,7 +875,6 @@
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
-    <string name="nolibrelink">Zamiast tego użyj transmisji EverSense. Zobacz pomoc.</string>
     <string name="nonewdata">"Brak nowych danych"</string>
     <string name="not">Not</string>
     <string name="nothing"></string>
@@ -2508,6 +2506,5 @@
     <string name="wear_exchange_phone_only">Nightscout, wychodzące API i transmisje z listą odbiorców konfiguruje się w telefonie.</string>
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Osobno na zegarku</string>
 </resources>

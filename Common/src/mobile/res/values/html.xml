@@ -2548,27 +2548,7 @@ values and amounts to Libreview and to get the account id used during
 Freestyle Libre 3 sensor activation. Touch to change settings.</p>
 <h2 class="western">Patched Libre</h2>
 <p>There is nothing wrong with the Patched Libre broadcast itself, but xDrip modifies the values when it receives them from the Patched Libre broadcast. Because users only use this broadcast this way, I planned to remove the broadcast.</p>
-<p>xDrip doesn’t modify values when it receives glucose values from the EverSense broadcast or if the web server in Juggluco is used as a Nightscout data source.</p>
-<h2 class="western"><a name="eversense"></a>EverSense</h2>
-<p>Yet another glucose broadcast. It can be used to send every minute
-a glucose value to xDrip. In xDrip you need to set “<i>640G/EverSense</i>”
-as the <i>Hardware Data Source</i>. 
-</p>
-<p>xDrip will ignore nearly all of them because of its insistence on
-one value in 5 minutes. You can remove this restriction by editing
-the source code of xDrip. Change <i>4 * 60 * 1000</i> to <i>55 * 1000</i>
-in
-<a href="https://github.com/NightscoutFoundation/xDrip/blob/645e8b4cb8fa3ad7b280f598d6f2f6bdb84ce392/app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java#L969">app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java</a>,
-so that it becomes:</p>
-<p>public static BgReading readingNearTimeStamp(long startTime)
-{<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;long
-margin = (55 * 1000);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
-readingNearTimeStamp(startTime, margin);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</p>
-<p>The advantage over the Patched Libre broadcast is, that xDrip
-doesn’t transform the glucose values in some unspecified manner.</p>
+<p>xDrip doesn’t modify values if the web server in Juggluco is used as a Nightscout data source.</p>
 <h2 class="western">xDrip broadcast</h2>
 <p>Send the same broadcast as turned on in xDrip with
 &quot;<i>Settings-&gt;Inter-app settings-&gt;Broadcast locally&quot;</i>.

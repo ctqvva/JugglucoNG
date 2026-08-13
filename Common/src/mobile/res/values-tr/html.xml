@@ -2725,26 +2725,6 @@ fazla bilgi için: Sol Menü &gt; <a href="https://www.juggluco.nl/Jugglucohelp/
 yalnızca bir uygulama dinleyebilir, bu nedenle Juggluco\'dakini
 kullanmak istiyorsanız xDrip uygulamasında &quot;<i>xDrip
 webservice</i>&quot;i kapatmanız gerekir.</p>
-<h2 class="western"><a name="eversense"></a>EverSense</h2>
-<p>Bir glikoz yayını daha. Her dakika xDrip\'e bir glikoz değeri
-göndermek için kullanılabilir. xDrip\'te <i>Donanım Veri Kaynağı</i>
-olarak “<i>640G/EverSense</i>” ayarlamanız gerekir. 
-</p>
-<p>xDrip, 5 dakikada bir değerde ısrar ettiği için bunların
-neredeyse hepsini yok sayacaktır. Bu kısıtlamayı xDrip\'in kaynak
-kodunu düzenleyerek kaldırabilirsiniz. Change <i>4 * 60 * 1000</i>
-to <i>55 * 1000</i> in
-<a href="https://github.com/NightscoutFoundation/xDrip/blob/645e8b4cb8fa3ad7b280f598d6f2f6bdb84ce392/app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java#L969">app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java</a>,
-böylece olur:</p>
-<p>public static BgReading readingNearTimeStamp(long startTime)
-{<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;long
-margin = (55 * 1000);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
-readingNearTimeStamp(startTime, margin);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</p>
-<p>Yamalı Libre yayınına göre avantajı, xDrip\'in glikoz
-değerlerini kendine göre dönüştürmemesidir.</p>
 <h2 class="western">xDrip Yayını</h2>
 <p>xDrip\'te açık olan aynı yayını &quot;<i>Ayarlar &gt;
 Uygulamalar arası ayarlar &gt; Yerel olarak yayınla&quot;</i>

@@ -636,7 +636,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     /**
      * Every outbound use of a reading: broadcasts, the outbound API, Nightscout
      * and LibreView through numdata, the widget, and the xDrip / Gadgetbridge /
-     * EverSense / WearInt targets.
+     * WearInt targets.
      *
      * Split out of {@link #dowithglucose} so a reading that arrived from the
      * watch can travel exactly the same way. When the watch holds the sensor the
@@ -662,7 +662,6 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 || outboundApiEnabled
                 || (shouldBroadcastMinuteUpdate && (
                         Natives.getlibrelinkused()
-                        || Natives.geteverSensebroadcast()
                         || Natives.getxbroadcast()
                         || doWearInt
                         || doGadgetbridge));
@@ -709,8 +708,6 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             if (!isWearable) {
                 if (Natives.getlibrelinkused() && shouldEmitExchangeUpdate)
                     XInfuus.sendGlucoseBroadcast(exchangePayload.getSensorId(), exchangePayload.getPrimaryMgdl(), exchangePayload.getRate(), exchangePayload.getTimeMillis(), sensorstartmsec);
-                if (Natives.geteverSensebroadcast() && shouldEmitExchangeUpdate)
-                    EverSense.broadcastglucose(exchangePayload);
                 // SendNSClient.broadcastglucose(mgdl, rate, timmsec);
             }
             if (Natives.getxbroadcast() && shouldEmitExchangeUpdate)

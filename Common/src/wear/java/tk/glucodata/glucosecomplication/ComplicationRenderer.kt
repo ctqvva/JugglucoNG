@@ -41,11 +41,26 @@ internal object ComplicationRenderer {
     const val SPARK_WINDOW_MS = 3L * 60L * 60L * 1000L
 
     /**
-     * Fraction of the bitmap left empty around the artwork. Watch faces crop
-     * PHOTO images to the slot shape, usually a circle, so content in the
-     * corners is lost and content at the edge touches the rim.
+     * Margin around a PHOTO image. Faces crop these to the slot shape, usually a
+     * circle, so the corners are lost — but only just: the inscribed square of a
+     * circle needs about 15% off each side, and more than that only makes the
+     * artwork small.
      */
-    private const val CONTENT_INSET = 0.17f
+    private const val PHOTO_INSET = 0.11f
+
+    /**
+     * Margin around an ICON (MonochromaticImage). Faces scale these to the slot
+     * themselves rather than cropping, so built-in padding is wasted space —
+     * which is why the small arrow and value slots came out tiny.
+     */
+    private const val ICON_INSET = 0.03f
+
+    /**
+     * Icons are tinted by the watch face, so their own colour is only a mask.
+     * Drawing them in the range colour left them half-transparent and off-tone
+     * next to every other complication on the face.
+     */
+    const val ICON_TINT = 0xFFFFFFFF.toInt()
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val bounds = Rect()
@@ -96,9 +111,10 @@ internal object ComplicationRenderer {
      * proportions the Compose renderer uses, so a glance at the watch face and a
      * glance at the app agree.
      */
-    fun arrowBitmap(size: Int, rateMgdlPerMin: Float, color: Int): Bitmap {
+    @JvmOverloads
+    fun arrowBitmap(size: Int, rateMgdlPerMin: Float, color: Int, icon: Boolean = true): Bitmap {
         val (bmp, canvas) = bitmap(size, size)
-        val inset = size * CONTENT_INSET
+        val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
         drawArrow(canvas, size - inset * 2f, size - inset * 2f, rateMgdlPerMin, color, inset, inset)
         return bmp
     }
@@ -107,21 +123,35 @@ internal object ComplicationRenderer {
      * Arrow with the reading's time underneath — the compact slot the watch
      * faces put next to the value.
      */
-    fun arrowWithTimeBitmap(size: Int, rateMgdlPerMin: Float, timeMillis: Long, color: Int): Bitmap {
+    @JvmOverloads
+    fun arrowWithTimeBitmap(
+        size: Int,
+        rateMgdlPerMin: Float,
+        timeMillis: Long,
+        color: Int,
+        icon: Boolean = true,
+    ): Bitmap {
         val (bmp, canvas) = bitmap(size, size)
-        val inset = size * CONTENT_INSET
+        val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
         val content = size - inset * 2f
-        // The arrow keeps the upper two-thirds; the time sits under it, small.
-        val arrowBox = content * 0.68f
+        // The arrow takes three quarters of the height; the time is a caption
+        // under it, not a second line competing with it.
+        val arrowBox = content * 0.74f
         drawArrow(
             canvas, arrowBox, arrowBox, rateMgdlPerMin, color,
             inset + (content - arrowBox) / 2f, inset,
         )
-        drawTimeLabel(canvas, size.toFloat(), inset + arrowBox + content * 0.24f, timeMillis)
+        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color)
         return bmp
     }
 
-    private fun drawTimeLabel(canvas: Canvas, width: Float, baselineY: Float, timeMillis: Long) {
+    private fun drawTimeLabel(
+        canvas: Canvas,
+        width: Float,
+        baselineY: Float,
+        timeMillis: Long,
+        color: Int,
+    ) {
         if (timeMillis <= 0L) return
         val text = runCatching {
             android.text.format.DateFormat.getTimeFormat(Applic.app).format(java.util.Date(timeMillis))
@@ -130,9 +160,9 @@ internal object ComplicationRenderer {
         paint.isAntiAlias = true
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.CENTER
-        paint.color = neutral()
-        paint.alpha = 0xB0
-        paint.textSize = width * 0.16f
+        paint.color = color
+        paint.alpha = 0xC8
+        paint.textSize = width * 0.21f
         canvas.drawText(text, width / 2f, baselineY, paint)
     }
 
@@ -196,30 +226,47 @@ internal object ComplicationRenderer {
     // ------------------------------------------------------------------ value
 
     /** The number alone, sized to the slot. */
-    fun valueBitmap(size: Int, text: String, value: Float, isMmol: Boolean): Bitmap {
+    @JvmOverloads
+    fun valueBitmap(
+        size: Int,
+        text: String,
+        value: Float,
+        isMmol: Boolean,
+        color: Int = valueColor(value, isMmol),
+        icon: Boolean = true,
+    ): Bitmap {
         val (bmp, canvas) = bitmap(size, size)
-        val inset = size * CONTENT_INSET
+        val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
         drawFittedText(
-            canvas, text, valueColor(value, isMmol),
+            canvas, text, color,
             inset, inset, size - inset * 2f, size - inset * 2f,
         )
         return bmp
     }
 
     /** Value with the arrow beside it, for the wider compact slots. */
-    fun valueWithArrowBitmap(size: Int, text: String, value: Float, rate: Float, isMmol: Boolean): Bitmap {
+    @JvmOverloads
+    fun valueWithArrowBitmap(
+        size: Int,
+        text: String,
+        value: Float,
+        rate: Float,
+        isMmol: Boolean,
+        color: Int = valueColor(value, isMmol),
+        icon: Boolean = false,
+    ): Bitmap {
         val (bmp, canvas) = bitmap(size, size)
-        val inset = size * CONTENT_INSET
+        val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
         val content = size - inset * 2f
-        val color = valueColor(value, isMmol)
-        // Value takes the left two-thirds, arrow the rest, both centred.
-        val valueWidth = content * 0.62f
-        drawFittedText(canvas, text, color, inset, inset, valueWidth, content)
-        val arrowBox = content * 0.36f
+        // Value on top, arrow beneath: side by side in a round slot leaves both
+        // small, because the pair has to fit the slot's width at its narrowest.
+        val valueHeight = content * 0.60f
+        drawFittedText(canvas, text, color, inset, inset, content, valueHeight)
+        val arrowBox = content * 0.34f
         drawArrow(
             canvas, arrowBox, arrowBox, rate, color,
-            inset + valueWidth + content * 0.02f,
             inset + (content - arrowBox) / 2f,
+            inset + content - arrowBox,
         )
         return bmp
     }
@@ -298,8 +345,8 @@ internal object ComplicationRenderer {
         val points = sparkPoints(isMmol)
         if (points.size < 2 || width <= 0 || height <= 0) return null
         val (bmp, canvas) = bitmap(width, height)
-        val marginX = if (inset) width * CONTENT_INSET * 0.6f else 0f
-        val marginY = if (inset) height * CONTENT_INSET * 0.6f else 0f
+        val marginX = if (inset) width * PHOTO_INSET else 0f
+        val marginY = if (inset) height * PHOTO_INSET else 0f
         val now = System.currentTimeMillis()
 
         // The value sits above the trace rather than on it: overlaid text at

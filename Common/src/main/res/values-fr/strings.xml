@@ -688,7 +688,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
     <string name="eusibionics">Sibionics EU</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>
@@ -798,7 +797,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
     <string name="nohttpport">The port number should be different from the http port</string>
-    <string name="nolibrelink">Use the EverSense Broadcast instead. See help.</string>
     <string name="nomirrorport">The port number should be different from the mirror port</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
@@ -2480,6 +2478,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_exchange_phone_only">Nightscout, l’API sortante et les diffusions par destinataires se configurent sur le téléphone.</string>
     <string name="exchange_toggle_patched_libre">Libre patché</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Séparé sur la montre</string>
 </resources>

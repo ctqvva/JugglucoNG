@@ -954,12 +954,6 @@ public class Natives {
 
         public static native boolean getlibrelinkused();
 
-        public static native String[] everSenseRecepters();
-
-        public static native boolean geteverSensebroadcast();
-
-        public static native void seteverSenseRecepters(String[] jnames);
-
         public static native String[] xdripRecepters();
 
         public static native void setxdripRecepters(String[] jnames);
@@ -1303,8 +1297,6 @@ public class Natives {
         public static native boolean dexCandidate(long dataptr, String deviceName, String address);
 
         public static native void dexEndBackfill(long dataptr);
-
-        public static native void EverSenseClear(long dataptr);
 
         public static native void setdexcomPredict(boolean val);
 

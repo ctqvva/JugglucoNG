@@ -19,7 +19,6 @@
 /*      Thu Apr 04 20:15:06 CEST 2024 */
 
 #ifdef SIBIONICS
-#include "EverSense.hpp"
 #include "SensorGlucoseData.hpp"
 #include "config.h"
 #include "datbackup.hpp"
@@ -341,10 +340,6 @@ jlong SiContext::processData(SensorGlucoseData *sens, time_t nowsecs,
         backup->wakebackup(Backup::wakestream);
         extern void wakewithcurrent();
         wakewithcurrent();
-
-#ifdef OLDEVERSENSE
-        sendEverSenseold(sens, 5);
-#endif
         return res;
       } else {
         /*                   if(!infuture&&!(index%500)) {

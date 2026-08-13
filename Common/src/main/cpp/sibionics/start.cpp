@@ -421,14 +421,6 @@ sdata->hist->getSiIndex();
 
 extern data_t *fromjbyteArray(JNIEnv *env, jbyteArray jar, jint len = -1);
 
-extern "C" JNIEXPORT void JNICALL fromjava(EverSenseClear)(JNIEnv *env,
-                                                           jclass cl,
-                                                           jlong dataptr) {
-  if (!dataptr)
-    return;
-  if (auto *sens = reinterpret_cast<streamdata *>(dataptr)->hist)
-    sens->setbroadcastfrom(INT16_MAX);
-}
 extern std::string_view libdirname;
 #include "sibionics/json.hpp"
 void *openlib(std::string_view libname) {

@@ -343,7 +343,6 @@
  <string name="interval">Aralık</string>
  <string name="streamingenabled">" Akış Etkin"</string>
  <string name="streamingnotenabled">" Akış Devre Dışı"</string>
-    <string name="everSensebroadcast">EverSense</string>
  <string name="threshold">Eşik</string>
  <string name="untouchablequestion">Yüzen glikoz dokunulmaz yapılsın mı?</string>
 
@@ -858,7 +857,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
-    <string name="nolibrelink">Use the EverSense Broadcast instead. See help.</string>
     <string name="nonewdata">"No new data"</string>
     <string name="nothing"></string>
     <string name="notifications">Uyarılar ve bildirimler</string>
@@ -2502,6 +2500,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wear_exchange_phone_only">Nightscout, giden API ve alıcı listeli yayınlar telefonda ayarlanır.</string>
     <string name="exchange_toggle_patched_libre">Yamalı Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Saatte ayrı</string>
 </resources>

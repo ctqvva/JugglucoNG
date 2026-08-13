@@ -355,7 +355,6 @@
  <string name="shortoff">Off</string>
  <string name="streamingenabled">" Streaming enabled"</string>
  <string name="streamingnotenabled">" Streaming not enabled"</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
  <string name="threshold">Threshold</string>
  <string name="untouchablequestion">Make floating glucose untouchable?</string>
 
@@ -431,7 +430,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
  <string name="mirrorscansucces">Successfully added connection to left middle menu→Mirror.</string>
  <string name="resettitle">Reset</string>
  <string name="resetmessage">Clears transmitter memory. Should be pressed before using a new sensor in an already used transmitter.</string>
- <string name="nolibrelink">Use the EverSense Broadcast instead. See help.</string>
  <string name="calibration">Calibration</string>
  <string name="exclude">Exclude</string>
  <string name="calibratepast">Apply to past</string>
@@ -2699,6 +2697,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_exchange_phone_only">Nightscout, the outbound API and the recipient-based broadcasts are set up on the phone.</string>
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Separate on watch</string>
 </resources>

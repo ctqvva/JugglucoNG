@@ -2616,26 +2616,7 @@ glucose waarden naar Libreview verzonden worden. Voor Freestyle Libre
 Druk er op om de instellingen te wijzigen.</p>
 <h2 class="western">Patched Libre</h2>
 <p>Er is niets mis met de Patched Libre-broadcast zelf, maar xDrip wijzigt de waarden wanneer het deze ontvangt van de Patched Libre-broadcast. Omdat gebruikers deze broadcast alleen op deze manier gebruiken, was ik van plan de broadcast te verwijderen.</p>
-<p>xDrip wijzigt de waarden niet wanneer het glucosewaarden ontvangt van de EverSense-Broadcast of als de webserver in Juggluco wordt gebruikt als Nightscout-gegevensbron.</p>
-<h2 class="western">EverSense broadcast</h2>
-<p style="background: transparent">Nog een glucose broadcast. Hiermee
-kan elke minuut een glucosewaarde naar xDrip worden verzonden. xDrip
-negeert ze bijna allemaal vanwege het vasthouden aan één waarde in
-5 minuten. Je kunt deze beperking verwijderen door de broncode van
-xDrip te bewerken. Wijzig&nbsp;<i>4 * 60 * 1000</i>&nbsp;in&nbsp;<i>55
-*
-1000</i>&nbsp;in&nbsp;<a href="https://github.com/NightscoutFoundation/xDrip/blob/645e8b4cb8fa3ad7b280f598d6f2f6bdb84ce392/app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java#L969">app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java</a>&nbsp;,
-zodat het wordt:</p>
-<p>public static BgReading readingNearTimeStamp(long startTime)
-{<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;long
-margin = (55 * 1000);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
-readingNearTimeStamp(startTime, margin);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</p>
-<p style="background: transparent">Het voordeel ten opzichte van de
-Patched Libre broadcast is dat xDrip de glucosewaarden niet op een
-onnavolgbare wijze transformeert.</p>
+<p>xDrip wijzigt de waarden niet als de webserver in Juggluco wordt gebruikt als Nightscout-gegevensbron.</p>
 <h2 class="western">xDrip broadcast</h2>
 <p>Stuur dezelfde broadcast als ingeschakeld in xDrip met
 &quot;Settings-&gt;Inter-app-settings-&gt;Broadcast locally&quot;.

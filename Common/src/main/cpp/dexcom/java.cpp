@@ -709,15 +709,9 @@ fromjava(dexCandidate)(JNIEnv *env, jclass cl, jlong dataptr,
     return false;
   }
 }
-#include "EverSense.hpp"
 extern "C" JNIEXPORT void JNICALL fromjava(dexEndBackfill)(JNIEnv *env,
                                                            jclass cl,
                                                            jlong dataptr) {
   backup->wakebackup(Backup::wakestream);
-#ifdef OLDEVERSENSE
-  if (!settings->data()->everSenseBroadcast.nr)
-    return;
-  sendEverSenseold(reinterpret_cast<const streamdata *>(dataptr)->hist, 1);
-#endif
 }
 #endif

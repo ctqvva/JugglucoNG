@@ -353,7 +353,10 @@ struct Tings {
   union {
     struct {
       BroadcastListeners<2> librelinkBroadcast;
-      BroadcastListeners<3> everSenseBroadcast;
+      // Was the EverSense broadcast, removed. The slot stays: this struct is
+      // mmap'd straight off disk, so dropping it would shift every field
+      // after it and misread existing settings files.
+      BroadcastListeners<3> unusedBroadcast3;
       BroadcastListeners<10> xdripBroadcast;
       BroadcastListeners<10> glucodataBroadcast;
     };

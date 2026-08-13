@@ -2771,27 +2771,7 @@ Konto-ID zu erhalten, die bei der Aktivierung des Freestyle Libre
 </p>
 <h2 class="western" align="left">Patched Libre</h2>
 <p>Der Patched Libre-Broadcast selbst ist in Ordnung, aber xDrip ändert die Werte, wenn es sie vom Patched Libre-Broadcast empfängt. Da Nutzer diesen Broadcast ausschließlich auf diese Weise verwenden, plante ich, den Broadcast zu entfernen.</p>
-<p>xDrip ändert keine Werte, wenn es Glukosewerte vom EverSense-Broadcast empfängt oder wenn der Webserver in Juggluco als Nightscout-Datenquelle verwendet wird.</p>
-<h2 class="western" align="left">EverSense Broadcast</h2>
-<p style="background: transparent"><span lang="de-DE">Noch eine
-Glukosebroadcast. Damit kann jede Minute ein Glukosewert an xDrip
-gesendet werden. xDrip ignoriert fast alle davon, da es auf einem
-Wert in 5 Minuten besteht. Sie können diese Einschränkung aufheben,
-indem Sie den Quellcode von xDrip bearbeiten. Ändern Sie&nbsp;</span><span lang="de-DE"><i>4
-* 60 * 1000</i></span><span lang="de-DE">&nbsp;in&nbsp;</span><span lang="de-DE"><i>55
-*
-1000</i></span><span lang="de-DE">&nbsp;in&nbsp;<a href="https://github.com/NightscoutFoundation/xDrip/blob/645e8b4cb8fa3ad7b280f598d6f2f6bdb84ce392/app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java#L969">app/src/main/java/com/eveningoutpost/dexdrip/models/BgReading.java</a>&nbsp;,
-sodass Folgendes entsteht:</span></p>
-<p>public static BgReading readingNearTimeStamp(long startTime)
-{<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;long
-margin = (55 * 1000);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
-readingNearTimeStamp(startTime, margin);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</p>
-<p style="background: transparent">Der Vorteil gegenüber der Patched
-Libre broadcast besteht darin, dass xDrip die Glukosewerte nicht auf
-eine nicht spezifizierte Weise umwandelt.</p>
+<p>xDrip ändert keine Werte, wenn der Webserver in Juggluco als Nightscout-Datenquelle verwendet wird.</p>
 <h2 class="western" align="left">xDrip Broadcast</h2>
 <p align="left" style="margin-bottom: 0in">Senden Sie die gleiche
 Broadcast, die in xDrip mit

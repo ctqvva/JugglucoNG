@@ -1328,7 +1328,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
         setjavahour24(Natives.gethour24());
         XInfuus.setlibrenames();
-        EverSense.setreceivers();
         JugglucoSend.setreceivers();
         SendLikexDrip.setreceivers();
     }

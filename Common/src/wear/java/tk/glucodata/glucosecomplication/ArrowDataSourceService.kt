@@ -100,10 +100,10 @@ class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
 
     companion object {
         private const val LOG_ID = "ArrowDataSourceService"
-        private const val ICON_SIZE = 128
+        private const val ICON_SIZE = 256
 
         /** Tinted by the watch face, so the drawn colour is only a mask. */
-        private const val MONOCHROME = 0xFFFFFFFF.toInt()
+        private val MONOCHROME = ComplicationRenderer.ICON_TINT
    val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        ArrowDataSourceService::class.java
    ))

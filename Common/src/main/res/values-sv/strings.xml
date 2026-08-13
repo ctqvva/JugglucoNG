@@ -329,7 +329,6 @@
   <string name="off">Av</string>
   <string name="streamingenabled">" Strömmande aktiverat"</string>
   <string name="streamingnotenabled">" Strömmande avstängt"</string>
-  <string name="everSensebroadcast">EverSense</string>
   <string name="threshold">Tröskel</string>
   <string name="untouchablequestion">Gör flytande glukos opekbar?</string>
 
@@ -823,7 +822,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
-    <string name="nolibrelink">Use the EverSense Broadcast instead. See help.</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>
@@ -2474,6 +2472,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_exchange_phone_only">Nightscout, det utgående API:et och mottagarbaserade sändningar ställs in på telefonen.</string>
     <string name="exchange_toggle_patched_libre">Patchad Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Separat på klockan</string>
 </resources>

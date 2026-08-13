@@ -376,7 +376,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 <string name="scantranstitle">TRANSMITTER datamatrix scannen</string>
 <string name="scantransmessage">Sibionics 2 sensor datamatrix succesvol gescand. \nScan nu de transmitter datamatrix."</string>
  <string name="mirrorscansucces">Verbinding toevoegt aan linker midden menu → Kloon</string>
- <string name="nolibrelink">Gebruik in plaats hiervan EverSense Broadcast. Zie help.</string>
  <string name="calibration">Kalibratie</string>
 <string name="exclude">Sluit uit</string>
 <string name="calibratepast">Toepassen op verleden</string>
@@ -799,7 +798,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="eusibionics">Sibionics EU</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
     <string name="factory_reset_confirm">Factory Reset?</string>
@@ -2517,6 +2515,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_exchange_phone_only">Nightscout, de uitgaande API en de ontvangergebaseerde uitzendingen stel je op de telefoon in.</string>
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Apart op het horloge</string>
 </resources>

@@ -649,7 +649,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
     <string name="eusibionics">Sibionics EU</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
@@ -771,7 +770,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="noaccountidspecified">"No account id specified "</string>
     <string name="noapplisteningto">"No app listening to "</string>
     <string name="nohttpport">The port number should be different from the http port</string>
-    <string name="nolibrelink">Use the EverSense Broadcast instead. See help.</string>
     <string name="nomirrorport">The port number should be different from the mirror port</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
@@ -2475,6 +2473,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_exchange_phone_only">O Nightscout, a API de saída e as difusões por destinatários configuram-se no telemóvel.</string>
     <string name="exchange_toggle_patched_libre">Libre modificado</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Separado no relógio</string>
 </resources>

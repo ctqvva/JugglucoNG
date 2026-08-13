@@ -21,7 +21,7 @@ package tk.glucodata;
  * carries the sensor's own estimate, which lags fast moves badly — a
  * receiver rotating its arrow by it ends up contradicting this app's arrow
  * and its own delta readout. With the toggle enabled, every exchange output
- * (glucodata broadcast, xDrip-style, EverSense, watch, Gadgetbridge, API)
+ * (glucodata broadcast, xDrip-style, watch, Gadgetbridge, API)
  * carries the same trend the app's own arrows show instead.
  */
 public final class BroadcastTrendRate {

@@ -24,7 +24,6 @@ object ExchangeToggles {
     const val ID_PATCHED_LIBRE = "patched_libre"
     const val ID_XDRIP_BROADCAST = "xdrip_broadcast"
     const val ID_GLUCODATA = "glucodata"
-    const val ID_EVERSENSE = "eversense"
     const val ID_GADGETBRIDGE = "gadgetbridge"
     const val ID_WATCHDRIP = "watchdrip"
     const val ID_XDRIP_WEBSERVER = "xdrip_webserver"
@@ -103,14 +102,6 @@ object ExchangeToggles {
                 { Natives.getJugglucobroadcast() },
                 { Natives.setglucodataRecepters(it) },
                 { JugglucoSend.setreceivers() },
-            ),
-            broadcastToggle(
-                ID_EVERSENSE,
-                R.string.exchange_toggle_eversense,
-                EverSense.glucoseaction,
-                { Natives.geteverSensebroadcast() },
-                { Natives.seteverSenseRecepters(it) },
-                { EverSense.setreceivers() },
             ),
             Toggle(
                 ID_GADGETBRIDGE,

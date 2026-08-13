@@ -52,15 +52,14 @@ class ShortArrowValueDataSourceService: SuspendingComplicationDataSourceService(
      * Arrow plus the reading's time, drawn by ComplicationRenderer so the angle
      * and colour match the app rather than the legacy geometry.
      */
-    private fun arrowTimeBitmap(rate: Float, timeMillis: Long): android.graphics.Bitmap {
-        val isMmol = ComplicationRenderer.isMmol()
-        val value = GlucoseComplicationData.currentReading()?.value ?: Float.NaN
-        return ComplicationRenderer.arrowWithTimeBitmap(
-            ICON_PX, rate, timeMillis, ComplicationRenderer.valueColor(value, isMmol),
+    private fun arrowTimeBitmap(rate: Float, timeMillis: Long): android.graphics.Bitmap =
+        // Drawn as a mask: the watch face tints an ICON, so a range colour here
+        // came out off-tone beside every other complication on the face.
+        ComplicationRenderer.arrowWithTimeBitmap(
+            ICON_PX, rate, timeMillis, ComplicationRenderer.ICON_TINT,
         )
-    }
 
-    private val ICON_PX = 128
+    private val ICON_PX = 256
 
 private var glview: GlucoseValue? =null
 

@@ -383,7 +383,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="scantranstitle">TRANSMITTER-Datenmatrix scannen</string>
 <string name="scantransmessage">Sibionics 2 Sensor-Datenmatrix erfolgreich gescannt. \nScannen Sie jetzt die Transmitter-Datenmatrix.</string>
  <string name="mirrorscansucces">Verbindung zum linken mittleren Menü → Klon erfolgreich hinzugefügt.</string>
- <string name="nolibrelink">Verwenden Sie stattdessen EverSense Broadcast. Siehe Hilfe.</string>
  <string name="calibration">Kalibrierung</string>
 <string name="exclude">Ausschließen</string>
 <string name="calibratepast">Auf Vergangenheit anwenden</string>
@@ -827,7 +826,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="disconnect_sensor_title">Sensor trennen?</string>
     <string name="enabled_status">Aktiviert</string>
     <string name="eusibionics">Sibionics EU</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
     <string name="expired">Abgelaufen</string>
     <string name="factory_reset_alert">ALLES wird entfernt. Kann nicht rückgängig gemacht werden!</string>
     <string name="factory_reset_confirm">Werkseinstellungen?</string>
@@ -2513,6 +2511,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="wear_exchange_phone_only">Nightscout, die ausgehende API und die empfängerbasierten Übertragungen werden am Telefon eingerichtet.</string>
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Getrennt auf der Uhr</string>
 </resources>

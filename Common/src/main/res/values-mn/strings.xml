@@ -340,7 +340,6 @@
     <string name="shortoff">Унт.</string>
     <string name="streamingenabled">" Дамжуулалт идэвхжсэн"</string>
     <string name="streamingnotenabled">" Дамжуулалт идэвхжээгүй"</string>
-    <string name="everSensebroadcast">EverSense Broadcast</string>
     <string name="threshold">Босго</string>
     <string name="untouchablequestion">Хөвөгч глюкозыг хүрэх боломжгүй болгох уу?</string>
     <string name="hour12">12ц</string>
@@ -406,7 +405,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirrorscansucces">Зүүн дунд цэс→Mirror руу холболтыг амжилттай нэмлээ.</string>
     <string name="resettitle">Дахин тохируулах</string>
     <string name="resetmessage">Дамжуулагчийн санах ойг цэвэрлэнэ. Өмнө нь ашиглаж байсан дамжуулагчид шинэ мэдрэгч ашиглахын өмнө дарах ёстой.</string>
-    <string name="nolibrelink">Оронд нь EverSense Broadcast-ийг ашиглана уу. Тусламжийг үзнэ үү.</string>
     <string name="calibration">Каллибраци</string>
     <string name="exclude">Хасах</string>
     <string name="calibratepast">Өнгөрсөнд хэрэглэх</string>
@@ -2589,6 +2587,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_exchange_phone_only">Nightscout, гадагш API болон хүлээн авагчтай дамжуулалтыг утсанд тохируулна.</string>
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
-    <string name="exchange_toggle_eversense">EverSense</string>
     <string name="exchange_toggle_separate">Цагт тусад нь</string>
 </resources>

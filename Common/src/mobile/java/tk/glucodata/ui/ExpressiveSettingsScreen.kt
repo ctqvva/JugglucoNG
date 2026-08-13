@@ -405,7 +405,6 @@ fun ExpressiveSettingsScreen(
                 // enabled, otherwise turning the last consumer off would strand it out of reach.
                 val anyExchangeConsumer = patchedLibreEnabled || xdripEnabled || glucodataBroadcastEnabled ||
                         OutboundApiSettings.isEnabled() ||
-                        Natives.geteverSensebroadcast() ||
                         Natives.getgadgetbridge() ||
                         Natives.getwatchdrip()
                 if (anyExchangeConsumer || broadcastComputedTrend) {

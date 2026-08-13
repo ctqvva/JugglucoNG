@@ -52,7 +52,11 @@ class IconValueDataSourceService: SuspendingComplicationDataSourceService()  {
     private fun valueBitmap(text: String, timeMillis: Long): android.graphics.Bitmap {
         val isMmol = ComplicationRenderer.isMmol()
         val value = GlucoseComplicationData.currentReading()?.value ?: Float.NaN
-        return ComplicationRenderer.valueBitmap(128, text, value, isMmol)
+        // ICON slots are tinted by the face, so the mask is drawn white; the
+        // SHORT_TEXT and RANGED_VALUE forms carry the value as text instead.
+        return ComplicationRenderer.valueBitmap(
+            256, text, value, isMmol, ComplicationRenderer.ICON_TINT,
+        )
     }
 
 private var glview: GlucoseValue? =null

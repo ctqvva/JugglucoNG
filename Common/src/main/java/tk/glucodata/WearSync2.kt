@@ -509,7 +509,7 @@ object WearSync2 {
     /**
      * Runs the newest synced reading through the same outbound path a locally
      * read one takes: Nightscout and LibreView through numdata, the outbound
-     * API, the widget, and the xDrip / Gadgetbridge / EverSense / WearInt
+     * API, the widget, and the xDrip / Gadgetbridge / WearInt
      * broadcasts.
      *
      * While the watch holds the sensor the phone's BLE callback never fires, so
