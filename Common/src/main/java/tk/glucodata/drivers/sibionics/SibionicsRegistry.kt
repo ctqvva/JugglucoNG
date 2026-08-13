@@ -180,7 +180,13 @@ object SibionicsRegistry {
         )
     }
 
+    /**
+     * @param variantIsUserChoice true only when the caller is the setup flow acting on a type the
+     *   user just picked. Every other caller inherits the recorded type: nothing the driver
+     *   observes on air may re-type a sensor. See [SibionicsVariantLock].
+     */
     @JvmStatic
+    @JvmOverloads
     fun ensureSensorRecord(
         context: Context,
         rawInput: String?,
@@ -189,18 +195,31 @@ object SibionicsRegistry {
         variant: SibionicsConstants.Variant,
         shortCodeOverride: String? = null,
         bleNameOverride: String? = null,
+        variantIsUserChoice: Boolean = false,
     ): SensorRecord {
-        val identity = buildIdentity(rawInput, bleNameOverride ?: displayName, variant)
+        val records = persistedRecords(context).toMutableList()
+        // The requested variant shapes the identity (only Sibionics 2 uses the structured V120
+        // serial), so resolve the locked variant first and rebuild the identity under it.
+        val probe = locateRecord(records, buildIdentity(rawInput, bleNameOverride ?: displayName, variant))
+        val lockedVariant = SibionicsVariantLock.variantForWrite(
+            existingVariant = records.getOrNull(probe)?.variant,
+            requestedVariant = variant,
+            isUserChoice = variantIsUserChoice,
+        )
+        if (lockedVariant != variant) {
+            Log.w(
+                SibionicsConstants.TAG,
+                "refusing to re-type ${records.getOrNull(probe)?.sensorId} as ${variant.id}; " +
+                    "it stays ${lockedVariant.id} until setup says otherwise",
+            )
+        }
+        val identity = buildIdentity(rawInput, bleNameOverride ?: displayName, lockedVariant)
         val sensorId = identity.sensorId
         val shortCode = shortCodeOverride
             ?.let { SibionicsConstants.normalizeBleName(it) }
             ?.takeIf { it.length == 8 }
             ?: identity.shortCode
-        val records = persistedRecords(context).toMutableList()
-        val idx = records.indexOfFirst {
-            it.matchesId(sensorId) ||
-                (identity.bleName.isNotBlank() && it.matchesId(identity.bleName))
-        }
+        val idx = if (lockedVariant == variant) probe else locateRecord(records, identity)
         val existing = records.getOrNull(idx)
         val normalizedAddress = SibionicsConstants.normalizeBleAddress(address)
             ?: SibionicsConstants.normalizeBleAddress(existing?.address)
@@ -218,20 +237,27 @@ object SibionicsRegistry {
             sensorId = sensorId,
             address = normalizedAddress,
             displayName = visible,
-            variant = variant,
+            variant = lockedVariant,
             shortCode = shortCode,
             bleName = bleName,
             legacyNativeName = existing?.legacyNativeName.orEmpty(),
         )
         if (idx >= 0) records[idx] = record else records.add(record)
         writeRecords(context, records)
-        saveVariant(context, sensorId, variant)
+        saveVariant(context, sensorId, lockedVariant)
         saveShortCode(context, sensorId, shortCode)
         ManagedSensorUiSignals.markDeviceListDirty()
         SensorIdentity.invalidateCaches()
         return record
     }
 
+    private fun locateRecord(records: List<SensorRecord>, identity: SetupIdentity): Int =
+        records.indexOfFirst {
+            it.matchesId(identity.sensorId) ||
+                (identity.bleName.isNotBlank() && it.matchesId(identity.bleName))
+        }
+
+    /** Setup adding a sensor: the one path allowed to state, or restate, what a sensor is. */
     @JvmStatic
     fun addSensorAndStart(
         context: Context,
@@ -248,6 +274,7 @@ object SibionicsRegistry {
             displayName = displayName,
             variant = variant,
             bleNameOverride = bleName,
+            variantIsUserChoice = true,
         )
         runCatching {
             if (tk.glucodata.Natives.getusebluetooth()) {
@@ -691,19 +718,41 @@ object SibionicsRegistry {
         prefs(context).edit().putString(PREF_PROTOCOL_PREFIX + sensorId, mode.name).apply()
     }
 
-    fun loadVariant(context: Context, sensorId: String): SibionicsConstants.Variant =
-        SibionicsConstants.Variant.fromId(
-            prefs(context).getString(PREF_VARIANT_PREFIX + sensorId, null)
-                ?: findRecord(context, sensorId)?.variant?.id,
-        )
+    /**
+     * The type this sensor was set up as. The record written by setup wins over the per-sensor
+     * copy, which older builds rewrote from an authentication guess; a disagreement is that damage
+     * and is healed here, so a sensor that came back as the wrong type after a reconnect returns to
+     * what the user chose.
+     */
+    fun loadVariant(context: Context, sensorId: String): SibionicsConstants.Variant {
+        val record = findRecord(context, sensorId)
+        val cached = variantById(prefs(context).getString(PREF_VARIANT_PREFIX + sensorId, null))
+        val locked = SibionicsVariantLock.lockedVariant(record?.variant, cached)
+        if (record != null && cached != null && cached != locked) {
+            Log.w(
+                SibionicsConstants.TAG,
+                "healing cached variant ${cached.id} back to the recorded ${locked.id} for $sensorId",
+            )
+            saveVariant(context, sensorId, locked)
+            if (!record.sensorId.equals(sensorId, ignoreCase = true)) {
+                saveVariant(context, record.sensorId, locked)
+            }
+        }
+        return locked
+    }
 
     fun saveVariant(context: Context, sensorId: String, variant: SibionicsConstants.Variant) {
         prefs(context).edit().putString(PREF_VARIANT_PREFIX + sensorId, variant.id).apply()
     }
 
+    private fun variantById(raw: String?): SibionicsConstants.Variant? {
+        val id = raw?.takeIf { it.isNotBlank() } ?: return null
+        return SibionicsConstants.Variant.entries.firstOrNull { it.id == id }
+    }
+
     /**
      * Key group that last authenticated this sensor. Only an ordering hint for the next
-     * connection — never identity. See [SibionicsVariantAttribution].
+     * connection — never identity. See [SibionicsVariantLock].
      */
     fun loadAuthKeyHint(context: Context, sensorId: String): SibionicsConstants.Variant? {
         val raw = prefs(context).getString(PREF_AUTH_KEY_HINT_PREFIX + sensorId, null)
@@ -714,33 +763,6 @@ object SibionicsRegistry {
 
     fun saveAuthKeyHint(context: Context, sensorId: String, variant: SibionicsConstants.Variant) {
         prefs(context).edit().putString(PREF_AUTH_KEY_HINT_PREFIX + sensorId, variant.id).apply()
-    }
-
-    /**
-     * Persist a variant only after the sensor has accepted that variant's authentication key.
-     * Authentication fallback must never rewrite identity while merely trying candidate keys.
-     */
-    fun confirmAuthenticatedVariant(
-        context: Context,
-        sensorId: String,
-        variant: SibionicsConstants.Variant,
-    ): SensorRecord? {
-        val records = persistedRecords(context).toMutableList()
-        val index = records.indexOfFirst { it.matchesId(sensorId) }
-        val existing = records.getOrNull(index)
-        val updated = existing?.copy(variant = variant)
-        if (index >= 0 && updated != null) records[index] = updated
-
-        val canonicalId = updated?.sensorId ?: SibionicsConstants.canonicalSensorId(sensorId)
-        val editor = prefs(context).edit()
-            .putString(PREF_VARIANT_PREFIX + canonicalId, variant.id)
-        if (updated != null) {
-            editor.putStringSet(PREF_SENSORS, records.map(::encodeRecord).toSet())
-        }
-        editor.apply()
-        ManagedSensorUiSignals.markDeviceListDirty()
-        SensorIdentity.invalidateCaches()
-        return updated
     }
 
     fun loadShortCode(context: Context, sensorId: String): String =

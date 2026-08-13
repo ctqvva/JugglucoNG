@@ -166,6 +166,7 @@ class SibionicsBleManager(
     @Volatile private var authCandidateVariant: SibionicsConstants.Variant? = null
     @Volatile private var authKeyHint: SibionicsConstants.Variant? = null
     @Volatile private var connectionKeyGroups: List<SibionicsConstants.Variant> = emptyList()
+    @Volatile private var loggedChineseProtocolMismatch: Boolean = false
     @Volatile private var pendingResetCommand: Boolean = false
     @Volatile private var discardNotificationsUntilResetDisconnect: Boolean = false
     @Volatile private var loggedDiscardedPostResetNotification: Boolean = false
@@ -277,9 +278,9 @@ class SibionicsBleManager(
         val restored = SibionicsRegistry.findRecord(context, SerialNumber)
         record = restored
         restored?.let {
-            variant = it.variant
             mActiveDeviceAddress = it.address.ifBlank { null }
         }
+        // Setup's record decides this, for the whole life of the sensor.
         variant = SibionicsRegistry.loadVariant(context, SerialNumber)
         authKeyHint = SibionicsRegistry.loadAuthKeyHint(context, SerialNumber)
         protocolMode = SibionicsConstants.initialProtocolMode(
@@ -553,7 +554,7 @@ class SibionicsBleManager(
                 rawInput = rec.displayName,
                 address = normalized,
                 displayName = rec.displayName,
-                variant = variant,
+                variant = rec.variant,
                 shortCodeOverride = shortCode,
                 bleNameOverride = pendingMatchedBleName.takeIf { it.isNotBlank() } ?: rec.bleName,
             )
@@ -936,7 +937,7 @@ class SibionicsBleManager(
                     protocolMode = SibionicsConstants.ProtocolMode.CHINESE
                     Applic.app?.let { SibionicsRegistry.saveProtocolMode(it, SerialNumber, protocolMode) }
                 }
-                confirmChineseVariant()
+                noteChineseProtocol()
                 handler.removeCallbacks(chineseProbeTimeoutRunnable)
                 handler.removeCallbacks(chineseDataTimeoutRunnable)
                 if (phase != Phase.STREAMING) {
@@ -951,7 +952,7 @@ class SibionicsBleManager(
                     protocolMode = SibionicsConstants.ProtocolMode.CHINESE
                     Applic.app?.let { SibionicsRegistry.saveProtocolMode(it, SerialNumber, protocolMode) }
                 }
-                confirmChineseVariant()
+                noteChineseProtocol()
                 handler.removeCallbacks(chineseProbeTimeoutRunnable)
                 handler.removeCallbacks(chineseDataTimeoutRunnable)
                 phase = Phase.STREAMING
@@ -972,16 +973,19 @@ class SibionicsBleManager(
         }
     }
 
-    private fun confirmChineseVariant() {
-        if (variant == SibionicsConstants.Variant.CHINESE) return
-        // Protocol-level evidence, not a key guess: only Chinese firmware speaks AA55.
-        Applic.app?.let { context ->
-            applyConfirmedVariant(context, SibionicsConstants.Variant.CHINESE)
-        } ?: run { variant = SibionicsConstants.Variant.CHINESE }
-        synchronized(algorithmLock) {
-            algorithm.configure(shortCode, sensitivity, variant, algorithmSelection)
-        }
-        Log.i(SibionicsConstants.TAG, "confirmed Chinese protocol variant serial=$SerialNumber")
+    /**
+     * AA55 says which protocol the firmware speaks — which [protocolMode] already records — not
+     * which type the user set this sensor up as. Re-typing on it is how a sensor used to rename
+     * itself mid-session, so it is only reported.
+     */
+    private fun noteChineseProtocol() {
+        if (variant == SibionicsConstants.Variant.CHINESE || loggedChineseProtocolMismatch) return
+        loggedChineseProtocolMismatch = true
+        Log.w(
+            SibionicsConstants.TAG,
+            "sensor speaks the Chinese protocol but was set up as ${variant.id}; keeping the type " +
+                "chosen at setup serial=$SerialNumber",
+        )
     }
 
     private fun handleV120(result: SibionicsProtocol.ParseResult) {
@@ -1016,28 +1020,21 @@ class SibionicsBleManager(
                 }
                 clearV120StepTimeouts()
                 protocolMode = SibionicsConstants.ProtocolMode.V120
+                // The ACK carries nothing identifying the key that unlocked the sensor, so this is
+                // an ordering hint for the next connection and nothing more: the type stays what
+                // setup recorded. See [SibionicsVariantLock].
                 val authenticatedVariant = authCandidateVariant ?: variant
-                val attribution = SibionicsVariantAttribution.attribute(
-                    recordedVariant = variant,
-                    acceptedVariant = authenticatedVariant,
-                    attemptIndex = keyGroupIndex,
-                )
-                authKeyHint = attribution.keyHint
+                authKeyHint = authenticatedVariant
                 Applic.app?.let { context ->
                     SibionicsRegistry.saveProtocolMode(context, SerialNumber, protocolMode)
-                    SibionicsRegistry.saveAuthKeyHint(context, SerialNumber, attribution.keyHint)
-                    if (attribution.persistVariant) {
-                        applyConfirmedVariant(context, authenticatedVariant)
-                    } else if (authenticatedVariant != variant) {
-                        // Credited positionally after a retry, so this ACK may belong to the key
-                        // that timed out. Lead with it next connection and let a first-attempt
-                        // ACK decide the identity.
-                        Log.w(
-                            SibionicsConstants.TAG,
-                            "auth accepted as ${authenticatedVariant.id} on retry $keyGroupIndex; " +
-                                "keeping recorded variant ${variant.id} serial=$SerialNumber",
-                        )
-                    }
+                    SibionicsRegistry.saveAuthKeyHint(context, SerialNumber, authenticatedVariant)
+                }
+                if (authenticatedVariant != variant) {
+                    Log.w(
+                        SibionicsConstants.TAG,
+                        "auth accepted on the ${authenticatedVariant.id} key group (attempt " +
+                            "$keyGroupIndex); sensor stays ${variant.id} serial=$SerialNumber",
+                    )
                 }
                 synchronized(algorithmLock) {
                     algorithm.configure(shortCode, sensitivity, variant, algorithmSelection)
@@ -1096,35 +1093,6 @@ class SibionicsBleManager(
         sendAuthPacket()
     }
 
-    /**
-     * Adopt a variant proven by an unambiguous authentication. The reset window rides on the
-     * variant, so a sensor that was recorded as something else has to pick up its real one here
-     * rather than waiting for the next process start.
-     */
-    private fun applyConfirmedVariant(context: Context, confirmed: SibionicsConstants.Variant) {
-        val previous = variant
-        if (previous != confirmed) {
-            Log.i(
-                SibionicsConstants.TAG,
-                "confirmed variant ${confirmed.id} (was ${previous.id}) serial=$SerialNumber",
-            )
-        }
-        variant = confirmed
-        record = SibionicsRegistry.confirmAuthenticatedVariant(context, SerialNumber, confirmed) ?: record
-        if (previous == confirmed) return
-        automaticSensitivity = SibionicsSensitivity.sensitivityFor(shortCode, confirmed)
-        sensitivity = sensitivityOverride ?: automaticSensitivity
-        val normalizedDays = SibionicsResetPolicy.normalizedDays(
-            variant = confirmed,
-            persistedDays = SibionicsRegistry.loadAutoResetDays(context, SerialNumber),
-            hasPersistedSetting = SibionicsRegistry.hasAutoResetSetting(context, SerialNumber),
-        )
-        if (normalizedDays != autoResetDays) {
-            autoResetDays = normalizedDays
-            SibionicsRegistry.saveAutoResetDays(context, SerialNumber, normalizedDays)
-        }
-    }
-
     private fun confirmProtocolMode(mode: SibionicsConstants.ProtocolMode) {
         if (protocolMode == mode) return
         protocolMode = mode
@@ -1173,7 +1141,7 @@ class SibionicsBleManager(
      */
     private fun keyGroups(): List<SibionicsConstants.Variant> =
         connectionKeyGroups.ifEmpty {
-            SibionicsVariantAttribution.keyOrder(variant, authKeyHint)
+            SibionicsVariantLock.keyOrder(variant, authKeyHint)
                 .also { connectionKeyGroups = it }
         }
 
