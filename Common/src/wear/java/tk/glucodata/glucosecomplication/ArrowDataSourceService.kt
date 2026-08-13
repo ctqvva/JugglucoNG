@@ -39,7 +39,16 @@ import tk.glucodata.Log
 import tk.glucodata.Notify
 
 class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
-private val glview= GlucoseValue(100,100)
+    // Rendered through ComplicationRenderer, so the angle is the app's own
+    // TrendArrowAngle rather than the legacy geometry that pointed elsewhere.
+    private fun arrowIcon(rate: Float): Icon {
+        val isMmol = ComplicationRenderer.isMmol()
+        val reading = GlucoseComplicationData.currentReading()
+        val color = reading
+            ?.let { ComplicationRenderer.valueColor(it.value, isMmol) }
+            ?: ComplicationRenderer.valueColor(Float.NaN, isMmol)
+        return Icon.createWithBitmap(ComplicationRenderer.arrowBitmap(ICON_SIZE, rate, color))
+    }
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
         Log.d(LOG_ID, "onComplicationActivated(): $complicationInstanceId")
@@ -51,7 +60,7 @@ private val glview= GlucoseValue(100,100)
     override fun getPreviewData(type: ComplicationType): ComplicationData {
       val rate = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout)?.rate?:1.0f
         return SmallImageComplicationData.Builder(
-            smallImage =  SmallImage.Builder( Icon.createWithBitmap(glview.getArrowBitmap(rate)), SmallImageType.PHOTO).build(),
+            smallImage =  SmallImage.Builder(arrowIcon(rate), SmallImageType.PHOTO).build(),
             contentDescription = PlainComplicationText.Builder(text = "Glucose Arrow").build() )
             .setTapAction(GlucoseComplicationData.tapAction())
             .build()
@@ -64,7 +73,11 @@ private val glview= GlucoseValue(100,100)
         val complicationPendingIntent = GlucoseComplicationData.tapAction()
         return when (request.complicationType) {
             ComplicationType.SMALL_IMAGE-> {
-                SmallImageComplicationData.Builder( SmallImage.Builder( Icon.createWithBitmap(glview.getArrowBitmap()), SmallImageType.PHOTO).build(), contentDescription = PlainComplicationText.Builder("Glucose Arrow").build()).setTapAction(complicationPendingIntent).build()
+                val rate = GlucoseComplicationData.currentReading()?.rate ?: Float.NaN
+                SmallImageComplicationData.Builder(
+                    SmallImage.Builder(arrowIcon(rate), SmallImageType.PHOTO).build(),
+                    contentDescription = PlainComplicationText.Builder("Glucose Arrow").build(),
+                ).setTapAction(complicationPendingIntent).build()
             	}
             else -> {
                 Log.w(LOG_ID, "Unexpected complication type ${request.complicationType}")
@@ -76,6 +89,7 @@ private val glview= GlucoseValue(100,100)
 
     companion object {
         private const val LOG_ID = "ArrowDataSourceService"
+        private const val ICON_SIZE = 100
    val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        ArrowDataSourceService::class.java
    ))

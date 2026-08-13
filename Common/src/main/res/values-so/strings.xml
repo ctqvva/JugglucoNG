@@ -2666,4 +2666,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="wear_prediction_title">Saadaal</string>
     <string name="wear_prediction_on">Shid — taleefanka laga dejiyo</string>
     <string name="wear_prediction_off">Damin — taleefanka laga dejiyo</string>
+    <string name="glucosechartcomplicationlabel">Garaafka gulukooska</string>
+    <string name="wear_chart_complication">Garaafka gulukooska</string>
 </resources>

@@ -319,7 +319,7 @@ override fun render(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime,s
                 val density=canvas.height/250.0f
                  val getx= canvas.width*0.5f
                  val gety= canvas.height*0.66f
-                 showglucose(canvas,glucosePaint,agePaint,getx,gety,density,unixtime,glucose)
+                 showglucose(canvas,glucosePaint,agePaint,getx,gety,density,unixtime,glucose,drawAmbient)
                  }
       else
             Log.i(LOG_ID,"glucose==null")
@@ -382,42 +382,93 @@ override fun render(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime,s
 // Takes the resolved values rather than a live snapshot, so the face and the
 // complications draw from one resolver — including its fallback to the synced
 // history, which is the only source on a companion watch.
-private fun   showglucose(canvas:Canvas,glucosePaint:Paint,agePaint:Paint,getxin:Float,gety:Float,density:Float,unixtime:Long,glucose:tk.glucodata.glucosecomplication.GlucoseComplicationData.Reading)  {
+/**
+ * The glucose block: value, the app's trend arrow, a sparkline of the last few
+ * hours, and how stale the reading is.
+ *
+ * Everything is drawn through ComplicationRenderer, so the face agrees with the
+ * app rather than carrying its own arrow geometry and a fixed white value —
+ * which is what made the two look like different products.
+ *
+ * Ambient drops the sparkline fill and the colour: on an always-on screen a
+ * bright, static block is exactly what burns in.
+ */
+private fun   showglucose(canvas:Canvas,glucosePaint:Paint,agePaint:Paint,getxin:Float,gety:Float,density:Float,unixtime:Long,glucose:tk.glucodata.glucosecomplication.GlucoseComplicationData.Reading,ambient:Boolean)  {
       var getx=getxin
-      Log.i(LOG_ID,"glucose=${glucose.text} time=${glucose.timeMillis}")
       var age:Int=(unixtime-(glucose.timeMillis/1000L)).toInt()
-//           val oldage=(60.0f*5.0f)
-
       val oldage=tk.glucodata.Notify.glucosetimeoutSEC
-      if(age<oldage) {
-            with(canvas) {
-                if(age<0) age=0
-                val rate=glucose.rate
-                if(rate.isNaN()) {
-    //               getx=width*0.45f
-                   getx*=0.82f
-                   }
-                else  {
-                    CommonCanvas.drawarrow(this,glucosePaint,density,rate,width*.25f,height*.55f)
-                    }
-                 drawText(glucose.text,getx,gety, glucosePaint)
-                 val idbounds=Rect()
-                 glucosePaint.textSize/=5.0f
-                 val sensorid=glucose.sensorId ?: ""
-                 glucosePaint.getTextBounds(sensorid, 0,sensorid.length, idbounds)
-                 val yid= gety+idbounds.height()*1.5f
-                 val wid= idbounds.width()
-                 val relage=age*wid/oldage
-                 val xage= getx-wid*.5f
-                 val hid= idbounds.height()
-                 drawRect( xage,yid-hid*1.05f,xage +relage, yid+0.07f*hid,agePaint)
-                 drawText(sensorid,getx,yid, glucosePaint)
-                 }
-          }
-      else {
+      if(age>=oldage) {
          Log.i(LOG_ID,"age ($age) >= oldage ($oldage)")
+         return
          }
+      if(age<0) age=0
+      with(canvas) {
+          val isMmol = tk.glucodata.glucosecomplication.ComplicationRenderer.isMmol()
+          // Range colour only when the user asked for it, and never in ambient.
+          val valueColor = if (ambient) {
+              glucosePaint.color
+          } else {
+              tk.glucodata.glucosecomplication.ComplicationRenderer.valueColor(glucose.value, isMmol)
+          }
 
+          // Sparkline across the lower third, under the value. Skipped in
+          // ambient, where a wide block of lit pixels is the burn-in risk.
+          if (!ambient) {
+              val sparkTop = height * 0.70f
+              val sparkHeight = height * 0.22f
+              val sparkInset = width * 0.16f
+              val from = System.currentTimeMillis() - tk.glucodata.glucosecomplication.ComplicationRenderer.SPARK_WINDOW_MS
+              val now = System.currentTimeMillis()
+              val points = runCatching {
+                  val sensor = tk.glucodata.NotificationHistorySource.resolveSensorSerial()
+                  tk.glucodata.NotificationHistorySource.getDisplayHistory(from, isMmol, sensor)
+                      .filter { it.timestamp in from..now && it.value.isFinite() && it.value > 0f }
+              }.getOrDefault(emptyList())
+              if (points.size >= 2) {
+                  save()
+                  translate(sparkInset, sparkTop)
+                  tk.glucodata.glucosecomplication.ComplicationRenderer.drawSparkline(
+                      this, width - sparkInset * 2f, sparkHeight, points, isMmol, from, now,
+                  )
+                  restore()
+              }
+          }
+
+          val rate=glucose.rate
+          if(rate.isNaN()) {
+             getx*=0.82f
+             }
+          else  {
+              val arrowSize = height * 0.16f
+              save()
+              translate(width * .25f - arrowSize / 2f, height * .55f - arrowSize / 2f)
+              tk.glucodata.glucosecomplication.ComplicationRenderer.drawArrow(
+                  this, arrowSize, arrowSize, rate, valueColor,
+              )
+              restore()
+              }
+          val previousColor = glucosePaint.color
+          glucosePaint.color = valueColor
+          drawText(glucose.text,getx,gety, glucosePaint)
+          glucosePaint.color = previousColor
+
+          val idbounds=Rect()
+          val previousSize = glucosePaint.textSize
+          glucosePaint.textSize/=5.0f
+          val sensorid=glucose.sensorId ?: ""
+          glucosePaint.getTextBounds(sensorid, 0,sensorid.length, idbounds)
+          val yid= gety+idbounds.height()*1.5f
+          val wid= idbounds.width()
+          val relage=age*wid/oldage
+          val xage= getx-wid*.5f
+          val hid= idbounds.height()
+          // Staleness bar, in the palette's own out-of-range tone rather than
+          // the hard magenta it used to be.
+          agePaint.color = if (ambient) GRAY else tk.glucodata.GlucoseRangeColors.high(true)
+          drawRect( xage,yid-hid*1.05f,xage +relage, yid+0.07f*hid,agePaint)
+          drawText(sensorid,getx,yid, glucosePaint)
+          glucosePaint.textSize = previousSize
+          }
    }
     }
 

@@ -2688,4 +2688,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Prediction</string>
     <string name="wear_prediction_on">On — set on phone</string>
     <string name="wear_prediction_off">Off — set on phone</string>
+    <string name="glucosechartcomplicationlabel">Glucose chart</string>
+    <string name="wear_chart_complication">Glucose chart</string>
 </resources>

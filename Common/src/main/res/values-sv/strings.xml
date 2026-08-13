@@ -2463,4 +2463,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Prognos</string>
     <string name="wear_prediction_on">På — ställs in på telefonen</string>
     <string name="wear_prediction_off">Av — ställs in på telefonen</string>
+    <string name="glucosechartcomplicationlabel">Glukosdiagram</string>
+    <string name="wear_chart_complication">Glukosdiagram</string>
 </resources>

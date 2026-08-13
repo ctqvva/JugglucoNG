@@ -2453,4 +2453,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Previsione</string>
     <string name="wear_prediction_on">Attiva — impostata sul telefono</string>
     <string name="wear_prediction_off">Disattiva — impostata sul telefono</string>
+    <string name="glucosechartcomplicationlabel">Grafico glicemia</string>
+    <string name="wear_chart_complication">Grafico glicemia</string>
 </resources>

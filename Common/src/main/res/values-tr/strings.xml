@@ -2491,4 +2491,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wear_prediction_title">Tahmin</string>
     <string name="wear_prediction_on">Açık — telefondan ayarlanır</string>
     <string name="wear_prediction_off">Kapalı — telefondan ayarlanır</string>
+    <string name="glucosechartcomplicationlabel">Glukoz grafiği</string>
+    <string name="wear_chart_complication">Glukoz grafiği</string>
 </resources>

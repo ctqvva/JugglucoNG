@@ -2578,4 +2578,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_prediction_title">Таамаглал</string>
     <string name="wear_prediction_on">Ассан — утсанд тохируулна</string>
     <string name="wear_prediction_off">Унтраасан — утсанд тохируулна</string>
+    <string name="glucosechartcomplicationlabel">Глюкозын график</string>
+    <string name="wear_chart_complication">Глюкозын график</string>
 </resources>

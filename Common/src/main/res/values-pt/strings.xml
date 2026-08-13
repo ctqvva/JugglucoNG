@@ -2464,4 +2464,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Previsão</string>
     <string name="wear_prediction_on">Ligada — definida no telemóvel</string>
     <string name="wear_prediction_off">Desligada — definida no telemóvel</string>
+    <string name="glucosechartcomplicationlabel">Gráfico de glicose</string>
+    <string name="wear_chart_complication">Gráfico de glicose</string>
 </resources>

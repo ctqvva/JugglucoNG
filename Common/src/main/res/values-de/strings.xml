@@ -2502,4 +2502,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="wear_prediction_title">Prognose</string>
     <string name="wear_prediction_on">Ein — am Telefon einstellen</string>
     <string name="wear_prediction_off">Aus — am Telefon einstellen</string>
+    <string name="glucosechartcomplicationlabel">Glukose-Diagramm</string>
+    <string name="wear_chart_complication">Glukose-Diagramm</string>
 </resources>

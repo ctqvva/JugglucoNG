@@ -2497,4 +2497,6 @@
     <string name="wear_prediction_title">Prognoza</string>
     <string name="wear_prediction_on">Włączona — ustawiana w telefonie</string>
     <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>
+    <string name="glucosechartcomplicationlabel">Wykres glukozy</string>
+    <string name="wear_chart_complication">Wykres glukozy</string>
 </resources>

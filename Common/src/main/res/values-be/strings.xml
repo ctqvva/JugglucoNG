@@ -2530,4 +2530,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Прагноз</string>
     <string name="wear_prediction_on">Укл. — налада ў тэлефоне</string>
     <string name="wear_prediction_off">Выкл. — налада ў тэлефоне</string>
+    <string name="glucosechartcomplicationlabel">Графік глюкозы</string>
+    <string name="wear_chart_complication">Графік глюкозы</string>
 </resources>

@@ -2469,4 +2469,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Prévision</string>
     <string name="wear_prediction_on">Activé — réglé sur le téléphone</string>
     <string name="wear_prediction_off">Désactivé — réglé sur le téléphone</string>
+    <string name="glucosechartcomplicationlabel">Courbe de glucose</string>
+    <string name="wear_chart_complication">Courbe de glucose</string>
 </resources>

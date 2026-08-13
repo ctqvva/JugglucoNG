@@ -2506,4 +2506,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_prediction_title">Voorspelling</string>
     <string name="wear_prediction_on">Aan — ingesteld op telefoon</string>
     <string name="wear_prediction_off">Uit — ingesteld op telefoon</string>
+    <string name="glucosechartcomplicationlabel">Glucosegrafiek</string>
+    <string name="wear_chart_complication">Glucosegrafiek</string>
 </resources>

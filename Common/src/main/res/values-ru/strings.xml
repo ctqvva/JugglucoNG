@@ -2506,4 +2506,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_title">Прогноз</string>
     <string name="wear_prediction_on">Вкл. — настраивается на телефоне</string>
     <string name="wear_prediction_off">Выкл. — настраивается на телефоне</string>
+    <string name="glucosechartcomplicationlabel">График глюкозы</string>
+    <string name="wear_chart_complication">График глюкозы</string>
 </resources>
