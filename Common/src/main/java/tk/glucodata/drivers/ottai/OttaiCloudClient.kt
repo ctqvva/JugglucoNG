@@ -221,12 +221,13 @@ object OttaiCloudClient {
     private fun base(ctx: Context): String = OttaiRegistry.loadApiBase(ctx)
 
     /**
-     * The composite bind endpoint requires a deviceVersion even when Syai allows recovering a
-     * sensor which is not present in the signed-in account. This value comes from an exported
-     * Syai E1.1.4 / V1.7 sensor and is used only as bind request metadata; the response remains
+     * The composite bind endpoint requires a deviceVersion even when Syai or global Ottai allows
+     * recovering a sensor which is not present in the signed-in account. These values come from
+     * exported sensors and are used only as bind request metadata; the response remains
      * authoritative for the recovered sensor's persisted version and materials.
      */
     internal const val SYAI_MATERIAL_BIND_DEVICE_VERSION = "E1.1.4(V1.7.S2530.1)"
+    internal const val GLOBAL_MATERIAL_BIND_DEVICE_VERSION = "vE1.2.3(V1.7.SH2542.1)"
     internal fun materialBindDeviceVersion(
         apiBase: String,
         selectedDeviceVersion: String?,
@@ -234,9 +235,11 @@ object OttaiCloudClient {
     ): String? {
         selectedDeviceVersion?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
         if (!failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)) return null
-        // Only the Syai expired-recovery path is observed working. A hardcoded GLOBAL bind version
-        // was tried and never accepted (see cloud-gate findings), so it is intentionally not here.
-        return SYAI_MATERIAL_BIND_DEVICE_VERSION.takeIf { apiBase == OttaiConstants.API_BASE_SYAI }
+        return when (apiBase) {
+            OttaiConstants.API_BASE_SYAI -> SYAI_MATERIAL_BIND_DEVICE_VERSION
+            OttaiConstants.API_BASE_GLOBAL -> GLOBAL_MATERIAL_BIND_DEVICE_VERSION
+            else -> null
+        }
     }
 
     fun materialBindDeviceVersion(

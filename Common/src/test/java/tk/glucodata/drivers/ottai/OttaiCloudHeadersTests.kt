@@ -53,9 +53,9 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
-    fun globalExpiredRecoveryHasNoKnownBindVersion() {
-        // A hardcoded GLOBAL bind version was tried and never accepted; only Syai recovery is kept.
-        assertNull(
+    fun globalExpiredRecoveryUsesKnownBindVersionWithoutAccountMembership() {
+        assertEquals(
+            OttaiCloudClient.GLOBAL_MATERIAL_BIND_DEVICE_VERSION,
             OttaiCloudClient.materialBindDeviceVersion(
                 OttaiConstants.API_BASE_GLOBAL,
                 null,

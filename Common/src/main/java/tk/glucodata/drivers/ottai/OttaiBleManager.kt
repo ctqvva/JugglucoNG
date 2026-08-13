@@ -967,18 +967,28 @@ class OttaiBleManager(
         if (stop) return@Runnable
         connectDevice(0)
     }
+    private fun requiresNfcActivationWake(): Boolean =
+        OttaiConstants.requiresNfcActivationWake(OttaiRegistry.loadApiBase(Applic.app))
+
+    private fun armNfcActivationWake(reason: String) {
+        if (!requiresNfcActivationWake()) return
+        SerialNumber?.takeIf { it.isNotBlank() }?.let { sensorId ->
+            Log.i(TAG, "$reason; arming NFC wake")
+            OttaiNfc.armForActivationRetry(sensorId)
+            Applic.app?.let { OttaiNfcWakeReminder.show(it, sensorId) }
+        }
+    }
+
     private val pendingActivationNfcPromptRunnable = Runnable {
-        val id = SerialNumber ?: return@Runnable
+        if (SerialNumber.isNullOrBlank()) return@Runnable
         if (stop ||
             !awaitingFreshActivationAdvertisement ||
             activateRequestedFor?.let { matchesManagedSensorId(it) } != true ||
-            OttaiRegistry.loadApiBase(Applic.app) != OttaiConstants.API_BASE
+            !requiresNfcActivationWake()
         ) {
             return@Runnable
         }
-        Log.i(TAG, "pending setup activation still has no advertisement; arming NFC wake")
-        OttaiNfc.armForActivationRetry(id)
-        Applic.app?.let { OttaiNfcWakeReminder.show(it, id) }
+        armNfcActivationWake("pending setup activation still has no advertisement")
         constatstatusstr = appString(R.string.ottai_nfc_dump_armed, "Hold the sensor near NFC")
         UiRefreshBus.requestStatusRefresh()
     }
@@ -1314,6 +1324,9 @@ class OttaiBleManager(
             freshActivationAdvertisementTimeoutRunnable,
             FRESH_ACTIVATION_ADVERTISEMENT_TIMEOUT_MS,
         )
+        if (activateRequestedFor?.let { matchesManagedSensorId(it) } == true) {
+            armNfcActivationWake("setup activation is waiting for its first advertisement")
+        }
         UiRefreshBus.requestStatusRefresh()
         return true
     }
@@ -3448,12 +3461,7 @@ class OttaiBleManager(
         actStep = ActStep.NONE
         Log.w(TAG, "maxActive rejected duration=${rejectedMs / 1000L}s status=$status; " +
             "will reconnect and retry ${nextMs / 1000L}s")
-        if (OttaiRegistry.loadApiBase(Applic.app) == OttaiConstants.API_BASE) {
-            SerialNumber?.takeIf { it.isNotBlank() }?.let { sensorId ->
-                OttaiNfc.armForActivationRetry(sensorId)
-                Applic.app?.let { OttaiNfcWakeReminder.show(it, sensorId) }
-            }
-        }
+        armNfcActivationWake("maxActive was rejected before the next activation attempt")
         UiRefreshBus.requestStatusRefresh()
         handler.postDelayed({
             if (activationNegotiationActive && activationRetryPending && mBluetoothGatt === gatt) {
@@ -3485,12 +3493,7 @@ class OttaiBleManager(
         searchforDeviceAddress()
         mActiveDeviceAddress = addressAfterCandidate(activationRetryAddress)
         Log.w(TAG, "activation retry scanning for an authenticated Ottai candidate: $reason")
-        if (OttaiRegistry.loadApiBase(Applic.app) == OttaiConstants.API_BASE) {
-            SerialNumber?.takeIf { it.isNotBlank() }?.let { sensorId ->
-                OttaiNfc.armForActivationRetry(sensorId)
-                Applic.app?.let { OttaiNfcWakeReminder.show(it, sensorId) }
-            }
-        }
+        armNfcActivationWake("activation retry is waiting for a fresh advertisement")
         SensorBluetooth.blueone?.scanStarter(250L)
         UiRefreshBus.requestStatusRefresh()
     }

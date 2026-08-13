@@ -145,6 +145,13 @@ class OttaiLifetimeTests {
     }
 
     @Test
+    fun cnAndSyaiActivationRequireNfcWakeButGlobalOttaiDoesNot() {
+        assertTrue(OttaiConstants.requiresNfcActivationWake(OttaiConstants.API_BASE))
+        assertTrue(OttaiConstants.requiresNfcActivationWake(OttaiConstants.API_BASE_SYAI))
+        assertFalse(OttaiConstants.requiresNfcActivationWake(OttaiConstants.API_BASE_GLOBAL))
+    }
+
+    @Test
     fun setupActivationRescansOnlyBeforeCommandStatusIsKnown() {
         assertTrue(
             OttaiConstants.shouldRescanPendingSetupActivation(

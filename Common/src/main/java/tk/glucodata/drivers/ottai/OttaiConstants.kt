@@ -235,6 +235,10 @@ object OttaiConstants {
         explicitlyRequested: Boolean,
     ): Boolean = commandStatus < 0 && explicitlyRequested
 
+    /** CN Ottai and Syai sensors need a physical NFC field wake around activation attempts. */
+    fun requiresNfcActivationWake(apiBase: String): Boolean =
+        apiBase == API_BASE || apiBase == API_BASE_SYAI
+
     /**
      * A Chinese sensor can resume advertising under a different Android BLE address
      * after NFC wake. Only admit that address while an activation recovery scan is
