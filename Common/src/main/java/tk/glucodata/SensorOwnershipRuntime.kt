@@ -56,8 +56,15 @@ object SensorOwnershipRuntime {
     /** How often each device says what it is holding. */
     private const val ANNOUNCE_INTERVAL_MS = 60_000L
 
+    /**
+     * How often an unchanged ownership state is repeated. Long, because every
+     * one of these wakes the peer out of doze, and a change is sent at once.
+     */
+    private const val ANNOUNCE_HEARTBEAT_MS = 15L * 60_000L
+
     /** Three missed announcements before the peer counts as gone. */
-    private const val PEER_SILENT_AFTER_MS = 3L * ANNOUNCE_INTERVAL_MS + 15_000L
+    // Must outlast the heartbeat, or a quiet-but-present peer looks gone.
+    private const val PEER_SILENT_AFTER_MS = 2L * ANNOUNCE_HEARTBEAT_MS + 60_000L
 
     /**
      * How long the phone lets go for, when the user hands a sensor to the watch.
@@ -263,14 +270,40 @@ object SensorOwnershipRuntime {
         reconcile()
     }
 
+    /**
+     * Announces ownership — but only when it has something new to say.
+     *
+     * This used to send a message per sensor every minute, from both devices,
+     * for as long as either was running. Each one wakes the peer's
+     * WearableListenerService, so a paired phone was pulled out of doze around
+     * the clock whether or not anything had changed. Nothing in the protocol
+     * needed that: the arbitration reacts to changes, and the peer-silence
+     * timeout only needs a heartbeat slow enough not to matter.
+     *
+     * A change is sent immediately; an unchanged state is repeated at
+     * [ANNOUNCE_HEARTBEAT_MS] so a peer that missed one still converges.
+     */
     private fun announce() {
         if (!MessageSender.outgoingAllowed()) return
+        val now = System.currentTimeMillis()
         sensors().forEach { serial ->
             val owns = holdsLiveConnection(serial)
             val newest = localReadings[key(serial)] ?: 0L
+            val id = key(serial)
+            // The reading time changes every minute by nature, so it is not part
+            // of what counts as a change; only ownership is.
+            val previous = lastAnnounced[id]
+            val dueForHeartbeat = now - (lastAnnouncedAt[id] ?: 0L) >= ANNOUNCE_HEARTBEAT_MS
+            if (previous == owns && !dueForHeartbeat) return@forEach
             MessageSender.sendSyncMessage(MessageSender.SENSOR_OWNERSHIP_PATH, encode(serial, owns, newest))
+            lastAnnounced[id] = owns
+            lastAnnouncedAt[id] = now
         }
     }
+
+    /** What was last put on the wire per sensor, so a repeat stays silent. */
+    private val lastAnnounced = ConcurrentHashMap<String, Boolean>()
+    private val lastAnnouncedAt = ConcurrentHashMap<String, Long>()
 
     private fun reconcile() {
         val now = System.currentTimeMillis()

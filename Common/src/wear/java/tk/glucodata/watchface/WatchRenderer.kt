@@ -292,7 +292,11 @@ private fun watchtime(canvas:Canvas,localtime: LocalTime) {
 private var rendertime:Long=0L
 
 override fun render(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime,sharedAssets:InnerAssets) {
-       registersensor(Applic.getHeartRate())
+       // Drop the heart-rate listener in ambient. The face spends most of its
+       // life there, the reading is not drawn then, and a body sensor left
+       // registered around the clock is one of the more expensive things a
+       // watch face can do.
+       registersensor(Applic.getHeartRate() && renderParameters.drawMode != DrawMode.AMBIENT)
         if(doLog) {Log.i(LOG_ID, "render");}
         canvas.drawColor(BLACK)
         drawComplications(canvas, zonedDateTime)

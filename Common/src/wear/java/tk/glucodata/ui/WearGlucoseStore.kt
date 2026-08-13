@@ -6,6 +6,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic
 import tk.glucodata.CalibrationAccess
@@ -123,30 +126,45 @@ object WearGlucoseStore {
     @Volatile private var lastLoadStartedAt = 0L
     @Volatile private var requestedHorizonMs = DEFAULT_HORIZON_MS
 
-    /** Starts the single collector that keeps the snapshot current. */
+    /**
+     * Starts the single collector that keeps the snapshot current.
+     *
+     * Everything here is gated on something actually collecting [snapshot].
+     * The loop used to run for as long as the process lived: opening the app
+     * once left the watch reading its whole history, recalibrating it and
+     * re-smoothing it every minute forever, and messaging the phone every five
+     * — waking it out of doze — with no screen on either device. The watch face
+     * and the complications read their own source, so nothing here is needed
+     * while no screen is showing it.
+     */
     fun start() {
         if (!started.compareAndSet(false, true)) return
         scope.launch {
-            launch { UiRefreshBus.revision.collect { refresh() } }
             launch {
-                var tick = 0
-                while (true) {
-                    delay(TICK_MS)
-                    refresh()
-                    if (++tick % JOURNAL_REFRESH_TICKS == 0) {
+                UiRefreshBus.revision.collect { if (isObserved()) refresh() }
+            }
+            launch {
+                _snapshot.subscriptionCount
+                    .map { it > 0 }
+                    .distinctUntilChanged()
+                    .collectLatest { observed ->
+                        if (!observed) return@collectLatest
+                        // Whatever arrived unobserved is not in the snapshot.
+                        refresh(force = true)
                         requestJournal()
                         requestPrefs()
+                        var tick = 0
+                        while (true) {
+                            delay(TICK_MS)
+                            refresh()
+                            if (++tick % JOURNAL_REFRESH_TICKS == 0) requestJournal()
+                        }
                     }
-                }
             }
         }
-        refresh(force = true)
-        // Ask for the journal without waiting for its screen to be opened: the
-        // Journal row only shows once the phone has said the journal is enabled,
-        // so a screen-triggered request could never arrive.
-        requestJournal()
-        requestPrefs()
     }
+
+    private fun isObserved(): Boolean = _snapshot.subscriptionCount.value > 0
 
     private fun requestJournal() {
         runCatching { WearJournalSync.requestSync() }
@@ -155,10 +173,9 @@ object WearGlucoseStore {
     /**
      * Asks the phone for the display preferences and colour scheme.
      *
-     * Pulling is what makes them arrive at all: the phone pushes on change and
-     * on the connect handshake, so a watch whose app opened outside one of those
-     * windows simply never learned the smoothing setting and drew an unsmoothed
-     * curve for good.
+     * Sent when a screen appears, not on a timer: the phone also pushes these
+     * with the sync the watch already asks for, so a periodic pull would only
+     * add a wake-up of a sleeping phone every few minutes to learn nothing.
      */
     private fun requestPrefs() {
         runCatching { MessageSender.getMessageSender()?.requestWearPrefs() }
