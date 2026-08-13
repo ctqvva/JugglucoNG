@@ -24,15 +24,30 @@ import tk.glucodata.Applic
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
+import tk.glucodata.UiRefreshBus
+import tk.glucodata.WearToggleSync
 import tk.glucodata.alerts.SnoozeManager
 import tk.glucodata.ui.WearSectionTitle
 
-// Alert enable/disable + threshold display + snooze cancel. Threshold *editing*
-// stays on the phone for now; configs are shared via AlertRepository.
+/**
+ * Alert enable/disable, thresholds and snooze cancel. Threshold *editing* stays
+ * on the phone.
+ *
+ * Enabling used to write the watch's own AlertRepository and stop there — a
+ * device-local preferences file the phone never reads — so turning an alert off
+ * here left it firing on the phone, and the two screens disagreed for good. The
+ * switch now asks the phone, which applies it, writes its own copy and reports
+ * back; the watch's copy follows from that reply, so both fire the same set.
+ */
 @Composable
 fun AlertsScreen() {
     val isMmol = remember { runCatching { Applic.unit == 1 }.getOrDefault(false) }
     var revision by remember { mutableIntStateOf(0) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        WearToggleSync.requestState()
+        UiRefreshBus.revision.collect { revision++ }
+    }
 
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
@@ -49,12 +64,15 @@ fun AlertsScreen() {
                 val snoozed = remember(type, revision) {
                     runCatching { SnoozeManager.isSnoozed(type) }.getOrDefault(false)
                 }
-                var checked by remember(type, revision) { mutableStateOf(config.enabled) }
+                // The phone's reply is the truth; until it has one, show what
+                // this device holds so the list is never blank.
+                val known = remember(type, revision) {
+                    WearToggleSync.knownEnabled(WearToggleSync.SCOPE_ALERT, type.id.toString())
+                }
                 SwitchButton(
-                    checked = checked,
+                    checked = known ?: config.enabled,
                     onCheckedChange = { on ->
-                        checked = on
-                        runCatching { AlertRepository.saveConfig(config.copy(enabled = on)) }
+                        WearToggleSync.request(WearToggleSync.SCOPE_ALERT, type.id.toString(), on)
                     },
                     label = { Text(stringResource(type.nameResId)) },
                     secondaryLabel = config.threshold?.let { threshold ->

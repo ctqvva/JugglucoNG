@@ -161,6 +161,7 @@ fun WatchSettingsScreen(navController: NavController) {
                         onCheckedChange = {
                             watchdripEnabled = it
                             Natives.setwatchdrip(it)
+                            tk.glucodata.WearToggleSync.push()
                             watchdrip.set(it)
                         }
                     )
@@ -174,6 +175,9 @@ fun WatchSettingsScreen(navController: NavController) {
                             gadgetBridgeEnabled = it
                             Natives.setgadgetbridge(it)
                             SuperGattCallback.doGadgetbridge = it
+                            // The watch mirrors these switches; tell it now
+                            // rather than leave it a cycle behind.
+                            tk.glucodata.WearToggleSync.push()
                         }
                     )
                     SettingsSwitchItem(

@@ -14,6 +14,7 @@ import tk.glucodata.ui.screens.ChartScreen
 import tk.glucodata.ui.screens.MainScreen
 import tk.glucodata.ui.screens.RecentReadingsScreen
 import tk.glucodata.ui.screens.SensorScreen
+import tk.glucodata.ui.screens.ExchangeScreen
 import tk.glucodata.ui.screens.SettingsScreen
 
 object WearRoutes {
@@ -25,6 +26,7 @@ object WearRoutes {
     const val CALIBRATIONS = "calibrations"
     const val READINGS = "readings"
     const val SETTINGS = "settings"
+    const val EXCHANGE = "exchange"
     const val JOURNAL = "journal"
     const val JOURNAL_ENTRY = "journalentry"
     const val READING_ACTIONS = "readingactions"
@@ -176,8 +178,10 @@ fun WearApp() {
                 SettingsScreen(
                     onOpenAlerts = { navController.navigate(WearRoutes.ALERTS) },
                     onOpenSensor = { navController.navigate(WearRoutes.SENSOR) },
+                    onOpenExchange = { navController.navigate(WearRoutes.EXCHANGE) },
                 )
             }
+            composable(WearRoutes.EXCHANGE) { ExchangeScreen() }
         }
     }
 }

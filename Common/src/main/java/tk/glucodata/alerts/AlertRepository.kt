@@ -359,6 +359,12 @@ object AlertRepository {
         
         // Sync native alarm settings for legacy types
         syncNativeAlarmSettings(config)
+
+        // Both devices raise alerts, so an enable that only lands on one of
+        // them leaves the pair firing different sets. The phone reports the
+        // change; on the watch this is a no-op, since a watch-side change has
+        // already gone through the phone to get here.
+        runCatching { tk.glucodata.WearToggleSync.push() }
     }
     
     private fun saveToPrefs(config: AlertConfig) {

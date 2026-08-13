@@ -2,6 +2,7 @@ package tk.glucodata.ui.screens
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -20,6 +21,7 @@ import tk.glucodata.ui.WearSectionTitle
 fun SettingsScreen(
     onOpenAlerts: () -> Unit,
     onOpenSensor: () -> Unit,
+    onOpenExchange: () -> Unit = {},
 ) {
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
@@ -41,16 +43,22 @@ fun SettingsScreen(
             // Same for the predictive simulation, which is shown here only so
             // the state is visible from the wrist.
             item {
+                val known = tk.glucodata.WearToggleSync
+                    .knownEnabled(tk.glucodata.WearToggleSync.SCOPE_PREF, "prediction")
+                androidx.wear.compose.material3.SwitchButton(
+                    checked = known ?: tk.glucodata.ui.WearPrediction.isEnabled(),
+                    onCheckedChange = { on ->
+                        tk.glucodata.WearToggleSync
+                            .request(tk.glucodata.WearToggleSync.SCOPE_PREF, "prediction", on)
+                    },
+                    label = { Text(stringResource(R.string.wear_prediction_title)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            item {
                 WearNavigationRow(
-                    stringResource(R.string.wear_prediction_title),
-                    subtitle = stringResource(
-                        if (tk.glucodata.ui.WearPrediction.isEnabled()) {
-                            R.string.wear_prediction_on
-                        } else {
-                            R.string.wear_prediction_off
-                        },
-                    ),
-                    onClick = { tk.glucodata.UiRefreshBus.requestDataRefresh() },
+                    stringResource(R.string.wear_exchange_title),
+                    onClick = onOpenExchange,
                 )
             }
             item {

@@ -28,6 +28,16 @@ object WearToggleSync {
     const val SCOPE_EXCHANGE = "x"
     const val SCOPE_ALERT = "a"
 
+    /** Boolean display preferences the watch is allowed to flip. */
+    const val SCOPE_PREF = "p"
+
+    private const val PREFS_FILE = "tk.glucodata_preferences"
+
+    /** id -> (preference key, the default the phone reads it with). */
+    private val PREF_TOGGLES: Map<String, Pair<String, Boolean>> = mapOf(
+        "prediction" to ("dashboard_predictive_simulation_enabled" to true),
+    )
+
     data class Toggle(val scope: String, val id: String, val enabled: Boolean)
 
     /** The switches this device currently holds. */
@@ -39,6 +49,13 @@ object WearToggleSync {
         if (!Applic.isWearable) {
             ExchangeToggles.all.forEach { toggle ->
                 result += Toggle(SCOPE_EXCHANGE, toggle.id, toggle.isEnabled())
+            }
+        }
+        if (!Applic.isWearable) {
+            val prefs = Applic.app?.getSharedPreferences(PREFS_FILE, android.content.Context.MODE_PRIVATE)
+            PREF_TOGGLES.forEach { (id, spec) ->
+                val (key, default) = spec
+                prefs?.let { result += Toggle(SCOPE_PREF, id, it.getBoolean(key, default)) }
             }
         }
         AlertType.settingsEntries.forEach { type ->
@@ -91,6 +108,17 @@ object WearToggleSync {
                     if (target.isEnabled() != toggle.enabled) target.setEnabled(toggle.enabled)
                     applied++
                 }
+                SCOPE_PREF -> {
+                    // Written on whichever device receives it: the phone owns
+                    // the setting, and the watch needs its own copy to read.
+                    val spec = PREF_TOGGLES[toggle.id] ?: return@forEach
+                    runCatching {
+                        Applic.app
+                            ?.getSharedPreferences(PREFS_FILE, android.content.Context.MODE_PRIVATE)
+                            ?.edit()?.putBoolean(spec.first, toggle.enabled)?.apply()
+                    }.onFailure { Log.stack(LOG_ID, "apply pref ${toggle.id}", it) }
+                    applied++
+                }
                 SCOPE_ALERT -> {
                     val type = AlertType.settingsEntries
                         .firstOrNull { it.id.toString() == toggle.id } ?: return@forEach
@@ -126,8 +154,9 @@ object WearToggleSync {
         val toggles = decode(data)
         if (toggles.isEmpty()) return
         received = toggles
-        // Alerts fire on the watch too, so its own copy has to follow.
-        apply(toggles.filter { it.scope == SCOPE_ALERT })
+        // Alerts fire on the watch too, and the display preferences are read
+        // there, so both have to be written locally from the reply.
+        apply(toggles.filter { it.scope == SCOPE_ALERT || it.scope == SCOPE_PREF })
         UiRefreshBus.requestStatusRefresh()
     }
 
