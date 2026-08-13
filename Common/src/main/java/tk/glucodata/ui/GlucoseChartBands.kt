@@ -1,6 +1,7 @@
 package tk.glucodata.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 /**
  * The vertical colour banding a glucose curve is stroked with.
@@ -11,9 +12,13 @@ import androidx.compose.ui.graphics.Color
  * while; the watch picked a single colour from the newest reading instead, so a
  * curve that had spent an hour low still rendered entirely neutral.
  *
- * Both now build their stops here, which keeps the bands landing on the same
- * lines on both devices. Callers supply their own resolved colours — the phone
- * offers a softer in-range trace than its five-band setting preview does.
+ * The stops describe a piecewise-linear colour function of canvas y. Thresholds
+ * routinely fall outside the drawn area — the watch fits its value range to the
+ * data rather than to the alarm limits, so with a flat curve every threshold can
+ * be off-canvas — and clamping their positions into the canvas would reorder the
+ * stops and paint the wrong band across the visible area. The function is
+ * therefore *clipped* to the canvas instead: off-canvas knots are dropped and the
+ * colour at each edge is evaluated from the segment that crosses it.
  */
 object GlucoseChartBands {
 
@@ -21,10 +26,12 @@ object GlucoseChartBands {
     const val DEFAULT_FADE_PX = 18f
 
     /**
-     * Gradient stops as (normalised position, colour), sorted top to bottom.
-     * The y arguments are canvas positions of each threshold, as returned by the
-     * caller's value-to-y mapping; [chartHeightPx] is what they are normalised
-     * against.
+     * Gradient stops as (normalised position, colour), ascending.
+     *
+     * The y arguments are canvas positions of each threshold as returned by the
+     * caller's value-to-y mapping, and may lie outside `0..chartHeightPx`.
+     * [inRange] must be the neutral trace tone — passing a range-derived colour
+     * paints the in-range stretches with it.
      */
     fun verticalStops(
         veryHigh: Color,
@@ -40,21 +47,50 @@ object GlucoseChartBands {
         fadePx: Float = DEFAULT_FADE_PX,
     ): List<Pair<Float, Color>> {
         if (chartHeightPx <= 0f) return emptyList()
-        val stops = mutableListOf<Pair<Float, Color>>()
 
-        fun addStop(y: Float, color: Color) {
-            stops += (y / chartHeightPx).coerceIn(0f, 1f) to color
+        // Ideal knots, top to bottom. y grows downward and the thresholds
+        // descend in value, so these are already in order — but a thin target
+        // band can make the two fade knots cross, so positions are forced
+        // non-decreasing rather than trusted.
+        val knots = ArrayList<Pair<Float, Color>>(6)
+        var last = Float.NEGATIVE_INFINITY
+        fun knot(position: Float, color: Color) {
+            val ordered = maxOf(position, last)
+            knots += ordered to color
+            last = ordered
         }
+        knot(yVeryHigh, veryHigh)
+        knot(yHigh, high)
+        knot(yHigh + fadePx, inRange)
+        knot(yLow - fadePx, inRange)
+        knot(yLow, low)
+        knot(yVeryLow, veryLow)
 
-        addStop(0f, veryHigh)
-        addStop(yVeryHigh, veryHigh)
-        addStop(yHigh, high)
-        addStop(yHigh + fadePx, inRange)
-        addStop(yLow - fadePx, inRange)
-        addStop(yLow, low)
-        addStop(yVeryLow, veryLow)
-        addStop(chartHeightPx, veryLow)
+        val result = ArrayList<Pair<Float, Color>>(knots.size + 2)
+        result += 0f to colorAt(knots, 0f)
+        knots.forEach { (position, color) ->
+            if (position > 0f && position < chartHeightPx) {
+                result += (position / chartHeightPx) to color
+            }
+        }
+        result += 1f to colorAt(knots, chartHeightPx)
+        return result
+    }
 
-        return stops.sortedBy { it.first }
+    /** The banding colour at canvas position [y], extending the end knots. */
+    private fun colorAt(knots: List<Pair<Float, Color>>, y: Float): Color {
+        if (knots.isEmpty()) return Color.Transparent
+        if (y <= knots.first().first) return knots.first().second
+        if (y >= knots.last().first) return knots.last().second
+        for (index in 0 until knots.size - 1) {
+            val (startY, startColor) = knots[index]
+            val (endY, endColor) = knots[index + 1]
+            if (y in startY..endY) {
+                val span = endY - startY
+                if (span <= 0f) return endColor
+                return lerp(startColor, endColor, (y - startY) / span)
+            }
+        }
+        return knots.last().second
     }
 }

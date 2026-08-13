@@ -210,6 +210,16 @@ class MessageReceiver: WearableListenerService() {
                  Natives.ontbytesettings(data)
                     Notify.mkunitstr(Applic.app,Natives.getunit())
                 }
+             MessageSender.WEAR_PREFS_REQ_PATH -> {
+                 // Pull, not push. Relying on the phone to push at the right
+                 // moment meant a watch whose app opened outside that window
+                 // kept the compiled-in defaults with no way to ask; the journal
+                 // has always worked request/serve for the same reason.
+                 if (!isWearable) {
+                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
+                     GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
+                 }
+                }
              MessageSender.WEAR_PREFS_PATH -> {
                  // The phone owns these settings; the watch only mirrors them,
                  // so smoothing and prediction behave the same on both.

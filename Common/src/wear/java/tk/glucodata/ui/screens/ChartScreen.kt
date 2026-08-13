@@ -259,6 +259,7 @@ internal fun InteractiveWearChartPanel(
                 viewportStart = viewportStart,
                 viewportEnd = viewportEnd,
                 lineColor = lineColor,
+                neutralColor = neutralLineColor,
                 rawColor = labelColor.copy(alpha = 0.52f),
                 primaryRaw = primaryRaw,
                 showSecondary = showSecondary,
@@ -504,6 +505,9 @@ internal fun WearChart(
     viewportStart: Long = data.start,
     viewportEnd: Long = data.end,
     lineColor: Color,
+    /** The in-range trace tone. Must not be range-derived, or the banding
+     *  paints every in-range stretch with whatever the newest reading is. */
+    neutralColor: Color = lineColor,
     rawColor: Color = Color.Transparent,
     primaryRaw: Boolean = false,
     showSecondary: Boolean = false,
@@ -668,7 +672,11 @@ internal fun WearChart(
             val curveBrush = tk.glucodata.ui.GlucoseChartBands.verticalStops(
                 veryHigh = Color(GlucoseRangeColors.veryHigh(true)),
                 high = Color(GlucoseRangeColors.high(true)),
-                inRange = lineColor,
+                // Neutral, never lineColor: that is derived from the newest
+                // reading, so while the sensor sat low the in-range stops were
+                // handed the low tone and the whole curve came out salmon —
+                // including the stretches that were squarely in range.
+                inRange = neutralColor,
                 low = Color(GlucoseRangeColors.low(true)),
                 veryLow = Color(GlucoseRangeColors.veryLow(true)),
                 yVeryHigh = y(data.thresholds.veryHigh),

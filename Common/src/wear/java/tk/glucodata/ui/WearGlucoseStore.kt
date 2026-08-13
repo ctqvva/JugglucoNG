@@ -14,6 +14,7 @@ import tk.glucodata.DataSmoothing
 import tk.glucodata.GlucosePoint
 import tk.glucodata.GlucoseSmoothing
 import tk.glucodata.Log
+import tk.glucodata.MessageSender
 import tk.glucodata.NotificationHistorySource
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -132,7 +133,10 @@ object WearGlucoseStore {
                 while (true) {
                     delay(TICK_MS)
                     refresh()
-                    if (++tick % JOURNAL_REFRESH_TICKS == 0) requestJournal()
+                    if (++tick % JOURNAL_REFRESH_TICKS == 0) {
+                        requestJournal()
+                        requestPrefs()
+                    }
                 }
             }
         }
@@ -141,10 +145,23 @@ object WearGlucoseStore {
         // Journal row only shows once the phone has said the journal is enabled,
         // so a screen-triggered request could never arrive.
         requestJournal()
+        requestPrefs()
     }
 
     private fun requestJournal() {
         runCatching { WearJournalSync.requestSync() }
+    }
+
+    /**
+     * Asks the phone for the display preferences and colour scheme.
+     *
+     * Pulling is what makes them arrive at all: the phone pushes on change and
+     * on the connect handshake, so a watch whose app opened outside one of those
+     * windows simply never learned the smoothing setting and drew an unsmoothed
+     * curve for good.
+     */
+    private fun requestPrefs() {
+        runCatching { MessageSender.getMessageSender()?.requestWearPrefs() }
     }
 
     /**
