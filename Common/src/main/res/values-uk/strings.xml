@@ -2544,4 +2544,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">Вебсервер xDrip</string>
     <string name="wear_exchange_phone_only">Nightscout, вихідний API та трансляції зі списком отримувачів налаштовуються на телефоні.</string>
+    <string name="exchange_toggle_patched_libre">Patched Libre</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Окремо на годиннику</string>
 </resources>

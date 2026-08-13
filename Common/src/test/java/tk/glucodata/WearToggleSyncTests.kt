@@ -56,11 +56,19 @@ class WearToggleSyncTests {
         // point a switch at the wrong output.
         val ids = ExchangeToggles.all.map { it.id }
         assertEquals(ids.size, ids.distinct().size)
-        assertTrue(ids.contains(ExchangeToggles.ID_LIBREVIEW))
-        assertTrue(ids.contains(ExchangeToggles.ID_XDRIP_BROADCAST))
-        assertTrue(ids.contains(ExchangeToggles.ID_GADGETBRIDGE))
-        assertTrue(ids.contains(ExchangeToggles.ID_WATCHDRIP))
-        assertTrue(ids.contains(ExchangeToggles.ID_XDRIP_WEBSERVER))
+        listOf(
+            ExchangeToggles.ID_LIBREVIEW,
+            ExchangeToggles.ID_PATCHED_LIBRE,
+            ExchangeToggles.ID_XDRIP_BROADCAST,
+            ExchangeToggles.ID_GLUCODATA,
+            ExchangeToggles.ID_EVERSENSE,
+            ExchangeToggles.ID_GADGETBRIDGE,
+            ExchangeToggles.ID_WATCHDRIP,
+            ExchangeToggles.ID_XDRIP_WEBSERVER,
+            ExchangeToggles.ID_SEPARATE,
+        ).forEach { assertTrue("missing $it", ids.contains(it)) }
+        // The ids are the wire format's field names, so neither separator may
+        // appear in one or a payload would parse into the wrong toggle.
         assertTrue(ids.none { it.contains(':') || it.contains('=') })
     }
 

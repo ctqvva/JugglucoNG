@@ -94,7 +94,13 @@ fun getview(type: ComplicationType):GlucoseValue {
 			    }  */
             PHOTO_IMAGE -> {
                 Log.i(LOG_ID,"getPreviewData PHOTO_IMAGE")
-                val icon=Icon.createWithBitmap( getview(type).previewbitmap())
+                val preview = GlucoseComplicationData.previewReading()
+                val icon=Icon.createWithBitmap(
+                    ComplicationRenderer.valueWithArrowBitmap(
+                        VALUE_ARROW_PX, preview.text, preview.value, preview.rate,
+                        ComplicationRenderer.isMmol(),
+                    )
+                )
                 PhotoImageComplicationData.Builder(photoImage = icon, contentDescription = PlainComplicationText.Builder("Glucose+arrow").build()
                 ).setTapAction(tapAction).build()
             } 
@@ -114,7 +120,13 @@ fun getview(type: ComplicationType):GlucoseValue {
             //ComplicationType.SMALL_IMAGE -> 
             {
                Log.i(LOG_ID,"getPreviewData OTHER")
-                 val icon=Icon.createWithBitmap( getview(type).previewbitmap())
+                 val preview = GlucoseComplicationData.previewReading()
+                val icon=Icon.createWithBitmap(
+                    ComplicationRenderer.valueWithArrowBitmap(
+                        VALUE_ARROW_PX, preview.text, preview.value, preview.rate,
+                        ComplicationRenderer.isMmol(),
+                    )
+                )
                  SmallImageComplicationData.Builder(
                     smallImage = SmallImage.Builder( icon, SmallImageType.PHOTO).build(),
                     contentDescription = PlainComplicationText.Builder(text = "Glucose+arrow")
@@ -157,7 +169,11 @@ fun getview(type: ComplicationType):GlucoseValue {
          }
 	else {
          Log.i(LOG_ID,"glucose==${glucose.text}")
-      getview(type).getArrowValueBitmap(glucose.text,glucose.timeMillis,glucose.index,glucose.rate)
+      // Through ComplicationRenderer, so this slot uses the app's arrow angle
+      // and palette like the others rather than the legacy geometry.
+      ComplicationRenderer.valueWithArrowBitmap(
+          VALUE_ARROW_PX, glucose.text, glucose.value, glucose.rate, ComplicationRenderer.isMmol(),
+      )
 	}
 
 	val image=Icon.createWithBitmap(bitmap)
@@ -181,6 +197,7 @@ fun getview(type: ComplicationType):GlucoseValue {
 
     companion object {
         private const val LOG_ID = "ArrowValueDataSourceService"
+        private const val VALUE_ARROW_PX = 256
    private val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        ArrowValueDataSourceService::class.java
    ))

@@ -2462,4 +2462,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">Server web xDrip</string>
     <string name="wear_exchange_phone_only">Nightscout, l’API in uscita e le trasmissioni con destinatari si configurano sul telefono.</string>
+    <string name="exchange_toggle_patched_libre">Libre patchato</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Separato sull’orologio</string>
 </resources>

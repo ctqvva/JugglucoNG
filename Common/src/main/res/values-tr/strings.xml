@@ -2500,4 +2500,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">xDrip web sunucusu</string>
     <string name="wear_exchange_phone_only">Nightscout, giden API ve alıcı listeli yayınlar telefonda ayarlanır.</string>
+    <string name="exchange_toggle_patched_libre">Yamalı Libre</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Saatte ayrı</string>
 </resources>

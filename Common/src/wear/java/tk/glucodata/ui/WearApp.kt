@@ -88,6 +88,11 @@ fun WearApp() {
                     onOpenCalibrations = { navController.navigate(WearRoutes.CALIBRATIONS) },
                     onOpenJournal = { navController.navigate(WearRoutes.JOURNAL) },
                     onCalibrateReading = { point -> navController.navigate(readingTapRouteFor(point)) },
+                    onAddJournalAt = { point ->
+                        navController.navigate(
+                            "${WearRoutes.JOURNAL_ENTRY}?insulin=1&reading=${point.timestamp}",
+                        )
+                    },
                 )
             }
             composable(WearRoutes.CHART) { ChartScreen() }

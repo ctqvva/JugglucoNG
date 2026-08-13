@@ -120,6 +120,7 @@ fun MainScreen(
     onOpenCalibrations: () -> Unit,
     onOpenJournal: () -> Unit = {},
     onCalibrateReading: (GlucosePoint) -> Unit = {},
+    onAddJournalAt: ((GlucosePoint) -> Unit)? = null,
 ) {
     var snapshot by remember { mutableStateOf(currentSnapshot()) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -173,6 +174,9 @@ fun MainScreen(
                         showRangeOverlay = true,
                         onRangeIndexChange = { chartRangeIndex = it },
                         onGestureOwnership = { chartOwnsDrag = it },
+                        // The scrub chip acts on the reading it shows, the same
+                        // way the hero and the rows act on theirs.
+                        onSelectedReadingClick = onCalibrateReading,
                         headlineTopPadding = heroBottom,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -184,6 +188,7 @@ fun MainScreen(
                             stale = status.isStale,
                             sensorId = snap?.sensorId,
                             velocity = velocities[newestReading.timestamp] ?: 0f,
+                            onClick = { onCalibrateReading(newestReading) },
                             // Sits as high as the clock allows so the big value
                             // overlaps as little of the curve as possible.
                             modifier = Modifier
@@ -225,6 +230,9 @@ fun MainScreen(
                         // phone: it calibrates against it, or edits the
                         // calibration it already carries.
                         onClick = { onCalibrateReading(point) },
+                        onAddJournal = onAddJournalAt
+                            ?.takeIf { ReadingActions.journalAvailable() }
+                            ?.let { add -> { add(point) } },
                         modifier = Modifier.padding(horizontal = 18.dp),
                     )
                 }
@@ -332,6 +340,7 @@ private fun ReadingRow(
     viewMode: Int,
     velocity: Float,
     onClick: () -> Unit,
+    onAddJournal: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -346,6 +355,25 @@ private fun ReadingRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Same affordance the phone's rows carry: the row calibrates, the "+"
+        // logs against that reading's time.
+        if (onAddJournal != null) {
+            Box(
+                Modifier
+                    .padding(end = 8.dp)
+                    .size(22.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clickable(onClick = onAddJournal),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "+",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 formatter.format(Date(point.timestamp)),
@@ -452,6 +480,7 @@ internal fun HeroCard(
     stale: Boolean,
     sensorId: String?,
     velocity: Float,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // The big number must be the same value the readings row below shows: the
@@ -480,6 +509,9 @@ internal fun HeroCard(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
             .background(background)
+            // Tapping the hero acts on the reading it shows, as tapping a row
+            // acts on that row's — the phone's hero behaves the same way.
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

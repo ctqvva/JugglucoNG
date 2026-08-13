@@ -2511,4 +2511,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">xDrip-Webserver</string>
     <string name="wear_exchange_phone_only">Nightscout, die ausgehende API und die empfängerbasierten Übertragungen werden am Telefon eingerichtet.</string>
+    <string name="exchange_toggle_patched_libre">Patched Libre</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Getrennt auf der Uhr</string>
 </resources>

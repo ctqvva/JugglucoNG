@@ -2506,4 +2506,8 @@
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">Serwer WWW xDrip</string>
     <string name="wear_exchange_phone_only">Nightscout, wychodzące API i transmisje z listą odbiorców konfiguruje się w telefonie.</string>
+    <string name="exchange_toggle_patched_libre">Patched Libre</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Osobno na zegarku</string>
 </resources>

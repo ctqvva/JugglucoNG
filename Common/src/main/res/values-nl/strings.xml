@@ -2515,4 +2515,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="exchange_toggle_watchdrip">xDrip+ / watchdrip</string>
     <string name="exchange_toggle_xdrip_webserver">xDrip-webserver</string>
     <string name="wear_exchange_phone_only">Nightscout, de uitgaande API en de ontvangergebaseerde uitzendingen stel je op de telefoon in.</string>
+    <string name="exchange_toggle_patched_libre">Patched Libre</string>
+    <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
+    <string name="exchange_toggle_eversense">EverSense</string>
+    <string name="exchange_toggle_separate">Apart op het horloge</string>
 </resources>

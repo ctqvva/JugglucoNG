@@ -54,7 +54,12 @@ object WearPrediction {
      * The forecast from the end of [history], or empty when the simulation is
      * switched off or there is too little to project from.
      */
-    fun forecast(history: List<GlucosePoint>, isMmol: Boolean): List<GlucosePredictionPoint> {
+    fun forecast(
+        history: List<GlucosePoint>,
+        isMmol: Boolean,
+        /** Project the raw lane instead of the auto one. */
+        useRaw: Boolean = false,
+    ): List<GlucosePredictionPoint> {
         val preferences = prefs() ?: return emptyList()
         if (!preferences.getBoolean(KEY_ENABLED, ENABLED_DEFAULT)) return emptyList()
         if (history.size < 2) return emptyList()
@@ -68,7 +73,14 @@ object WearPrediction {
         // to be converted once here rather than per treatment.
         val sensitivityDisplay = if (isMmol) sensitivityMgdl / 18.0182f else sensitivityMgdl
 
-        val baselineTime = history.last { it.value.isFinite() && it.value > 0.1f }.timestamp
+        // Each lane is projected from its own readings, as the phone projects
+        // every series it draws rather than only the primary one.
+        val lane = history.mapNotNull { point ->
+            val value = if (useRaw) point.rawValue else point.value
+            if (value.isFinite() && value > 0.1f) GlucosePredictionKernel.Sample(point.timestamp, value) else null
+        }
+        if (lane.size < 2) return emptyList()
+        val baselineTime = lane.last().timestamp
         val journal = runCatching { WearJournalSync.cached() }.getOrNull()
         val treatments = journal
             ?.takeIf { it.enabled }
@@ -119,7 +131,7 @@ object WearPrediction {
             ?.takeIf { it.isFinite() && it > thresholdLow } ?: GlucoseRangeColors.defaultHigh(isMmol)
 
         return GlucosePredictionKernel.simulate(
-            history = history.map { GlucosePredictionKernel.Sample(it.timestamp, it.value) },
+            history = lane,
             isMmol = isMmol,
             trendMomentumEnabled = momentum,
             horizonMinutes = horizon,

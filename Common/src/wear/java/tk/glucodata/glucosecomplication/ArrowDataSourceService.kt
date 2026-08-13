@@ -26,6 +26,8 @@ import android.content.ComponentName
 import android.graphics.drawable.Icon
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
+import androidx.wear.watchface.complications.data.MonochromaticImage
+import androidx.wear.watchface.complications.data.MonochromaticImageComplicationData
 import androidx.wear.watchface.complications.data.SmallImage
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
@@ -41,14 +43,17 @@ import tk.glucodata.Notify
 class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
     // Rendered through ComplicationRenderer, so the angle is the app's own
     // TrendArrowAngle rather than the legacy geometry that pointed elsewhere.
-    private fun arrowIcon(rate: Float): Icon {
-        val isMmol = ComplicationRenderer.isMmol()
-        val reading = GlucoseComplicationData.currentReading()
-        val color = reading
-            ?.let { ComplicationRenderer.valueColor(it.value, isMmol) }
-            ?: ComplicationRenderer.valueColor(Float.NaN, isMmol)
-        return Icon.createWithBitmap(ComplicationRenderer.arrowBitmap(ICON_SIZE, rate, color))
-    }
+    /**
+     * A white-on-transparent arrow for the watch face to tint.
+     *
+     * This slot used to be a PHOTO SmallImage, which faces render verbatim: the
+     * arrow stayed white while every neighbouring complication took the face's
+     * own colour, and looked like it belonged to a different app. A
+     * MonochromaticImage is tinted by the face, so it matches whatever theme
+     * the user has picked.
+     */
+    private fun arrowIcon(rate: Float): Icon =
+        Icon.createWithBitmap(ComplicationRenderer.arrowBitmap(ICON_SIZE, rate, MONOCHROME))
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
         Log.d(LOG_ID, "onComplicationActivated(): $complicationInstanceId")
@@ -59,8 +64,8 @@ class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
       val rate = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout)?.rate?:1.0f
-        return SmallImageComplicationData.Builder(
-            smallImage =  SmallImage.Builder(arrowIcon(rate), SmallImageType.PHOTO).build(),
+        return MonochromaticImageComplicationData.Builder(
+            monochromaticImage = MonochromaticImage.Builder(arrowIcon(rate)).build(),
             contentDescription = PlainComplicationText.Builder(text = "Glucose Arrow").build() )
             .setTapAction(GlucoseComplicationData.tapAction())
             .build()
@@ -71,11 +76,17 @@ class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
         Log.d(LOG_ID, "onComplicationRequest() id: ${request.complicationInstanceId}")
 
         val complicationPendingIntent = GlucoseComplicationData.tapAction()
+        val rate = GlucoseComplicationData.currentReading()?.rate ?: Float.NaN
         return when (request.complicationType) {
+            ComplicationType.MONOCHROMATIC_IMAGE -> {
+                MonochromaticImageComplicationData.Builder(
+                    MonochromaticImage.Builder(arrowIcon(rate)).build(),
+                    contentDescription = PlainComplicationText.Builder("Glucose Arrow").build(),
+                ).setTapAction(complicationPendingIntent).build()
+                }
             ComplicationType.SMALL_IMAGE-> {
-                val rate = GlucoseComplicationData.currentReading()?.rate ?: Float.NaN
                 SmallImageComplicationData.Builder(
-                    SmallImage.Builder(arrowIcon(rate), SmallImageType.PHOTO).build(),
+                    SmallImage.Builder(arrowIcon(rate), SmallImageType.ICON).build(),
                     contentDescription = PlainComplicationText.Builder("Glucose Arrow").build(),
                 ).setTapAction(complicationPendingIntent).build()
             	}
@@ -89,7 +100,10 @@ class ArrowDataSourceService: SuspendingComplicationDataSourceService()  {
 
     companion object {
         private const val LOG_ID = "ArrowDataSourceService"
-        private const val ICON_SIZE = 100
+        private const val ICON_SIZE = 128
+
+        /** Tinted by the watch face, so the drawn colour is only a mask. */
+        private const val MONOCHROME = 0xFFFFFFFF.toInt()
    val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        ArrowDataSourceService::class.java
    ))

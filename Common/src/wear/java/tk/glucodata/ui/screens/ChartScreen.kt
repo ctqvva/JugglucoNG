@@ -73,6 +73,13 @@ private const val HOUR_MS = 3_600_000L
 // oldest synced reading instead of stopping a day back.
 private const val MAX_HISTORY_HOURS = 14 * 24
 private const val RIGHT_GAP_FRACTION = 0.09f
+
+/**
+ * The most of the visible window the forecast may occupy. The horizon is set on
+ * the phone and can be hours; without a cap a 3h view spent nearly half its
+ * width on the future.
+ */
+private const val PREDICTION_MAX_FRACTION = 0.22f
 private const val MIN_VIEWPORT_MS = 45 * 60_000L
 
 private fun plausibleRawValue(point: GlucosePoint, isMmol: Boolean): Float? =
@@ -90,8 +97,10 @@ internal data class WearChartData(
     val end: Long,
     val historyStart: Long,
     val isMmol: Boolean,
-    /** Forward simulation from the newest reading; empty when switched off. */
+    /** Forward simulation of the auto lane; empty when switched off. */
     val prediction: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
+    /** Forward simulation of the raw lane, for the modes that show it. */
+    val predictionRaw: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
 )
 
 private fun thresholds(isMmol: Boolean): ChartThresholds {
@@ -123,17 +132,30 @@ internal fun chartDataFrom(snapshot: WearGlucoseStore.Snapshot, hours: Int): Wea
         CalibrationMark(anchors[offset + 2].toLong(), anchors[offset + 1].toFloat() / conversion)
             .takeIf { it.timestamp in historyStart..now && it.value.isFinite() && it.value > 0f }
     }
+    // Both lanes are projected; which of them is drawn is the view mode's call,
+    // as it is on the phone.
     val prediction = runCatching {
         tk.glucodata.ui.WearPrediction.forecast(snapshot.points, isMmol)
     }.getOrDefault(emptyList())
-    // The forecast runs past "now", so the window has to reach far enough to
-    // show it; without this it was drawn entirely inside the right-hand gap.
+    val predictionRaw = runCatching {
+        tk.glucodata.ui.WearPrediction.forecast(snapshot.points, isMmol, useRaw = true)
+    }.getOrDefault(emptyList())
+    // The window reaches far enough forward to show the forecast, but no more
+    // than PREDICTION_MAX_FRACTION of it: a two-hour horizon on a three-hour
+    // view was giving the future 40% of the screen and squeezing the readings
+    // that actually happened into the left half.
+    val forecastEnd = maxOf(
+        prediction.lastOrNull()?.timestamp ?: 0L,
+        predictionRaw.lastOrNull()?.timestamp ?: 0L,
+    )
+    val forecastRoom = (duration * PREDICTION_MAX_FRACTION).toLong()
     val end = maxOf(
         now + (duration * RIGHT_GAP_FRACTION).toLong(),
-        prediction.lastOrNull()?.timestamp ?: 0L,
+        minOf(forecastEnd, now + forecastRoom),
     )
     return WearChartData(
-        snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol, prediction,
+        snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol,
+        prediction, predictionRaw,
     )
 }
 
@@ -162,6 +184,8 @@ internal fun InteractiveWearChartPanel(
     showRangeOverlay: Boolean = true,
     onRangeIndexChange: ((Int) -> Unit)? = null,
     onGestureOwnership: ((Boolean) -> Unit)? = null,
+    /** Tapping the scrub chip acts on the reading it is showing. */
+    onSelectedReadingClick: ((GlucosePoint) -> Unit)? = null,
     headlineTopPadding: androidx.compose.ui.unit.Dp = 3.dp,
 ) {
     var rangeIndex by remember { mutableIntStateOf(initialRangeIndex.coerceIn(CHART_RANGES.indices)) }
@@ -351,6 +375,13 @@ internal fun InteractiveWearChartPanel(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(top = headlineTopPadding)
+                        .then(
+                            onSelectedReadingClick?.let { act ->
+                                Modifier.pointerInput(point.timestamp) {
+                                    detectTapGestures { act(point) }
+                                }
+                            } ?: Modifier,
+                        )
                         .cursorAnchored(
                             fraction = (point.timestamp - viewportStart).toFloat() /
                                 (viewportEnd - viewportStart).toFloat().coerceAtLeast(1f),
@@ -438,7 +469,7 @@ internal fun WearChartRangeChip(
 ) {
     Text(
         CHART_RANGES[rangeIndex.coerceIn(CHART_RANGES.indices)].let { h ->
-            if (h >= 48) "${h / 24}d" else "${h}h"
+            if (h >= 48) "${h / 24}D" else "${h}H"
         },
         style = MaterialTheme.typography.labelMedium,
         modifier = modifier
@@ -642,10 +673,18 @@ internal fun WearChart(
                     }
                 }
             }
-            data.prediction.forEach { point ->
-                if (point.timestamp in viewportStart..viewportEnd && point.value.isFinite()) {
-                    minValue = minOf(minValue, point.value)
-                    maxValue = maxOf(maxValue, point.value)
+            fun forecastFor(raw: Boolean) = if (raw) data.predictionRaw else data.prediction
+            // Only the lanes actually drawn may stretch the range.
+            val drawnForecasts = buildList {
+                add(forecastFor(primaryRaw))
+                if (showSecondary) add(forecastFor(!primaryRaw))
+            }
+            drawnForecasts.forEach { series ->
+                series.forEach { point ->
+                    if (point.timestamp in viewportStart..viewportEnd && point.value.isFinite()) {
+                        minValue = minOf(minValue, point.value)
+                        maxValue = maxOf(maxValue, point.value)
+                    }
                 }
             }
             val padding = ((maxValue - minValue) * 0.12f).coerceAtLeast(if (data.isMmol) 0.4f else 8f)
@@ -708,25 +747,31 @@ internal fun WearChart(
             ).takeIf { it.isNotEmpty() }?.let { stops ->
                 Brush.verticalGradient(*stops.toTypedArray(), startY = 0f, endY = size.height)
             }
-            // Drawn dashed and fading out, so it never reads as measured data.
-            val predictionPath = if (data.prediction.size >= 2) {
-                Path().apply {
-                    var started = false
-                    data.prediction.forEach { point ->
-                        if (!point.value.isFinite() || point.value <= 0f) return@forEach
-                        val px = x(point.timestamp)
-                        val py = y(point.value)
-                        if (!started) {
-                            moveTo(px, py)
-                            started = true
-                        } else {
-                            lineTo(px, py)
-                        }
+            // Drawn dashed and dimmed, so it never reads as measured data. One
+            // path per lane on show: the phone forecasts every series it draws,
+            // and a raw trace with no forecast beside a projected auto one reads
+            // as the raw lane having stopped.
+            fun forecastPath(series: List<tk.glucodata.data.prediction.GlucosePredictionPoint>): Path? {
+                if (series.size < 2) return null
+                val path = Path()
+                var started = false
+                series.forEach { point ->
+                    if (!point.value.isFinite() || point.value <= 0f) return@forEach
+                    if (point.timestamp > viewportEnd) return@forEach
+                    val px = x(point.timestamp)
+                    val py = y(point.value)
+                    if (!started) {
+                        path.moveTo(px, py)
+                        started = true
+                    } else {
+                        path.lineTo(px, py)
                     }
                 }
-            } else {
-                null
+                return if (started) path else null
             }
+            val predictionPath = forecastPath(forecastFor(primaryRaw))
+            val predictionSecondaryPath =
+                if (showSecondary) forecastPath(forecastFor(!primaryRaw)) else null
             val predictionDash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
             val alarmDash = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
             val calibrationDrops = data.calibrations.mapNotNull { mark ->
@@ -777,10 +822,17 @@ internal fun WearChart(
                     textPaint.textAlign = android.graphics.Paint.Align.CENTER
                     drawContext.canvas.nativeCanvas.drawText(text, lineX, size.height - 2.dp.toPx(), textPaint)
                 }
+                predictionSecondaryPath?.let {
+                    drawPath(
+                        it,
+                        rawColor.copy(alpha = 0.75f),
+                        style = Stroke(1.2.dp.toPx(), pathEffect = predictionDash),
+                    )
+                }
                 predictionPath?.let {
                     drawPath(
                         it,
-                        lineColor.copy(alpha = 0.55f),
+                        neutralColor.copy(alpha = 0.55f),
                         style = Stroke(1.8.dp.toPx(), pathEffect = predictionDash),
                     )
                 }
