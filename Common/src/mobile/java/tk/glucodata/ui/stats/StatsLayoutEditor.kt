@@ -137,6 +137,8 @@ internal fun StatsLayoutEditor(
                 handle = handle,
                 pinned = metric in layout.dashboardMetrics,
                 pinnable = true,
+                pinEnabled = metric in layout.dashboardMetrics ||
+                    layout.dashboardMetrics.size < StatsLayoutStore.MAX_DASHBOARD_METRICS,
                 wide = metric in layout.wideMetrics,
                 onToggleWide = {
                     StatsLayoutStore.setMetricWide(metric, metric !in layout.wideMetrics)
@@ -278,6 +280,7 @@ private fun EditorRow(
     tone: Color? = null,
     pinned: Boolean = false,
     pinnable: Boolean = false,
+    pinEnabled: Boolean = true,
     onTogglePinned: () -> Unit = {},
     wide: Boolean? = null,
     onToggleWide: () -> Unit = {}
@@ -356,14 +359,18 @@ private fun EditorRow(
             }
         }
         if (pinnable) {
-            IconButton(onClick = onTogglePinned, modifier = Modifier.size(38.dp)) {
+            IconButton(
+                onClick = onTogglePinned,
+                enabled = pinEnabled,
+                modifier = Modifier.size(38.dp)
+            ) {
                 Icon(
                     imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
                     contentDescription = stringResource(R.string.stats_arrange_pin),
-                    tint = if (pinned) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    tint = when {
+                        pinned -> MaterialTheme.colorScheme.primary
+                        pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
                     },
                     modifier = Modifier.size(20.dp)
                 )

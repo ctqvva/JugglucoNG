@@ -1491,10 +1491,13 @@ private fun PinnedMetricPickerSheet(
                 StatsMetric.entries.forEach { metric ->
                     val selected = metric == current
                     val pinned = metric in alreadyPinned
+                    val pinEnabled = pinned ||
+                        alreadyPinned.size < StatsLayoutStore.MAX_DASHBOARD_METRICS
                     MetricSheetRow(
                         spec = metricSpec(metric, summary, targets, unit),
                         selected = selected,
                         pinned = pinned,
+                        pinEnabled = pinEnabled,
                         onTogglePinned = { onTogglePinned(metric) },
                         onClick = { onPick(metric) }
                     )
@@ -1513,6 +1516,7 @@ private fun MetricSheetRow(
     spec: MetricSpec,
     selected: Boolean,
     pinned: Boolean,
+    pinEnabled: Boolean,
     onTogglePinned: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -1530,7 +1534,7 @@ private fun MetricSheetRow(
             .clip(statsCardShape(20.dp, 12.dp))
             .background(container)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -1547,21 +1551,6 @@ private fun MetricSheetRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        IconButton(
-            onClick = onTogglePinned,
-            modifier = Modifier.size(38.dp)
-        ) {
-            Icon(
-                imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                contentDescription = stringResource(R.string.stats_arrange_pin),
-                tint = if (pinned) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                },
-                modifier = Modifier.size(20.dp)
-            )
-        }
         Text(
             text = spec.value,
             style = MaterialTheme.typography.titleMedium.copy(
@@ -1571,6 +1560,22 @@ private fun MetricSheetRow(
             color = spec.tone.copy(alpha = if (selected) 1f else 0.55f),
             maxLines = 1
         )
+        IconButton(
+            onClick = onTogglePinned,
+            enabled = pinEnabled,
+            modifier = Modifier.size(38.dp)
+        ) {
+            Icon(
+                imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                contentDescription = stringResource(R.string.stats_arrange_pin),
+                tint = when {
+                    pinned -> MaterialTheme.colorScheme.primary
+                    pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                },
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
