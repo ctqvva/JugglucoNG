@@ -37,8 +37,12 @@ internal object ComplicationRenderer {
     /** Wear renders complications on dark backgrounds. */
     private const val DARK = true
 
-    /** How much history the sparkline shows. */
-    const val SPARK_WINDOW_MS = 3L * 60L * 60L * 1000L
+    /**
+     * How much history the sparkline shows. Short: a complication is a glance,
+     * and three hours of one-minute readings packed into a couple of hundred
+     * pixels reads as texture rather than as a shape.
+     */
+    const val SPARK_WINDOW_MS = 90L * 60L * 1000L
 
     /**
      * Margin around a PHOTO image. Faces crop these to the slot shape, usually a
@@ -448,12 +452,15 @@ internal object ComplicationRenderer {
         val color = valueColor(value, isMmol)
 
         // The header takes a share of the height only when there is something
-        // to put in it; a bare trace uses the whole box.
+        // to put in it. With nothing above or below, the trace would run the
+        // full height of the box and read as a wall, so it is inset a little
+        // instead — the breathing room the header would otherwise have given.
         val hasHeader = valueText != null
         val headerH = if (hasHeader) contentH * 0.30f else 0f
         val timeH = if (showTime) contentH * 0.11f else 0f
-        val chartTop = marginY + headerH
-        val chartH = contentH - headerH - timeH
+        val squish = if (!hasHeader && !showTime) contentH * 0.13f else 0f
+        val chartTop = marginY + headerH + squish
+        val chartH = contentH - headerH - timeH - squish * 2f
 
         canvas.save()
         canvas.translate(marginX, chartTop)
