@@ -1389,6 +1389,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_initial_shown_status">Исходные + калибр.</string>
     <string name="calibration_lock_past_history_title">Фиксировать прошлую историю</string>
     <string name="calibration_lock_past_history_subtitle">Использовать только точки калибровки на момент или до времени каждого показания.</string>
+    <string name="calibration_from_journal_title">Калибровать по записям глюкозы</string>
+    <string name="calibration_from_journal_subtitle">Глюкоза крови из журнала — с глюкометра или введённая вручную — тоже становится точкой калибровки.</string>
+    <string name="calibration_from_journal_badge">Из журнала</string>
     <string name="calibration_apply_past_subtitle">Если выключено, калибровка начинается у первой точки и распространяется вперёд.</string>
     <string name="calibration_overwrite_values_title">Записывать калиброванные значения</string>
     <string name="calibration_overwrite_values_subtitle">Запись в БД для статистики, отчётов и экспорта.</string>

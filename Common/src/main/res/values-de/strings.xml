@@ -1424,6 +1424,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibration_initial_shown_status">Anfangswerte angezeigt</string>
     <string name="calibration_lock_past_history_title">Vergangene Historie sperren</string>
     <string name="calibration_lock_past_history_subtitle">Nur Kalibrierpunkte bis zum Zeitpunkt jedes Messwerts verwenden.</string>
+    <string name="calibration_from_journal_title">Aus BZ-Einträgen kalibrieren</string>
+    <string name="calibration_from_journal_subtitle">Blutzucker im Journal – vom Messgerät oder von Hand eingetragen – zählt ebenfalls als Kalibrierpunkt.</string>
+    <string name="calibration_from_journal_badge">Aus dem Journal</string>
     <string name="sibionics_ble_probe_title">Sibionics BLE in der Nähe (FF30)</string>
     <string name="sibionics_ble_probe_desc">Wenn Ihr Sensor hier erscheint, funktioniert Bluetooth. Für die vollständige Einrichtung ist QR-Scan weiterhin empfohlen.</string>
     <string name="sibionics_ble_probe_empty">Noch keine Sibionics-FF30-Geräte gefunden.</string>

@@ -39,6 +39,7 @@ object CalibrationManager {
     private const val KEY_LOCK_PAST_HISTORY = "calibration_lock_past_history"
     private const val KEY_OVERWRITE_SENSOR_VALUES = "calibration_overwrite_sensor_values"
     private const val KEY_VISUAL_CONTINUITY = "calibration_visual_continuity"
+    private const val KEY_CALIBRATE_FROM_JOURNAL = "calibration_from_journal_bg"
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
@@ -196,6 +197,9 @@ object CalibrationManager {
     private val _visualContinuity = MutableStateFlow(true)
     val visualContinuity: StateFlow<Boolean> = _visualContinuity
 
+    private val _calibrateFromJournal = MutableStateFlow(false)
+    val calibrateFromJournal: StateFlow<Boolean> = _calibrateFromJournal
+
     private val _weightMode = MutableStateFlow(CalibrationWeightMode.FRESH)
     val weightMode: StateFlow<CalibrationWeightMode> = _weightMode
 
@@ -252,6 +256,7 @@ object CalibrationManager {
         _keepDisabledHistory.value = prefs.getBoolean(KEY_KEEP_DISABLED_HISTORY, false)
         _overwriteSensorValues.value = prefs.getBoolean(KEY_OVERWRITE_SENSOR_VALUES, false)
         _visualContinuity.value = prefs.getBoolean(KEY_VISUAL_CONTINUITY, true)
+        _calibrateFromJournal.value = prefs.getBoolean(KEY_CALIBRATE_FROM_JOURNAL, false)
         _weightMode.value = CalibrationWeightMode.fromStorage(
             prefs.getString(KEY_WEIGHT_MODE, CalibrationWeightMode.FRESH.storageValue)
         )
@@ -343,7 +348,7 @@ object CalibrationManager {
         mix(if (_keepDisabledHistory.value) 1L else 0L)
         _calibrations.value
             .asSequence()
-            .filter { it.isRawMode == isRawMode && sensorMatches(it.sensorId, sensorId) }
+            .filter { matchesMode(it, isRawMode) && sensorMatches(it.sensorId, sensorId) }
             .sortedWith(compareBy<CalibrationEntity> { it.timestamp }.thenBy { it.id })
             .forEach { point ->
                 mix(point.id.toLong())
@@ -376,7 +381,7 @@ object CalibrationManager {
             .asSequence()
             .filter { row ->
                 row.isEnabled &&
-                    row.isRawMode == isRawMode &&
+                    matchesMode(row, isRawMode) &&
                     sensorMatches(row.sensorId, sensorId)
             }
             .sortedBy { it.timestamp }
@@ -587,6 +592,18 @@ object CalibrationManager {
         return calibrationMatchesSensor(calibrationSensorId, sensorId)
     }
 
+    /**
+     * Whether a stored point belongs to the lane being computed.
+     *
+     * A hand-entered calibration is made against one lane and stays there. A
+     * journal-derived one is a finger stick — a fact about the blood, not about
+     * a lane — and both lanes were captured when it was paired, so it counts in
+     * either mode.
+     */
+    fun matchesMode(calibration: CalibrationEntity, isRawMode: Boolean): Boolean {
+        return calibration.journalEntryId != null || calibration.isRawMode == isRawMode
+    }
+
     private fun getValidPoints(isRawMode: Boolean, sensorId: String): List<CalPoint> {
         ensureCalibrationStateLoaded()
         val normalizedSensorId = normalizeSensorId(sensorId)
@@ -604,7 +621,7 @@ object CalibrationManager {
             .asSequence()
             .filter {
                 it.isEnabled &&
-                    it.isRawMode == isRawMode &&
+                    matchesMode(it, isRawMode) &&
                     sensorMatches(it.sensorId, normalizedSensorId)
             }
             .map { p ->
@@ -722,7 +739,7 @@ object CalibrationManager {
         val normalizedSensorId = normalizeSensorId(sensorId)
         return _calibrations.value
             .asSequence()
-            .filter { it.isRawMode == isRawMode && sensorMatches(it.sensorId, normalizedSensorId) }
+            .filter { matchesMode(it, isRawMode) && sensorMatches(it.sensorId, normalizedSensorId) }
             .map { p ->
                 CalPoint(
                     x = (if (isRawMode) p.sensorValueRaw else p.sensorValue).toDouble(),
@@ -880,6 +897,27 @@ object CalibrationManager {
         return _visualContinuity.value
     }
 
+    /**
+     * Turns every blood-glucose entry in the journal — a meter reading or a
+     * finger stick typed in by hand — into a calibration point. Switching it off
+     * removes the derived points again; hand-entered calibrations are untouched
+     * either way.
+     */
+    fun setCalibrateFromJournal(enabled: Boolean) {
+        if (_calibrateFromJournal.value == enabled) return
+        _calibrateFromJournal.value = enabled
+        if (::prefs.isInitialized) {
+            prefs.edit().putBoolean(KEY_CALIBRATE_FROM_JOURNAL, enabled).apply()
+        }
+        Log.i(TAG, "Calibrate from journal BG: $enabled")
+        JournalCalibrationSync.onSettingChanged(enabled)
+    }
+
+    fun shouldCalibrateFromJournal(): Boolean {
+        ensureInitialized()
+        return _calibrateFromJournal.value
+    }
+
     fun setWeightMode(mode: CalibrationWeightMode) {
         if (_weightMode.value == mode) return
         _weightMode.value = mode
@@ -952,8 +990,11 @@ object CalibrationManager {
         if (normalizedSensorId.isBlank()) return null
         ensureCalibrationStateLoaded()
 
+        // Journal-derived points are left out on purpose: the receiving device
+        // derives its own from the journal it already syncs, and a copied one
+        // would outlive the entry it came from — no entry to track it back to.
         val rows = _calibrations.value
-            .filter { sensorMatches(it.sensorId, normalizedSensorId) }
+            .filter { it.journalEntryId == null && sensorMatches(it.sensorId, normalizedSensorId) }
             .sortedByDescending { it.timestamp }
 
         val root = JSONObject()
@@ -1148,6 +1189,43 @@ object CalibrationManager {
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Added calibration: sensor=$resolvedSensorId auto=$sensorValue raw=$sensorValueRaw user=$userValue isRaw=$isRawMode at $timestamp")
         return true
+    }
+
+    /**
+     * Applies one reconciliation of the journal-derived calibrations in a single
+     * pass. Journal syncs touch many rows at once — a meter handing over its
+     * stored history writes dozens — and running the per-point path for each
+     * would reload the table and re-push the mirror profile every time.
+     */
+    suspend fun applyJournalCalibrationPlan(plan: JournalCalibrationPolicy.Plan, reason: String) {
+        if (plan.isEmpty) return
+        if (!ensureInitialized()) return
+        withContext(Dispatchers.IO) {
+            if (plan.deleteIds.isNotEmpty()) dao.deleteByIds(plan.deleteIds)
+            if (plan.inserts.isNotEmpty()) dao.insertAll(plan.inserts)
+            plan.updates.forEach { dao.update(it) }
+        }
+        deferGlucoseAlertsUntilNextReading()
+        loadCalibrations()
+        refreshDiagnosticsPreview(isRawMode = false, force = true)
+        refreshDiagnosticsPreview(isRawMode = true, force = true)
+        Log.i(
+            TAG,
+            "Journal calibrations synced ($reason): +${plan.inserts.size} " +
+                "~${plan.updates.size} -${plan.deleteIds.size}"
+        )
+    }
+
+    /** Drops every calibration derived from a journal entry, keeping manual ones. */
+    suspend fun purgeJournalCalibrations() {
+        if (!ensureInitialized()) return
+        val removed = withContext(Dispatchers.IO) { dao.deleteJournalDerived() }
+        if (removed <= 0) return
+        deferGlucoseAlertsUntilNextReading()
+        loadCalibrations()
+        refreshDiagnosticsPreview(isRawMode = false, force = true)
+        refreshDiagnosticsPreview(isRawMode = true, force = true)
+        Log.i(TAG, "Removed $removed journal-derived calibration(s)")
     }
 
     suspend fun restoreCalibration(entity: CalibrationEntity) {
@@ -1835,7 +1913,7 @@ object CalibrationManager {
         ensureCalibrationStateLoaded()
         return _calibrations.value.any { cal ->
             cal.isEnabled &&
-            cal.isRawMode == isRawMode &&
+            matchesMode(cal, isRawMode) &&
             sensorMatches(cal.sensorId, currentSensor) &&
             kotlin.math.abs(cal.timestamp - timestamp) <= 30_000L
         }
@@ -1847,7 +1925,7 @@ object CalibrationManager {
         ensureCalibrationStateLoaded()
         val currentSensor = resolveSensorId(sensorIdOverride)
         return _calibrations.value.find { cal ->
-            cal.isRawMode == isRawMode &&
+            matchesMode(cal, isRawMode) &&
             sensorMatches(cal.sensorId, currentSensor) &&
             kotlin.math.abs(cal.timestamp - timestamp) <= 30_000L
         }
@@ -1861,7 +1939,7 @@ object CalibrationManager {
         ensureCalibrationStateLoaded()
         return _calibrations.value.filter { cal ->
             cal.isEnabled &&
-            cal.isRawMode == isRawMode &&
+            matchesMode(cal, isRawMode) &&
             sensorMatches(cal.sensorId, currentSensor)
         }
     }

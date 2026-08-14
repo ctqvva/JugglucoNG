@@ -375,6 +375,10 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         tk.glucodata.data.calibration.CalibrationManager.init(context)
         tk.glucodata.data.calibration.CalibrationManager.loadCalibrations()
+        // Journal BG entries can arrive while the app is not running — a meter
+        // handing over its stored readings, a Nightscout pull — so the derived
+        // calibrations are re-paired once here rather than only on a live edit.
+        tk.glucodata.data.calibration.JournalCalibrationSync.onAppStart()
     }
     // State for wizards (matching SensorScreen pattern)
     var showSibionicsWizard by remember { mutableStateOf(false) }

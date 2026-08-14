@@ -1385,6 +1385,9 @@
     <string name="calibration_initial_shown_status">Pokazano wartości początkowe</string>
     <string name="calibration_lock_past_history_title">Zablokuj przeszłą historię</string>
     <string name="calibration_lock_past_history_subtitle">Używaj tylko punktów kalibracji z czasu odczytu lub wcześniejszych.</string>
+    <string name="calibration_from_journal_title">Kalibruj na podstawie pomiarów glikemii</string>
+    <string name="calibration_from_journal_subtitle">Glikemia zapisana w dzienniku, z glukometru lub wpisana ręcznie, liczy się także jako punkt kalibracji.</string>
+    <string name="calibration_from_journal_badge">Z dziennika</string>
     <string name="sibionics_ble_probe_title">Pobliskie urządzenia Sibionics BLE (FF30)</string>
     <string name="sibionics_ble_probe_desc">Jeśli sensor pojawia się tutaj, Bluetooth działa. Do pełnej konfiguracji nadal zalecane jest skanowanie QR.</string>
     <string name="sibionics_ble_probe_empty">Nie znaleziono jeszcze urządzeń Sibionics FF30.</string>

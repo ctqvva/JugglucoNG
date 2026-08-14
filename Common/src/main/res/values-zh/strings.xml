@@ -1366,6 +1366,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_initial_shown_status">显示初始值</string>
     <string name="calibration_lock_past_history_title">锁定历史数据</string>
     <string name="calibration_lock_past_history_subtitle">每条读数仅使用该时间点及之前的校准点。</string>
+    <string name="calibration_from_journal_title">用血糖记录校准</string>
+    <string name="calibration_from_journal_subtitle">日志中的血糖记录，无论来自血糖仪还是手动输入，都会作为校准点。</string>
+    <string name="calibration_from_journal_badge">来自日志</string>
     <string name="sibionics_ble_probe_title">附近的 Sibionics BLE（FF30）</string>
     <string name="sibionics_ble_probe_desc">如果传感器出现在这里，说明蓝牙正常。完整配置仍建议扫描二维码。</string>
     <string name="sibionics_ble_probe_empty">暂未发现 FF30 Sibionics 设备。</string>

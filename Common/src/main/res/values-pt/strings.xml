@@ -1351,6 +1351,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_initial_shown_status">Valores iniciais mostrados</string>
     <string name="calibration_lock_past_history_title">Bloquear histórico passado</string>
     <string name="calibration_lock_past_history_subtitle">Use apenas pontos de calibração no momento ou antes de cada leitura.</string>
+    <string name="calibration_from_journal_title">Calibrar a partir das medições de glicemia</string>
+    <string name="calibration_from_journal_subtitle">A glicemia registada no diário, de um medidor ou introduzida manualmente, conta também como ponto de calibração.</string>
+    <string name="calibration_from_journal_badge">Do diário</string>
     <string name="sibionics_ble_probe_title">Sibionics BLE por perto (FF30)</string>
     <string name="sibionics_ble_probe_desc">Se o sensor aparecer aqui, o Bluetooth está funcionando. A leitura do QR ainda é recomendada para a configuração completa.</string>
     <string name="sibionics_ble_probe_empty">Nenhum dispositivo Sibionics FF30 encontrado ainda.</string>

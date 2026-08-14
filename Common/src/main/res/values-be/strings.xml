@@ -1349,6 +1349,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_initial_shown_status">Паказаны пачатковыя значэнні</string>
     <string name="calibration_lock_past_history_title">Зафіксаваць мінулую гісторыю</string>
     <string name="calibration_lock_past_history_subtitle">Выкарыстоўваць толькі кропкі каліброўкі на момант ці да часу кожнага вымярэння.</string>
+    <string name="calibration_from_journal_title">Калібраваць па запісах глюкозы</string>
+    <string name="calibration_from_journal_subtitle">Глюкоза крыві з журнала — з глюкометра ці ўведзеная ўручную — таксама становіцца кропкай каліброўкі.</string>
+    <string name="calibration_from_journal_badge">З журнала</string>
     <string name="sibionics_ble_probe_title">Побач Sibionics BLE (FF30)</string>
     <string name="sibionics_ble_probe_desc">Калі датчык з’явіўся тут, Bluetooth працуе. Для поўнай налады ўсё роўна лепш сканаваць QR.</string>
     <string name="sibionics_ble_probe_empty">Прылад Sibionics FF30 пакуль не знойдзена.</string>

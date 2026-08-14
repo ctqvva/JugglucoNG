@@ -1393,6 +1393,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="calibration_initial_shown_status">Beginwaarden weergegeven</string>
     <string name="calibration_lock_past_history_title">Verleden geschiedenis vergrendelen</string>
     <string name="calibration_lock_past_history_subtitle">Gebruik alleen kalibratiepunten op of vóór de tijd van elke meting.</string>
+    <string name="calibration_from_journal_title">Kalibreren met bloedglucosemetingen</string>
+    <string name="calibration_from_journal_subtitle">Bloedglucose in het dagboek, van een meter of handmatig ingevoerd, telt ook als kalibratiepunt.</string>
+    <string name="calibration_from_journal_badge">Uit dagboek</string>
     <string name="sibionics_ble_probe_title">Sibionics BLE in de buurt (FF30)</string>
     <string name="sibionics_ble_probe_desc">Als je sensor hier verschijnt, werkt Bluetooth. Voor volledige installatie heeft QR-scannen nog steeds de voorkeur.</string>
     <string name="sibionics_ble_probe_empty">Nog geen Sibionics-FF30-apparaten gevonden.</string>

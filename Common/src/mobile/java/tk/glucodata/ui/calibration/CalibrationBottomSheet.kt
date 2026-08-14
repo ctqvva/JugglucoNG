@@ -514,7 +514,11 @@ fun CalibrationBottomSheet(
                                 CalibrationManager.updateCalibration(
                                     editingEntity!!.copy(
                                         userValue = userValue,
-                                        timestamp = selectedTimestamp
+                                        timestamp = selectedTimestamp,
+                                        // Correcting a journal-derived point makes it the
+                                        // user's own, or the next journal sync would put
+                                        // the entry's value straight back.
+                                        journalEntryId = null
                                     )
                                 )
                                 onDismiss()

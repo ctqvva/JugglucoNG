@@ -386,6 +386,7 @@ object ExportPackageExporter {
             .put("keepDisabledHistory", CalibrationManager.keepDisabledHistory.value)
             .put("overwriteSensorValues", CalibrationManager.overwriteSensorValues.value)
             .put("visualContinuity", CalibrationManager.visualContinuity.value)
+            .put("calibrateFromJournal", CalibrationManager.calibrateFromJournal.value)
             .put("weightMode", CalibrationManager.getWeightMode().storageValue)
             .put("rawAlgorithm", CalibrationManager.getAlgorithmForMode(isRawMode = true).storageValue)
             .put("autoAlgorithm", CalibrationManager.getAlgorithmForMode(isRawMode = false).storageValue)
@@ -501,6 +502,9 @@ object ExportPackageExporter {
         CalibrationManager.setVisualContinuity(
             calibrations.optBoolean("visualContinuity", CalibrationManager.visualContinuity.value)
         )
+        CalibrationManager.setCalibrateFromJournal(
+            calibrations.optBoolean("calibrateFromJournal", CalibrationManager.calibrateFromJournal.value)
+        )
         CalibrationManager.setWeightMode(
             CalibrationManager.CalibrationWeightMode.fromStorage(
                 calibrations.optString("weightMode", "")
@@ -604,6 +608,7 @@ object ExportPackageExporter {
             .put("userValue", userValue.toDouble())
             .put("isEnabled", isEnabled)
             .put("isRawMode", isRawMode)
+            .put("journalEntryId", journalEntryId ?: JSONObject.NULL)
     }
 
     private fun JSONArray?.toHistoryReadings(): List<HistoryReading> {
@@ -732,7 +737,8 @@ object ExportPackageExporter {
                         sensorValueRaw = item.optDouble("sensorValueRaw", 0.0).toFloat(),
                         userValue = item.optDouble("userValue", 0.0).toFloat(),
                         isEnabled = item.optBoolean("isEnabled", true),
-                        isRawMode = item.optBoolean("isRawMode", false)
+                        isRawMode = item.optBoolean("isRawMode", false),
+                        journalEntryId = item.optNullableLong("journalEntryId")
                     )
                 )
             }

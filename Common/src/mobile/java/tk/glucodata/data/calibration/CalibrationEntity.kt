@@ -12,5 +12,12 @@ data class CalibrationEntity(
     val sensorValueRaw: Float,   // Raw value at calibration time
     val userValue: Float,
     val isEnabled: Boolean = true,
-    val isRawMode: Boolean = false // Which mode was used to create the calibration
+    val isRawMode: Boolean = false, // Which mode was used to create the calibration
+    /**
+     * The journal blood-glucose entry this calibration was derived from, when it
+     * was not entered by hand. Journal-derived rows are kept in step with the
+     * journal — re-paired when the entry moves, removed when it disappears — so
+     * they must stay identifiable. A hand-entered calibration has no entry.
+     */
+    val journalEntryId: Long? = null
 )

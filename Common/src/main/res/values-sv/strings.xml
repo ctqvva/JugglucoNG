@@ -1350,6 +1350,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_initial_shown_status">Initiala värden visas</string>
     <string name="calibration_lock_past_history_title">Lås tidigare historik</string>
     <string name="calibration_lock_past_history_subtitle">Använd endast kalibreringspunkter vid eller före varje avläsning.</string>
+    <string name="calibration_from_journal_title">Kalibrera från blodsockermätningar</string>
+    <string name="calibration_from_journal_subtitle">Blodsocker i journalen, från en mätare eller inskrivet för hand, räknas också som en kalibreringspunkt.</string>
+    <string name="calibration_from_journal_badge">Från journalen</string>
     <string name="sibionics_ble_probe_title">Sibionics BLE i närheten (FF30)</string>
     <string name="sibionics_ble_probe_desc">Om sensorn visas här fungerar Bluetooth. QR-skanning rekommenderas fortfarande för fullständig konfiguration.</string>
     <string name="sibionics_ble_probe_empty">Inga Sibionics FF30-enheter hittades ännu.</string>

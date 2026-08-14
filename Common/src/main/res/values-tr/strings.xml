@@ -1378,6 +1378,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="calibration_initial_shown_status">Gösterilen başlangıç ​​değerleri</string>
     <string name="calibration_lock_past_history_title">Geçmişi kilitle</string>
     <string name="calibration_lock_past_history_subtitle">Her ölçüm için yalnızca o anda veya öncesindeki kalibrasyon noktalarını kullan.</string>
+    <string name="calibration_from_journal_title">Kan şekeri kayıtlarından kalibre et</string>
+    <string name="calibration_from_journal_subtitle">Günlüğe kaydedilen kan şekeri — ölçüm cihazından gelen ya da elle girilen — kalibrasyon noktası olarak da sayılır.</string>
+    <string name="calibration_from_journal_badge">Günlükten</string>
     <string name="sibionics_ble_probe_title">Yakındaki Sibionics BLE (FF30)</string>
     <string name="sibionics_ble_probe_desc">Sensör burada görünüyorsa Bluetooth çalışıyor demektir. Tam kurulum için QR taraması yine de tercih edilir.</string>
     <string name="sibionics_ble_probe_empty">Henüz FF30 Sibionics cihazı bulunamadı.</string>

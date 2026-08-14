@@ -1656,6 +1656,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="calibration_initial_shown_status">Isha + la hagaajiyay</string>
     <string name="calibration_lock_past_history_title">Quful taariikhda hore</string>
     <string name="calibration_lock_past_history_subtitle">Isticmaal dhibcaha cabbirka oo keliya wakhti kasta ama ka hor.</string>
+    <string name="calibration_from_journal_title">Ku kalibree cabbirrada sonkorta</string>
+    <string name="calibration_from_journal_subtitle">Sonkorta dhiigga ee ku duuban joornaalka, mishiin ama gacan lagu qoray, sidoo kale waxay noqotaa dhibic kalibrayn.</string>
+    <string name="calibration_from_journal_badge">Joornaalka</string>
     <string name="calibration_apply_past_subtitle">Marka la damiyo, is-habayntu waxay ka bilaabataa meel u dhow barta is-xajinta ee hore oo hore ayay u fidaysaa.</string>
     <string name="calibration_overwrite_values_title">Qor qiyamka la saxay</string>
     <string name="calibration_overwrite_values_subtitle">Ku qor DB statistics, warbixinnada, iyo dhoofinta</string>

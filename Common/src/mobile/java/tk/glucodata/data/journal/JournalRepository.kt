@@ -75,6 +75,9 @@ class JournalRepository {
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         }
+        if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
         return id
     }
 
@@ -92,14 +95,17 @@ class JournalRepository {
         if (ids.isNotEmpty()) {
             dao.deleteEntriesBySourceRecordIds(ids)
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
     }
 
     suspend fun deleteEntry(entryId: Long) {
         var deletedType: String? = null
+        var deletedGlucose: Float? = null
         database.withTransaction {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
+            deletedGlucose = existing?.glucoseValueMgDl
             val remoteId = existing?.nightscoutDeleteRemoteId()
             if (remoteId != null) {
                 dao.enqueuePendingNightscoutDelete(
@@ -114,6 +120,9 @@ class JournalRepository {
         }
         if (affectsIob(deletedType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        if (deletedGlucose != null) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
     }
 
@@ -153,6 +162,11 @@ class JournalRepository {
 
     suspend fun getInsulinPresetsSnapshot(): List<JournalInsulinPreset> {
         return dao.getInsulinPresets().map(JournalInsulinPresetEntity::toModel)
+    }
+
+    /** Entries carrying a blood-glucose value, oldest first. */
+    suspend fun getGlucoseEntriesSince(startMillis: Long): List<JournalEntry> {
+        return dao.getGlucoseEntriesSince(startMillis).map(JournalEntryEntity::toModel)
     }
 
     suspend fun getEntriesBetweenSnapshot(startMillis: Long, endMillis: Long): List<JournalEntry> {

@@ -38,6 +38,12 @@ interface CalibrationDao {
     @Query("UPDATE calibrations SET sensorId = :sensorId WHERE id = :id")
     suspend fun updateSensorId(id: Int, sensorId: String): Int
     
+    @Query("DELETE FROM calibrations WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Int>)
+
+    @Query("DELETE FROM calibrations WHERE journalEntryId IS NOT NULL")
+    suspend fun deleteJournalDerived(): Int
+
     @Query("DELETE FROM calibrations")
     suspend fun deleteAll()
 }

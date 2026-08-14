@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [CalibrationEntity::class], version = 3, exportSchema = false)
+@Database(entities = [CalibrationEntity::class], version = 4, exportSchema = false)
 abstract class CalibrationDatabase : RoomDatabase() {
     abstract fun calibrationDao(): CalibrationDao
 
@@ -31,6 +31,13 @@ abstract class CalibrationDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 3 to 4: Add journalEntryId column (null = entered by hand)
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE calibrations ADD COLUMN journalEntryId INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): CalibrationDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -38,7 +45,7 @@ abstract class CalibrationDatabase : RoomDatabase() {
                     CalibrationDatabase::class.java,
                     "calibration_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance

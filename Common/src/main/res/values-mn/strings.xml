@@ -1376,6 +1376,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="calibration_initial_shown_status">Source + calibrated</string>
     <string name="calibration_lock_past_history_title">Lock past history</string>
     <string name="calibration_lock_past_history_subtitle">Use only calibration points at or before each reading time.</string>
+    <string name="calibration_from_journal_title">Цусны сахарын бичлэгээр калибрлах</string>
+    <string name="calibration_from_journal_subtitle">Журналд бүртгэсэн цусны сахар — хэмжигчээс ирсэн ч, гараар оруулсан ч — мөн калибрлах цэг болно.</string>
+    <string name="calibration_from_journal_badge">Журналаас</string>
     <string name="calibration_apply_past_subtitle">When off, calibration starts near the first calibration point and extends forward.</string>
     <string name="calibration_overwrite_values_title">Write calibrated values</string>
     <string name="calibration_overwrite_values_subtitle">Write in DB for statistics, reports, and export.</string>

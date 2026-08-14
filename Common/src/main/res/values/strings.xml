@@ -1725,6 +1725,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_overwrite_values_title">Write calibrated values</string>
     <string name="calibration_overwrite_values_subtitle">Write in DB for statistics, reports, and export.</string>
     <string name="calibration_visual_continuity_subtitle">Visual mode: continue calibrating from the value you currently see.</string>
+    <string name="calibration_from_journal_title">Calibrate from BG entries</string>
+    <string name="calibration_from_journal_subtitle">Blood glucose logged in the journal, from a meter or typed in, also counts as a calibration point.</string>
+    <string name="calibration_from_journal_badge">From journal</string>
     <string name="scan_with_follower">Scan this QR Code on the Follower device</string>
     <string name="sibionics_ble_probe_title">Nearby Sibionics BLE (FF30)</string>
     <string name="sibionics_ble_probe_desc">If your sensor appears here, Bluetooth is alive. QR scan is still preferred for full setup.</string>

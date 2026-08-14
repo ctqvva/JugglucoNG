@@ -119,7 +119,7 @@ fun CalibrationListScreen(
     // Filter by mode and current sensor
     val calibrations = allCalibrations
         .asSequence()
-        .filter { it.isRawMode == isRawMode }
+        .filter { CalibrationManager.matchesMode(it, isRawMode) }
         .filter {
             currentSensor.isNotBlank() &&
                 CalibrationManager.calibrationMatchesSensor(it.sensorId, currentSensor)
@@ -144,6 +144,7 @@ fun CalibrationListScreen(
     val keepDisabledHistory by CalibrationManager.keepDisabledHistory.collectAsState()
     val overwriteSensorValues by CalibrationManager.overwriteSensorValues.collectAsState()
     val visualContinuity by CalibrationManager.visualContinuity.collectAsState()
+    val calibrateFromJournal by CalibrationManager.calibrateFromJournal.collectAsState()
     val weightMode by CalibrationManager.weightMode.collectAsState()
 
     val dateFormatter = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
@@ -359,6 +360,7 @@ fun CalibrationListScreen(
                             keepDisabledHistory = keepDisabledHistory,
                             overwriteSensorValues = overwriteSensorValues,
                             visualContinuity = visualContinuity,
+                            calibrateFromJournal = calibrateFromJournal,
                             onToggle = { enabled ->
                                 CalibrationManager.setEnabledForMode(isRawMode, enabled, currentSensor)
                                 if (enabled && overwriteSensorValues && currentSensor.isNotBlank()) {
@@ -404,6 +406,9 @@ fun CalibrationListScreen(
                             },
                             onToggleVisualContinuity = { enabled ->
                                 CalibrationManager.setVisualContinuity(enabled)
+                            },
+                            onToggleCalibrateFromJournal = { enabled ->
+                                CalibrationManager.setCalibrateFromJournal(enabled)
                             }
                         )
                     }
@@ -675,13 +680,15 @@ private fun MasterCalibrationCard(
     keepDisabledHistory: Boolean,
     overwriteSensorValues: Boolean,
     visualContinuity: Boolean,
+    calibrateFromJournal: Boolean,
     onToggle: (Boolean) -> Unit,
     onToggleHideInitial: (Boolean) -> Unit,
     onToggleApplyToPast: (Boolean) -> Unit,
     onToggleLockPastHistory: (Boolean) -> Unit,
     onToggleKeepDisabledHistory: (Boolean) -> Unit,
     onToggleOverwriteSensorValues: (Boolean) -> Unit,
-    onToggleVisualContinuity: (Boolean) -> Unit
+    onToggleVisualContinuity: (Boolean) -> Unit,
+    onToggleCalibrateFromJournal: (Boolean) -> Unit
 ) {
     var expanded by rememberSaveable(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
     LaunchedEffect(initiallyExpanded) {
@@ -832,6 +839,14 @@ private fun MasterCalibrationCard(
 //                        onToggle = onToggleOverwriteSensorValues
 //                    )
 //                    HorizontalDivider(color = rowDividerColor)
+                    MasterToggleRow(
+                        title = stringResource(R.string.calibration_from_journal_title),
+                        subtitle = stringResource(R.string.calibration_from_journal_subtitle),
+                        checked = calibrateFromJournal,
+                        enabled = isEnabled,
+                        onToggle = onToggleCalibrateFromJournal
+                    )
+                    HorizontalDivider(color = rowDividerColor)
                     MasterToggleRow(
                         title = stringResource(R.string.calibrate_a),
                         subtitle = stringResource(R.string.calibration_visual_continuity_subtitle),
@@ -1449,6 +1464,23 @@ private fun CalibrationItemContent(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    // Derived points come back on the next sync, so say where they
+                    // came from rather than let a deleted one look like a bug.
+                    if (cal.journalEntryId != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.calibration_from_journal_badge),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
 
                     if (!cal.isEnabled) {
