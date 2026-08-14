@@ -87,6 +87,16 @@ fun getview(type: ComplicationType):GlucoseValue {
                  "Small Glucose",
                  tapAction,
                  icon,
+                 // What distinguishes this from the plain Value + arrow: when
+                 // the reading was taken.
+                 title = GlucoseComplicationData.readingTimeText(reading),
+             )
+             LONG_TEXT -> GlucoseComplicationData.longTextData(
+                 reading,
+                 "Small Glucose",
+                 tapAction,
+                 icon,
+                 title = GlucoseComplicationData.readingTimeText(reading),
              )
              RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                  reading,
@@ -130,11 +140,19 @@ fun getview(type: ComplicationType):GlucoseValue {
                      complicationPendingIntent,
                      image,
                  )
+                 LONG_TEXT -> GlucoseComplicationData.longTextData(
+                     glucose,
+                     "Small Glucose",
+                     complicationPendingIntent,
+                     image,
+                     title = GlucoseComplicationData.readingTimeText(glucose),
+                 )
                  else -> GlucoseComplicationData.shortValueData(
                      glucose,
                      "Small Glucose",
                      complicationPendingIntent,
                      image,
+                     title = GlucoseComplicationData.readingTimeText(glucose),
                  )
              }
             }

@@ -67,10 +67,18 @@ private val glview= GlucoseValue(100,100)
                     .setTapAction(tapAction)
                     .build()
             }
+            ComplicationType.LONG_TEXT -> GlucoseComplicationData.longTextData(
+                reading,
+                "Glucose Value",
+                tapAction,
+                title = GlucoseComplicationData.readingTimeText(reading),
+            )
             ComplicationType.SHORT_TEXT -> GlucoseComplicationData.shortValueData(
                 reading,
                 "Glucose Value",
                 tapAction,
+                // The time is what separates this from Glucose value small.
+                title = GlucoseComplicationData.readingTimeText(reading),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 reading,
@@ -91,20 +99,31 @@ private val glview= GlucoseValue(100,100)
             ComplicationType.SMALL_IMAGE-> {
 	      var image=
 	      if(glucose==null) {
-		 Log.i(LOG_ID,"glucose==null") 
-		  glview.getnovalue()
+		 Log.i(LOG_ID,"glucose==null")
+		  ComplicationRenderer.noValueBitmap(VALUE_PX)
 		 }
 	      else {
 		    Log.i(LOG_ID,"glucose==${glucose.text}")
-   		   val now = System.currentTimeMillis()
-			   glview.getNumberBitmap(glucose.text,glucose.timeMillis,glucose.index,now)
+		   // Value over its time, through the shared renderer: this is the
+		   // form that shows when the reading was taken.
+		   ComplicationRenderer.valueWithTimeBitmap(
+		       VALUE_PX, glucose.text, glucose.value, glucose.timeMillis,
+		       ComplicationRenderer.isMmol(),
+		   )
 		  }
                 SmallImageComplicationData.Builder( SmallImage.Builder( Icon.createWithBitmap(image), SmallImageType.PHOTO).build(), contentDescription = PlainComplicationText.Builder("Glucose Number").build()).setTapAction(complicationPendingIntent).build()
 		}
+            ComplicationType.LONG_TEXT -> GlucoseComplicationData.longTextData(
+                glucose,
+                "Glucose Number",
+                complicationPendingIntent,
+                title = GlucoseComplicationData.readingTimeText(glucose),
+            )
             ComplicationType.SHORT_TEXT -> GlucoseComplicationData.shortValueData(
                 glucose,
                 "Glucose Number",
                 complicationPendingIntent,
+                title = GlucoseComplicationData.readingTimeText(glucose),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 glucose,
@@ -122,6 +141,7 @@ private val glview= GlucoseValue(100,100)
 
     companion object {
         private const val LOG_ID = "NumberDataSourceService"
+        private const val VALUE_PX = 320
    private val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        NumberDataSourceService::class.java
    ))

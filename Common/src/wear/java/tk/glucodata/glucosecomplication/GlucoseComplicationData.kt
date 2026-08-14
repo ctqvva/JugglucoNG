@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.graphics.drawable.Icon
 import androidx.wear.watchface.complications.data.ColorRamp
 import androidx.wear.watchface.complications.data.ComplicationText
+import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.MonochromaticImage
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.RangedValueComplicationData
@@ -116,19 +117,56 @@ internal object GlucoseComplicationData {
         )
     }
 
+    /** The reading's own time, for the forms that show when it was taken. */
+    fun readingTimeText(reading: Reading?): String? {
+        val at = reading?.timeMillis?.takeIf { it > 0L } ?: return null
+        return runCatching {
+            android.text.format.DateFormat.getTimeFormat(Applic.app).format(java.util.Date(at))
+        }.getOrNull()
+    }
+
     fun shortValueData(
         reading: Reading?,
         contentDescription: String,
         tapAction: PendingIntent = tapAction(),
         icon: Icon? = null,
+        /** Shown above the value by faces that render a title. */
+        title: String? = null,
     ): ShortTextComplicationData {
         val builder = ShortTextComplicationData.Builder(
             text = text(reading?.text ?: noValueText()),
             contentDescription = text(contentDescription),
         ).setTapAction(tapAction)
+        title?.let { builder.setTitle(text(it)) }
         if (reading != null && icon != null) {
             builder.setSmallImage(SmallImage.Builder(icon, SmallImageType.PHOTO).build())
             builder.setMonochromaticImage(MonochromaticImage.Builder(icon).build())
+        }
+        return builder.build()
+    }
+
+    /**
+     * The long form every provider offers.
+     *
+     * A slot lists only the providers that support a type it accepts, so a
+     * provider missing LONG_TEXT simply does not appear in a long slot's picker
+     * — which is why none of these showed up for the wide slot on the dial.
+     */
+    fun longTextData(
+        reading: Reading?,
+        contentDescription: String,
+        tapAction: PendingIntent = tapAction(),
+        icon: Icon? = null,
+        title: String? = null,
+    ): LongTextComplicationData {
+        val builder = LongTextComplicationData.Builder(
+            text = text(reading?.text ?: noValueText()),
+            contentDescription = text(contentDescription),
+        ).setTapAction(tapAction)
+        title?.let { builder.setTitle(text(it)) }
+        icon?.let {
+            builder.setSmallImage(SmallImage.Builder(it, SmallImageType.PHOTO).build())
+            builder.setMonochromaticImage(MonochromaticImage.Builder(it).build())
         }
         return builder.build()
     }

@@ -162,7 +162,7 @@
 
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="SMALL_IMAGE,SHORT_TEXT,RANGED_VALUE" />
+                android:value="SMALL_IMAGE,SHORT_TEXT,LONG_TEXT,RANGED_VALUE" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
@@ -179,7 +179,7 @@
 
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="LARGE_IMAGE,SMALL_IMAGE,SHORT_TEXT,RANGED_VALUE" />
+                android:value="LARGE_IMAGE,SMALL_IMAGE,SHORT_TEXT,LONG_TEXT,RANGED_VALUE" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
@@ -214,7 +214,7 @@
 
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="ICON,SHORT_TEXT,RANGED_VALUE"/>
+                android:value="ICON,SHORT_TEXT,LONG_TEXT,RANGED_VALUE"/>
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
@@ -231,7 +231,7 @@
 
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="SHORT_TEXT,RANGED_VALUE"/>
+                android:value="SHORT_TEXT,LONG_TEXT,RANGED_VALUE"/>
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />

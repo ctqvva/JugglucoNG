@@ -244,6 +244,28 @@ internal object ComplicationRenderer {
         return bmp
     }
 
+    /**
+     * The value with its time beneath it — the form that says not just what the
+     * reading is but whether it is still current.
+     */
+    @JvmOverloads
+    fun valueWithTimeBitmap(
+        size: Int,
+        text: String,
+        value: Float,
+        timeMillis: Long,
+        isMmol: Boolean,
+        color: Int = valueColor(value, isMmol),
+        icon: Boolean = false,
+    ): Bitmap {
+        val (bmp, canvas) = bitmap(size, size)
+        val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
+        val content = size - inset * 2f
+        drawFittedText(canvas, text, color, inset, inset, content, content * 0.66f)
+        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color)
+        return bmp
+    }
+
     /** Value with the arrow beside it, for the wider compact slots. */
     @JvmOverloads
     fun valueWithArrowBitmap(
