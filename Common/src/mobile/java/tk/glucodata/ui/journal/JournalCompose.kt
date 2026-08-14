@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -2510,14 +2511,14 @@ private fun JournalPresetPill(
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         border = if (selected) BorderStroke(1.dp, accent.copy(alpha = 0.9f)) else null,
         tonalElevation = if (selected) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
                 .heightIn(min = 48.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -2542,13 +2543,14 @@ private fun JournalPresetPill(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = preset.displayName,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -2822,7 +2824,7 @@ private fun JournalDateTimeCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -2870,16 +2872,16 @@ private fun JournalDateTimeSegment(
                 role = Role.Button
             }
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
@@ -2902,81 +2904,91 @@ private fun JournalInsulinWindowCard(
         stringResource(R.string.minutes_short_format, preset.onsetMinutes),
         stringResource(R.string.minutes_short_format, preset.durationMinutes)
     )
+    val containerColor by animateColorAsState(
+        targetValue = if (expanded) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            Color.Transparent
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "journalInsulinWindowContainerColor"
+    )
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .semantics(mergeDescendants = true) {
-                    this.contentDescription = windowDescription
-                    role = Role.Button
-                }
-                .clickable { expanded = !expanded }
-                .heightIn(min = 24.dp)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Schedule,
-                contentDescription = null,
-                tint = accent,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "$onset – $duration",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                expandFrom = Alignment.Top
-            ) + fadeIn(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            ),
-            exit = shrinkVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                ),
-                shrinkTowards = Alignment.Top
-            ) + fadeOut(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            )
-        ) {
-            Surface(
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = containerColor,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column {
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(18.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .semantics(mergeDescendants = true) {
+                        this.contentDescription = windowDescription
+                        role = Role.Button
+                    }
+                    .clickable { expanded = !expanded }
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "$onset – $duration",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    expandFrom = Alignment.Top
+                ) + fadeIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ),
+                exit = shrinkVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    shrinkTowards = Alignment.Top
+                ) + fadeOut(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
             ) {
                 JournalInsulinActivityCurve(
                     points = preset.curvePoints,
                     durationMinutes = preset.durationMinutes,
                     color = accent,
                     contentDescription = windowDescription,
-                    modifier = Modifier.padding(14.dp)
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                 )
             }
         }
@@ -3092,11 +3104,11 @@ private fun JournalInsulinActivityCurve(
                 fillPath.close()
 
                 drawPath(path = fillPath, color = color.copy(alpha = 0.14f))
-                drawPath(path = curvePath, color = color, style = Stroke(width = 2.5.dp.toPx()))
+                drawPath(path = curvePath, color = color, style = Stroke(width = 2.dp.toPx()))
                 curvePoints.maxByOrNull { it.activity }?.let { peak ->
                     drawCircle(
                         color = color,
-                        radius = 3.5.dp.toPx(),
+                        radius = 4.dp.toPx(),
                         center = androidx.compose.ui.geometry.Offset(
                             x = (peak.minute / maxMinute) * size.width,
                             y = baseline - (peak.activity.coerceIn(0f, 1f) * curveHeight)
