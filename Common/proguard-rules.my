@@ -109,6 +109,16 @@
     public final java.lang.String exportProfileForSensorAsJson(java.lang.String);
     public final *** importProfileFromJsonBlocking(java.lang.String,boolean,java.lang.String);
     public final *** importMirrorProfileFromJsonBlocking(java.lang.String,java.lang.String);
+    # The mutations WearCalibrationCommand relays from the watch. These have no
+    # non-reflective caller under their exact name, so R8 renamed
+    # setEnabledForMode and deleted the four *Blocking methods outright: every
+    # calibration action taken on the watch logged "applied=false" in release
+    # builds while working in debug.
+    public final void setEnabledForMode(boolean,boolean,java.lang.String);
+    public final boolean addCalibrationFromWearAtBlocking(long,float);
+    public final boolean deleteCalibrationAtBlocking(long);
+    public final boolean updateCalibrationUserValueBlocking(long,float);
+    public final void clearAllBlocking();
 }
 
 -keep class tk.glucodata.CalibrationProfileAccess { *; }

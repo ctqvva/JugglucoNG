@@ -3,6 +3,7 @@ package tk.glucodata
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -99,6 +100,90 @@ class WearCalibrationPayloadTests {
         )
 
         assertEquals(expected, actual, 0.0001f)
+    }
+
+    @Test
+    fun driverIntegratedLaneIsLeftAlone_soTheWatchDoesNotCorrectTwice() {
+        // Sibionics in STOCK_CALIBRATED folds the fit into the auto value it
+        // stores, and CalibrationManager.getCalibratedValue returns such a value
+        // untouched. The watch received the corrected value plus the anchors and
+        // applied them again: the phone's 7,8 read 7,4 on the wrist. The raw
+        // lane is not integrated, so it must still be corrected here.
+        val timestamp = 1_786_714_440_000L
+        val anchors = doubleArrayOf(
+            2.9, 3.2, (timestamp - 12 * 3_600_000L).toDouble(),
+            8.7, 8.2, (timestamp - 4 * 3_600_000L).toDouble(),
+        )
+        val scale = 18.0182
+        fun canonical(values: DoubleArray) = values.copyOf().also { packed ->
+            for (index in packed.indices step 3) {
+                packed[index] *= scale
+                packed[index + 1] *= scale
+            }
+        }
+        val payload = WearCalibrationPayload(
+            sensorId = "SIBI:0683013AQT9",
+            revision = 7L,
+            valuesPrecalibrated = false,
+            hideInitialWhenCalibrated = true,
+            autoIntegratedByDriver = true,
+            rawIntegratedByDriver = false,
+            auto = WearCalibrationMode(canonical(anchors)),
+            raw = WearCalibrationMode(canonical(anchors)),
+            sourceUnitMgdlPerUnit = scale,
+        )
+
+        val decoded = requireNotNull(
+            WearCalibrationPayload.decode(WearCalibrationPayload.encode(payload)),
+        )
+        assertTrue(decoded.autoIntegratedByDriver)
+        assertFalse(decoded.rawIntegratedByDriver)
+
+        val alreadyCorrected = 7.8f
+        assertEquals(
+            alreadyCorrected,
+            SyncedWearCalibrationProvider.calibrateWithPayload(
+                alreadyCorrected,
+                timestamp,
+                false,
+                scale.toFloat(),
+                decoded,
+            ),
+            0.0001f,
+        )
+        val rawLane = SyncedWearCalibrationProvider.calibrateWithPayload(
+            alreadyCorrected,
+            timestamp,
+            true,
+            scale.toFloat(),
+            decoded,
+        )
+        assertNotEquals(alreadyCorrected, rawLane, 0.01f)
+    }
+
+    @Test
+    fun integrationFlagsSurviveAPayloadThatCarriesTheOtherFlagsToo() {
+        val payload = WearCalibrationPayload(
+            sensorId = "SIBI:0683013AQT9",
+            revision = 3L,
+            valuesPrecalibrated = true,
+            hideInitialWhenCalibrated = true,
+            overwriteSensorValues = true,
+            autoIntegratedByDriver = true,
+            rawIntegratedByDriver = true,
+            auto = WearCalibrationMode(DoubleArray(0)),
+            raw = WearCalibrationMode(DoubleArray(0)),
+        )
+
+        val decoded = requireNotNull(
+            WearCalibrationPayload.decode(WearCalibrationPayload.encode(payload)),
+        )
+
+        assertTrue(decoded.valuesPrecalibrated)
+        assertTrue(decoded.hideInitialWhenCalibrated)
+        assertTrue(decoded.overwriteSensorValues)
+        assertTrue(decoded.autoIntegratedByDriver)
+        assertTrue(decoded.rawIntegratedByDriver)
     }
 
     @Test

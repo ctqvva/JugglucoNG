@@ -97,6 +97,11 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
     ): Float {
         val anchors = mode(payload, isRawMode).anchorsMgdl
         if (anchors.isEmpty() || !value.isFinite() || value <= 0f) return value
+        // The phone's managed driver folded the fit into the value it stored for
+        // this lane, and CalibrationManager leaves such a value alone. Applying
+        // the anchors here as well showed the watch a second correction of an
+        // already corrected reading — 7,8 on the phone read 7,4 here.
+        if (integratedByDriver(payload, isRawMode)) return value
         val sourceScale = payload.sourceUnitMgdlPerUnit.toFloat()
         val points = ArrayList<tk.glucodata.data.calibration.CalPoint>(anchors.size / 3)
         var offset = 0
@@ -167,6 +172,9 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
 
     private fun mode(payload: WearCalibrationPayload, isRawMode: Boolean): WearCalibrationMode =
         if (isRawMode) payload.raw else payload.auto
+
+    private fun integratedByDriver(payload: WearCalibrationPayload, isRawMode: Boolean): Boolean =
+        if (isRawMode) payload.rawIntegratedByDriver else payload.autoIntegratedByDriver
 
     private fun matchingPayload(sensorId: String?): WearCalibrationPayload? {
         restoreLocked()

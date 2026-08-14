@@ -315,9 +315,15 @@ object WearGlucoseStore {
             return result
         }
 
+        // The phone corrects only the lane its view mode makes primary, and with
+        // that lane's own anchors (ReadingRow: baseValue = raw or auto by mode);
+        // the other lane is drawn as it was stored. Correcting both here made the
+        // watch's secondary read 5,3 where the phone showed 5,4 — and in a raw
+        // view mode it ran the auto value through the raw anchors, which are
+        // fitted against a different set of numbers entirely.
         return points.map { point ->
-            val value = corrected(point.value, point.timestamp, isRawMode)
-            val raw = corrected(point.rawValue, point.timestamp, true)
+            val value = if (isRawMode) point.value else corrected(point.value, point.timestamp, false)
+            val raw = if (isRawMode) corrected(point.rawValue, point.timestamp, true) else point.rawValue
             if (value == point.value && raw == point.rawValue) point
             else GlucosePoint(point.timestamp, value, raw)
         }

@@ -16,6 +16,15 @@ data class WearCalibrationPayload(
     /** The phone overwrites sensor values itself; the watch must not correct twice. */
     val overwriteSensorValues: Boolean = false,
     /**
+     * The managed driver folded the user's calibration into the auto lane before
+     * the value was stored (Sibionics in STOCK_CALIBRATED, say), so the phone's
+     * own display path leaves it alone. The anchors still travel — the watch
+     * lists them — but correcting with them here would apply the fit twice.
+     */
+    val autoIntegratedByDriver: Boolean = false,
+    /** As [autoIntegratedByDriver], for the raw lane. */
+    val rawIntegratedByDriver: Boolean = false,
+    /**
      * The settings behind the phone's fit. Sent so the watch reproduces the same
      * numbers when it corrects readings it took over its own connection.
      */
@@ -31,6 +40,11 @@ data class WearCalibrationPayload(
         private const val VERSION_SINGLE_TUNING = 2
         private const val VERSION_WITHOUT_TUNING = 1
         private const val FLAG_OVERWRITE_SENSOR_VALUES = 1 shl 2
+        // Spare bits in the flags byte every version carries, so a watch that
+        // predates them simply reads them as false rather than rejecting the
+        // payload; no version bump is needed.
+        private const val FLAG_AUTO_INTEGRATED = 1 shl 3
+        private const val FLAG_RAW_INTEGRATED = 1 shl 4
         private const val FLAG_VALUES_PRECALIBRATED = 1
         private const val FLAG_HIDE_INITIAL = 1 shl 1
         private const val MAX_SERIAL_BYTES = 255
@@ -50,7 +64,9 @@ data class WearCalibrationPayload(
             val flags =
                 (if (payload.valuesPrecalibrated) FLAG_VALUES_PRECALIBRATED else 0) or
                     (if (payload.hideInitialWhenCalibrated) FLAG_HIDE_INITIAL else 0) or
-                    (if (payload.overwriteSensorValues) FLAG_OVERWRITE_SENSOR_VALUES else 0)
+                    (if (payload.overwriteSensorValues) FLAG_OVERWRITE_SENSOR_VALUES else 0) or
+                    (if (payload.autoIntegratedByDriver) FLAG_AUTO_INTEGRATED else 0) or
+                    (if (payload.rawIntegratedByDriver) FLAG_RAW_INTEGRATED else 0)
             validateTuning(payload.tuning)
             validateTuning(payload.rawTuning)
             val buffer = ByteBuffer.allocate(
@@ -106,6 +122,8 @@ data class WearCalibrationPayload(
                 valuesPrecalibrated = flags and FLAG_VALUES_PRECALIBRATED != 0,
                 hideInitialWhenCalibrated = flags and FLAG_HIDE_INITIAL != 0,
                 overwriteSensorValues = flags and FLAG_OVERWRITE_SENSOR_VALUES != 0,
+                autoIntegratedByDriver = flags and FLAG_AUTO_INTEGRATED != 0,
+                rawIntegratedByDriver = flags and FLAG_RAW_INTEGRATED != 0,
                 tuning = tuning,
                 rawTuning = rawTuning,
                 sourceUnitMgdlPerUnit = sourceUnitMgdlPerUnit,

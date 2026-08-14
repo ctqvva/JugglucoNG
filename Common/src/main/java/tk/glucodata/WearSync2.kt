@@ -355,6 +355,13 @@ object WearSync2 {
             valuesPrecalibrated = false,
             hideInitialWhenCalibrated = CalibrationAccess.shouldHideInitialWhenCalibrated(),
             overwriteSensorValues = CalibrationAccess.shouldOverwriteSensorValues(),
+            // A managed driver that folds the calibration into its own algorithm
+            // (Sibionics STOCK_CALIBRATED) already shipped a corrected value in
+            // the chunk above, and CalibrationManager.getCalibratedValue returns
+            // it untouched here. Say so, or the watch applies the fit a second
+            // time and shows a lower number than the phone for the same reading.
+            autoIntegratedByDriver = integratesUserCalibration(serial, false),
+            rawIntegratedByDriver = integratesUserCalibration(serial, true),
             tuning = CalibrationAccess.tuningForMode(false),
             rawTuning = CalibrationAccess.tuningForMode(true),
             sourceUnitMgdlPerUnit = if (Applic.unit == 1) MGDL_PER_MMOL else 1.0,
@@ -366,6 +373,11 @@ object WearSync2 {
             WearCalibrationPayload.encode(payload),
         )
     }
+
+    private fun integratesUserCalibration(serial: String, isRawMode: Boolean): Boolean =
+        runCatching {
+            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(serial, isRawMode)
+        }.getOrDefault(false)
 
     private fun canonicalAnchors(serial: String, isRawMode: Boolean): DoubleArray {
         val anchors = CalibrationAccess.getActiveCalibrationAnchors(serial, isRawMode)
