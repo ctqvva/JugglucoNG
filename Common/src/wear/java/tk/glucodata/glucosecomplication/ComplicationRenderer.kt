@@ -419,14 +419,40 @@ internal object ComplicationRenderer {
         val from = now - SPARK_WINDOW_MS
         val points = runCatching {
             val sensor = NotificationHistorySource.resolveSensorSerial()
+            val lane = primaryLane(sensor)
             NotificationHistorySource.getDisplayHistory(from, isMmol, sensor)
-                .filter { it.timestamp in from..now && it.value.isFinite() && it.value > 0f }
+                .filter { it.timestamp in from..now }
+                .mapNotNull { point ->
+                    val value = if (lane) {
+                        point.rawValue.takeIf { it.isFinite() && it > 0f } ?: point.value
+                    } else {
+                        point.value
+                    }
+                    if (value.isFinite() && value > 0f) {
+                        GlucosePoint(point.timestamp, value, point.rawValue)
+                    } else {
+                        null
+                    }
+                }
         }.getOrDefault(emptyList())
         val smoothed = smooth(points)
         sparkCache = smoothed
         sparkCacheAt = now
         return smoothed
     }
+
+    /**
+     * True when the sensor's view mode puts the raw lane first.
+     *
+     * The trace plotted the auto lane unconditionally while the value beside it
+     * came from the primary one, so in a raw mode the two described different
+     * readings — and the colouring followed the lane nobody was looking at, so
+     * a low value could sit above a plainly in-range curve.
+     */
+    private fun primaryLane(sensor: String?): Boolean = runCatching {
+        val mode = tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(sensor)
+        mode == 1 || mode == 3
+    }.getOrDefault(false)
 
     /** The user's smoothing, applied exactly as the watch's own store applies it. */
     private fun smooth(points: List<GlucosePoint>): List<GlucosePoint> {
