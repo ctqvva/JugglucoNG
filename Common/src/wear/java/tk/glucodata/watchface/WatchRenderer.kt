@@ -423,10 +423,10 @@ private fun   showglucose(canvas:Canvas,glucosePaint:Paint,agePaint:Paint,getxin
               val sparkInset = width * 0.16f
               val from = System.currentTimeMillis() - tk.glucodata.glucosecomplication.ComplicationRenderer.SPARK_WINDOW_MS
               val now = System.currentTimeMillis()
+              // Through the shared source, so the face is smoothed like the
+              // app and shares the complications' read of the same window.
               val points = runCatching {
-                  val sensor = tk.glucodata.NotificationHistorySource.resolveSensorSerial()
-                  tk.glucodata.NotificationHistorySource.getDisplayHistory(from, isMmol, sensor)
-                      .filter { it.timestamp in from..now && it.value.isFinite() && it.value > 0f }
+                  tk.glucodata.glucosecomplication.ComplicationRenderer.sparkPoints(isMmol)
               }.getOrDefault(emptyList())
               if (points.size >= 2) {
                   save()

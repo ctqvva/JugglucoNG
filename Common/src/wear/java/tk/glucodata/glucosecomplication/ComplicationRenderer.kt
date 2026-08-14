@@ -403,7 +403,14 @@ internal object ComplicationRenderer {
         }
     }
 
-    /** Recent history for the sparkline, or empty when there is too little. */
+    /**
+     * Recent history for the sparkline, or empty when there is too little.
+     *
+     * Smoothed with the user's own setting. These read history directly rather
+     * than through WearGlucoseStore, which is where the app's screens get their
+     * smoothing, so the complications and the watch face were drawing the raw
+     * trace beside a smoothed one in the app.
+     */
     fun sparkPoints(isMmol: Boolean): List<GlucosePoint> {
         val now = System.currentTimeMillis()
         val cached = sparkCache
@@ -414,9 +421,33 @@ internal object ComplicationRenderer {
             NotificationHistorySource.getDisplayHistory(from, isMmol, sensor)
                 .filter { it.timestamp in from..now && it.value.isFinite() && it.value > 0f }
         }.getOrDefault(emptyList())
-        sparkCache = points
+        val smoothed = smooth(points)
+        sparkCache = smoothed
         sparkCacheAt = now
-        return points
+        return smoothed
+    }
+
+    /** The user's smoothing, applied exactly as the watch's own store applies it. */
+    private fun smooth(points: List<GlucosePoint>): List<GlucosePoint> {
+        val context = Applic.app ?: return points
+        val minutes = runCatching {
+            tk.glucodata.DataSmoothing.graphSmoothingMinutes(context)
+        }.getOrDefault(0)
+        if (minutes <= 0) return points
+        val collapse = runCatching {
+            tk.glucodata.DataSmoothing.collapseChunks(context)
+        }.getOrDefault(false)
+        return runCatching {
+            tk.glucodata.GlucoseSmoothing.smooth(
+                points = points,
+                smoothingMinutes = minutes,
+                collapseIntoChunks = collapse,
+                timestamp = { it.timestamp },
+                value = { it.value },
+                rawValue = { it.rawValue },
+                withValues = { point, auto, raw -> GlucosePoint(point.timestamp, auto, raw) },
+            )
+        }.getOrDefault(points)
     }
 
     /**
