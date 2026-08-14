@@ -162,6 +162,125 @@ class WearCalibrationPayloadTests {
     }
 
     @Test
+    fun theWatchIntegratesAnIntegratedLaneInsteadOfStoringStockValues() {
+        // The defect: with no CalibrationManager on the watch, the driver's
+        // integration hook handed its own values straight back, so a Sibionics
+        // sensor read by the watch stored stock numbers that both devices then
+        // displayed as corrected -- a calibration entered at 5,1 -> 3,4 left
+        // 5,1 on screen. The phone's rebased anchors travel so the watch's
+        // driver produces what the phone's would.
+        val timestamp = 1_786_800_000_000L
+        val scale = 18.0182
+        val tuning = tk.glucodata.data.calibration.CalibrationTuning(
+            algorithm = "linear_regression",
+            weightMode = "stable",
+            applyToPast = true,
+            lockPastHistory = false,
+            keepDisabledHistory = false,
+        )
+        // x is the stock value behind each anchor, not the value on screen.
+        val stockAnchors = doubleArrayOf(
+            3.0, 3.2, (timestamp - 6 * 3_600_000L).toDouble(),
+            6.0, 5.4, (timestamp - 2 * 3_600_000L).toDouble(),
+        )
+        fun canonical(values: DoubleArray) = values.copyOf().also { packed ->
+            for (index in packed.indices step 3) {
+                packed[index] *= scale
+                packed[index + 1] *= scale
+            }
+        }
+        val payload = WearCalibrationPayload(
+            sensorId = "SIBI:0683013AQT9",
+            revision = 9L,
+            valuesPrecalibrated = false,
+            hideInitialWhenCalibrated = false,
+            autoIntegratedByDriver = true,
+            auto = WearCalibrationMode(canonical(stockAnchors)),
+            raw = WearCalibrationMode(DoubleArray(0)),
+            autoIntegration = WearCalibrationMode(canonical(stockAnchors)),
+            rawIntegration = WearCalibrationMode(DoubleArray(0)),
+            tuning = tuning,
+            rawTuning = tuning,
+            sourceUnitMgdlPerUnit = scale,
+        )
+
+        val decoded = requireNotNull(
+            WearCalibrationPayload.decode(WearCalibrationPayload.encode(payload)),
+        )
+        assertArrayEquals(
+            payload.autoIntegration.anchorsMgdl,
+            decoded.autoIntegration.anchorsMgdl,
+            0.0,
+        )
+
+        val stock = floatArrayOf(5.1f)
+        val integrated = SyncedWearCalibrationProvider.integrateWithPayload(
+            stock,
+            longArrayOf(timestamp),
+            false,
+            scale.toFloat(),
+            decoded,
+        )
+        // What the phone's evaluation produces for the same stock value.
+        val points = stockAnchors.toList().chunked(3).map {
+            tk.glucodata.data.calibration.CalPoint(it[0], it[1], it[2].toLong())
+        }
+        val expected = tk.glucodata.data.calibration.CalibrationMath.sanitizeCalibratedValue(
+            tk.glucodata.data.calibration.CalibrationMath.computeAlgorithm(
+                tuning.algorithm,
+                stock[0].toDouble(),
+                timestamp,
+                points,
+                tuning,
+            ).prediction,
+            stock[0],
+        )
+        assertEquals(expected, integrated[0], 0.0001f)
+        assertNotEquals(stock[0], integrated[0], 0.01f)
+
+        // And having integrated it, the display path must not correct it again.
+        assertEquals(
+            integrated[0],
+            SyncedWearCalibrationProvider.calibrateWithPayload(
+                integrated[0],
+                timestamp,
+                false,
+                scale.toFloat(),
+                decoded,
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun aLaneThePhoneDoesNotIntegrateIsLeftToTheDisplayPath() {
+        // No integration anchors means the phone corrects this lane at display
+        // time, so the watch's driver must store what it measured.
+        val timestamp = 1_786_800_000_000L
+        val payload = WearCalibrationPayload(
+            sensorId = "SIBI:0683013AQT9",
+            revision = 2L,
+            valuesPrecalibrated = false,
+            hideInitialWhenCalibrated = false,
+            auto = WearCalibrationMode(
+                doubleArrayOf(100.0, 120.0, (timestamp - 3_600_000L).toDouble()),
+            ),
+            raw = WearCalibrationMode(DoubleArray(0)),
+        )
+        val values = floatArrayOf(110f, 90f)
+
+        val integrated = SyncedWearCalibrationProvider.integrateWithPayload(
+            values,
+            longArrayOf(timestamp, timestamp - 60_000L),
+            false,
+            1f,
+            payload,
+        )
+
+        assertArrayEquals(values, integrated, 0f)
+    }
+
+    @Test
     fun integrationFlagsSurviveAPayloadThatCarriesTheOtherFlagsToo() {
         val payload = WearCalibrationPayload(
             sensorId = "SIBI:0683013AQT9",

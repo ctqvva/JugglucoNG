@@ -396,6 +396,40 @@ object CalibrationManager {
         }
     }
 
+    /**
+     * The anchors an integrated evaluation actually fits against, for a driver
+     * that folds calibration into the values it stores.
+     *
+     * A stored anchor's x is the value that was on screen when it was taken,
+     * which for such a driver is already corrected. Fitting against that is
+     * self-referential, so [rebaseIntegratedContext] moves each anchor onto the
+     * stock value at its timestamp before the model runs; this exposes the
+     * result so the watch can integrate with the same numbers instead of
+     * inventing its own. Falls back to the stored anchors where no stock value
+     * is known for a timestamp, exactly as the local path does.
+     */
+    @JvmStatic
+    fun getIntegratedCalibrationAnchors(sensorIdOverride: String?, isRawMode: Boolean): DoubleArray {
+        val sensorId = resolveSensorId(sensorIdOverride)
+        if (!isEnabledForMode(isRawMode, sensorId)) return DoubleArray(0)
+        ensureCalibrationStateLoaded()
+        val stored = resolveCalibrationContext(isRawMode, sensorId) ?: return DoubleArray(0)
+        val baselineKey = IntegratedBaselineCacheKey(sensorId, isRawMode, Applic.unit)
+        val baseline = synchronized(integratedBaselineCache) { integratedBaselineCache[baselineKey] }
+        val context = if (baseline.isNullOrEmpty()) stored else rebaseIntegratedContext(stored, baseline)
+        val points = context.allPoints
+            .filter { it.isEnabled }
+            .sortedBy { it.timestamp }
+            .takeLast(MAX_MANAGED_CALIBRATION_ANCHORS)
+        return DoubleArray(points.size * 3).also { packed ->
+            points.forEachIndexed { index, point ->
+                packed[index * 3] = point.x
+                packed[index * 3 + 1] = point.y
+                packed[index * 3 + 2] = point.timestamp.toDouble()
+            }
+        }
+    }
+
     @JvmStatic
     fun notifyExternalCalibrationPipelineChanged() {
         ensureInitialized()

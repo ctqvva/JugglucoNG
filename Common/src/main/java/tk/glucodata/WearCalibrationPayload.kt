@@ -25,6 +25,20 @@ data class WearCalibrationPayload(
     /** As [autoIntegratedByDriver], for the raw lane. */
     val rawIntegratedByDriver: Boolean = false,
     /**
+     * The anchors an integrated lane is fitted against, rebased onto the stock
+     * values behind them.
+     *
+     * A stored anchor's x is the value that was on screen when it was taken,
+     * which on an integrated lane is already corrected; fitting against it is
+     * self-referential. The phone rebases before it evaluates, so it sends the
+     * rebased set rather than letting the watch derive one. Empty means the lane
+     * is not integrated, and [auto]/[raw] — which the watch also lists on screen
+     * — are what it should use.
+     */
+    val autoIntegration: WearCalibrationMode = WearCalibrationMode(DoubleArray(0)),
+    /** As [autoIntegration], for the raw lane. */
+    val rawIntegration: WearCalibrationMode = WearCalibrationMode(DoubleArray(0)),
+    /**
      * The settings behind the phone's fit. Sent so the watch reproduces the same
      * numbers when it corrects readings it took over its own connection.
      */
@@ -36,7 +50,8 @@ data class WearCalibrationPayload(
     val sourceUnitMgdlPerUnit: Double = 1.0,
 ) {
     companion object {
-        private const val VERSION = 3
+        private const val VERSION = 4
+        private const val VERSION_WITHOUT_INTEGRATION = 3
         private const val VERSION_SINGLE_TUNING = 2
         private const val VERSION_WITHOUT_TUNING = 1
         private const val FLAG_OVERWRITE_SENSOR_VALUES = 1 shl 2
@@ -57,10 +72,16 @@ data class WearCalibrationPayload(
             require(payload.sourceUnitMgdlPerUnit.isFinite() && payload.sourceUnitMgdlPerUnit in 0.1..100.0)
             require(payload.auto.anchorsMgdl.size % 3 == 0)
             require(payload.raw.anchorsMgdl.size % 3 == 0)
+            require(payload.autoIntegration.anchorsMgdl.size % 3 == 0)
+            require(payload.rawIntegration.anchorsMgdl.size % 3 == 0)
             val autoCount = payload.auto.anchorsMgdl.size / 3
             val rawCount = payload.raw.anchorsMgdl.size / 3
+            val autoIntegrationCount = payload.autoIntegration.anchorsMgdl.size / 3
+            val rawIntegrationCount = payload.rawIntegration.anchorsMgdl.size / 3
             require(autoCount <= MAX_ANCHORS_PER_MODE)
             require(rawCount <= MAX_ANCHORS_PER_MODE)
+            require(autoIntegrationCount <= MAX_ANCHORS_PER_MODE)
+            require(rawIntegrationCount <= MAX_ANCHORS_PER_MODE)
             val flags =
                 (if (payload.valuesPrecalibrated) FLAG_VALUES_PRECALIBRATED else 0) or
                     (if (payload.hideInitialWhenCalibrated) FLAG_HIDE_INITIAL else 0) or
@@ -72,7 +93,9 @@ data class WearCalibrationPayload(
             val buffer = ByteBuffer.allocate(
                 1 + 1 + 1 + serialBytes.size + 8 + 8 + 1 + autoCount * BYTES_PER_ANCHOR +
                     1 + rawCount * BYTES_PER_ANCHOR +
-                    tuningSize(payload.tuning) + tuningSize(payload.rawTuning),
+                    tuningSize(payload.tuning) + tuningSize(payload.rawTuning) +
+                    1 + autoIntegrationCount * BYTES_PER_ANCHOR +
+                    1 + rawIntegrationCount * BYTES_PER_ANCHOR,
             )
             buffer.put(VERSION.toByte())
             buffer.put(flags.toByte())
@@ -84,6 +107,8 @@ data class WearCalibrationPayload(
             putMode(buffer, payload.raw)
             putTuning(buffer, payload.tuning)
             putTuning(buffer, payload.rawTuning)
+            putMode(buffer, payload.autoIntegration)
+            putMode(buffer, payload.rawIntegration)
             return buffer.array()
         }
 
@@ -93,7 +118,14 @@ data class WearCalibrationPayload(
             val version = buffer.get().toInt()
             // A payload from before the settings were carried still describes the
             // anchors correctly; it just uses the documented defaults.
-            if (version != VERSION && version != VERSION_SINGLE_TUNING && version != VERSION_WITHOUT_TUNING) return null
+            if (
+                version != VERSION &&
+                version != VERSION_WITHOUT_INTEGRATION &&
+                version != VERSION_SINGLE_TUNING &&
+                version != VERSION_WITHOUT_TUNING
+            ) {
+                return null
+            }
             val flags = buffer.get().toInt() and 0xFF
             val serialLength = buffer.get().toInt() and 0xFF
             if (serialLength == 0 || buffer.remaining() < serialLength + 10) return null
@@ -101,7 +133,7 @@ data class WearCalibrationPayload(
             buffer.get(serialBytes)
             val sensorId = String(serialBytes, Charsets.UTF_8)
             val revision = buffer.long
-            val sourceUnitMgdlPerUnit = if (version >= VERSION) {
+            val sourceUnitMgdlPerUnit = if (version >= VERSION_WITHOUT_INTEGRATION) {
                 if (buffer.remaining() < 8) return null
                 buffer.double.takeIf { it.isFinite() && it in 0.1..100.0 } ?: return null
             } else {
@@ -114,7 +146,12 @@ data class WearCalibrationPayload(
             } else {
                 tk.glucodata.data.calibration.CalibrationTuning.DEFAULT
             }
-            val rawTuning = if (version >= VERSION) getTuning(buffer) ?: return null else tuning
+            val rawTuning =
+                if (version >= VERSION_WITHOUT_INTEGRATION) getTuning(buffer) ?: return null else tuning
+            val autoIntegration =
+                if (version >= VERSION) getMode(buffer) ?: return null else WearCalibrationMode(DoubleArray(0))
+            val rawIntegration =
+                if (version >= VERSION) getMode(buffer) ?: return null else WearCalibrationMode(DoubleArray(0))
             if (buffer.hasRemaining()) return null
             WearCalibrationPayload(
                 sensorId = sensorId,
@@ -129,6 +166,8 @@ data class WearCalibrationPayload(
                 sourceUnitMgdlPerUnit = sourceUnitMgdlPerUnit,
                 auto = auto,
                 raw = raw,
+                autoIntegration = autoIntegration,
+                rawIntegration = rawIntegration,
             )
         }.getOrNull()
 

@@ -55,6 +55,13 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
                 android.util.Base64.encodeToString(WearCalibrationPayload.encode(next), android.util.Base64.NO_WRAP),
             )?.apply()
         }.onFailure { Log.stack("SyncedWearCalibration", "persist", it) }
+        // A managed driver that integrates the calibration has to replay its
+        // history when the anchors move, exactly as CalibrationManager makes it
+        // do on the phone. Without this the watch kept serving readings fitted
+        // against the anchor set it started with.
+        runCatching {
+            tk.glucodata.drivers.ManagedSensorRuntime.notifyUserCalibrationRevisionChanged(next.revision)
+        }.onFailure { Log.stack("SyncedWearCalibration", "notify drivers", it) }
         UiRefreshBus.requestDataRefresh()
     }
 
@@ -102,7 +109,92 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         // the anchors here as well showed the watch a second correction of an
         // already corrected reading — 7,8 on the phone read 7,4 here.
         if (integratedByDriver(payload, isRawMode)) return value
-        val sourceScale = payload.sourceUnitMgdlPerUnit.toFloat()
+        val points = pointsOf(mode(payload, isRawMode), payload.sourceUnitMgdlPerUnit.toFloat())
+        if (points.isEmpty()) return value
+        val tuning = if (isRawMode) payload.rawTuning else payload.tuning
+        val resolved = tk.glucodata.data.calibration.CalibrationMath.resolvePointsForTimestamp(
+            allPoints = points,
+            targetTimestamp = timestamp,
+            earliestPoint = points.firstOrNull(),
+            tuning = tuning,
+        )
+        if (resolved.isEmpty()) return value
+        return evaluate(value, timestamp, watchUnitMgdlPerUnit, payload, tuning, resolved)
+    }
+
+    /**
+     * The watch's side of a driver that folds calibration into what it stores.
+     *
+     * Called by the managed driver before it writes a reading, exactly as the
+     * phone's CalibrationManager is. Without it the watch wrote stock values for
+     * as long as it owned the sensor, and both devices then showed them as
+     * corrected — the reason a calibration entered at 5,1 → 3,4 left 5,1 on
+     * screen.
+     *
+     * Uses [WearCalibrationPayload.autoIntegration]: the phone's own anchors,
+     * rebased onto the stock values behind them. An empty set means the phone
+     * does not integrate this lane either, and the driver's values are left
+     * alone — display-time correction handles those.
+     */
+    override fun getIntegratedCalibratedSeries(
+        values: FloatArray,
+        timestamps: LongArray,
+        isRawMode: Boolean,
+        sensorId: String?,
+    ): FloatArray {
+        if (values.size != timestamps.size || values.isEmpty()) return values.copyOf()
+        val payload = matchingPayload(sensorId) ?: return values.copyOf()
+        val watchUnit = if (runCatching { Applic.unit == 1 }.getOrDefault(false)) MGDL_PER_MMOL else 1f
+        return integrateWithPayload(values, timestamps, isRawMode, watchUnit, payload)
+    }
+
+    /** Pure seam for [getIntegratedCalibratedSeries]; see [calibrateWithPayload]. */
+    internal fun integrateWithPayload(
+        values: FloatArray,
+        timestamps: LongArray,
+        isRawMode: Boolean,
+        watchUnitMgdlPerUnit: Float,
+        payload: WearCalibrationPayload,
+    ): FloatArray {
+        val points = pointsOf(
+            if (isRawMode) payload.rawIntegration else payload.autoIntegration,
+            payload.sourceUnitMgdlPerUnit.toFloat(),
+        )
+        if (points.isEmpty()) return values.copyOf()
+        val tuning = if (isRawMode) payload.rawTuning else payload.tuning
+        return FloatArray(values.size) { index ->
+            val value = values[index]
+            if (!value.isFinite() || value <= 0f) {
+                value
+            } else {
+                // CalibrationManager.evaluateCalibratedSeries narrows the anchor
+                // set per reading only when past history is locked; otherwise
+                // every reading is fitted against all of them. Reproduce that
+                // choice, or the watch and the phone disagree on old readings.
+                val resolved = if (tuning.lockPastHistory) {
+                    tk.glucodata.data.calibration.CalibrationMath.resolvePointsForTimestamp(
+                        allPoints = points,
+                        targetTimestamp = timestamps[index],
+                        earliestPoint = points.firstOrNull(),
+                        tuning = tuning,
+                    )
+                } else {
+                    points
+                }
+                if (resolved.isEmpty()) {
+                    value
+                } else {
+                    evaluate(value, timestamps[index], watchUnitMgdlPerUnit, payload, tuning, resolved)
+                }
+            }
+        }
+    }
+
+    private fun pointsOf(
+        mode: WearCalibrationMode,
+        sourceScale: Float,
+    ): List<tk.glucodata.data.calibration.CalPoint> {
+        val anchors = mode.anchorsMgdl
         val points = ArrayList<tk.glucodata.data.calibration.CalPoint>(anchors.size / 3)
         var offset = 0
         while (offset + 2 < anchors.size) {
@@ -115,16 +207,19 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
             )
             offset += 3
         }
-        if (points.isEmpty()) return value
-        val sorted = points.sortedBy { it.timestamp }
-        val tuning = if (isRawMode) payload.rawTuning else payload.tuning
-        val resolved = tk.glucodata.data.calibration.CalibrationMath.resolvePointsForTimestamp(
-            allPoints = sorted,
-            targetTimestamp = timestamp,
-            earliestPoint = sorted.firstOrNull(),
-            tuning = tuning,
-        )
-        if (resolved.isEmpty()) return value
+        return points.sortedBy { it.timestamp }
+    }
+
+    /** The shared computation, in the unit the phone fitted the anchors in. */
+    private fun evaluate(
+        value: Float,
+        timestamp: Long,
+        watchUnitMgdlPerUnit: Float,
+        payload: WearCalibrationPayload,
+        tuning: tk.glucodata.data.calibration.CalibrationTuning,
+        resolved: List<tk.glucodata.data.calibration.CalPoint>,
+    ): Float {
+        val sourceScale = payload.sourceUnitMgdlPerUnit.toFloat()
         val sourceValue = value * watchUnitMgdlPerUnit / sourceScale
         val computation = tk.glucodata.data.calibration.CalibrationMath.computeAlgorithm(
             algorithm = tuning.algorithm,
@@ -149,6 +244,14 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         }
         if (!finalSource.isFinite() || finalSource <= 0f) return value
         return (finalSource * sourceScale / watchUnitMgdlPerUnit).toFloat()
+    }
+
+    override fun getIntegratedCalibrationFingerprint(sensorId: String?, isRawMode: Boolean): Long {
+        val payload = matchingPayload(sensorId) ?: return 0L
+        val anchors = if (isRawMode) payload.rawIntegration else payload.autoIntegration
+        var hash = payload.revision
+        anchors.anchorsMgdl.forEach { hash = hash * 31L + java.lang.Double.doubleToRawLongBits(it) }
+        return hash
     }
 
     override fun shouldHideInitialWhenCalibrated(): Boolean {

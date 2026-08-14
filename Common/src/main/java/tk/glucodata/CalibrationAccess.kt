@@ -45,6 +45,15 @@ object CalibrationAccess {
             )
         }.getOrNull()
     }
+    private val getIntegratedCalibrationAnchorsMethod by lazy {
+        runCatching {
+            holder?.getMethod(
+                "getIntegratedCalibrationAnchors",
+                String::class.java,
+                Boolean::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
     private val isCalibrationStateLoadedMethod by lazy {
         runCatching { holder?.getMethod("isCalibrationStateLoaded") }.getOrNull()
     }
@@ -234,6 +243,17 @@ object CalibrationAccess {
     }
 
     /**
+     * The anchors a driver-integrated evaluation fits against, rebased onto
+     * stock values. Empty where there is no CalibrationManager, which is also
+     * where nothing integrates locally.
+     */
+    @JvmStatic
+    fun getIntegratedCalibrationAnchors(sensorId: String?, isRawMode: Boolean): DoubleArray =
+        runCatching {
+            getIntegratedCalibrationAnchorsMethod?.invoke(instance, sensorId, isRawMode) as? DoubleArray
+        }.getOrNull() ?: DoubleArray(0)
+
+    /**
      * False when the phone's calibrations are not in memory, so callers do not
      * mistake a failed load for "this sensor has no calibration". True where
      * there is no CalibrationManager at all (the watch), which has nothing to
@@ -285,6 +305,13 @@ object CalibrationAccess {
         sensorIdOverride: String?,
     ): FloatArray {
         if (values.size != timestamps.size) return values.copyOf()
+        // The watch has no CalibrationManager, so this used to hand the driver
+        // its own values straight back: a sensor whose driver folds calibration
+        // into what it stores wrote stock numbers for as long as the watch owned
+        // it, and both devices then displayed them as if they were corrected.
+        provider?.let {
+            return it.getIntegratedCalibratedSeries(values, timestamps, isRawMode, sensorIdOverride)
+        }
         return runCatching {
             getIntegratedCalibratedSeriesMethod?.invoke(
                 instance,
@@ -298,6 +325,7 @@ object CalibrationAccess {
 
     @JvmStatic
     fun getIntegratedCalibrationFingerprint(sensorIdOverride: String?, isRawMode: Boolean): Long {
+        provider?.let { return it.getIntegratedCalibrationFingerprint(sensorIdOverride, isRawMode) }
         return runCatching {
             when (val value = getIntegratedCalibrationFingerprintMethod?.invoke(
                 instance,

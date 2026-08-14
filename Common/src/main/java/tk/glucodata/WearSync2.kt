@@ -367,6 +367,12 @@ object WearSync2 {
             sourceUnitMgdlPerUnit = if (Applic.unit == 1) MGDL_PER_MMOL else 1.0,
             auto = WearCalibrationMode(canonicalAnchors(serial, false)),
             raw = WearCalibrationMode(canonicalAnchors(serial, true)),
+            // Only for a lane the driver integrates: these are the anchors the
+            // phone's own evaluation fits against, rebased onto the stock values
+            // behind them, so the watch's driver produces the same numbers when
+            // it is the one holding the sensor.
+            autoIntegration = WearCalibrationMode(canonicalIntegrationAnchors(serial, false)),
+            rawIntegration = WearCalibrationMode(canonicalIntegrationAnchors(serial, true)),
         )
         MessageSender.sendSyncMessage(
             MessageSender.SYNC2_CAL_PATH,
@@ -379,8 +385,15 @@ object WearSync2 {
             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(serial, isRawMode)
         }.getOrDefault(false)
 
-    private fun canonicalAnchors(serial: String, isRawMode: Boolean): DoubleArray {
-        val anchors = CalibrationAccess.getActiveCalibrationAnchors(serial, isRawMode)
+    private fun canonicalIntegrationAnchors(serial: String, isRawMode: Boolean): DoubleArray {
+        if (!integratesUserCalibration(serial, isRawMode)) return DoubleArray(0)
+        return toCanonical(CalibrationAccess.getIntegratedCalibrationAnchors(serial, isRawMode))
+    }
+
+    private fun canonicalAnchors(serial: String, isRawMode: Boolean): DoubleArray =
+        toCanonical(CalibrationAccess.getActiveCalibrationAnchors(serial, isRawMode))
+
+    private fun toCanonical(anchors: DoubleArray): DoubleArray {
         if (Applic.unit != 1) return anchors
         return anchors.copyOf().also { canonical ->
             for (index in canonical.indices step 3) {
