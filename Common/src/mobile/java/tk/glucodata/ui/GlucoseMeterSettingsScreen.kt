@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -75,12 +77,16 @@ private data class NearbyGlucoseMeter(
     val device: BluetoothDevice,
     val name: String,
     val address: String,
+    val requiresSatelliteCode: Boolean,
 )
+
+private val satelliteMeterServiceUuid =
+    UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 
 private val glucoseMeterServiceUuids = listOf(
     UUID.fromString("00001808-0000-1000-8000-00805f9b34fb"),
     UUID.fromString("af9df7a1-e595-11e3-96b4-0002a5d5c51b"),
-    UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e"),
+    satelliteMeterServiceUuid,
 )
 
 @SuppressLint("MissingPermission")
@@ -93,6 +99,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var scanning by remember { mutableStateOf(false) }
     var scanRequest by remember { mutableIntStateOf(0) }
     var satelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
+    var pendingSatellite by remember { mutableStateOf<NearbyGlucoseMeter?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -126,7 +133,14 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     ?: result.scanRecord?.deviceName
                     ?: return@startScan
                 if (nearby.none { it.address == address }) {
-                    nearby = nearby + NearbyGlucoseMeter(device, name, address)
+                    val requiresSatelliteCode = result.scanRecord?.serviceUuids
+                        ?.any { it.uuid == satelliteMeterServiceUuid } == true
+                    nearby = nearby + NearbyGlucoseMeter(
+                        device = device,
+                        name = name,
+                        address = address,
+                        requiresSatelliteCode = requiresSatelliteCode,
+                    )
                 }
             },
             onError = { error ->
@@ -146,6 +160,60 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
 
     DisposableEffect(Unit) {
         onDispose { scanner.stopScan() }
+    }
+
+    fun addMeter(candidate: NearbyGlucoseMeter) {
+        val index = GlucoseMeterManager.add(candidate.device, candidate.name)
+        if (index >= 0) {
+            meters = GlucoseMeterManager.configuredMeters()
+            nearby = nearby.filterNot { it.address == candidate.address }
+        } else {
+            Toast.makeText(context, R.string.wentwrong, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    pendingSatellite?.let { candidate ->
+        AlertDialog(
+            onDismissRequest = { pendingSatellite = null },
+            title = { Text(stringResource(R.string.satellite_meter_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        stringResource(R.string.satellite_meter_code_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedTextField(
+                        value = satelliteCode,
+                        onValueChange = { value ->
+                            satelliteCode = value.filter(Char::isLetterOrDigit)
+                                .take(32)
+                                .uppercase(Locale.US)
+                        },
+                        label = { Text(stringResource(R.string.satellite_meter_code_label)) },
+                        singleLine = true,
+                        isError = satelliteCode.isNotEmpty() &&
+                            !GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        GlucoseMeterManager.updateSatelliteCode(satelliteCode)
+                        addMeter(candidate)
+                        pendingSatellite = null
+                    },
+                    enabled = GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                ) {
+                    Text(stringResource(R.string.pair))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSatellite = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -204,47 +272,6 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 }
             }
 
-            item("satellite_label") {
-                SectionLabel(stringResource(R.string.satellite_meter_title))
-            }
-            item("satellite_settings") {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            stringResource(R.string.satellite_meter_code_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        OutlinedTextField(
-                            value = satelliteCode,
-                            onValueChange = { value ->
-                                satelliteCode = value.filter(Char::isLetterOrDigit)
-                                    .take(32)
-                                    .uppercase(Locale.US)
-                            },
-                            label = { Text(stringResource(R.string.satellite_meter_code_label)) },
-                            singleLine = true,
-                            isError = satelliteCode.isNotEmpty() &&
-                                !GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Button(
-                            onClick = { GlucoseMeterManager.updateSatelliteCode(satelliteCode) },
-                            enabled = GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
-                            modifier = Modifier.align(Alignment.End),
-                        ) {
-                            Text(stringResource(R.string.save))
-                        }
-                    }
-                }
-            }
             item("configured_label") {
                 SectionLabel(stringResource(R.string.glucose_meters_configured))
             }
@@ -317,12 +344,11 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.SINGLE,
                     onClick = {
-                        val index = GlucoseMeterManager.add(candidate.device, candidate.name)
-                        if (index >= 0) {
-                            meters = GlucoseMeterManager.configuredMeters()
-                            nearby = nearby.filterNot { it.address == candidate.address }
+                        if (candidate.requiresSatelliteCode) {
+                            satelliteCode = GlucoseMeterManager.satelliteCode()
+                            pendingSatellite = candidate
                         } else {
-                            Toast.makeText(context, R.string.wentwrong, Toast.LENGTH_LONG).show()
+                            addMeter(candidate)
                         }
                     },
                     trailingContent = { Text(stringResource(R.string.pair)) },
