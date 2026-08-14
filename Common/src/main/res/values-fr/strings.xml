@@ -2484,4 +2484,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">Libre patché</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Séparé sur la montre</string>
+    <string name="glucosechartvaluecomplicationlabel">Courbe + valeur</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Courbe + valeur + flèche</string>
+    <string name="glucosechartfullcomplicationlabel">Courbe + valeur + flèche + heure</string>
 </resources>

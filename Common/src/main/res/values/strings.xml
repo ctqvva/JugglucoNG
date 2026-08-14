@@ -2703,4 +2703,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Separate on watch</string>
+    <string name="glucosechartvaluecomplicationlabel">Chart + value</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Chart + value + arrow</string>
+    <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
 </resources>

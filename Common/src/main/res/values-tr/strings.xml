@@ -2506,4 +2506,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="exchange_toggle_patched_libre">Yamalı Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Saatte ayrı</string>
+    <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
+    <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
 </resources>

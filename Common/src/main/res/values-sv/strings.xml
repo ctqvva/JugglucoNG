@@ -2478,4 +2478,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">Patchad Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Separat på klockan</string>
+    <string name="glucosechartvaluecomplicationlabel">Diagram + värde</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Diagram + värde + pil</string>
+    <string name="glucosechartfullcomplicationlabel">Diagram + värde + pil + tid</string>
 </resources>

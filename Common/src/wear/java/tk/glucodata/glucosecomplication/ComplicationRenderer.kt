@@ -385,6 +385,71 @@ internal object ComplicationRenderer {
     }
 
     /**
+     * The trace with any combination of value, arrow and time over it.
+     *
+     * Four complications share this: trace alone, and the trace with a value,
+     * with a value and arrow, or with all three. Which parts are drawn is the
+     * caller's choice rather than four near-identical renderers.
+     */
+    @JvmOverloads
+    fun chartBitmap(
+        width: Int,
+        height: Int,
+        isMmol: Boolean,
+        valueText: String? = null,
+        value: Float = Float.NaN,
+        rate: Float = Float.NaN,
+        timeMillis: Long = 0L,
+        showArrow: Boolean = false,
+        showTime: Boolean = false,
+        inset: Boolean = true,
+        allowSynthetic: Boolean = false,
+    ): Bitmap? {
+        val points = sparkPoints(isMmol).takeIf { it.size >= 2 }
+            ?: if (allowSynthetic) syntheticPoints(isMmol) else emptyList()
+        if (points.size < 2 || width <= 0 || height <= 0) return null
+
+        val (bmp, canvas) = bitmap(width, height)
+        val marginX = if (inset) width * PHOTO_INSET else 0f
+        val marginY = if (inset) height * PHOTO_INSET else 0f
+        val contentW = width - marginX * 2f
+        val contentH = height - marginY * 2f
+        val color = valueColor(value, isMmol)
+
+        // The header takes a share of the height only when there is something
+        // to put in it; a bare trace uses the whole box.
+        val hasHeader = valueText != null
+        val headerH = if (hasHeader) contentH * 0.44f else 0f
+        val timeH = if (showTime) contentH * 0.16f else 0f
+        val chartTop = marginY + headerH
+        val chartH = contentH - headerH - timeH
+
+        canvas.save()
+        canvas.translate(marginX, chartTop)
+        val now = System.currentTimeMillis()
+        drawSparkline(canvas, contentW, chartH, points, isMmol, now - SPARK_WINDOW_MS, now)
+        canvas.restore()
+
+        if (hasHeader) {
+            // Value and arrow share the header row, the arrow taking a square
+            // at its right so the number keeps the width it needs.
+            val arrowBox = if (showArrow) headerH * 0.86f else 0f
+            val valueW = contentW - arrowBox
+            drawFittedText(canvas, valueText!!, color, marginX, marginY, valueW, headerH * 0.92f)
+            if (showArrow) {
+                drawArrow(
+                    canvas, arrowBox, arrowBox, rate, color,
+                    marginX + valueW, marginY + (headerH - arrowBox) / 2f,
+                )
+            }
+        }
+        if (showTime) {
+            drawTimeLabel(canvas, width.toFloat(), marginY + contentH * 0.99f, timeMillis, color)
+        }
+        return bmp
+    }
+
+    /**
      * A sparkline of the last [SPARK_WINDOW_MS], banded by range the way the
      * charts are, with the value over it.
      *

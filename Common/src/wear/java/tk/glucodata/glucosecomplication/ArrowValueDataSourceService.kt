@@ -109,6 +109,17 @@ fun getview(type: ComplicationType):GlucoseValue {
                 "Glucose+arrow",
                 tapAction,
                 arrowIcon(reading),
+                // The arrow goes in the text, not only the icon: a face that
+                // renders a title and a text drops the image, and this
+                // complication is named for its arrow.
+                withArrow = true,
+            )
+            LONG_TEXT -> GlucoseComplicationData.longTextData(
+                reading,
+                "Glucose+arrow",
+                tapAction,
+                arrowIcon(reading),
+                withArrow = true,
             )
             RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 reading,
@@ -152,6 +163,16 @@ fun getview(type: ComplicationType):GlucoseValue {
               "Glucose Arrow+Value",
               complicationPendingIntent,
               glucose?.let { arrowIcon(it) },
+              withArrow = true,
+          )
+      }
+      if (type == LONG_TEXT) {
+          return GlucoseComplicationData.longTextData(
+              glucose,
+              "Glucose Arrow+Value",
+              complicationPendingIntent,
+              glucose?.let { arrowIcon(it) },
+              withArrow = true,
           )
       }
       if (type == RANGED_VALUE) {

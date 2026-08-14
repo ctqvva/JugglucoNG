@@ -2494,4 +2494,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">修改版 Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">手表上单独显示</string>
+    <string name="glucosechartvaluecomplicationlabel">图表 + 数值</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">图表 + 数值 + 箭头</string>
+    <string name="glucosechartfullcomplicationlabel">图表 + 数值 + 箭头 + 时间</string>
 </resources>

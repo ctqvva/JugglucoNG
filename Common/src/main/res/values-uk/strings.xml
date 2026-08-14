@@ -2550,4 +2550,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Окремо на годиннику</string>
+    <string name="glucosechartvaluecomplicationlabel">Графік + значення</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Графік + значення + стрілка</string>
+    <string name="glucosechartfullcomplicationlabel">Графік + значення + стрілка + час</string>
 </resources>

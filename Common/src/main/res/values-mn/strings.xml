@@ -2593,4 +2593,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Цагт тусад нь</string>
+    <string name="glucosechartvaluecomplicationlabel">График + утга</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">График + утга + сум</string>
+    <string name="glucosechartfullcomplicationlabel">График + утга + сум + цаг</string>
 </resources>

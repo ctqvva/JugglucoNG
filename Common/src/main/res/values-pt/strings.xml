@@ -2479,4 +2479,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchange_toggle_patched_libre">Libre modificado</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Separado no relógio</string>
+    <string name="glucosechartvaluecomplicationlabel">Gráfico + valor</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Gráfico + valor + seta</string>
+    <string name="glucosechartfullcomplicationlabel">Gráfico + valor + seta + hora</string>
 </resources>

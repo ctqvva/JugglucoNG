@@ -2517,4 +2517,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Getrennt auf der Uhr</string>
+    <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
+    <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
 </resources>

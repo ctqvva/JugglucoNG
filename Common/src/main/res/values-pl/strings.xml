@@ -2512,4 +2512,7 @@
     <string name="exchange_toggle_patched_libre">Patched Libre</string>
     <string name="exchange_toggle_glucodata">GlucoDataHandler / AAPS</string>
     <string name="exchange_toggle_separate">Osobno na zegarku</string>
+    <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
+    <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
+    <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
 </resources>

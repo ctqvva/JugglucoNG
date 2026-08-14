@@ -2912,8 +2912,8 @@ private fun JournalInsulinWindowCard(
                     role = Role.Button
                 }
                 .clickable { expanded = !expanded }
-                .heightIn(min = 32.dp)
-                .padding(horizontal = 4.dp, vertical = 3.dp),
+                .heightIn(min = 24.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
