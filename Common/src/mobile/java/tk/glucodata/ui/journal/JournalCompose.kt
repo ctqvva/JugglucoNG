@@ -48,7 +48,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
@@ -2895,9 +2894,8 @@ private fun JournalInsulinWindowCard(
 ) {
     var expanded by remember(preset.id) { mutableStateOf(false) }
     val accent = Color(preset.accentColor)
-    val onset = formatJournalWindowTime(preset.onsetMinutes)
-    val duration = formatJournalWindowTime(preset.durationMinutes)
-    val compactDescription = stringResource(R.string.journal_active_window_compact, onset, duration)
+    val onset = formatJournalWindowEndpoint(preset.onsetMinutes)
+    val duration = formatJournalWindowEndpoint(preset.durationMinutes)
     val windowDescription = stringResource(
         R.string.journal_active_window,
         stringResource(R.string.minutes_short_format, preset.onsetMinutes),
@@ -2925,50 +2923,23 @@ private fun JournalInsulinWindowCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = compactDescription,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "$onset – $duration",
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = stringResource(R.string.journal_curve_preview),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
             }
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
+            if (expanded) {
                 Column(
                     modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
                 ) {
                     JournalInsulinActivityCurve(
                         points = preset.curvePoints,
+                        durationMinutes = preset.durationMinutes,
                         color = accent,
                         contentDescription = windowDescription,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(88.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "0",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = duration,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
         }
@@ -2976,8 +2947,18 @@ private fun JournalInsulinWindowCard(
 }
 
 @Composable
-private fun formatJournalWindowTime(minutes: Int): String {
+private fun formatJournalWindowEndpoint(minutes: Int): String {
     val safeMinutes = minutes.coerceAtLeast(0)
+    if (safeMinutes < 720) {
+        return stringResource(R.string.minutes_short_format, safeMinutes)
+    }
+    return formatJournalWindowAxisTime(safeMinutes)
+}
+
+@Composable
+private fun formatJournalWindowAxisTime(minutes: Int): String {
+    val safeMinutes = minutes.coerceAtLeast(0)
+    if (safeMinutes == 0) return "0"
     if (safeMinutes < 120) {
         return stringResource(R.string.minutes_short_format, safeMinutes)
     }
@@ -2993,6 +2974,7 @@ private fun formatJournalWindowTime(minutes: Int): String {
 @Composable
 private fun JournalInsulinActivityCurve(
     points: List<JournalCurvePoint>,
+    durationMinutes: Int,
     color: Color,
     contentDescription: String,
     modifier: Modifier = Modifier
@@ -3003,55 +2985,102 @@ private fun JournalInsulinActivityCurve(
             .sortedBy { it.minute }
     }
     val guideColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val xAxisMinutes = remember(durationMinutes) {
+        List(5) { index -> ((durationMinutes.coerceAtLeast(1) * index) / 4f).roundToInt() }
+    }
 
-    Canvas(
+    Column(
         modifier = modifier
             .semantics { this.contentDescription = contentDescription }
-            .padding(top = 8.dp, bottom = 4.dp)
     ) {
-        if (curvePoints.size < 2) return@Canvas
-        val maxMinute = curvePoints.last().minute.coerceAtLeast(1).toFloat()
-        val baseline = size.height - 4.dp.toPx()
-        val curveHeight = (size.height - 12.dp.toPx()).coerceAtLeast(1f)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(96.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("100%", style = MaterialTheme.typography.labelSmall, color = axisColor)
+                Text("50%", style = MaterialTheme.typography.labelSmall, color = axisColor)
+                Text("0%", style = MaterialTheme.typography.labelSmall, color = axisColor)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Canvas(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(96.dp)
+            ) {
+                if (curvePoints.size < 2) return@Canvas
+                val maxMinute = maxOf(durationMinutes, curvePoints.last().minute, 1).toFloat()
+                val top = 4.dp.toPx()
+                val baseline = size.height - 4.dp.toPx()
+                val curveHeight = (baseline - top).coerceAtLeast(1f)
 
-        repeat(3) { index ->
-            val y = baseline - ((curveHeight / 2f) * index)
-            drawLine(
-                color = guideColor,
-                start = androidx.compose.ui.geometry.Offset(0f, y),
-                end = androidx.compose.ui.geometry.Offset(size.width, y),
-                strokeWidth = 1.dp.toPx()
-            )
-        }
+                repeat(3) { index ->
+                    val y = baseline - ((curveHeight / 2f) * index)
+                    drawLine(
+                        color = guideColor,
+                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                        end = androidx.compose.ui.geometry.Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+                repeat(5) { index ->
+                    val x = (size.width / 4f) * index
+                    drawLine(
+                        color = guideColor.copy(alpha = 0.6f),
+                        start = androidx.compose.ui.geometry.Offset(x, top),
+                        end = androidx.compose.ui.geometry.Offset(x, baseline),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
 
-        val curvePath = Path()
-        val fillPath = Path()
-        curvePoints.forEachIndexed { index, point ->
-            val x = (point.minute / maxMinute) * size.width
-            val y = baseline - (point.activity.coerceIn(0f, 1f) * curveHeight)
-            if (index == 0) {
-                curvePath.moveTo(x, y)
-                fillPath.moveTo(x, baseline)
-                fillPath.lineTo(x, y)
-            } else {
-                curvePath.lineTo(x, y)
-                fillPath.lineTo(x, y)
+                val curvePath = Path()
+                val fillPath = Path()
+                curvePoints.forEachIndexed { index, point ->
+                    val x = (point.minute / maxMinute) * size.width
+                    val y = baseline - (point.activity.coerceIn(0f, 1f) * curveHeight)
+                    if (index == 0) {
+                        curvePath.moveTo(x, y)
+                        fillPath.moveTo(x, baseline)
+                        fillPath.lineTo(x, y)
+                    } else {
+                        curvePath.lineTo(x, y)
+                        fillPath.lineTo(x, y)
+                    }
+                }
+                fillPath.lineTo(size.width, baseline)
+                fillPath.close()
+
+                drawPath(path = fillPath, color = color.copy(alpha = 0.14f))
+                drawPath(path = curvePath, color = color, style = Stroke(width = 2.5.dp.toPx()))
+                curvePoints.maxByOrNull { it.activity }?.let { peak ->
+                    drawCircle(
+                        color = color,
+                        radius = 3.5.dp.toPx(),
+                        center = androidx.compose.ui.geometry.Offset(
+                            x = (peak.minute / maxMinute) * size.width,
+                            y = baseline - (peak.activity.coerceIn(0f, 1f) * curveHeight)
+                        )
+                    )
+                }
             }
         }
-        fillPath.lineTo(size.width, baseline)
-        fillPath.close()
-
-        drawPath(path = fillPath, color = color.copy(alpha = 0.14f))
-        drawPath(path = curvePath, color = color, style = Stroke(width = 2.5.dp.toPx()))
-        curvePoints.maxByOrNull { it.activity }?.let { peak ->
-            drawCircle(
-                color = color,
-                radius = 3.5.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(
-                    x = (peak.minute / maxMinute) * size.width,
-                    y = baseline - (peak.activity.coerceIn(0f, 1f) * curveHeight)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 44.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            xAxisMinutes.forEach { minute ->
+                Text(
+                    text = formatJournalWindowAxisTime(minute),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = axisColor
                 )
-            )
+            }
         }
     }
 }

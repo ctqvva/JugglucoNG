@@ -1656,7 +1656,6 @@
     <string name="journal_add_preset">Dodaj typ insuliny</string>
     <string name="journal_edit_preset">Edytuj typ insuliny</string>
     <string name="journal_active_window">Okno działania: od %1$s do %2$s</string>
-    <string name="journal_active_window_compact">Aktywne %1$s – %2$s</string>
     <string name="journal_selected_time">Wybrany czas</string>
     <string name="journal_intensity_light">Lekka</string>
     <string name="journal_intensity_moderate">Umiarkowana</string>

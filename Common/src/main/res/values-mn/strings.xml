@@ -1638,7 +1638,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_add_preset">Add insulin type</string>
     <string name="journal_edit_preset">Edit insulin type</string>
     <string name="journal_active_window">Active window: %1$s to %2$s</string>
-    <string name="journal_active_window_compact">Үйлчлэл %1$s – %2$s</string>
     <string name="journal_selected_time">Selected time</string>
     <string name="journal_intensity_light">Light</string>
     <string name="journal_intensity_moderate">Moderate</string>

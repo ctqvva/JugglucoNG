@@ -1649,7 +1649,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_add_preset">İnsülin türü ekle</string>
     <string name="journal_edit_preset">İnsülin türünü düzenle</string>
     <string name="journal_active_window">Etki aralığı: %1$s - %2$s</string>
-    <string name="journal_active_window_compact">Etkin %1$s – %2$s</string>
     <string name="journal_selected_time">Seçilen saat</string>
     <string name="journal_intensity_light">Hafif</string>
     <string name="journal_intensity_moderate">Orta</string>
