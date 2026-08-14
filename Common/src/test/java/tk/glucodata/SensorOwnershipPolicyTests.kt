@@ -15,6 +15,8 @@ import tk.glucodata.SensorOwnershipPolicy.shouldReadLocally
 class SensorOwnershipPolicyTests {
     private val now = 1_800_000_000_000L
     private val silentAfter = 3L * 60L * 1000L
+    private val yieldWindow = 3L * 60L * 1000L
+    private val yieldRetry = 15L * 60L * 1000L
 
     private fun decide(
         isPhone: Boolean = true,
@@ -337,6 +339,94 @@ class SensorOwnershipPolicyTests {
                 assignedToWatch = true,
             ),
         )
+    }
+
+    @Test
+    fun anAbsentPeerGetsNoHandoverWindowAtAll() {
+        // Automatic switching through an explicit handover: the watch stays the
+        // assigned owner, but a watch that cannot be reached must not keep the
+        // phone off the sensor for the whole silence timeout.
+        val window = resolveYieldWindow(
+            intent = Intent.YIELD,
+            peerOwns = true,
+            peerGone = true,
+            startedAtMs = now - 30_000L,
+            nowMs = now,
+            windowMs = yieldWindow,
+            retryIntervalMs = yieldRetry,
+        )
+        assertEquals(0L, window.deadlineMs)
+        // Forgotten, so the watch coming back opens a fresh window rather than
+        // resuming a spent one.
+        assertEquals(null, window.startedAtMs)
+
+        // And the phone then actually reads: a stale report is what reconcile
+        // passes alongside peerGone.
+        assertTrue(
+            decide(
+                intent = Intent.YIELD,
+                peer = null,
+                yieldUntilMs = window.deadlineMs,
+            ),
+        )
+    }
+
+    @Test
+    fun aReachablePeerKeepsTheBoundedHandoverWindow() {
+        val opened = resolveYieldWindow(
+            intent = Intent.YIELD,
+            peerOwns = false,
+            peerGone = false,
+            startedAtMs = null,
+            nowMs = now,
+            windowMs = yieldWindow,
+            retryIntervalMs = yieldRetry,
+        )
+        assertEquals(now + yieldWindow, opened.deadlineMs)
+        assertEquals(now, opened.startedAtMs)
+        assertFalse(decide(intent = Intent.YIELD, yieldUntilMs = opened.deadlineMs))
+
+        // Window spent without the peer taking it: read it again, but remember
+        // the attempt so the retry is timed from it.
+        val spent = resolveYieldWindow(
+            intent = Intent.YIELD,
+            peerOwns = false,
+            peerGone = false,
+            startedAtMs = now - yieldWindow,
+            nowMs = now,
+            windowMs = yieldWindow,
+            retryIntervalMs = yieldRetry,
+        )
+        assertEquals(0L, spent.deadlineMs)
+        assertEquals(now - yieldWindow, spent.startedAtMs)
+
+        val retried = resolveYieldWindow(
+            intent = Intent.YIELD,
+            peerOwns = false,
+            peerGone = false,
+            startedAtMs = now - yieldRetry,
+            nowMs = now,
+            windowMs = yieldWindow,
+            retryIntervalMs = yieldRetry,
+        )
+        assertEquals(now + yieldWindow, retried.deadlineMs)
+    }
+
+    @Test
+    fun aPeerThatTookTheSensorNeedsNoWindowButIsRemembered() {
+        val held = resolveYieldWindow(
+            intent = Intent.YIELD,
+            peerOwns = true,
+            peerGone = false,
+            startedAtMs = now - yieldRetry,
+            nowMs = now,
+            windowMs = yieldWindow,
+            retryIntervalMs = yieldRetry,
+        )
+        assertEquals(0L, held.deadlineMs)
+        // Remembered as of now: the peer later dropping the sensor must not read
+        // as a fresh handover and blank the phone again.
+        assertEquals(now, held.startedAtMs)
     }
 
     @Test

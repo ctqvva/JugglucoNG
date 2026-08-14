@@ -36,6 +36,7 @@ object WearToggleSync {
     /** id -> (preference key, the default the phone reads it with). */
     private val PREF_TOGGLES: Map<String, Pair<String, Boolean>> = mapOf(
         "prediction" to ("dashboard_predictive_simulation_enabled" to true),
+        AutoSensorSwitch.TOGGLE_ID to (AutoSensorSwitch.PREF_KEY to false),
     )
 
     data class Toggle(val scope: String, val id: String, val enabled: Boolean)
@@ -112,6 +113,13 @@ object WearToggleSync {
                     // Written on whichever device receives it: the phone owns
                     // the setting, and the watch needs its own copy to read.
                     val spec = PREF_TOGGLES[toggle.id] ?: return@forEach
+                    if (toggle.id == AutoSensorSwitch.TOGGLE_ID) {
+                        // Arming the radio is part of storing this one, so it
+                        // goes through the owner rather than straight to prefs.
+                        AutoSensorSwitch.setEnabled(toggle.enabled)
+                        applied++
+                        return@forEach
+                    }
                     runCatching {
                         Applic.app
                             ?.getSharedPreferences(PREFS_FILE, android.content.Context.MODE_PRIVATE)

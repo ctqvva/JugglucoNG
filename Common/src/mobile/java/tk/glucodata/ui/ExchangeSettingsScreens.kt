@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -91,6 +92,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
+import tk.glucodata.AutoSensorSwitch
 import tk.glucodata.GoogleServices
 import tk.glucodata.Natives
 import tk.glucodata.Notify
@@ -317,6 +319,9 @@ fun WearOsConfigScreen(navController: NavController) {
     var selectedNodeId by rememberSaveable { mutableStateOf("") }
     var directOnWatch by rememberSaveable { mutableStateOf(false) }
     var enterOnWatch by rememberSaveable { mutableStateOf(false) }
+    // Phone-owned and not part of a node's routing, so it is read straight from
+    // the setting rather than seeded from what a watch has confirmed.
+    var autoSwitch by rememberSaveable { mutableStateOf(AutoSensorSwitch.isEnabled()) }
     var refreshingNodes by remember { mutableStateOf(false) }
     var syncStatus by remember { mutableStateOf(WatchInterop.getWearSyncStatus()) }
     val claimRevision by WearSensorClaimStatus.revision.collectAsState()
@@ -404,6 +409,23 @@ fun WearOsConfigScreen(navController: NavController) {
             }
             if (!ok) {
                 directOnWatch = !enabled
+                Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_SHORT).show()
+            }
+            refreshNodesNow()
+        }
+    }
+
+    fun updateAutoSwitch(enabled: Boolean) {
+        autoSwitch = enabled
+        val node = selected ?: return
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                WatchInterop.setAutoSensorSwitch(node.id, enabled)
+            }
+            if (!ok) {
+                // The setting itself is applied on the phone either way; only
+                // the push to the watch can fail, and it retries at the next
+                // handshake. Say so rather than springing the switch back.
                 Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_SHORT).show()
             }
             refreshNodesNow()
@@ -541,6 +563,33 @@ fun WearOsConfigScreen(navController: NavController) {
                         else -> stringResource(R.string.wear_claim_state_phone_owns)
                     }
                     SettingsItem(
+                        title = stringResource(R.string.wear_auto_sensor_switch),
+                        subtitle = if (autoSwitch) {
+                            stringResource(R.string.wear_auto_sensor_switch_on_desc)
+                        } else {
+                            stringResource(R.string.wear_auto_sensor_switch_off_desc)
+                        },
+                        icon = Icons.Filled.SwapHoriz,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.TOP,
+                        onClick = if (selected != null && canSetDirect) {
+                            { updateAutoSwitch(!autoSwitch) }
+                        } else {
+                            null
+                        },
+                        trailingContent = {
+                            StyledSwitch(
+                                checked = autoSwitch,
+                                onCheckedChange = if (selected != null && canSetDirect) {
+                                    { updateAutoSwitch(it) }
+                                } else {
+                                    null
+                                },
+                                enabled = selected != null && canSetDirect
+                            )
+                        }
+                    )
+                    SettingsItem(
                         title = stringResource(R.string.wear_direct_sensor_on_watch),
                         subtitle = (if (directOnWatch) {
                             stringResource(R.string.wear_direct_sensor_watch_desc)
@@ -549,7 +598,7 @@ fun WearOsConfigScreen(navController: NavController) {
                         }) + "\n" + handoffPhase,
                         icon = if (directOnWatch) Icons.Filled.Watch else Icons.Filled.PhoneAndroid,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        position = CardPosition.TOP,
+                        position = CardPosition.MIDDLE,
                         onClick = if (selected != null && canSetDirect) {
                             { updateDirectRouting(!directOnWatch) }
                         } else {

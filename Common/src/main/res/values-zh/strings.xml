@@ -1387,6 +1387,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">手表应用未安装</string>
     <string name="wear_watch_app_missing_hint">在这块手表上安装 Juggluco，然后点按刷新。</string>
+    <string name="wear_auto_sensor_switch">自动切换传感器</string>
+    <string name="wear_auto_sensor_switch_on_desc">手机和手表会自行交接传感器，哪台设备在范围内就由哪台读取。</string>
+    <string name="wear_auto_sensor_switch_off_desc">只有你选择的设备读取传感器。</string>
     <string name="wear_direct_sensor_on_watch">手表直接连接传感器</string>
     <string name="wear_direct_sensor_watch_desc">手表搜索传感器，并在接受第一个读数后接管蓝牙。</string>
     <string name="wear_direct_sensor_phone_desc">伴侣模式：手机扫描并发送读数。</string>

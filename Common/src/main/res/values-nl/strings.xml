@@ -1414,6 +1414,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Horloge-app ontbreekt</string>
     <string name="wear_watch_app_missing_hint">Installeer Juggluco op dit horloge en tik daarna op vernieuwen.</string>
+    <string name="wear_auto_sensor_switch">Sensor automatisch wisselen</string>
+    <string name="wear_auto_sensor_switch_on_desc">Telefoon en horloge geven de sensor zelf door, zodat het apparaat dat binnen bereik is hem uitleest.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Alleen het apparaat dat u kiest leest de sensor uit.</string>
     <string name="wear_direct_sensor_on_watch">Directe sensor op horloge</string>
     <string name="wear_direct_sensor_watch_desc">Het horloge zoekt de sensor en neemt Bluetooth over na de eerste geaccepteerde meting.</string>
     <string name="wear_direct_sensor_phone_desc">Companion-modus: de telefoon scant en stuurt metingen.</string>

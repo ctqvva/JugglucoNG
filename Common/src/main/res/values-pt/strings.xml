@@ -1372,6 +1372,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Aplicação do relógio em falta</string>
     <string name="wear_watch_app_missing_hint">Instale o Juggluco neste relógio e toque em atualizar.</string>
+    <string name="wear_auto_sensor_switch">Mudar de sensor automaticamente</string>
+    <string name="wear_auto_sensor_switch_on_desc">O telemóvel e o relógio passam o sensor entre si, para que o leia aquele que estiver ao alcance.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Só o dispositivo que escolher lê o sensor.</string>
     <string name="wear_direct_sensor_on_watch">Sensor direto no relógio</string>
     <string name="wear_direct_sensor_watch_desc">O relógio procura o sensor e assume o Bluetooth após a primeira leitura aceite.</string>
     <string name="wear_direct_sensor_phone_desc">Modo companheiro: o telemóvel lê e envia leituras.</string>

@@ -217,6 +217,33 @@ object WatchInterop {
         }
     }
 
+    /**
+     * Turns automatic sensor switching on or off and gives the watch what it
+     * needs to act on it.
+     *
+     * The watch can only take a sensor it knows about, so enabling this sends
+     * the same managed-sensor payload a direct handover sends — the record, its
+     * auth material and its view mode. Unlike a handover it assigns nothing: the
+     * phone keeps reading, and [SensorOwnershipRuntime] decides who reads next.
+     */
+    @JvmStatic
+    fun setAutoSensorSwitch(nodeId: String, enabled: Boolean): Boolean {
+        val sender = getWearMessageSender() ?: return false
+        AutoSensorSwitch.setEnabled(enabled)
+        if (enabled) {
+            val context = Applic.app ?: MainActivity.thisone ?: return false
+            val payload = ManagedSensorHandoff.createOutgoingPayload(context)
+            if (!sender.sendSensorHandoff(nodeId, payload)) {
+                // The setting stands — the watch picks it up at the next
+                // handshake — but say the push did not land.
+                WearToggleSync.push()
+                return false
+            }
+        }
+        WearToggleSync.push()
+        return true
+    }
+
     @JvmStatic
     fun applyStandaloneSensorMode(nodeId: String, isGalaxy: Boolean, directOnWatch: Boolean, enterOnWatch: Boolean): Boolean {
         val sender = getWearMessageSender() ?: return false

@@ -1402,6 +1402,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Цагны апп байхгүй</string>
     <string name="wear_watch_app_missing_hint">Энэ цаг дээр Juggluco-г суулгаад дараа нь шинэчлэхийг товшино уу.</string>
+    <string name="wear_auto_sensor_switch">Мэдрэгчийг автоматаар сэлгэх</string>
+    <string name="wear_auto_sensor_switch_on_desc">Утас, цаг хоёр мэдрэгчээ өөрсдөө дамжуулж, хүрээнд нь байгаа төхөөрөмж нь уншина.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Зөвхөн таны сонгосон төхөөрөмж мэдрэгчийг уншина.</string>
     <string name="wear_direct_sensor_on_watch">Мэдрэгчийг цаг дээр шууд холбох</string>
     <string name="wear_direct_sensor_watch_desc">Цаг мэдрэгчийг хайж, эхний зөвшөөрөгдсөн уншилтын дараа Bluetooth-г шилжүүлэн авна.</string>
     <string name="wear_direct_sensor_phone_desc">Дагалдах горим: утас уншиж, хэмжилтийг илгээнэ.</string>

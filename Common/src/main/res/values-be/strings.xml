@@ -1370,6 +1370,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Праграма для гадзінніка адсутнічае</string>
     <string name="wear_watch_app_missing_hint">Усталюйце Juggluco на гэты гадзіннік, потым націсніце абнавіць.</string>
+    <string name="wear_auto_sensor_switch">Аўтаматычна пераключаць датчык</string>
+    <string name="wear_auto_sensor_switch_on_desc">Тэлефон і гадзіннік самі перадаюць датчык адзін аднаму, таму яго счытвае тая прылада, якая ў зоне дасяжнасці.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Датчык счытвае толькі выбраная вамі прылада.</string>
     <string name="wear_direct_sensor_on_watch">Прамы датчык на гадзінніку</string>
     <string name="wear_direct_sensor_watch_desc">Гадзіннік шукае датчык і пераймае Bluetooth пасля першага прынятага паказання.</string>
     <string name="wear_direct_sensor_phone_desc">Рэжым кампаньёна: тэлефон скануе і адпраўляе паказанні.</string>

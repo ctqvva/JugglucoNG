@@ -1399,6 +1399,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Saat uygulaması eksik</string>
     <string name="wear_watch_app_missing_hint">Bu saate Juggluco\'yu yükleyin, ardından yenile\'ye dokunun.</string>
+    <string name="wear_auto_sensor_switch">Sensörü otomatik değiştir</string>
+    <string name="wear_auto_sensor_switch_on_desc">Telefon ve saat sensörü kendi aralarında devrediyor; menzilde olan hangisiyse sensörü o okur.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Sensörü yalnızca seçtiğiniz cihaz okur.</string>
     <string name="wear_direct_sensor_on_watch">Saatte doğrudan sensör</string>
     <string name="wear_direct_sensor_watch_desc">Saat sensörü arar ve ilk kabul edilen ölçümden sonra Bluetooth\'u devralır.</string>
     <string name="wear_direct_sensor_phone_desc">Yardımcı mod: telefon tarar ve değerleri gönderir.</string>

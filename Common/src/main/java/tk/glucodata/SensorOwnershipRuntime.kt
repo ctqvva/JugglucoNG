@@ -36,6 +36,67 @@ internal fun resolveSensorOwnershipIntent(
     else -> SensorOwnershipPolicy.Intent.TAKE
 }
 
+/** The state of one sensor's handover window; see [resolveYieldWindow]. */
+internal data class SensorYieldWindow(
+    /** When the current handover attempt began, or null to forget it. */
+    val startedAtMs: Long?,
+    /** Stay off the sensor until this time; 0 means read it. */
+    val deadlineMs: Long,
+    /** `%s` stands for the sensor. Null when nothing changed worth saying. */
+    val logMessage: String? = null,
+)
+
+/**
+ * Until when this device stays off a sensor it has assigned to the peer.
+ *
+ * A sensor that serves one client at a time cannot be handed over any other
+ * way: the peer can never get a reading — and so can never claim ownership —
+ * while this device holds the connection. So the handover is a bounded window
+ * of standing aside, retried periodically if the peer does not take it.
+ *
+ * [peerGone] short-circuits all of that. Yielding to a device that is not there
+ * only loses readings, and it is what let an assigned-but-absent watch keep the
+ * phone off its own sensor.
+ */
+internal fun resolveYieldWindow(
+    intent: SensorOwnershipPolicy.Intent,
+    peerOwns: Boolean,
+    peerGone: Boolean,
+    startedAtMs: Long?,
+    nowMs: Long,
+    windowMs: Long,
+    retryIntervalMs: Long,
+): SensorYieldWindow {
+    if (intent != SensorOwnershipPolicy.Intent.YIELD || peerGone) {
+        return SensorYieldWindow(startedAtMs = null, deadlineMs = 0L)
+    }
+    // The peer has it: no window needed, the normal rules apply. Record when
+    // that was, rather than forgetting the handover happened — otherwise the
+    // moment the peer loses the sensor looks like a fresh handover and opens
+    // a new window, so a watch dropping its connection put the phone into a
+    // blackout instead of straight back onto the sensor.
+    if (peerOwns) return SensorYieldWindow(startedAtMs = nowMs, deadlineMs = 0L)
+    if (startedAtMs == null) {
+        return SensorYieldWindow(
+            startedAtMs = nowMs,
+            deadlineMs = nowMs + windowMs,
+            logMessage = "handing %s to the watch: standing down for ${windowMs / 1000}s",
+        )
+    }
+    if (nowMs < startedAtMs + windowMs) {
+        return SensorYieldWindow(startedAtMs = startedAtMs, deadlineMs = startedAtMs + windowMs)
+    }
+    if (nowMs >= startedAtMs + retryIntervalMs) {
+        return SensorYieldWindow(
+            startedAtMs = nowMs,
+            deadlineMs = nowMs + windowMs,
+            logMessage = "offering %s to the watch again",
+        )
+    }
+    // Window spent and the peer did not take it: read it ourselves again.
+    return SensorYieldWindow(startedAtMs = startedAtMs, deadlineMs = 0L)
+}
+
 /**
  * Keeps exactly one device reading each sensor, and hands it over when that
  * device stops being able to.
@@ -67,6 +128,18 @@ object SensorOwnershipRuntime {
     private const val PEER_SILENT_AFTER_MS = 2L * ANNOUNCE_HEARTBEAT_MS + 60_000L
 
     /**
+     * Heartbeat used while automatic switching is on.
+     *
+     * Half an hour of silence is a reasonable price for battery when ownership
+     * only ever changes because the user asked it to. It is not when the point
+     * of the setting is that the other device takes over on its own: a watch
+     * left at home would keep the phone off its sensor for the whole timeout.
+     * The user opted into the extra traffic by turning the switch on.
+     */
+    private const val AUTO_SWITCH_HEARTBEAT_MS = 5L * 60_000L
+    private const val AUTO_SWITCH_PEER_SILENT_AFTER_MS = 2L * AUTO_SWITCH_HEARTBEAT_MS + 60_000L
+
+    /**
      * How long the phone lets go for, when the user hands a sensor to the watch.
      *
      * This window is the one time neither device is reading, so it is kept as
@@ -95,6 +168,14 @@ object SensorOwnershipRuntime {
     private val localReadings = ConcurrentHashMap<String, Long>()
     private val releaseState = SensorOwnershipReleaseState(::key)
     private val yieldStartedAt = ConcurrentHashMap<String, Long>()
+
+    /**
+     * Whether the last announcement we tried to deliver actually reached the
+     * peer. Only sampled while automatic switching is on, because it is the only
+     * mode that needs to notice the peer leaving faster than the silence
+     * timeout — and because learning it costs a blocking send.
+     */
+    @Volatile private var peerDeliverable = true
 
     @Volatile private var started = false
 
@@ -233,6 +314,8 @@ object SensorOwnershipRuntime {
     fun onPeerReport(data: ByteArray?) {
         if (!Applic.isWearable && !MessageSender.outgoingAllowed()) return
         val report = decode(data) ?: return
+        // Hearing from the peer is proof it is there, whatever the last send said.
+        peerDeliverable = true
         peerSerials[key(report.first)] = report.first
         peerReports[key(report.first)] = SensorOwnershipPolicy.PeerReport(
             owns = report.second,
@@ -286,6 +369,12 @@ object SensorOwnershipRuntime {
     private fun announce() {
         if (!MessageSender.outgoingAllowed()) return
         val now = System.currentTimeMillis()
+        val autoSwitch = autoSwitchEnabled()
+        val heartbeat = if (autoSwitch) AUTO_SWITCH_HEARTBEAT_MS else ANNOUNCE_HEARTBEAT_MS
+        // At most one blocking send per pass: an unreachable peer costs the send
+        // its full timeout, and doing that once per sensor would starve the tick
+        // this runs on.
+        var probed = false
         sensors().forEach { serial ->
             val owns = holdsLiveConnection(serial)
             val newest = localReadings[key(serial)] ?: 0L
@@ -293,13 +382,29 @@ object SensorOwnershipRuntime {
             // The reading time changes every minute by nature, so it is not part
             // of what counts as a change; only ownership is.
             val previous = lastAnnounced[id]
-            val dueForHeartbeat = now - (lastAnnouncedAt[id] ?: 0L) >= ANNOUNCE_HEARTBEAT_MS
+            val dueForHeartbeat = now - (lastAnnouncedAt[id] ?: 0L) >= heartbeat
             if (previous == owns && !dueForHeartbeat) return@forEach
-            MessageSender.sendSyncMessage(MessageSender.SENSOR_OWNERSHIP_PATH, encode(serial, owns, newest))
+            val payload = encode(serial, owns, newest)
+            if (autoSwitch && !probed) {
+                probed = true
+                val delivered = MessageSender.sendSyncMessageAwait(
+                    MessageSender.SENSOR_OWNERSHIP_PATH,
+                    payload,
+                )
+                if (delivered != peerDeliverable) {
+                    Log.i(LOG_ID, "peer ${if (delivered) "reachable again" else "unreachable"}")
+                    peerDeliverable = delivered
+                }
+            } else {
+                MessageSender.sendSyncMessage(MessageSender.SENSOR_OWNERSHIP_PATH, payload)
+            }
             lastAnnounced[id] = owns
             lastAnnouncedAt[id] = now
         }
     }
+
+    private fun autoSwitchEnabled(): Boolean =
+        runCatching { AutoSensorSwitch.isEnabled() }.getOrDefault(false)
 
     /** What was last put on the wire per sensor, so a repeat stays silent. */
     private val lastAnnounced = ConcurrentHashMap<String, Boolean>()
@@ -308,9 +413,16 @@ object SensorOwnershipRuntime {
     private fun reconcile() {
         val now = System.currentTimeMillis()
         val companionEnabled = Applic.isWearable || MessageSender.outgoingAllowed()
+        val autoSwitch = autoSwitchEnabled()
+        // Automatic switching is the one mode that acts on the peer being gone
+        // rather than merely quiet, so an undeliverable announcement retires its
+        // report at once instead of waiting out the silence timeout.
+        val peerGone = autoSwitch && !peerDeliverable
+        val peerSilentAfterMs =
+            if (autoSwitch) AUTO_SWITCH_PEER_SILENT_AFTER_MS else PEER_SILENT_AFTER_MS
         sensors().forEach { serial ->
             val id = key(serial)
-            val peer = if (companionEnabled) peerReportFor(serial) else null
+            val peer = if (companionEnabled && !peerGone) peerReportFor(serial) else null
             val intent = intentFor(serial, companionEnabled)
             val shouldRead = SensorOwnershipPolicy.shouldReadLocally(
                 isPhone = !Applic.isWearable,
@@ -319,8 +431,8 @@ object SensorOwnershipRuntime {
                 localLastReadingMs = localReadings[id] ?: 0L,
                 peer = peer,
                 nowMs = now,
-                peerSilentAfterMs = PEER_SILENT_AFTER_MS,
-                yieldUntilMs = yieldDeadline(id, intent, peer, now),
+                peerSilentAfterMs = peerSilentAfterMs,
+                yieldUntilMs = yieldDeadline(id, intent, peer, now, peerGone),
             )
             val released = releaseState.isReleased(serial)
             when {
@@ -359,34 +471,20 @@ object SensorOwnershipRuntime {
         intent: SensorOwnershipPolicy.Intent,
         peer: SensorOwnershipPolicy.PeerReport?,
         now: Long,
+        peerGone: Boolean = false,
     ): Long {
-        if (intent != SensorOwnershipPolicy.Intent.YIELD) {
-            yieldStartedAt.remove(id)
-            return 0L
-        }
-        // The peer has it: no window needed, the normal rules apply. Record when
-        // that was, rather than forgetting the handover happened — otherwise the
-        // moment the peer loses the sensor looks like a fresh handover and opens
-        // a new window, so a watch dropping its connection put the phone into a
-        // blackout instead of straight back onto the sensor.
-        if (peer?.owns == true) {
-            yieldStartedAt[id] = now
-            return 0L
-        }
-        val started = yieldStartedAt[id]
-        if (started == null) {
-            yieldStartedAt[id] = now
-            Log.i(LOG_ID, "handing $id to the watch: standing down for ${YIELD_WINDOW_MS / 1000}s")
-            return now + YIELD_WINDOW_MS
-        }
-        if (now < started + YIELD_WINDOW_MS) return started + YIELD_WINDOW_MS
-        if (now >= started + YIELD_RETRY_INTERVAL_MS) {
-            yieldStartedAt[id] = now
-            Log.i(LOG_ID, "offering $id to the watch again")
-            return now + YIELD_WINDOW_MS
-        }
-        // Window spent and the watch did not take it: read it ourselves again.
-        return 0L
+        val window = resolveYieldWindow(
+            intent = intent,
+            peerOwns = peer?.owns == true,
+            peerGone = peerGone,
+            startedAtMs = yieldStartedAt[id],
+            nowMs = now,
+            windowMs = YIELD_WINDOW_MS,
+            retryIntervalMs = YIELD_RETRY_INTERVAL_MS,
+        )
+        if (window.startedAtMs == null) yieldStartedAt.remove(id) else yieldStartedAt[id] = window.startedAtMs
+        window.logMessage?.let { Log.i(LOG_ID, it.replace("%s", id)) }
+        return window.deadlineMs
     }
 
     /** Whether the user has assigned the sensor to the watch, read from prefs. */

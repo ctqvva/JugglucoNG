@@ -965,6 +965,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 // Direct sensor mode has to survive a restart of the watch app,
                 // otherwise a handoff silently stops scanning.
                 WearSensorClaim.restoreOnStart();
+                // Same for automatic switching: the setting survives, the
+                // scanning it enables would not.
+                AutoSensorSwitch.restoreOnStart();
             }
         }
         return true;

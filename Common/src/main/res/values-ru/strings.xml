@@ -1414,6 +1414,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_reinit_desc">Принудительно перезапустить поиск часов и синхронизацию сети.</string>
     <string name="wear_watch_app_missing">Приложение для часов отсутствует</string>
     <string name="wear_watch_app_missing_hint">Установите Juggluco на эти часы, затем нажмите обновить.</string>
+    <string name="wear_auto_sensor_switch">Автоматически переключать датчик</string>
+    <string name="wear_auto_sensor_switch_on_desc">Телефон и часы сами передают датчик друг другу, поэтому его читает то устройство, которое в зоне действия.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Датчик читает только выбранное вами устройство.</string>
     <string name="wear_direct_sensor_on_watch">Прямой датчик на часах</string>
     <string name="wear_direct_sensor_watch_desc">Часы ищут датчик и принимают управление Bluetooth после первого принятого показания.</string>
     <string name="wear_direct_sensor_phone_desc">Режим компаньона: телефон сканирует и отправляет показания.</string>

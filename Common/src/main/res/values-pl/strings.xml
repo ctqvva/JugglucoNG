@@ -1406,6 +1406,9 @@
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Brak aplikacji na zegarku</string>
     <string name="wear_watch_app_missing_hint">Zainstaluj Juggluco na tym zegarku, a potem stuknij odśwież.</string>
+    <string name="wear_auto_sensor_switch">Automatyczne przełączanie czujnika</string>
+    <string name="wear_auto_sensor_switch_on_desc">Telefon i zegarek same przekazują sobie czujnik, więc odczytuje go to urządzenie, które jest w zasięgu.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Czujnik odczytuje tylko wybrane przez Ciebie urządzenie.</string>
     <string name="wear_direct_sensor_on_watch">Bezpośredni sensor na zegarku</string>
     <string name="wear_direct_sensor_watch_desc">Zegarek wyszukuje sensor i przejmuje Bluetooth po pierwszym zaakceptowanym odczycie.</string>
     <string name="wear_direct_sensor_phone_desc">Tryb towarzyszący: telefon skanuje i wysyła odczyty.</string>

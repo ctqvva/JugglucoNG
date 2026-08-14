@@ -1371,6 +1371,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Klockappen saknas</string>
     <string name="wear_watch_app_missing_hint">Installera Juggluco på den här klockan och tryck sedan på uppdatera.</string>
+    <string name="wear_auto_sensor_switch">Växla sensor automatiskt</string>
+    <string name="wear_auto_sensor_switch_on_desc">Telefonen och klockan lämnar över sensorn själva, så den som är inom räckhåll läser av den.</string>
+    <string name="wear_auto_sensor_switch_off_desc">Bara enheten du väljer läser av sensorn.</string>
     <string name="wear_direct_sensor_on_watch">Direkt sensor på klockan</string>
     <string name="wear_direct_sensor_watch_desc">Klockan söker efter sensorn och tar över Bluetooth efter den första godkända avläsningen.</string>
     <string name="wear_direct_sensor_phone_desc">Följeslagarläge: telefonen skannar och skickar värden.</string>
