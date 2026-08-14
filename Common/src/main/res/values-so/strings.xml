@@ -1942,6 +1942,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_disable_preset">Dami</string>
     <string name="journal_active_insulin">Insuliin firfircoon</string>
     <string name="journal_active_insulin_subtitle">Waxay ku xisaabtantaa dhinaca IOB iyo saadaasha</string>
+    <string name="journal_use_for_calculation">U isticmaal xisaabinta</string>
+    <string name="journal_use_for_calculation_subtitle">Waxay oggolaanaysaa talooyinka qiyaasta iyo karbohaydraytyada</string>
     <string name="journal_active_insulin_summary">Qiyaasaha %1$d · %2$s U · %3$d%% hadda</string>
     <string name="journal_active_insulin_until">Soconaya ilaa %1$s</string>
     <string name="journal_preset_nph">Dhexdhexaad / NPH</string>

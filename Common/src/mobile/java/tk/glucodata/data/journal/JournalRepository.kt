@@ -131,10 +131,12 @@ class JournalRepository {
             isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
             isArchived = input.isArchived,
             countsTowardIob = input.countsTowardIob,
-            sortOrder = input.sortOrder
+            sortOrder = input.sortOrder,
+            useForCalculation = input.useForCalculation
         )
         val id = dao.upsertInsulinPreset(entity)
         // Curve or countsTowardIob edits reshape the IOB of existing doses.
+        // Calculation eligibility is persisted alongside them for journal dose assist.
         tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         return id
     }
@@ -226,7 +228,8 @@ class JournalRepository {
                 isBuiltIn = true,
                 isArchived = false,
                 countsTowardIob = false,
-                sortOrder = 1
+                sortOrder = 1,
+                useForCalculation = false
             ),
             JournalInsulinPresetEntity(
                 displayName = app.getString(R.string.humaninsulin),
@@ -325,7 +328,8 @@ class JournalRepository {
                 isBuiltIn = true,
                 isArchived = true,
                 countsTowardIob = false,
-                sortOrder = 10
+                sortOrder = 10,
+                useForCalculation = false
             )
         )
     }
@@ -346,7 +350,8 @@ class JournalRepository {
                 curveJson = preset.curveJson,
                 isArchived = preset.isArchived,
                 countsTowardIob = preset.countsTowardIob,
-                sortOrder = preset.sortOrder
+                sortOrder = preset.sortOrder,
+                useForCalculation = preset.useForCalculation
             ) ?: preset
         }
     }
@@ -452,7 +457,8 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
         isBuiltIn = isBuiltIn,
         isArchived = isArchived,
         countsTowardIob = countsTowardIob,
-        sortOrder = sortOrder
+        sortOrder = sortOrder,
+        useForCalculation = useForCalculation
     )
 }
 

@@ -575,6 +575,7 @@ object ExportPackageExporter {
             .put("isBuiltIn", isBuiltIn)
             .put("isArchived", isArchived)
             .put("countsTowardIob", countsTowardIob)
+            .put("useForCalculation", useForCalculation)
             .put("sortOrder", sortOrder)
     }
 
@@ -679,7 +680,12 @@ object ExportPackageExporter {
                         isBuiltIn = item.optBoolean("isBuiltIn", false),
                         isArchived = item.optBoolean("isArchived", false),
                         countsTowardIob = item.optBoolean("countsTowardIob", true),
-                        sortOrder = item.optInt("sortOrder", index)
+                        sortOrder = item.optInt("sortOrder", index),
+                        useForCalculation = item.optBoolean(
+                            "useForCalculation",
+                            !(item.optBoolean("isBuiltIn", false) &&
+                                item.optInt("sortOrder", index) in setOf(1, 10))
+                        )
                     )
                 )
             }

@@ -105,7 +105,8 @@ object HistoryExporter {
                                 "JournalDurationMinutes,JournalIntensity,JournalInsulinPresetId,JournalSource," +
                                 "JournalSourceRecordId,JournalCreatedAt,JournalUpdatedAt," +
                                 "PresetId,PresetName,PresetOnsetMinutes,PresetDurationMinutes,PresetAccentColor," +
-                                "PresetCurveJson,PresetBuiltIn,PresetArchived,PresetCountsTowardIob,PresetSortOrder\n"
+                                "PresetCurveJson,PresetBuiltIn,PresetArchived,PresetCountsTowardIob," +
+                                "PresetUseForCalculation,PresetSortOrder\n"
                         )
 
                         // Data
@@ -189,6 +190,7 @@ object HistoryExporter {
                                     preset.isBuiltIn,
                                     preset.isArchived,
                                     preset.countsTowardIob,
+                                    preset.useForCalculation,
                                     preset.sortOrder
                                 ).joinToString(",") { csvCell(it) } + "\n"
                             )
@@ -313,9 +315,10 @@ object HistoryExporter {
             for (preset in insulinPresets) {
                 val archived = if (preset.isArchived) "archived" else "enabled"
                 val iob = if (preset.countsTowardIob) "IOB" else "no IOB"
+                val calculation = if (preset.useForCalculation) "calculation" else "no calculation"
                 writer.write(
                     "${preset.displayName}: ${preset.onsetMinutes}-${preset.durationMinutes} min · " +
-                        "$archived · $iob · color ${preset.accentColor}\n"
+                        "$archived · $iob · $calculation · color ${preset.accentColor}\n"
                 )
             }
         }

@@ -1909,6 +1909,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_password_desc">Muss auf beiden Geräten übereinstimmen</string>
     <string name="journal_active_insulin">Aktives Insulin</string>
     <string name="journal_active_insulin_subtitle">Zählt zu IOB und Vorhersagen</string>
+    <string name="journal_use_for_calculation">Für Berechnungen verwenden</string>
+    <string name="journal_use_for_calculation_subtitle">Ermöglicht Dosis- und Kohlenhydratvorschläge</string>
     <string name="journal_active_insulin_summary">%1$d Dosen · %2$s E · jetzt %3$d%%</string>
     <string name="journal_active_insulin_until">Läuft bis %1$s</string>
     <string name="alert_delivery_notification">Benachrichtigung</string>

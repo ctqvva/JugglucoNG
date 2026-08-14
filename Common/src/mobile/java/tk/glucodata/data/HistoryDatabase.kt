@@ -28,6 +28,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v9 — per-sensor timestamp index for bounded dashboard/stats history queries
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
+ *   v12 — per-preset dose-calculation eligibility
  */
 @Database(
     entities = [
@@ -38,7 +39,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -225,6 +226,19 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE journal_insulin_presets " +
+                        "ADD COLUMN useForCalculation INTEGER NOT NULL DEFAULT 1"
+                )
+                db.execSQL(
+                    "UPDATE journal_insulin_presets SET useForCalculation = 0 " +
+                        "WHERE isBuiltIn = 1 AND sortOrder IN (1, 10)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -241,7 +255,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
-                    MIGRATION_10_11
+                    MIGRATION_10_11,
+                    MIGRATION_11_12
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

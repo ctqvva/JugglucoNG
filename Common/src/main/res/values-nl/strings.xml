@@ -1827,6 +1827,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_password_desc">Moet op beide apparaten overeenkomen</string>
     <string name="journal_active_insulin">Actieve insuline</string>
     <string name="journal_active_insulin_subtitle">Telt mee voor IOB en voorspellingen</string>
+    <string name="journal_use_for_calculation">Gebruiken voor berekeningen</string>
+    <string name="journal_use_for_calculation_subtitle">Staat dosis- en koolhydraatsuggesties toe</string>
     <string name="journal_active_insulin_summary">%1$d doses · %2$s E · nu %3$d%%</string>
     <string name="journal_active_insulin_until">Actief tot %1$s</string>
     <string name="alert_delivery_notification">Melding</string>

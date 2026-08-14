@@ -1784,6 +1784,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_password_desc">Måste matcha på båda enheterna</string>
     <string name="journal_active_insulin">Aktivt insulin</string>
     <string name="journal_active_insulin_subtitle">Räknas med i IOB och prognoser</string>
+    <string name="journal_use_for_calculation">Använd för beräkning</string>
+    <string name="journal_use_for_calculation_subtitle">Tillåter dos- och kolhydratförslag</string>
     <string name="journal_active_insulin_summary">%1$d doser · %2$s E · %3$d%% nu</string>
     <string name="journal_active_insulin_until">Aktivt till %1$s</string>
     <string name="alert_delivery_notification">Avisering</string>

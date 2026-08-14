@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -40,12 +41,14 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
@@ -113,6 +116,7 @@ import tk.glucodata.R
 import tk.glucodata.data.journal.JournalChartMarker
 import tk.glucodata.data.journal.JournalCurvePoint
 import tk.glucodata.data.journal.JournalDoseCalculator
+import tk.glucodata.data.journal.JournalDosePresetPolicy
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntryType
@@ -344,6 +348,9 @@ fun JournalEntrySheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val activeInsulinPresets = remember(insulinPresets) { insulinPresets.filter { !it.isArchived } }
+    val calculationInsulinPresets = remember(activeInsulinPresets) {
+        activeInsulinPresets.filter { it.useForCalculation }
+    }
     val presetsById = remember(insulinPresets) { insulinPresets.associateBy { it.id } }
     val activeFoods = remember(foods) { foods.filter { !it.isArchived } }
     val initialDraft = remember(
@@ -381,6 +388,7 @@ fun JournalEntrySheet(
     var showDatePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
     var showTimePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
     var noteFieldFocused by remember(existingEntry?.id) { mutableStateOf(false) }
+    val selectedInsulinPreset = draft.insulinPresetId?.let(presetsById::get)
     val saveInputs = draft.toInputs(unit, sensorSerialProvider(), presetsById, foodMacrosEnabled)
     val canSave = saveInputs.isNotEmpty()
     val calculatorProfile = remember(doseProfile, draft.timestamp) {
@@ -391,13 +399,13 @@ fun JournalEntrySheet(
         }
     }
     val activeInsulinUnits = remember(doseJournalEntries, presetsById, draft.timestamp) {
-        activeInsulinRemainingUnitsAt(
+        JournalDosePresetPolicy.activeInsulinUnitsAt(
             entries = doseJournalEntries,
             presetsById = presetsById,
             atMillis = draft.timestamp
         )
     }
-    LaunchedEffect(existingEntry?.id, draft.type, draft.pairWithDose, activeInsulinPresets) {
+    LaunchedEffect(existingEntry?.id, draft.type, draft.pairWithDose, calculationInsulinPresets) {
         if (
             existingEntry != null ||
             draft.insulinPresetId != null ||
@@ -405,7 +413,7 @@ fun JournalEntrySheet(
         ) {
             return@LaunchedEffect
         }
-        preferredInsulinPreset(activeInsulinPresets)?.let { preset ->
+        JournalDosePresetPolicy.preferredPreset(calculationInsulinPresets)?.let { preset ->
             draft = draft.copy(
                 insulinPresetId = preset.id,
                 title = preset.displayName
@@ -420,8 +428,18 @@ fun JournalEntrySheet(
         draft.doseGlucoseMgDl,
         draft.pairWithDose,
         calculatorProfile,
-        activeInsulinUnits
+        activeInsulinUnits,
+        selectedInsulinPreset?.useForCalculation
     ) {
+        if (
+            draft.type == JournalEntryType.INSULIN &&
+            selectedInsulinPreset?.useForCalculation != true
+        ) {
+            if (draft.pairWithDose || draft.pairedAmountText.isNotEmpty()) {
+                draft = draft.copy(pairWithDose = false, pairedAmountText = "")
+            }
+            return@LaunchedEffect
+        }
         if (!draft.pairWithDose || calculatorProfile == null) return@LaunchedEffect
         val suggestedPair = when (draft.type) {
             JournalEntryType.CARBS -> calculateInsulinForCarbs(
@@ -508,22 +526,11 @@ fun JournalEntrySheet(
             }
 
             item(key = "date_time") {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    JournalMetaCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Event,
-                        title = stringResource(R.string.date),
-                        value = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
-                        onClick = { showDatePicker = true }
-                    )
-                    JournalMetaCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.AccessTime,
-                        title = stringResource(R.string.time),
-                        value = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
-                        onClick = { showTimePicker = true }
-                    )
-                }
+                JournalDateTimeSwitcher(
+                    timestamp = draft.timestamp,
+                    onDateClick = { showDatePicker = true },
+                    onTimeClick = { showTimePicker = true }
+                )
             }
 
             when (draft.type) {
@@ -540,7 +547,11 @@ fun JournalEntrySheet(
                                     onClick = {
                                         draft = draft.copy(
                                             insulinPresetId = preset.id,
-                                            title = preset.displayName
+                                            title = preset.displayName,
+                                            pairWithDose = draft.pairWithDose && preset.useForCalculation,
+                                            pairedAmountText = draft.pairedAmountText.takeIf {
+                                                preset.useForCalculation
+                                            }.orEmpty()
                                         )
                                     }
                                 )
@@ -554,16 +565,29 @@ fun JournalEntrySheet(
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     shape = RoundedCornerShape(18.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val windowDescription = stringResource(
                                             R.string.journal_active_window,
                                             stringResource(R.string.minutes_short_format, preset.onsetMinutes),
                                             stringResource(R.string.minutes_short_format, preset.durationMinutes)
-                                        ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                                    )
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = windowDescription,
+                                            tint = Color(preset.accentColor),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "${stringResource(R.string.minutes_short_format, preset.onsetMinutes)} – " +
+                                                stringResource(R.string.minutes_short_format, preset.durationMinutes),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -580,12 +604,16 @@ fun JournalEntrySheet(
                             prominent = true
                         )
                     }
-                    if (existingEntry == null && calculatorProfile != null) {
+                    if (
+                        existingEntry == null &&
+                        calculatorProfile != null &&
+                        selectedInsulinPreset?.useForCalculation == true
+                    ) {
                         item(key = "insulin_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
-                                activeInsulinPresets = activeInsulinPresets,
+                                calculationInsulinPresets = calculationInsulinPresets,
                                 activeInsulinUnits = activeInsulinUnits,
                                 unit = unit,
                                 onDraftChange = { draft = it }
@@ -648,12 +676,16 @@ fun JournalEntrySheet(
                             )
                         }
                     }
-                    if (existingEntry == null && calculatorProfile != null) {
+                    if (
+                        existingEntry == null &&
+                        calculatorProfile != null &&
+                        calculationInsulinPresets.isNotEmpty()
+                    ) {
                         item(key = "carbs_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
-                                activeInsulinPresets = activeInsulinPresets,
+                                calculationInsulinPresets = calculationInsulinPresets,
                                 activeInsulinUnits = activeInsulinUnits,
                                 unit = unit,
                                 onDraftChange = { draft = it }
@@ -906,13 +938,6 @@ private fun buildDraft(
         chartAnchorGlucoseMgDl = existingEntry.glucoseValueMgDl,
         doseGlucoseMgDl = existingEntry.glucoseValueMgDl
     )
-}
-
-private fun preferredInsulinPreset(
-    presets: List<JournalInsulinPreset>
-): JournalInsulinPreset? {
-    val sortedPresets = presets.sortedBy { it.sortOrder }
-    return sortedPresets.firstOrNull { it.countsTowardIob } ?: sortedPresets.firstOrNull()
 }
 
 private fun JournalEntryDraft.withFood(
@@ -1237,7 +1262,7 @@ private fun JournalEntryDraft.toInputs(
 private fun JournalDoseAssistCard(
     draft: JournalEntryDraft,
     profile: JournalDoseProfile,
-    activeInsulinPresets: List<JournalInsulinPreset>,
+    calculationInsulinPresets: List<JournalInsulinPreset>,
     activeInsulinUnits: Float,
     unit: String,
     onDraftChange: (JournalEntryDraft) -> Unit
@@ -1286,7 +1311,7 @@ private fun JournalDoseAssistCard(
                 pairedAmountText = if (enabled) pairAmount.orEmpty() else "",
                 insulinPresetId = when {
                     draft.type == JournalEntryType.CARBS && enabled -> draft.insulinPresetId
-                        ?: preferredInsulinPreset(activeInsulinPresets)?.id
+                        ?: JournalDosePresetPolicy.preferredPreset(calculationInsulinPresets)?.id
                     draft.type == JournalEntryType.CARBS -> null
                     else -> draft.insulinPresetId
                 }
@@ -1416,7 +1441,7 @@ private fun JournalDoseAssistCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        activeInsulinPresets.forEach { preset ->
+                        calculationInsulinPresets.forEach { preset ->
                             JournalPresetPill(
                                 preset = preset,
                                 selected = draft.insulinPresetId == preset.id,
@@ -2346,49 +2371,6 @@ private fun calculateCoveredCarbsForInsulin(
     )
 }
 
-private fun activeInsulinRemainingUnitsAt(
-    entries: List<JournalEntry>,
-    presetsById: Map<Long, JournalInsulinPreset>,
-    atMillis: Long
-): Float {
-    if (entries.isEmpty()) return 0f
-    return entries.sumOf { entry ->
-        val preset = entry.insulinPresetId?.let(presetsById::get) ?: return@sumOf 0.0
-        if (entry.type != JournalEntryType.INSULIN || !preset.countsTowardIob) return@sumOf 0.0
-        val amount = entry.amount?.takeIf { it > 0f } ?: return@sumOf 0.0
-        val remaining = remainingCurveFraction(preset.curvePoints, entry.timestamp, atMillis)
-        (amount * remaining).toDouble()
-    }.toFloat()
-}
-
-private fun remainingCurveFraction(points: List<JournalCurvePoint>, doseTimestamp: Long, atMillis: Long): Float {
-    if (points.size < 2 || atMillis < doseTimestamp) return 0f
-    val elapsedMinutes = ((atMillis - doseTimestamp) / 60_000f).coerceAtLeast(0f)
-    val total = integrateCurveArea(points, points.last().minute.toFloat())
-    if (total <= 0.0001f) return 0f
-    val delivered = (integrateCurveArea(points, elapsedMinutes) / total).coerceIn(0f, 1f)
-    return (1f - delivered).coerceIn(0f, 1f)
-}
-
-private fun integrateCurveArea(points: List<JournalCurvePoint>, upToMinute: Float): Float {
-    if (points.size < 2 || upToMinute <= points.first().minute) return 0f
-    var area = 0f
-    for (index in 0 until points.lastIndex) {
-        val start = points[index]
-        val end = points[index + 1]
-        if (upToMinute <= start.minute) break
-        val segmentEndMinute = minOf(upToMinute, end.minute.toFloat())
-        val segmentWidth = segmentEndMinute - start.minute
-        if (segmentWidth <= 0f) continue
-        val fullWidth = (end.minute - start.minute).coerceAtLeast(1).toFloat()
-        val endFraction = ((segmentEndMinute - start.minute) / fullWidth).coerceIn(0f, 1f)
-        val segmentEndActivity = start.activity + ((end.activity - start.activity) * endFraction)
-        area += ((start.activity + segmentEndActivity) * 0.5f) * segmentWidth
-        if (upToMinute <= end.minute) break
-    }
-    return area
-}
-
 private fun formatInsulinDose(value: Float): String = formatFloatForEditor(value)
 
 private fun formatInsulinComponent(value: Float): String {
@@ -2505,28 +2487,49 @@ private fun JournalPresetPill(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val accent = Color(preset.accentColor)
     Surface(
         onClick = onClick,
         color = if (selected) {
-            Color(preset.accentColor).copy(alpha = 0.18f)
+            accent.copy(alpha = 0.30f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(18.dp),
+        border = if (selected) BorderStroke(1.dp, accent.copy(alpha = 0.9f)) else null,
+        tonalElevation = if (selected) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .background(Color(preset.accentColor), CircleShape)
-            )
+            Surface(
+                modifier = Modifier.size(18.dp),
+                shape = CircleShape,
+                color = if (selected) accent else accent.copy(alpha = 0.18f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(accent, CircleShape)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = preset.displayName,
                 style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2793,39 +2796,65 @@ private fun JournalEntryChip(
 }
 
 @Composable
-private fun JournalMetaCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    title: String,
-    value: String,
-    onClick: () -> Unit
+private fun JournalDateTimeSwitcher(
+    timestamp: Long,
+    onDateClick: () -> Unit,
+    onTimeClick: () -> Unit
 ) {
     Surface(
-        modifier = modifier,
-        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(18.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onDateClick)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Event,
+                    contentDescription = stringResource(R.string.date),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = value,
+                    text = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Surface(
+                modifier = Modifier
+                    .width(1.dp)
+                    .heightIn(min = 28.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+            ) {}
+            Row(
+                modifier = Modifier
+                    .weight(0.72f)
+                    .clickable(onClick = onTimeClick)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccessTime,
+                    contentDescription = stringResource(R.string.time),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestamp)),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

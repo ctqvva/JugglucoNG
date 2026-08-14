@@ -1800,6 +1800,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_password_desc">两台设备必须一致</string>
     <string name="journal_active_insulin">活性胰岛素</string>
     <string name="journal_active_insulin_subtitle">计入 IOB 和预测</string>
+    <string name="journal_use_for_calculation">用于计算</string>
+    <string name="journal_use_for_calculation_subtitle">允许提供剂量和碳水建议</string>
     <string name="journal_active_insulin_summary">%1$d 剂 · %2$s U · 当前 %3$d%%</string>
     <string name="journal_active_insulin_until">持续到 %1$s</string>
     <string name="alert_delivery_notification">通知</string>

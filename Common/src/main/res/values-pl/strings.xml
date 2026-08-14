@@ -1819,6 +1819,8 @@
     <string name="mirror_password_desc">Musi być takie samo na obu urządzeniach</string>
     <string name="journal_active_insulin">Aktywna insulina</string>
     <string name="journal_active_insulin_subtitle">Uwzględniana w IOB i prognozach</string>
+    <string name="journal_use_for_calculation">Używaj do obliczeń</string>
+    <string name="journal_use_for_calculation_subtitle">Pozwala sugerować dawkę i węglowodany</string>
     <string name="journal_active_insulin_summary">%1$d dawki · %2$s j. · teraz %3$d%%</string>
     <string name="journal_active_insulin_until">Działa do %1$s</string>
     <string name="alert_delivery_notification">Powiadomienie</string>

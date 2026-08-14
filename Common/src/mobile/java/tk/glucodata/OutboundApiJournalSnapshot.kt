@@ -365,7 +365,8 @@ object OutboundApiJournalSnapshot {
             isBuiltIn = entity.isBuiltIn,
             isArchived = entity.isArchived,
             countsTowardIob = entity.countsTowardIob,
-            sortOrder = entity.sortOrder
+            sortOrder = entity.sortOrder,
+            useForCalculation = entity.useForCalculation
         )
 
     private fun defaultEventType(type: JournalEntryType): String =

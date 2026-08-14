@@ -144,7 +144,8 @@ private data class JournalPresetDraft(
     val sortOrder: Int = Int.MAX_VALUE,
     val isBuiltIn: Boolean = false,
     val isArchived: Boolean = false,
-    val countsTowardIob: Boolean = true
+    val countsTowardIob: Boolean = true,
+    val useForCalculation: Boolean = true
 )
 
 private data class JournalFoodDraft(
@@ -1002,6 +1003,10 @@ private fun JournalPresetRow(
                             append(" · ")
                             append(stringResource(R.string.journal_active_insulin))
                         }
+                        if (preset.useForCalculation) {
+                            append(" · ")
+                            append(stringResource(R.string.journal_use_for_calculation))
+                        }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1827,6 +1832,21 @@ private fun JournalInsulinPresetSheet(
                         onCheckedChange = { draft = draft.copy(countsTowardIob = it) },
                         contentPadding = PaddingValues(
                             start = cardSidePadding,
+                            end = cardSidePadding
+                        )
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = cardSidePadding)
+                    )
+                    CompactPresetToggleRow(
+                        title = stringResource(R.string.journal_use_for_calculation),
+                        subtitle = stringResource(R.string.journal_use_for_calculation_subtitle),
+                        checked = draft.useForCalculation,
+                        enabled = !draft.isArchived,
+                        onCheckedChange = { draft = draft.copy(useForCalculation = it) },
+                        contentPadding = PaddingValues(
+                            start = cardSidePadding,
                             end = cardSidePadding,
                             bottom = if (draft.isArchived) 8.dp else 0.dp
                         )
@@ -2455,7 +2475,8 @@ private fun buildPresetDraft(preset: JournalInsulinPreset?): JournalPresetDraft 
         sortOrder = preset?.sortOrder ?: Int.MAX_VALUE,
         isBuiltIn = preset?.isBuiltIn ?: false,
         isArchived = preset?.isArchived ?: false,
-        countsTowardIob = preset?.countsTowardIob ?: true
+        countsTowardIob = preset?.countsTowardIob ?: true,
+        useForCalculation = preset?.useForCalculation ?: true
     )
 }
 
@@ -2477,7 +2498,8 @@ private fun buildPresetInput(
         isBuiltIn = draft.isBuiltIn,
         isArchived = overrideArchived,
         countsTowardIob = draft.countsTowardIob,
-        sortOrder = draft.sortOrder
+        sortOrder = draft.sortOrder,
+        useForCalculation = draft.useForCalculation
     )
 }
 

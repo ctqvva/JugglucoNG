@@ -127,7 +127,8 @@ data class JournalInsulinPreset(
     val isBuiltIn: Boolean,
     val isArchived: Boolean,
     val countsTowardIob: Boolean,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val useForCalculation: Boolean = true
 ) {
     val curvePoints: List<JournalCurvePoint> = resolveJournalCurve(curveJson, onsetMinutes, durationMinutes)
 
@@ -157,7 +158,8 @@ data class JournalInsulinPresetInput(
     val isBuiltIn: Boolean = false,
     val isArchived: Boolean = false,
     val countsTowardIob: Boolean = true,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val useForCalculation: Boolean = true
 )
 
 data class JournalChartMarker(

@@ -1812,6 +1812,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_password_desc">İki cihazda da aynı olmalı</string>
     <string name="journal_active_insulin">Aktif insülin</string>
     <string name="journal_active_insulin_subtitle">IOB ve tahminlere dahil edilir</string>
+    <string name="journal_use_for_calculation">Hesaplamalarda kullan</string>
+    <string name="journal_use_for_calculation_subtitle">Doz ve karbonhidrat önerilerine izin verir</string>
     <string name="journal_active_insulin_summary">%1$d doz · %2$s Ü · şu an %3$d%%</string>
     <string name="journal_active_insulin_until">%1$s saatine kadar aktif</string>
     <string name="alert_delivery_notification">Bildirim</string>

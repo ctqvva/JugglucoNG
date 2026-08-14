@@ -1785,6 +1785,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_password_desc">Deve corresponder nos dois dispositivos</string>
     <string name="journal_active_insulin">Insulina ativa</string>
     <string name="journal_active_insulin_subtitle">Conta para IOB e previsões</string>
+    <string name="journal_use_for_calculation">Usar nos cálculos</string>
+    <string name="journal_use_for_calculation_subtitle">Permite sugestões de dose e carboidratos</string>
     <string name="journal_active_insulin_summary">%1$d doses · %2$s U · %3$d%% agora</string>
     <string name="journal_active_insulin_until">Ativa até %1$s</string>
     <string name="alert_delivery_notification">Notificação</string>

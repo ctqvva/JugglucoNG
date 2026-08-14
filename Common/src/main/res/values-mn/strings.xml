@@ -1652,6 +1652,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_disable_preset">Disable</string>
     <string name="journal_active_insulin">Active insulin</string>
     <string name="journal_active_insulin_subtitle">Counts toward IOB and predictions</string>
+    <string name="journal_use_for_calculation">Use for calculation</string>
+    <string name="journal_use_for_calculation_subtitle">Allows dose and carbohydrate suggestions</string>
     <string name="journal_active_insulin_summary">%1$d doses · %2$s U · %3$d%% now</string>
     <string name="journal_active_insulin_until">Running until %1$s</string>
     <string name="journal_preset_nph">Intermediate / NPH</string>
