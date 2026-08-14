@@ -419,8 +419,8 @@ internal object ComplicationRenderer {
         // The header takes a share of the height only when there is something
         // to put in it; a bare trace uses the whole box.
         val hasHeader = valueText != null
-        val headerH = if (hasHeader) contentH * 0.44f else 0f
-        val timeH = if (showTime) contentH * 0.16f else 0f
+        val headerH = if (hasHeader) contentH * 0.34f else 0f
+        val timeH = if (showTime) contentH * 0.14f else 0f
         val chartTop = marginY + headerH
         val chartH = contentH - headerH - timeH
 
@@ -433,9 +433,9 @@ internal object ComplicationRenderer {
         if (hasHeader) {
             // Value and arrow share the header row, the arrow taking a square
             // at its right so the number keeps the width it needs.
-            val arrowBox = if (showArrow) headerH * 0.86f else 0f
+            val arrowBox = if (showArrow) headerH * 0.92f else 0f
             val valueW = contentW - arrowBox
-            drawFittedText(canvas, valueText!!, color, marginX, marginY, valueW, headerH * 0.92f)
+            drawFittedText(canvas, valueText!!, color, marginX, marginY, valueW, headerH * 0.94f)
             if (showArrow) {
                 drawArrow(
                     canvas, arrowBox, arrowBox, rate, color,
@@ -508,13 +508,15 @@ internal object ComplicationRenderer {
         val low = threshold(Natives::targetlow, GlucoseRangeColors.defaultLow(isMmol))
         val high = threshold(Natives::targethigh, GlucoseRangeColors.defaultHigh(isMmol))
 
-        var minValue = points.minOf { it.value }
-        var maxValue = points.maxOf { it.value }
-        // Keep the target band in view so the line's height means something.
-        minValue = minOf(minValue, low)
-        maxValue = maxOf(maxValue, high)
-        val span = (maxValue - minValue).coerceAtLeast(if (isMmol) 1f else 18f)
-        val pad = span * 0.12f
+        // Fit to the data, not to the thresholds — the same choice the app's own
+        // wear chart makes. Forcing the target limits into view squashed a flat
+        // in-range trace into a sliver across the middle of the box, which is
+        // what made this look wrong at large sizes. The dashed limits below
+        // simply clip when they fall outside.
+        val minValue = points.minOf { it.value }
+        val maxValue = points.maxOf { it.value }
+        val span = (maxValue - minValue).coerceAtLeast(if (isMmol) 2f else 36f)
+        val pad = span * 0.14f
         val bottom = minValue - pad
         val range = (span + pad * 2f).coerceAtLeast(0.1f)
         val duration = (to - from).toFloat().coerceAtLeast(1f)
@@ -525,10 +527,21 @@ internal object ComplicationRenderer {
         paint.reset()
         paint.isAntiAlias = true
 
-        // Target band, faint, so in-range reads as "inside the shaded strip".
-        paint.style = Paint.Style.FILL
-        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x26 shl 24)
-        canvas.drawRect(0f, y(high), width, y(low), paint)
+        // Target limits as dashed rules rather than a filled block. The block
+        // read as an opaque box sitting behind the trace — a shape in its own
+        // right — where a rule reads as a limit the trace crosses.
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = (minOf(width, height) * 0.018f).coerceIn(1f, 3f)
+        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x66 shl 24)
+        val dash = android.graphics.DashPathEffect(
+            floatArrayOf(width * 0.035f, width * 0.03f), 0f,
+        )
+        paint.pathEffect = dash
+        listOf(high, low).forEach { limit ->
+            val lineY = y(limit)
+            if (lineY > 0f && lineY < height) canvas.drawLine(0f, lineY, width, lineY, paint)
+        }
+        paint.pathEffect = null
 
         // One segment per pair so each takes the colour of where it sits; a
         // single stroke could only ever be one band.

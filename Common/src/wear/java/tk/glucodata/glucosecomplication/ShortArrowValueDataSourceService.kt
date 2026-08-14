@@ -87,20 +87,13 @@ fun getview(type: ComplicationType):GlucoseValue {
                  "Small Glucose",
                  tapAction,
                  icon,
-                 // What distinguishes this from the plain Value + arrow: when
-                 // the reading was taken. The arrow stays in the text, since a
-                 // face rendering a title and a text drops the icon.
-                 title = GlucoseComplicationData.readingTimeText(reading),
-                 withArrow = true,
-             )
+              )
              LONG_TEXT -> GlucoseComplicationData.longTextData(
                  reading,
                  "Small Glucose",
                  tapAction,
                  icon,
-                 title = GlucoseComplicationData.readingTimeText(reading),
-                 withArrow = true,
-             )
+              )
              RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                  reading,
                  "Small Glucose",
@@ -148,17 +141,13 @@ fun getview(type: ComplicationType):GlucoseValue {
                      "Small Glucose",
                      complicationPendingIntent,
                      image,
-                     title = GlucoseComplicationData.readingTimeText(glucose),
-                     withArrow = true,
-                 )
+                      )
                  else -> GlucoseComplicationData.shortValueData(
                      glucose,
                      "Small Glucose",
                      complicationPendingIntent,
                      image,
-                     title = GlucoseComplicationData.readingTimeText(glucose),
-                     withArrow = true,
-                 )
+                      )
              }
             }
     }

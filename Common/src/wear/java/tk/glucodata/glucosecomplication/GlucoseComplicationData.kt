@@ -117,20 +117,6 @@ internal object GlucoseComplicationData {
         )
     }
 
-    /**
-     * The reading with its trend arrow appended, for the complications whose
-     * name promises one.
-     *
-     * The arrow cannot be left to the icon: a face that renders a title and a
-     * text drops the image, so adding the time as a title made the arrow vanish
-     * from the very complication called "Value + arrow".
-     */
-    fun valueWithArrowText(reading: Reading?): String {
-        val base = reading?.text ?: return noValueText()
-        val arrow = runCatching { tk.glucodata.ui.screens.trendArrow(reading.rate) }.getOrDefault("")
-        return if (arrow.isEmpty()) base else "$base $arrow"
-    }
-
     /** The reading's own time, for the forms that show when it was taken. */
     fun readingTimeText(reading: Reading?): String? {
         val at = reading?.timeMillis?.takeIf { it > 0L } ?: return null
@@ -146,13 +132,9 @@ internal object GlucoseComplicationData {
         icon: Icon? = null,
         /** Shown above the value by faces that render a title. */
         title: String? = null,
-        /** Appends the trend arrow to the value itself. */
-        withArrow: Boolean = false,
     ): ShortTextComplicationData {
         val builder = ShortTextComplicationData.Builder(
-            text = text(
-                if (withArrow) valueWithArrowText(reading) else reading?.text ?: noValueText()
-            ),
+            text = text(reading?.text ?: noValueText()),
             contentDescription = text(contentDescription),
         ).setTapAction(tapAction)
         title?.let { builder.setTitle(text(it)) }
@@ -176,12 +158,9 @@ internal object GlucoseComplicationData {
         tapAction: PendingIntent = tapAction(),
         icon: Icon? = null,
         title: String? = null,
-        withArrow: Boolean = false,
     ): LongTextComplicationData {
         val builder = LongTextComplicationData.Builder(
-            text = text(
-                if (withArrow) valueWithArrowText(reading) else reading?.text ?: noValueText()
-            ),
+            text = text(reading?.text ?: noValueText()),
             contentDescription = text(contentDescription),
         ).setTapAction(tapAction)
         title?.let { builder.setTitle(text(it)) }

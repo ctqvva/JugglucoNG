@@ -71,14 +71,11 @@ private val glview= GlucoseValue(100,100)
                 reading,
                 "Glucose Value",
                 tapAction,
-                title = GlucoseComplicationData.readingTimeText(reading),
             )
             ComplicationType.SHORT_TEXT -> GlucoseComplicationData.shortValueData(
                 reading,
                 "Glucose Value",
                 tapAction,
-                // The time is what separates this from Glucose value small.
-                title = GlucoseComplicationData.readingTimeText(reading),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 reading,
@@ -117,13 +114,11 @@ private val glview= GlucoseValue(100,100)
                 glucose,
                 "Glucose Number",
                 complicationPendingIntent,
-                title = GlucoseComplicationData.readingTimeText(glucose),
             )
             ComplicationType.SHORT_TEXT -> GlucoseComplicationData.shortValueData(
                 glucose,
                 "Glucose Number",
                 complicationPendingIntent,
-                title = GlucoseComplicationData.readingTimeText(glucose),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 glucose,
