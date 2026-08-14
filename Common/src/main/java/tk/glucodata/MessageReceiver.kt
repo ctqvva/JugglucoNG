@@ -269,7 +269,20 @@ class MessageReceiver: WearableListenerService() {
                 val on=booldata(data)
                 if(tk.glucodata.Log.doLog) {Log.i(LOG_ID,"set bluetooth $on  ${data[0]}");}
                 if (isWearable) WearSensorClaim.setDirectRequested(on)
-                Applic.setbluetooth(context,on )
+                // The phone tells the watch to drop Bluetooth whenever it means
+                // to own the sensor itself -- native netinfo does it on its own,
+                // seconds after any handshake. That is right for the explicit
+                // handover this message was built for, and fatal for automatic
+                // switching: the watch was disarmed while the phone was present
+                // and so had no radio left to take the sensor with when the
+                // phone went away. Keep the radio; ownership is decided by
+                // SensorOwnershipRuntime, which pauses the driver while the
+                // phone is the one reading.
+                if (isWearable && !on && AutoSensorSwitch.isEnabled()) {
+                    Log.i(LOG_ID, "keeping watch Bluetooth up: automatic sensor switching is on")
+                } else {
+                    Applic.setbluetooth(context,on )
+                }
                 }
              MessageSender.ASKFORSTART_PATH -> {
                  if(!isWearable) {

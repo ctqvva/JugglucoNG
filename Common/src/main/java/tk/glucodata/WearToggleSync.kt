@@ -115,8 +115,13 @@ object WearToggleSync {
                     val spec = PREF_TOGGLES[toggle.id] ?: return@forEach
                     if (toggle.id == AutoSensorSwitch.TOGGLE_ID) {
                         // Arming the radio is part of storing this one, so it
-                        // goes through the owner rather than straight to prefs.
-                        AutoSensorSwitch.setEnabled(toggle.enabled)
+                        // goes through the owner rather than straight to prefs —
+                        // but only on a real change. This state is pushed after
+                        // every handshake, and bringing Bluetooth up again on
+                        // each one restarts the watch's drivers mid-connection.
+                        if (AutoSensorSwitch.isEnabled() != toggle.enabled) {
+                            AutoSensorSwitch.setEnabled(toggle.enabled)
+                        }
                         applied++
                         return@forEach
                     }

@@ -539,6 +539,11 @@ object SensorOwnershipRuntime {
             when {
                 !shouldRead && !released -> release(serial)
                 shouldRead && released -> resume(serial)
+                // Should be reading it, never stood down from it, and has no
+                // connection. Reconnecting only ever happened on the way back
+                // from a release, so a device that was armed while the sensor
+                // was simply not its own sat here doing nothing at all.
+                shouldRead && autoSwitch && !holdsLiveConnection(serial) -> nudge(serial)
             }
         }
     }
@@ -687,6 +692,27 @@ object SensorOwnershipRuntime {
             gatt.setPause(false)
             gatt.connectDevice(RESUME_DELAY_MS)
         }.onFailure { Log.stack(LOG_ID, "resume($serial)", it) }
+    }
+
+    /**
+     * Ask an idle driver to try the sensor again.
+     *
+     * SuperGattCallback.reconnect rate-limits itself — it does nothing while a
+     * connection attempt is less than a minute old or a reading is still fresh —
+     * so this is safe to call from every reconciliation.
+     */
+    private fun nudge(serial: String) {
+        val gatt = findGatt(serial)
+        if (gatt == null) {
+            // Nothing here can read this sensor: on a watch that means Bluetooth
+            // never came up or the sensor's record never arrived.
+            Log.w(LOG_ID, "should be reading $serial but there is no local driver for it")
+            return
+        }
+        runCatching {
+            gatt.setPause(false)
+            gatt.reconnect(System.currentTimeMillis())
+        }.onFailure { Log.stack(LOG_ID, "nudge($serial)", it) }
     }
 
     private fun resumeReleasedSensors(reason: String) {
