@@ -648,13 +648,28 @@ internal object ComplicationRenderer {
         paint.strokeWidth = (width * 0.014f).coerceIn(1.5f, 6f)
         paint.strokeCap = Paint.Cap.ROUND
         paint.strokeJoin = Paint.Join.ROUND
-        paint.shader = if (stops.size >= 2) {
-            android.graphics.LinearGradient(
-                0f, 0f, 0f, height,
-                IntArray(stops.size) { stops[it].second.toArgb() },
-                FloatArray(stops.size) { stops[it].first },
-                android.graphics.Shader.TileMode.CLAMP,
-            )
+        // Explicitly, before any shader: the band fill above left its own colour
+        // — a nearly transparent dark green — in the paint, so any path where
+        // the gradient did not take stroked the trace in it and the line all but
+        // disappeared against a black dial.
+        paint.color = neutral()
+        // LinearGradient needs strictly ascending positions; equal ones arise
+        // whenever two thresholds land on the same pixel, which off-canvas
+        // limits routinely do.
+        val ascending = ArrayList<Pair<Float, Int>>(stops.size)
+        stops.forEach { (position, color) ->
+            val last = ascending.lastOrNull()?.first
+            if (last == null || position > last) ascending += position to color.toArgb()
+        }
+        paint.shader = if (ascending.size >= 2) {
+            runCatching {
+                android.graphics.LinearGradient(
+                    0f, 0f, 0f, height,
+                    IntArray(ascending.size) { ascending[it].second },
+                    FloatArray(ascending.size) { ascending[it].first },
+                    android.graphics.Shader.TileMode.CLAMP,
+                )
+            }.getOrNull()
         } else {
             null
         }

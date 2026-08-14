@@ -98,6 +98,28 @@ class GlucoseChartBandsTests {
     }
 
     @Test
+    fun stopsCanBeReducedToAscendingPositions() {
+        // A LinearGradient rejects positions that are not strictly ascending,
+        // and off-canvas thresholds routinely collapse several onto the same
+        // one. The complication dedupes before building its shader; if that
+        // ever left fewer than two, the trace would lose its colouring.
+        listOf(
+            stops(),
+            stops(yVeryHigh = -900f, yHigh = -600f, yLow = 700f, yVeryLow = 900f),
+            stops(yVeryHigh = -900f, yHigh = -800f, yLow = -300f, yVeryLow = -100f),
+            stops(yVeryHigh = 500f, yHigh = 600f, yLow = 800f, yVeryLow = 900f),
+            stops(fade = 200f),
+        ).forEach { list ->
+            val ascending = mutableListOf<Float>()
+            list.forEach { (position, _) ->
+                if (ascending.lastOrNull()?.let { position > it } != false) ascending += position
+            }
+            assertTrue("collapsed to ${ascending.size} from $list", ascending.size >= 2)
+            assertEquals(ascending.sorted(), ascending)
+        }
+    }
+
+    @Test
     fun anUnmeasuredCanvasProducesNoStops() {
         assertTrue(stops(chartHeightPx = 0f).isEmpty())
         assertTrue(stops(chartHeightPx = -5f).isEmpty())
