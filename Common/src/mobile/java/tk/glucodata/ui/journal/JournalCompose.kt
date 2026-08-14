@@ -487,8 +487,8 @@ fun JournalEntrySheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 2.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "header") {
                 Row(
@@ -2543,7 +2543,7 @@ private fun JournalPresetPill(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = preset.displayName,
                 style = MaterialTheme.typography.titleMedium,
@@ -2881,7 +2881,7 @@ private fun JournalDateTimeSegment(
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
@@ -2918,21 +2918,39 @@ private fun JournalInsulinWindowCard(
     )
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            .then(
+                if (expanded) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
+            ),
         color = containerColor,
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
+                    .then(
+                        if (expanded) {
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        } else {
+                            // The compact visual row keeps the sheet dense; Compose expands its
+                            // pointer hit area to the platform minimum within the surrounding gap.
+                            Modifier.height(32.dp)
+                        }
+                    )
                     .semantics(mergeDescendants = true) {
                         this.contentDescription = windowDescription
                         role = Role.Button
                     }
                     .clickable { expanded = !expanded }
-                    .heightIn(min = 48.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -2941,7 +2959,7 @@ private fun JournalInsulinWindowCard(
                     tint = accent,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "$onset – $duration",
                     style = MaterialTheme.typography.labelLarge,
@@ -2956,33 +2974,7 @@ private fun JournalInsulinWindowCard(
                     modifier = Modifier.size(16.dp)
                 )
             }
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    expandFrom = Alignment.Top
-                ) + fadeIn(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    )
-                ),
-                exit = shrinkVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    shrinkTowards = Alignment.Top
-                ) + fadeOut(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    )
-                )
-            ) {
+            if (expanded) {
                 JournalInsulinActivityCurve(
                     points = preset.curvePoints,
                     durationMinutes = preset.durationMinutes,
