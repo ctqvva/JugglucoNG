@@ -274,6 +274,11 @@ internal object ComplicationRenderer {
     /**
      * Fits [text] to a box by measuring it rather than guessing a size, so a
      * three-digit mg/dL reading and a 4.5 mmol one both fill their slot.
+     *
+     * Centred on the font's own metrics and advance width, not on the tight ink
+     * box. A value like "5,1" has a comma that descends and sits to one side, so
+     * centring its ink box put the digits visibly off-centre and left the glyph
+     * looking misaligned in the slot.
      */
     private fun drawFittedText(
         canvas: Canvas,
@@ -284,23 +289,36 @@ internal object ComplicationRenderer {
         width: Float,
         height: Float,
     ) {
-        if (text.isEmpty()) return
+        if (text.isEmpty() || width <= 0f || height <= 0f) return
         paint.reset()
         paint.isAntiAlias = true
         paint.style = Paint.Style.FILL
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         paint.textAlign = Paint.Align.CENTER
         paint.color = color
+
+        // Start from the box height and shrink until both dimensions fit. Cap
+        // the cap-height at the box so a short string cannot overshoot.
         paint.textSize = height
-        paint.getTextBounds(text, 0, text.length, bounds)
-        if (bounds.width() > 0 && bounds.height() > 0) {
-            val scale = minOf(width / bounds.width(), height / bounds.height())
-            paint.textSize = height * scale
+        val metrics = paint.fontMetrics
+        val glyphHeight = (metrics.descent - metrics.ascent).coerceAtLeast(1f)
+        var size = height * (height / glyphHeight)
+        paint.textSize = size
+        val advance = paint.measureText(text)
+        if (advance > width) {
+            size *= width / advance
+            paint.textSize = size
         }
-        paint.getTextBounds(text, 0, text.length, bounds)
-        val baseline = top + (height + bounds.height()) / 2f
+
+        // Vertical centre from the metrics: the visual middle of a line sits
+        // halfway between ascent and descent, not at the ink box's centre.
+        val centred = paint.fontMetrics
+        val baseline = top + height / 2f - (centred.ascent + centred.descent) / 2f
         canvas.drawText(text, left + width / 2f, baseline, paint)
     }
+
+    /** A blank of the right shape, for a slot with nothing to show. */
+    fun noValueBitmap(size: Int): Bitmap = bitmap(size, size).first
 
     // -------------------------------------------------------------- sparkline
 
@@ -310,6 +328,23 @@ internal object ComplicationRenderer {
     private const val SPARK_CACHE_MS = 5_000L
     @Volatile private var sparkCache: List<GlucosePoint> = emptyList()
     @Volatile private var sparkCacheAt = 0L
+
+    /**
+     * A plausible curve for the complication picker, which asks for preview
+     * data before this app necessarily has any history. Answering null there
+     * removes the app from the picker entirely.
+     */
+    private fun syntheticPoints(isMmol: Boolean): List<GlucosePoint> {
+        val now = System.currentTimeMillis()
+        val step = SPARK_WINDOW_MS / 36
+        val mid = if (isMmol) 6.4f else 115f
+        val swing = if (isMmol) 1.6f else 29f
+        return (0..36).map { index ->
+            val phase = index / 36f * 2f * Math.PI.toFloat()
+            val value = mid + swing * kotlin.math.sin(phase * 1.6f) * (0.55f + 0.45f * index / 36f)
+            GlucosePoint(now - SPARK_WINDOW_MS + index * step, value, value)
+        }
+    }
 
     /** Recent history for the sparkline, or empty when there is too little. */
     fun sparkPoints(isMmol: Boolean): List<GlucosePoint> {
@@ -341,8 +376,10 @@ internal object ComplicationRenderer {
         valueText: String? = null,
         value: Float = Float.NaN,
         inset: Boolean = true,
+        allowSynthetic: Boolean = false,
     ): Bitmap? {
-        val points = sparkPoints(isMmol)
+        val points = sparkPoints(isMmol).takeIf { it.size >= 2 }
+            ?: if (allowSynthetic) syntheticPoints(isMmol) else emptyList()
         if (points.size < 2 || width <= 0 || height <= 0) return null
         val (bmp, canvas) = bitmap(width, height)
         val marginX = if (inset) width * PHOTO_INSET else 0f
@@ -438,8 +475,10 @@ internal object ComplicationRenderer {
         valueText: String,
         value: Float,
         rate: Float,
+        allowSynthetic: Boolean = false,
     ): Bitmap? {
-        val points = sparkPoints(isMmol)
+        val points = sparkPoints(isMmol).takeIf { it.size >= 2 }
+            ?: if (allowSynthetic) syntheticPoints(isMmol) else emptyList()
         if (points.size < 2 || width <= 0 || height <= 0) return null
         val (bmp, canvas) = bitmap(width, height)
         val marginY = height * 0.10f

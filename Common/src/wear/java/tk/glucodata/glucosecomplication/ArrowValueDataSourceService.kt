@@ -164,8 +164,10 @@ fun getview(type: ComplicationType):GlucoseValue {
       }
       val bitmap=
       if(glucose==null) {
-         Log.i(LOG_ID,"glucose==null") 
-	      getview(type).getnovalue()
+         Log.i(LOG_ID,"glucose==null")
+         // No reading: an empty bitmap rather than the legacy renderer's, so
+         // this slot cannot drift back to the old geometry and colours.
+         ComplicationRenderer.noValueBitmap(VALUE_ARROW_PX)
          }
 	else {
          Log.i(LOG_ID,"glucose==${glucose.text}")
@@ -192,12 +194,22 @@ fun getview(type: ComplicationType):GlucoseValue {
 
     }
 
+    /**
+     * Just the arrow, drawn as a mask for the face to tint. The SHORT_TEXT and
+     * RANGED_VALUE forms already carry the value in their text field, so the
+     * time caption the ICON form uses would only shrink the arrow here.
+     */
     private fun arrowIcon(reading: GlucoseComplicationData.Reading): Icon =
-        Icon.createWithBitmap(iconView.getArrowTimeBitmap(reading.timeMillis, reading.rate))
+        Icon.createWithBitmap(
+            ComplicationRenderer.arrowBitmap(
+                ICON_PX, reading.rate, ComplicationRenderer.ICON_TINT,
+            )
+        )
 
     companion object {
         private const val LOG_ID = "ArrowValueDataSourceService"
         private const val VALUE_ARROW_PX = 384
+        private const val ICON_PX = 256
    private val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        ArrowValueDataSourceService::class.java
    ))

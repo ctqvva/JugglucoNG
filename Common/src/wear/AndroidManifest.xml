@@ -144,7 +144,7 @@
 
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="LARGE_IMAGE,LONG_TEXT,SMALL_IMAGE" />
+                android:value="LARGE_IMAGE,LONG_TEXT,SMALL_IMAGE,SHORT_TEXT,RANGED_VALUE" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
