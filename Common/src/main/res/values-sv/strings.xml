@@ -1621,6 +1621,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">Lägg till insulintyp</string>
     <string name="journal_edit_preset">Redigera insulintyp</string>
     <string name="journal_active_window">Verkansfönster: %1$s till %2$s</string>
+    <string name="journal_active_window_label">Verkansfönster</string>
     <string name="journal_selected_time">Vald tid</string>
     <string name="journal_intensity_light">Lätt</string>
     <string name="journal_intensity_moderate">Måttlig</string>

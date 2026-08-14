@@ -3,6 +3,7 @@
 package tk.glucodata.ui.journal
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -46,6 +48,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
@@ -89,7 +94,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -97,6 +104,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -526,80 +537,36 @@ fun JournalEntrySheet(
             }
 
             item(key = "date_time") {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    JournalMetaCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Event,
-                        contentDescription = stringResource(R.string.date),
-                        value = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
-                        onClick = { showDatePicker = true }
-                    )
-                    JournalMetaCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.AccessTime,
-                        contentDescription = stringResource(R.string.time),
-                        value = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
-                        onClick = { showTimePicker = true }
-                    )
-                }
+                JournalDateTimeCard(
+                    date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
+                    time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
+                    onDateClick = { showDatePicker = true },
+                    onTimeClick = { showTimePicker = true }
+                )
             }
 
             when (draft.type) {
                 JournalEntryType.INSULIN -> {
                     item(key = "insulin_presets") {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            activeInsulinPresets.forEach { preset ->
-                                JournalPresetPill(
-                                    preset = preset,
-                                    selected = draft.insulinPresetId == preset.id,
-                                    onClick = {
-                                        draft = draft.copy(
-                                            insulinPresetId = preset.id,
-                                            title = preset.displayName,
-                                            pairWithDose = draft.pairWithDose && preset.useForCalculation,
-                                            pairedAmountText = draft.pairedAmountText.takeIf {
-                                                preset.useForCalculation
-                                            }.orEmpty()
-                                        )
-                                    }
+                        JournalInsulinPresetSelector(
+                            presets = activeInsulinPresets,
+                            selectedPresetId = draft.insulinPresetId,
+                            onPresetSelected = { preset ->
+                                draft = draft.copy(
+                                    insulinPresetId = preset.id,
+                                    title = preset.displayName,
+                                    pairWithDose = draft.pairWithDose && preset.useForCalculation,
+                                    pairedAmountText = draft.pairedAmountText.takeIf {
+                                        preset.useForCalculation
+                                    }.orEmpty()
                                 )
                             }
-                        }
+                        )
                     }
                     draft.insulinPresetId?.let { presetId ->
                         presetsById[presetId]?.let { preset ->
                             item(key = "insulin_window") {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    shape = RoundedCornerShape(18.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        val windowDescription = stringResource(
-                                            R.string.journal_active_window,
-                                            stringResource(R.string.minutes_short_format, preset.onsetMinutes),
-                                            stringResource(R.string.minutes_short_format, preset.durationMinutes)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Schedule,
-                                            contentDescription = windowDescription,
-                                            tint = Color(preset.accentColor),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = "${stringResource(R.string.minutes_short_format, preset.onsetMinutes)} – " +
-                                                stringResource(R.string.minutes_short_format, preset.durationMinutes),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+                                JournalInsulinWindowCard(preset = preset)
                             }
                         }
                     }
@@ -2493,13 +2460,52 @@ private fun JournalIntensitySelector(
 }
 
 @Composable
+private fun JournalInsulinPresetSelector(
+    presets: List<JournalInsulinPreset>,
+    selectedPresetId: Long?,
+    onPresetSelected: (JournalInsulinPreset) -> Unit
+) {
+    if (presets.size == 2) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { preset ->
+                JournalPresetPill(
+                    modifier = Modifier.weight(1f),
+                    preset = preset,
+                    selected = selectedPresetId == preset.id,
+                    onClick = { onPresetSelected(preset) }
+                )
+            }
+        }
+    } else {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { preset ->
+                JournalPresetPill(
+                    preset = preset,
+                    selected = selectedPresetId == preset.id,
+                    onClick = { onPresetSelected(preset) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun JournalPresetPill(
+    modifier: Modifier = Modifier,
     preset: JournalInsulinPreset,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     val accent = Color(preset.accentColor)
     Surface(
+        modifier = modifier,
         onClick = onClick,
         color = if (selected) {
             accent.copy(alpha = 0.30f)
@@ -2512,12 +2518,12 @@ private fun JournalPresetPill(
     ) {
         Row(
             modifier = Modifier
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(20.dp),
                 shape = CircleShape,
                 color = if (selected) accent else accent.copy(alpha = 0.18f)
             ) {
@@ -2527,12 +2533,12 @@ private fun JournalPresetPill(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(8.dp)
                                 .background(accent, CircleShape)
                         )
                     }
@@ -2809,38 +2815,236 @@ private fun JournalEntryChip(
 }
 
 @Composable
-private fun JournalMetaCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    contentDescription: String,
-    value: String,
-    onClick: () -> Unit
+private fun JournalDateTimeCard(
+    date: String,
+    time: String,
+    onDateClick: () -> Unit,
+    onTimeClick: () -> Unit
 ) {
     Surface(
-        modifier = modifier,
-        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(18.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+            JournalDateTimeSegment(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Event,
+                contentDescription = stringResource(R.string.date),
+                value = date,
+                onClick = onDateClick
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(32.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+            )
+            JournalDateTimeSegment(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.AccessTime,
+                contentDescription = stringResource(R.string.time),
+                value = time,
+                onClick = onTimeClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun JournalDateTimeSegment(
+    modifier: Modifier,
+    icon: ImageVector,
+    contentDescription: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 56.dp)
+            .semantics(mergeDescendants = true) {
+                this.contentDescription = "$contentDescription, $value"
+                role = Role.Button
+            }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun JournalInsulinWindowCard(
+    preset: JournalInsulinPreset
+) {
+    var expanded by remember(preset.id) { mutableStateOf(false) }
+    val accent = Color(preset.accentColor)
+    val onset = stringResource(R.string.minutes_short_format, preset.onsetMinutes)
+    val duration = stringResource(R.string.minutes_short_format, preset.durationMinutes)
+    val windowDescription = stringResource(R.string.journal_active_window, onset, duration)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { expanded = !expanded },
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.journal_active_window_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "$onset – $duration",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = stringResource(R.string.journal_curve_preview),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                ) {
+                    JournalInsulinActivityCurve(
+                        points = preset.curvePoints,
+                        color = accent,
+                        contentDescription = windowDescription,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(88.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = duration,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JournalInsulinActivityCurve(
+    points: List<JournalCurvePoint>,
+    color: Color,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val curvePoints = remember(points) {
+        points
+            .filter { it.minute >= 0 && it.activity.isFinite() }
+            .sortedBy { it.minute }
+    }
+    val guideColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+
+    Canvas(
+        modifier = modifier
+            .semantics { this.contentDescription = contentDescription }
+            .padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        if (curvePoints.size < 2) return@Canvas
+        val maxMinute = curvePoints.last().minute.coerceAtLeast(1).toFloat()
+        val baseline = size.height - 4.dp.toPx()
+        val curveHeight = (size.height - 12.dp.toPx()).coerceAtLeast(1f)
+
+        repeat(3) { index ->
+            val y = baseline - ((curveHeight / 2f) * index)
+            drawLine(
+                color = guideColor,
+                start = androidx.compose.ui.geometry.Offset(0f, y),
+                end = androidx.compose.ui.geometry.Offset(size.width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+
+        val curvePath = Path()
+        val fillPath = Path()
+        curvePoints.forEachIndexed { index, point ->
+            val x = (point.minute / maxMinute) * size.width
+            val y = baseline - (point.activity.coerceIn(0f, 1f) * curveHeight)
+            if (index == 0) {
+                curvePath.moveTo(x, y)
+                fillPath.moveTo(x, baseline)
+                fillPath.lineTo(x, y)
+            } else {
+                curvePath.lineTo(x, y)
+                fillPath.lineTo(x, y)
+            }
+        }
+        fillPath.lineTo(size.width, baseline)
+        fillPath.close()
+
+        drawPath(path = fillPath, color = color.copy(alpha = 0.14f))
+        drawPath(path = curvePath, color = color, style = Stroke(width = 2.5.dp.toPx()))
+        curvePoints.maxByOrNull { it.activity }?.let { peak ->
+            drawCircle(
+                color = color,
+                radius = 3.5.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(
+                    x = (peak.minute / maxMinute) * size.width,
+                    y = baseline - (peak.activity.coerceIn(0f, 1f) * curveHeight)
+                )
             )
         }
     }

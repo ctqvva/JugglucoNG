@@ -1664,6 +1664,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">Добавить тип инсулина</string>
     <string name="journal_edit_preset">Изменить тип инсулина</string>
     <string name="journal_active_window">Окно действия: с %1$s до %2$s</string>
+    <string name="journal_active_window_label">Окно действия</string>
     <string name="journal_selected_time">Выбранное время</string>
     <string name="journal_intensity_light">Легкая</string>
     <string name="journal_intensity_moderate">Умеренная</string>

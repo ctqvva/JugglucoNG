@@ -1746,6 +1746,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_add_preset">Insulintyp hinzufügen</string>
     <string name="journal_edit_preset">Insulintyp bearbeiten</string>
     <string name="journal_active_window">Wirkfenster: %1$s bis %2$s</string>
+    <string name="journal_active_window_label">Wirkfenster</string>
     <string name="journal_selected_time">Ausgewählte Zeit</string>
     <string name="journal_intensity_light">Leicht</string>
     <string name="journal_intensity_moderate">Moderat</string>
