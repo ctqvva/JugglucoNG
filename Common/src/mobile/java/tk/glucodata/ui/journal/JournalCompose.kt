@@ -526,11 +526,22 @@ fun JournalEntrySheet(
             }
 
             item(key = "date_time") {
-                JournalDateTimeSwitcher(
-                    timestamp = draft.timestamp,
-                    onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    JournalMetaCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Event,
+                        contentDescription = stringResource(R.string.date),
+                        value = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
+                        onClick = { showDatePicker = true }
+                    )
+                    JournalMetaCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.AccessTime,
+                        contentDescription = stringResource(R.string.time),
+                        value = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
+                        onClick = { showTimePicker = true }
+                    )
+                }
             }
 
             when (draft.type) {
@@ -2500,11 +2511,13 @@ private fun JournalPresetPill(
         tonalElevation = if (selected) 2.dp else 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(22.dp),
                 shape = CircleShape,
                 color = if (selected) accent else accent.copy(alpha = 0.18f)
             ) {
@@ -2514,12 +2527,12 @@ private fun JournalPresetPill(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(10.dp)
                                 .background(accent, CircleShape)
                         )
                     }
@@ -2528,8 +2541,8 @@ private fun JournalPresetPill(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = preset.displayName,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2796,70 +2809,39 @@ private fun JournalEntryChip(
 }
 
 @Composable
-private fun JournalDateTimeSwitcher(
-    timestamp: Long,
-    onDateClick: () -> Unit,
-    onTimeClick: () -> Unit
+private fun JournalMetaCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    contentDescription: String,
+    value: String,
+    onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
+        onClick = onClick,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(18.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 56.dp),
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable(onClick = onDateClick)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Event,
-                    contentDescription = stringResource(R.string.date),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Surface(
-                modifier = Modifier
-                    .width(1.dp)
-                    .heightIn(min = 28.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-            ) {}
-            Row(
-                modifier = Modifier
-                    .weight(0.72f)
-                    .clickable(onClick = onTimeClick)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccessTime,
-                    contentDescription = stringResource(R.string.time),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestamp)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
