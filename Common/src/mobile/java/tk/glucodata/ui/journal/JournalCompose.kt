@@ -4,16 +4,19 @@ package tk.glucodata.ui.journal
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -587,14 +590,16 @@ fun JournalEntrySheet(
                         selectedInsulinPreset?.useForCalculation == true
                     ) {
                         item(key = "insulin_dose_assist") {
-                            JournalDoseAssistCard(
-                                draft = draft,
-                                profile = calculatorProfile,
-                                calculationInsulinPresets = calculationInsulinPresets,
-                                activeInsulinUnits = activeInsulinUnits,
-                                unit = unit,
-                                onDraftChange = { draft = it }
-                            )
+                            Box(modifier = Modifier.animateItem()) {
+                                JournalDoseAssistCard(
+                                    draft = draft,
+                                    profile = calculatorProfile,
+                                    calculationInsulinPresets = calculationInsulinPresets,
+                                    activeInsulinUnits = activeInsulinUnits,
+                                    unit = unit,
+                                    onDraftChange = { draft = it }
+                                )
+                            }
                         }
                     }
                 }
@@ -747,6 +752,7 @@ fun JournalEntrySheet(
                     value = draft.note,
                     onValueChange = { draft = draft.copy(note = it) },
                     modifier = Modifier
+                        .animateItem()
                         .fillMaxWidth()
                         .heightIn(min = noteFieldMinHeight)
                         .onFocusChanged { noteFieldFocused = it.isFocused },
@@ -782,6 +788,7 @@ fun JournalEntrySheet(
                     },
                     enabled = canSave,
                     modifier = Modifier
+                        .animateItem()
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(16.dp)
@@ -2464,20 +2471,26 @@ private fun JournalInsulinPresetSelector(
     selectedPresetId: Long?,
     onPresetSelected: (JournalInsulinPreset) -> Unit
 ) {
+    val selectedContentColor = MaterialTheme.colorScheme.onSurface
+    val unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     if (presets.size == 2) {
-        Row(
+        ConnectedButtonGroup(
+            options = presets,
+            selectedOption = presets.firstOrNull { it.id == selectedPresetId },
+            onOptionSelected = onPresetSelected,
+            label = { },
+            labelText = { it.displayName },
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            presets.forEach { preset ->
-                JournalPresetPill(
-                    modifier = Modifier.weight(1f),
-                    preset = preset,
-                    selected = selectedPresetId == preset.id,
-                    onClick = { onPresetSelected(preset) }
-                )
-            }
-        }
+            itemHeight = 48.dp,
+            spacing = 4.dp,
+            selectedContainerColorFor = { preset ->
+                Color(preset.accentColor).copy(alpha = 0.34f)
+            },
+            selectedContentColorFor = { selectedContentColor },
+            unselectedContainerColor = unselectedContainerColor,
+            unselectedContentColor = unselectedContentColor
+        )
     } else {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -2895,26 +2908,19 @@ private fun JournalDateTimeSegment(
 private fun JournalInsulinWindowCard(
     preset: JournalInsulinPreset
 ) {
-    var expanded by remember(preset.id) { mutableStateOf(false) }
-    val accent = Color(preset.accentColor)
+    var expanded by remember { mutableStateOf(false) }
+    val accent by animateColorAsState(
+        targetValue = Color(preset.accentColor),
+        animationSpec = tween(durationMillis = 220),
+        label = "journalInsulinWindowAccent"
+    )
     val onset = formatJournalWindowEndpoint(preset.onsetMinutes)
     val duration = formatJournalWindowEndpoint(preset.durationMinutes)
+    val summary = "$onset – $duration"
     val windowDescription = stringResource(
         R.string.journal_active_window,
         stringResource(R.string.minutes_short_format, preset.onsetMinutes),
         stringResource(R.string.minutes_short_format, preset.durationMinutes)
-    )
-    val containerColor by animateColorAsState(
-        targetValue = if (expanded) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            Color.Transparent
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "journalInsulinWindowContainerColor"
     )
 
     Surface(
@@ -2928,7 +2934,11 @@ private fun JournalInsulinWindowCard(
             .then(
                 if (expanded) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
             ),
-        color = containerColor,
+        color = if (expanded) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            Color.Transparent
+        },
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
@@ -2960,12 +2970,21 @@ private fun JournalInsulinWindowCard(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "$onset – $duration",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                AnimatedContent(
+                    targetState = summary,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(durationMillis = 220))
+                            .togetherWith(fadeOut(animationSpec = tween(durationMillis = 120)))
+                    },
+                    label = "journalInsulinWindowSummary"
+                ) { value ->
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Default.Info,
@@ -2975,13 +2994,23 @@ private fun JournalInsulinWindowCard(
                 )
             }
             if (expanded) {
-                JournalInsulinActivityCurve(
-                    points = preset.curvePoints,
-                    durationMinutes = preset.durationMinutes,
-                    color = accent,
-                    contentDescription = windowDescription,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-                )
+                AnimatedContent(
+                    targetState = preset,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(durationMillis = 220))
+                            .togetherWith(fadeOut(animationSpec = tween(durationMillis = 140)))
+                    },
+                    contentKey = { it.id },
+                    label = "journalInsulinWindowChart"
+                ) { visiblePreset ->
+                    JournalInsulinActivityCurve(
+                        points = visiblePreset.curvePoints,
+                        durationMinutes = visiblePreset.durationMinutes,
+                        color = Color(visiblePreset.accentColor),
+                        contentDescription = windowDescription,
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                    )
+                }
             }
         }
     }
