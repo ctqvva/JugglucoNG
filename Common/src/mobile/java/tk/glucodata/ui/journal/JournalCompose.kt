@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
@@ -2902,45 +2903,81 @@ private fun JournalInsulinWindowCard(
         stringResource(R.string.minutes_short_format, preset.durationMinutes)
     )
 
-    Surface(
-        modifier = if (expanded) Modifier.fillMaxWidth() else Modifier.wrapContentWidth(),
-        onClick = { expanded = !expanded },
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Column {
-            Row(
-                modifier = (if (expanded) Modifier.fillMaxWidth() else Modifier)
-                    .heightIn(min = 48.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "$onset – $duration",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-            if (expanded) {
-                Column(
-                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
-                ) {
-                    JournalInsulinActivityCurve(
-                        points = preset.curvePoints,
-                        durationMinutes = preset.durationMinutes,
-                        color = accent,
-                        contentDescription = windowDescription,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .semantics(mergeDescendants = true) {
+                    this.contentDescription = windowDescription
+                    role = Role.Button
                 }
+                .clickable { expanded = !expanded }
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 4.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "$onset – $duration",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                expandFrom = Alignment.Top
+            ) + fadeIn(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ),
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                shrinkTowards = Alignment.Top
+            ) + fadeOut(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                JournalInsulinActivityCurve(
+                    points = preset.curvePoints,
+                    durationMinutes = preset.durationMinutes,
+                    color = accent,
+                    contentDescription = windowDescription,
+                    modifier = Modifier.padding(14.dp)
+                )
             }
         }
     }
