@@ -844,6 +844,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meterlist">"Glucose Meters"</string>
     <string name="glucose_meters_desc">Bluetooth glikoz ölçerleri bağlayın</string>
     <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir.</string>
+    <string name="satellite_meter_title">Satellite (Сателлит+) ölçüm cihazı</string>
+    <string name="satellite_meter_code_label">PIN veya etiket kodu</string>
+    <string name="satellite_meter_code_desc">3 haneli PIN’i veya cihazdaki QR/DataMatrix etiketinin altında yazan uzun kodu girin. Her Bluetooth bağlantısında kullanılır.</string>
     <string name="glucose_meters_configured">Yapılandırılmış ölçerler</string>
     <string name="glucose_meters_none">Yapılandırılmış ölçer yok</string>
     <string name="glucose_meters_none_desc">Ölçümleri içe aktarmak için yakındaki bir ölçeri bulun.</string>

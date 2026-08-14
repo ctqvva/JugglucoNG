@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -67,6 +68,7 @@ import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 private data class NearbyGlucoseMeter(
@@ -78,6 +80,7 @@ private data class NearbyGlucoseMeter(
 private val glucoseMeterServiceUuids = listOf(
     UUID.fromString("00001808-0000-1000-8000-00805f9b34fb"),
     UUID.fromString("af9df7a1-e595-11e3-96b4-0002a5d5c51b"),
+    UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e"),
 )
 
 @SuppressLint("MissingPermission")
@@ -89,6 +92,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var nearby by remember { mutableStateOf<List<NearbyGlucoseMeter>>(emptyList()) }
     var scanning by remember { mutableStateOf(false) }
     var scanRequest by remember { mutableIntStateOf(0) }
+    var satelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -200,6 +204,47 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 }
             }
 
+            item("satellite_label") {
+                SectionLabel(stringResource(R.string.satellite_meter_title))
+            }
+            item("satellite_settings") {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.satellite_meter_code_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        OutlinedTextField(
+                            value = satelliteCode,
+                            onValueChange = { value ->
+                                satelliteCode = value.filter(Char::isLetterOrDigit)
+                                    .take(32)
+                                    .uppercase(Locale.US)
+                            },
+                            label = { Text(stringResource(R.string.satellite_meter_code_label)) },
+                            singleLine = true,
+                            isError = satelliteCode.isNotEmpty() &&
+                                !GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Button(
+                            onClick = { GlucoseMeterManager.updateSatelliteCode(satelliteCode) },
+                            enabled = GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text(stringResource(R.string.save))
+                        }
+                    }
+                }
+            }
             item("configured_label") {
                 SectionLabel(stringResource(R.string.glucose_meters_configured))
             }

@@ -821,6 +821,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meterlist">"Glucose Meters"</string>
     <string name="glucose_meters_desc">连接蓝牙血糖仪</string>
     <string name="glucose_meters_journal_desc">读数会作为血糖记录保存到日志中，并可发送到 Nightscout。</string>
+    <string name="satellite_meter_title">Satellite（Сателлит+）血糖仪</string>
+    <string name="satellite_meter_code_label">PIN 或标签代码</string>
+    <string name="satellite_meter_code_desc">输入 3 位 PIN，或血糖仪 QR/DataMatrix 标签下方印刷的较长代码。每次蓝牙连接时都会使用该代码。</string>
     <string name="glucose_meters_configured">已配置的血糖仪</string>
     <string name="glucose_meters_none">尚未配置血糖仪</string>
     <string name="glucose_meters_none_desc">查找附近的血糖仪以开始导入读数。</string>

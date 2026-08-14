@@ -1532,6 +1532,7 @@ public class Natives {
 
         /** Returns timestamp millis, mg/dL tenths, and recent-legacy flag for a newly accepted reading. */
         public static native long[] GlucoseMeterSaveResult(int meterIndex, byte[] value);
+        public static native long[] GlucoseMeterSaveDecodedResult(int meterIndex, long timestampMillis, int mgdlTenths);
 
         public static native boolean GlucoseMeterProcessContext(int meterIndex, byte[] value);
 

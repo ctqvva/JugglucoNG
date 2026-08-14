@@ -396,6 +396,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 <string name="meterlist">"Glucosemeters"</string>
 <string name="glucose_meters_desc">Bluetooth-glucosemeters verbinden</string>
 <string name="glucose_meters_journal_desc">Metingen worden als bloedglucose in het dagboek opgeslagen en kunnen naar Nightscout worden verzonden.</string>
+<string name="satellite_meter_title">Satellite-meter (Сателлит+)</string>
+<string name="satellite_meter_code_label">Pincode of labelcode</string>
+<string name="satellite_meter_code_desc">Voer de 3-cijferige pincode in of de langere code onder het QR-/DataMatrix-label op de meter. Deze wordt bij elke Bluetooth-verbinding gebruikt.</string>
 <string name="glucose_meters_configured">Ingestelde meters</string>
 <string name="glucose_meters_none">Geen meters ingesteld</string>
 <string name="glucose_meters_none_desc">Zoek een meter in de buurt om metingen te importeren.</string>
