@@ -141,7 +141,7 @@ internal object ComplicationRenderer {
             canvas, arrowBox, arrowBox, rateMgdlPerMin, color,
             inset + (content - arrowBox) / 2f, inset,
         )
-        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color)
+        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color, size * 0.21f)
         return bmp
     }
 
@@ -151,6 +151,9 @@ internal object ComplicationRenderer {
         baselineY: Float,
         timeMillis: Long,
         color: Int,
+        /** Explicit, because a wide chart and a square icon need very
+         *  different captions and neither follows from the bitmap width. */
+        textSize: Float,
     ) {
         if (timeMillis <= 0L) return
         val text = runCatching {
@@ -161,8 +164,8 @@ internal object ComplicationRenderer {
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.CENTER
         paint.color = color
-        paint.alpha = 0xC8
-        paint.textSize = width * 0.21f
+        paint.alpha = 0xB4
+        paint.textSize = textSize
         canvas.drawText(text, width / 2f, baselineY, paint)
     }
 
@@ -277,7 +280,7 @@ internal object ComplicationRenderer {
         val inset = size * (if (icon) ICON_INSET else PHOTO_INSET)
         val content = size - inset * 2f
         drawFittedText(canvas, text, color, inset, inset, content, content * 0.66f)
-        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color)
+        drawTimeLabel(canvas, size.toFloat(), inset + content * 0.98f, timeMillis, color, size * 0.21f)
         return bmp
     }
 
@@ -352,6 +355,19 @@ internal object ComplicationRenderer {
         val centred = paint.fontMetrics
         val baseline = top + height / 2f - (centred.ascent + centred.descent) / 2f
         canvas.drawText(text, left + width / 2f, baseline, paint)
+    }
+
+    /** How wide [text] draws when fitted to [height], for laying a row out. */
+    private fun measuredWidth(text: String, height: Float): Float {
+        if (text.isEmpty() || height <= 0f) return 0f
+        paint.reset()
+        paint.isAntiAlias = true
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        paint.textSize = height
+        val metrics = paint.fontMetrics
+        val glyphHeight = (metrics.descent - metrics.ascent).coerceAtLeast(1f)
+        paint.textSize = height * (height / glyphHeight)
+        return paint.measureText(text)
     }
 
     /** A blank of the right shape, for a slot with nothing to show. */
@@ -434,8 +450,8 @@ internal object ComplicationRenderer {
         // The header takes a share of the height only when there is something
         // to put in it; a bare trace uses the whole box.
         val hasHeader = valueText != null
-        val headerH = if (hasHeader) contentH * 0.34f else 0f
-        val timeH = if (showTime) contentH * 0.14f else 0f
+        val headerH = if (hasHeader) contentH * 0.30f else 0f
+        val timeH = if (showTime) contentH * 0.11f else 0f
         val chartTop = marginY + headerH
         val chartH = contentH - headerH - timeH
 
@@ -446,20 +462,29 @@ internal object ComplicationRenderer {
         canvas.restore()
 
         if (hasHeader) {
-            // Value and arrow share the header row, the arrow taking a square
-            // at its right so the number keeps the width it needs.
-            val arrowBox = if (showArrow) headerH * 0.92f else 0f
-            val valueW = contentW - arrowBox
-            drawFittedText(canvas, valueText!!, color, marginX, marginY, valueW, headerH * 0.94f)
+            // Value dominant, arrow tucked against it rather than pinned to the
+            // far edge, and both centred as one group. Sizing the arrow off the
+            // header height and pushing it right made it compete with the value.
+            val arrowBox = if (showArrow) headerH * 0.58f else 0f
+            val gap = if (showArrow) headerH * 0.10f else 0f
+            val valueW = measuredWidth(valueText!!, headerH) .coerceAtMost(contentW - arrowBox - gap)
+            val groupW = valueW + gap + arrowBox
+            val groupX = marginX + (contentW - groupW) / 2f
+            drawFittedText(canvas, valueText, color, groupX, marginY, valueW, headerH)
             if (showArrow) {
                 drawArrow(
                     canvas, arrowBox, arrowBox, rate, color,
-                    marginX + valueW, marginY + (headerH - arrowBox) / 2f,
+                    groupX + valueW + gap, marginY + (headerH - arrowBox) / 2f,
                 )
             }
         }
         if (showTime) {
-            drawTimeLabel(canvas, width.toFloat(), marginY + contentH * 0.99f, timeMillis, color)
+            // Smallest of the three, and measured off the box height so a wide
+            // chart does not get a caption sized from its length.
+            drawTimeLabel(
+                canvas, width.toFloat(), marginY + contentH * 0.99f, timeMillis, color,
+                timeH * 0.92f,
+            )
         }
         return bmp
     }
@@ -523,17 +548,21 @@ internal object ComplicationRenderer {
         val low = threshold(Natives::targetlow, GlucoseRangeColors.defaultLow(isMmol))
         val high = threshold(Natives::targethigh, GlucoseRangeColors.defaultHigh(isMmol))
 
-        // Fit to the data, not to the thresholds — the same choice the app's own
-        // wear chart makes. Forcing the target limits into view squashed a flat
-        // in-range trace into a sliver across the middle of the box, which is
-        // what made this look wrong at large sizes. The dashed limits below
-        // simply clip when they fall outside.
-        val minValue = points.minOf { it.value }
-        val maxValue = points.maxOf { it.value }
-        val span = (maxValue - minValue).coerceAtLeast(if (isMmol) 2f else 36f)
-        val pad = span * 0.14f
+        // The app's own chart numbers, not approximations of them: fit to the
+        // data, but never to a span narrower than MIN_SPAN, or a calm hour of
+        // readings is amplified into a mountain range. This is what made the
+        // complication look nothing like the chart in the app.
+        var minValue = points.minOf { it.value }
+        var maxValue = points.maxOf { it.value }
+        val minSpan = if (isMmol) 3f else 54f
+        if (maxValue - minValue < minSpan) {
+            val mid = (maxValue + minValue) / 2f
+            minValue = mid - minSpan / 2f
+            maxValue = mid + minSpan / 2f
+        }
+        val pad = ((maxValue - minValue) * 0.12f).coerceAtLeast(if (isMmol) 0.4f else 8f)
         val bottom = minValue - pad
-        val range = (span + pad * 2f).coerceAtLeast(0.1f)
+        val range = (maxValue - minValue + pad * 2f).coerceAtLeast(0.1f)
         val duration = (to - from).toFloat().coerceAtLeast(1f)
 
         fun x(timestamp: Long) = ((timestamp - from) / duration) * width
@@ -546,7 +575,8 @@ internal object ComplicationRenderer {
         // limit that falls outside the fitted range still shades everything on
         // its side rather than being skipped.
         paint.style = Paint.Style.FILL
-        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x30 shl 24)
+        // The app draws this at 6% alpha; at 19% it read as a green slab.
+        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x14 shl 24)
         val bandTop = y(high).coerceIn(0f, height)
         val bandBottom = y(low).coerceIn(0f, height)
         if (bandBottom > bandTop) canvas.drawRect(0f, bandTop, width, bandBottom, paint)
@@ -554,7 +584,9 @@ internal object ComplicationRenderer {
         // One segment per pair so each takes the colour of where it sits; a
         // single stroke could only ever be one band.
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = (minOf(width, height) * 0.06f).coerceIn(2f, 7f)
+        // ~1.3% of the width, as the app strokes it. At 6% the trace was a
+        // chunky ribbon rather than a line.
+        paint.strokeWidth = (width * 0.014f).coerceIn(1.5f, 6f)
         paint.strokeCap = Paint.Cap.ROUND
         paint.strokeJoin = Paint.Join.ROUND
         for (index in 0 until points.size - 1) {
@@ -568,7 +600,7 @@ internal object ComplicationRenderer {
         val newest = points.last()
         paint.style = Paint.Style.FILL
         paint.color = bandColor(newest.value, isMmol)
-        canvas.drawCircle(x(newest.timestamp), y(newest.value), paint.strokeWidth * 1.15f, paint)
+        canvas.drawCircle(x(newest.timestamp), y(newest.value), paint.strokeWidth * 1.35f, paint)
     }
 
     /**
