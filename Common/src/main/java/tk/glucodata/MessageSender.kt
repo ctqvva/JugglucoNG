@@ -56,9 +56,16 @@ class MessageSender(val activity: Context):CapabilityClient.OnCapabilityChangedL
     private var nexttimes:LongArray?=null
 
     private fun setnodes(ns:Set<Node>) {
+        val wasEmpty = nodes?.isEmpty()
         nodes = ns
         val len: Int = nodes?.size ?: 0
         nexttimes = LongArray(len)
+        // Discovery is the earliest and most certain word on whether the other
+        // device is still there; ownership arbitration reacts to it at once
+        // rather than waiting for its next announcement to fail.
+        if (wasEmpty != ns.isEmpty()) {
+            runCatching { SensorOwnershipRuntime.onPeerReachabilityChanged(!ns.isEmpty()) }
+        }
         sendnetinfo();
     }
     public fun nulltimes() {
@@ -379,6 +386,20 @@ companion object {
 
     @JvmStatic
     fun lastNetInfoExchangeMs(): Long = lastNetInfoExchangeMs.get()
+
+    /**
+     * Whether discovery currently finds no peer running this app.
+     *
+     * False when nothing has been discovered yet — an empty answer only counts
+     * once a discovery has actually run, otherwise every start would look like
+     * the other device had vanished.
+     */
+    @JvmStatic
+    fun peerUnreachable(): Boolean {
+        val sender = messagesender ?: return false
+        val known = sender.nodes ?: return false
+        return known.isEmpty()
+    }
 
     private fun markWearableApiUnavailable(where: String, th: Throwable?) {
         wearableApiUnavailable = true

@@ -36,6 +36,27 @@ internal fun resolveSensorOwnershipIntent(
     else -> SensorOwnershipPolicy.Intent.TAKE
 }
 
+/**
+ * Whether the other device should be treated as gone rather than merely quiet.
+ *
+ * Only automatic switching acts on this: it is the one mode where the peer
+ * leaving has to be noticed within a minute rather than within the silence
+ * timeout, because nobody is coming to press a button.
+ *
+ * @param undiscoverableForMs how long capability discovery has reported no peer,
+ *   or a negative value while it is finding one.
+ */
+internal fun resolvePeerGone(
+    autoSwitchEnabled: Boolean,
+    lastAnnouncementDelivered: Boolean,
+    undiscoverableForMs: Long,
+    graceMs: Long,
+): Boolean {
+    if (!autoSwitchEnabled) return false
+    if (!lastAnnouncementDelivered) return true
+    return undiscoverableForMs >= 0L && undiscoverableForMs >= graceMs
+}
+
 /** The state of one sensor's handover window; see [resolveYieldWindow]. */
 internal data class SensorYieldWindow(
     /** When the current handover attempt began, or null to forget it. */
@@ -139,6 +160,9 @@ object SensorOwnershipRuntime {
     private const val AUTO_SWITCH_HEARTBEAT_MS = 5L * 60_000L
     private const val AUTO_SWITCH_PEER_SILENT_AFTER_MS = 2L * AUTO_SWITCH_HEARTBEAT_MS + 60_000L
 
+    /** How long discovery must find no peer before that counts as it leaving. */
+    private const val PEER_UNDISCOVERABLE_GRACE_MS = 30_000L
+
     /**
      * How long the phone lets go for, when the user hands a sensor to the watch.
      *
@@ -174,8 +198,18 @@ object SensorOwnershipRuntime {
      * peer. Only sampled while automatic switching is on, because it is the only
      * mode that needs to notice the peer leaving faster than the silence
      * timeout — and because learning it costs a blocking send.
+     *
+     * On its own this was far too coarse: announcements are only sent when
+     * ownership changes or the heartbeat falls due, so a watch that switched off
+     * while the phone was already standing down produced no send to fail, and
+     * the phone sat released for the whole handover window with capability
+     * discovery reporting no watch at all. [MessageSender.peerUnreachable] is
+     * the signal that actually notices; this one only corroborates it.
      */
     @Volatile private var peerDeliverable = true
+
+    /** When discovery first came back empty; 0 while the peer is being found. */
+    @Volatile private var peerUndiscoverableSince = 0L
 
     @Volatile private var started = false
 
@@ -257,11 +291,17 @@ object SensorOwnershipRuntime {
         if (!companionEnabled) return SensorHandoffUiState.NONE
         val peer = peerReportFor(target)
         val now = System.currentTimeMillis()
+        val autoSwitch = autoSwitchEnabled()
+        // A watch that discovery can no longer find is not streaming to us,
+        // whatever its last report said; saying otherwise is what "it kept
+        // trying to receive data from the watch" looked like on screen.
+        val peerGone = peerGone(autoSwitch)
+        val silentAfter = if (autoSwitch) AUTO_SWITCH_PEER_SILENT_AFTER_MS else PEER_SILENT_AFTER_MS
         return resolveSensorHandoffUiState(
             companionEnabled = companionEnabled,
             releasedLocally = releaseState.isReleased(target),
             peerOwns = peer?.owns == true,
-            peerReportFresh = peer != null && now - peer.receivedAtMs <= PEER_SILENT_AFTER_MS,
+            peerReportFresh = !peerGone && peer != null && now - peer.receivedAtMs <= silentAfter,
         )
     }
 
@@ -406,6 +446,67 @@ object SensorOwnershipRuntime {
     private fun autoSwitchEnabled(): Boolean =
         runCatching { AutoSensorSwitch.isEnabled() }.getOrDefault(false)
 
+    /**
+     * How long discovery has reported no peer, or -1 while it is finding one.
+     *
+     * The grace period applied to this keeps a blip in capability discovery from
+     * being read as the other device leaving: acting on it hands the sensor
+     * over, and an assigned owner coming straight back opens a fresh stand-down
+     * window. Half a minute is far below the timeouts this replaces and far
+     * above any momentary gap.
+     */
+    private fun undiscoverableForMs(): Long {
+        val unreachable = runCatching { MessageSender.peerUnreachable() }.getOrDefault(false)
+        if (!unreachable) {
+            peerUndiscoverableSince = 0L
+            return -1L
+        }
+        val since = peerUndiscoverableSince
+        if (since == 0L) {
+            peerUndiscoverableSince = System.currentTimeMillis()
+            return 0L
+        }
+        return System.currentTimeMillis() - since
+    }
+
+    private fun peerGone(autoSwitch: Boolean): Boolean = resolvePeerGone(
+        autoSwitchEnabled = autoSwitch,
+        lastAnnouncementDelivered = peerDeliverable,
+        undiscoverableForMs = undiscoverableForMs(),
+        graceMs = PEER_UNDISCOVERABLE_GRACE_MS,
+    )
+
+    /**
+     * Capability discovery found, or stopped finding, the other device. This is
+     * the fastest honest word we get on it leaving — the phone otherwise sat
+     * released from a sensor for the whole handover window while discovery had
+     * been reporting no watch at all for a minute.
+     */
+    @JvmStatic
+    fun onPeerReachabilityChanged(reachable: Boolean) {
+        if (!started) return
+        Log.i(LOG_ID, "peer ${if (reachable) "discovered" else "no longer discoverable"}")
+        if (reachable) {
+            peerDeliverable = true
+            peerUndiscoverableSince = 0L
+        } else if (peerUndiscoverableSince == 0L) {
+            peerUndiscoverableSince = System.currentTimeMillis()
+        }
+        executor.execute {
+            runCatching { reconcile() }.onFailure { Log.stack(LOG_ID, "reachability reconcile", it) }
+        }
+        if (reachable) return
+        // Reconcile again once the grace has run out; nothing else is due to
+        // happen until the minute tick, and the point is not to wait for it.
+        runCatching {
+            executor.schedule(
+                { runCatching { reconcile() }.onFailure { Log.stack(LOG_ID, "grace reconcile", it) } },
+                PEER_UNDISCOVERABLE_GRACE_MS + 1_000L,
+                TimeUnit.MILLISECONDS,
+            )
+        }
+    }
+
     /** What was last put on the wire per sensor, so a repeat stays silent. */
     private val lastAnnounced = ConcurrentHashMap<String, Boolean>()
     private val lastAnnouncedAt = ConcurrentHashMap<String, Long>()
@@ -417,7 +518,7 @@ object SensorOwnershipRuntime {
         // Automatic switching is the one mode that acts on the peer being gone
         // rather than merely quiet, so an undeliverable announcement retires its
         // report at once instead of waiting out the silence timeout.
-        val peerGone = autoSwitch && !peerDeliverable
+        val peerGone = peerGone(autoSwitch)
         val peerSilentAfterMs =
             if (autoSwitch) AUTO_SWITCH_PEER_SILENT_AFTER_MS else PEER_SILENT_AFTER_MS
         sensors().forEach { serial ->
@@ -572,7 +673,15 @@ object SensorOwnershipRuntime {
 
     private fun resume(serial: String, reason: String = "the other device is no longer reading it") {
         releaseState.resume(serial)
-        val gatt = findGatt(serial) ?: return
+        val gatt = findGatt(serial)
+        if (gatt == null) {
+            // Nothing to reconnect: this device has no driver for the sensor, so
+            // arbitration handing it over here achieves nothing. On a watch that
+            // means Bluetooth was never brought up, or the sensor's record never
+            // arrived — both of which look exactly like "it just stalled".
+            Log.w(LOG_ID, "cannot take $serial back ($reason): no local driver for it")
+            return
+        }
         Log.i(LOG_ID, "taking $serial back: $reason")
         runCatching {
             gatt.setPause(false)

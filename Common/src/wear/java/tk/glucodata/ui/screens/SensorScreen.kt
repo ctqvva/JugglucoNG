@@ -263,12 +263,23 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
             }
             item {
                 val claim = tk.glucodata.WearSensorClaim.currentState()
+                // The claim state only tracks the phone's explicit handover, so
+                // on its own it reported "Phone owns sensor" for the whole life
+                // of an automatic takeover — including while this watch was the
+                // one reading the sensor. Ownership itself is the honest answer;
+                // the claim state only fills in the phases it alone knows about.
+                val readsHere = remember(currentSensor, revision) {
+                    runCatching {
+                        tk.glucodata.SensorOwnershipRuntime.readsLocally(currentSensor)
+                    }.getOrDefault(false)
+                }
                 Text(
                     text = stringResource(
-                        when (claim) {
-                            tk.glucodata.WearSensorClaimState.CONNECTED -> R.string.wear_claim_watch_owns
-                            tk.glucodata.WearSensorClaimState.REQUESTING -> R.string.wear_claim_waiting
-                            tk.glucodata.WearSensorClaimState.PHONE_OWNS -> R.string.wear_claim_state_phone_owns
+                        when {
+                            readsHere -> R.string.wear_claim_watch_owns
+                            claim == tk.glucodata.WearSensorClaimState.CONNECTED -> R.string.wear_claim_watch_owns
+                            claim == tk.glucodata.WearSensorClaimState.REQUESTING -> R.string.wear_claim_waiting
+                            else -> R.string.wear_claim_state_phone_owns
                         },
                     ),
                     style = MaterialTheme.typography.bodySmall,

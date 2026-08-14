@@ -342,6 +342,59 @@ class SensorOwnershipPolicyTests {
     }
 
     @Test
+    fun discoveryLosingThePeerIsWhatNoticesItLeaving() {
+        val grace = 30_000L
+        // The failure this replaces: the watch switched off while the phone was
+        // already standing down, so no announcement was due to fail, and the
+        // phone stayed released while discovery reported no watch for a minute.
+        assertTrue(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = true,
+                undiscoverableForMs = grace,
+                graceMs = grace,
+            ),
+        )
+        // A blip must not hand the sensor over: an assigned owner coming back
+        // straight after would open a fresh stand-down window.
+        assertFalse(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = true,
+                undiscoverableForMs = grace - 1L,
+                graceMs = grace,
+            ),
+        )
+        // Discovery finding the peer, reported as a negative duration.
+        assertFalse(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = true,
+                undiscoverableForMs = -1L,
+                graceMs = grace,
+            ),
+        )
+        // An announcement that could not be delivered needs no grace.
+        assertTrue(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = false,
+                undiscoverableForMs = -1L,
+                graceMs = grace,
+            ),
+        )
+        // None of it applies with the switch off: that arbitration is unchanged.
+        assertFalse(
+            resolvePeerGone(
+                autoSwitchEnabled = false,
+                lastAnnouncementDelivered = false,
+                undiscoverableForMs = 10L * grace,
+                graceMs = grace,
+            ),
+        )
+    }
+
+    @Test
     fun anAbsentPeerGetsNoHandoverWindowAtAll() {
         // Automatic switching through an explicit handover: the watch stays the
         // assigned owner, but a watch that cannot be reached must not keep the
