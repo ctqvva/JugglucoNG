@@ -1637,7 +1637,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">添加胰岛素类型</string>
     <string name="journal_edit_preset">编辑胰岛素类型</string>
     <string name="journal_active_window">作用区间：%1$s 至 %2$s</string>
-    <string name="journal_active_window_label">作用区间</string>
+    <string name="journal_active_window_compact">作用 %1$s – %2$s</string>
     <string name="journal_selected_time">所选时间</string>
     <string name="journal_intensity_light">轻度</string>
     <string name="journal_intensity_moderate">中等</string>

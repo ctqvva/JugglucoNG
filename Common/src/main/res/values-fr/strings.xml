@@ -1627,7 +1627,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">Ajouter un type d\'insuline</string>
     <string name="journal_edit_preset">Modifier le type d\'insuline</string>
     <string name="journal_active_window">Fenêtre d\'action : de %1$s à %2$s</string>
-    <string name="journal_active_window_label">Fenêtre d\'action</string>
+    <string name="journal_active_window_compact">Active %1$s – %2$s</string>
     <string name="journal_selected_time">Heure sélectionnée</string>
     <string name="journal_intensity_light">Faible</string>
     <string name="journal_intensity_moderate">Modérée</string>

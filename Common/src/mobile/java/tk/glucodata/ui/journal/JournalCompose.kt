@@ -48,8 +48,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
@@ -2897,54 +2895,47 @@ private fun JournalInsulinWindowCard(
 ) {
     var expanded by remember(preset.id) { mutableStateOf(false) }
     val accent = Color(preset.accentColor)
-    val onset = stringResource(R.string.minutes_short_format, preset.onsetMinutes)
-    val duration = stringResource(R.string.minutes_short_format, preset.durationMinutes)
-    val windowDescription = stringResource(R.string.journal_active_window, onset, duration)
+    val onset = formatJournalWindowTime(preset.onsetMinutes)
+    val duration = formatJournalWindowTime(preset.durationMinutes)
+    val compactDescription = stringResource(R.string.journal_active_window_compact, onset, duration)
+    val windowDescription = stringResource(
+        R.string.journal_active_window,
+        stringResource(R.string.minutes_short_format, preset.onsetMinutes),
+        stringResource(R.string.minutes_short_format, preset.durationMinutes)
+    )
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (expanded) Modifier.fillMaxWidth() else Modifier.wrapContentWidth(),
         onClick = { expanded = !expanded },
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(18.dp)
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = (if (expanded) Modifier.fillMaxWidth() else Modifier)
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Schedule,
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.journal_active_window_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "$onset – $duration",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = compactDescription,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = stringResource(R.string.journal_curve_preview),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    modifier = Modifier.size(18.dp)
                 )
             }
             AnimatedVisibility(
@@ -2981,6 +2972,21 @@ private fun JournalInsulinWindowCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun formatJournalWindowTime(minutes: Int): String {
+    val safeMinutes = minutes.coerceAtLeast(0)
+    if (safeMinutes < 120) {
+        return stringResource(R.string.minutes_short_format, safeMinutes)
+    }
+    val hours = safeMinutes / 60
+    val remainingMinutes = safeMinutes % 60
+    return if (remainingMinutes == 0) {
+        stringResource(R.string.stats_duration_hours, hours)
+    } else {
+        stringResource(R.string.stats_duration_hours_minutes, hours, remainingMinutes)
     }
 }
 

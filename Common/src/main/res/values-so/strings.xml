@@ -1928,7 +1928,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_add_preset">Ku dar nooca insulin</string>
     <string name="journal_edit_preset">Wax ka beddel nooca insulin</string>
     <string name="journal_active_window">Daaqada firfircoon: %1$s ilaa %2$s</string>
-    <string name="journal_active_window_label">Daaqada firfircoon</string>
+    <string name="journal_active_window_compact">Firfircoon %1$s – %2$s</string>
     <string name="journal_selected_time">Waqtiga la doortay</string>
     <string name="journal_intensity_light">Iftiin</string>
     <string name="journal_intensity_moderate">Dhexdhexaad</string>

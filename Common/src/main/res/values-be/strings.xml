@@ -1691,7 +1691,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">Дадаць тып інсуліну</string>
     <string name="journal_edit_preset">Рэдагаваць тып інсуліну</string>
     <string name="journal_active_window">Акно дзеяння: з %1$s да %2$s</string>
-    <string name="journal_active_window_label">Акно дзеяння</string>
+    <string name="journal_active_window_compact">Дзейнічае %1$s – %2$s</string>
     <string name="journal_selected_time">Выбраны час</string>
     <string name="journal_intensity_light">Лёгкая</string>
     <string name="journal_intensity_moderate">Умераная</string>

@@ -1622,7 +1622,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_add_preset">Adicionar tipo de insulina</string>
     <string name="journal_edit_preset">Editar tipo de insulina</string>
     <string name="journal_active_window">Janela de ação: de %1$s a %2$s</string>
-    <string name="journal_active_window_label">Janela de ação</string>
+    <string name="journal_active_window_compact">Ativa %1$s – %2$s</string>
     <string name="journal_selected_time">Horário selecionado</string>
     <string name="journal_intensity_light">Leve</string>
     <string name="journal_intensity_moderate">Moderada</string>
