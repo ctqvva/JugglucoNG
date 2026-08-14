@@ -590,16 +590,14 @@ fun JournalEntrySheet(
                         selectedInsulinPreset?.useForCalculation == true
                     ) {
                         item(key = "insulin_dose_assist") {
-                            Box(modifier = Modifier.animateItem()) {
-                                JournalDoseAssistCard(
-                                    draft = draft,
-                                    profile = calculatorProfile,
-                                    calculationInsulinPresets = calculationInsulinPresets,
-                                    activeInsulinUnits = activeInsulinUnits,
-                                    unit = unit,
-                                    onDraftChange = { draft = it }
-                                )
-                            }
+                            JournalDoseAssistCard(
+                                draft = draft,
+                                profile = calculatorProfile,
+                                calculationInsulinPresets = calculationInsulinPresets,
+                                activeInsulinUnits = activeInsulinUnits,
+                                unit = unit,
+                                onDraftChange = { draft = it }
+                            )
                         }
                     }
                 }
@@ -752,7 +750,6 @@ fun JournalEntrySheet(
                     value = draft.note,
                     onValueChange = { draft = draft.copy(note = it) },
                     modifier = Modifier
-                        .animateItem()
                         .fillMaxWidth()
                         .heightIn(min = noteFieldMinHeight)
                         .onFocusChanged { noteFieldFocused = it.isFocused },
@@ -788,7 +785,6 @@ fun JournalEntrySheet(
                     },
                     enabled = canSave,
                     modifier = Modifier
-                        .animateItem()
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(16.dp)
@@ -2471,26 +2467,20 @@ private fun JournalInsulinPresetSelector(
     selectedPresetId: Long?,
     onPresetSelected: (JournalInsulinPreset) -> Unit
 ) {
-    val selectedContentColor = MaterialTheme.colorScheme.onSurface
-    val unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     if (presets.size == 2) {
-        ConnectedButtonGroup(
-            options = presets,
-            selectedOption = presets.firstOrNull { it.id == selectedPresetId },
-            onOptionSelected = onPresetSelected,
-            label = { },
-            labelText = { it.displayName },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            itemHeight = 48.dp,
-            spacing = 4.dp,
-            selectedContainerColorFor = { preset ->
-                Color(preset.accentColor).copy(alpha = 0.34f)
-            },
-            selectedContentColorFor = { selectedContentColor },
-            unselectedContainerColor = unselectedContainerColor,
-            unselectedContentColor = unselectedContentColor
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { preset ->
+                JournalPresetPill(
+                    modifier = Modifier.weight(1f),
+                    preset = preset,
+                    selected = selectedPresetId == preset.id,
+                    onClick = { onPresetSelected(preset) }
+                )
+            }
+        }
     } else {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -2516,17 +2506,37 @@ private fun JournalPresetPill(
     onClick: () -> Unit
 ) {
     val accent = Color(preset.accentColor)
-    Surface(
-        modifier = modifier,
-        onClick = onClick,
-        color = if (selected) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
             accent.copy(alpha = 0.30f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
+        animationSpec = tween(durationMillis = 180),
+        label = "journalPresetContainer"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) accent.copy(alpha = 0.9f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 180),
+        label = "journalPresetBorder"
+    )
+    val indicatorColor by animateColorAsState(
+        targetValue = if (selected) accent else accent.copy(alpha = 0.18f),
+        animationSpec = tween(durationMillis = 180),
+        label = "journalPresetIndicator"
+    )
+    val tonalElevation by animateDpAsState(
+        targetValue = if (selected) 2.dp else 0.dp,
+        animationSpec = tween(durationMillis = 180),
+        label = "journalPresetElevation"
+    )
+    Surface(
+        modifier = modifier,
+        onClick = onClick,
+        color = containerColor,
         shape = RoundedCornerShape(16.dp),
-        border = if (selected) BorderStroke(1.dp, accent.copy(alpha = 0.9f)) else null,
-        tonalElevation = if (selected) 2.dp else 0.dp
+        border = BorderStroke(1.dp, borderColor),
+        tonalElevation = tonalElevation
     ) {
         Row(
             modifier = Modifier
@@ -2537,22 +2547,31 @@ private fun JournalPresetPill(
             Surface(
                 modifier = Modifier.size(20.dp),
                 shape = CircleShape,
-                color = if (selected) accent else accent.copy(alpha = 0.18f)
+                color = indicatorColor
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    if (selected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(12.dp)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(accent, CircleShape)
-                        )
+                    AnimatedContent(
+                        targetState = selected,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(durationMillis = 140))
+                                .togetherWith(fadeOut(animationSpec = tween(durationMillis = 90)))
+                        },
+                        label = "journalPresetIndicatorContent"
+                    ) { isSelected ->
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(accent, CircleShape)
+                            )
+                        }
                     }
                 }
             }
