@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.Typeface
+import androidx.compose.ui.graphics.toArgb
 import tk.glucodata.Applic
 import tk.glucodata.GlucosePoint
 import tk.glucodata.GlucoseRangeColors
@@ -619,26 +620,59 @@ internal object ComplicationRenderer {
         val bandBottom = y(low).coerceIn(0f, height)
         if (bandBottom > bandTop) canvas.drawRect(0f, bandTop, width, bandBottom, paint)
 
-        // One segment per pair so each takes the colour of where it sits; a
-        // single stroke could only ever be one band.
+        // Banded by height with the app's own gradient, not classified per
+        // segment. A discrete classification calls everything inside the target
+        // neutral, so a trace hugging a limit — which is exactly when the colour
+        // matters — came out plain white beside a tinted one in the app. The
+        // gradient fades into a band before the line is crossed, so approaching
+        // a limit already shows.
+        val veryLow = threshold(Natives::alarmverylow, GlucoseRangeColors.defaultVeryLow(isMmol))
+        val veryHigh = threshold(Natives::alarmveryhigh, GlucoseRangeColors.defaultVeryHigh(isMmol))
+        val stops = tk.glucodata.ui.GlucoseChartBands.verticalStops(
+            veryHigh = androidx.compose.ui.graphics.Color(GlucoseRangeColors.veryHigh(DARK)),
+            high = androidx.compose.ui.graphics.Color(GlucoseRangeColors.high(DARK)),
+            inRange = androidx.compose.ui.graphics.Color(neutral()),
+            low = androidx.compose.ui.graphics.Color(GlucoseRangeColors.low(DARK)),
+            veryLow = androidx.compose.ui.graphics.Color(GlucoseRangeColors.veryLow(DARK)),
+            yVeryHigh = y(veryHigh),
+            yHigh = y(high),
+            yLow = y(low),
+            yVeryLow = y(veryLow),
+            chartHeightPx = height,
+            fadePx = height * 0.06f,
+        )
+
         paint.style = Paint.Style.STROKE
         // ~1.3% of the width, as the app strokes it. At 6% the trace was a
         // chunky ribbon rather than a line.
         paint.strokeWidth = (width * 0.014f).coerceIn(1.5f, 6f)
         paint.strokeCap = Paint.Cap.ROUND
         paint.strokeJoin = Paint.Join.ROUND
-        for (index in 0 until points.size - 1) {
-            val a = points[index]
-            val b = points[index + 1]
-            paint.color = bandColor((a.value + b.value) / 2f, isMmol)
-            canvas.drawLine(x(a.timestamp), y(a.value), x(b.timestamp), y(b.value), paint)
+        paint.shader = if (stops.size >= 2) {
+            android.graphics.LinearGradient(
+                0f, 0f, 0f, height,
+                IntArray(stops.size) { stops[it].second.toArgb() },
+                FloatArray(stops.size) { stops[it].first },
+                android.graphics.Shader.TileMode.CLAMP,
+            )
+        } else {
+            null
         }
 
-        // The newest reading gets a dot, as the app's charts do.
+        val trace = Path()
+        points.forEachIndexed { index, point ->
+            val px = x(point.timestamp)
+            val py = y(point.value)
+            if (index == 0) trace.moveTo(px, py) else trace.lineTo(px, py)
+        }
+        canvas.drawPath(trace, paint)
+
+        // The newest reading gets a dot, as the app's charts do. It keeps the
+        // gradient, so it agrees with the line it sits on.
         val newest = points.last()
         paint.style = Paint.Style.FILL
-        paint.color = bandColor(newest.value, isMmol)
         canvas.drawCircle(x(newest.timestamp), y(newest.value), paint.strokeWidth * 1.35f, paint)
+        paint.shader = null
     }
 
     /**
