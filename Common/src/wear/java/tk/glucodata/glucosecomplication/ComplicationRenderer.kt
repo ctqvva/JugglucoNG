@@ -497,7 +497,11 @@ internal object ComplicationRenderer {
         canvas.save()
         canvas.translate(marginX, chartTop)
         val now = System.currentTimeMillis()
-        drawSparkline(canvas, contentW, chartH, points, isMmol, now - SPARK_WINDOW_MS, now)
+        drawSparkline(
+            canvas, contentW, chartH, points, isMmol, now - SPARK_WINDOW_MS, now,
+            // Let the band reach the bitmap's own edges.
+            floatArrayOf(marginX, chartTop, marginX, height - chartTop - chartH),
+        )
         canvas.restore()
 
         if (hasHeader) {
@@ -574,6 +578,14 @@ internal object ComplicationRenderer {
         return bmp
     }
 
+    /**
+     * @param bandBleed how far past each edge of the plot the target band may
+     *        spread, as [left, top, right, bottom]. The band is a background,
+     *        so it should reach the edge of the bitmap; stopping it at the
+     *        plot's inset made it read as a floating rectangle whenever a limit
+     *        fell outside the fitted range and was clamped to the plot edge.
+     */
+    @JvmOverloads
     fun drawSparkline(
         canvas: Canvas,
         width: Float,
@@ -582,6 +594,7 @@ internal object ComplicationRenderer {
         isMmol: Boolean,
         from: Long,
         to: Long,
+        bandBleed: FloatArray = FloatArray(4),
     ) {
         if (points.size < 2 || width <= 0f || height <= 0f) return
         val low = threshold(Natives::targetlow, GlucoseRangeColors.defaultLow(isMmol))
@@ -615,10 +628,19 @@ internal object ComplicationRenderer {
         // its side rather than being skipped.
         paint.style = Paint.Style.FILL
         // The app draws this at 6% alpha; at 19% it read as a green slab.
-        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x14 shl 24)
-        val bandTop = y(high).coerceIn(0f, height)
-        val bandBottom = y(low).coerceIn(0f, height)
-        if (bandBottom > bandTop) canvas.drawRect(0f, bandTop, width, bandBottom, paint)
+        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x10 shl 24)
+        // A limit outside the fitted range bleeds to the bitmap edge rather
+        // than stopping at the plot's, so the band reads as shading behind the
+        // trace and never as a box drawn in the middle of the slot.
+        val highY = y(high)
+        val lowY = y(low)
+        val bandTop = if (highY <= 0f) -bandBleed[1] else highY
+        val bandBottom = if (lowY >= height) height + bandBleed[3] else lowY
+        if (bandBottom > bandTop) {
+            canvas.drawRect(
+                -bandBleed[0], bandTop, width + bandBleed[2], bandBottom, paint,
+            )
+        }
 
         // Banded by height with the app's own gradient, not classified per
         // segment. A discrete classification calls everything inside the target
