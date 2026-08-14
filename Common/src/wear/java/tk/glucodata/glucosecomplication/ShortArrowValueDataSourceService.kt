@@ -53,10 +53,11 @@ class ShortArrowValueDataSourceService: SuspendingComplicationDataSourceService(
      * and colour match the app rather than the legacy geometry.
      */
     private fun arrowTimeBitmap(rate: Float, timeMillis: Long): android.graphics.Bitmap =
-        // The value is in this complication's text field, so the icon is the
-        // arrow alone: a time caption under it only made both smaller. Drawn as
-        // a mask, since the face tints it.
-        ComplicationRenderer.arrowBitmap(ICON_PX, rate, ComplicationRenderer.ICON_TINT)
+        // Arrow over the reading's time. The time is the whole difference
+        // between this complication and the plain Value + arrow.
+        ComplicationRenderer.arrowWithTimeBitmap(
+            ICON_PX, rate, timeMillis, ComplicationRenderer.ICON_TINT,
+        )
 
     private val ICON_PX = 256
 

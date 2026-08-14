@@ -166,6 +166,21 @@ internal object ComplicationRenderer {
         canvas.drawText(text, width / 2f, baselineY, paint)
     }
 
+    /** The reading's time alone, as an icon beside a value the text carries. */
+    fun timeBitmap(size: Int, timeMillis: Long, color: Int): Bitmap {
+        val (bmp, canvas) = bitmap(size, size)
+        val inset = size * ICON_INSET
+        drawFittedText(
+            canvas,
+            runCatching {
+                android.text.format.DateFormat.getTimeFormat(Applic.app)
+                    .format(java.util.Date(timeMillis))
+            }.getOrNull() ?: return bmp,
+            color, inset, inset, size - inset * 2f, size - inset * 2f,
+        )
+        return bmp
+    }
+
     fun drawArrow(
         canvas: Canvas,
         width: Float,
@@ -527,21 +542,14 @@ internal object ComplicationRenderer {
         paint.reset()
         paint.isAntiAlias = true
 
-        // Target limits as dashed rules rather than a filled block. The block
-        // read as an opaque box sitting behind the trace — a shape in its own
-        // right — where a rule reads as a limit the trace crosses.
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = (minOf(width, height) * 0.018f).coerceIn(1f, 3f)
-        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x66 shl 24)
-        val dash = android.graphics.DashPathEffect(
-            floatArrayOf(width * 0.035f, width * 0.03f), 0f,
-        )
-        paint.pathEffect = dash
-        listOf(high, low).forEach { limit ->
-            val lineY = y(limit)
-            if (lineY > 0f && lineY < height) canvas.drawLine(0f, lineY, width, lineY, paint)
-        }
-        paint.pathEffect = null
+        // Target band, filled, spanning the full width. Clamped to the box so a
+        // limit that falls outside the fitted range still shades everything on
+        // its side rather than being skipped.
+        paint.style = Paint.Style.FILL
+        paint.color = (GlucoseRangeColors.targetBackground(DARK) and 0x00FFFFFF) or (0x30 shl 24)
+        val bandTop = y(high).coerceIn(0f, height)
+        val bandBottom = y(low).coerceIn(0f, height)
+        if (bandBottom > bandTop) canvas.drawRect(0f, bandTop, width, bandBottom, paint)
 
         // One segment per pair so each takes the colour of where it sits; a
         // single stroke could only ever be one band.

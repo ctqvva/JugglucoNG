@@ -36,6 +36,18 @@ import androidx.wear.watchface.complications.datasource.SuspendingComplicationDa
 import tk.glucodata.Log
 
 class NumberDataSourceService: SuspendingComplicationDataSourceService()  {
+    /**
+     * The reading's time as this complication's icon. Its text field carries the
+     * value, so the time is what distinguishes it from Glucose value small in
+     * whichever form a slot chooses to render.
+     */
+    private fun timeIcon(reading: GlucoseComplicationData.Reading?): android.graphics.drawable.Icon? {
+        val at = reading?.timeMillis?.takeIf { it > 0L } ?: return null
+        return android.graphics.drawable.Icon.createWithBitmap(
+            ComplicationRenderer.timeBitmap(TIME_ICON_PX, at, ComplicationRenderer.ICON_TINT),
+        )
+    }
+
 private val glview= GlucoseValue(100,100)
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
@@ -76,11 +88,13 @@ private val glview= GlucoseValue(100,100)
                 reading,
                 "Glucose Value",
                 tapAction,
+                timeIcon(reading),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 reading,
                 "Glucose Value",
                 tapAction,
+                timeIcon(reading),
             )
             else -> GlucoseComplicationData.shortValueData(null, "Glucose Value", tapAction)
         }
@@ -119,6 +133,7 @@ private val glview= GlucoseValue(100,100)
                 glucose,
                 "Glucose Number",
                 complicationPendingIntent,
+                timeIcon(glucose),
             )
             ComplicationType.RANGED_VALUE -> GlucoseComplicationData.rangedValueData(
                 glucose,
@@ -137,6 +152,7 @@ private val glview= GlucoseValue(100,100)
     companion object {
         private const val LOG_ID = "NumberDataSourceService"
         private const val VALUE_PX = 320
+        private const val TIME_ICON_PX = 192
    private val complicationDataSourceUpdateRequester = ComplicationDataSourceUpdateRequester.create( context=tk.glucodata.Applic.app, complicationDataSourceComponent = ComponentName(tk.glucodata.Applic.app,
        NumberDataSourceService::class.java
    ))
