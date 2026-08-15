@@ -1452,6 +1452,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_response_413">Laatste reactie: HTTP 413, payload te groot</string>
     <string name="nightscout_status_last_attempt">Laatste poging: %1$s</string>
     <string name="nightscout_status_last_success">Laatste succes: %1$s</string>
+    <string name="nightscout_status_treatments_never">Behandelingen: nog niets verzonden</string>
+    <string name="nightscout_status_treatments_ok">Behandelingen: laatst verzonden %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Behandelingen: verzenden mislukt sinds %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Behandelingen: verwijderingen geweigerd sinds %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">geen antwoord</string>
     <string name="nightscout_sync_actions_title">Synchronisatieacties</string>
     <string name="expand_action">Uitklappen</string>
     <string name="collapse_action">Inklappen</string>

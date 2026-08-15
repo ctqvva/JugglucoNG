@@ -1410,6 +1410,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Última resposta: HTTP 413, carga útil demasiado grande</string>
     <string name="nightscout_status_last_attempt">Última tentativa: %1$s</string>
     <string name="nightscout_status_last_success">Último sucesso: %1$s</string>
+    <string name="nightscout_status_treatments_never">Tratamentos: ainda nada enviado</string>
+    <string name="nightscout_status_treatments_ok">Tratamentos: último envio %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Tratamentos: envio a falhar desde %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Tratamentos: eliminações recusadas desde %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">sem resposta</string>
     <string name="nightscout_sync_actions_title">Ações de sincronização</string>
     <string name="expand_action">Expandir</string>
     <string name="collapse_action">Recolher</string>

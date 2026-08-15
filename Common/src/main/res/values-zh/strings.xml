@@ -1425,6 +1425,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">上次响应：HTTP 413，负载过大</string>
     <string name="nightscout_status_last_attempt">上次尝试：%1$s</string>
     <string name="nightscout_status_last_success">上次成功：%1$s</string>
+    <string name="nightscout_status_treatments_never">治疗：尚未发送任何内容</string>
+    <string name="nightscout_status_treatments_ok">治疗：上次发送 %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">治疗：自 %1$s 起发送失败（%2$s）</string>
+    <string name="nightscout_status_treatments_delete_failing">治疗：自 %1$s 起删除被拒绝（%2$s）</string>
+    <string name="nightscout_status_treatments_no_response">无响应</string>
     <string name="nightscout_sync_actions_title">同步操作</string>
     <string name="expand_action">展开</string>
     <string name="collapse_action">收起</string>

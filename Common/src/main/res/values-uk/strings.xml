@@ -1423,6 +1423,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Остання відповідь: HTTP 413, завеликий payload</string>
     <string name="nightscout_status_last_attempt">Остання спроба: %1$s</string>
     <string name="nightscout_status_last_success">Останній успіх: %1$s</string>
+    <string name="nightscout_status_treatments_never">Лікування: поки нічого не надіслано</string>
+    <string name="nightscout_status_treatments_ok">Лікування: останнє надсилання %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Лікування: надсилання не працює з %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Лікування: видалення відхиляються з %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">немає відповіді</string>
     <string name="nightscout_sync_actions_title">Дії синхронізації</string>
     <string name="expand_action">Розгорнути</string>
     <string name="collapse_action">Згорнути</string>

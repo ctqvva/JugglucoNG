@@ -1409,6 +1409,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Senaste svar: HTTP 413, för stor payload</string>
     <string name="nightscout_status_last_attempt">Senaste försök: %1$s</string>
     <string name="nightscout_status_last_success">Senaste lyckade: %1$s</string>
+    <string name="nightscout_status_treatments_never">Behandlingar: inget skickat än</string>
+    <string name="nightscout_status_treatments_ok">Behandlingar: senast skickat %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Behandlingar: sändning misslyckas sedan %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Behandlingar: raderingar nekas sedan %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">inget svar</string>
     <string name="nightscout_sync_actions_title">Synkåtgärder</string>
     <string name="expand_action">Expandera</string>
     <string name="collapse_action">Fäll ihop</string>

@@ -1483,6 +1483,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_response_413">Letzte Antwort: HTTP 413, Nutzlast zu groß</string>
     <string name="nightscout_status_last_attempt">Letzter Versuch: %1$s</string>
     <string name="nightscout_status_last_success">Letzter Erfolg: %1$s</string>
+    <string name="nightscout_status_treatments_never">Behandlungen: noch nichts gesendet</string>
+    <string name="nightscout_status_treatments_ok">Behandlungen: zuletzt gesendet %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Behandlungen: Senden schlägt seit %1$s fehl (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Behandlungen: Löschungen seit %1$s abgelehnt (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">keine Antwort</string>
     <string name="nightscout_sync_actions_title">Synchronisierungsaktionen</string>
     <string name="expand_action">Erweitern</string>
     <string name="collapse_action">Einklappen</string>

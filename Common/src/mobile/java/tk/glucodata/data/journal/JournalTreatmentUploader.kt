@@ -35,10 +35,39 @@ object JournalTreatmentUploader {
     private const val TREATMENT_FETCH_COUNT = 240
     private const val ERROR_INVALID_URL = -2
 
+    /**
+     * Refused deletes the tombstone survives before it is dropped. A document Nightscout
+     * will never let us delete (a token without `api:treatments:delete` answers 403 forever)
+     * must not stay queued for the rest of the install's life.
+     */
+    internal const val MAX_DELETE_ATTEMPTS = 20
+
+    internal enum class TombstoneAction { CLEAR, RETRY, GIVE_UP }
+
     private data class UploadResult(
         val code: Int,
         val remoteId: String? = null
     )
+
+    /** True only when the server actually removed the document for us. */
+    internal fun isDeleteAccepted(code: Int): Boolean =
+        code == HttpURLConnection.HTTP_OK || code == HttpURLConnection.HTTP_NO_CONTENT
+
+    /**
+     * What to do with a tombstone after a delete answered [code]. 404/410 count as done:
+     * the document we wanted gone is gone, and the old code kept retrying those forever.
+     */
+    internal fun tombstoneAction(code: Int, attemptsSoFar: Int): TombstoneAction = when (code) {
+        HttpURLConnection.HTTP_OK,
+        HttpURLConnection.HTTP_NO_CONTENT,
+        HttpURLConnection.HTTP_NOT_FOUND,
+        HttpURLConnection.HTTP_GONE -> TombstoneAction.CLEAR
+        else -> if (attemptsSoFar + 1 >= MAX_DELETE_ATTEMPTS) {
+            TombstoneAction.GIVE_UP
+        } else {
+            TombstoneAction.RETRY
+        }
+    }
 
     // Mirrors writetreatment(V3) acceptance: 200/201 always; 409 only on V3 (POST conflict).
     private fun isUploadOk(code: Int, useV3: Boolean): Boolean {
@@ -100,23 +129,50 @@ object JournalTreatmentUploader {
         val presetCache = HashMap<Long, JournalInsulinPresetEntity?>()
         val foodCache = HashMap<Long, JournalFoodEntity?>()
         var uploadOk = true
+        var acceptedDocument = false
+        var deleteFailureCode: Int? = null
+        var uploadFailureCode: Int? = null
 
+        // Deletes and creates are independent, so a refused delete must not cost us the
+        // pending entries: it used to break out of the whole run and, since the tombstone
+        // was never cleared, wedge every later cycle at the same document (issue #191).
         if (sendEnabled) {
             for (tomb in dao.getPendingNightscoutDeletes()) {
                 val deleteRemoteId = resolveDeleteRemoteId(baseUrl, rawSecret, tomb.nsRemoteId, useV3)
                 val deleteUrl = treatmentDeleteUrl(baseUrl, deleteRemoteId, useV3)
-                if (NightPost.deleteUrl(deleteUrl, secretHashed)) {
-                    dao.clearPendingNightscoutDelete(tomb.entryId)
-                } else {
-                    Log.e(LOG_ID, "tombstone delete failed for entryId=${tomb.entryId} remoteId=$deleteRemoteId")
-                    uploadOk = false
-                    break
+                val code = NightPost.deleteUrlCode(deleteUrl, secretHashed)
+                val attempts = tomb.attempts + 1
+                when (tombstoneAction(code, tomb.attempts)) {
+                    TombstoneAction.CLEAR -> {
+                        dao.clearPendingNightscoutDelete(tomb.entryId)
+                        // A 404 also clears the tombstone, but it is not proof that the
+                        // server took anything from us, so it must not move "last sent".
+                        if (isDeleteAccepted(code)) acceptedDocument = true
+                    }
+                    TombstoneAction.RETRY -> {
+                        Log.e(
+                            LOG_ID,
+                            "tombstone delete failed for entryId=${tomb.entryId} " +
+                                "remoteId=$deleteRemoteId code=$code attempt=$attempts"
+                        )
+                        dao.recordFailedNightscoutDelete(tomb.entryId, attempts, System.currentTimeMillis())
+                        deleteFailureCode = code
+                    }
+                    TombstoneAction.GIVE_UP -> {
+                        Log.e(
+                            LOG_ID,
+                            "giving up on tombstone entryId=${tomb.entryId} remoteId=$deleteRemoteId " +
+                                "after $attempts refused deletes (last code=$code); dropping it"
+                        )
+                        dao.clearPendingNightscoutDelete(tomb.entryId)
+                        deleteFailureCode = code
+                    }
                 }
             }
         }
 
         val sinceMillis = System.currentTimeMillis() - LOOKBACK_MILLIS
-        if (sendEnabled && uploadOk) {
+        if (sendEnabled) {
             val pending = dao.getEntriesNeedingNightscoutUpload(sinceMillis)
             for (entry in pending) {
                 if (!isSendableType(entry.entryType)) continue
@@ -159,6 +215,7 @@ object JournalTreatmentUploader {
                 }
                 if (!isUploadOk(result.code, useV3)) {
                     Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${result.code}")
+                    uploadFailureCode = result.code
                     uploadOk = false
                     break
                 }
@@ -167,7 +224,12 @@ object JournalTreatmentUploader {
                     result.remoteId ?: remoteId,
                     System.currentTimeMillis()
                 )
+                acceptedDocument = true
             }
+        }
+
+        if (sendEnabled) {
+            recordSendStatus(uploadFailureCode, deleteFailureCode, acceptedDocument)
         }
 
         val receiveOk = if (receiveEnabled) {
@@ -175,7 +237,29 @@ object JournalTreatmentUploader {
         } else {
             true
         }
+        // A refused delete is deliberately not folded in here. Returning false makes the native
+        // loop back off and skip the IOB device status, which is exactly the collateral damage
+        // this path used to cause; the tombstone is retried on the next cycle either way.
         return uploadOk && receiveOk
+    }
+
+    /**
+     * Publishes the outcome of one send cycle so the settings screen can show a treatment
+     * path that has been failing while the native entries uploader kept reporting HTTP 200.
+     */
+    private fun recordSendStatus(
+        uploadFailureCode: Int?,
+        deleteFailureCode: Int?,
+        acceptedDocument: Boolean
+    ) {
+        val now = System.currentTimeMillis()
+        when {
+            uploadFailureCode != null ->
+                JournalSyncStatus.recordFailure(now, uploadFailureCode, JournalSyncFailure.UPLOAD)
+            deleteFailureCode != null ->
+                JournalSyncStatus.recordFailure(now, deleteFailureCode, JournalSyncFailure.DELETE)
+            else -> JournalSyncStatus.recordSuccess(now, acceptedDocument)
+        }
     }
 
     private fun isSendableType(entryType: String): Boolean {

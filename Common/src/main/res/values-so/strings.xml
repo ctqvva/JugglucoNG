@@ -1498,6 +1498,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_response_413">Jawaabtii u dambaysay: HTTP 413, culayska la saaray oo aad u weyn</string>
     <string name="nightscout_status_last_attempt">Isku daygii ugu dambeeyay: %1$s</string>
     <string name="nightscout_status_last_success">Guushii u dambaysay: %1$s</string>
+    <string name="nightscout_status_treatments_never">Daawaynta: weli waxba lama dirin</string>
+    <string name="nightscout_status_treatments_ok">Daawaynta: markii ugu dambeysay la diray %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Daawaynta: dirista way fashilmaysaa tan iyo %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Daawaynta: tirtiridda waa la diiday tan iyo %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">jawaab ma jirto</string>
     <string name="nightscout_send_amounts_desc">Soo rar Insulin/Carbs (Daawaynta)</string>
     <string name="nightscout_send_long_insulin">Dir insuliinta muddada dheer</string>
     <string name="nightscout_send_long_insulin_desc">Ku dar insuliinta basal iyo tan aadka u dheer gelinta Nightscout</string>

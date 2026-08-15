@@ -73,6 +73,8 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.Natives
 import tk.glucodata.NightPost
 import tk.glucodata.R
+import tk.glucodata.data.journal.JournalSyncFailure
+import tk.glucodata.data.journal.JournalSyncStatus
 import tk.glucodata.data.journal.JournalTreatmentUploader
 import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.ui.components.CardPosition
@@ -92,6 +94,14 @@ private sealed class TestState {
 }
 
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
+
+/** "HTTP 403" reads the same in every locale; a request that never got an answer does not. */
+private fun failureDetail(context: android.content.Context, code: Int): String =
+    if (code > 0) {
+        "HTTP $code"
+    } else {
+        context.getString(R.string.nightscout_status_treatments_no_response)
+    }
 
 private fun applyNightscoutTestAuth(
     connection: java.net.HttpURLConnection,
@@ -151,6 +161,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var lastSuccessTime by rememberSaveable { mutableStateOf(0L) }
     var retryMinutes by rememberSaveable { mutableStateOf(0) }
     var uploaderRunning by rememberSaveable { mutableStateOf(false) }
+    var treatmentSync by remember { mutableStateOf(JournalSyncStatus.state()) }
     var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
 
     var mode by rememberSaveable {
@@ -194,6 +205,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastSuccessTime = Natives.getnightscoutlastsuccesstime()
         retryMinutes = Natives.getnightscoutretryminutes()
         uploaderRunning = Natives.getnightscoutuploaderrunning()
+        treatmentSync = JournalSyncStatus.state()
     }
 
     fun requireUrl(): Boolean {
@@ -255,6 +267,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
         ).format(java.util.Date(epochSeconds * 1000L))
     }
 
+    // The native uploader reports seconds; the journal sync status is in millis.
+    fun formatStatusMillis(epochMillis: Long): String = formatStatusTime(epochMillis / 1000L)
+
     val uploaderSummary = when {
         !isActive || mode != NightscoutMode.UPLOAD -> context.getString(R.string.nightscout_status_paused)
         uploaderRunning -> context.getString(R.string.nightscout_status_running)
@@ -270,6 +285,27 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastResponseCode == 413 -> context.getString(R.string.nightscout_status_response_413)
         lastResponseCode > 0 -> context.getString(R.string.nightscout_status_response_error, lastResponseCode)
         else -> context.getString(R.string.nightscout_status_waiting)
+    }
+
+    // The lines above report the native entries uploader only, so they can read HTTP 200 while
+    // the JVM-side treatment path has been rejected for days (issue #191).
+    val treatmentSummary: String? = when {
+        !isActive || mode != NightscoutMode.UPLOAD || !sendTreatments -> null
+        treatmentSync.failure == JournalSyncFailure.UPLOAD -> context.getString(
+            R.string.nightscout_status_treatments_upload_failing,
+            formatStatusMillis(treatmentSync.failingSince),
+            failureDetail(context, treatmentSync.failureCode)
+        )
+        treatmentSync.failure == JournalSyncFailure.DELETE -> context.getString(
+            R.string.nightscout_status_treatments_delete_failing,
+            formatStatusMillis(treatmentSync.failingSince),
+            failureDetail(context, treatmentSync.failureCode)
+        )
+        treatmentSync.lastSuccessAt > 0L -> context.getString(
+            R.string.nightscout_status_treatments_ok,
+            formatStatusMillis(treatmentSync.lastSuccessAt)
+        )
+        else -> context.getString(R.string.nightscout_status_treatments_never)
     }
 
     val masterSubtitle = when (mode) {
@@ -468,6 +504,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (treatmentSummary != null) {
+                                Text(
+                                    text = treatmentSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (treatmentSync.isFailing) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }

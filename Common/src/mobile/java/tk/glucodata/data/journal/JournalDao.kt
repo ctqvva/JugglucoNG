@@ -123,4 +123,10 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_pending_deletes WHERE entryId = :entryId")
     suspend fun clearPendingNightscoutDelete(entryId: Long)
+
+    @Query(
+        "UPDATE journal_pending_deletes SET attempts = :attempts, lastAttemptAt = :attemptedAt " +
+            "WHERE entryId = :entryId"
+    )
+    suspend fun recordFailedNightscoutDelete(entryId: Long, attempts: Int, attemptedAt: Long)
 }

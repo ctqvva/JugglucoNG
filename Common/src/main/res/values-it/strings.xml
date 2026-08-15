@@ -1399,6 +1399,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Ultima risposta: HTTP 413, payload troppo grande</string>
     <string name="nightscout_status_last_attempt">Ultimo tentativo: %1$s</string>
     <string name="nightscout_status_last_success">Ultimo successo: %1$s</string>
+    <string name="nightscout_status_treatments_never">Trattamenti: ancora nulla inviato</string>
+    <string name="nightscout_status_treatments_ok">Trattamenti: ultimo invio %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Trattamenti: invio non riuscito da %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Trattamenti: eliminazioni rifiutate da %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">nessuna risposta</string>
     <string name="nightscout_sync_actions_title">Azioni di sincronizzazione</string>
     <string name="expand_action">Espandi</string>
     <string name="collapse_action">Comprimi</string>

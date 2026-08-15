@@ -1229,6 +1229,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
+    <string name="nightscout_status_treatments_never">Эмчилгээ: одоогоор юу ч илгээгээгүй</string>
+    <string name="nightscout_status_treatments_ok">Эмчилгээ: сүүлд илгээсэн %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Эмчилгээ: %1$s-с хойш устгал татгалзсан (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">хариу алга</string>
     <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments)</string>
     <string name="nightscout_send_long_insulin">Удаан үйлдэлтэй инсулин илгээх</string>
     <string name="nightscout_send_long_insulin_desc">Nightscout руу суурь болон хэт удаан инсулиныг хамт илгээх</string>

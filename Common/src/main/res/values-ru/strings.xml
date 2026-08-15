@@ -1452,6 +1452,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Последний ответ: HTTP 413, слишком большой payload</string>
     <string name="nightscout_status_last_attempt">Последняя попытка: %1$s</string>
     <string name="nightscout_status_last_success">Последний успех: %1$s</string>
+    <string name="nightscout_status_treatments_never">Лечение: пока ничего не отправлено</string>
+    <string name="nightscout_status_treatments_ok">Лечение: последняя отправка %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Лечение: отправка не проходит с %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Лечение: удаления отклоняются с %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">нет ответа</string>
     <string name="nightscout_sync_actions_title">Действия синхронизации</string>
     <string name="expand_action">Развернуть</string>
     <string name="collapse_action">Свернуть</string>

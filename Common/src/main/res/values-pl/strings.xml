@@ -1444,6 +1444,11 @@
     <string name="nightscout_status_response_413">Ostatnia odpowiedź: HTTP 413, zbyt duży ładunek</string>
     <string name="nightscout_status_last_attempt">Ostatnia próba: %1$s</string>
     <string name="nightscout_status_last_success">Ostatni sukces: %1$s</string>
+    <string name="nightscout_status_treatments_never">Leczenia: nic jeszcze nie wysłano</string>
+    <string name="nightscout_status_treatments_ok">Leczenia: ostatnio wysłano %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Leczenia: wysyłanie nie działa od %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Leczenia: usunięcia odrzucane od %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">brak odpowiedzi</string>
     <string name="nightscout_sync_actions_title">Akcje synchronizacji</string>
     <string name="expand_action">Rozwiń</string>
     <string name="collapse_action">Zwiń</string>

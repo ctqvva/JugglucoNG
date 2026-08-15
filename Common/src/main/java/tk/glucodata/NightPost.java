@@ -83,6 +83,8 @@ import tk.glucodata.settings.LibreNumbers;
 public class NightPost  {
     private static final String LOG_ID="NightPost";
     private static final int ERROR_INVALID_URL = -2;
+    /** No HTTP status to report: the request never left, or no answer came back. */
+    public static final int ERROR_NO_RESPONSE = -1;
     private static final int UPLOAD_CONNECT_TIMEOUT_MS = 15_000;
     private static final int UPLOAD_READ_TIMEOUT_MS = 60_000;
     private static final int DEVICE_STATUS_CONNECT_TIMEOUT_MS = 3_000;
@@ -147,18 +149,31 @@ private static  String getstart(HttpURLConnection con,int max)  throws IOExcepti
 final  static String nothing=Applic.getContext().getString(R.string.triednothing).intern();
 final static String success=Applic.getContext().getString(R.string.success).intern();
 static private String uploadstatus=nothing;
+/**
+ * Called from native (uploadtreatment.cpp) via JNI, so the signature stays boolean.
+ * New callers should prefer {@link #deleteUrlCode}, which keeps the status apart
+ * from "already gone" and from a network failure worth retrying.
+ */
 @Keep
 static public boolean deleteUrl(String urlstring,String secret) {
+    final int code=deleteUrlCode(urlstring,secret);
+    return code==HTTP_OK || code==HttpURLConnection.HTTP_NO_CONTENT;
+    }
+
+/**
+ * DELETEs a Nightscout document and reports the HTTP status.
+ *
+ * @return the response code, {@link #ERROR_NO_RESPONSE} when the request could not be
+ *         made or answered at all (bad URL, missing token, network failure).
+ */
+@Keep
+static public int deleteUrlCode(String urlstring,String secret) {
     patch();
     uploadtime=System.currentTimeMillis();
     {if(doLog) {Log.i(LOG_ID,"deleteUrl "+urlstring);};};
     HttpURLConnection urlConnection=null;
     try {
         URL url = new URL(urlstring);
-        if(url==null)  {
-            uploadstatus="URL("+urlstring+")==null";
-            return false;
-            }
     uploadstatus=" start deleteURL "+urlstring;
         urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.setConnectTimeout(UPLOAD_CONNECT_TIMEOUT_MS);
@@ -173,7 +188,7 @@ static public boolean deleteUrl(String urlstring,String secret) {
                     true
             );
             if(auth.isEmpty()) {
-                return false;
+                return ERROR_NO_RESPONSE;
             }
             urlConnection.setRequestProperty("Authorization", auth);
         }
@@ -185,21 +200,19 @@ static public boolean deleteUrl(String urlstring,String secret) {
         if(code==HTTP_OK || code==HttpURLConnection.HTTP_NO_CONTENT) {
             {if(doLog) {Log.i(LOG_ID,"deleteUrl success "+res);};};
             uploadstatus=success;
-            return true;
             }
         else {
             String delerror="deleteUrl "+urlstring+" failure code="+code+'\n'+res;
             Log.e(LOG_ID,delerror);
             uploadstatus=delerror;
-            return false;
             }
-
+        return code;
         }
     catch(Throwable th) {
         String error ="deleteUrl error:\n"+stackline(th);
         uploadstatus=error;
         Log.e(LOG_ID,error);
-        return false;
+        return ERROR_NO_RESPONSE;
         }
     finally {
         if(urlConnection!=null)
