@@ -10,7 +10,8 @@ package tk.glucodata
  * Three steps, in order, matching what [DataSmoothing]'s settings describe:
  *  1. split the series wherever the data has a real hole or changes sensor, so
  *     nothing is averaged across a gap;
- *  2. run a centred moving average over each segment, both lanes independently;
+ *  2. run a centred mean in complete windows and a local linear fit where a
+ *     segment boundary clips the window, both lanes independently;
  *  3. optionally collapse each segment into one reading per interval.
  *
  * It is generic over the point type because the phone's chart carries a richer
@@ -56,8 +57,8 @@ object GlucoseSmoothing {
             val smoothed = if (segment.size < MIN_POINTS) {
                 segment
             } else {
-                val autoLane = movingAverage(segment, halfWindowMs, timestamp, value)
-                val rawLane = movingAverage(segment, halfWindowMs, timestamp, rawValue)
+                val autoLane = smoothLane(segment, halfWindowMs, timestamp, value)
+                val rawLane = smoothLane(segment, halfWindowMs, timestamp, rawValue)
                 segment.mapIndexed { index, point ->
                     withValues(point, autoLane[index], rawLane[index])
                 }
@@ -106,10 +107,15 @@ object GlucoseSmoothing {
     }
 
     /**
-     * Centred moving average over a time window, carrying holes through
-     * untouched so a missing lane does not get invented from its neighbours.
+     * Time-window smoother shared with [DataSmoothing]. Complete interior
+     * windows keep the centred mean. At a segment boundary, where that window
+     * is necessarily one-sided, a degree-1 local regression is evaluated at
+     * the point's own timestamp so linear movement is not shifted in time.
+     *
+     * Invalid samples do not contribute and an invalid point stays invalid.
+     * Degenerate timestamps fall back to the same mean used by the old filter.
      */
-    private fun <T> movingAverage(
+    internal fun <T> smoothLane(
         points: List<T>,
         halfWindowMs: Long,
         timestamp: (T) -> Long,
@@ -142,13 +148,74 @@ object GlucoseSmoothing {
                 windowEndExclusive++
             }
             val count = prefixCounts[windowEndExclusive] - prefixCounts[windowStart]
-            result[index] = if (count > 0) {
-                ((prefixSums[windowEndExclusive] - prefixSums[windowStart]) / count).toFloat()
+            if (count <= 0) {
+                result[index] = original
+                continue
+            }
+
+            val mean = (prefixSums[windowEndExclusive] - prefixSums[windowStart]) / count
+            val clippedByBoundary = minTime < timestamp(points.first()) ||
+                maxTime > timestamp(points.last())
+            result[index] = if (clippedByBoundary) {
+                boundaryLinearEstimate(
+                    points = points,
+                    windowStart = windowStart,
+                    windowEndExclusive = windowEndExclusive,
+                    at = at,
+                    selector = selector,
+                    timestamp = timestamp,
+                    fallbackMean = mean,
+                ).toFloat()
             } else {
-                original
+                mean.toFloat()
             }
         }
         return result
+    }
+
+    private fun <T> boundaryLinearEstimate(
+        points: List<T>,
+        windowStart: Int,
+        windowEndExclusive: Int,
+        at: Long,
+        selector: (T) -> Float,
+        timestamp: (T) -> Long,
+        fallbackMean: Double,
+    ): Double {
+        var count = 0
+        var sumX = 0.0
+        var sumY = 0.0
+        var sumXX = 0.0
+        var sumXY = 0.0
+        var measuredMin = Double.POSITIVE_INFINITY
+        var measuredMax = Double.NEGATIVE_INFINITY
+
+        for (index in windowStart until windowEndExclusive) {
+            val sample = points[index]
+            val sampleValue = selector(sample)
+            if (!sampleValue.isFinite() || sampleValue < MIN_VALID_VALUE) continue
+
+            val xMinutes = (timestamp(sample) - at) / 60_000.0
+            val y = sampleValue.toDouble()
+            count++
+            sumX += xMinutes
+            sumY += y
+            sumXX += xMinutes * xMinutes
+            sumXY += xMinutes * y
+            measuredMin = minOf(measuredMin, y)
+            measuredMax = maxOf(measuredMax, y)
+        }
+
+        val denominator = count * sumXX - sumX * sumX
+        if (count < 2 || denominator <= 1e-12) return fallbackMean
+
+        val slope = (count * sumXY - sumX * sumY) / denominator
+        val fittedAtPoint = (sumY - slope * sumX) / count
+        return if (fittedAtPoint.isFinite()) {
+            fittedAtPoint.coerceIn(measuredMin, measuredMax)
+        } else {
+            fallbackMean
+        }
     }
 
     /**
