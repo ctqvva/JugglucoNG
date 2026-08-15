@@ -544,16 +544,21 @@ internal fun metricSpec(
             tone = bandTone(summary.avgMgDl)
         )
 
-        StatsMetric.GMI -> spec(
-            value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
-            status = if (summary.gmiPercent <= 7.0f) targetWord else highWord,
-            meta = "$targetWord $targetValue",
-            tone = when {
-                summary.gmiPercent < 5.7f -> TirInRangeColor
-                summary.gmiPercent < 6.5f -> TirHighColor
-                else -> TirVeryHighColor
-            }
-        )
+        StatsMetric.GMI -> {
+            // Status word and tone both read [GmiBand], so the tile cannot call a
+            // number "target" and colour it like the worst one at the same time.
+            val band = GmiBand.of(summary.gmiPercent)
+            spec(
+                value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
+                status = if (band == GmiBand.AT_TARGET) targetWord else highWord,
+                meta = "$targetWord $targetValue",
+                tone = when (band) {
+                    GmiBand.AT_TARGET -> TirInRangeColor
+                    GmiBand.ABOVE_TARGET -> TirHighColor
+                    GmiBand.WELL_ABOVE_TARGET -> TirVeryHighColor
+                }
+            )
+        }
 
         StatsMetric.CV -> spec(
             value = String.format(Locale.getDefault(), "%.1f%%", summary.cvPercent),
