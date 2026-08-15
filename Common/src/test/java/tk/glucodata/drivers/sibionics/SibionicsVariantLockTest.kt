@@ -59,36 +59,18 @@ class SibionicsVariantLockTest {
     }
 
     @Test
-    fun noKeyGroupOrderingCanEverChangeWhatASensorIs() {
-        // Whatever key authenticated last, the locked type is unaffected by the order it produces.
-        SibionicsConstants.Variant.entries.forEach { hint ->
-            val order = SibionicsVariantLock.keyOrder(sibionics2, hint)
-            assertEquals(
-                sibionics2,
-                SibionicsVariantLock.variantForWrite(
-                    existingVariant = sibionics2,
-                    requestedVariant = order.first(),
-                    isUserChoice = false,
-                ),
-            )
+    fun theLockedTypeAlwaysNamesTheFirstKeyGroupTried() {
+        // 1.1.3 let a persisted hint lead instead. A Sibionics 2 pinned to the EU key
+        // authenticated on every connection, streamed nothing, and dropped the link every 30 s,
+        // because the accept response arrives whichever key was sent. Nothing may outrank the type.
+        SibionicsConstants.Variant.entries.forEach { locked ->
+            assertEquals(locked.id, locked, SibionicsVariantLock.keyOrder(locked).first())
         }
     }
 
     @Test
-    fun theHintLeadsSoAWorkingKeyCostsNoAuthTimeout() {
-        val order = SibionicsVariantLock.keyOrder(eu, sibionics2)
-        assertEquals(listOf(sibionics2, eu), order.take(2))
-    }
-
-    @Test
-    fun withoutAHintTheLockedVariantIsTriedFirst() {
-        assertEquals(sibionics2, SibionicsVariantLock.keyOrder(sibionics2, null).first())
-        assertEquals(eu, SibionicsVariantLock.keyOrder(eu, null).first())
-    }
-
-    @Test
     fun everyKeyGroupStaysReachableWithoutBeingTriedTwice() {
-        val order = SibionicsVariantLock.keyOrder(hematonix, sibionics2)
+        val order = SibionicsVariantLock.keyOrder(hematonix)
         assertEquals(
             order.size,
             order.distinctBy { it.appId + it.registrationKeyHex }.size,

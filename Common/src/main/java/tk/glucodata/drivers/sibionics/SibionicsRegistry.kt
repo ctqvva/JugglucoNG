@@ -751,18 +751,17 @@ object SibionicsRegistry {
     }
 
     /**
-     * Key group that last authenticated this sensor. Only an ordering hint for the next
-     * connection — never identity. See [SibionicsVariantLock].
+     * Drop the "key group that last authenticated" hint 1.1.3 recorded. The accept response is
+     * decrypted with the fixed master key and arrives whichever key was sent, so the hint could
+     * pin a sensor to a key its firmware never accepts — authenticating, streaming nothing, and
+     * dropping the link every 30 s. The type decides the key now. See [SibionicsVariantLock].
      */
-    fun loadAuthKeyHint(context: Context, sensorId: String): SibionicsConstants.Variant? {
-        val raw = prefs(context).getString(PREF_AUTH_KEY_HINT_PREFIX + sensorId, null)
-            ?.takeIf { it.isNotBlank() }
-            ?: return null
-        return SibionicsConstants.Variant.entries.firstOrNull { it.id == raw }
-    }
-
-    fun saveAuthKeyHint(context: Context, sensorId: String, variant: SibionicsConstants.Variant) {
-        prefs(context).edit().putString(PREF_AUTH_KEY_HINT_PREFIX + sensorId, variant.id).apply()
+    fun clearAuthKeyHint(context: Context, sensorId: String) {
+        val prefs = prefs(context)
+        val key = PREF_AUTH_KEY_HINT_PREFIX + sensorId
+        if (!prefs.contains(key)) return
+        Log.i(SibionicsConstants.TAG, "dropping stale auth key hint for $sensorId")
+        prefs.edit().remove(key).apply()
     }
 
     fun loadShortCode(context: Context, sensorId: String): String =

@@ -164,7 +164,6 @@ class SibionicsBleManager(
     @Volatile private var sessionKey: ByteArray? = null
     @Volatile private var keyGroupIndex: Int = 0
     @Volatile private var authCandidateVariant: SibionicsConstants.Variant? = null
-    @Volatile private var authKeyHint: SibionicsConstants.Variant? = null
     @Volatile private var connectionKeyGroups: List<SibionicsConstants.Variant> = emptyList()
     @Volatile private var loggedChineseProtocolMismatch: Boolean = false
     @Volatile private var pendingResetCommand: Boolean = false
@@ -282,7 +281,7 @@ class SibionicsBleManager(
         }
         // Setup's record decides this, for the whole life of the sensor.
         variant = SibionicsRegistry.loadVariant(context, SerialNumber)
-        authKeyHint = SibionicsRegistry.loadAuthKeyHint(context, SerialNumber)
+        SibionicsRegistry.clearAuthKeyHint(context, SerialNumber)
         protocolMode = SibionicsConstants.initialProtocolMode(
             variant,
             SibionicsRegistry.loadProtocolMode(context, SerialNumber),
@@ -1020,20 +1019,19 @@ class SibionicsBleManager(
                 }
                 clearV120StepTimeouts()
                 protocolMode = SibionicsConstants.ProtocolMode.V120
-                // The ACK carries nothing identifying the key that unlocked the sensor, so this is
-                // an ordering hint for the next connection and nothing more: the type stays what
-                // setup recorded. See [SibionicsVariantLock].
-                val authenticatedVariant = authCandidateVariant ?: variant
-                authKeyHint = authenticatedVariant
                 Applic.app?.let { context ->
                     SibionicsRegistry.saveProtocolMode(context, SerialNumber, protocolMode)
-                    SibionicsRegistry.saveAuthKeyHint(context, SerialNumber, authenticatedVariant)
                 }
+                // This ACK is decrypted with the fixed master key, so it reads the same whichever
+                // registration key was sent: it is not evidence that the key was right, let alone
+                // that the sensor is something other than what setup recorded. A sensor that only
+                // gets here on a fallback group will stream nothing and drop the link.
+                val authenticatedVariant = authCandidateVariant ?: variant
                 if (authenticatedVariant != variant) {
                     Log.w(
                         SibionicsConstants.TAG,
-                        "auth accepted on the ${authenticatedVariant.id} key group (attempt " +
-                            "$keyGroupIndex); sensor stays ${variant.id} serial=$SerialNumber",
+                        "auth ACK on the fallback ${authenticatedVariant.id} key group (attempt " +
+                            "$keyGroupIndex); ${variant.id} did not answer serial=$SerialNumber",
                     )
                 }
                 synchronized(algorithmLock) {
@@ -1141,7 +1139,7 @@ class SibionicsBleManager(
      */
     private fun keyGroups(): List<SibionicsConstants.Variant> =
         connectionKeyGroups.ifEmpty {
-            SibionicsVariantLock.keyOrder(variant, authKeyHint)
+            SibionicsVariantLock.keyOrder(variant)
                 .also { connectionKeyGroups = it }
         }
 
