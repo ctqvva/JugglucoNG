@@ -416,7 +416,11 @@ object CalibrationManager {
         val stored = resolveCalibrationContext(isRawMode, sensorId) ?: return DoubleArray(0)
         val baselineKey = IntegratedBaselineCacheKey(sensorId, isRawMode, Applic.unit)
         val baseline = synchronized(integratedBaselineCache) { integratedBaselineCache[baselineKey] }
-        val context = if (baseline.isNullOrEmpty()) stored else rebaseIntegratedContext(stored, baseline)
+        val context = applyRecordedStock(
+            if (baseline.isNullOrEmpty()) stored else rebaseIntegratedContext(stored, baseline),
+            isRawMode,
+            sensorId,
+        )
         val points = context.allPoints
             .filter { it.isEnabled }
             .sortedBy { it.timestamp }
@@ -1202,7 +1206,8 @@ object CalibrationManager {
         }
     }
 
-    suspend fun addCalibration(timestamp: Long, sensorValue: Float, sensorValueRaw: Float, userValue: Float, sensorId: String? = null, isRawMode: Boolean = false): Boolean {
+    @JvmOverloads
+    suspend fun addCalibration(timestamp: Long, sensorValue: Float, sensorValueRaw: Float, userValue: Float, sensorId: String? = null, isRawMode: Boolean = false, sensorValueStock: Float = 0f): Boolean {
         val resolvedSensorId = resolveSensorId(sensorId)
         if (resolvedSensorId.isBlank()) {
             Log.e(TAG, "Rejected calibration without a sensor ID at $timestamp")
@@ -1214,14 +1219,15 @@ object CalibrationManager {
             sensorValue = sensorValue,
             sensorValueRaw = sensorValueRaw,
             userValue = userValue,
-            isRawMode = isRawMode
+            isRawMode = isRawMode,
+            sensorValueStock = sensorValueStock.takeIf { it.isFinite() && it > 0f } ?: 0f
         )
         withContext(Dispatchers.IO) { dao.insert(entity) }
         deferGlucoseAlertsUntilNextReading()
         loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
-        Log.i(TAG, "Added calibration: sensor=$resolvedSensorId auto=$sensorValue raw=$sensorValueRaw user=$userValue isRaw=$isRawMode at $timestamp")
+        Log.i(TAG, "Added calibration: sensor=$resolvedSensorId auto=$sensorValue raw=$sensorValueRaw stock=${entity.sensorValueStock} user=$userValue isRaw=$isRawMode at $timestamp")
         return true
     }
 
@@ -1293,20 +1299,42 @@ object CalibrationManager {
      * see the sensor's current lanes, so the values are taken here — the same
      * ones the phone's own calibration sheet would use.
      */
-    fun addCalibrationFromWearBlocking(userValueMgdl: Float): Boolean = kotlinx.coroutines.runBlocking {
+    @JvmOverloads
+    fun addCalibrationFromWearBlocking(
+        userValueMgdl: Float,
+        sensorStockMgdl: Float = Float.NaN,
+    ): Boolean = kotlinx.coroutines.runBlocking {
         val snapshot = tk.glucodata.CurrentDisplaySource.resolveCurrentForExchange()
             ?: return@runBlocking false
         val autoValue = snapshot.autoValue.takeIf { it.isFinite() && it > 0f }
             ?: snapshot.primaryValue.takeIf { it.isFinite() && it > 0f }
             ?: return@runBlocking false
         val rawValue = snapshot.rawValue.takeIf { it.isFinite() && it > 0f } ?: autoValue
+        val now = System.currentTimeMillis()
         addCalibration(
-            timestamp = System.currentTimeMillis(),
+            timestamp = now,
             sensorValue = autoValue,
             sensorValueRaw = rawValue,
             userValue = storedValueFromMgdl(userValueMgdl),
             sensorId = snapshot.sensorId,
+            sensorValueStock = storedStockValue(sensorStockMgdl, now, snapshot.sensorId),
         )
+    }
+
+    /**
+     * The stock value to record on an anchor, in the display unit.
+     *
+     * Prefers what the watch sent — only the device that computed the reading
+     * knows it — and otherwise asks this device, which knows it when the phone
+     * is the one holding the sensor. 0 where neither does, which leaves the fit
+     * to recover it from the source history exactly as before.
+     */
+    private fun storedStockValue(sensorStockMgdl: Float, timestamp: Long, sensorId: String?): Float {
+        if (sensorStockMgdl.isFinite() && sensorStockMgdl > 0f) return storedValueFromMgdl(sensorStockMgdl)
+        val local = runCatching {
+            tk.glucodata.IntegratedStockBaseline.stockAt(sensorId, timestamp)
+        }.getOrDefault(Float.NaN)
+        return local.takeIf { it.isFinite() && it > 0f } ?: 0f
     }
 
     /**
@@ -1314,9 +1342,15 @@ object CalibrationManager {
      * current one, the way the phone's sheet uses the row you tapped: the lanes
      * come from the history point nearest that time.
      */
-    fun addCalibrationFromWearAtBlocking(timestampMs: Long, userValueMgdl: Float): Boolean =
+    fun addCalibrationFromWearAtBlocking(
+        timestampMs: Long,
+        userValueMgdl: Float,
+        sensorStockMgdl: Float,
+    ): Boolean =
         kotlinx.coroutines.runBlocking {
-            if (timestampMs <= 0L) return@runBlocking addCalibrationFromWearBlocking(userValueMgdl)
+            if (timestampMs <= 0L) {
+                return@runBlocking addCalibrationFromWearBlocking(userValueMgdl, sensorStockMgdl)
+            }
             val sensorId = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runBlocking false
             val isMmol = tk.glucodata.Applic.unit == 1
             val window = 15L * 60L * 1000L
@@ -1338,6 +1372,7 @@ object CalibrationManager {
                 sensorValueRaw = rawValue,
                 userValue = storedValueFromMgdl(userValueMgdl),
                 sensorId = sensorId,
+                sensorValueStock = storedStockValue(sensorStockMgdl, nearest.timestamp, sensorId),
             )
         }
 
@@ -1586,7 +1621,7 @@ object CalibrationManager {
             if (baseline.isNotEmpty()) synchronized(integratedBaselineCache) {
                 integratedBaselineCache[baselineKey] = baseline
             }
-            rebaseIntegratedContext(storedContext, samples).also { rebased ->
+            applyRecordedStock(rebaseIntegratedContext(storedContext, samples), isRawMode, resolvedSensor).also { rebased ->
                 synchronized(integratedContextCache) {
                     integratedContextCache[cacheKey] = rebased
                 }
@@ -1594,8 +1629,14 @@ object CalibrationManager {
         } else {
             synchronized(integratedContextCache) { integratedContextCache[cacheKey] }
                 ?: synchronized(integratedBaselineCache) { integratedBaselineCache[baselineKey] }
-                    ?.let { baseline -> rebaseIntegratedContext(storedContext, baseline) }
-                ?: storedContext
+                    ?.let { baseline ->
+                        applyRecordedStock(
+                            rebaseIntegratedContext(storedContext, baseline),
+                            isRawMode,
+                            resolvedSensor,
+                        )
+                    }
+                ?: applyRecordedStock(storedContext, isRawMode, resolvedSensor)
         }
         return evaluateCalibratedSeries(samples, isRawMode, emitDiagnostics = false, context = context)
     }
@@ -1707,6 +1748,37 @@ object CalibrationManager {
         }
 
         return results
+    }
+
+    /**
+     * Overrides an anchor's x with the stock value recorded when it was taken.
+     *
+     * This wins over [rebaseIntegratedContext]'s history match, which can only
+     * find a stock value on the device that produced the reading — a calibration
+     * taken while the watch held the sensor has no match on the phone, and one
+     * taken on the phone loses its match once the source history has rolled past
+     * it. A recorded value is the same number the match would have found, and it
+     * does not expire.
+     */
+    private fun applyRecordedStock(
+        context: CalibrationContext,
+        isRawMode: Boolean,
+        sensorId: String,
+    ): CalibrationContext {
+        val normalizedSensorId = normalizeSensorId(sensorId)
+        val recorded = _calibrations.value
+            .asSequence()
+            .filter { matchesMode(it, isRawMode) && sensorMatches(it.sensorId, normalizedSensorId) }
+            .filter { it.sensorValueStock.isFinite() && it.sensorValueStock > 0f }
+            .associate { it.timestamp to it.sensorValueStock.toDouble() }
+        if (recorded.isEmpty()) return context
+        val points = context.allPoints.map { point ->
+            recorded[point.timestamp]?.let { point.copy(x = it) } ?: point
+        }
+        return context.copy(
+            allPoints = points,
+            earliestPoint = points.filter { it.isEnabled }.minByOrNull { it.timestamp },
+        )
     }
 
     private fun rebaseIntegratedContext(

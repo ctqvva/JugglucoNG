@@ -208,6 +208,11 @@ object SensorOwnershipRuntime {
      */
     @Volatile private var peerDeliverable = true
 
+    /** Sensors already reported as having no local driver, so it is said once. */
+    private val driverlessReported = java.util.Collections.newSetFromMap(
+        ConcurrentHashMap<String, Boolean>(),
+    )
+
     /** When discovery first came back empty; 0 while the peer is being found. */
     @Volatile private var peerUndiscoverableSince = 0L
 
@@ -705,10 +710,15 @@ object SensorOwnershipRuntime {
         val gatt = findGatt(serial)
         if (gatt == null) {
             // Nothing here can read this sensor: on a watch that means Bluetooth
-            // never came up or the sensor's record never arrived.
-            Log.w(LOG_ID, "should be reading $serial but there is no local driver for it")
+            // never came up or the sensor's record never arrived. Said once per
+            // sensor — every reconciliation hits this for a sensor only the peer
+            // has a driver for, and it filled a trace with 205 copies.
+            if (driverlessReported.add(key(serial))) {
+                Log.w(LOG_ID, "should be reading $serial but there is no local driver for it")
+            }
             return
         }
+        driverlessReported.remove(key(serial))
         runCatching {
             gatt.setPause(false)
             gatt.reconnect(System.currentTimeMillis())

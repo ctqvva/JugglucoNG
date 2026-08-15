@@ -150,18 +150,27 @@ object CalibrationAccess {
                 "addCalibrationFromWearAtBlocking",
                 Long::class.javaPrimitiveType,
                 Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
             )
         }.getOrNull()
     }
 
     /**
      * Record a fingerstick calibration. [timestampMs] picks the reading it is
-     * measured against; 0 means the current one.
+     * measured against; 0 means the current one. [sensorStockMgdl] is the
+     * sensor's own uncorrected value there, which only the device that produced
+     * the reading knows; NaN means unknown and leaves the phone to recover it
+     * from its own history as before.
      */
     @JvmStatic
     @JvmOverloads
-    fun addCalibration(userValueMgdl: Float, timestampMs: Long = 0L): Boolean = runCatching {
-        addCalibrationMethod?.invoke(instance, timestampMs, userValueMgdl) as? Boolean ?: false
+    fun addCalibration(
+        userValueMgdl: Float,
+        timestampMs: Long = 0L,
+        sensorStockMgdl: Float = Float.NaN,
+    ): Boolean = runCatching {
+        addCalibrationMethod?.invoke(instance, timestampMs, userValueMgdl, sensorStockMgdl) as? Boolean
+            ?: false
     }.getOrDefault(false)
 
     /** Delete the calibration recorded at [timestamp]. */

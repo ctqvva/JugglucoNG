@@ -1386,6 +1386,10 @@ class SibionicsBleManager(
         } else {
             stockMmol * SibionicsConstants.MGDL_PER_MMOLL
         }
+        // Whichever device computes the reading is the only one that can say what
+        // the stock value behind it was; a calibration taken against it needs
+        // that number and cannot recover it later.
+        tk.glucodata.IntegratedStockBaseline.record(SerialNumber, eventMs, input)
         val calibrated = tk.glucodata.CalibrationAccess.getIntegratedCalibratedSeries(
             values = floatArrayOf(input),
             timestamps = longArrayOf(eventMs),

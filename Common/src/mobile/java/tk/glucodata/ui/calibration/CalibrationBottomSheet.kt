@@ -531,7 +531,15 @@ fun CalibrationBottomSheet(
                                     sensorValueRaw = selectedRawValue,
                                     userValue = userValue,
                                     sensorId = currentSensor,
-                                    isRawMode = isRawMode
+                                    isRawMode = isRawMode,
+                                    // What the sensor's own model said before the
+                                    // driver folded any correction in. Recorded now
+                                    // because it is only recoverable while this
+                                    // device's source history still reaches back to
+                                    // the reading.
+                                    sensorValueStock = tk.glucodata.IntegratedStockBaseline
+                                        .stockAt(currentSensor, selectedTimestamp)
+                                        .takeIf { it.isFinite() && it > 0f } ?: 0f
                                 )
                                 onDismiss()
                                 triggerRewriteOverwrittenHistory(selectedTimestamp)

@@ -10,8 +10,15 @@ import tk.glucodata.Log.doLog
  * two surfaces offer the same controls.
  *
  * Wire format: [u8 command] followed, for the per-entry commands, by the
- * timestamp of the calibration being acted on (the watch never sees Room ids)
- * and — for [EDIT] — the new fingerstick value in mg/dL.
+ * timestamp of the calibration being acted on (the watch never sees Room ids),
+ * the fingerstick value in mg/dL for [ADD] and [EDIT], and the sensor's own
+ * uncorrected value at that timestamp where this device produced the reading.
+ *
+ * That last field is what lets a calibration taken on the watch be fitted at
+ * all. For a driver that folds the correction into what it stores, the model
+ * runs on stock values, and the phone recovers them by matching against its own
+ * replayed source history — which stops growing the moment the watch takes the
+ * sensor. Only the device that computed the reading knows it, so it sends it.
  */
 object WearCalibrationCommand {
     private const val LOG_ID = "WearCalibrationCmd"
@@ -35,16 +42,39 @@ object WearCalibrationCommand {
     fun send(command: Int, timestamp: Long = 0L, userValueMgdl: Float = Float.NaN): Boolean {
         if (!Applic.isWearable) return false
         return runCatching {
-            val buf = ByteBuffer.allocate(13)
+            val stockMgdl = stockValueMgdlAt(timestamp)
+            val buf = ByteBuffer.allocate(17)
             buf.put(command.toByte())
             buf.putLong(timestamp)
             buf.putFloat(userValueMgdl)
+            buf.putFloat(stockMgdl)
             val sent = MessageSender.sendSyncMessage(MessageSender.CALIBRATION_CMD_PATH, buf.array())
-            if (doLog) Log.i(LOG_ID, "calibration command $command ts=$timestamp value=$userValueMgdl sent=$sent")
+            if (doLog) {
+                Log.i(
+                    LOG_ID,
+                    "calibration command $command ts=$timestamp value=$userValueMgdl stock=$stockMgdl sent=$sent",
+                )
+            }
             if (!sent) Log.w(LOG_ID, "no wear transport for calibration command $command")
             sent
         }.onFailure { Log.stack(LOG_ID, "send($command)", it) }.getOrDefault(false)
     }
+
+    /**
+     * The stock value this device computed for [timestamp], in mg/dL, or NaN
+     * when it did not produce that reading — in which case the phone falls back
+     * to matching against its own history, as before.
+     */
+    private fun stockValueMgdlAt(timestamp: Long): Float {
+        if (timestamp <= 0L) return Float.NaN
+        val sensorId = runCatching { SensorIdentity.resolveMainSensor() }.getOrNull() ?: return Float.NaN
+        val stock = IntegratedStockBaseline.stockAt(sensorId, timestamp)
+        if (!stock.isFinite() || stock <= 0f) return Float.NaN
+        // Stored calibrations are in the display unit; the wire is canonical.
+        return if (runCatching { Applic.unit == 1 }.getOrDefault(false)) stock * MGDL_PER_MMOL else stock
+    }
+
+    private const val MGDL_PER_MMOL = 18.0182f
 
     /** Phone side: execute a command relayed from the watch. */
     @JvmStatic
@@ -54,6 +84,8 @@ object WearCalibrationCommand {
         val command = buf.get().toInt()
         val timestamp = if (buf.remaining() >= 8) buf.long else 0L
         val userValue = if (buf.remaining() >= 4) buf.float else Float.NaN
+        // Absent from an older watch's message; unknown, not zero.
+        val stockValue = if (buf.remaining() >= 4) buf.float else Float.NaN
 
         val applied = runCatching {
             when (command) {
@@ -62,7 +94,7 @@ object WearCalibrationCommand {
                 CLEAR -> CalibrationAccess.clearAll()
                 DELETE -> timestamp > 0L && CalibrationAccess.deleteCalibrationAt(timestamp)
                 ADD -> GlucoseValuePlausibility.isPlausibleMgdl(userValue) &&
-                    CalibrationAccess.addCalibration(userValue, timestamp)
+                    CalibrationAccess.addCalibration(userValue, timestamp, stockValue)
                 EDIT -> timestamp > 0L &&
                     GlucoseValuePlausibility.isPlausibleMgdl(userValue) &&
                     CalibrationAccess.updateCalibrationUserValue(timestamp, userValue)
@@ -70,7 +102,7 @@ object WearCalibrationCommand {
             }
         }.onFailure { Log.stack(LOG_ID, "onCommand($command)", it) }.getOrDefault(false)
 
-        Log.i(LOG_ID, "calibration command $command ts=$timestamp applied=$applied")
+        Log.i(LOG_ID, "calibration command $command ts=$timestamp stock=$stockValue applied=$applied")
         if (applied) {
             UiRefreshBus.requestDataRefresh()
             WearSync2.onCalibrationChanged()
