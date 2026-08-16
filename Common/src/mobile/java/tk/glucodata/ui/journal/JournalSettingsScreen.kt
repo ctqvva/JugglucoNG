@@ -64,7 +64,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -131,6 +130,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StyledSwitch
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlinx.coroutines.Dispatchers
@@ -1323,7 +1323,7 @@ private fun JournalFoodSheet(
         buildFoodInput(draft)?.let(onSave)
     }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() }
@@ -1703,7 +1703,7 @@ private fun JournalInsulinPresetSheet(
         }
     }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = { dismissSheet() },
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() }
