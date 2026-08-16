@@ -22,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.components.StableModalBottomSheet
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tk.glucodata.InsulinPenManager
 import tk.glucodata.InsulinPenScanBus
@@ -72,7 +72,7 @@ fun InsulinPenScanSheetHost() {
         )
     }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = { InsulinPenScanBus.clear() },
         sheetState = sheetState,
     ) {
