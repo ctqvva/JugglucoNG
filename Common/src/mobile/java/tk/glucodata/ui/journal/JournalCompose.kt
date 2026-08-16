@@ -483,7 +483,8 @@ fun JournalEntrySheet(
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        contentKey = draft.type,
     ) {
         LazyColumn(
             modifier = Modifier
