@@ -27,8 +27,9 @@ import androidx.compose.ui.unit.dp
  * the sheet appear to resist or jitter.
  *
  * Short sheets retain their intrinsic height. Once a sheet has measured at the viewport height,
- * it remains viewport-height until it leaves composition, keeping its expanded anchor stable while
- * nested scrolling continues to work normally.
+ * it remains viewport-height for the current [contentKey], keeping its expanded anchor stable while
+ * nested scrolling continues to work normally. Change [contentKey] when one sheet instance swaps
+ * between layouts with fundamentally different intrinsic heights.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,9 +47,10 @@ fun StableModalBottomSheet(
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.windowInsets },
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
+    contentKey: Any? = Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val heightPolicy = remember(sheetState) { StableSheetHeightPolicy() }
+    val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
