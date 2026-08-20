@@ -216,5 +216,5 @@ private fun DoseRow(dose: PenDose, checked: Boolean, onCheckedChange: (Boolean) 
     }
 }
 
-private fun formatUnits(units: Float): String =
+internal fun formatUnits(units: Float): String =
     if (units % 1f == 0f) units.toInt().toString() else String.format("%.1f", units)

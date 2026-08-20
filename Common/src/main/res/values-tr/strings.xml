@@ -2484,6 +2484,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_new_doses">%1$d yeni doz</string>
     <string name="insulin_pen_no_new_doses">Kalem okundu. Yeni doz yok.</string>
     <string name="insulin_pen_duplicates_removed">Önceki okumalardan kalan %1$d yinelenen doz kaldırıldı</string>
+    <string name="insulin_pen_duplicates_found">Önceki okumalardan kalan %1$d yinelenen doz var. Kalem ayarlarından kaldırabilirsin.</string>
+    <string name="insulin_pen_cleanup">Yinelenen dozları kaldır</string>
+    <string name="insulin_pen_cleanup_count">%1$d yinelenen dozu kaldır</string>
+    <string name="insulin_pen_cleanup_desc">Önceki sürümler her okumada dozu yeniden yazıyordu. Kalemin kendi kaydı bunların tek enjeksiyon olduğunu söylüyor.</string>
+    <string name="insulin_pen_cleanup_none">Kaldırılacak bir şey yok. Güncellemeden beri okunmadıysa kalemi bir kez oku.</string>
+    <string name="insulin_pen_cleanup_confirm">%1$d yinelenen doz kaldırılsın mı?</string>
     <string name="insulin_pen_doses_label">Dozlar</string>
     <string name="insulin_pen_select_all">Tümünü seç</string>
     <string name="insulin_pen_select_none">Temizle</string>

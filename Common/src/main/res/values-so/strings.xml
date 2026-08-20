@@ -2656,6 +2656,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_new_doses">%1$d qiyaas oo cusub</string>
     <string name="insulin_pen_no_new_doses">Qalinka waa la akhriyay. Qiyaas cusub ma jiro.</string>
     <string name="insulin_pen_duplicates_removed">Waa la tirtiray %1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore</string>
+    <string name="insulin_pen_duplicates_found">%1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore. Kaga saar goobaha qalinka.</string>
+    <string name="insulin_pen_cleanup">Ka saar qiyaasaha laba jibbaaran</string>
+    <string name="insulin_pen_cleanup_count">Ka saar %1$d qiyaasood oo laba jibbaaran</string>
+    <string name="insulin_pen_cleanup_desc">Noocyadii hore mar kasta oo la akhriyo ayay qiyaas dib u qoraan. Diiwaanka qalanka wuxuu sheegayaa in kuwani ay ahaayeen irbado kali ah.</string>
+    <string name="insulin_pen_cleanup_none">Waxba lagama saarayo. Hal mar akhri qalinka haddii aan la akhrin tan iyo cusboonaysiintii.</string>
+    <string name="insulin_pen_cleanup_confirm">Ma ka saaraa %1$d qiyaasood oo laba jibbaaran?</string>
     <string name="insulin_pen_doses_label">Qiyaasaha</string>
     <string name="insulin_pen_select_all">Dhammaan dooro</string>
     <string name="insulin_pen_select_none">Nadiifi</string>

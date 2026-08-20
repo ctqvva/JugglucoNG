@@ -2495,6 +2495,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_new_doses">%1$d neue Dosen</string>
     <string name="insulin_pen_no_new_doses">Pen gelesen. Keine neuen Dosen.</string>
     <string name="insulin_pen_duplicates_removed">%1$d doppelte Dosen aus früheren Scans entfernt</string>
+    <string name="insulin_pen_duplicates_found">%1$d doppelte Dosen aus früheren Scans. Entfernen lassen sie sich in den Pen-Einstellungen.</string>
+    <string name="insulin_pen_cleanup">Doppelte Dosen entfernen</string>
+    <string name="insulin_pen_cleanup_count">%1$d doppelte Dosen entfernen</string>
+    <string name="insulin_pen_cleanup_desc">Frühere Versionen haben eine Dosis bei jedem Scan erneut geschrieben. Das Protokoll des Pens sagt, dass es einzelne Injektionen waren.</string>
+    <string name="insulin_pen_cleanup_none">Nichts zu entfernen. Lies den Pen einmal aus, falls das seit dem Update nicht passiert ist.</string>
+    <string name="insulin_pen_cleanup_confirm">%1$d doppelte Dosen entfernen?</string>
     <string name="insulin_pen_doses_label">Dosen</string>
     <string name="insulin_pen_select_all">Alle auswählen</string>
     <string name="insulin_pen_select_none">Leeren</string>

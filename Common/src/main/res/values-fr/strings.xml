@@ -2462,6 +2462,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_new_doses">%1$d nouvelles doses</string>
     <string name="insulin_pen_no_new_doses">Stylo lu. Aucune nouvelle dose.</string>
     <string name="insulin_pen_duplicates_removed">%1$d doses en double issues de scans précédents supprimées</string>
+    <string name="insulin_pen_duplicates_found">%1$d doses en double issues de scans précédents. Supprimez-les dans les réglages du stylo.</string>
+    <string name="insulin_pen_cleanup">Supprimer les doses en double</string>
+    <string name="insulin_pen_cleanup_count">Supprimer %1$d doses en double</string>
+    <string name="insulin_pen_cleanup_desc">Les versions précédentes réécrivaient une dose à chaque scan. Le journal du stylo indique qu’il s’agissait d’injections uniques.</string>
+    <string name="insulin_pen_cleanup_none">Rien à supprimer. Lisez le stylo une fois s’il ne l’a pas été depuis la mise à jour.</string>
+    <string name="insulin_pen_cleanup_confirm">Supprimer %1$d doses en double ?</string>
     <string name="insulin_pen_doses_label">Doses</string>
     <string name="insulin_pen_select_all">Tout sélectionner</string>
     <string name="insulin_pen_select_none">Effacer</string>
