@@ -83,11 +83,53 @@ import tk.glucodata.settings.LibreNumbers;
 public class NightPost  {
     private static final String LOG_ID="NightPost";
     private static final int ERROR_INVALID_URL = -2;
+    /** Ancillary upload skipped: no token cached and none could be fetched. */
+    private static final int ERROR_NO_TOKEN = -3;
     private static final int UPLOAD_CONNECT_TIMEOUT_MS = 15_000;
     private static final int UPLOAD_READ_TIMEOUT_MS = 60_000;
     private static final int DEVICE_STATUS_CONNECT_TIMEOUT_MS = 3_000;
     private static final int DEVICE_STATUS_READ_TIMEOUT_MS = 5_000;
+    private static final int ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS = 10_000;
+    private static final int ANCILLARY_TOKEN_READ_TIMEOUT_MS = 15_000;
     private static final AtomicBoolean deviceStatusUploadInFlight = new AtomicBoolean(false);
+    /**
+     * Outcome of the IOB devicestatus upload, for the settings screen. The status card
+     * otherwise only reports the native entries uploader, so a dead devicestatus path was
+     * invisible outside logcat - and a "no token" skip must not read like a server
+     * rejection. The battery devicestatus shares the queue but not this state: it is not
+     * what the screen names.
+     */
+    public static final int DEVICE_STATUS_NONE=0;
+    public static final int DEVICE_STATUS_ACCEPTED=1;
+    public static final int DEVICE_STATUS_NO_TOKEN=2;
+    public static final int DEVICE_STATUS_REJECTED=3;
+    /** Outcome and its HTTP code travel together, so the screen cannot pair one with the other's code. */
+    private record IobDeviceStatusState(int outcome,int code) {}
+    private static volatile IobDeviceStatusState iobDeviceStatus=new IobDeviceStatusState(DEVICE_STATUS_NONE,0);
+
+    private static void setIobDeviceStatusOutcome(int code) {
+        final int outcome;
+        if(code==HTTP_OK || code==HttpURLConnection.HTTP_CREATED)
+            outcome=DEVICE_STATUS_ACCEPTED;
+        else if(code==ERROR_NO_TOKEN)
+            outcome=DEVICE_STATUS_NO_TOKEN;
+        else
+            outcome=DEVICE_STATUS_REJECTED;
+        iobDeviceStatus=new IobDeviceStatusState(outcome,code);
+    }
+
+    /** Forgets the last outcome, so corrected settings do not keep showing the old failure. */
+    public static void clearDeviceStatusOutcome() {
+        iobDeviceStatus=new IobDeviceStatusState(DEVICE_STATUS_NONE,0);
+    }
+
+    public static int getDeviceStatusOutcome() {
+        return iobDeviceStatus.outcome();
+    }
+
+    public static int getDeviceStatusLastCode() {
+        return iobDeviceStatus.code();
+    }
     private static final ThreadPoolExecutor deviceStatusExecutor = new ThreadPoolExecutor(
             0,
             1,
@@ -285,6 +327,29 @@ private static synchronized String getCachedToken(long now) {
     return now<expire ? token : "";
     }
 
+private static long ancillaryTokenAttemptTime=0L;
+
+/**
+ * Token for the ancillary (device-status) path: the cached one when still valid,
+ * otherwise at most one fetch per {@link NightscoutIobDeviceStatus#TOKEN_RETRY_MILLIS},
+ * quiet on the visible upload status.
+ *
+ * <p>The fetch does not inherit the caller's device-status timeouts. Those are tight on
+ * purpose (a late battery or IOB document is worthless), but a Nightscout instance that
+ * has to wake up first would then miss every token request and the cache would stay
+ * empty forever, which is the failure this path exists to end. They are still well under
+ * the primary uploader's, so a slow auth endpoint cannot park the class lock for a minute.
+ */
+private static synchronized String getAncillaryToken(long now) {
+    final String cached=getCachedToken(now);
+    if(!cached.isEmpty())
+        return cached;
+    if(!NightscoutIobDeviceStatus.tokenRetryDue(now, ancillaryTokenAttemptTime))
+        return "";
+    ancillaryTokenAttemptTime=now;
+    return gettoken(now,ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS,ANCILLARY_TOKEN_READ_TIMEOUT_MS,false);
+    }
+
 private static long uploadtime=System.currentTimeMillis();
 
 /**
@@ -407,7 +472,7 @@ static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
         final String document=NightscoutIobDeviceStatus.buildDocument(now,values[0],values[1],values[2]);
         if(document==null)
             return true;
-        if(uploadDeviceStatusAsync(httpurl,document.getBytes(java.nio.charset.StandardCharsets.UTF_8),secret,false)) {
+        if(uploadDeviceStatusAsync(httpurl,document.getBytes(java.nio.charset.StandardCharsets.UTF_8),secret,false,true)) {
             iobStatusUploadTime=now;
             iobStatusLastIob=values[0];
             iobStatusLastEiob=values[1];
@@ -440,6 +505,8 @@ static public int upload(String httpurl,byte[] postdata,String secret,boolean pu
  *
  * <p>The native caller throttles attempts. This additional in-flight gate prevents a slow
  * endpoint from accumulating work if a future caller bypasses that throttle.
+ *
+ * <p>Called from native with this exact signature, so it stays the battery entry point.
  */
 @Keep
 static public boolean uploadDeviceStatusAsync(
@@ -447,6 +514,22 @@ static public boolean uploadDeviceStatusAsync(
         byte[] postdata,
         String secret,
         boolean put
+) {
+    return uploadDeviceStatusAsync(httpurl,postdata,secret,put,false);
+    }
+
+/**
+ * @param iobChannel true for the journal IOB document, false for the uploader battery.
+ *        Both share this queue, but only the IOB channel reports its outcome to the
+ *        settings screen: the status line there names IOB, and a failing battery upload
+ *        must not be shown under that name.
+ */
+static private boolean uploadDeviceStatusAsync(
+        String httpurl,
+        byte[] postdata,
+        String secret,
+        boolean put,
+        boolean iobChannel
 ) {
     if(!deviceStatusUploadInFlight.compareAndSet(false, true)) {
         Log.i(LOG_ID,"device-status upload already in flight; dropping duplicate");
@@ -463,11 +546,13 @@ static public boolean uploadDeviceStatusAsync(
                         DEVICE_STATUS_CONNECT_TIMEOUT_MS,
                         DEVICE_STATUS_READ_TIMEOUT_MS,
                         false,
-                        "device-status"
+                        iobChannel?"device-status(iob)":"device-status"
                 );
+                if(iobChannel)
+                    setIobDeviceStatusOutcome(code);
                 if(code==HTTP_OK || code==HttpURLConnection.HTTP_CREATED)
                     Log.i(LOG_ID,"device-status upload accepted code="+code);
-                else
+                else if(code!=ERROR_NO_TOKEN)
                     Log.e(LOG_ID,"device-status upload failed code="+code);
             }
             finally {
@@ -529,14 +614,17 @@ private static int uploadWithTimeouts(
         if(secret!=null)
             urlConnection.setRequestProperty("api-secret", secret);
         else {
-            // Ancillary device status never performs authorization network work. It is queued
-            // only after a primary upload, so a valid v3 token should already be cached.
+            // The ancillary path used to rely purely on the token a primary upload cached.
+            // After a reinstall, process death or token expiry that cache is empty and
+            // nothing refills it, so device status stayed dead until a manual resend
+            // happened to trigger a primary upload. It now fetches a token itself, but
+            // throttled: a refusing server is asked once per interval, not per attempt.
             final String auth = updateVisibleStatus
                     ? gettoken(requestTime, connectTimeoutMs, readTimeoutMs, true)
-                    : getCachedToken(requestTime);
+                    : getAncillaryToken(requestTime);
             if(auth.isEmpty()) {
-                Log.e(LOG_ID,requestKind+" upload skipped: no cached Nightscout token");
-                return -1;
+                Log.e(LOG_ID,requestKind+" upload skipped: no Nightscout token");
+                return updateVisibleStatus ? -1 : ERROR_NO_TOKEN;
             }
             urlConnection.setRequestProperty("Authorization", auth);
         }

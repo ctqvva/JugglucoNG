@@ -1437,6 +1437,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_status_response_413">Son yanıt: HTTP 413, yük çok büyük</string>
     <string name="nightscout_status_last_attempt">Son deneme: %1$s</string>
     <string name="nightscout_status_last_success">Son başarılı: %1$s</string>
+    <string name="nightscout_status_iob_no_token">IOB gönderimi: atlandı - henüz Nightscout belirteci yok</string>
+    <string name="nightscout_status_iob_rejected">IOB gönderimi: reddedildi (%1$s)</string>
     <string name="nightscout_sync_actions_title">Senkronizasyon işlemleri</string>
     <string name="expand_action">Genişlet</string>
     <string name="collapse_action">Daralt</string>

@@ -1444,6 +1444,8 @@
     <string name="nightscout_status_response_413">Ostatnia odpowiedź: HTTP 413, zbyt duży ładunek</string>
     <string name="nightscout_status_last_attempt">Ostatnia próba: %1$s</string>
     <string name="nightscout_status_last_success">Ostatni sukces: %1$s</string>
+    <string name="nightscout_status_iob_no_token">Wysyłka IOB: pominięta - brak jeszcze tokenu Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Wysyłka IOB: odrzucona (%1$s)</string>
     <string name="nightscout_sync_actions_title">Akcje synchronizacji</string>
     <string name="expand_action">Rozwiń</string>
     <string name="collapse_action">Zwiń</string>

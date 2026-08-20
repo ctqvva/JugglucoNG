@@ -159,6 +159,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var lastSuccessTime by rememberSaveable { mutableStateOf(0L) }
     var retryMinutes by rememberSaveable { mutableStateOf(0) }
     var uploaderRunning by rememberSaveable { mutableStateOf(false) }
+    var deviceStatusOutcome by rememberSaveable { mutableStateOf(NightPost.DEVICE_STATUS_NONE) }
+    var deviceStatusCode by rememberSaveable { mutableStateOf(0) }
     var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
 
     var mode by rememberSaveable {
@@ -177,6 +179,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
         val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
 
         Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, isV3)
+        // The old device-status failure describes the old settings; keep it off the screen
+        // until the next attempt has run under the new ones.
+        NightPost.clearDeviceStatusOutcome()
+        deviceStatusOutcome = NightPost.DEVICE_STATUS_NONE
         Natives.setpostTreatments(sendTreatments)
         JournalTreatmentUploader.setSendLongInsulin(sendLongInsulin)
         JournalTreatmentUploader.setReceiveTreatments(receiveTreatments)
@@ -202,6 +208,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastSuccessTime = Natives.getnightscoutlastsuccesstime()
         retryMinutes = Natives.getnightscoutretryminutes()
         uploaderRunning = Natives.getnightscoutuploaderrunning()
+        deviceStatusOutcome = NightPost.getDeviceStatusOutcome()
+        deviceStatusCode = NightPost.getDeviceStatusLastCode()
     }
 
     fun requireUrl(): Boolean {
@@ -280,6 +288,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastResponseCode == 413 -> context.getString(R.string.nightscout_status_response_413)
         lastResponseCode > 0 -> context.getString(R.string.nightscout_status_response_error, lastResponseCode)
         else -> context.getString(R.string.nightscout_status_waiting)
+    }
+
+    // The lines above report the native entries uploader only; the devicestatus channel
+    // (IOB) fails on its own, and a "no token" skip must not read like a server rejection.
+    val deviceStatusSummary: String? = when {
+        !isActive || mode != NightscoutMode.UPLOAD || !uploadIob -> null
+        deviceStatusOutcome == NightPost.DEVICE_STATUS_NO_TOKEN ->
+            context.getString(R.string.nightscout_status_iob_no_token)
+        deviceStatusOutcome == NightPost.DEVICE_STATUS_REJECTED -> context.getString(
+            R.string.nightscout_status_iob_rejected,
+            if (deviceStatusCode > 0) "HTTP $deviceStatusCode" else context.getString(R.string.status_connection_failed)
+        )
+        else -> null
     }
 
     val masterSubtitle = when (mode) {
@@ -478,6 +499,15 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (deviceStatusSummary != null) {
+                                Text(
+                                    text = deviceStatusSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
