@@ -93,6 +93,14 @@ private sealed class TestState {
 
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
+/**
+ * The test must probe the same API family the uploader is configured for: servers that
+ * keep the two auth schemes apart refuse a v3 Bearer token on a v1 endpoint, which makes
+ * a correctly working v3 setup look broken.
+ */
+internal fun nightscoutTestEndpointPath(useV3: Boolean): String =
+    if (useV3) "api/v3/status" else "api/v1/status.json"
+
 private fun applyNightscoutTestAuth(
     connection: java.net.HttpURLConnection,
     baseUrl: String,
@@ -211,8 +219,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
             testState = withContext(Dispatchers.IO) {
                 try {
                     val baseUrl = NightscoutFollowerRegistry.normalizeUrl(url)
-                    val endpoint = "$baseUrl/api/v1/status.json"
-                    val conn = (java.net.URL(endpoint).openConnection() as java.net.HttpURLConnection).apply {
+                    val path = nightscoutTestEndpointPath(isV3)
+                    val conn = (java.net.URL("$baseUrl/$path").openConnection() as java.net.HttpURLConnection).apply {
                         connectTimeout = 10_000
                         readTimeout = 10_000
                         requestMethod = "GET"
@@ -221,7 +229,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     applyNightscoutTestAuth(conn, baseUrl, secret, isV3)
                     val code = conn.responseCode
                     conn.disconnect()
-                    if (code in 200..299) TestState.Ok(code) else TestState.Err("HTTP $code")
+                    // A bare status code sends people debugging the server; the endpoint says
+                    // which API family answered.
+                    if (code in 200..299) TestState.Ok(code) else TestState.Err("HTTP $code ($path)")
                 } catch (e: Exception) {
                     TestState.Err(e.localizedMessage?.take(80) ?: context.getString(R.string.status_connection_failed))
                 }
