@@ -173,6 +173,18 @@ object GlucoseSmoothing {
         return result
     }
 
+    /**
+     * Two distinct timestamps are intentionally sufficient. A 5-minute sensor
+     * often has only two samples at the edge of a 10/13-minute window; using
+     * their mean would reintroduce the phase lag this estimator removes. With
+     * only two samples the fit leaves the endpoint unchanged, while larger
+     * boundary windows still provide denoising.
+     *
+     * Clamping is deliberately conservative: an exact linear trace evaluated
+     * at an observed timestamp already lands on that sample. A fit outside the
+     * window's measured range therefore reflects noise or curvature, and must
+     * not invent a new glucose extreme.
+     */
     private fun <T> boundaryLinearEstimate(
         points: List<T>,
         windowStart: Int,

@@ -10,22 +10,9 @@ class SmoothingConsumerRegressionTests {
 
     @Test
     fun exactFallKeepsTrendDeltaAndFallingFastCheckpoint() {
-        val raw = (0..20).map { index ->
-            GlucosePoint(index * minute, 150f - 2f * index, 0f)
-        }
-        val smoothed = DataSmoothing.smoothNativePoints(
-            points = raw,
-            smoothingMinutes = 13,
-            collapseChunks = false,
-        )
-
-        val rawTrend = TrendEngine.calculateTrend(raw, useRaw = false, isMmol = false)
-        val smoothedTrend = TrendEngine.calculateTrend(smoothed, useRaw = false, isMmol = false)
-        assertEquals(rawTrend.velocity, smoothedTrend.velocity, 1e-4f)
-
         fun fiveMinuteDelta(points: List<GlucosePoint>): Float {
             val newest = points.last()
-            val previous = points[points.lastIndex - 5]
+            val previous = points.last { it.timestamp == newest.timestamp - 5 * minute }
             return GlucoseDelta.fiveMinuteDelta(
                 newest.timestamp,
                 newest.value,
@@ -33,8 +20,6 @@ class SmoothingConsumerRegressionTests {
                 previous.value,
             )
         }
-        assertEquals(fiveMinuteDelta(raw), fiveMinuteDelta(smoothed), 1e-4f)
-
         fun fallingFastCheckpoint(points: List<GlucosePoint>): Long {
             val state = DeltaAlarmState(falling = true)
             var firedAt = -1L
@@ -59,7 +44,28 @@ class SmoothingConsumerRegressionTests {
             return firedAt
         }
 
-        assertEquals(15 * minute, fallingFastCheckpoint(raw))
-        assertEquals(fallingFastCheckpoint(raw), fallingFastCheckpoint(smoothed))
+        for (cadenceMinutes in listOf(1, 5)) {
+            val raw = (0..20 step cadenceMinutes).map { atMinute ->
+                GlucosePoint(atMinute * minute, 150f - 2f * atMinute, 0f)
+            }
+            val rawTrend = TrendEngine.calculateTrend(raw, useRaw = false, isMmol = false)
+            val rawDelta = fiveMinuteDelta(raw)
+            val rawCheckpoint = fallingFastCheckpoint(raw)
+            assertEquals(15 * minute, rawCheckpoint)
+
+            for (windowMinutes in listOf(5, 10, 13)) {
+                val smoothed = DataSmoothing.smoothNativePoints(
+                    points = raw,
+                    smoothingMinutes = windowMinutes,
+                    collapseChunks = false,
+                )
+                val context = "cadence=$cadenceMinutes window=$windowMinutes"
+                val smoothedTrend = TrendEngine.calculateTrend(smoothed, useRaw = false, isMmol = false)
+
+                assertEquals(context, rawTrend.velocity, smoothedTrend.velocity, 1e-4f)
+                assertEquals(context, rawDelta, fiveMinuteDelta(smoothed), 1e-4f)
+                assertEquals(context, rawCheckpoint, fallingFastCheckpoint(smoothed))
+            }
+        }
     }
 }
