@@ -2489,6 +2489,7 @@
     <string name="insulin_pen_forget_desc">Dawki już zapisane w dzienniku pozostają.</string>
     <string name="insulin_pen_new_doses">nowe dawki: %1$d</string>
     <string name="insulin_pen_no_new_doses">Odczytano wstrzykiwacz. Brak nowych dawek.</string>
+    <string name="insulin_pen_duplicates_removed">Usunięto zduplikowane dawki z wcześniejszych odczytów: %1$d</string>
     <string name="insulin_pen_doses_label">Dawki</string>
     <string name="insulin_pen_select_all">Zaznacz wszystko</string>
     <string name="insulin_pen_select_none">Wyczyść</string>

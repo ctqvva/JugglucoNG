@@ -8,6 +8,14 @@ package tk.glucodata.NovoPen
  * pen's relative time). [timestampSeconds] is that anchored epoch second.
  */
 data class PenDose(
+    /**
+     * The pen's own uptime counter at the moment of the dose, straight off the wire.
+     *
+     * This is the dose's identity: it is what the pen stores, so it reads back the same on
+     * every scan, while [timestampSeconds] moves with whatever anchor the scan happened to
+     * land on.
+     */
+    val relativeSeconds: Long,
     val timestampSeconds: Long,
     val units: Float,
     /** Pen-reported status byte. Non-zero means the pen flagged something about the dose. */
@@ -66,11 +74,16 @@ object PenDoseParser {
         return markPriming(decoded)
     }
 
-    /** Merges the chunks one scan produced, dropping duplicates the segments overlap on. */
+    /**
+     * Merges the chunks one scan produced, dropping duplicates the segments overlap on.
+     *
+     * Keyed on the pen's own counter rather than the anchored second, so an overlap is
+     * still recognised as an overlap when the segments were anchored a moment apart.
+     */
     fun merge(chunks: List<List<PenDose>>): List<PenDose> {
-        val byTime = LinkedHashMap<Long, PenDose>()
-        chunks.forEach { chunk -> chunk.forEach { dose -> byTime[dose.timestampSeconds] = dose } }
-        return markPriming(byTime.values.sortedBy(PenDose::timestampSeconds))
+        val byRelative = LinkedHashMap<Long, PenDose>()
+        chunks.forEach { chunk -> chunk.forEach { dose -> byRelative[dose.relativeSeconds] = dose } }
+        return markPriming(byRelative.values.sortedBy(PenDose::timestampSeconds))
     }
 
     private fun decode(referenceTimeSeconds: Long, raw: ByteArray, offset: Int): PenDose? {
@@ -91,6 +104,7 @@ object PenDoseParser {
         val units = tenths / 10f
         if (units <= 0f || units > MAX_UNITS) return null
         return PenDose(
+            relativeSeconds = relativeSeconds,
             timestampSeconds = referenceTimeSeconds + relativeSeconds,
             units = units,
             flags = raw[offset + 11].toInt() and 0xFF,

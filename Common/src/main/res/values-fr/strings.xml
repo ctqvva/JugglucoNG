@@ -2461,6 +2461,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Les doses déjà présentes dans le journal sont conservées.</string>
     <string name="insulin_pen_new_doses">%1$d nouvelles doses</string>
     <string name="insulin_pen_no_new_doses">Stylo lu. Aucune nouvelle dose.</string>
+    <string name="insulin_pen_duplicates_removed">%1$d doses en double issues de scans précédents supprimées</string>
     <string name="insulin_pen_doses_label">Doses</string>
     <string name="insulin_pen_select_all">Tout sélectionner</string>
     <string name="insulin_pen_select_none">Effacer</string>

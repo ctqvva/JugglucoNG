@@ -152,6 +152,25 @@ class PenDoseParserTests {
     }
 
     @Test
+    fun exposesThePenOwnCounterAsTheDoseIdentity() {
+        val doses = PenDoseParser.parse(reference, record(relativeSeconds = 600, tenths = 85), now)
+
+        assertEquals(600L, doses[0].relativeSeconds)
+    }
+
+    @Test
+    fun mergeDropsAnOverlapEvenWhenTheSegmentsWereAnchoredApart() {
+        // What issue #195 hit: two segments of one scan, anchored a second apart, so the
+        // same injection came out with two different epoch seconds.
+        val first = PenDoseParser.parse(reference, record(600, 50), now)
+        val second = PenDoseParser.parse(reference + 1, record(600, 50), now)
+
+        val merged = PenDoseParser.merge(listOf(first, second))
+
+        assertEquals(1, merged.size)
+    }
+
+    @Test
     fun mergeReclassifiesPrimingAcrossChunkBoundaries() {
         // The air shot and the bolus it precedes arrived in different segments; only the
         // merged view can see that they belong together.

@@ -30,7 +30,7 @@ public class EventReport extends BaseMessage {
     public Configuration configuration;
 
 
-    public static EventReport parse(final ByteBuffer buffer, List<OpContext.Doses> doses) {
+    public static EventReport parse(final ByteBuffer buffer, OpContext context) {
 
         var handle = getUnsignedShort(buffer);
         var relativeTime = getUnsignedInt(buffer);
@@ -39,7 +39,9 @@ public class EventReport extends BaseMessage {
 
         log("EventReport: handle: " + handle + " rt: " + relativeTime + " " + eventType);
 
-        long referencetime=(System.currentTimeMillis()/1000L)-relativeTime;
+        // Anchored once for the whole scan, not per report: see OpContext.referenceTime.
+        long referencetime=context.referenceTime(relativeTime);
+        List<OpContext.Doses> doses=context.doses;
         var er = new EventReport();
         er.handle = handle;
 

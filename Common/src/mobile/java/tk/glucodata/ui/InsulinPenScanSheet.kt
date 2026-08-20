@@ -67,7 +67,7 @@ fun InsulinPenScanSheetHost() {
         mutableStateOf(
             result.doses
                 .filter { !it.priming && it.timestampSeconds >= result.preselectFromSeconds }
-                .map(PenDose::timestampSeconds)
+                .map(PenDose::relativeSeconds)
                 .toSet()
         )
     }
@@ -123,7 +123,7 @@ fun InsulinPenScanSheetHost() {
                         selected = if (selected.size == result.doses.size) {
                             emptySet()
                         } else {
-                            result.doses.map(PenDose::timestampSeconds).toSet()
+                            result.doses.map(PenDose::relativeSeconds).toSet()
                         }
                     }
                 ) {
@@ -143,15 +143,15 @@ fun InsulinPenScanSheetHost() {
                 modifier = Modifier.heightIn(max = 280.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(result.doses, key = PenDose::timestampSeconds) { dose ->
+                items(result.doses, key = PenDose::relativeSeconds) { dose ->
                     DoseRow(
                         dose = dose,
-                        checked = dose.timestampSeconds in selected,
+                        checked = dose.relativeSeconds in selected,
                         onCheckedChange = { checked ->
                             selected = if (checked) {
-                                selected + dose.timestampSeconds
+                                selected + dose.relativeSeconds
                             } else {
-                                selected - dose.timestampSeconds
+                                selected - dose.relativeSeconds
                             }
                         },
                     )
@@ -164,7 +164,7 @@ fun InsulinPenScanSheetHost() {
                     val insulin = chosenInsulin ?: return@Button
                     InsulinPenManager.importDosesAsync(
                         serial = result.serial,
-                        doses = result.doses.filter { it.timestampSeconds in selected },
+                        doses = result.doses.filter { it.relativeSeconds in selected },
                         presetId = insulin.id,
                         presetName = insulin.displayName,
                     )

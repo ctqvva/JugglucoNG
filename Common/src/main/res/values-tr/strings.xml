@@ -2483,6 +2483,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_forget_desc">Günlükte kayıtlı dozlar kalır.</string>
     <string name="insulin_pen_new_doses">%1$d yeni doz</string>
     <string name="insulin_pen_no_new_doses">Kalem okundu. Yeni doz yok.</string>
+    <string name="insulin_pen_duplicates_removed">Önceki okumalardan kalan %1$d yinelenen doz kaldırıldı</string>
     <string name="insulin_pen_doses_label">Dozlar</string>
     <string name="insulin_pen_select_all">Tümünü seç</string>
     <string name="insulin_pen_select_none">Temizle</string>
