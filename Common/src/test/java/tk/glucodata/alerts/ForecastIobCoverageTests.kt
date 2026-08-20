@@ -144,6 +144,26 @@ class ForecastIobCoverageTests {
     }
 
     @Test
+    fun defaultProfileFieldCaseCovers() {
+        // Regression for the removed prefs guard: model profile never saved,
+        // screen showing the default ISF of 54, coverage at 100%, IOB 5.0 U
+        // against a 10.9 mg/dl overshoot (projected 244.9 vs threshold 234).
+        // 5.0 x 54 = 270 mg/dl of remaining effect; the old guard skipped
+        // this calculation entirely because no pref key had ever been
+        // written, and the alert fired.
+        assertTrue(
+            ForecastIobCoverage.covered(
+                projectedValue = 244.91534f,
+                threshold = 234.0f,
+                isMmol = false,
+                iobUnits = 5.0f,
+                insulinSensitivityMgdlPerUnit = 54f,
+                coverageFactor = 1.0f
+            )
+        )
+    }
+
+    @Test
     fun mmolOvershootIsComparedInMgdl() {
         // Projected 14.0 mmol vs threshold 13.0: overshoot 1 mmol = 18 mg/dl.
         // 0.5 U x 54 = 27 mg/dl covers it; 0.2 U x 54 = 10.8 does not.

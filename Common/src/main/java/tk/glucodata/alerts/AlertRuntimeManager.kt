@@ -33,6 +33,7 @@ object AlertRuntimeManager {
     private var lastLoggedExpiryEndMs: Long = Long.MIN_VALUE
     private var warnedForecastRateUntrusted = false
     private var preHighIobSuppressed = false
+    private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
     private val fallingDeltaState = DeltaAlarmState(falling = true)
@@ -285,11 +286,19 @@ object AlertRuntimeManager {
      * PRE_HIGH ONLY: drop the condition while the remaining insulin on board
      * covers the projected overshoot - what the alert would announce is
      * already treated. Never applied to PRE_LOW, where insulin makes the
-     * predicted low MORE likely (see [ForecastIobCoverage]). Without a
-     * user-maintained sensitivity the check never engages: suppressing an
-     * alarm on a default ISF the user never confirmed would guess with their
-     * safety. On variants without the journal the IOB snapshot is null and
-     * nothing changes.
+     * predicted low MORE likely (see [ForecastIobCoverage]).
+     *
+     * The sensitivity comes from PredictionModelProfileStore.parametersAt,
+     * which returns exactly the values the model profile screen displays,
+     * saved or default. The screen is sliders only, with no save button, so
+     * requiring a saved profile (the previous guard) meant the coverage
+     * silently never ran for anyone happy with the defaults. What is at
+     * stake is a suppressed high-side pre-warning; the HIGH alarm itself is
+     * independent of this check. When the check cannot run because an input
+     * is missing (no journal IOB, no usable sensitivity), that is logged
+     * once per state change instead of failing silently - a setting that
+     * visibly reads 100% and quietly does nothing is the bug class this
+     * whole change set is about.
      */
     private fun suppressIobCoveredPreHigh(
         conditions: Map<AlertType, StandardGlucoseAlertCondition>,
@@ -297,37 +306,50 @@ object AlertRuntimeManager {
     ): Map<AlertType, StandardGlucoseAlertCondition> {
         val condition = conditions[AlertType.PRE_HIGH] ?: run {
             preHighIobSuppressed = false
+            preHighCoverageSkipLogged = null
             return conditions
         }
         val config = configs[AlertType.PRE_HIGH]
         val factor = config?.iobCoverageFactor ?: AlertDefaults.PRE_HIGH_IOB_COVERAGE_FACTOR
+        var skipReason: String? = null
         val covered = factor > 0f && try {
             val prefs = Applic.app.getSharedPreferences(
                 "tk.glucodata_preferences",
                 android.content.Context.MODE_PRIVATE
             )
             val store = tk.glucodata.data.prediction.PredictionModelProfileStore
-            val sensitivityMaintained =
-                prefs.contains(tk.glucodata.data.prediction.PredictionModelProfileStore.INSULIN_SENSITIVITY_KEY) ||
-                    prefs.contains(tk.glucodata.data.prediction.PredictionModelProfileStore.PROFILE_KEY)
-            if (!sensitivityMaintained) {
-                false
-            } else {
-                val nowMs = System.currentTimeMillis()
-                val iobUnits = tk.glucodata.JournalIobAccess.snapshot(nowMs)?.getOrNull(0) ?: Float.NaN
-                ForecastIobCoverage.covered(
-                    projectedValue = condition.evaluatedValue,
-                    threshold = condition.threshold,
-                    isMmol = Applic.unit == 1,
-                    iobUnits = iobUnits,
-                    insulinSensitivityMgdlPerUnit = store.parametersAt(prefs, nowMs).insulinSensitivityMgDlPerUnit,
-                    coverageFactor = factor
-                )
+            val nowMs = System.currentTimeMillis()
+            val iobUnits = tk.glucodata.JournalIobAccess.snapshot(nowMs)?.getOrNull(0) ?: Float.NaN
+            val sensitivity = store.parametersAt(prefs, nowMs).insulinSensitivityMgDlPerUnit
+            val result = ForecastIobCoverage.covered(
+                projectedValue = condition.evaluatedValue,
+                threshold = condition.threshold,
+                isMmol = Applic.unit == 1,
+                iobUnits = iobUnits,
+                insulinSensitivityMgdlPerUnit = sensitivity,
+                coverageFactor = factor
+            )
+            if (!result) {
+                // Missing input = skipped check, worth a log line. An
+                // uncovered overshoot with usable inputs is a normal
+                // "fire the alert" outcome, not a skip.
+                skipReason = when {
+                    !iobUnits.isFinite() -> "iob-unavailable"
+                    iobUnits <= 0f -> "no-iob"
+                    !sensitivity.isFinite() || sensitivity <= 0f -> "no-sensitivity"
+                    else -> null
+                }
             }
+            result
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "suppressIobCoveredPreHigh", t)
+            skipReason = "error"
             false
         }
+        if (skipReason != null && skipReason != preHighCoverageSkipLogged) {
+            Log.i(LOG_ID, "PRE_HIGH IOB coverage skipped: $skipReason (factor=$factor)")
+        }
+        preHighCoverageSkipLogged = skipReason
         if (covered && !preHighIobSuppressed) {
             Log.i(
                 LOG_ID,
