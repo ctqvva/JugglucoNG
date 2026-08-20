@@ -1963,6 +1963,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Aucune donnée de compte ou enregistrée pour cet ID cloud</string>
     <string name="ottai_status_needs_ble_address">Adresse BLE requise</string>
     <string name="ottai_status_warmup_provisional">Préchauffage provisoire • %1$d min restantes</string>
+    <string name="anytime_status_warming_up">Préchauffage</string>
+    <string name="anytime_status_warming_up_remaining">Préchauffage • %1$d min restantes</string>
     <string name="ottai_status_loading_history">Chargement de l’historique • %1$d%%</string>
     <string name="ottai_ble_scan_title">Capteurs Ottai à proximité</string>
     <string name="ottai_ble_scan_hint">Rapprochez le téléphone du capteur. Les émetteurs CGM stables apparaissent ici.</string>

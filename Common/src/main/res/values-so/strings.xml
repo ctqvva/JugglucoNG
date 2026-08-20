@@ -973,6 +973,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_connect_saved_fail">Ma jiro akoon ama walxo kaydsan oo loogu talagalay aqoonsiga daruuriga ah</string>
     <string name="ottai_status_needs_ble_address">Wuxuu u baahan yahay ciwaanka BLE</string>
     <string name="ottai_status_warmup_provisional">Kuleyl ku meel gaar ah • %1$dm bidix</string>
+    <string name="anytime_status_warming_up">Kuleylinta</string>
+    <string name="anytime_status_warming_up_remaining">Kuleylinta • %1$dm bidix</string>
     <string name="ottai_status_loading_history">Taariikhda waa la soo dejinayaa • %1$d%%</string>
     <string name="ottai_ble_scan_title">Dareemayaasha Ottai ee dhow</string>
     <string name="ottai_ble_scan_hint">Taleefanka u dhowee dareemaha Xayeysiiyayaasha CGM deggan ayaa halkan ka muuqda.</string>

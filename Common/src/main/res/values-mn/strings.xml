@@ -1983,6 +1983,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_connect_saved_fail">Энэ cloud ID-д аккаунт эсвэл хадгалсан материал алга</string>
     <string name="ottai_status_needs_ble_address">BLE хаяг хэрэгтэй</string>
     <string name="ottai_status_warmup_provisional">Түр халаалт • %1$d мин үлдлээ</string>
+    <string name="anytime_status_warming_up">Халаалт</string>
+    <string name="anytime_status_warming_up_remaining">Халаалт • %1$d мин үлдлээ</string>
     <string name="ottai_status_loading_history">Түүхийг ачаалж байна • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ойролцоох Ottai мэдрэгчүүд</string>
     <string name="ottai_ble_scan_hint">Утсаа мэдрэгчид ойртуулна уу. Тогтвортой CGM дамжуулагчид энд гарна.</string>

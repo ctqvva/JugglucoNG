@@ -2030,6 +2030,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Немає матеріалів в акаунті або збережених матеріалів для цього хмарного ID</string>
     <string name="ottai_status_needs_ble_address">Потрібна BLE-адреса</string>
     <string name="ottai_status_warmup_provisional">Попередній прогрів • залишилось %1$d хв</string>
+    <string name="anytime_status_warming_up">Прогрів</string>
+    <string name="anytime_status_warming_up_remaining">Прогрів • залишилось %1$d хв</string>
     <string name="ottai_status_loading_history">Завантаження історії • %1$d%%</string>
     <string name="ottai_ble_scan_title">Датчики Ottai поруч</string>
     <string name="ottai_ble_scan_hint">Піднесіть телефон ближче до датчика. Тут з’являться стабільні CGM-пристрої.</string>

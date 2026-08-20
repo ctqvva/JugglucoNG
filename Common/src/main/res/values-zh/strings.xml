@@ -1973,6 +1973,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">账号中或本地没有此云端 ID 的材料</string>
     <string name="ottai_status_needs_ble_address">需要 BLE 地址</string>
     <string name="ottai_status_warmup_provisional">预估预热 • 剩余 %1$d 分钟</string>
+    <string name="anytime_status_warming_up">预热中</string>
+    <string name="anytime_status_warming_up_remaining">预热中 • 剩余 %1$d 分钟</string>
     <string name="ottai_status_loading_history">正在加载历史记录 • %1$d%%</string>
     <string name="ottai_ble_scan_title">附近的 Ottai 传感器</string>
     <string name="ottai_ble_scan_hint">将手机靠近传感器。稳定的 CGM 广播会显示在这里。</string>

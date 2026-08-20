@@ -2082,6 +2082,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_saved_fail">Keine Konto- oder gespeicherten Materialien für diese Cloud-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-Adresse erforderlich</string>
     <string name="ottai_status_warmup_provisional">Vorläufiges Aufwärmen • noch %1$d Min.</string>
+    <string name="anytime_status_warming_up">Aufwärmen</string>
+    <string name="anytime_status_warming_up_remaining">Aufwärmen • noch %1$d Min.</string>
     <string name="ottai_status_loading_history">Verlauf wird geladen • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-Sensoren in der Nähe</string>
     <string name="ottai_ble_scan_hint">Telefon nahe an den Sensor halten. Stabile CGM-Sender erscheinen hier.</string>

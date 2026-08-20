@@ -1947,6 +1947,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Nessun materiale dell’account o salvato per questo ID cloud</string>
     <string name="ottai_status_needs_ble_address">Serve indirizzo BLE</string>
     <string name="ottai_status_warmup_provisional">Riscaldamento provvisorio • %1$d min rimanenti</string>
+    <string name="anytime_status_warming_up">Riscaldamento</string>
+    <string name="anytime_status_warming_up_remaining">Riscaldamento • %1$d min rimanenti</string>
     <string name="ottai_status_loading_history">Caricamento cronologia • %1$d%%</string>
     <string name="ottai_ble_scan_title">Sensori Ottai vicini</string>
     <string name="ottai_ble_scan_hint">Avvicina il telefono al sensore. I trasmettitori CGM stabili appariranno qui.</string>

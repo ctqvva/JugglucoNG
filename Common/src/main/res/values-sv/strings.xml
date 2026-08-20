@@ -1957,6 +1957,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Inga konto- eller sparade material för detta moln-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-adress behövs</string>
     <string name="ottai_status_warmup_provisional">Provisorisk uppvärmning • %1$d min kvar</string>
+    <string name="anytime_status_warming_up">Uppvärmning</string>
+    <string name="anytime_status_warming_up_remaining">Uppvärmning • %1$d min kvar</string>
     <string name="ottai_status_loading_history">Läser in historik • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-sensorer i närheten</string>
     <string name="ottai_ble_scan_hint">Håll telefonen nära sensorn. Stabila CGM-sändare visas här.</string>

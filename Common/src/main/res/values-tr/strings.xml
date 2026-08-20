@@ -1985,6 +1985,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_connect_saved_fail">Bu bulut kimliği için hesapta veya kayıtlı materyal yok</string>
     <string name="ottai_status_needs_ble_address">BLE adresi gerekli</string>
     <string name="ottai_status_warmup_provisional">Geçici ısınma • %1$d dk kaldı</string>
+    <string name="anytime_status_warming_up">Isınma</string>
+    <string name="anytime_status_warming_up_remaining">Isınma • %1$d dk kaldı</string>
     <string name="ottai_status_loading_history">Geçmiş yükleniyor • %1$d%%</string>
     <string name="ottai_ble_scan_title">Yakındaki Ottai sensörleri</string>
     <string name="ottai_ble_scan_hint">Telefonu sensöre yaklaştırın. Kararlı CGM yayınları burada görünür.</string>

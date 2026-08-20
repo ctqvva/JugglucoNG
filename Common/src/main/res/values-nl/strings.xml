@@ -2000,6 +2000,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_connect_saved_fail">Geen account- of opgeslagen materialen voor deze cloud-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-adres nodig</string>
     <string name="ottai_status_warmup_provisional">Voorlopige opwarming • nog %1$d min</string>
+    <string name="anytime_status_warming_up">Opwarmen</string>
+    <string name="anytime_status_warming_up_remaining">Opwarmen • nog %1$d min</string>
     <string name="ottai_status_loading_history">Geschiedenis laden • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-sensoren in de buurt</string>
     <string name="ottai_ble_scan_hint">Houd de telefoon dicht bij de sensor. Stabiele CGM-zenders verschijnen hier.</string>

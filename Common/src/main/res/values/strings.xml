@@ -1030,6 +1030,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Import a credentials file to continue without the cloud — a QR scan only fills the sensor code, and NFC only wakes the sensor.</string>
     <string name="ottai_status_needs_ble_address">Needs BLE address</string>
     <string name="ottai_status_warmup_provisional">Provisional warmup • %1$dm left</string>
+    <string name="anytime_status_warming_up">Warming up</string>
+    <string name="anytime_status_warming_up_remaining">Warming up • %1$d min left</string>
     <string name="ottai_status_loading_history">Loading history • %1$d%%</string>
     <string name="ottai_ble_scan_title">Nearby Ottai sensors</string>
     <string name="ottai_ble_scan_hint">Move the phone close to the sensor. Stable CGM advertisers appear here.</string>
