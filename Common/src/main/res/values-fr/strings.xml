@@ -588,6 +588,7 @@
     <string name="rearm_min_interval_label">Délai minimal entre alarmes</string>
     <string name="pre_high_iob_coverage_label">Supprimer si l\'insuline couvre la hausse</string>
     <string name="alert_feature_off">Désactivé</string>
+    <string name="persistent_high_fall_suppress_label">Supprimer si la baisse dépasse</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil volume/vibration</string>
     <string name="ICE">ICE</string>

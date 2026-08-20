@@ -653,6 +653,7 @@
     <string name="rearm_min_interval_label">警报最小间隔</string>
     <string name="pre_high_iob_coverage_label">胰岛素可覆盖升幅时不报警</string>
     <string name="alert_feature_off">关闭</string>
+    <string name="persistent_high_fall_suppress_label">下降速度超过此值时不报警</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">音量/振动配置</string>
     <string name="ICE">ICE</string>

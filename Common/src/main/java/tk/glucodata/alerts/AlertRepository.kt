@@ -90,6 +90,15 @@ object AlertRepository {
         return prefs.getFloat(key, 0f).takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: default
     }
 
+    // PERSISTENT_HIGH only: fall-rate suppression (mg/dl/min). 0 = off.
+    private fun keyFallRateSuppress(type: AlertType) = "alert_${type.id}_fallRateSuppress"
+
+    private fun readFallRateSuppress(type: AlertType, default: Float?): Float? {
+        val key = keyFallRateSuppress(type)
+        if (!prefs.contains(key)) return default
+        return prefs.getFloat(key, 0f).takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: default
+    }
+
     // Cap enforced on every read so a value written by any path (incl. the
     // apply-to-all bulk edit onto LOW/VERY_LOW) can never exceed the hypo cap.
     private fun readSoundDelaySeconds(type: AlertType): Int =
@@ -373,7 +382,8 @@ object AlertRepository {
             expiryWarningMinutes = readExpiryWarnings(type, default.expiryWarningMinutes),
             rearmMargin = readRearmMargin(type, default.rearmMargin),
             rearmMinIntervalMinutes = readRearmMinInterval(type, default.rearmMinIntervalMinutes),
-            iobCoverageFactor = readIobCoverage(type, default.iobCoverageFactor)
+            iobCoverageFactor = readIobCoverage(type, default.iobCoverageFactor),
+            fallRateSuppress = readFallRateSuppress(type, default.fallRateSuppress)
         )
     }
 
@@ -440,6 +450,7 @@ object AlertRepository {
             if (config.rearmMargin != null) putFloat(keyRearmMargin(config.type), config.rearmMargin.coerceAtLeast(0f)) else remove(keyRearmMargin(config.type))
             if (config.rearmMinIntervalMinutes != null) putInt(keyRearmMinInterval(config.type), config.rearmMinIntervalMinutes.coerceAtLeast(0)) else remove(keyRearmMinInterval(config.type))
             if (config.iobCoverageFactor != null) putFloat(keyIobCoverage(config.type), config.iobCoverageFactor.coerceAtLeast(0f)) else remove(keyIobCoverage(config.type))
+            if (config.fallRateSuppress != null) putFloat(keyFallRateSuppress(config.type), config.fallRateSuppress.coerceAtLeast(0f)) else remove(keyFallRateSuppress(config.type))
             // Type-specific: only the sensor-expiry alert carries pre-warnings.
             if (config.type == AlertType.SENSOR_EXPIRY) {
                 putStringSet(

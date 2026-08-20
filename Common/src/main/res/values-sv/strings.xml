@@ -641,6 +641,7 @@
     <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
     <string name="pre_high_iob_coverage_label">Undertryck om insulinet täcker ökningen</string>
     <string name="alert_feature_off">Av</string>
+    <string name="persistent_high_fall_suppress_label">Undertryck vid fall snabbare än</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volym-/vibrationsprofil</string>
     <string name="ICE">ICE</string>

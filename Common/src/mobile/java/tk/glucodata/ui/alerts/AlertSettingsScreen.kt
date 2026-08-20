@@ -1145,6 +1145,23 @@ private fun AlertSettingsExpanded(
                     )
                 }
 
+                // === Falling-value suppression (PERSISTENT_HIGH only) ===
+                // The alert says "your correction was not enough"; a steep fall
+                // proves it was. Slider in tenths of mg/dl per minute; 0 = off.
+                if (config.type == AlertType.PERSISTENT_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.persistent_high_fall_suppress_label),
+                        value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
+                        range = 0..20,
+                        stepSize = 1,
+                        onValueChange = { v -> onConfigChange(config.copy(fallRateSuppress = v / 10f)) },
+                        valueText = {
+                            if (it == 0) stringResource(R.string.alert_feature_off)
+                            else String.format(java.util.Locale.getDefault(), "-%.1f mg/dL/min", it / 10f)
+                        }
+                    )
+                }
+
                 // === Sensor-expiry pre-warnings (multi-select, this type only) ===
                 if (config.type == AlertType.SENSOR_EXPIRY) {
                     SensorExpiryThresholdSelector(

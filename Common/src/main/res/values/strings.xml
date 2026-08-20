@@ -1324,6 +1324,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
     <string name="pre_high_iob_coverage_label">Suppress if insulin covers the rise</string>
     <string name="alert_feature_off">Off</string>
+    <string name="persistent_high_fall_suppress_label">Suppress while falling faster than</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume/Vibration Profile</string>
 

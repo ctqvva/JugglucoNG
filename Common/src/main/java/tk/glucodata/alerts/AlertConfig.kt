@@ -127,6 +127,10 @@ data class AlertConfig(
     // covers the projected overshoot x this factor. 0 = off. Never applied to
     // PRE_LOW - insulin makes a predicted low MORE likely.
     val iobCoverageFactor: Float? = null,
+    // PERSISTENT_HIGH only: suppress while the value falls at least this fast
+    // (mg/dl per minute, magnitude). The alert exists to say "your correction
+    // was not enough"; a steep fall is direct proof it was. 0 = off.
+    val fallRateSuppress: Float? = null,
 
     // Delta-counter settings (FALLING_FAST / RISING_FAST): GDH-style robust rate-of-change alarm.
     val deltaThreshold: Float? = null,      // Min change per interval (display units) to count as steep
@@ -280,6 +284,9 @@ object AlertDefaults {
     const val THRESHOLD_REARM_MARGIN_MGDL = 10f
     const val THRESHOLD_REARM_MARGIN_MMOL = 0.6f
 
+    // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
+    const val PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN = 0.5f
+
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
     // cover silences the alert; setting it below 1 suppresses earlier, 0 = off.
@@ -382,6 +389,7 @@ object AlertDefaults {
                 enabled = false,
                 threshold = if (isMmol) PERSISTENT_HIGH_THRESHOLD_MMOL else PERSISTENT_HIGH_THRESHOLD_MGDL,
                 durationMinutes = PERSISTENT_HIGH_MINUTES,
+                fallRateSuppress = PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 defaultSnoozeMinutes = 60

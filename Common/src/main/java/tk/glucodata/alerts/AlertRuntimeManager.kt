@@ -474,6 +474,16 @@ object AlertRuntimeManager {
             clearRuntimeAlert(type, "persistent-high-time-inactive")
             return
         }
+
+        // A steep fall is proof the correction works - suppress, cancel any
+        // running retries, but do NOT reset the timer: if the value stagnates
+        // above the threshold again, the high phase was continuous and the
+        // alarm must not wait out a fresh full duration.
+        if (PersistentHighPolicy.fallingSuppresses(currentRateLocked(), config.fallRateSuppress)) {
+            clearRuntimeAlert(type, "persistent-high-falling")
+            return
+        }
+
         if (SnoozeManager.isSnoozed(type)) {
             return
         }
