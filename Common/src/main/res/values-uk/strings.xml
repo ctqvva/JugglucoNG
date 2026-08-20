@@ -2538,6 +2538,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_new_doses">нових доз: %1$d</string>
     <string name="insulin_pen_no_new_doses">Ручку зчитано. Нових доз немає.</string>
     <string name="insulin_pen_duplicates_removed">Вилучено дубльованих доз від попередніх зчитувань: %1$d</string>
+    <string name="insulin_pen_duplicates_found">Дубльованих доз від попередніх зчитувань: %1$d. Вилучіть їх у налаштуваннях ручки.</string>
+    <string name="insulin_pen_cleanup">Вилучити дубльовані дози</string>
+    <string name="insulin_pen_cleanup_count">Вилучити дубльовані дози: %1$d</string>
+    <string name="insulin_pen_cleanup_desc">Попередні версії записували дозу знову під час кожного зчитування. Власний журнал ручки каже, що це були поодинокі ін’єкції.</string>
+    <string name="insulin_pen_cleanup_none">Немає чого вилучати. Зчитайте ручку, якщо після оновлення її не читали.</string>
+    <string name="insulin_pen_cleanup_confirm">Вилучити дубльовані дози (%1$d)?</string>
     <string name="insulin_pen_doses_label">Дози</string>
     <string name="insulin_pen_select_all">Вибрати все</string>
     <string name="insulin_pen_select_none">Зняти вибір</string>

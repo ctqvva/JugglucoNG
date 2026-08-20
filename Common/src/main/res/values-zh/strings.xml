@@ -2482,6 +2482,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_new_doses">%1$d 条新剂量</string>
     <string name="insulin_pen_no_new_doses">已读取胰岛素笔，没有新剂量。</string>
     <string name="insulin_pen_duplicates_removed">已删除先前扫描留下的 %1$d 条重复剂量</string>
+    <string name="insulin_pen_duplicates_found">先前扫描留下 %1$d 条重复剂量，可在胰岛素笔设置中删除。</string>
+    <string name="insulin_pen_cleanup">删除重复剂量</string>
+    <string name="insulin_pen_cleanup_count">删除 %1$d 条重复剂量</string>
+    <string name="insulin_pen_cleanup_desc">旧版本每次扫描都会重新写入同一次注射。胰岛素笔自己的记录显示这些只注射过一次。</string>
+    <string name="insulin_pen_cleanup_none">没有需要删除的内容。若更新后还没读取过，请先读取一次胰岛素笔。</string>
+    <string name="insulin_pen_cleanup_confirm">删除 %1$d 条重复剂量？</string>
     <string name="insulin_pen_doses_label">剂量</string>
     <string name="insulin_pen_select_all">全选</string>
     <string name="insulin_pen_select_none">清除</string>

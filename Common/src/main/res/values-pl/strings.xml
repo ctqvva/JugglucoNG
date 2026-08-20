@@ -2500,6 +2500,12 @@
     <string name="insulin_pen_new_doses">nowe dawki: %1$d</string>
     <string name="insulin_pen_no_new_doses">Odczytano wstrzykiwacz. Brak nowych dawek.</string>
     <string name="insulin_pen_duplicates_removed">Usunięto zduplikowane dawki z wcześniejszych odczytów: %1$d</string>
+    <string name="insulin_pen_duplicates_found">Zduplikowane dawki z wcześniejszych odczytów: %1$d. Usuń je w ustawieniach wstrzykiwacza.</string>
+    <string name="insulin_pen_cleanup">Usuń zduplikowane dawki</string>
+    <string name="insulin_pen_cleanup_count">Usuń zduplikowane dawki: %1$d</string>
+    <string name="insulin_pen_cleanup_desc">Wcześniejsze wersje zapisywały dawkę ponownie przy każdym odczycie. Dziennik wstrzykiwacza mówi, że były to pojedyncze wstrzyknięcia.</string>
+    <string name="insulin_pen_cleanup_none">Nie ma czego usuwać. Odczytaj wstrzykiwacz raz, jeśli nie był odczytany po aktualizacji.</string>
+    <string name="insulin_pen_cleanup_confirm">Usunąć zduplikowane dawki (%1$d)?</string>
     <string name="insulin_pen_doses_label">Dawki</string>
     <string name="insulin_pen_select_all">Zaznacz wszystko</string>
     <string name="insulin_pen_select_none">Wyczyść</string>
