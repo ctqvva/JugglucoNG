@@ -233,7 +233,7 @@ object JournalTreatmentUploader {
         }
 
         val receiveOk = if (receiveEnabled) {
-            receiveRemoteTreatments(baseUrl, rawSecret)
+            receiveRemoteTreatments(baseUrl, rawSecret, useV3)
         } else {
             true
         }
@@ -271,6 +271,34 @@ object JournalTreatmentUploader {
 
     private fun treatmentPostUrl(baseUrl: String, useV3: Boolean): String =
         baseUrl + if (useV3) "/api/v3/treatments" else "/api/v1/treatments"
+
+    /**
+     * Read URL for treatments. The v1 form is a bare array under a .json suffix counted by
+     * `count`; v3 has neither, and limits with `limit` while sorting newest first, so the two
+     * cannot share one string. Sending the v1 form to a v3 setup answers 401, which reads as a
+     * server permission problem rather than a client using the wrong API.
+     */
+    internal fun treatmentFetchUrl(baseUrl: String, useV3: Boolean, count: Int = TREATMENT_FETCH_COUNT): String =
+        if (useV3) {
+            "$baseUrl/api/v3/treatments?sort%24desc=date&limit=$count&fields=_all"
+        } else {
+            "$baseUrl/api/v1/treatments.json?count=$count"
+        }
+
+    /**
+     * v1 answers with the document array itself, v3 wraps it in {status, result}. Everything
+     * downstream parses an array, so the envelope is peeled here rather than in the importer.
+     * A body that is already an array is passed through, so a v3 host that answers the v1 shape
+     * still imports.
+     */
+    internal fun treatmentsArrayBody(body: String, useV3: Boolean): String {
+        val trimmed = body.trim()
+        if (!useV3 || trimmed.startsWith("[")) return trimmed
+        if (!trimmed.startsWith("{")) return trimmed
+        return runCatching { JSONObject(trimmed).optJSONArray("result")?.toString() }
+            .getOrNull()
+            ?: "[]"
+    }
 
     private fun treatmentDeleteUrl(baseUrl: String, remoteId: String, useV3: Boolean): String =
         baseUrl + (if (useV3) "/api/v3/treatments/" else "/api/v1/treatments/") + remoteId
@@ -377,7 +405,9 @@ object JournalTreatmentUploader {
         timestamp: Long?
     ): String? =
         runCatching {
-            val array = JSONArray(fetchTreatmentsJson(baseUrl, secret))
+            // Reached only from the v1 branches: postV1Treatment runs in the else of
+            // `if (useV3)`, and resolveDeleteRemoteId returns before this when v3 is on.
+            val array = JSONArray(fetchTreatmentsJson(baseUrl, secret, useV3 = false))
             for (index in 0 until array.length()) {
                 val treatment = array.optJSONObject(index) ?: continue
                 if (!treatment.optString("identifier").equals(localIdentifier, ignoreCase = false)) continue
@@ -394,9 +424,9 @@ object JournalTreatmentUploader {
         optString("_id").trim().takeIf { it.isNotBlank() }
             ?: optString("id").trim().takeIf { it.isNotBlank() }
 
-    private fun receiveRemoteTreatments(baseUrl: String, secret: String): Boolean =
+    private fun receiveRemoteTreatments(baseUrl: String, secret: String, useV3: Boolean): Boolean =
         runCatching {
-            val body = fetchTreatmentsJson(baseUrl, secret)
+            val body = fetchTreatmentsJson(baseUrl, secret, useV3)
             if (body.isBlank() || body == "[]") return@runCatching true
             val sensorId = NightscoutFollowerRegistry.deriveSensorId(baseUrl)
             val imported = NightscoutJournalFollowerImporter.importTreatments(sensorId, body)
@@ -416,17 +446,25 @@ object JournalTreatmentUploader {
             }
         }.getOrDefault(false)
 
-    private fun fetchTreatmentsJson(baseUrl: String, secret: String): String {
+    private fun fetchTreatmentsJson(baseUrl: String, secret: String, useV3: Boolean): String {
         val normalized = NightscoutFollowerRegistry.normalizeUrl(baseUrl)
         if (normalized.isBlank()) return "[]"
-        val endpoint = "$normalized/api/v1/treatments.json?count=$TREATMENT_FETCH_COUNT"
+        val endpoint = treatmentFetchUrl(normalized, useV3)
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout journal sync")
-            NightscoutFollowerRegistry.applyAuth(this, secret)
+            // v3 reads want the same bearer token the v3 upload path already obtains and
+            // caches; the configured secret is an access token there, and hashing it into an
+            // api-secret header is what the 401 was.
+            val v3Auth = if (useV3) NightPost.getV3AuthorizationHeader() else ""
+            if (v3Auth.isNotEmpty()) {
+                setRequestProperty("Authorization", v3Auth)
+            } else {
+                NightscoutFollowerRegistry.applyAuth(this, secret)
+            }
         }
         try {
             val code = connection.responseCode
@@ -438,7 +476,7 @@ object JournalTreatmentUploader {
             if (code !in 200..299) {
                 throw IllegalStateException("HTTP $code ${endpointPath(endpoint)}: ${serverMessage(body)}")
             }
-            return body
+            return treatmentsArrayBody(body, useV3)
         } finally {
             connection.disconnect()
         }

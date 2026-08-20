@@ -1274,7 +1274,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_send_long_insulin">Langzeitinsulin senden</string>
     <string name="nightscout_send_long_insulin_desc">Basal- und ultralang wirkendes Insulin zu Nightscout hochladen</string>
     <string name="nightscout_receive_amounts">Mengen empfangen</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren. Der Zugriffstoken benötigt die Berechtigung api:treatments:read.</string>
     <string name="nightscout_upload_iob">IOB an Nightscout senden</string>
     <string name="nightscout_upload_iob_desc">Nightscout zeigt dann diesen Wert statt seiner eigenen Berechnung aus dem Profil. eIOB und COB werden zusätzlich in einem eigenen Feld übertragen.</string>
     <string name="nightscout_settings_title">Nightscout-Einstellungen</string>

@@ -323,6 +323,19 @@ private static synchronized String gettoken(
         }
     }
 
+/**
+ * Authorization header for v3 requests made outside this class, reusing the token the v3
+ * upload path already fetches and caches. Empty when none could be had, so the caller can
+ * fall back rather than send a header it knows is wrong.
+ *
+ * <p>Leaves the visible upload status alone: a read failing must not overwrite what the
+ * uploader last reported.
+ */
+@Keep
+static public String getV3AuthorizationHeader() {
+    return gettoken(System.currentTimeMillis(),UPLOAD_CONNECT_TIMEOUT_MS,UPLOAD_READ_TIMEOUT_MS,false);
+    }
+
 private static synchronized String getCachedToken(long now) {
     return now<expire ? token : "";
     }

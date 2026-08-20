@@ -1504,7 +1504,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_send_long_insulin">Dir insuliinta muddada dheer</string>
     <string name="nightscout_send_long_insulin_desc">Ku dar insuliinta basal iyo tan aadka u dheer gelinta Nightscout</string>
     <string name="nightscout_receive_amounts">Hesho qaddaro</string>
-    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka</string>
+    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka. Token-ka gelitaanka wuxuu u baahan yahay oggolaanshaha api:treatments:read.</string>
     <string name="nightscout_settings_title">Goobaha Nightscoout</string>
     <string name="nightscout_sync_actions_title">Isku xidh falalka</string>
     <string name="nightscout_url_label">Nightscout URL</string>

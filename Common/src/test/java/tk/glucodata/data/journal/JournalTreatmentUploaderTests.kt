@@ -1,5 +1,6 @@
 package tk.glucodata.data.journal
 
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -55,6 +56,41 @@ class JournalTreatmentUploaderTests {
         )
     }
 
+    // -- receive endpoint --------------------------------------------------
+
+    @Test
+    fun receivingFollowsTheConfiguredApiVersion() {
+        val v1 = JournalTreatmentUploader.treatmentFetchUrl("https://ns.example.com", useV3 = false, count = 240)
+        assertEquals("https://ns.example.com/api/v1/treatments.json?count=240", v1)
+
+        val v3 = JournalTreatmentUploader.treatmentFetchUrl("https://ns.example.com", useV3 = true, count = 240)
+        assertTrue(v3, v3.startsWith("https://ns.example.com/api/v3/treatments?"))
+        // v3 counts with limit and has no .json suffix; sending the v1 form is what answered 401.
+        assertTrue(v3, v3.contains("limit=240"))
+        assertFalse(v3, v3.contains(".json"))
+        assertFalse(v3, v3.contains("count="))
+    }
+
+    @Test
+    fun v3ResultEnvelopeIsUnwrappedForTheImporter() {
+        val body = """{"status":200,"result":[{"identifier":"a"},{"identifier":"b"}]}"""
+        val array = JSONArray(JournalTreatmentUploader.treatmentsArrayBody(body, useV3 = true))
+        assertEquals(2, array.length())
+        assertEquals("a", array.getJSONObject(0).getString("identifier"))
+    }
+
+    @Test
+    fun v1ArraysAndV3HostsAnsweringArraysBothPassThrough() {
+        val array = """[{"identifier":"a"}]"""
+        assertEquals(array, JournalTreatmentUploader.treatmentsArrayBody(array, useV3 = false))
+        assertEquals(array, JournalTreatmentUploader.treatmentsArrayBody(array, useV3 = true))
+    }
+
+    @Test
+    fun anEnvelopeWithoutResultYieldsAnEmptyArrayRatherThanAParseFailure() {
+        assertEquals("[]", JournalTreatmentUploader.treatmentsArrayBody("""{"status":401}""", useV3 = true))
+    }
+
     // -- what a refusal reports --------------------------------------------
 
     @Test
@@ -74,8 +110,8 @@ class JournalTreatmentUploaderTests {
     @Test
     fun theFailureNamesTheEndpointPathWithoutRepeatingTheHost() {
         assertEquals(
-            "/api/v1/treatments.json",
-            JournalTreatmentUploader.endpointPath("https://ns.example.com/api/v1/treatments.json?count=240")
+            "/api/v3/treatments",
+            JournalTreatmentUploader.endpointPath("https://ns.example.com/api/v3/treatments?limit=240")
         )
     }
 

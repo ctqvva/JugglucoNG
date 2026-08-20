@@ -2151,7 +2151,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="calibration_import_replace_desc">Энэ мэдрэгчийн калибровкийн профайлыг солих.</string>
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох. Хандалтын токенд api:treatments:read зөвшөөрөл шаардлагатай.</string>
     <string name="nightscout_test_testing">Шалгаж байна...</string>
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
     <string name="nightscout_test_ok">Холбогдсон - HTTP %1$d</string>

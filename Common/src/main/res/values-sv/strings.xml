@@ -1204,7 +1204,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Skicka långverkande insulin</string>
     <string name="nightscout_send_long_insulin_desc">Inkludera basinsulin och ultralångverkande insulin i Nightscout-uppladdningar</string>
     <string name="nightscout_receive_amounts">Ta emot mängder</string>
-    <string name="nightscout_receive_amounts_desc">Importera Nightscout-insulin/kolhydrater till journalen</string>
+    <string name="nightscout_receive_amounts_desc">Importera Nightscout-insulin/kolhydrater till journalen. Åtkomsttoken behöver behörigheten api:treatments:read.</string>
     <string name="nightscout_settings_title">Nightscout-inställningar</string>
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>

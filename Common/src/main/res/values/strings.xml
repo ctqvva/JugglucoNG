@@ -1565,7 +1565,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Send long-acting insulin</string>
     <string name="nightscout_send_long_insulin_desc">Include basal and ultra-long insulin treatments in Nightscout uploads</string>
     <string name="nightscout_receive_amounts">Receive amounts</string>
-    <string name="nightscout_receive_amounts_desc">Import Nightscout insulin/carbs into journal</string>
+    <string name="nightscout_receive_amounts_desc">Import Nightscout insulin/carbs into journal. The access token needs the api:treatments:read permission.</string>
     <string name="nightscout_upload_iob">Send IOB to Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout then shows this value instead of its own calculation from its profile. eIOB and COB are sent along in a separate field.</string>
     <string name="nightscout_settings_title">Nightscout Settings</string>
