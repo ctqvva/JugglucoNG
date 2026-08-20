@@ -252,7 +252,7 @@ object AnytimeConstants {
      * the first non-zero glucose arrived at id=14, i.e. 14 x 3 min = 42 min.
      * 45 minutes is the vendor-rounded window that covers it.
      */
-    const val CT5_WARMUP_MINUTES = 45
+    const val CT5_WARMUP_MINUTES = 40
 
     /** Watchdog — official app's pullDataDelay is 190 s. */
     const val PULL_WATCHDOG_SECONDS = 190L
