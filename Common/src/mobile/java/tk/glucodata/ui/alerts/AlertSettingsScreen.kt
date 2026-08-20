@@ -1124,6 +1124,19 @@ private fun AlertSettingsExpanded(
                     )
                 }
 
+                // === IOB coverage (PRE_HIGH only; insulin makes a predicted LOW
+                // more likely, so PRE_LOW must never get this control) ===
+                if (config.type == AlertType.PRE_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.pre_high_iob_coverage_label),
+                        value = ((config.iobCoverageFactor ?: 0f) * 100f).toInt(),
+                        range = 0..200,
+                        stepSize = 10,
+                        onValueChange = { v -> onConfigChange(config.copy(iobCoverageFactor = v / 100f)) },
+                        valueText = { if (it == 0) stringResource(R.string.alert_feature_off) else "$it%" }
+                    )
+                }
+
                 // === Sensor-expiry pre-warnings (multi-select, this type only) ===
                 if (config.type == AlertType.SENSOR_EXPIRY) {
                     SensorExpiryThresholdSelector(

@@ -691,6 +691,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="threshold_label">Esik</string>
     <string name="rearm_margin_label">Yeniden alarm marjı</string>
     <string name="rearm_min_interval_label">Alarmlar arası asgari süre</string>
+    <string name="pre_high_iob_coverage_label">İnsülin yükselişi karşılıyorsa bastır</string>
+    <string name="alert_feature_off">Kapalı</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Ses/titresim profili</string>
     <string name="ICE">ICE</string>

@@ -727,6 +727,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="threshold_label">Drempel</string>
     <string name="rearm_margin_label">Herstelmarge voor nieuw alarm</string>
     <string name="rearm_min_interval_label">Minimale tijd tussen alarmen</string>
+    <string name="pre_high_iob_coverage_label">Onderdrukken als insuline de stijging dekt</string>
+    <string name="alert_feature_off">Uit</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume-/trilprofiel</string>
     <string name="ICE">ICE</string>

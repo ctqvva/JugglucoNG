@@ -512,6 +512,8 @@
     <string name="threshold_label">Soglia</string>
     <string name="rearm_margin_label">Margine di riarmo</string>
     <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
+    <string name="pre_high_iob_coverage_label">Sopprimi se l\'insulina copre l\'aumento</string>
+    <string name="alert_feature_off">Disattivato</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profilo volume/vibrazione</string>
     <string name="ICE">ICE</string>

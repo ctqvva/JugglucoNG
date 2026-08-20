@@ -629,6 +629,8 @@
     <string name="threshold_label">Парог</string>
     <string name="rearm_margin_label">Запас да паўторнага спрацоўвання</string>
     <string name="rearm_min_interval_label">Мінімальны інтэрвал паміж трывогамі</string>
+    <string name="pre_high_iob_coverage_label">Не апавяшчаць, калі інсулін пакрывае рост</string>
+    <string name="alert_feature_off">Выкл.</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профіль гучнасці/вібрацыі</string>
     <string name="ICE">ICE</string>

@@ -1322,6 +1322,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="threshold_label">Threshold</string>
     <string name="rearm_margin_label">Re-arm margin</string>
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
+    <string name="pre_high_iob_coverage_label">Suppress if insulin covers the rise</string>
+    <string name="alert_feature_off">Off</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume/Vibration Profile</string>
 

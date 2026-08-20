@@ -123,6 +123,10 @@ data class AlertConfig(
     // given amplitude; the time guard covers any. null/0 = only the built-in
     // short cooldown.
     val rearmMinIntervalMinutes: Int? = null,
+    // PRE_HIGH ONLY: suppress the forecast while remaining IOB x sensitivity
+    // covers the projected overshoot x this factor. 0 = off. Never applied to
+    // PRE_LOW - insulin makes a predicted low MORE likely.
+    val iobCoverageFactor: Float? = null,
 
     // Delta-counter settings (FALLING_FAST / RISING_FAST): GDH-style robust rate-of-change alarm.
     val deltaThreshold: Float? = null,      // Min change per interval (display units) to count as steep
@@ -270,6 +274,11 @@ object AlertDefaults {
     // Second guard: no forecast re-entry for this long after a firing.
     const val FORECAST_REARM_MIN_INTERVAL_MINUTES = 20
 
+    // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
+    // full projected overshoot (factor 1.0). Conservative: only a complete
+    // cover silences the alert; setting it below 1 suppresses earlier, 0 = off.
+    const val PRE_HIGH_IOB_COVERAGE_FACTOR = 1.0f
+
     // Delta-counter defaults (FALLING_FAST / RISING_FAST). Tunable; disabled by default.
     // Change over the delta interval that counts as steep (~10 mg/dL / 0.6 mmol per 5 min).
     const val DELTA_THRESHOLD_MGDL = 10f
@@ -345,6 +354,7 @@ object AlertDefaults {
                 forecastMinutes = FORECAST_LOOK_AHEAD_MINUTES,
                 rearmMargin = if (isMmol) FORECAST_REARM_MARGIN_MMOL else FORECAST_REARM_MARGIN_MGDL,
                 rearmMinIntervalMinutes = FORECAST_REARM_MIN_INTERVAL_MINUTES,
+                iobCoverageFactor = PRE_HIGH_IOB_COVERAGE_FACTOR,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.SOFT,
                 defaultSnoozeMinutes = 30

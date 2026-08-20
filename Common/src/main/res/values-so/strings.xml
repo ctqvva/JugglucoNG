@@ -1261,6 +1261,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="threshold_label">Xadka</string>
     <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
     <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
+    <string name="pre_high_iob_coverage_label">Jooji haddii insuliintu kordhinta daboolayso</string>
+    <string name="alert_feature_off">Damman</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Xogta Mugga/Gariirka</string>
 

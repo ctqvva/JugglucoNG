@@ -730,6 +730,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="threshold_label">Schwelle</string>
     <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
     <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
+    <string name="pre_high_iob_coverage_label">Unterdrücken, wenn Insulin den Anstieg abdeckt</string>
+    <string name="alert_feature_off">Aus</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Lautstärke-/Vibrationsprofil</string>
     <string name="ICE">ICE</string>
