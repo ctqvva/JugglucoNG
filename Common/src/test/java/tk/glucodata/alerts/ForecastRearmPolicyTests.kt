@@ -188,6 +188,98 @@ class ForecastRearmPolicyTests {
         assertEquals(2, h.fires)
     }
 
+    // --- Hard-threshold rearm margin (LOW/HIGH/VERY_LOW/VERY_HIGH) ---
+
+    private class HardHarness(private val config: AlertConfig) {
+        private val episodes = AlertEpisodeState<AlertType>()
+        var fires = 0
+            private set
+
+        fun tick(glucose: Float): AlertEpisodeTransition<AlertType> {
+            val active = StandardGlucoseAlertEvaluator.resolveActive(
+                glucoseValue = glucose,
+                rate = 0f,
+                configs = mapOf(config.type to config),
+                alertTypes = listOf(config.type),
+                isMmol = false,
+                isConfigActive = { true },
+                wasConditionActive = episodes::isActive
+            )
+            val transition = episodes.update(active.keys)
+            if (transition.shouldTryFire(config.type)) {
+                fires++
+            }
+            return transition
+        }
+    }
+
+    @Test
+    fun oneSampleExactlyOnTheThresholdDoesNotEndAHardEpisode() {
+        // Field trace: VERY_HIGH threshold 280 fired twice while the value
+        // never went below 280 - the single reading AT 280 ended the episode
+        // under the strict compare and 281 re-entered.
+        val config = AlertConfig(
+            AlertType.VERY_HIGH,
+            enabled = true,
+            threshold = 280f,
+            rearmMargin = 10f
+        )
+        val h = HardHarness(config)
+        h.tick(281f)   // entry, fire
+        h.tick(287f)
+        val onTheLine = h.tick(280f)   // exactly threshold: stays active
+        assertTrue(onTheLine.cleared.isEmpty())
+        h.tick(281f)   // same episode, no second fire
+        assertEquals(1, h.fires)
+    }
+
+    @Test
+    fun hardEpisodeEndsOnlyPastTheRearmMargin() {
+        val config = AlertConfig(
+            AlertType.VERY_HIGH,
+            enabled = true,
+            threshold = 280f,
+            rearmMargin = 10f
+        )
+        val h = HardHarness(config)
+        h.tick(281f)
+        assertTrue(h.tick(272f).cleared.isEmpty())   // within margin: still active
+        assertTrue(AlertType.VERY_HIGH in h.tick(269f).cleared)  // past 280-10: over
+        h.tick(281f)   // fresh entry
+        assertEquals(2, h.fires)
+    }
+
+    @Test
+    fun lowSideMirrorsWithThePlusMargin() {
+        val config = AlertConfig(
+            AlertType.LOW,
+            enabled = true,
+            threshold = 70f,
+            rearmMargin = 10f
+        )
+        val h = HardHarness(config)
+        h.tick(69f)                                   // entry
+        assertTrue(h.tick(70f).cleared.isEmpty())     // exactly threshold: active
+        assertTrue(h.tick(75f).cleared.isEmpty())     // within margin: active
+        assertTrue(AlertType.LOW in h.tick(81f).cleared)  // past 70+10: recovered
+        assertEquals(1, h.fires)
+    }
+
+    @Test
+    fun hardMarginZeroKeepsTheStrictCompare() {
+        val config = AlertConfig(
+            AlertType.VERY_HIGH,
+            enabled = true,
+            threshold = 280f,
+            rearmMargin = 0f
+        )
+        val h = HardHarness(config)
+        h.tick(281f)
+        assertTrue(AlertType.VERY_HIGH in h.tick(280f).cleared)  // old behaviour
+        h.tick(281f)
+        assertEquals(2, h.fires)
+    }
+
     @Test
     fun rearmCooldownExtendsButNeverShortensTheBuiltInFloor() {
         val fiveMinutes = 5L * 60L * 1000L

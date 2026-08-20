@@ -1103,11 +1103,17 @@ private fun AlertSettingsExpanded(
                     }
                 }
 
-                // === Rearm hysteresis (forecast types) ===
+                // === Rearm hysteresis ===
                 // The margin is how far the MEASURED value must recover before the
-                // episode ends and the alert can fire again; the interval is a hard
-                // floor between firings, whatever value and projection do.
-                if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
+                // episode ends and the alert can fire again; the interval (forecast
+                // only) is a hard floor between firings, whatever value and
+                // projection do.
+                val rearmMarginTypes = setOf(
+                    AlertType.PRE_LOW, AlertType.PRE_HIGH,
+                    AlertType.LOW, AlertType.HIGH,
+                    AlertType.VERY_LOW, AlertType.VERY_HIGH
+                )
+                if (config.type in rearmMarginTypes) {
                     ThresholdSlider(
                         label = stringResource(R.string.rearm_margin_label),
                         value = config.rearmMargin ?: 0f,
@@ -1115,6 +1121,8 @@ private fun AlertSettingsExpanded(
                         range = if (isMmol) 0f..3f else 0f..50f,
                         onValueChange = { onConfigChange(config.copy(rearmMargin = it)) }
                     )
+                }
+                if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
                     DurationSlider(
                         label = stringResource(R.string.rearm_min_interval_label),
                         value = config.rearmMinIntervalMinutes ?: 0,

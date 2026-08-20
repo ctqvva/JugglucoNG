@@ -56,7 +56,14 @@ internal object StandardGlucoseAlertEvaluator {
                     forecastMinutes = config.forecastMinutes
                 )
             } else {
-                isThresholdConditionActive(type, value, threshold)
+                isThresholdConditionActive(
+                    type = type,
+                    value = value,
+                    threshold = threshold,
+                    wasActive = wasConditionActive(type),
+                    rearmMargin = config.rearmMargin,
+                    isMmol = isMmol
+                )
             }
 
             if (conditionActive) {
@@ -71,17 +78,42 @@ internal object StandardGlucoseAlertEvaluator {
         return type == AlertType.PRE_LOW || type == AlertType.PRE_HIGH
     }
 
-    private fun isThresholdConditionActive(type: AlertType, value: Float, threshold: Float): Boolean {
+    /**
+     * Entry stays strict (value must actually cross the threshold), but an
+     * already-active episode survives until the value recovers past the rearm
+     * margin. Without it a single reading landing exactly ON the threshold
+     * ended the episode and consumed the dismiss: a trace shows VERY_HIGH at
+     * threshold 280 firing twice with the value never below 280 - one sample
+     * AT 280 (strictly-greater = false) ended the episode, and 281 was a
+     * regular re-entry. Edge case, documented on purpose: at exactly the
+     * threshold an active episode stays ACTIVE, it does not end.
+     */
+    private fun isThresholdConditionActive(
+        type: AlertType,
+        value: Float,
+        threshold: Float,
+        wasActive: Boolean,
+        rearmMargin: Float?,
+        isMmol: Boolean
+    ): Boolean {
+        val margin = if (wasActive) {
+            (rearmMargin ?: defaultThresholdRearmMargin(isMmol)).coerceAtLeast(0f)
+        } else {
+            0f
+        }
         return when (type) {
             AlertType.LOW,
             AlertType.VERY_LOW,
-            AlertType.PRE_LOW -> value < threshold
+            AlertType.PRE_LOW -> value < threshold + margin
             AlertType.HIGH,
             AlertType.VERY_HIGH,
-            AlertType.PRE_HIGH -> value > threshold
+            AlertType.PRE_HIGH -> value > threshold - margin
             else -> false
         }
     }
+
+    internal fun defaultThresholdRearmMargin(isMmol: Boolean): Float =
+        if (isMmol) AlertDefaults.THRESHOLD_REARM_MARGIN_MMOL else AlertDefaults.THRESHOLD_REARM_MARGIN_MGDL
 }
 
 internal object ForecastThresholdPolicy {

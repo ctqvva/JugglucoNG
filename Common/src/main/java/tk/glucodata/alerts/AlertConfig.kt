@@ -274,6 +274,12 @@ object AlertDefaults {
     // Second guard: no forecast re-entry for this long after a firing.
     const val FORECAST_REARM_MIN_INTERVAL_MINUTES = 20
 
+    // Hard-threshold hysteresis (LOW/HIGH/VERY_LOW/VERY_HIGH): an active
+    // episode survives until the value recovers this far past the threshold.
+    // One mg/dl of wobble at the line must not consume a dismiss.
+    const val THRESHOLD_REARM_MARGIN_MGDL = 10f
+    const val THRESHOLD_REARM_MARGIN_MMOL = 0.6f
+
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
     // cover silences the alert; setting it below 1 suppresses earlier, 0 = off.
@@ -303,6 +309,7 @@ object AlertDefaults {
                 type = type,
                 enabled = true,
                 threshold = if (isMmol) LOW_THRESHOLD_MMOL else LOW_THRESHOLD_MGDL,
+                rearmMargin = if (isMmol) THRESHOLD_REARM_MARGIN_MMOL else THRESHOLD_REARM_MARGIN_MGDL,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STRONG,
                 overrideDND = true,
@@ -312,6 +319,7 @@ object AlertDefaults {
                 type = type,
                 enabled = true,
                 threshold = if (isMmol) HIGH_THRESHOLD_MMOL else HIGH_THRESHOLD_MGDL,
+                rearmMargin = if (isMmol) THRESHOLD_REARM_MARGIN_MMOL else THRESHOLD_REARM_MARGIN_MGDL,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 overrideDND = false,
@@ -321,6 +329,7 @@ object AlertDefaults {
                 type = type,
                 enabled = true,
                 threshold = if (isMmol) VERY_LOW_THRESHOLD_MMOL else VERY_LOW_THRESHOLD_MGDL,
+                rearmMargin = if (isMmol) THRESHOLD_REARM_MARGIN_MMOL else THRESHOLD_REARM_MARGIN_MGDL,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,  // Critical - use system alarm
                 hapticProfile = HapticProfile.ESCALATING,
                 overrideDND = true,
@@ -331,6 +340,7 @@ object AlertDefaults {
                 type = type,
                 enabled = true,
                 threshold = if (isMmol) VERY_HIGH_THRESHOLD_MMOL else VERY_HIGH_THRESHOLD_MGDL,
+                rearmMargin = if (isMmol) THRESHOLD_REARM_MARGIN_MMOL else THRESHOLD_REARM_MARGIN_MGDL,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STRONG,
                 overrideDND = true,
