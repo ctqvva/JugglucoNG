@@ -25,12 +25,22 @@ import android.app.Application;
 import android.content.IntentFilter;
 
 public class Specific {
-	static void start(Application context) {
-		// Hand the shared code this variant's implementations before anything can draw an
-		// arrow, evaluate a reading or broadcast a rate. Explicit registration, not a runtime
-		// name lookup: R8 renames these in release builds (see TrendAccess/CustomAlertAccess).
+	// Hand the shared code this variant's implementations before anything can draw an
+	// arrow, evaluate a reading or broadcast a rate. Explicit registration, not a runtime
+	// name lookup: R8 renames these in release builds (see TrendAccess/CustomAlertAccess).
+	// Called from Applic.onCreate(), NOT from start(): start() runs at the end of
+	// initproc(), behind numio.setlibrary() and the sensor restore, and after a reboot
+	// the reading pipeline (boot receiver, service restart) can evaluate a value before
+	// initproc() gets that far -- the forecast alerts then fired on the two-point
+	// fallback slope. Registration stores singletons and needs nothing from initproc.
+	static void registerBridges() {
 		TrendAccess.register(tk.glucodata.logic.TrendEngineVelocityProvider.INSTANCE);
 		CustomAlertAccess.register(tk.glucodata.logic.CustomAlertManagerController.INSTANCE);
+	}
+
+	static void start(Application context) {
+		// Idempotent safety net; the real registration happens in onCreate.
+		registerBridges();
 		watchdrip.set(Natives.getwatchdrip());
 		SuperGattCallback.doGadgetbridge = Natives.getgadgetbridge();
 	}

@@ -31,6 +31,7 @@ object AlertRuntimeManager {
     private var lastDisplaySnapshot: CurrentDisplaySource.Snapshot? = null
     private var persistentHighStartedAtMs: Long = 0L
     private var lastLoggedExpiryEndMs: Long = Long.MIN_VALUE
+    private var warnedForecastRateUntrusted = false
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
     private val fallingDeltaState = DeltaAlarmState(falling = true)
@@ -256,13 +257,23 @@ object AlertRuntimeManager {
         rate: Float,
         configs: Map<AlertType, AlertConfig>
     ): Map<AlertType, StandardGlucoseAlertCondition> {
+        val forecastRateTrusted = tk.glucodata.TrendAccess.hasProvider()
+        if (!forecastRateTrusted && !warnedForecastRateUntrusted) {
+            // TrendAccess already logs each fallback use; this line records the
+            // consequence once per gap: forecasts are withheld, not guessed.
+            Log.e(LOG_ID, "No TrendVelocityProvider registered - forecast alerts suppressed")
+            warnedForecastRateUntrusted = true
+        } else if (forecastRateTrusted) {
+            warnedForecastRateUntrusted = false
+        }
         return StandardGlucoseAlertEvaluator.resolveActive(
             glucoseValue = glucoseValue,
             rate = rate,
             configs = configs,
             alertTypes = standardGlucoseAlertTypes,
             isMmol = Applic.unit == 1,
-            wasConditionActive = standardEpisodes::isActive
+            wasConditionActive = standardEpisodes::isActive,
+            forecastRateTrusted = forecastRateTrusted
         )
     }
 

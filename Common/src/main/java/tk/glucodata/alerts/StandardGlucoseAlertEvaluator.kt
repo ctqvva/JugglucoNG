@@ -14,13 +14,19 @@ internal object StandardGlucoseAlertEvaluator {
         alertTypes: Iterable<AlertType>,
         isMmol: Boolean,
         isConfigActive: (AlertConfig) -> Boolean = { it.isActiveNow() },
-        wasConditionActive: (AlertType) -> Boolean = { false }
+        wasConditionActive: (AlertType) -> Boolean = { false },
+        forecastRateTrusted: Boolean = true
     ): Map<AlertType, StandardGlucoseAlertCondition> {
         if (!glucoseValue.isFinite()) {
             return emptyMap()
         }
 
         return alertTypes.mapNotNull { type ->
+            // A degraded rate estimator is harmless for threshold alerts (they
+            // measure the actual value) but a forecast scales it over the whole
+            // horizon. Without a trusted rate the forecast types stay silent
+            // rather than guess.
+            if (isForecastAlert(type) && !forecastRateTrusted) return@mapNotNull null
             val config = configs[type] ?: return@mapNotNull null
             if (!config.enabled) return@mapNotNull null
             if (!isConfigActive(config)) return@mapNotNull null
