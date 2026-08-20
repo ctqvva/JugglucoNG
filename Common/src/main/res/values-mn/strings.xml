@@ -1870,6 +1870,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Message template</string>
     <string name="outbound_api_template_desc">Tap a token below to insert it.</string>
+    <string name="outbound_api_insulin_tokens">Инсулины төрлүүд</string>
+    <string name="outbound_api_insulin_tokens_desc">Идэвхтэй инсулины төрөл бүр сүүлийн тун, түүний цаг, түүнээс хойших минут, үлдсэн нэгж, өнөөдрийн нийлбэрийн токентой.</string>
     <string name="outbound_api_min_interval">Minimum interval (minutes)</string>
     <string name="outbound_api_min_interval_desc">0 sends every accepted live reading.</string>
     <string name="outbound_api_trigger">Trigger</string>
