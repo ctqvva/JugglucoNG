@@ -14,6 +14,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.NovoPen.PenDose
 import tk.glucodata.NovoPen.PenDoseParser
+import tk.glucodata.NovoPen.PenDuplicateReconciler
+import tk.glucodata.NovoPen.PenJournalEntry
+import tk.glucodata.NovoPen.PenSourceIds
 import tk.glucodata.NovoPen.opennov.OpContext
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
@@ -27,8 +30,13 @@ data class InsulinPen(
     val insulinName: String? = null,
     val addedAt: Long = 0L,
     val lastScanAt: Long = 0L,
-    /** Newest dose second imported from this pen; the "nothing new" gate reads it. */
-    val lastImportedDoseSeconds: Long = 0L,
+    /**
+     * Newest dose this pen has been imported up to, on the pen's own counter; the
+     * "nothing new" gate reads it. Kept in the pen's timeline rather than in epoch
+     * seconds, because that is the only one of the two that means the same thing on the
+     * next scan.
+     */
+    val lastImportedDoseRelativeSeconds: Long = 0L,
     val importedDoseCount: Int = 0,
     /** One-shot: ignore the cursor on the next scan and offer the pen's whole log. */
     val fullReadArmed: Boolean = false,
@@ -104,10 +112,10 @@ object InsulinPenManager {
     fun isFullyImported(serial: String?, referenceTimeSeconds: Long, raw: ByteArray?): Boolean {
         val known = serial?.let(::pen) ?: return false
         if (known.fullReadArmed) return false
-        val cursor = known.lastImportedDoseSeconds
+        val cursor = known.lastImportedDoseRelativeSeconds
         if (cursor <= 0L) return false
         val newest = PenDoseParser.parse(referenceTimeSeconds, raw, nowSeconds())
-            .maxOfOrNull(PenDose::timestampSeconds)
+            .maxOfOrNull(PenDose::relativeSeconds)
             ?: return false
         return newest <= cursor
     }
@@ -128,11 +136,19 @@ object InsulinPenManager {
             )
             val cutoff = now - REVIEW_WINDOW_SECONDS
             val repository = JournalRepository()
+            val removed = reconcile(serial, doses, repository)
             val fresh = doses
                 .filter { it.timestampSeconds > cutoff }
                 .filterNot { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
-            if (fresh.isEmpty()) {
+            if (removed > 0) {
+                Applic.Toaster(Applic.app.getString(R.string.insulin_pen_duplicates_removed, removed))
+            } else if (fresh.isEmpty()) {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
+            }
+            if (fresh.isEmpty()) {
+                // A scan with nothing to offer still says how far the journal reaches. Without
+                // recording that, the next tap would walk the pen's whole log again.
+                doses.maxOfOrNull(PenDose::relativeSeconds)?.let { advanceCursor(serial, it) }
                 return@launch
             }
             val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
@@ -200,12 +216,12 @@ object InsulinPenManager {
         // The cursor is the "stop reading" mark for the next tap, not the dedupe rule —
         // that is the source record id. Anything older the reader left unticked stays
         // declined unless they ask for a full read.
-        val newest = doses.maxOf(PenDose::timestampSeconds)
+        val newest = doses.maxOf(PenDose::relativeSeconds)
         update(serial) {
             it.copy(
                 insulinPresetId = presetId,
                 insulinName = presetName,
-                lastImportedDoseSeconds = maxOf(it.lastImportedDoseSeconds, newest),
+                lastImportedDoseRelativeSeconds = maxOf(it.lastImportedDoseRelativeSeconds, newest),
                 importedDoseCount = it.importedDoseCount + saved,
             )
         }
@@ -216,7 +232,57 @@ object InsulinPenManager {
         saved
     }
 
-    private fun sourceRecordId(serial: String, dose: PenDose) = "pen:$serial:${dose.timestampSeconds}"
+    private fun sourceRecordId(serial: String, dose: PenDose) = PenSourceIds.stable(serial, dose)
+
+    /** Moves the "stop reading here" mark up the pen's own counter. */
+    private fun advanceCursor(serial: String, relativeSeconds: Long) {
+        update(serial) {
+            it.copy(
+                lastImportedDoseRelativeSeconds =
+                    maxOf(it.lastImportedDoseRelativeSeconds, relativeSeconds),
+            )
+        }
+    }
+
+    /**
+     * Repairs what builds before the stable record id left in the journal: the same
+     * injection written once per scan, and entries named after an anchor that no longer
+     * exists. Runs on every scan because a pen only reveals its log when it is tapped,
+     * and it stops costing anything once nothing legacy is left.
+     *
+     * @return how many duplicate entries were removed
+     */
+    private suspend fun reconcile(
+        serial: String,
+        doses: List<PenDose>,
+        repository: JournalRepository,
+    ): Int {
+        if (doses.isEmpty()) return 0
+        return runCatching {
+            val window = PenDuplicateReconciler.MATCH_WINDOW_SECONDS
+            val from = (doses.minOf(PenDose::timestampSeconds) - window) * 1000L
+            val to = (doses.maxOf(PenDose::timestampSeconds) + window) * 1000L
+            val entries = repository
+                .entriesFromSourceBetween(JournalEntrySource.PEN, from, to)
+                .mapNotNull { entry ->
+                    val recordId = entry.sourceRecordId ?: return@mapNotNull null
+                    val units = entry.amount ?: return@mapNotNull null
+                    PenJournalEntry(entry.id, entry.timestamp / 1000L, units, recordId)
+                }
+            val plan = PenDuplicateReconciler.plan(serial, doses, entries)
+            if (plan.isEmpty) return@runCatching 0
+            plan.adopt.forEach { (entryId, recordId) ->
+                repository.retagSourceRecordId(entryId, recordId)
+            }
+            plan.delete.forEach { repository.deleteEntry(it) }
+            Log.i(LOG_ID, "Pen $serial: renamed ${plan.adopt.size}, dropped ${plan.delete.size} duplicate(s)")
+            if (plan.delete.isNotEmpty()) UiRefreshBus.requestDataRefresh()
+            plan.delete.size
+        }.getOrElse { error ->
+            Log.e(LOG_ID, "Pen duplicate cleanup failed: ${Log.stackline(error)}")
+            0
+        }
+    }
 
     private fun nowSeconds() = System.currentTimeMillis() / 1000L
 
@@ -242,7 +308,7 @@ object InsulinPenManager {
                     .put("insulinName", pen.insulinName ?: JSONObject.NULL)
                     .put("addedAt", pen.addedAt)
                     .put("lastScanAt", pen.lastScanAt)
-                    .put("lastDose", pen.lastImportedDoseSeconds)
+                    .put("lastRel", pen.lastImportedDoseRelativeSeconds)
                     .put("count", pen.importedDoseCount)
                     .put("fullRead", pen.fullReadArmed)
             )
@@ -263,7 +329,7 @@ object InsulinPenManager {
                     insulinName = item.optString("insulinName").takeIf { it.isNotBlank() },
                     addedAt = item.optLong("addedAt", 0L),
                     lastScanAt = item.optLong("lastScanAt", 0L),
-                    lastImportedDoseSeconds = item.optLong("lastDose", 0L),
+                    lastImportedDoseRelativeSeconds = item.optLong("lastRel", 0L),
                     importedDoseCount = item.optInt("count", 0),
                     fullReadArmed = item.optBoolean("fullRead", false),
                 )

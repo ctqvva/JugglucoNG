@@ -2455,6 +2455,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Le dosi già presenti nel diario restano.</string>
     <string name="insulin_pen_new_doses">%1$d nuove dosi</string>
     <string name="insulin_pen_no_new_doses">Penna letta. Nessuna nuova dose.</string>
+    <string name="insulin_pen_duplicates_removed">Rimosse %1$d dosi duplicate da scansioni precedenti</string>
     <string name="insulin_pen_doses_label">Dosi</string>
     <string name="insulin_pen_select_all">Seleziona tutto</string>
     <string name="insulin_pen_select_none">Deseleziona</string>

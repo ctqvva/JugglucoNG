@@ -2537,6 +2537,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Дози, які вже є в журналі, залишаться.</string>
     <string name="insulin_pen_new_doses">нових доз: %1$d</string>
     <string name="insulin_pen_no_new_doses">Ручку зчитано. Нових доз немає.</string>
+    <string name="insulin_pen_duplicates_removed">Вилучено дубльованих доз від попередніх зчитувань: %1$d</string>
     <string name="insulin_pen_doses_label">Дози</string>
     <string name="insulin_pen_select_all">Вибрати все</string>
     <string name="insulin_pen_select_none">Зняти вибір</string>

@@ -87,6 +87,33 @@ class JournalRepository {
         return dao.getEntryBySourceRecordId(id) != null
     }
 
+    /** What one importer has already written in a stretch of time, so it can reconcile. */
+    suspend fun entriesFromSourceBetween(
+        source: JournalEntrySource,
+        startMillis: Long,
+        endMillis: Long
+    ): List<JournalEntry> {
+        return dao.getEntriesBySourceBetween(source.storageValue, startMillis, endMillis)
+            .map(JournalEntryEntity::toModel)
+    }
+
+    /**
+     * Renames an entry an importer can now identify more stably, leaving everything else
+     * alone — the point is to keep the row, including edits made to it, not to rewrite it.
+     *
+     * @return false when the entry is gone or the name is already taken
+     */
+    suspend fun retagSourceRecordId(entryId: Long, sourceRecordId: String): Boolean {
+        val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
+        return database.withTransaction {
+            val existing = dao.getEntryById(entryId) ?: return@withTransaction false
+            if (existing.sourceRecordId == id) return@withTransaction true
+            if (dao.getEntryBySourceRecordId(id) != null) return@withTransaction false
+            dao.upsertEntry(existing.copy(sourceRecordId = id, updatedAt = System.currentTimeMillis()))
+            true
+        }
+    }
+
     suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>) {
         val ids = sourceRecordIds
             .map { it.trim() }

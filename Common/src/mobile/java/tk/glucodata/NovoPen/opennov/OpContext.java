@@ -41,6 +41,25 @@ public class OpContext {
         }
     }
     public final List<Doses> doses=new ArrayList<>();
+
+    private long referencetime=UNSET_REFERENCE_TIME;
+    private static final long UNSET_REFERENCE_TIME=Long.MIN_VALUE;
+
+    /**
+     * Epoch second the pen's uptime counter is pinned to, captured once per scan.
+     *
+     * The pen has no clock of its own, so an absolute dose time only exists as
+     * "phone clock now minus pen counter now". Reading that pair again for every event
+     * report would land a second or two away each time, because NFC transfer latency
+     * varies, and the doses of one scan would then disagree with each other about when
+     * they happened. Pinning it on the first report keeps a whole read on one timeline.
+     */
+    public long referenceTime(long relativeTime) {
+        if (referencetime == UNSET_REFERENCE_TIME) {
+            referencetime = (System.currentTimeMillis() / 1000L) - relativeTime;
+        }
+        return referencetime;
+    }
     public Configuration getConfiguration() {
         if (configuration != null) {
             return configuration;

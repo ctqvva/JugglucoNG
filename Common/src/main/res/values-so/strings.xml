@@ -2665,6 +2665,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_forget_desc">Qiyaasaha horey ugu jiray xusuus-qorka way sii jiraan.</string>
     <string name="insulin_pen_new_doses">%1$d qiyaas oo cusub</string>
     <string name="insulin_pen_no_new_doses">Qalinka waa la akhriyay. Qiyaas cusub ma jiro.</string>
+    <string name="insulin_pen_duplicates_removed">Waa la tirtiray %1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore</string>
     <string name="insulin_pen_doses_label">Qiyaasaha</string>
     <string name="insulin_pen_select_all">Dhammaan dooro</string>
     <string name="insulin_pen_select_none">Nadiifi</string>

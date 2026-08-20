@@ -2465,6 +2465,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Doser som redan finns i dagboken ligger kvar.</string>
     <string name="insulin_pen_new_doses">%1$d nya doser</string>
     <string name="insulin_pen_no_new_doses">Pennan avläst. Inga nya doser.</string>
+    <string name="insulin_pen_duplicates_removed">Tog bort %1$d dubblerade doser från tidigare avläsningar</string>
     <string name="insulin_pen_doses_label">Doser</string>
     <string name="insulin_pen_select_all">Markera alla</string>
     <string name="insulin_pen_select_none">Rensa</string>
