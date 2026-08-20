@@ -260,19 +260,48 @@ class AnytimeCt5Tests {
     // ---- App/process restart --------------------------------------------
 
     @Test
-    fun restartResumesOnlyTheIdsStillMissing() {
-        // Persisted before the kill: imported through 288, repair 289..300 owed.
-        val remaining = ct5ResumeGap(pendingFromId = 289, pendingStopBeforeId = 301, highestKnownId = 288)
+    fun aPendingGapSurvivesTheArrivalOfNewerReadings() {
+        // The 2026-08-20 regression: gap 1679..1679 was recorded, then the live
+        // push for 1680 landed and the gap was silently discarded because progress
+        // was measured with the global "highest id seen" watermark. Nothing inside
+        // 1679..1680 was ever imported, so the range must still stand.
+        val remaining = ct5RemainingGap(
+            pendingFromId = 1679,
+            pendingStopBeforeId = 1680,
+            highestImportedInRange = -1,
+        )
+
+        assertNotNull("a newer live id must not cancel an unfilled gap", remaining)
+        assertEquals("1679..1679", remaining!!.toString())
+    }
+
+    @Test
+    fun aGapClosesOnlyWhenItsOwnIdsArriv() {
+        // Filled: nothing left.
+        assertNull(ct5RemainingGap(1679, 1680, highestImportedInRange = 1679))
+        // Partly filled: resume mid-range.
+        assertEquals(
+            "255..290",
+            ct5RemainingGap(240, 291, highestImportedInRange = 254)!!.toString(),
+        )
+        // Ids outside the range are irrelevant in both directions.
+        assertEquals("240..290", ct5RemainingGap(240, 291, highestImportedInRange = 9999)!!.toString())
+        assertEquals("240..290", ct5RemainingGap(240, 291, highestImportedInRange = 100)!!.toString())
+    }
+
+    @Test
+    fun restartResumesTheStoredRange() {
+        val remaining = ct5RemainingGap(pendingFromId = 289, pendingStopBeforeId = 301, highestImportedInRange = -1)
 
         assertNotNull(remaining)
         assertEquals("289..300", remaining!!.toString())
     }
 
     @Test
-    fun restartDropsAGapThatLiveDataAlreadyFilled() {
-        assertNull(ct5ResumeGap(pendingFromId = 289, pendingStopBeforeId = 291, highestKnownId = 295))
-        assertNull(ct5ResumeGap(pendingFromId = -1, pendingStopBeforeId = 291, highestKnownId = 288))
-        assertNull(ct5ResumeGap(pendingFromId = 291, pendingStopBeforeId = 291, highestKnownId = 288))
+    fun anEmptyOrInvertedGapIsDropped() {
+        assertNull(ct5RemainingGap(-1, 291, -1))
+        assertNull(ct5RemainingGap(291, 291, -1))
+        assertNull(ct5RemainingGap(292, 291, -1))
     }
 
     @Test
@@ -282,6 +311,33 @@ class AnytimeCt5Tests {
         assertNotNull(afterFirstBatch)
         assertEquals("255..290", afterFirstBatch!!.toString())
         assertNull(ct5GapAfterBatch(pendingFromId = 255, pendingStopBeforeId = 291, maxImportedId = 290))
+    }
+
+    @Test
+    fun separateGapsMergeIntoOneCappedRange() {
+        // First hole, then another a few pushes later.
+        val first = ct5MergeGap(-1, -1, newFromId = 1679, newStopBeforeId = 1680, maxRecords = 480)
+        assertEquals("1679..1679", first!!.toString())
+
+        val merged = ct5MergeGap(
+            currentFromId = first.fromId,
+            currentStopBeforeId = first.stopBeforeId,
+            newFromId = 1683,
+            newStopBeforeId = 1685,
+            maxRecords = 480,
+        )
+        assertEquals("1679..1684", merged!!.toString())
+
+        // A flaky stretch cannot grow into a session replay.
+        val capped = ct5MergeGap(0, 1, newFromId = 900, newStopBeforeId = 1000, maxRecords = 480)
+        assertEquals(480, capped!!.count)
+        assertEquals("520..999", capped.toString())
+
+        // Nothing new: the outstanding range is preserved.
+        assertEquals(
+            "1679..1679",
+            ct5MergeGap(1679, 1680, newFromId = -1, newStopBeforeId = -1, maxRecords = 480)!!.toString(),
+        )
     }
 
     // ---- Reconnect churn -------------------------------------------------

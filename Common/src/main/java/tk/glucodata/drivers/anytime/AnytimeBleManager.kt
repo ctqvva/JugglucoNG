@@ -1263,13 +1263,15 @@ class AnytimeBleManager(
         val since = streamingSinceMs
         val now = System.currentTimeMillis()
         val settledFor = if (since > 0L) now - since else 0L
-        if (isCt5HistoryLinkSettled(since, now, CT5_HISTORY_LINK_SETTLE_MS, isWriteInFlight())) return true
+        val busy = isWriteInFlight()
+        if (isCt5HistoryLinkSettled(since, now, CT5_HISTORY_LINK_SETTLE_MS, busy)) return true
         rememberPendingCt5Gap(fromId, stopBeforeId)
-        Log.i(
-            TAG,
-            "Holding CT5 history ($reason); link has been up ${settledFor / 1000}s of the " +
-                    "${CT5_HISTORY_LINK_SETTLE_MS / 1000}s it needs to settle"
-        )
+        val why = if (busy) {
+            "GATT write slot is busy"
+        } else {
+            "link has been up ${settledFor / 1000}s of the ${CT5_HISTORY_LINK_SETTLE_MS / 1000}s it needs to settle"
+        }
+        Log.i(TAG, "Holding CT5 history ($reason); $why")
         handler.removeCallbacks(ct5HistorySettleRunnable)
         handler.postDelayed(ct5HistorySettleRunnable, CT5_HISTORY_SETTLE_RETRY_MS)
         return false
@@ -1295,14 +1297,17 @@ class AnytimeBleManager(
     private fun rememberPendingCt5Gap(fromId: Int, stopBeforeId: Int) {
         if (!isCt5()) return
         if (fromId < 0 || stopBeforeId <= fromId || stopBeforeId == Int.MAX_VALUE) return
-        // Widen rather than replace, so a second interruption cannot shrink the
-        // range we still owe the user.
-        val from = if (ct5PendingGapFromId in 0 until fromId) ct5PendingGapFromId else fromId
-        val stopBefore = maxOf(ct5PendingGapStopBeforeId, stopBeforeId)
-        if (from == ct5PendingGapFromId && stopBefore == ct5PendingGapStopBeforeId) return
-        ct5PendingGapFromId = from
-        ct5PendingGapStopBeforeId = stopBefore
-        Log.i(TAG, "CT5 gap ${AnytimeIdRange(from, stopBefore)} kept for the next connection")
+        val merged = ct5MergeGap(
+            currentFromId = ct5PendingGapFromId,
+            currentStopBeforeId = ct5PendingGapStopBeforeId,
+            newFromId = fromId,
+            newStopBeforeId = stopBeforeId,
+            maxRecords = CT5_MAX_GAP_REPAIR_RECORDS,
+        ) ?: return
+        if (merged.fromId == ct5PendingGapFromId && merged.stopBeforeId == ct5PendingGapStopBeforeId) return
+        ct5PendingGapFromId = merged.fromId
+        ct5PendingGapStopBeforeId = merged.stopBeforeId
+        Log.i(TAG, "CT5 gap $merged outstanding")
         persistAlgorithmState()
     }
 
@@ -1336,11 +1341,12 @@ class AnytimeBleManager(
     private fun maybeResumePendingCt5Gap(): Boolean {
         if (!isCt5() || phase != Phase.STREAMING) return false
         if (ct5PendingGapFromId < 0) return false
-        // Anything already imported since the gap was recorded is not missing.
-        val remaining = ct5ResumeGap(
+        // A newer live id proves nothing about the hole, so the stored range
+        // stands until ids inside it are actually imported.
+        val remaining = ct5RemainingGap(
             pendingFromId = ct5PendingGapFromId,
             pendingStopBeforeId = ct5PendingGapStopBeforeId,
-            highestKnownId = ct5HighestKnownId(),
+            highestImportedInRange = -1,
         ) ?: run {
             clearPendingCt5Gap()
             return false
@@ -1407,10 +1413,26 @@ class AnytimeBleManager(
 
     // ---- CT5 warm-up ----
 
-    /** True while the sensor is alive and reporting telemetry but has no glucose yet. */
+    /** Age from the id timeline — survives a process restart, unlike in-memory reading state. */
+    private fun ct5SensorAgeMs(): Long {
+        val startMs = glucoseTimelineStartAtMs.takeIf { it > 0L }
+            ?: sensorStartAtMs.takeIf { it > 0L }
+            ?: return -1L
+        return System.currentTimeMillis() - startMs
+    }
+
+    /**
+     * True while the sensor is alive and reporting telemetry but has no glucose yet.
+     *
+     * Deliberately keyed on sensor age rather than `lastGlucoseAtMs` alone: that
+     * field is in-memory only, so after an app restart a days-old sensor looked
+     * like it was warming up until its next push.
+     */
     private fun isCt5WarmingUp(): Boolean {
         if (!isCt5()) return false
         if (lastGlucoseAtMs > 0L) return false
+        val ageMs = ct5SensorAgeMs()
+        if (ageMs < 0L || ageMs >= profile.warmupMs()) return false
         return lastLiveFrameAtMs > 0L || glucoseTimelineStartAtMs > 0L
     }
 
@@ -3061,7 +3083,7 @@ class AnytimeBleManager(
             return
         }
 
-        val wasWarmingUp = lastGlucoseAtMs <= 0L
+        val wasWarmingUp = isCt5WarmingUp()
         // Detect the gap before the cursor moves, so 288 -> 291 asks for 289..290.
         maybeStartCt5GapRepair(record.glucoseId)
         maybeStartFreshPostLiveBackfill(record.glucoseId)

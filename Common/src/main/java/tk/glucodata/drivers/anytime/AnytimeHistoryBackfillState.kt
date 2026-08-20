@@ -253,30 +253,68 @@ internal fun ct5ReconnectGap(
 }
 
 /**
- * What is still owed from a persisted gap once `highestKnownId` is taken into
- * account. Returns null when the gap has been filled (by later live pushes, or a
- * repair that completed before the process died).
+ * What is still owed from a persisted gap.
+ *
+ * Only ids **inside** the range count as progress. This is the whole point:
+ * a newer live id says nothing about whether the hole was filled. Measuring
+ * progress with the global "highest id seen" watermark silently discarded every
+ * gap the instant the next 3-minute push arrived — a hole was detected, recorded,
+ * held for the settle window, and then dropped without ever being requested.
+ *
+ * @param highestImportedInRange highest id imported that lies inside the gap,
+ *        or -1 when none of it has been filled yet.
  */
-internal fun ct5ResumeGap(
+internal fun ct5RemainingGap(
     pendingFromId: Int,
     pendingStopBeforeId: Int,
-    highestKnownId: Int,
+    highestImportedInRange: Int,
 ): AnytimeIdRange? {
     if (pendingFromId < 0 || pendingStopBeforeId <= pendingFromId) return null
-    val resumeFrom = maxOf(pendingFromId, highestKnownId + 1)
+    val resumeFrom = if (highestImportedInRange in pendingFromId until pendingStopBeforeId) {
+        highestImportedInRange + 1
+    } else {
+        pendingFromId
+    }
     if (resumeFrom >= pendingStopBeforeId) return null
     return AnytimeIdRange(resumeFrom, pendingStopBeforeId)
 }
 
 /**
  * Shrink an outstanding gap as batches land, so a second interruption resumes
- * mid-range instead of restarting the repair. Returns null when nothing is left.
+ * mid-range instead of restarting the repair. Ids outside the gap are ignored.
  */
 internal fun ct5GapAfterBatch(
     pendingFromId: Int,
     pendingStopBeforeId: Int,
     maxImportedId: Int,
-): AnytimeIdRange? = ct5ResumeGap(pendingFromId, pendingStopBeforeId, maxImportedId)
+): AnytimeIdRange? = ct5RemainingGap(pendingFromId, pendingStopBeforeId, maxImportedId)
+
+/**
+ * Merge a newly found gap into the outstanding one. Ranges are merged rather than
+ * queued, so a flaky stretch cannot grow an unbounded backlog; `maxRecords` keeps
+ * the merged range from turning into a session replay.
+ */
+internal fun ct5MergeGap(
+    currentFromId: Int,
+    currentStopBeforeId: Int,
+    newFromId: Int,
+    newStopBeforeId: Int,
+    maxRecords: Int,
+): AnytimeIdRange? {
+    if (newFromId < 0 || newStopBeforeId <= newFromId) {
+        return if (currentFromId < 0 || currentStopBeforeId <= currentFromId) {
+            null
+        } else {
+            AnytimeIdRange(currentFromId, currentStopBeforeId)
+        }
+    }
+    val hasCurrent = currentFromId >= 0 && currentStopBeforeId > currentFromId
+    val from = if (hasCurrent) minOf(currentFromId, newFromId) else newFromId
+    val stopBefore = if (hasCurrent) maxOf(currentStopBeforeId, newStopBeforeId) else newStopBeforeId
+    val capped = maxOf(from, stopBefore - maxRecords.coerceAtLeast(1))
+    if (capped >= stopBefore) return null
+    return AnytimeIdRange(capped, stopBefore)
+}
 
 /**
  * True when a shared loss-of-signal alarm should be ignored because the current
