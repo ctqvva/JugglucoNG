@@ -611,6 +611,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="enabled_status">Идэвхжсэн</string>
     <string name="disabled_status">Идэвхгүй болгосон</string>
     <string name="last_ble_status">Сүүлчийн BLE төлөв</string>
+    <string name="sensor_connection_log">Холболтын бүртгэл</string>
     <string name="sensor_address">Хаяг</string>
     <string name="sensor_started">Эхэлсэн</string>
     <string name="sensor_ends_officially">Албан ёсоор дуусах</string>

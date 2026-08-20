@@ -39,6 +39,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -47,6 +50,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 
 import androidx.compose.material.icons.filled.AccessTime
 import tk.glucodata.CurrentDisplaySource
@@ -253,6 +257,7 @@ fun SensorCard(
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
+    var connectionLogExpanded by remember(sensor.serial) { mutableStateOf(false) }
     var calibrationInputText by remember { mutableStateOf("") }
     var mqCalibrationInputText by remember { mutableStateOf("") }
     var mqQrInput by remember(context, sensor.serial) {
@@ -1616,6 +1621,46 @@ fun SensorCard(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable { connectionLogExpanded = !connectionLogExpanded },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.sensor_connection_log),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .rotate(if (connectionLogExpanded) 180f else 0f),
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = connectionLogExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        SensorTraceLog(sensor)
                     }
 
                 }

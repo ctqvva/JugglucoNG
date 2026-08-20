@@ -799,6 +799,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="sensor_connection_log">Bağlantı günlüğü</string>
     <string name="libre_setup_done">Bitti</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Eşleştirmeden önce deneysel Libre 3 tarama davranışını ayarlayın.</string>

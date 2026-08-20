@@ -696,6 +696,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="sensor_connection_log">Registo de ligação</string>
     <string name="libre_setup_done">Concluído</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Ajuste o comportamento experimental da leitura do Libre 3 antes do emparelhamento.</string>

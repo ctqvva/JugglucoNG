@@ -829,6 +829,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="sensor_connection_log">Verbindingslogboek</string>
     <string name="libre_setup_done">Klaar</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Pas experimenteel Libre 3-scangedrag aan voordat je koppelt.</string>
