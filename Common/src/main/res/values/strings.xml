@@ -1320,6 +1320,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="system_default_sound">System Default Sound</string>
     <string name="tap_to_change">Tap to change</string>
     <string name="threshold_label">Threshold</string>
+    <string name="rearm_margin_label">Re-arm margin</string>
+    <string name="rearm_min_interval_label">Minimum time between alarms</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume/Vibration Profile</string>
 

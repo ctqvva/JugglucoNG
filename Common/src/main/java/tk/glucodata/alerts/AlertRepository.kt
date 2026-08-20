@@ -64,6 +64,23 @@ object AlertRepository {
     private fun keySoundDelayEnabled(type: AlertType) = "alert_${type.id}_soundDelayEnabled"
     private fun keySoundDelaySeconds(type: AlertType) = "alert_${type.id}_soundDelay"
 
+    // Rearm hysteresis. 0 is a meaningful stored value (explicit opt-out), so
+    // reads are contains()-guarded instead of takeIf { it > 0 }-normalised.
+    private fun keyRearmMargin(type: AlertType) = "alert_${type.id}_rearmMargin"
+    private fun keyRearmMinInterval(type: AlertType) = "alert_${type.id}_rearmMinIntervalMin"
+
+    private fun readRearmMargin(type: AlertType, default: Float?): Float? {
+        val key = keyRearmMargin(type)
+        if (!prefs.contains(key)) return default
+        return prefs.getFloat(key, 0f).takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: default
+    }
+
+    private fun readRearmMinInterval(type: AlertType, default: Int?): Int? {
+        val key = keyRearmMinInterval(type)
+        if (!prefs.contains(key)) return default
+        return prefs.getInt(key, 0).coerceAtLeast(0)
+    }
+
     // Cap enforced on every read so a value written by any path (incl. the
     // apply-to-all bulk edit onto LOW/VERY_LOW) can never exceed the hypo cap.
     private fun readSoundDelaySeconds(type: AlertType): Int =
@@ -281,7 +298,9 @@ object AlertRepository {
             retryIntervalMinutes = prefs.getInt(keyRetryInterval(type), 5),
             retryCount = prefs.getInt(keyRetryCount(type), 3),
             soundDelayEnabled = prefs.getBoolean(keySoundDelayEnabled(type), false),
-            soundDelaySeconds = readSoundDelaySeconds(type)
+            soundDelaySeconds = readSoundDelaySeconds(type),
+            rearmMargin = readRearmMargin(type, base.rearmMargin),
+            rearmMinIntervalMinutes = readRearmMinInterval(type, base.rearmMinIntervalMinutes)
         )
     }
 
@@ -341,7 +360,9 @@ object AlertRepository {
             earlyTriggerEnabled = prefs.getBoolean(keyEarlyTrigger(type), false),
             soundDelayEnabled = prefs.getBoolean(keySoundDelayEnabled(type), false),
             soundDelaySeconds = readSoundDelaySeconds(type),
-            expiryWarningMinutes = readExpiryWarnings(type, default.expiryWarningMinutes)
+            expiryWarningMinutes = readExpiryWarnings(type, default.expiryWarningMinutes),
+            rearmMargin = readRearmMargin(type, default.rearmMargin),
+            rearmMinIntervalMinutes = readRearmMinInterval(type, default.rearmMinIntervalMinutes)
         )
     }
 
@@ -405,6 +426,8 @@ object AlertRepository {
             putBoolean(keyEarlyTrigger(config.type), config.earlyTriggerEnabled)
             putBoolean(keySoundDelayEnabled(config.type), config.soundDelayEnabled)
             putInt(keySoundDelaySeconds(config.type), sanitizeSoundDelaySeconds(config.type, config.soundDelaySeconds))
+            if (config.rearmMargin != null) putFloat(keyRearmMargin(config.type), config.rearmMargin.coerceAtLeast(0f)) else remove(keyRearmMargin(config.type))
+            if (config.rearmMinIntervalMinutes != null) putInt(keyRearmMinInterval(config.type), config.rearmMinIntervalMinutes.coerceAtLeast(0)) else remove(keyRearmMinInterval(config.type))
             // Type-specific: only the sensor-expiry alert carries pre-warnings.
             if (config.type == AlertType.SENSOR_EXPIRY) {
                 putStringSet(

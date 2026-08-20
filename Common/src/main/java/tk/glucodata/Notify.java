@@ -2731,7 +2731,7 @@ public class Notify {
                             Log.i(LOG_ID, "Alert suppressed by alert state: kind=" + kind);
                         alarm = false;
                     } else {
-                        final boolean productionTrigger = AlertStateTracker.INSTANCE.onAlertTriggered(alertType);
+                        final boolean productionTrigger = AlertStateTracker.INSTANCE.onAlertTriggered(alertType, config);
                         if (productionTrigger) {
                             syncRetrySession(kind, glvalue, message, strglucose, type, config, true);
                         }

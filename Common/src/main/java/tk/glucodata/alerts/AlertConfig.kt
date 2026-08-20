@@ -114,6 +114,16 @@ data class AlertConfig(
     val durationMinutes: Int? = null,       // For persistent high / missed reading alerts
     val forecastMinutes: Int? = null,       // For forecast alerts (how far ahead to predict)
 
+    // Hysteresis: an already-active episode survives until the measured value
+    // recovers past threshold -/+ this margin (display units). null = type
+    // default; 0 opts out and restores the pre-margin behaviour.
+    val rearmMargin: Float? = null,
+    // Forecast only: after a firing, no re-entry for this many minutes,
+    // whatever value and projection do. A value margin only guards against a
+    // given amplitude; the time guard covers any. null/0 = only the built-in
+    // short cooldown.
+    val rearmMinIntervalMinutes: Int? = null,
+
     // Delta-counter settings (FALLING_FAST / RISING_FAST): GDH-style robust rate-of-change alarm.
     val deltaThreshold: Float? = null,      // Min change per interval (display units) to count as steep
     val deltaCount: Int? = null,            // How many consecutive steep intervals must accumulate
@@ -251,6 +261,15 @@ object AlertDefaults {
     const val PERSISTENT_HIGH_MINUTES = 60
     const val FORECAST_LOOK_AHEAD_MINUTES = 20
 
+    // Forecast rearm hysteresis. The projection moves 30 mg/dL for a
+    // 1 mg/dL/min rate change at a 30-minute horizon; the old 4 mg/dL margin
+    // was no protection at that amplitude. The episode now hangs on the
+    // measured value, and this is how far it must recover to end the episode.
+    const val FORECAST_REARM_MARGIN_MGDL = 20f
+    const val FORECAST_REARM_MARGIN_MMOL = 1.1f
+    // Second guard: no forecast re-entry for this long after a firing.
+    const val FORECAST_REARM_MIN_INTERVAL_MINUTES = 20
+
     // Delta-counter defaults (FALLING_FAST / RISING_FAST). Tunable; disabled by default.
     // Change over the delta interval that counts as steep (~10 mg/dL / 0.6 mmol per 5 min).
     const val DELTA_THRESHOLD_MGDL = 10f
@@ -313,6 +332,8 @@ object AlertDefaults {
                 enabled = false,
                 threshold = if (isMmol) FORECAST_LOW_THRESHOLD_MMOL else FORECAST_LOW_THRESHOLD_MGDL,
                 forecastMinutes = FORECAST_LOOK_AHEAD_MINUTES,
+                rearmMargin = if (isMmol) FORECAST_REARM_MARGIN_MMOL else FORECAST_REARM_MARGIN_MGDL,
+                rearmMinIntervalMinutes = FORECAST_REARM_MIN_INTERVAL_MINUTES,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.SOFT,
                 defaultSnoozeMinutes = 20
@@ -322,6 +343,8 @@ object AlertDefaults {
                 enabled = false,
                 threshold = if (isMmol) FORECAST_HIGH_THRESHOLD_MMOL else FORECAST_HIGH_THRESHOLD_MGDL,
                 forecastMinutes = FORECAST_LOOK_AHEAD_MINUTES,
+                rearmMargin = if (isMmol) FORECAST_REARM_MARGIN_MMOL else FORECAST_REARM_MARGIN_MGDL,
+                rearmMinIntervalMinutes = FORECAST_REARM_MIN_INTERVAL_MINUTES,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.SOFT,
                 defaultSnoozeMinutes = 30

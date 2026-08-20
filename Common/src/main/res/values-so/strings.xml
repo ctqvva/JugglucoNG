@@ -1259,6 +1259,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="system_default_sound">Codka Habboon ee Nidaamka</string>
     <string name="tap_to_change">Taabo si aad u bedesho</string>
     <string name="threshold_label">Xadka</string>
+    <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
+    <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Xogta Mugga/Gariirka</string>
 

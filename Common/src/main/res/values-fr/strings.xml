@@ -584,6 +584,8 @@
     <string name="system_default_sound">Son systeme par defaut</string>
     <string name="tap_to_change">Touchez pour changer</string>
     <string name="threshold_label">Seuil</string>
+    <string name="rearm_margin_label">Marge de réarmement</string>
+    <string name="rearm_min_interval_label">Délai minimal entre alarmes</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil volume/vibration</string>
     <string name="ICE">ICE</string>

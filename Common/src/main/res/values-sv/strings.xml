@@ -637,6 +637,8 @@
     <string name="system_default_sound">Systemets standardljud</string>
     <string name="tap_to_change">Tryck for att andra</string>
     <string name="threshold_label">Tröskel</string>
+    <string name="rearm_margin_label">Återaktiveringsmarginal</string>
+    <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volym-/vibrationsprofil</string>
     <string name="ICE">ICE</string>

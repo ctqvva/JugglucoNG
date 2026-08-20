@@ -537,6 +537,8 @@
     <string name="system_default_sound">Som padrao do sistema</string>
     <string name="tap_to_change">Toque para alterar</string>
     <string name="threshold_label">Limiar</string>
+    <string name="rearm_margin_label">Margem de rearme</string>
+    <string name="rearm_min_interval_label">Tempo mínimo entre alarmes</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Perfil de volume/vibracao</string>
     <string name="ICE">ICE</string>

@@ -712,6 +712,8 @@
     <string name="system_default_sound">Domyslny dzwiek systemu</string>
     <string name="tap_to_change">Dotknij, aby zmienic</string>
     <string name="threshold_label">Prog</string>
+    <string name="rearm_margin_label">Margines ponownego alarmu</string>
+    <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil glosnosci/wibracji</string>
     <string name="ICE">ICE</string>

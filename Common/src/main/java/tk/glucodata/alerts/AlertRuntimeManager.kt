@@ -217,7 +217,7 @@ object AlertRuntimeManager {
         val transition = standardEpisodes.update(activeTypes)
 
         transition.cleared.forEach { type ->
-            clearRuntimeAlert(type, "standard-condition-cleared")
+            clearRuntimeAlert(type, standardClearReason(type, configs[type], glucoseValue, rate))
         }
 
         val type = standardGlucoseAlertTypes.firstOrNull { it in activeTypes }
@@ -275,6 +275,42 @@ object AlertRuntimeManager {
             wasConditionActive = standardEpisodes::isActive,
             forecastRateTrusted = forecastRateTrusted
         )
+    }
+
+    /**
+     * Names WHY a forecast episode ended: "forecast-falsified" when the
+     * prediction was refuted (direction flipped, projection clear of the
+     * threshold), so the log distinguishes a refuted forecast from ordinary
+     * recovery. Same retry-cancel path either way.
+     */
+    private fun standardClearReason(
+        type: AlertType,
+        config: AlertConfig?,
+        glucoseValue: Float,
+        rate: Float
+    ): String {
+        if (type != AlertType.PRE_LOW && type != AlertType.PRE_HIGH) {
+            return "standard-condition-cleared"
+        }
+        val threshold = config?.threshold ?: return "standard-condition-cleared"
+        val isMmol = Applic.unit == 1
+        val margin = config.rearmMargin ?: ForecastThresholdPolicy.defaultRearmMargin(isMmol)
+        if (margin <= 0f) {
+            return "standard-condition-cleared"
+        }
+        val projected = AlertGlucoseMath.projectedDisplayValue(
+            glucoseValue = glucoseValue,
+            rateMgdlPerMinute = rate,
+            forecastMinutes = config.forecastMinutes,
+            isMmol = isMmol
+        )
+        return if (
+            ForecastThresholdPolicy.isFalsified(type, projected, threshold, rate, margin, isMmol, config.forecastMinutes)
+        ) {
+            "forecast-falsified"
+        } else {
+            "standard-condition-cleared"
+        }
     }
 
     private fun buildStandardAlertMessage(
