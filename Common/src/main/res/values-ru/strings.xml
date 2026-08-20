@@ -758,9 +758,9 @@
     <string name="threshold_label">Порог</string>
     <string name="rearm_margin_label">Запас до повторного срабатывания</string>
     <string name="rearm_min_interval_label">Минимальный интервал между тревогами</string>
-    <string name="pre_high_iob_coverage_label">Подавлять, если инсулин покрывает рост</string>
+    <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
     <string name="alert_feature_off">Выкл.</string>
-    <string name="persistent_high_fall_suppress_label">Подавлять при падении быстрее чем</string>
+    <string name="persistent_high_fall_suppress_label">Тихо при падении</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профиль громкости/вибрации</string>
     <string name="ICE">ICE</string>

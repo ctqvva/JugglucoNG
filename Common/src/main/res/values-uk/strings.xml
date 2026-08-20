@@ -651,9 +651,9 @@
     <string name="threshold_label">Поріг</string>
     <string name="rearm_margin_label">Запас до повторного спрацьовування</string>
     <string name="rearm_min_interval_label">Мінімальний інтервал між тривогами</string>
-    <string name="pre_high_iob_coverage_label">Не сповіщати, якщо інсулін покриває зростання</string>
+    <string name="pre_high_iob_coverage_label">Покриття інсуліном</string>
     <string name="alert_feature_off">Вимк.</string>
-    <string name="persistent_high_fall_suppress_label">Не сповіщати при падінні швидше ніж</string>
+    <string name="persistent_high_fall_suppress_label">Тихо при падінні</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профіль гучності/вібрації</string>
     <string name="ICE">ICE</string>

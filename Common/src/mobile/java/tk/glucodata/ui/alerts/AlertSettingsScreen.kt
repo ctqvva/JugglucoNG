@@ -1384,7 +1384,12 @@ private fun ThresholdSlider(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                // A long (localised) label must wrap, not push the value out
+                // of the row.
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             )
             Text(
                 // Use LOCAL sliderValue for real-time updates
@@ -1448,7 +1453,15 @@ internal fun DurationSlider(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                // A long (localised) label must wrap, not push the value out
+                // of the row.
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            )
             Text(
                 valueText(displayValue),
                 style = MaterialTheme.typography.bodyMedium,

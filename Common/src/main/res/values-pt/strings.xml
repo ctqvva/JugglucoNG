@@ -539,9 +539,9 @@
     <string name="threshold_label">Limiar</string>
     <string name="rearm_margin_label">Margem de rearme</string>
     <string name="rearm_min_interval_label">Tempo mínimo entre alarmes</string>
-    <string name="pre_high_iob_coverage_label">Suprimir se a insulina cobrir a subida</string>
+    <string name="pre_high_iob_coverage_label">Cobertura de insulina</string>
     <string name="alert_feature_off">Desligado</string>
-    <string name="persistent_high_fall_suppress_label">Suprimir se a descida exceder</string>
+    <string name="persistent_high_fall_suppress_label">Silenciar em queda</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Perfil de volume/vibracao</string>
     <string name="ICE">ICE</string>

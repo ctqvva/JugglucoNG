@@ -1057,9 +1057,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="threshold_label">Босго</string>
     <string name="rearm_margin_label">Дахин сэрэмжлүүлэх зөрүү</string>
     <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
-    <string name="pre_high_iob_coverage_label">Инсулин өсөлтийг нөхөх бол дарах</string>
+    <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
-    <string name="persistent_high_fall_suppress_label">Үүнээс хурдан буурахад дарах</string>
+    <string name="persistent_high_fall_suppress_label">Буурахад дуугүй</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Дууны түвшин/Чичиргээний профайл</string>
     <!-- Overlay/notification typography controls -->
