@@ -131,6 +131,22 @@
 # @Keep; keep the two in sync.
 -keep class tk.glucodata.NightscoutCalibration { *; }
 
+# Keep the LibreView journal bridge stable. journalentries.cpp resolves LibreviewJournal by
+# FindClass/GetStaticMethodID, and LibreviewJournal resolves the mobile-only
+# LibreviewJournalEntries by name -- neither is a reference R8 can see. Without these the
+# journal's food/insulin/notes silently stop reaching LibreView in minified builds only,
+# which is exactly how this feature looked before it existed.
+-keep class tk.glucodata.LibreviewJournal { *; }
+-keepnames class tk.glucodata.data.journal.LibreviewJournalEntries
+-keepclassmembers class tk.glucodata.data.journal.LibreviewJournalEntries {
+    public static int prepare(boolean);
+    public static java.lang.String foodEntries();
+    public static java.lang.String insulinEntries();
+    public static java.lang.String noteEntries();
+    public static void commit();
+    public static void discard();
+}
+
 # Keep notification/AOD predictive chart bridge stable. NotificationChartDrawer
 # resolves the mobile-only helper by name so main/wear source sets do not take a
 # direct dependency on mobile prediction/journal classes.

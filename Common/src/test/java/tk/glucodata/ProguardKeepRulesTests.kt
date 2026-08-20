@@ -67,6 +67,18 @@ class ProguardKeepRulesTests {
     }
 
     @Test
+    fun theLibreviewJournalBridgeIsKept() {
+        // Two name-based hops with nothing R8 can see: journalentries.cpp does FindClass on
+        // LibreviewJournal, and LibreviewJournal does Class.forName on LibreviewJournalEntries.
+        // Losing either sends LibreView an empty food/insulin array and says nothing.
+        val text = activeRules()
+        assertTrue(text.contains("-keep class tk.glucodata.LibreviewJournal { *; }"))
+        assertTrue(text.contains("-keepnames class tk.glucodata.data.journal.LibreviewJournalEntries"))
+        listOf("prepare(boolean)", "foodEntries()", "insulinEntries()", "noteEntries()", "commit()", "discard()")
+            .forEach { assertTrue("proguard-rules.my must keep $it", text.contains(it)) }
+    }
+
+    @Test
     fun theKeptCallbackIsStillDeclaredWithThatExactSignature() {
         // A rule that no longer matches the declaration is as good as no rule, and R8 does not
         // warn about a keep rule matching nothing.

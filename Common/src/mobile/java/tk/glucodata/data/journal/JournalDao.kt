@@ -115,6 +115,19 @@ interface JournalDao {
     @Query("SELECT nsRemoteId FROM journal_entries WHERE nsUploadedAt IS NOT NULL AND nsRemoteId IS NOT NULL")
     suspend fun getOwnUploadedNightscoutRemoteIds(): List<String>
 
+    @Query(
+        """
+        SELECT * FROM journal_entries
+         WHERE timestamp >= :sinceMillis
+           AND (lvUploadedAt IS NULL OR updatedAt > lvUploadedAt)
+         ORDER BY timestamp ASC, id ASC
+        """
+    )
+    suspend fun getEntriesNeedingLibreviewUpload(sinceMillis: Long): List<JournalEntryEntity>
+
+    @Query("UPDATE journal_entries SET lvUploadedAt = :uploadedAt WHERE id IN (:ids)")
+    suspend fun markEntriesUploadedToLibreview(ids: List<Long>, uploadedAt: Long)
+
     @Query("SELECT * FROM journal_pending_deletes ORDER BY deletedAt ASC")
     suspend fun getPendingNightscoutDeletes(): List<JournalPendingDeleteEntity>
 
