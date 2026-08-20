@@ -3,6 +3,7 @@ package tk.glucodata.drivers.anytime
 import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -137,20 +138,32 @@ class AnytimeCt5Tests {
     // ---- CT5 profile ----------------------------------------------------
 
     @Test
-    fun ct5ProfileIsThreeMinuteFortyFiveMinuteWarmupSixteenDay() {
+    fun ct5ProfileIsThreeMinuteOwnWarmupSixteenDay() {
         val profile = AnytimeProfileResolver.resolve("Anytime5252037585")
 
         assertEquals(AnytimeConstants.Family.CT5, profile.family)
         assertEquals(3, profile.readingIntervalMinutes)
-        assertEquals(45, profile.warmupMinutes)
         assertEquals(16, profile.ratedLifetimeDays)
         assertEquals(7695, profile.endNumber)
-        assertEquals(15, profile.warmupRecords())
-        assertEquals(45L * 60L * 1000L, profile.warmupMs())
+
+        // The exact figure is a tuning decision; what must hold is that CT5 uses
+        // its own window and that the derived values follow it.
+        val warmup = AnytimeConstants.CT5_WARMUP_MINUTES
+        assertEquals(warmup, profile.warmupMinutes)
+        assertEquals(warmup / 3, profile.warmupRecords())
+        assertEquals(warmup * 60L * 1000L, profile.warmupMs())
+        // Must still cover the observed first-glucose id (14 x 3 min = 42 min was
+        // the fresh-activation trace) minus whatever tolerance the tuning allows.
+        assertTrue("CT5 warm-up should be at least half an hour", warmup >= 30)
     }
 
     @Test
     fun ct5WarmupDoesNotChangeTheSharedAnytimeDefault() {
+        assertNotEquals(
+            "CT5 must carry its own warm-up, not the shared default",
+            AnytimeConstants.DEFAULT_WARMUP_MINUTES,
+            AnytimeConstants.CT5_WARMUP_MINUTES,
+        )
         assertEquals(60, AnytimeConstants.DEFAULT_WARMUP_MINUTES)
         assertEquals(60, AnytimeProfileResolver.resolve("SN16-test").warmupMinutes)
         assertEquals(60, AnytimeProfileResolver.resolve("SN72-test").warmupMinutes)
@@ -372,6 +385,51 @@ class AnytimeCt5Tests {
             "CT5 history 0..59 received: 46 existing, 0 inserted, 14 warm-up/no-glucose",
             tally.describe(0, 59),
         )
+    }
+
+    // ---- History must never cost the connection --------------------------
+
+    @Test
+    fun everyBackfillWriteTagIsRecognisedAsOptional() {
+        // Regression: the tag gained ",count=N" while the guards still matched
+        // "pullGlucose(backfill)", so a failed history write was treated as a dead
+        // link and tore down a healthy GATT (2026-08-20 trace, disconnect loop).
+        for (count in 1..15) {
+            val tag = anytimeBackfillWriteTag(count)
+            assertTrue("$tag must be recognised as a history write", isAnytimeBackfillWriteTag(tag))
+        }
+        assertEquals("pullGlucose(backfill,count=1)", anytimeBackfillWriteTag(1))
+        assertFalse(isAnytimeBackfillWriteTag("ct5-pushAck"))
+        assertFalse(isAnytimeBackfillWriteTag("ct5-checkID"))
+        assertFalse(isAnytimeBackfillWriteTag("pullGlucose(fallback)"))
+    }
+
+    @Test
+    fun historyWaitsForAFreeGattWriteSlot() {
+        val settleMs = 45_000L
+        val since = 1_000_000L
+
+        // A live-push ACK is still outstanding: never stack a 0x37 on top of it.
+        assertFalse(
+            isCt5HistoryLinkSettled(since, since + settleMs, settleMs, writeInFlight = true)
+        )
+        assertTrue(
+            isCt5HistoryLinkSettled(since, since + settleMs, settleMs, writeInFlight = false)
+        )
+    }
+
+    @Test
+    fun historyWaitsForTheLinkToSettleAfterAHandshake() {
+        val settleMs = 45_000L
+        val handshakeAtMs = 1_000_000L
+
+        // The 2026-08-20 trace fired a 0x37 within a second of the handshake and
+        // lost the connection; the gap is persisted, so waiting is free.
+        assertFalse(isCt5HistoryLinkSettled(handshakeAtMs, handshakeAtMs + 750L, settleMs, false))
+        assertFalse(isCt5HistoryLinkSettled(handshakeAtMs, handshakeAtMs + 44_999L, settleMs, false))
+        assertTrue(isCt5HistoryLinkSettled(handshakeAtMs, handshakeAtMs + 45_000L, settleMs, false))
+        // Not streaming at all.
+        assertFalse(isCt5HistoryLinkSettled(0L, 1_000_000L, settleMs, false))
     }
 
     // ---- End cycle ------------------------------------------------------

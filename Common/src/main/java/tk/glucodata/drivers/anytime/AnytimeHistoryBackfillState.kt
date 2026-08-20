@@ -188,6 +188,37 @@ internal class AnytimeHistoryRoomImportBuffer {
 // raw prefix that the CT3/CT4 vendor JNI algorithm needs, and must never trigger
 // a 0..current replay just because `rawAlgorithmWindow` is empty.
 
+/**
+ * Tag carried by history write frames.
+ *
+ * Built and matched through these helpers on purpose: the tag once gained a
+ * `,count=N` suffix while the guards still tested `startsWith("pullGlucose(backfill)")`,
+ * so a failed history write stopped being recognised as optional and tore down a
+ * healthy GATT instead. Keep construction and matching in one place.
+ */
+internal const val ANYTIME_BACKFILL_WRITE_TAG_PREFIX = "pullGlucose(backfill"
+
+internal fun anytimeBackfillWriteTag(count: Int): String = "pullGlucose(backfill,count=$count)"
+
+internal fun isAnytimeBackfillWriteTag(tag: String): Boolean =
+    tag.startsWith(ANYTIME_BACKFILL_WRITE_TAG_PREFIX)
+
+/**
+ * True when a CT5 history request may go out: the streaming session has held
+ * together long enough to be worth risking an optional write on, and the single
+ * GATT write slot is free.
+ */
+internal fun isCt5HistoryLinkSettled(
+    streamingSinceMs: Long,
+    nowMs: Long,
+    settleMs: Long,
+    writeInFlight: Boolean,
+): Boolean {
+    if (writeInFlight) return false
+    if (streamingSinceMs <= 0L) return false
+    return nowMs - streamingSinceMs >= settleMs
+}
+
 /** Inclusive-start / exclusive-end glucose id range. */
 internal data class AnytimeIdRange(val fromId: Int, val stopBeforeId: Int) {
     val count: Int get() = (stopBeforeId - fromId).coerceAtLeast(0)

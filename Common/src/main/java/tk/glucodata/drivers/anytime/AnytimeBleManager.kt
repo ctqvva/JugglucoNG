@@ -106,6 +106,20 @@ class AnytimeBleManager(
         private const val CT5_MAX_GAP_REPAIR_RECORDS = 480
 
         /**
+         * CT5 history waits until the streaming session has held together this
+         * long. A 0x37 issued seconds after the handshake — or on top of a live
+         * ACK — is exactly what the 2026-08-20 trace turned into a disconnect
+         * loop. The gap is persisted, so waiting costs nothing but latency.
+         */
+        private const val CT5_HISTORY_LINK_SETTLE_MS = 45_000L
+
+        /** Re-check for a settled link / free GATT this often before giving up on a pass. */
+        private const val CT5_HISTORY_SETTLE_RETRY_MS = 15_000L
+
+        /** A write with no completion callback by now is assumed abandoned. */
+        private const val WRITE_IN_FLIGHT_STALE_MS = 5_000L
+
+        /**
          * Grace after a successful handshake before a loss-of-signal alarm armed
          * from the *previous* reading may tear the link down. Covers one full
          * cadence slot plus slack, so a just-recovered session gets the chance to
@@ -262,6 +276,14 @@ class AnytimeBleManager(
     /** Outstanding CT5 gap repair, persisted so a restart resumes it. */
     @Volatile private var ct5PendingGapFromId: Int = -1
     @Volatile private var ct5PendingGapStopBeforeId: Int = -1
+
+    /**
+     * Android allows one outstanding GATT write. An optional history pull must
+     * never be issued on top of a live-push ACK — that write returns false, and
+     * used to be treated as a dead link.
+     */
+    @Volatile private var writeInFlight: Boolean = false
+    @Volatile private var lastWriteStartedAtMs: Long = 0L
 
     /** Set while a CT5 history batch is being committed, so imports are counted, not logged one by one. */
     @Volatile private var activeHistoryTally: AnytimeCt5HistoryBatchTally? = null
@@ -684,13 +706,18 @@ class AnytimeBleManager(
             finishHistoryBackfill()
             return@Runnable
         }
+        if (isCt5() && isWriteInFlight()) {
+            // Never stack a history pull on top of a live-push ACK.
+            handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+            return@Runnable
+        }
         historyLastPulledId = nextId - 1
         historyPullInFlight = true
         val count = historyPullCount(nextId)
         historyPullInFlightWasLegacySeries = count > 1 && !isCt5()
         Log.d(TAG, "Backfill pull next id=$nextId count=$count")
         armHistoryPullTimeout()
-        if (!writeFrame(pullGlucoseFrame(nextId, count), "pullGlucose(backfill,count=$count)")) {
+        if (!writeFrame(pullGlucoseFrame(nextId, count), anytimeBackfillWriteTag(count))) {
             clearHistoryPullTimeout()
             historyPullInFlight = false
             historyPullInFlightWasLegacySeries = false
@@ -749,7 +776,7 @@ class AnytimeBleManager(
         val tag = lastProtocolFrameTag
         val elapsed = System.currentTimeMillis() - lastProtocolFrameAtMs
         Log.w(TAG, "Protocol timeout after $tag (${elapsed}ms)")
-        if (tag.startsWith("pullGlucose(backfill)")) {
+        if (isAnytimeBackfillWriteTag(tag)) {
             historyPullInFlight = false
             if (historyBackfillActive && phase == Phase.STREAMING && !stop) {
                 handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
@@ -847,6 +874,7 @@ class AnytimeBleManager(
         stopBeforeId: Int = Int.MAX_VALUE,
     ) {
         if (phase != Phase.STREAMING) return
+        if (isCt5() && !isCt5HistoryWindowOpen(reason, fromId, stopBeforeId)) return
         if (isCt5() && ct5HistoryHealth.isPausedForThisConnection()) {
             Log.i(
                 TAG,
@@ -1217,6 +1245,43 @@ class AnytimeBleManager(
         return true
     }
 
+    private fun isWriteInFlight(): Boolean {
+        if (!writeInFlight) return false
+        if (System.currentTimeMillis() - lastWriteStartedAtMs > WRITE_IN_FLIGHT_STALE_MS) {
+            writeInFlight = false
+            return false
+        }
+        return true
+    }
+
+    /**
+     * CT5 history only goes out on a connection that has already proved itself.
+     * A user-requested backfill is deliberate and bypasses the wait.
+     */
+    private fun isCt5HistoryWindowOpen(reason: String, fromId: Int, stopBeforeId: Int): Boolean {
+        if (reason.startsWith("user-requested")) return true
+        val since = streamingSinceMs
+        val now = System.currentTimeMillis()
+        val settledFor = if (since > 0L) now - since else 0L
+        if (isCt5HistoryLinkSettled(since, now, CT5_HISTORY_LINK_SETTLE_MS, isWriteInFlight())) return true
+        rememberPendingCt5Gap(fromId, stopBeforeId)
+        Log.i(
+            TAG,
+            "Holding CT5 history ($reason); link has been up ${settledFor / 1000}s of the " +
+                    "${CT5_HISTORY_LINK_SETTLE_MS / 1000}s it needs to settle"
+        )
+        handler.removeCallbacks(ct5HistorySettleRunnable)
+        handler.postDelayed(ct5HistorySettleRunnable, CT5_HISTORY_SETTLE_RETRY_MS)
+        return false
+    }
+
+    /** Retries a held-back gap once the link has been quiet long enough. */
+    private val ct5HistorySettleRunnable: Runnable = Runnable {
+        if (stop || !isCt5() || phase != Phase.STREAMING) return@Runnable
+        if (historyBackfillActive) return@Runnable
+        maybeResumePendingCt5Gap()
+    }
+
     private fun historyBatchDelayMs(): Long =
         if (isCt5()) CT5_HISTORY_PULL_BATCH_DELAY_MS else HISTORY_PULL_BATCH_DELAY_MS
 
@@ -1451,6 +1516,7 @@ class AnytimeBleManager(
     }
 
     private fun clearGattReferences() {
+        writeInFlight = false
         primaryService = null
         charNotify = null
         charWrite = null
@@ -1923,6 +1989,8 @@ class AnytimeBleManager(
                 Log.i(TAG, "Disconnected (status=$status)")
                 phase = Phase.IDLE
                 streamingSinceMs = 0L
+                writeInFlight = false
+                handler.removeCallbacks(ct5HistorySettleRunnable)
                 // An outstanding pull is interrupted, not unsupported: keep the
                 // range so the next session repairs exactly what is still missing.
                 if (historyBackfillActive) {
@@ -2151,6 +2219,7 @@ class AnytimeBleManager(
         status: Int,
     ) {
         Log.d(TAG, "onCharacteristicWrite ${characteristic.uuid} status=$status")
+        writeInFlight = false
         if (status != BluetoothGatt.GATT_SUCCESS && phase == Phase.HANDSHAKING) {
             recoverGattAndReconnect("write failed status=$status", ACTIVE_SESSION_RECONNECT_DELAY_MS)
         }
@@ -3632,10 +3701,18 @@ class AnytimeBleManager(
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         }
         val ok = runCatching { gatt.writeCharacteristic(ch) }.getOrDefault(false)
+        if (ok) {
+            writeInFlight = true
+            lastWriteStartedAtMs = System.currentTimeMillis()
+        }
         if (!ok) {
             Log.w(TAG, "writeCharacteristic($tag) returned false bytes=${bytes.joinToHex()}")
-            if (!tag.startsWith("pullGlucose(backfill)")) {
+            if (!isAnytimeBackfillWriteTag(tag)) {
                 recoverGattAndReconnect("writeCharacteristic($tag) returned false", ACTIVE_SESSION_RECONNECT_DELAY_MS)
+            } else {
+                // History is optional. A busy GATT is a reason to wait, never a
+                // reason to destroy a working connection.
+                Log.i(TAG, "History write deferred; GATT is busy")
             }
         } else {
             Log.d(TAG, "TX $tag bytes=${bytes.joinToHex()}")
