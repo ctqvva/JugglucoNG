@@ -2520,7 +2520,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="quiet_window_desc">Alarmları bir süre sustur; kendiliğinden biter</string>
     <string name="quiet_window_inactive">Alarmlar her zamanki gibi çalar</string>
     <string name="quiet_window_active_until">Alarmlar %1$s’e kadar sessiz</string>
-    <string name="quiet_window_until_short">%1$s’e kadar</string>
     <string name="quiet_window_chip">%1$s’e kadar sessiz</string>
     <string name="quiet_window_mode_title">Pencere boyunca</string>
     <string name="quiet_window_mode_vibrate_only">Yalnızca titreşim</string>
@@ -2542,7 +2541,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="quiet_window_breakthrough_scope_very">Yalnızca çok yüksek ve çok düşük</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Bu kadar uzun aktif ve yanıtsız kalan her sessiz alarm yeniden çalar.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Yalnızca çok yüksek veya çok düşük yeniden çalar; diğer her şey pencere boyunca sessiz kalır.</string>
-    <string name="quiet_window_tile_label">Sessiz alarmlar</string>
+    <string name="quiet_window_tile_label">Glikoz alarmları</string>
+    <string name="quiet_window_tile_active">Etkin</string>
+    <string name="quiet_window_tile_silent_until">%1$s kadar sessiz</string>
     <string name="quiet_window_tile_default_title">Hızlı ayarlar kutucuğu</string>
     <string name="quiet_window_tile_default_desc">Kutucuğa bir dokunuşun başlattığı süre; ikinci dokunuş pencereyi bitirir</string>
     <string name="quiet_window_add_tile">Hızlı ayarlar kutucuğu ekle</string>

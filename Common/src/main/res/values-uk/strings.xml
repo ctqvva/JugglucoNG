@@ -2564,7 +2564,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Приглушити сигнали на деякий час; завершується саме</string>
     <string name="quiet_window_inactive">Сигнали звучать як зазвичай</string>
     <string name="quiet_window_active_until">Сигнали без звуку до %1$s</string>
-    <string name="quiet_window_until_short">до %1$s</string>
     <string name="quiet_window_chip">Без звуку до %1$s</string>
     <string name="quiet_window_mode_title">Під час вікна</string>
     <string name="quiet_window_mode_vibrate_only">Лише вібрація</string>
@@ -2586,7 +2585,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Лише дуже високий і дуже низький</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Будь-який вимкнений сигнал, що залишається активним і без відповіді так довго, пролунає знову.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Знову пролунає лише дуже високий або дуже низький; усе інше мовчить протягом усього вікна.</string>
-    <string name="quiet_window_tile_label">Тихі сигнали</string>
+    <string name="quiet_window_tile_label">Сигнали глюкози</string>
+    <string name="quiet_window_tile_active">Активні</string>
+    <string name="quiet_window_tile_silent_until">Без звуку до %1$s</string>
     <string name="quiet_window_tile_default_title">Плитка швидких налаштувань</string>
     <string name="quiet_window_tile_default_desc">Що запускає одне натискання на плитку; друге натискання завершує вікно</string>
     <string name="quiet_window_add_tile">Додати плитку швидких налаштувань</string>

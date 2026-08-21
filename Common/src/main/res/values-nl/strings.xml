@@ -2535,7 +2535,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_desc">Alarmen een tijdje stil; eindigt vanzelf</string>
     <string name="quiet_window_inactive">Alarmen klinken zoals gewoonlijk</string>
     <string name="quiet_window_active_until">Alarmen stil tot %1$s</string>
-    <string name="quiet_window_until_short">tot %1$s</string>
     <string name="quiet_window_chip">Stil tot %1$s</string>
     <string name="quiet_window_mode_title">Tijdens het venster</string>
     <string name="quiet_window_mode_vibrate_only">Alleen trillen</string>
@@ -2557,7 +2556,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_breakthrough_scope_very">Alleen zeer hoog en zeer laag</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Elk gedempt alarm dat zo lang actief en onbeantwoord blijft, klinkt opnieuw.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Alleen een zeer hoog of zeer laag alarm klinkt opnieuw; al het andere blijft het hele venster stil.</string>
-    <string name="quiet_window_tile_label">Alarmen stil</string>
+    <string name="quiet_window_tile_label">Glucosealarmen</string>
+    <string name="quiet_window_tile_active">Actief</string>
+    <string name="quiet_window_tile_silent_until">Stil tot %1$s</string>
     <string name="quiet_window_tile_default_title">Snelle-instellingen-tegel</string>
     <string name="quiet_window_tile_default_desc">Wat één tik op de tegel start; een tweede tik beëindigt het venster</string>
     <string name="quiet_window_add_tile">Snelle-instellingen-tegel toevoegen</string>

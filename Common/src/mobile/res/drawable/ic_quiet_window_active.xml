@@ -1,12 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick-settings tile, quiet window running: the syringe with a bar across it. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- The same bell with a pause mark cut out of it: alarms quiet for a
-         while, not off. Quick-settings tints by alpha, so the mark is a hole. -->
+    <group
+        android:rotation="-45"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:pathData="M1.5,12 L6.5,12"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M6.5,9.25 H16.5 V14.75 H6.5 Z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M9,9.25 V11.5 M11.5,9.25 V11.5 M14,9.25 V11.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1" />
+        <path
+            android:pathData="M16.5,12 H20.5 M20.5,9.5 V14.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round" />
+    </group>
+    <!-- the "quiet" bar, drawn upright over the tilted syringe -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2zM9.25,9.5h1.5v6h-1.5zM13.25,9.5h1.5v6h-1.5z"/>
+        android:pathData="M4,20 L20,4"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
 </vector>

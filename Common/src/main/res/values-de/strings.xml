@@ -2531,7 +2531,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="quiet_window_desc">Alarme eine Weile stummschalten; endet von selbst</string>
     <string name="quiet_window_inactive">Alarme tönen wie gewohnt</string>
     <string name="quiet_window_active_until">Alarme stumm bis %1$s</string>
-    <string name="quiet_window_until_short">bis %1$s</string>
     <string name="quiet_window_chip">Stumm bis %1$s</string>
     <string name="quiet_window_mode_title">Während des Fensters</string>
     <string name="quiet_window_mode_vibrate_only">Nur Vibration</string>
@@ -2553,7 +2552,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="quiet_window_breakthrough_scope_very">Nur sehr hoch und sehr niedrig</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Jeder stummgeschaltete Alarm, der so lange aktiv und unbeantwortet bleibt, ertönt wieder.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Nur ein sehr hoher oder sehr niedriger ertönt wieder; alles andere bleibt das ganze Fenster still.</string>
-    <string name="quiet_window_tile_label">Alarme ruhig</string>
+    <string name="quiet_window_tile_label">Glukose-Alarme</string>
+    <string name="quiet_window_tile_active">Aktiv</string>
+    <string name="quiet_window_tile_silent_until">Stumm bis %1$s</string>
     <string name="quiet_window_tile_default_title">Schnelleinstellungs-Kachel</string>
     <string name="quiet_window_tile_default_desc">Was ein Tipp auf die Kachel startet; ein zweiter Tipp beendet das Fenster</string>
     <string name="quiet_window_add_tile">Schnelleinstellungs-Kachel hinzufügen</string>

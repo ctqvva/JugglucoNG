@@ -2717,7 +2717,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Silence alarms for a while; it ends by itself</string>
     <string name="quiet_window_inactive">Alarms sound as usual</string>
     <string name="quiet_window_active_until">Alarms silent until %1$s</string>
-    <string name="quiet_window_until_short">until %1$s</string>
     <string name="quiet_window_chip">Silent until %1$s</string>
     <string name="quiet_window_mode_title">During the window</string>
     <string name="quiet_window_mode_vibrate_only">Vibrate only</string>
@@ -2739,7 +2738,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Very high and very low only</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Any silenced alarm that stays active and unacknowledged that long sounds again.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Only a very high or very low sounds again; everything else stays quiet for the whole window.</string>
-    <string name="quiet_window_tile_label">Quiet alarms</string>
+    <string name="quiet_window_tile_label">Glucose alarms</string>
+    <string name="quiet_window_tile_active">Active</string>
+    <string name="quiet_window_tile_silent_until">Silent until %1$s</string>
     <string name="quiet_window_tile_default_title">Quick-settings tile</string>
     <string name="quiet_window_tile_default_desc">What one tap on the tile starts; a second tap ends the window</string>
     <string name="quiet_window_add_tile">Add quick-settings tile</string>

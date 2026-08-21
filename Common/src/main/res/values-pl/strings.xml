@@ -2526,7 +2526,6 @@
     <string name="quiet_window_desc">Wycisz alarmy na jakiś czas; kończy się samo</string>
     <string name="quiet_window_inactive">Alarmy dzwonią jak zwykle</string>
     <string name="quiet_window_active_until">Alarmy wyciszone do %1$s</string>
-    <string name="quiet_window_until_short">do %1$s</string>
     <string name="quiet_window_chip">Cisza do %1$s</string>
     <string name="quiet_window_mode_title">W czasie okna</string>
     <string name="quiet_window_mode_vibrate_only">Tylko wibracja</string>
@@ -2548,7 +2547,9 @@
     <string name="quiet_window_breakthrough_scope_very">Tylko bardzo wysoki i bardzo niski</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Każdy wyciszony alarm, który pozostaje aktywny i bez reakcji tak długo, zadzwoni ponownie.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Tylko bardzo wysoki lub bardzo niski zadzwoni ponownie; cała reszta milczy przez całe okno.</string>
-    <string name="quiet_window_tile_label">Ciche alarmy</string>
+    <string name="quiet_window_tile_label">Alarmy glukozy</string>
+    <string name="quiet_window_tile_active">Aktywne</string>
+    <string name="quiet_window_tile_silent_until">Wyciszone do %1$s</string>
     <string name="quiet_window_tile_default_title">Kafelek szybkich ustawień</string>
     <string name="quiet_window_tile_default_desc">Co uruchamia jedno dotknięcie kafelka; drugie dotknięcie kończy okno</string>
     <string name="quiet_window_add_tile">Dodaj kafelek szybkich ustawień</string>

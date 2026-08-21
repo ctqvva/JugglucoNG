@@ -11,8 +11,9 @@ import tk.glucodata.R
 import tk.glucodata.alerts.QuietWindow
 
 /**
- * The quick-settings tile for the quiet window: one tap starts the default
- * duration, one tap on a running window ends it, a long press opens the alert
+ * The quick-settings tile for the quiet window, labelled as the glucose alarms
+ * with their state in the status row: one tap starts the default duration, one
+ * tap on a running window ends it, a long press opens the alert
  * settings (MainActivity handles QS_TILE_PREFERENCES). The tile never caches: it
  * reads the persisted end time against the clock every time it is shown, so it
  * is right after a process death too. It only ever toggles the window, never the
@@ -50,10 +51,12 @@ class QuietWindowTileService : TileService() {
         )
         tile.label = getString(R.string.quiet_window_tile_label)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // The label names the thing (the glucose alarms); the status row says what
+            // state they are in, so the tile reads at a glance in the shade.
             tile.subtitle = if (active) {
-                getString(R.string.quiet_window_until_short, DateFormat.getTimeFormat(this).format(Date(until)))
+                getString(R.string.quiet_window_tile_silent_until, DateFormat.getTimeFormat(this).format(Date(until)))
             } else {
-                null
+                getString(R.string.quiet_window_tile_active)
             }
         }
         tile.updateTile()

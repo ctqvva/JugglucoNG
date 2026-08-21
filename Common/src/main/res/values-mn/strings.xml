@@ -2607,7 +2607,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="quiet_window_desc">Сэрүүлгийг түр намсгана; өөрөө дуусна</string>
     <string name="quiet_window_inactive">Сэрүүлэг ердийнхөөрөө дуугарна</string>
     <string name="quiet_window_active_until">Сэрүүлэг %1$s хүртэл чимээгүй</string>
-    <string name="quiet_window_until_short">%1$s хүртэл</string>
     <string name="quiet_window_chip">%1$s хүртэл чимээгүй</string>
     <string name="quiet_window_mode_title">Цонхны үеэр</string>
     <string name="quiet_window_mode_vibrate_only">Зөвхөн чичиргээ</string>
@@ -2629,7 +2628,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="quiet_window_breakthrough_scope_very">Зөвхөн маш өндөр ба маш бага</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Ийм удаан идэвхтэй, хариу аваагүй дуугүй сэрүүлэг бүр дахин дуугарна.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Зөвхөн маш өндөр эсвэл маш бага нь дахин дуугарна; бусад нь цонхны туршид чимээгүй байна.</string>
-    <string name="quiet_window_tile_label">Чимээгүй сэрүүлэг</string>
+    <string name="quiet_window_tile_label">Глюкозын сэрүүлэг</string>
+    <string name="quiet_window_tile_active">Идэвхтэй</string>
+    <string name="quiet_window_tile_silent_until">%1$s хүртэл дуугүй</string>
     <string name="quiet_window_tile_default_title">Түргэн тохиргооны хавтан</string>
     <string name="quiet_window_tile_default_desc">Хавтан дээр нэг товшиход эхлэх хугацаа; хоёр дахь товшилт цонхыг дуусгана</string>
     <string name="quiet_window_add_tile">Түргэн тохиргооны хавтан нэмэх</string>

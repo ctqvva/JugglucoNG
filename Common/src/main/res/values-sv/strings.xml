@@ -2492,7 +2492,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Tysta larmen ett tag; avslutas av sig självt</string>
     <string name="quiet_window_inactive">Larmen låter som vanligt</string>
     <string name="quiet_window_active_until">Larm tysta till %1$s</string>
-    <string name="quiet_window_until_short">till %1$s</string>
     <string name="quiet_window_chip">Tyst till %1$s</string>
     <string name="quiet_window_mode_title">Under fönstret</string>
     <string name="quiet_window_mode_vibrate_only">Bara vibration</string>
@@ -2514,7 +2513,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Endast mycket högt och mycket lågt</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Varje tystat larm som är aktivt och obesvarat så länge ljuder igen.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Bara ett mycket högt eller mycket lågt ljuder igen; allt annat är tyst hela fönstret.</string>
-    <string name="quiet_window_tile_label">Tysta larm</string>
+    <string name="quiet_window_tile_label">Glukoslarm</string>
+    <string name="quiet_window_tile_active">Aktiva</string>
+    <string name="quiet_window_tile_silent_until">Tysta till %1$s</string>
     <string name="quiet_window_tile_default_title">Snabbinställningsruta</string>
     <string name="quiet_window_tile_default_desc">Vad ett tryck på rutan startar; ett andra tryck avslutar fönstret</string>
     <string name="quiet_window_add_tile">Lägg till snabbinställningsruta</string>

@@ -1,10 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick-settings tile, alarms active: an insulin syringe, monochrome (the system tints it). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- A bell: alarms sound as usual. -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z"/>
+    <group
+        android:rotation="-45"
+        android:pivotX="12"
+        android:pivotY="12">
+        <!-- needle -->
+        <path
+            android:pathData="M1.5,12 L6.5,12"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round" />
+        <!-- barrel -->
+        <path
+            android:pathData="M6.5,9.25 H16.5 V14.75 H6.5 Z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineJoin="round" />
+        <!-- scale marks -->
+        <path
+            android:pathData="M9,9.25 V11.5 M11.5,9.25 V11.5 M14,9.25 V11.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1" />
+        <!-- plunger and flange -->
+        <path
+            android:pathData="M16.5,12 H20.5 M20.5,9.5 V14.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round" />
+    </group>
 </vector>

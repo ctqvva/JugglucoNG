@@ -2493,7 +2493,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Silenciar os alarmes por um tempo; termina sozinha</string>
     <string name="quiet_window_inactive">Os alarmes tocam normalmente</string>
     <string name="quiet_window_active_until">Alarmes em silêncio até %1$s</string>
-    <string name="quiet_window_until_short">até %1$s</string>
     <string name="quiet_window_chip">Silêncio até %1$s</string>
     <string name="quiet_window_mode_title">Durante a janela</string>
     <string name="quiet_window_mode_vibrate_only">Só vibração</string>
@@ -2515,7 +2514,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Só muito alto e muito baixo</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Qualquer alarme silenciado que continue ativo e sem resposta por esse tempo volta a tocar.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Só um muito alto ou muito baixo volta a tocar; tudo o resto fica em silêncio durante toda a janela.</string>
-    <string name="quiet_window_tile_label">Alarmes em silêncio</string>
+    <string name="quiet_window_tile_label">Alarmes de glicose</string>
+    <string name="quiet_window_tile_active">Ativos</string>
+    <string name="quiet_window_tile_silent_until">Silenciados até %1$s</string>
     <string name="quiet_window_tile_default_title">Mosaico de definições rápidas</string>
     <string name="quiet_window_tile_default_desc">O que um toque no mosaico inicia; um segundo toque termina a janela</string>
     <string name="quiet_window_add_tile">Adicionar mosaico de definições rápidas</string>

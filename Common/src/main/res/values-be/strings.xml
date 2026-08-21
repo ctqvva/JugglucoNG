@@ -2559,7 +2559,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Прыглушыць сігналы на час; заканчваецца само</string>
     <string name="quiet_window_inactive">Сігналы гучаць як звычайна</string>
     <string name="quiet_window_active_until">Сігналы без гуку да %1$s</string>
-    <string name="quiet_window_until_short">да %1$s</string>
     <string name="quiet_window_chip">Без гуку да %1$s</string>
     <string name="quiet_window_mode_title">Падчас акна</string>
     <string name="quiet_window_mode_vibrate_only">Толькі вібрацыя</string>
@@ -2581,7 +2580,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Толькі вельмі высокі і вельмі нізкі</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Любы прыглушаны сігнал, які застаецца актыўным і без адказу так доўга, прагучыць зноў.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Зноў прагучыць толькі вельмі высокі або вельмі нізкі; усё астатняе маўчыць усё акно.</string>
-    <string name="quiet_window_tile_label">Ціхія сігналы</string>
+    <string name="quiet_window_tile_label">Сігналы глюкозы</string>
+    <string name="quiet_window_tile_active">Актыўныя</string>
+    <string name="quiet_window_tile_silent_until">Без гуку да %1$s</string>
     <string name="quiet_window_tile_default_title">Плітка хуткіх налад</string>
     <string name="quiet_window_tile_default_desc">Што запускае адзін націск на плітку; другі націск заканчвае акно</string>
     <string name="quiet_window_add_tile">Дадаць плітку хуткіх налад</string>

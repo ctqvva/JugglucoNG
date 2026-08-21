@@ -2482,7 +2482,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">Silenzia gli allarmi per un po’; termina da sola</string>
     <string name="quiet_window_inactive">Gli allarmi suonano come al solito</string>
     <string name="quiet_window_active_until">Allarmi silenziati fino alle %1$s</string>
-    <string name="quiet_window_until_short">fino alle %1$s</string>
     <string name="quiet_window_chip">Silenzio fino alle %1$s</string>
     <string name="quiet_window_mode_title">Durante la finestra</string>
     <string name="quiet_window_mode_vibrate_only">Solo vibrazione</string>
@@ -2504,7 +2503,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">Solo molto alto e molto basso</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Qualsiasi allarme silenziato che resta attivo e senza risposta così a lungo suona di nuovo.</string>
     <string name="quiet_window_breakthrough_scope_very_desc">Solo un molto alto o molto basso suona di nuovo; tutto il resto resta in silenzio per l\'intera finestra.</string>
-    <string name="quiet_window_tile_label">Allarmi in silenzio</string>
+    <string name="quiet_window_tile_label">Allarmi glicemia</string>
+    <string name="quiet_window_tile_active">Attivi</string>
+    <string name="quiet_window_tile_silent_until">In silenzio fino alle %1$s</string>
     <string name="quiet_window_tile_default_title">Riquadro impostazioni rapide</string>
     <string name="quiet_window_tile_default_desc">Ciò che un tocco sul riquadro avvia; un secondo tocco termina la finestra</string>
     <string name="quiet_window_add_tile">Aggiungi riquadro impostazioni rapide</string>

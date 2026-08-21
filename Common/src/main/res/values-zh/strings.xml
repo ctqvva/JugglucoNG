@@ -2508,7 +2508,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_desc">让警报安静一段时间；到时自动结束</string>
     <string name="quiet_window_inactive">警报照常响铃</string>
     <string name="quiet_window_active_until">警报静音至 %1$s</string>
-    <string name="quiet_window_until_short">至 %1$s</string>
     <string name="quiet_window_chip">静音至 %1$s</string>
     <string name="quiet_window_mode_title">时段期间</string>
     <string name="quiet_window_mode_vibrate_only">仅振动</string>
@@ -2530,7 +2529,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_scope_very">仅极高和极低</string>
     <string name="quiet_window_breakthrough_scope_all_desc">任何持续活动且未处理这么久的静音警报都会再次响起。</string>
     <string name="quiet_window_breakthrough_scope_very_desc">仅极高或极低警报会再次响起；其他警报在整个静音期间保持安静。</string>
-    <string name="quiet_window_tile_label">警报静音</string>
+    <string name="quiet_window_tile_label">血糖警报</string>
+    <string name="quiet_window_tile_active">已启用</string>
+    <string name="quiet_window_tile_silent_until">静音至 %1$s</string>
     <string name="quiet_window_tile_default_title">快捷设置图块</string>
     <string name="quiet_window_tile_default_desc">点按图块一次开始的时长；再次点按结束时段</string>
     <string name="quiet_window_add_tile">添加快捷设置图块</string>
