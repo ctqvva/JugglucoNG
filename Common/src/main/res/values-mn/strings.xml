@@ -1253,6 +1253,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="preview">Preview</string>
     <string name="previous_calibrations">Өмнөх тохируулгууд</string>
     <string name="show_less">Бага харуулах</string>
+    <string name="show_more">Дэлгэрэнгүй харуулах</string>
     <string name="show_all_count">Бүгдийг харуулах %1$d</string>
     <string name="anytime_calibration_target_reading">Уншилт #%1$d</string>
     <string name="anytime_calibration_applied_reading">Хэрэглэсэн #%1$d</string>
@@ -2583,7 +2584,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_full_read_desc">Үзэг хэдэн сарын тунг хадгалдаг бөгөөд бүрэн уншихад хэдэн секунд тогтвортой хүрэлцээ шаардана. Сүүлийн оруулснаас цааш ухахад ашиглана.</string>
     <string name="insulin_pen_read_cut_short">Үзгийг хэт эрт авчихлаа. Утас чичрэх хүртэл барина уу.</string>
     <string name="insulin_pen_background_title">Арын горимд импортлох</string>
-    <string name="insulin_pen_background_desc">Апп нээлттэй биш үед утсанд ойртуулсан үзэгний шинэ тунгууд асуулгүйгээр өдрийн тэмдэглэлд нэмэгдэнэ. Агааржуулалтын тунг алгасна. Дэлгэц асаалттай, утас түгжээгүй байх ёстой — дэлгэц унтраалттай үед Android NFC уншдаггүй. Утсанд ойртуулсан аливаа контактгүй карт уншигчийг хормын төдий сэрээх бөгөөд бусад картын аппууд аль аппыг ашиглахыг асууж магадгүй.</string>
+    <string name="insulin_pen_background_desc">Апп нээлттэй биш үед утсанд ойртуулсан үзэгний шинэ тунгууд асуулгүйгээр өдрийн тэмдэглэлд нэмэгдэнэ.</string>
+    <string name="insulin_pen_background_desc_more">Агааржуулалтын тунг алгасна. Дэлгэц асаалттай, утас түгжээгүй байх ёстой — дэлгэц унтраалттай үед Android NFC уншдаггүй. Утсанд ойртуулсан аливаа контактгүй карт уншигчийг хормын төдий сэрээх бөгөөд бусад картын аппууд аль аппыг ашиглахыг асууж магадгүй.</string>
     <string name="insulin_pen_import_channel">Үзэгний импорт</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d тун тэмдэглэлд нэмэгдлээ</item>

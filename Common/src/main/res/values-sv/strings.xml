@@ -1231,6 +1231,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Förhandsgranska</string>
     <string name="previous_calibrations">Tidigare kalibreringar</string>
     <string name="show_less">Visa mindre</string>
+    <string name="show_more">Visa mer</string>
     <string name="show_all_count">Visa alla %1$d</string>
     <string name="anytime_calibration_target_reading">Avläsning #%1$d</string>
     <string name="anytime_calibration_applied_reading">Tillämpad #%1$d</string>
@@ -2468,7 +2469,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">En penna sparar månader av doser och behöver flera sekunders stadig kontakt. Använd detta för att gå längre bakåt än senaste importen.</string>
     <string name="insulin_pen_read_cut_short">Pennan togs bort för tidigt. Håll den mot telefonen tills den vibrerar.</string>
     <string name="insulin_pen_background_title">Importera i bakgrunden</string>
-    <string name="insulin_pen_background_desc">När appen inte är öppen läggs nya doser från en penna som hålls mot telefonen till i dagboken utan att fråga. Luftningar hoppas över. Skärmen måste vara på och telefonen upplåst — Android läser inte NFC med släckt skärm. Alla kontaktlösa kort som hålls mot telefonen väcker läsaren ett ögonblick, och andra kortappar kan fråga vilken app som ska användas.</string>
+    <string name="insulin_pen_background_desc">När appen inte är öppen läggs nya doser från en penna som hålls mot telefonen till i dagboken utan att fråga.</string>
+    <string name="insulin_pen_background_desc_more">Luftningar hoppas över. Skärmen måste vara på och telefonen upplåst — Android läser inte NFC med släckt skärm. Alla kontaktlösa kort som hålls mot telefonen väcker läsaren ett ögonblick, och andra kortappar kan fråga vilken app som ska användas.</string>
     <string name="insulin_pen_import_channel">Pennimporter</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dos tillagd i dagboken</item>

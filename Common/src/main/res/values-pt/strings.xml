@@ -1232,6 +1232,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Visualização</string>
     <string name="previous_calibrations">Calibrações anteriores</string>
     <string name="show_less">Mostrar menos</string>
+    <string name="show_more">Mostrar mais</string>
     <string name="show_all_count">Mostrar todos %1$d</string>
     <string name="anytime_calibration_target_reading">Leitura #%1$d</string>
     <string name="anytime_calibration_applied_reading">Aplicada #%1$d</string>
@@ -2469,7 +2470,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">Uma caneta guarda meses de doses e precisa de alguns segundos de contacto estável. Serve para recuar mais do que a última importação.</string>
     <string name="insulin_pen_read_cut_short">A caneta afastou-se cedo demais. Mantenha-a no telemóvel até vibrar.</string>
     <string name="insulin_pen_background_title">Importar em segundo plano</string>
-    <string name="insulin_pen_background_desc">Com a aplicação fechada, as novas doses de uma caneta encostada ao telefone são adicionadas ao diário sem perguntar. As purgas são ignoradas. O ecrã tem de estar ligado e o telefone desbloqueado — o Android não lê NFC com o ecrã desligado. Qualquer cartão sem contacto encostado ao telefone acorda o leitor por um instante, e outras aplicações de cartões podem perguntar qual usar.</string>
+    <string name="insulin_pen_background_desc">Com a aplicação fechada, as novas doses de uma caneta encostada ao telefone são adicionadas ao diário sem perguntar.</string>
+    <string name="insulin_pen_background_desc_more">As purgas são ignoradas. O ecrã tem de estar ligado e o telefone desbloqueado — o Android não lê NFC com o ecrã desligado. Qualquer cartão sem contacto encostado ao telefone acorda o leitor por um instante, e outras aplicações de cartões podem perguntar qual usar.</string>
     <string name="insulin_pen_import_channel">Importações da caneta</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dose adicionada ao diário</item>

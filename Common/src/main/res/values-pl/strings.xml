@@ -1266,6 +1266,7 @@
     <string name="preview">Podgląd</string>
     <string name="previous_calibrations">Poprzednie kalibracje</string>
     <string name="show_less">Pokaż mniej</string>
+    <string name="show_more">Pokaż więcej</string>
     <string name="show_all_count">Pokaż wszystkie %1$d</string>
     <string name="anytime_calibration_target_reading">Odczyt #%1$d</string>
     <string name="anytime_calibration_applied_reading">Zastosowano #%1$d</string>
@@ -2502,7 +2503,8 @@
     <string name="insulin_pen_full_read_desc">Wstrzykiwacz przechowuje dawki z wielu miesięcy i wymaga kilku sekund stabilnego kontaktu. Pozwala sięgnąć dalej niż ostatni import.</string>
     <string name="insulin_pen_read_cut_short">Wstrzykiwacz został odsunięty za wcześnie. Trzymaj go przy telefonie, aż zawibruje.</string>
     <string name="insulin_pen_background_title">Importuj w tle</string>
-    <string name="insulin_pen_background_desc">Gdy aplikacja nie jest otwarta, nowe dawki pena przyłożonego do telefonu są dodawane do dziennika bez pytania. Odpowietrzenia są pomijane. Ekran musi być włączony, a telefon odblokowany — Android nie czyta NFC przy wyłączonym ekranie. Każda karta zbliżeniowa przyłożona do telefonu na chwilę budzi czytnik, a inne aplikacje kart mogą zapytać, której aplikacji użyć.</string>
+    <string name="insulin_pen_background_desc">Gdy aplikacja nie jest otwarta, nowe dawki pena przyłożonego do telefonu są dodawane do dziennika bez pytania.</string>
+    <string name="insulin_pen_background_desc_more">Odpowietrzenia są pomijane. Ekran musi być włączony, a telefon odblokowany — Android nie czyta NFC przy wyłączonym ekranie. Każda karta zbliżeniowa przyłożona do telefonu na chwilę budzi czytnik, a inne aplikacje kart mogą zapytać, której aplikacji użyć.</string>
     <string name="insulin_pen_import_channel">Importy z pena</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dawka dodana do dziennika</item>

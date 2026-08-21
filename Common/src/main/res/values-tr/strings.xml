@@ -1259,6 +1259,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="preview">Önizleme</string>
     <string name="previous_calibrations">Önceki kalibrasyonlar</string>
     <string name="show_less">Daha az göster</string>
+    <string name="show_more">Daha fazla göster</string>
     <string name="show_all_count">Tüm %1$d öğeyi göster</string>
     <string name="anytime_calibration_target_reading">Okuma #%1$d</string>
     <string name="anytime_calibration_applied_reading">Uygulandı #%1$d</string>
@@ -2496,7 +2497,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_full_read_desc">Bir kalem aylarca dozu saklar ve tamamının okunması birkaç saniye sabit temas ister. Son aktarımdan daha geriye gitmek için kullanın.</string>
     <string name="insulin_pen_read_cut_short">Kalem çok erken uzaklaştı. Telefon titreyene kadar kalemi tutun.</string>
     <string name="insulin_pen_background_title">Arka planda içe aktar</string>
-    <string name="insulin_pen_background_desc">Uygulama açık değilken telefona tutulan kalemin yeni dozları sorulmadan günlüğe eklenir. Hava atışları atlanır. Ekran açık ve telefon kilidi çözülmüş olmalıdır — Android ekran kapalıyken NFC okumaz. Telefona tutulan herhangi bir temassız kart okuyucuyu bir an uyandırır ve diğer kart uygulamaları hangi uygulamanın kullanılacağını sorabilir.</string>
+    <string name="insulin_pen_background_desc">Uygulama açık değilken telefona tutulan kalemin yeni dozları sorulmadan günlüğe eklenir.</string>
+    <string name="insulin_pen_background_desc_more">Hava atışları atlanır. Ekran açık ve telefon kilidi çözülmüş olmalıdır — Android ekran kapalıyken NFC okumaz. Telefona tutulan herhangi bir temassız kart okuyucuyu bir an uyandırır ve diğer kart uygulamaları hangi uygulamanın kullanılacağını sorabilir.</string>
     <string name="insulin_pen_import_channel">Kalem içe aktarımları</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d doz günlüğe eklendi</item>

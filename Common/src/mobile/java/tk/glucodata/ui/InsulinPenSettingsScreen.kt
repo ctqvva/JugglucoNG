@@ -41,6 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.saveable.rememberSaveable
+import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -122,7 +125,37 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
                         icon = Icons.Default.Contactless,
+                        position = CardPosition.TOP,
                     )
+                    // What the mode cannot do is worth a paragraph, not a row: folded away
+                    // behind "show more" so the switch stays the size of a switch.
+                    var showBackgroundDetails by rememberSaveable { mutableStateOf(false) }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = cardShape(CardPosition.BOTTOM),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                            AnimatedVisibility(visible = showBackgroundDetails) {
+                                Text(
+                                    stringResource(R.string.insulin_pen_background_desc_more),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                                )
+                            }
+                            TextButton(
+                                onClick = { showBackgroundDetails = !showBackgroundDetails },
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (showBackgroundDetails) R.string.show_less else R.string.show_more
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

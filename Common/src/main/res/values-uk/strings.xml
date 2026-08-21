@@ -1245,6 +1245,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Попередній перегляд</string>
     <string name="previous_calibrations">Попередні калібрування</string>
     <string name="show_less">Показати менше</string>
+    <string name="show_more">Показати більше</string>
     <string name="show_all_count">Показати всі %1$d</string>
     <string name="anytime_calibration_target_reading">Показ #%1$d</string>
     <string name="anytime_calibration_applied_reading">Застосовано #%1$d</string>
@@ -2540,7 +2541,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">Ручка зберігає дози за кілька місяців, і повне зчитування триває кілька секунд без відриву. Так можна взяти дані, старіші за останній імпорт.</string>
     <string name="insulin_pen_read_cut_short">Ручку прибрали надто рано. Тримайте її біля телефона, доки він не завібрує.</string>
     <string name="insulin_pen_background_title">Імпорт у фоні</string>
-    <string name="insulin_pen_background_desc">Коли застосунок не відкрито, нові дози ручки, прикладеної до телефона, додаються до журналу без запитань. Продувки пропускаються. Екран має бути ввімкнений, а телефон розблокований — Android не читає NFC з вимкненим екраном. Будь-яка безконтактна картка, прикладена до телефона, на мить будить зчитувач, а інші застосунки для карток можуть запитати, який застосунок використати.</string>
+    <string name="insulin_pen_background_desc">Коли застосунок не відкрито, нові дози ручки, прикладеної до телефона, додаються до журналу без запитань.</string>
+    <string name="insulin_pen_background_desc_more">Продувки пропускаються. Екран має бути ввімкнений, а телефон розблокований — Android не читає NFC з вимкненим екраном. Будь-яка безконтактна картка, прикладена до телефона, на мить будить зчитувач, а інші застосунки для карток можуть запитати, який застосунок використати.</string>
     <string name="insulin_pen_import_channel">Імпорт з ручки</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d дозу додано до журналу</item>
