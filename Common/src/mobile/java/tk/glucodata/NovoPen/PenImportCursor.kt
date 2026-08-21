@@ -20,4 +20,15 @@ object PenImportCursor {
      */
     fun provenUpTo(doses: List<PenDose>, inJournal: (PenDose) -> Boolean): Long? =
         doses.filter(inJournal).maxOfOrNull(PenDose::relativeSeconds)
+
+    /**
+     * Whether a dose is still up for review: strictly past the cursor, or any dose at all
+     * when a full read was asked for.
+     *
+     * The cursor is where the last import ended. A dose the reader left unticked then is
+     * at or below it, and stays declined rather than being offered again on every tap; a
+     * pen never imported on this build has a cursor of 0, so everything it holds is ahead.
+     */
+    fun isAhead(dose: PenDose, cursor: Long, fullRead: Boolean): Boolean =
+        fullRead || dose.relativeSeconds > cursor
 }
