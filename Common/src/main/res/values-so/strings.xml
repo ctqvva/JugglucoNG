@@ -1245,6 +1245,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_dismiss_action_summary">Dhaq ama xidh ogeysiisyada digniinta</string>
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
+    <string name="same_direction_suppression_title">Muddo aamusnaan ah ka dib digniin isku jiho ah</string>
+    <string name="same_direction_suppression_summary">Digniin hoos u dhac ama kor u kac ka dib, digniinaha kale ee isku jihada ah waxay aamusnaadaan muddadan. Hooseeya, aad u hooseeya, sareeya iyo aad u sareeya mar walba way dhacaan.</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
     <string name="retry_constantly">Si joogto ah</string>
     <string name="retry_every">Isku day mid kasta</string>

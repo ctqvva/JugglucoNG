@@ -703,6 +703,8 @@
     <string name="notification_dismiss_action_summary">Przesuniecie lub zamkniecie powiadomien</string>
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
+    <string name="same_direction_suppression_title">Okres ciszy po alarmie w tym samym kierunku</string>
+    <string name="same_direction_suppression_summary">Po alarmie o spadku lub wzroście inne alarmy w tym samym kierunku milczą przez ten czas. Niski, bardzo niski, wysoki i bardzo wysoki zawsze się włączają.</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
     <string name="retry_every">Ponow co</string>
     <string name="retry_if_no_reaction">Ponow przy braku reakcji</string>

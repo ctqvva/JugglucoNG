@@ -188,6 +188,13 @@ fun AlertSettingsScreen(
         notificationDismissAction = action
         AlertRepository.saveNotificationDismissAction(action)
     }
+    var sameDirectionSuppressionMinutes by remember {
+        mutableStateOf(AlertRepository.loadSameDirectionSuppressionMinutes())
+    }
+    fun persistSameDirectionSuppressionMinutes(minutes: Int) {
+        sameDirectionSuppressionMinutes = minutes
+        AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
+    }
 
     Scaffold(
         topBar = {
@@ -508,6 +515,14 @@ fun AlertSettingsScreen(
                 NotificationDismissActionPreference(
                     action = notificationDismissAction,
                     onActionChange = { persistNotificationDismissAction(it) }
+                )
+            }
+
+            item(key = "same-direction-suppression") {
+                Spacer(Modifier.height(8.dp))
+                SameDirectionSuppressionPreference(
+                    minutes = sameDirectionSuppressionMinutes,
+                    onMinutesChange = { persistSameDirectionSuppressionMinutes(it) }
                 )
             }
 
@@ -1535,6 +1550,76 @@ private fun PreemptiveSnoozeCard() {
         PreemptiveSnoozeDialog(
             onDismiss = { showDialog = false }
         )
+    }
+}
+
+/**
+ * Quiet period across alert families: after a falling or rising alert, other
+ * alerts of the same direction stay quiet for the chosen minutes. 0 is off.
+ * Threshold alerts are exempt by design; the summary says so.
+ */
+@Composable
+private fun SameDirectionSuppressionPreference(
+    minutes: Int,
+    onMinutesChange: (Int) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsPaused,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.same_direction_suppression_title),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.same_direction_suppression_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            DurationSlider(
+                label = "",
+                value = minutes,
+                range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
+                stepSize = 1,
+                onValueChange = onMinutesChange,
+                valueText = { v ->
+                    if (v == 0) stringResource(R.string.off) else stringResource(R.string.minutes_short_format, v)
+                }
+            )
+        }
     }
 }
 

@@ -628,6 +628,8 @@
     <string name="notification_dismiss_action_summary">Svep bort eller stäng aviseringar</string>
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
+    <string name="same_direction_suppression_title">Tyst period efter larm i samma riktning</string>
+    <string name="same_direction_suppression_summary">Efter ett fallande eller stigande larm är andra larm i samma riktning tysta så här länge. Lågt, mycket lågt, högt och mycket högt larmar alltid.</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>
     <string name="retry_every">Upprepa var</string>
     <string name="retry_if_no_reaction">Upprepa vid ingen reaktion</string>

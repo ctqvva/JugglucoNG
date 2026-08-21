@@ -2086,6 +2086,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_dismiss_action_summary">Мэдэгдлийг шудрах эсвэл хаах</string>
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
+    <string name="same_direction_suppression_title">Ижил чиглэлийн дохионы дараах чимээгүй хугацаа</string>
+    <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохионы дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, өндөр, маш өндөр дохио үргэлж дуугарна.</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
     <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>

@@ -218,6 +218,11 @@ data class SnoozeState(
  * Defaults for each alert type following xDrip+ best practices.
  */
 object AlertDefaults {
+    // Quiet period after a trend alert for other alerts of the same direction
+    // (FALLING_FAST/PRE_LOW, RISING_FAST/PRE_HIGH). 0 = every family fires on its own.
+    const val SAME_DIRECTION_SUPPRESSION_MINUTES = 5
+    const val SAME_DIRECTION_SUPPRESSION_MAX_MINUTES = 30
+
     // Default thresholds (mmol/L - converted to mg/dL at runtime if needed)
     const val LOW_THRESHOLD_MMOL = 3.6f
     const val HIGH_THRESHOLD_MMOL = 9.0f

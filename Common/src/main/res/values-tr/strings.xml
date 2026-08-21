@@ -680,6 +680,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_dismiss_action_summary">Bildirimleri kaydirma veya kapatma</string>
     <string name="notification_dismiss_action_dismiss">Kapat</string>
     <string name="notification_dismiss_action_snooze">Ertele</string>
+    <string name="same_direction_suppression_title">Aynı yöndeki alarmdan sonra sessiz süre</string>
+    <string name="same_direction_suppression_summary">Düşüş veya yükseliş alarmından sonra aynı yöndeki diğer alarmlar bu süre boyunca sessiz kalır. Düşük, çok düşük, yüksek ve çok yüksek her zaman çalar.</string>
     <string name="realert_if_not_dismissed">Kapatilmazsa tekrar uyar</string>
     <string name="retry_every">Su aralikla tekrarla</string>
     <string name="retry_if_no_reaction">Tepki yoksa tekrarla</string>

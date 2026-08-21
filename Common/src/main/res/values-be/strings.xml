@@ -618,6 +618,8 @@
     <string name="notification_dismiss_action_summary">Змахванне або закрыццё апавяшчэнняў</string>
     <string name="notification_dismiss_action_dismiss">Закрыць</string>
     <string name="notification_dismiss_action_snooze">Адкласці</string>
+    <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу таго ж кірунку</string>
+    <string name="same_direction_suppression_summary">Пасля сігналу пра падзенне або рост іншыя сігналы таго ж кірунку маўчаць на працягу гэтага часу. Нізкі, вельмі нізкі, высокі і вельмі высокі спрацоўваюць заўсёды.</string>
     <string name="realert_if_not_dismissed">Паўтараць, калі не адхілена</string>
     <string name="retry_every">Паўтараць кожныя</string>
     <string name="retry_if_no_reaction">Паўтараць пры адсутнасці рэакцыі</string>

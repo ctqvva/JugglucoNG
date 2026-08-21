@@ -1306,6 +1306,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_dismiss_action_summary">Swipe or close alert notifications</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
+    <string name="same_direction_suppression_title">Quiet period after a same-direction alert</string>
+    <string name="same_direction_suppression_summary">After one falling or rising alert, other alerts of the same direction stay quiet for this long. Low, very low, high and very high always fire.</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
     <string name="retry_constantly">Constantly</string>
     <string name="retry_every">Retry every</string>

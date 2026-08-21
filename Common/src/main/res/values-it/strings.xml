@@ -501,6 +501,8 @@
     <string name="notification_dismiss_action_summary">Scorri o chiudi le notifiche</string>
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
+    <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso della stessa direzione</string>
+    <string name="same_direction_suppression_summary">Dopo un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso, alto e molto alto suonano sempre.</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
     <string name="retry_every">Ripeti ogni</string>
     <string name="retry_if_no_reaction">Ripeti se nessuna reazione</string>

@@ -640,6 +640,8 @@
     <string name="notification_dismiss_action_summary">滑动或关闭通知</string>
     <string name="notification_dismiss_action_dismiss">关闭</string>
     <string name="notification_dismiss_action_snooze">稍后提醒</string>
+    <string name="same_direction_suppression_title">同方向警报后的静默期</string>
+    <string name="same_direction_suppression_summary">在一次下降或上升警报之后，同方向的其他警报在此期间保持静默。低、很低、高和很高始终会发出警报。</string>
     <string name="realert_if_not_dismissed">未关闭则再次提醒</string>
     <string name="retry_every">重试间隔</string>
     <string name="retry_if_no_reaction">无响应时重试</string>

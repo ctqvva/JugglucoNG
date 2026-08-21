@@ -747,6 +747,8 @@
     <string name="notification_dismiss_action_summary">Смахивание или закрытие уведомлений</string>
     <string name="notification_dismiss_action_dismiss">Закрыть</string>
     <string name="notification_dismiss_action_snooze">Отложить</string>
+    <string name="same_direction_suppression_title">Тихий период после сигнала того же направления</string>
+    <string name="same_direction_suppression_summary">После сигнала о падении или росте другие сигналы того же направления молчат в течение этого времени. Низкий, очень низкий, высокий и очень высокий срабатывают всегда.</string>
     <string name="realert_if_not_dismissed">Повторять, если не отклонено</string>
     <string name="retry_every">Повторять каждые</string>
     <string name="retry_if_no_reaction">Повторять при отсутствии реакции</string>
