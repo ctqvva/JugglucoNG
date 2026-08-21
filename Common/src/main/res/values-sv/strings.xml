@@ -2109,7 +2109,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Visa journalens COB i statusraden</string>
     <string name="notification_show_delta_minutes_desc">Visa förändringen över %1$d min bredvid pilen</string>
     <string name="dashboard_rows_show_delta_title">Delta i avläsningslistan</string>
-    <string name="dashboard_rows_show_delta_desc">Visa förändringen bredvid varje avläsning</string>
+    <string name="dashboard_rows_show_delta_desc">Visa förändringen bredvid varje avläsning, på instrumentpanelen och i historiken</string>
     <string name="glucose_range_colors_title">Färga värden efter intervall</string>
     <string name="glucose_range_colors_desc">Använd intervallfärger på översikten och i aviseringen</string>
     <string name="very_range_title">Mycket låg / mycket hög</string>

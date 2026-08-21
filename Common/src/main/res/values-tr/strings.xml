@@ -2137,7 +2137,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_show_cob_desc">Günlük COB değerini durum satırında göster</string>
     <string name="notification_show_delta_minutes_desc">%1$d dakikalık değişimi okun yanında göster</string>
     <string name="dashboard_rows_show_delta_title">Okuma listesi deltası</string>
-    <string name="dashboard_rows_show_delta_desc">Değişimi her okumanın yanında göster</string>
+    <string name="dashboard_rows_show_delta_desc">Değişimi her okumanın yanında, panoda ve geçmişte göster</string>
     <string name="glucose_range_colors_title">Değerleri aralığa göre renklendir</string>
     <string name="glucose_range_colors_desc">Pano ve bildirim değerlerinde aralık renklerini kullan</string>
     <string name="very_range_title">Çok düşük / çok yüksek</string>

@@ -2099,7 +2099,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Mostra COB del diario nella riga di stato</string>
     <string name="notification_show_delta_minutes_desc">Mostra la variazione di %1$d min accanto alla freccia</string>
     <string name="dashboard_rows_show_delta_title">Delta nell’elenco letture</string>
-    <string name="dashboard_rows_show_delta_desc">Mostra la variazione accanto a ogni lettura</string>
+    <string name="dashboard_rows_show_delta_desc">Mostra la variazione accanto a ogni lettura, nella dashboard e nella cronologia</string>
     <string name="glucose_range_colors_title">Colora i valori per intervallo</string>
     <string name="glucose_range_colors_desc">Usa i colori degli intervalli nella dashboard e nella notifica</string>
     <string name="very_range_title">Molto basso / molto alto</string>

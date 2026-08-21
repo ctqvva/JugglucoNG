@@ -65,7 +65,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import tk.glucodata.R
+import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
@@ -379,7 +381,9 @@ fun HistoryBrowseScreen(
     onJournalEntryClick: ((JournalEntry) -> Unit)? = null,
     onAddJournalEntry: ((Long, JournalEntryType?, Float?) -> Unit)? = null,
     showTransferActions: Boolean = true,
-    quickAddAlwaysNow: Boolean = false
+    quickAddAlwaysNow: Boolean = false,
+    showRowDelta: Boolean = false,
+    deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -466,6 +470,25 @@ fun HistoryBrowseScreen(
         )
     }
     val visibleSections = remember(visibleTimelineRows) { buildHistorySections(visibleTimelineRows) }
+    // The reading rows' "Δ", the dashboard's setting and function: null while the
+    // setting is off, so the row's slot stays hidden exactly as it does today. The
+    // index is built once per history; the visible window only asks it.
+    val rowDeltaIndex = remember(showRowDelta, sortedHistory) {
+        if (showRowDelta) {
+            RowDeltaIndex(
+                sortedHistory,
+                sameSensor = SensorIdentity::matches,
+                isShared = { HistoryRepository.isImportedHistorySerial(it) }
+            )
+        } else null
+    }
+    val rowDeltaTexts = remember(rowDeltaIndex, visibleTimelineRows, unit, deltaIntervalMinutes) {
+        rowDeltaIndex?.textsFor(
+            visibleTimelineRows.mapNotNull(TimelineRowItem::point),
+            tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+            deltaIntervalMinutes
+        ).orEmpty()
+    }
     val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit, activeHistory) {
         buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, activeHistory, journalFoodsById)
     }
@@ -759,6 +782,7 @@ fun HistoryBrowseScreen(
                                 index = index,
                                 totalCount = section.items.size,
                                 history = section.items.mapNotNull(TimelineRowItem::point),
+                                deltaText = rowDeltaTexts[readingPoint],
                                 sensorId = sensorId,
                                 calibrations = calibrations,
                                 highlightLeadRow = false,

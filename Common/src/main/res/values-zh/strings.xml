@@ -2125,7 +2125,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">在状态行显示日志 COB</string>
     <string name="notification_show_delta_minutes_desc">在箭头旁显示 %1$d 分钟变化</string>
     <string name="dashboard_rows_show_delta_title">读数列表 Delta</string>
-    <string name="dashboard_rows_show_delta_desc">在每条读数旁显示变化</string>
+    <string name="dashboard_rows_show_delta_desc">在仪表盘和历史记录中，在每条读数旁显示变化</string>
     <string name="glucose_range_colors_title">按范围为数值着色</string>
     <string name="glucose_range_colors_desc">在仪表板和通知中使用范围颜色</string>
     <string name="very_range_title">极低 / 极高</string>
