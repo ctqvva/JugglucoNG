@@ -628,6 +628,8 @@
     <string name="notification_dismiss_action_summary">Svep bort eller stäng aviseringar</string>
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
+    <string name="alarm_return_to_previous_app_title">Återgå till föregående app efter larm</string>
+    <string name="alarm_return_to_previous_app_summary">Efter ett helskärmslarm, gå tillbaka till appen du använde i stället för att öppna JugglucoNG</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>
     <string name="retry_every">Upprepa var</string>
     <string name="retry_if_no_reaction">Upprepa vid ingen reaktion</string>

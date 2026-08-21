@@ -747,6 +747,8 @@
     <string name="notification_dismiss_action_summary">Смахивание или закрытие уведомлений</string>
     <string name="notification_dismiss_action_dismiss">Закрыть</string>
     <string name="notification_dismiss_action_snooze">Отложить</string>
+    <string name="alarm_return_to_previous_app_title">Возвращаться в предыдущее приложение после сигнала</string>
+    <string name="alarm_return_to_previous_app_summary">После полноэкранного сигнала возвращаться в приложение, которым вы пользовались, вместо открытия JugglucoNG</string>
     <string name="realert_if_not_dismissed">Повторять, если не отклонено</string>
     <string name="retry_every">Повторять каждые</string>
     <string name="retry_if_no_reaction">Повторять при отсутствии реакции</string>

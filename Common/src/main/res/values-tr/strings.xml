@@ -680,6 +680,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_dismiss_action_summary">Bildirimleri kaydirma veya kapatma</string>
     <string name="notification_dismiss_action_dismiss">Kapat</string>
     <string name="notification_dismiss_action_snooze">Ertele</string>
+    <string name="alarm_return_to_previous_app_title">Alarmdan sonra önceki uygulamaya dön</string>
+    <string name="alarm_return_to_previous_app_summary">Tam ekran alarmdan sonra JugglucoNG\'yi açmak yerine kullandığınız uygulamaya dönün</string>
     <string name="realert_if_not_dismissed">Kapatilmazsa tekrar uyar</string>
     <string name="retry_every">Su aralikla tekrarla</string>
     <string name="retry_if_no_reaction">Tepki yoksa tekrarla</string>

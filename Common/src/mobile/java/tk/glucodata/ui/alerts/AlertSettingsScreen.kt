@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -187,6 +188,13 @@ fun AlertSettingsScreen(
     fun persistNotificationDismissAction(action: AlertNotificationDismissAction) {
         notificationDismissAction = action
         AlertRepository.saveNotificationDismissAction(action)
+    }
+    var returnToPreviousAppAfterAlarm by remember {
+        mutableStateOf(AlertRepository.loadReturnToPreviousAppAfterAlarm())
+    }
+    fun persistReturnToPreviousAppAfterAlarm(enabled: Boolean) {
+        returnToPreviousAppAfterAlarm = enabled
+        AlertRepository.saveReturnToPreviousAppAfterAlarm(enabled)
     }
 
     Scaffold(
@@ -508,6 +516,14 @@ fun AlertSettingsScreen(
                 NotificationDismissActionPreference(
                     action = notificationDismissAction,
                     onActionChange = { persistNotificationDismissAction(it) }
+                )
+            }
+
+            item(key = "alarm-return-to-previous-app") {
+                Spacer(Modifier.height(8.dp))
+                ReturnToPreviousAppPreference(
+                    enabled = returnToPreviousAppAfterAlarm,
+                    onEnabledChange = { persistReturnToPreviousAppAfterAlarm(it) }
                 )
             }
 
@@ -1611,6 +1627,62 @@ private fun NotificationDismissActionPreference(
                 selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.56f),
                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReturnToPreviousAppPreference(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable { onEnabledChange(!enabled) }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.alarm_return_to_previous_app_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.alarm_return_to_previous_app_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            StyledSwitch(
+                checked = enabled,
+                onCheckedChange = onEnabledChange
             )
         }
     }

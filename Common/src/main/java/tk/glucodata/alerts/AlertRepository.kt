@@ -19,6 +19,7 @@ object AlertRepository {
     private const val PREFS_NAME = "tk.glucodata.alerts"
     private const val DEFAULT_THRESHOLD_MIGRATION_KEY = "alert_threshold_defaults_v3"
     private const val KEY_NOTIFICATION_DISMISS_ACTION = "notification_dismiss_action"
+    private const val KEY_RETURN_TO_PREVIOUS_APP_AFTER_ALARM = "alarm_return_to_previous_app"
     @Volatile
     private var hiddenLegacyAlertCleanupDone = false
     @Volatile
@@ -166,6 +167,17 @@ object AlertRepository {
     fun saveNotificationDismissAction(action: AlertNotificationDismissAction) {
         prefs.edit {
             putString(KEY_NOTIFICATION_DISMISS_ACTION, action.name)
+        }
+    }
+
+    /** After a full-screen alarm is dismissed or snoozed, return to the app that was open (default) instead of opening JugglucoNG. */
+    fun loadReturnToPreviousAppAfterAlarm(): Boolean {
+        return prefs.getBoolean(KEY_RETURN_TO_PREVIOUS_APP_AFTER_ALARM, true)
+    }
+
+    fun saveReturnToPreviousAppAfterAlarm(enabled: Boolean) {
+        prefs.edit {
+            putBoolean(KEY_RETURN_TO_PREVIOUS_APP_AFTER_ALARM, enabled)
         }
     }
     

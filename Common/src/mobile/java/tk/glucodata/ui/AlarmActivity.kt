@@ -16,6 +16,8 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import tk.glucodata.GlucosePoint
+import tk.glucodata.Log
+import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
@@ -111,7 +113,7 @@ class AlarmActivity : ComponentActivity() {
                         Notify.cancelCurrentRetrySession("alarm-activity-snooze-after-stop")
                     }
                     cancelAlarmNotification()
-                    finish()
+                    leaveAlarmScreen()
                 },
                 onDismiss = {
                     Notify.cancelQueuedAlarmActivityLaunch(
@@ -131,7 +133,7 @@ class AlarmActivity : ComponentActivity() {
                         }
                     }
                     cancelAlarmNotification()
-                    finish()
+                    leaveAlarmScreen()
                 }
             )
         }
@@ -326,6 +328,31 @@ class AlarmActivity : ComponentActivity() {
         (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(81432)
     }
 
+    /**
+     * Called after snooze/dismiss has been fully handled. The activity lives in
+     * its own task (taskAffinity=""), so removing that task hands the screen back
+     * to whatever was visible before the alarm: the previous app, or the lock
+     * screen. Only the task goes away; the process, the foreground service and
+     * the alarm pipeline are untouched. With the setting off, JugglucoNG is
+     * brought to the front first, which is what the shared-task setup used to do.
+     */
+    private fun leaveAlarmScreen() {
+        if (!AlertRepository.loadReturnToPreviousAppAfterAlarm()) {
+            openMainApp()
+        }
+        finishAndRemoveTask()
+    }
+
+    private fun openMainApp() {
+        try {
+            val launch = packageManager.getLaunchIntentForPackage(packageName)
+                ?: Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launch)
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "openMainApp", t)
+        }
+    }
+
     private fun turnScreenOnAndKeyguard() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         wakeHoldHandler.removeCallbacks(releaseWakeHold)
@@ -363,6 +390,7 @@ class AlarmActivity : ComponentActivity() {
         const val EXTRA_ALERT_TYPE_ID = "EXTRA_ALERT_TYPE_ID"
         const val EXTRA_RATE = "EXTRA_RATE"
         private const val ALARM_SCREEN_WAKE_HOLD_MS = 45_000L
+        private const val LOG_ID = "AlarmActivity"
 
         fun createIntent(
             context: Context,
@@ -378,7 +406,7 @@ class AlarmActivity : ComponentActivity() {
                 putExtra(EXTRA_ALARM_MESSAGE, alarmMessage)
                 putExtra(EXTRA_ALERT_TYPE_ID, alertTypeId)
                 putExtra(EXTRA_RATE, rate)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
         }
     }

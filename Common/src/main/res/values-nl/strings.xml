@@ -716,6 +716,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_dismiss_action_summary">Meldingen wegvegen of sluiten</string>
     <string name="notification_dismiss_action_dismiss">Sluiten</string>
     <string name="notification_dismiss_action_snooze">Snoozen</string>
+    <string name="alarm_return_to_previous_app_title">Na alarm terug naar vorige app</string>
+    <string name="alarm_return_to_previous_app_summary">Na een schermvullend alarm teruggaan naar de app die je gebruikte in plaats van JugglucoNG te openen</string>
     <string name="realert_if_not_dismissed">Opnieuw waarschuwen als niet weggeveegd</string>
     <string name="retry_every">Herhalen elke</string>
     <string name="retry_if_no_reaction">Herhalen bij geen reactie</string>

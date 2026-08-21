@@ -1306,6 +1306,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_dismiss_action_summary">Swipe or close alert notifications</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
+    <string name="alarm_return_to_previous_app_title">Return to previous app after alarm</string>
+    <string name="alarm_return_to_previous_app_summary">After a full-screen alarm, go back to the app you were using instead of opening JugglucoNG</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
     <string name="retry_constantly">Constantly</string>
     <string name="retry_every">Retry every</string>

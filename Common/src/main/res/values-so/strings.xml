@@ -1245,6 +1245,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_dismiss_action_summary">Dhaq ama xidh ogeysiisyada digniinta</string>
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
+    <string name="alarm_return_to_previous_app_title">Digniinta ka dib ku noqo abka hore</string>
+    <string name="alarm_return_to_previous_app_summary">Digniin shaashad-buuxa ka dib, ku noqo abka aad isticmaalaysay halkii aad ka furi lahayd JugglucoNG</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
     <string name="retry_constantly">Si joogto ah</string>
     <string name="retry_every">Isku day mid kasta</string>

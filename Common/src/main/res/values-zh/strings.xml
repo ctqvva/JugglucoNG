@@ -640,6 +640,8 @@
     <string name="notification_dismiss_action_summary">滑动或关闭通知</string>
     <string name="notification_dismiss_action_dismiss">关闭</string>
     <string name="notification_dismiss_action_snooze">稍后提醒</string>
+    <string name="alarm_return_to_previous_app_title">警报后返回上一个应用</string>
+    <string name="alarm_return_to_previous_app_summary">全屏警报结束后返回您之前使用的应用，而不是打开 JugglucoNG</string>
     <string name="realert_if_not_dismissed">未关闭则再次提醒</string>
     <string name="retry_every">重试间隔</string>
     <string name="retry_if_no_reaction">无响应时重试</string>

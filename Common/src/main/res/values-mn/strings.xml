@@ -2086,6 +2086,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_dismiss_action_summary">Мэдэгдлийг шудрах эсвэл хаах</string>
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
+    <string name="alarm_return_to_previous_app_title">Дохионы дараа өмнөх апп руу буцах</string>
+    <string name="alarm_return_to_previous_app_summary">Бүтэн дэлгэцийн дохионы дараа JugglucoNG-г нээхийн оронд ашиглаж байсан апп руу буцна</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
     <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>
