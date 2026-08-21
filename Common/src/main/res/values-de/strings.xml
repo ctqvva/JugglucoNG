@@ -1747,6 +1747,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Aktivität</string>
     <string name="journal_type_note">Notiz</string>
+    <string name="journal_source_pen">Aus Pen gelesen</string>
+    <string name="journal_source_nightscout">Von Nightscout empfangen</string>
+    <string name="journal_source_aaps">Von AAPS empfangen</string>
+    <string name="journal_source_api">Über API empfangen</string>
+    <string name="journal_source_health_connect">Aus Health Connect</string>
+    <string name="journal_source_meter">Vom Messgerät</string>
     <string name="journal_note_label">Notiz</string>
     <string name="journal_onset_label">Wirkbeginn</string>
     <string name="journal_add_preset">Insulintyp hinzufügen</string>

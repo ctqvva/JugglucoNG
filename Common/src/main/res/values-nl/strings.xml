@@ -1665,6 +1665,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_fingerstick">Vingerprik</string>
     <string name="journal_type_activity">Activiteit</string>
     <string name="journal_type_note">Notitie</string>
+    <string name="journal_source_pen">Uit pen gelezen</string>
+    <string name="journal_source_nightscout">Ontvangen van Nightscout</string>
+    <string name="journal_source_aaps">Ontvangen van AAPS</string>
+    <string name="journal_source_api">Ontvangen via API</string>
+    <string name="journal_source_health_connect">Uit Health Connect</string>
+    <string name="journal_source_meter">Van meter</string>
     <string name="journal_note_label">Notitie</string>
     <string name="journal_onset_label">Werking start</string>
     <string name="journal_add_preset">Insulinetype toevoegen</string>

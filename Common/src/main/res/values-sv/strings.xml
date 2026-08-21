@@ -1622,6 +1622,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Aktivitet</string>
     <string name="journal_type_note">Anteckning</string>
+    <string name="journal_source_pen">Läst från pennan</string>
+    <string name="journal_source_nightscout">Mottaget från Nightscout</string>
+    <string name="journal_source_aaps">Mottaget från AAPS</string>
+    <string name="journal_source_api">Mottaget via API</string>
+    <string name="journal_source_health_connect">Från Health Connect</string>
+    <string name="journal_source_meter">Från mätaren</string>
     <string name="journal_note_label">Anteckning</string>
     <string name="journal_onset_label">Verkan startar</string>
     <string name="journal_add_preset">Lägg till insulintyp</string>

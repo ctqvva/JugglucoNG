@@ -1628,6 +1628,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Mesure capillaire</string>
     <string name="journal_type_activity">Activité</string>
     <string name="journal_type_note">Note</string>
+    <string name="journal_source_pen">Lu depuis le stylo</string>
+    <string name="journal_source_nightscout">Reçu de Nightscout</string>
+    <string name="journal_source_aaps">Reçu d\'AAPS</string>
+    <string name="journal_source_api">Reçu via l\'API</string>
+    <string name="journal_source_health_connect">Depuis Health Connect</string>
+    <string name="journal_source_meter">Depuis le lecteur</string>
     <string name="journal_note_label">Note</string>
     <string name="journal_onset_label">Début d\'action</string>
     <string name="journal_add_preset">Ajouter un type d\'insuline</string>

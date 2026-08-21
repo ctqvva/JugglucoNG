@@ -1697,6 +1697,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Пальцевий замір</string>
     <string name="journal_type_activity">Активність</string>
     <string name="journal_type_note">Нотатка</string>
+    <string name="journal_source_pen">Зчитано з ручки</string>
+    <string name="journal_source_nightscout">Отримано з Nightscout</string>
+    <string name="journal_source_aaps">Отримано з AAPS</string>
+    <string name="journal_source_api">Отримано через API</string>
+    <string name="journal_source_health_connect">З Health Connect</string>
+    <string name="journal_source_meter">З глюкометра</string>
     <string name="journal_note_label">Нотатка</string>
     <string name="journal_onset_label">Початок дії</string>
     <string name="journal_add_preset">Додати тип інсуліну</string>

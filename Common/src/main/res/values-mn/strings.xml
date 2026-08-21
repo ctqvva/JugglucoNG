@@ -1639,6 +1639,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Activity</string>
     <string name="journal_type_note">Note</string>
+    <string name="journal_source_pen">Үзгээс уншсан</string>
+    <string name="journal_source_nightscout">Nightscout-оос хүлээн авсан</string>
+    <string name="journal_source_aaps">AAPS-оос хүлээн авсан</string>
+    <string name="journal_source_api">API-аар хүлээн авсан</string>
+    <string name="journal_source_health_connect">Health Connect-оос</string>
+    <string name="journal_source_meter">Хэмжигчээс</string>
     <string name="journal_note_label">Note</string>
     <string name="journal_onset_label">Onset</string>
     <string name="journal_add_preset">Add insulin type</string>

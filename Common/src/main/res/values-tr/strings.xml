@@ -1650,6 +1650,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_type_fingerstick">Parmak ölçümü</string>
     <string name="journal_type_activity">Aktivite</string>
     <string name="journal_type_note">Not</string>
+    <string name="journal_source_pen">Kalemden okundu</string>
+    <string name="journal_source_nightscout">Nightscout\'tan alındı</string>
+    <string name="journal_source_aaps">AAPS\'ten alındı</string>
+    <string name="journal_source_api">API üzerinden alındı</string>
+    <string name="journal_source_health_connect">Health Connect\'ten</string>
+    <string name="journal_source_meter">Ölçüm cihazından</string>
     <string name="journal_note_label">Not</string>
     <string name="journal_onset_label">Etki başlangıcı</string>
     <string name="journal_add_preset">İnsülin türü ekle</string>

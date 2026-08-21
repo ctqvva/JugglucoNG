@@ -2167,6 +2167,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Activity</string>
     <string name="journal_type_note">Note</string>
+    <string name="journal_source_pen">Read from pen</string>
+    <string name="journal_source_nightscout">Received from Nightscout</string>
+    <string name="journal_source_aaps">Received from AAPS</string>
+    <string name="journal_source_api">Received via API</string>
+    <string name="journal_source_health_connect">From Health Connect</string>
+    <string name="journal_source_meter">From meter</string>
     <string name="journal_note_label">Note</string>
     <string name="journal_onset_label">Onset</string>
     <string name="journal_add_preset">Add insulin type</string>

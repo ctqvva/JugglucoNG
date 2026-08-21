@@ -1612,6 +1612,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Puntura dito</string>
     <string name="journal_type_activity">Attività</string>
     <string name="journal_type_note">Nota</string>
+    <string name="journal_source_pen">Letto dalla penna</string>
+    <string name="journal_source_nightscout">Ricevuto da Nightscout</string>
+    <string name="journal_source_aaps">Ricevuto da AAPS</string>
+    <string name="journal_source_api">Ricevuto tramite API</string>
+    <string name="journal_source_health_connect">Da Health Connect</string>
+    <string name="journal_source_meter">Dal glucometro</string>
     <string name="journal_note_label">Nota</string>
     <string name="journal_onset_label">Inizio azione</string>
     <string name="journal_add_preset">Aggiungi tipo di insulina</string>
