@@ -16,6 +16,7 @@ import tk.glucodata.NovoPen.PenDose
 import tk.glucodata.NovoPen.PenDoseParser
 import tk.glucodata.NovoPen.PenDropTally
 import tk.glucodata.NovoPen.PenDuplicateReconciler
+import tk.glucodata.NovoPen.PenImportCursor
 import tk.glucodata.NovoPen.PenJournalEntry
 import tk.glucodata.NovoPen.PenReconcilePlan
 import tk.glucodata.NovoPen.PenSourceIds
@@ -163,8 +164,10 @@ object InsulinPenManager {
             rememberScan(serial, doses)
             val duplicates = reconcile(serial, doses, repository)
             val inWindow = doses.filter { it.timestampSeconds > cutoff }
-            val fresh = inWindow
-                .filterNot { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
+            val present = inWindow
+                .filter { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
+                .mapTo(HashSet(), PenDose::relativeSeconds)
+            val fresh = inWindow.filterNot { it.relativeSeconds in present }
             Log.i(
                 LOG_ID,
                 "Pen $serial: ${chunks.size} chunk(s), ${parsed.sumOf { it.size }} parsed, " +
@@ -179,9 +182,12 @@ object InsulinPenManager {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
             }
             if (fresh.isEmpty()) {
-                // A scan with nothing to offer still says how far the journal reaches. Without
-                // recording that, the next tap would walk the pen's whole log again.
-                doses.maxOfOrNull(PenDose::relativeSeconds)?.let { advanceCursor(serial, it) }
+                // A scan with nothing to offer still says how far the journal reaches, so the
+                // next tap does not walk the pen's whole log again — but only as far as it was
+                // seen to reach. A dose this scan never found in the journal stays ahead of the
+                // cursor, whatever kept it out, so the next scan looks at it again.
+                PenImportCursor.provenUpTo(inWindow) { it.relativeSeconds in present }
+                    ?.let { advanceCursor(serial, it) }
                 return@launch
             }
             val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
