@@ -39,8 +39,8 @@ import tk.glucodata.R
  *  - it always ends: every start is capped at [MAX_DURATION_MS] from now, and the
  *    end time is checked against the wall clock on every read, so a process kill
  *    or a missed alarm cannot stretch it;
- *  - VERY_LOW ignores it (see [AlertDeliveryPolicy.quietWindowAppliesTo]);
- *  - a silenced alarm that stays active for the breakthrough time sounds anyway;
+ *  - a silenced alarm that stays active, unacknowledged, for the breakthrough
+ *    time sounds anyway — every kind, or the very high and very low only;
  *  - it is visible: an ongoing notification with the end time and an "end now"
  *    action, a chip on the dashboard, and a quick-settings tile.
  */
@@ -51,6 +51,7 @@ object QuietWindow {
     private const val KEY_MODE = "quiet_window_mode"
     private const val KEY_DEFAULT_MINUTES = "quiet_window_default_minutes"
     private const val KEY_BREAKTHROUGH_MINUTES = "quiet_window_breakthrough_minutes"
+    private const val KEY_BREAKTHROUGH_SCOPE = "quiet_window_breakthrough_scope"
 
     const val ACTION_EXPIRED = "tk.glucodata.ACTION_QUIET_WINDOW_EXPIRED"
     const val ACTION_END = "tk.glucodata.ACTION_QUIET_WINDOW_END"
@@ -171,6 +172,15 @@ object QuietWindow {
 
     fun defaultMinutes(): Int = sanitizeDefaultMinutes(prefs.getInt(KEY_DEFAULT_MINUTES, DEFAULT_MINUTES))
 
+    /** Which silenced alarms may break through: all, or very high only. */
+    @JvmStatic
+    fun breakthroughScope(): String =
+        AlertDeliveryPolicy.normalizeBreakthroughScope(prefs.getString(KEY_BREAKTHROUGH_SCOPE, null))
+
+    fun setBreakthroughScope(scope: String) {
+        prefs.edit().putString(KEY_BREAKTHROUGH_SCOPE, AlertDeliveryPolicy.normalizeBreakthroughScope(scope)).apply()
+    }
+
     fun setBreakthroughMinutes(minutes: Int) {
         prefs.edit().putInt(KEY_BREAKTHROUGH_MINUTES, sanitizeBreakthroughMinutes(minutes)).apply()
     }
@@ -246,7 +256,9 @@ object QuietWindow {
     @JvmStatic
     fun noteSilencedDelivery(kind: Int, nowMs: Long): Long {
         val since = silencedEpisodes.note(kind, nowMs)
-        if (since == nowMs && kind < CUSTOM_EPISODE_KIND_BASE) {
+        if (since == nowMs && kind < CUSTOM_EPISODE_KIND_BASE &&
+            AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind, breakthroughScope())
+        ) {
             scheduleBreakthroughCheck(kind, breakthroughMillis())
         }
         return since
@@ -291,6 +303,8 @@ object QuietWindow {
         val now = System.currentTimeMillis()
         if (untilMs(now) == 0L) return
         if (!silencedEpisodes.has(kind)) return
+        // The scope may have been narrowed since the check was armed.
+        if (!AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind, breakthroughScope())) return
         val type = AlertType.fromId(kind) ?: return
         if (!AlertStateTracker.isEpisodeActive(type)) {
             // Cleared without resetState reaching us: the staleness rule retires the

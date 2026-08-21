@@ -8,9 +8,9 @@ import tk.glucodata.alerts.AlertType
 
 /**
  * The quiet window may only take sound (and, in notification-only mode,
- * vibration) away, and two rules are not the UI's to bend: VERY_LOW ignores the
- * window, and a silenced alarm that stays active past the breakthrough time
- * sounds as if there were no window.
+ * vibration) away, and one rule is not the UI's to bend: a silenced alarm that
+ * stays active past the breakthrough time sounds as if there were no window —
+ * every kind, or the very high and very low only.
  */
 class AlertDeliveryPolicyQuietWindowTests {
 
@@ -51,18 +51,15 @@ class AlertDeliveryPolicyQuietWindowTests {
     }
 
     @Test
-    fun veryLowIgnoresTheWindowEntirely() {
-        assertFalse(AlertDeliveryPolicy.quietWindowAppliesTo(veryLow))
-        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, veryLow, false))
-        assertFalse(
-            AlertDeliveryPolicy.shouldSuppressVibration(
-                true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, veryLow, false
-            )
-        )
-        // Every other kind is a candidate.
-        AlertType.entries.filter { it != AlertType.VERY_LOW }.forEach {
-            assertTrue(it.name, AlertDeliveryPolicy.quietWindowAppliesTo(it.id))
+    fun everyKindIsSilencedVeryLowIncluded() {
+        AlertType.values().forEach {
+            assertTrue(it.name, AlertDeliveryPolicy.shouldSilenceSound(true, it.id, false))
         }
+        assertTrue(AlertDeliveryPolicy.shouldSuppressVibration(
+            true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, veryLow, false
+        ))
+        // Until it breaks through: then it sounds as if there were no window.
+        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, veryLow, true))
     }
 
     @Test
@@ -108,5 +105,28 @@ class AlertDeliveryPolicyQuietWindowTests {
         assertTrue(AlertDeliveryPolicy.shouldPostAlertNotification(AlertDeliveryPolicy.BOTH, true))
         assertTrue(AlertDeliveryPolicy.shouldUseAlarmAudioStream(AlertDeliveryPolicy.NOTIFICATION_ONLY, true))
         assertFalse(AlertDeliveryPolicy.shouldUseAlarmAudioStream(AlertDeliveryPolicy.NOTIFICATION_ONLY, false))
+    }
+
+    @Test
+    fun breakthroughScopeAllLetsEverySilencedAlarmThrough() {
+        listOf(low, high, AlertType.VERY_HIGH.id, AlertType.PRE_LOW.id, AlertType.FALLING_FAST.id).forEach {
+            assertTrue("kind $it", AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(it, AlertDeliveryPolicy.BREAKTHROUGH_ALL))
+        }
+        assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(low, null))
+        assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(low, "whatever"))
+    }
+
+    @Test
+    fun breakthroughScopeVeryOnlyKeepsTheRestQuietForTheWholeWindow() {
+        val scope = AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY
+        assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(AlertType.VERY_HIGH.id, scope))
+        assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(veryLow, scope))
+        listOf(low, high, AlertType.PRE_LOW.id, AlertType.PRE_HIGH.id, AlertType.FALLING_FAST.id,
+            AlertType.RISING_FAST.id, AlertType.MISSED_READING.id, AlertType.LOSS.id).forEach {
+            assertFalse("kind $it", AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(it, scope))
+        }
+        // Case and unknown values: unknown falls back to all.
+        assertFalse(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(low, "VERY_ONLY"))
+        assertEquals(AlertDeliveryPolicy.BREAKTHROUGH_ALL, AlertDeliveryPolicy.normalizeBreakthroughScope("nope"))
     }
 }

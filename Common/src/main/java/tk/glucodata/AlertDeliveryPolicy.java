@@ -55,17 +55,18 @@ public final class AlertDeliveryPolicy {
     // A quiet window is a temporary, self-expiring reduction of alarm *output*:
     // it may only take sound (and, in notification-only mode, vibration) away.
     // Notification and full-screen surfaces, thresholds, retries and episodes
-    // are not its business. Two safety rules live here so they cannot be lost
-    // in the UI: VERY_LOW ignores the window, and a silenced alarm that stays
-    // active past the breakthrough time sounds as if there were no window.
+    // are not its business. The safety rule lives here so it cannot be lost in
+    // the UI: a silenced alarm that stays active, unacknowledged, past the
+    // breakthrough time sounds as if there were no window — for every kind, or
+    // for the very high and very low only, as the reader chooses.
 
     /** Sound off, vibration, notification and full-screen alarm stay. The default. */
     public static final String QUIET_VIBRATE_ONLY = "vibrate_only";
     /** Sound and vibration off; notification and full-screen alarm stay. */
     public static final String QUIET_NOTIFICATION_ONLY = "notification_only";
 
-    /** The alert kind the quiet window never touches: very low glucose. */
-    private static final int QUIET_HARD_FLOOR_KIND = 5; // AlertType.VERY_LOW.id
+    private static final int VERY_LOW_KIND = 5; // AlertType.VERY_LOW.id
+    private static final int VERY_HIGH_KIND = 6; // AlertType.VERY_HIGH.id
 
     public static String normalizeQuietMode(String quietMode) {
         if (quietMode == null) {
@@ -76,11 +77,6 @@ public final class AlertDeliveryPolicy {
             return QUIET_NOTIFICATION_ONLY;
         }
         return QUIET_VIBRATE_ONLY;
-    }
-
-    /** False for the hard floor (very low); every other kind can be quieted. */
-    public static boolean quietWindowAppliesTo(int kind) {
-        return kind != QUIET_HARD_FLOOR_KIND;
     }
 
     /**
@@ -95,8 +91,33 @@ public final class AlertDeliveryPolicy {
         return nowMs - silencedSinceMs >= breakthroughMs;
     }
 
+    /** The breakthrough applies to every silenced alarm. The default. */
+    public static final String BREAKTHROUGH_ALL = "all";
+    /** The breakthrough applies to very high only (very low is never silenced). */
+    public static final String BREAKTHROUGH_VERY_ONLY = "very_only";
+
+    public static String normalizeBreakthroughScope(String scope) {
+        if (scope == null) {
+            return BREAKTHROUGH_ALL;
+        }
+        return BREAKTHROUGH_VERY_ONLY.equals(scope.toLowerCase(Locale.ROOT)) ? BREAKTHROUGH_VERY_ONLY
+                : BREAKTHROUGH_ALL;
+    }
+
+    /**
+     * Whether a silenced alarm of this kind may break through at all. Under
+     * {@link #BREAKTHROUGH_VERY_ONLY} only the very high and the very low do;
+     * everything else stays quiet for the whole window.
+     */
+    public static boolean quietWindowBreakthroughAppliesTo(int kind, String scope) {
+        if (BREAKTHROUGH_VERY_ONLY.equals(normalizeBreakthroughScope(scope))) {
+            return kind == VERY_HIGH_KIND || kind == VERY_LOW_KIND;
+        }
+        return true;
+    }
+
     public static boolean shouldSilenceSound(boolean windowActive, int kind, boolean breakThrough) {
-        return windowActive && quietWindowAppliesTo(kind) && !breakThrough;
+        return windowActive && !breakThrough;
     }
 
     public static boolean shouldSuppressVibration(boolean windowActive, String quietMode, int kind,

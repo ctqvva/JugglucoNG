@@ -1903,20 +1903,21 @@ public class Notify {
         }
 
         // Quiet window: a temporary, self-expiring cut of sound (and, in
-        // notification-only mode, vibration) decided by AlertDeliveryPolicy. VERY_LOW
-        // ignores it, and a silenced alarm that stays active past the breakthrough
-        // time sounds as if there were no window. Nothing else here changes.
+        // notification-only mode, vibration) decided by AlertDeliveryPolicy. A
+        // silenced alarm that stays active past the breakthrough time sounds as if
+        // there were no window. Nothing else here changes.
         final long quietNowMs = System.currentTimeMillis();
-        final boolean quietWindow = QuietWindow.untilMs(quietNowMs) > 0L
-                && AlertDeliveryPolicy.quietWindowAppliesTo(kind);
+        final boolean quietWindow = QuietWindow.untilMs(quietNowMs) > 0L;
         boolean quietBreakThrough = false;
         String quietMode = null;
         if (quietWindow) {
             // A custom alert is not LOW/HIGH's episode; it is tracked under its own key.
             final int episodeKind = customAlert ? QuietWindow.customEpisodeKind(kind) : kind;
             final long silencedSinceMs = QuietWindow.noteSilencedDelivery(episodeKind, quietNowMs);
-            quietBreakThrough = AlertDeliveryPolicy.quietWindowBreaksThrough(silencedSinceMs, quietNowMs,
-                    QuietWindow.breakthroughMillis());
+            quietBreakThrough = AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind,
+                    QuietWindow.breakthroughScope())
+                    && AlertDeliveryPolicy.quietWindowBreaksThrough(silencedSinceMs, quietNowMs,
+                            QuietWindow.breakthroughMillis());
             quietMode = QuietWindow.mode();
             if (doLog) {
                 Log.i(LOG_ID, "Quiet window: kind=" + kind + " silencedSince=" + silencedSinceMs

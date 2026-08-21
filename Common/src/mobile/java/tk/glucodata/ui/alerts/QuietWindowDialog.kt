@@ -242,7 +242,12 @@ internal fun QuietWindowSettingsCard() {
     val state by QuietWindow.state.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var breakthroughMinutes by remember { mutableStateOf(QuietWindow.breakthroughMinutes()) }
+    var breakthroughScope by remember { mutableStateOf(QuietWindow.breakthroughScope()) }
     var defaultMinutes by remember { mutableStateOf(QuietWindow.defaultMinutes()) }
+    val scopeLabels = mapOf(
+        AlertDeliveryPolicy.BREAKTHROUGH_ALL to stringResource(R.string.quiet_window_breakthrough_scope_all),
+        AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY to stringResource(R.string.quiet_window_breakthrough_scope_very)
+    )
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
 
     Surface(
@@ -314,6 +319,36 @@ internal fun QuietWindowSettingsCard() {
             )
             Text(
                 stringResource(R.string.quiet_window_breakthrough_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                stringResource(R.string.quiet_window_breakthrough_scope_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            tk.glucodata.ui.util.ConnectedButtonGroup(
+                options = listOf(
+                    AlertDeliveryPolicy.BREAKTHROUGH_ALL,
+                    AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY
+                ),
+                selectedOption = breakthroughScope,
+                onOptionSelected = {
+                    breakthroughScope = it
+                    QuietWindow.setBreakthroughScope(it)
+                },
+                labelText = { scopeLabels[it] ?: it },
+                label = { Text(scopeLabels[it] ?: it, style = MaterialTheme.typography.labelMedium) },
+                modifier = Modifier.fillMaxWidth(),
+                itemHeight = 36.dp
+            )
+            Text(
+                stringResource(
+                    if (breakthroughScope == AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY)
+                        R.string.quiet_window_breakthrough_scope_very_desc
+                    else
+                        R.string.quiet_window_breakthrough_scope_all_desc
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
