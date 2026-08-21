@@ -167,14 +167,23 @@ object InsulinPenManager {
             val present = inWindow
                 .filter { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
                 .mapTo(HashSet(), PenDose::relativeSeconds)
-            val fresh = inWindow.filterNot { it.relativeSeconds in present }
+            // Not in the journal is not enough to be offered: a dose the reader unticked at
+            // the last import was never written, and would otherwise come back as new on
+            // every tap. The cursor says where that review ended; only what lies past it is
+            // new, unless the reader asked to see the whole log again.
+            val cursor = known?.lastImportedDoseRelativeSeconds ?: 0L
+            val fullRead = known?.fullReadArmed ?: false
+            val fresh = inWindow
+                .filterNot { it.relativeSeconds in present }
+                .filter { PenImportCursor.isAhead(it, cursor, fullRead) }
             Log.i(
                 LOG_ID,
                 "Pen $serial: ${chunks.size} chunk(s), ${parsed.sumOf { it.size }} parsed, " +
                     "${doses.size} after merge, newest rel=${doses.maxOfOrNull(PenDose::relativeSeconds)}, " +
-                    "cursor rel=${known?.lastImportedDoseRelativeSeconds ?: 0L}, " +
+                    "cursor rel=$cursor${if (fullRead) " (full read)" else ""}, " +
                     "${inWindow.size} within ${REVIEW_WINDOW_SECONDS / 86_400} days, " +
-                    "${fresh.size} not in the journal; ${dropped.describe()}",
+                    "${inWindow.size - present.size} not in the journal, ${fresh.size} to offer; " +
+                    dropped.describe(),
             )
             if (duplicates > 0) {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_duplicates_found, duplicates))
