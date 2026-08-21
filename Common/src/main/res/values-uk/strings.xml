@@ -1766,6 +1766,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Відкрити геолокацію</string>
     <string name="cgm_readiness_open_notifications_action">Відкрити сповіщення</string>
     <string name="cgm_readiness_open_alarm_action">Відкрити доступ будильників</string>
+    <string name="cgm_readiness_open_full_screen_action">Дозволити повноекранні тривоги</string>
     <string name="cgm_readiness_open_battery_action">Відкрити налаштування батареї</string>
     <string name="cgm_readiness_open_dnd_action">Відкрити доступ DND</string>
     <string name="cgm_readiness_open_overlay_action">Відкрити доступ накладання</string>
@@ -1793,6 +1794,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Точні будильники</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Планування точних будильників дозволено.</string>
     <string name="cgm_readiness_exact_alarm_detail">Дозвольте точні будильники для надійних нагадувань, перевірок перепідключення та термінових тривог.</string>
+    <string name="cgm_readiness_full_screen_title">Повноекранні тривоги</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Тривоги можуть будити заблокований екран.</string>
+    <string name="cgm_readiness_full_screen_detail">Без цього дозволу тривоги більше не будять заблокований екран і показуються лише як сповіщення. Android може відкликати його під час кожного оновлення застосунку — перевіряйте після оновлень.</string>
     <string name="cgm_readiness_battery_title">Батарея без обмежень</string>
     <string name="cgm_readiness_battery_ready_detail">Оптимізацію батареї Android вимкнено для цього застосунку.</string>
     <string name="cgm_readiness_battery_detail">Вимкніть оптимізацію батареї, щоб фонові BLE, тривоги та мережева синхронізація не зупинялися.</string>

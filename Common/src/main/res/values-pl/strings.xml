@@ -1722,6 +1722,7 @@
     <string name="cgm_readiness_open_location_action">Otwórz lokalizację</string>
     <string name="cgm_readiness_open_notifications_action">Otwórz powiadomienia</string>
     <string name="cgm_readiness_open_alarm_action">Otwórz dostęp alarmów</string>
+    <string name="cgm_readiness_open_full_screen_action">Zezwól na alarmy pełnoekranowe</string>
     <string name="cgm_readiness_open_battery_action">Otwórz ustawienia baterii</string>
     <string name="cgm_readiness_open_dnd_action">Otwórz dostęp DND</string>
     <string name="cgm_readiness_open_overlay_action">Otwórz dostęp nakładki</string>
@@ -1749,6 +1750,9 @@
     <string name="cgm_readiness_exact_alarm_title">Dokładne alarmy</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Planowanie dokładnych alarmów jest dozwolone.</string>
     <string name="cgm_readiness_exact_alarm_detail">Zezwól na dokładne alarmy dla niezawodnych przypomnień, kontroli ponownego połączenia i pilnych alertów.</string>
+    <string name="cgm_readiness_full_screen_title">Alarmy pełnoekranowe</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarmy mogą wybudzać zablokowany ekran.</string>
+    <string name="cgm_readiness_full_screen_detail">Bez tego uprawnienia alarmy nie wybudzają już zablokowanego ekranu i pojawiają się tylko jako powiadomienie. Android może je odbierać przy każdej aktualizacji aplikacji – sprawdź je po aktualizacji.</string>
     <string name="cgm_readiness_battery_title">Bateria bez ograniczeń</string>
     <string name="cgm_readiness_battery_ready_detail">Optymalizacja baterii Androida jest wyłączona dla tej aplikacji.</string>
     <string name="cgm_readiness_battery_detail">Wyłącz optymalizację baterii, aby BLE w tle, alarmy i synchronizacja sieci nie były zatrzymywane.</string>

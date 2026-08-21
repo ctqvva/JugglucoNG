@@ -1677,6 +1677,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Apri Posizione</string>
     <string name="cgm_readiness_open_notifications_action">Apri Notifiche</string>
     <string name="cgm_readiness_open_alarm_action">Apri accesso allarmi</string>
+    <string name="cgm_readiness_open_full_screen_action">Consenti allarmi a schermo intero</string>
     <string name="cgm_readiness_open_battery_action">Apri impostazioni batteria</string>
     <string name="cgm_readiness_open_dnd_action">Apri accesso DND</string>
     <string name="cgm_readiness_open_overlay_action">Apri accesso overlay</string>
@@ -1704,6 +1705,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Allarmi esatti</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Pianificazione allarmi esatti consentita.</string>
     <string name="cgm_readiness_exact_alarm_detail">Consenti allarmi esatti per promemoria affidabili, controlli di riconnessione e avvisi urgenti.</string>
+    <string name="cgm_readiness_full_screen_title">Allarmi a schermo intero</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Gli allarmi possono riattivare lo schermo bloccato.</string>
+    <string name="cgm_readiness_full_screen_detail">Senza questa autorizzazione gli allarmi non riattivano più lo schermo bloccato e compaiono solo come notifica. Android può revocarla a ogni aggiornamento dell’app: controllala dopo gli aggiornamenti.</string>
     <string name="cgm_readiness_battery_title">Batteria senza restrizioni</string>
     <string name="cgm_readiness_battery_ready_detail">Ottimizzazione batteria Android disattivata per questa app.</string>
     <string name="cgm_readiness_battery_detail">Disattiva ottimizzazione batteria per non fermare BLE in background, allarmi e sincronizzazione rete.</string>

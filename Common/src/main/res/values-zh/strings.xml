@@ -1703,6 +1703,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">打开位置信息</string>
     <string name="cgm_readiness_open_notifications_action">打开通知</string>
     <string name="cgm_readiness_open_alarm_action">打开闹钟权限</string>
+    <string name="cgm_readiness_open_full_screen_action">允许全屏警报</string>
     <string name="cgm_readiness_open_battery_action">打开电池设置</string>
     <string name="cgm_readiness_open_dnd_action">打开勿扰权限</string>
     <string name="cgm_readiness_open_overlay_action">打开悬浮窗权限</string>
@@ -1730,6 +1731,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">精确闹钟</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">已允许精确闹钟调度。</string>
     <string name="cgm_readiness_exact_alarm_detail">允许精确闹钟，用于可靠提醒、重连检查和时间关键警报。</string>
+    <string name="cgm_readiness_full_screen_title">全屏警报</string>
+    <string name="cgm_readiness_full_screen_ready_detail">警报可以唤醒锁定的屏幕。</string>
+    <string name="cgm_readiness_full_screen_detail">没有此权限，警报将无法唤醒锁定的屏幕，只会显示为通知。Android 可能会在每次应用更新时收回该权限，请在更新后检查。</string>
     <string name="cgm_readiness_battery_title">电池不受限制</string>
     <string name="cgm_readiness_battery_ready_detail">已为此应用关闭 Android 电池优化。</string>
     <string name="cgm_readiness_battery_detail">关闭电池优化，避免后台 BLE、警报和网络同步被停止。</string>

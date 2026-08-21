@@ -2009,6 +2009,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="cgm_readiness_open_location_action">Goobta Furan</string>
     <string name="cgm_readiness_open_notifications_action">Ogeysiisyada Furan</string>
     <string name="cgm_readiness_open_alarm_action">Fur gelida alaarmiga</string>
+    <string name="cgm_readiness_open_full_screen_action">Ogolow digniinaha shaashadda buuxda</string>
     <string name="cgm_readiness_open_battery_action">Fur goobaha baytariyada</string>
     <string name="cgm_readiness_open_dnd_action">Furo gelitaanka DND</string>
     <string name="cgm_readiness_open_overlay_action">Furan gelitaanka dulsaar</string>
@@ -2036,6 +2037,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="cgm_readiness_exact_alarm_title">Alaarmiga saxda ah</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Jadwalka digniinta saxda ah waa la oggol yahay.</string>
     <string name="cgm_readiness_exact_alarm_detail">Oggolow digniinaha saxda ah ee xasuusinta la isku halayn karo, jeegaga dib ugu xidhka, iyo digniinaha wakhtiga muhiimka ah.</string>
+    <string name="cgm_readiness_full_screen_title">Digniinaha shaashadda buuxda</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Digniinuhu waxay toosin karaan shaashadda xiran.</string>
+    <string name="cgm_readiness_full_screen_detail">Ogolaansho la’aanteed digniinuhu ma toosiyaan shaashadda xiran, waxayna u muuqdaan oo keliya sida ogeysiis. Android wuu dib u qaadi karaa cusboonaysiin kasta oo appka ah – ka dib cusboonaysiinta hubi.</string>
     <string name="cgm_readiness_battery_title">Batarigu ma xadidna</string>
     <string name="cgm_readiness_battery_ready_detail">Hagaajinta batteriga Android waa la damiyay abkan.</string>
     <string name="cgm_readiness_battery_detail">Dami hagaajinta baytariga si BLE-gii hore, alaarmiga, iyo isku xidhka shabakada aan loo joojin.</string>

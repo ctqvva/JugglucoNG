@@ -1687,6 +1687,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Öppna Plats</string>
     <string name="cgm_readiness_open_notifications_action">Öppna Aviseringar</string>
     <string name="cgm_readiness_open_alarm_action">Öppna larmåtkomst</string>
+    <string name="cgm_readiness_open_full_screen_action">Tillåt helskärmslarm</string>
     <string name="cgm_readiness_open_battery_action">Öppna batteriinställningar</string>
     <string name="cgm_readiness_open_dnd_action">Öppna Stör ej-åtkomst</string>
     <string name="cgm_readiness_open_overlay_action">Öppna överläggsåtkomst</string>
@@ -1714,6 +1715,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Exakta larm</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Schemaläggning av exakta larm är tillåten.</string>
     <string name="cgm_readiness_exact_alarm_detail">Tillåt exakta larm för pålitliga påminnelser, återanslutningskontroller och tidskritiska larm.</string>
+    <string name="cgm_readiness_full_screen_title">Helskärmslarm</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Larm får väcka den låsta skärmen.</string>
+    <string name="cgm_readiness_full_screen_detail">Utan denna behörighet väcker larm inte längre en låst skärm utan visas bara som en avisering. Android kan ta bort den vid varje appuppdatering – kontrollera efter uppdateringar.</string>
     <string name="cgm_readiness_battery_title">Obegränsat batteri</string>
     <string name="cgm_readiness_battery_ready_detail">Androids batterioptimering är avstängd för appen.</string>
     <string name="cgm_readiness_battery_detail">Stäng av batterioptimering så att BLE i bakgrunden, larm och nätverkssynk inte stoppas.</string>

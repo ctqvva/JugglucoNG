@@ -1722,6 +1722,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="cgm_readiness_open_location_action">Open Location</string>
     <string name="cgm_readiness_open_notifications_action">Open Notifications</string>
     <string name="cgm_readiness_open_alarm_action">Open Alarm access</string>
+    <string name="cgm_readiness_open_full_screen_action">Allow full-screen alarms</string>
     <string name="cgm_readiness_open_battery_action">Open Battery settings</string>
     <string name="cgm_readiness_open_dnd_action">Open DND access</string>
     <string name="cgm_readiness_open_overlay_action">Open Overlay access</string>
@@ -1749,6 +1750,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="cgm_readiness_exact_alarm_title">Exact alarms</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Exact alarm scheduling is allowed.</string>
     <string name="cgm_readiness_exact_alarm_detail">Allow exact alarms for reliable reminders, reconnect checks, and time-critical alerts.</string>
+    <string name="cgm_readiness_full_screen_title">Full-screen alarms</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarms are allowed to wake the locked screen.</string>
+    <string name="cgm_readiness_full_screen_detail">Without this permission alarms no longer wake a locked screen and only show as a notification. Android can take it away again with every app update, so check it after updating.</string>
     <string name="cgm_readiness_battery_title">Battery unrestricted</string>
     <string name="cgm_readiness_battery_ready_detail">Android battery optimization is disabled for this app.</string>
     <string name="cgm_readiness_battery_detail">Disable battery optimization so background BLE, alarms, and network sync are not stopped.</string>

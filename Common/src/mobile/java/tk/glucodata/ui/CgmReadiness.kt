@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -114,6 +115,8 @@ import tk.glucodata.R
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
+import tk.glucodata.alerts.CustomAlertRepository
+import tk.glucodata.alerts.FullScreenIntentReadiness
 import tk.glucodata.data.settings.FloatingSettingsRepository
 
 private const val CGM_READINESS_PREFS = "cgm_readiness"
@@ -135,6 +138,7 @@ private enum class CgmReadinessAction {
     EnableBluetooth,
     OpenBatteryOptimization,
     OpenExactAlarmSettings,
+    OpenFullScreenIntentSettings,
     OpenNotificationSettings,
     OpenDndSettings,
     OpenLocationSettings,
@@ -778,6 +782,7 @@ private fun buildCgmReadinessSnapshot(
             notificationPermissionItem(appContext),
             appNotificationItem(appContext),
             exactAlarmItem(appContext),
+            fullScreenIntentItem(appContext),
             batteryOptimizationItem(appContext),
             dndItem(appContext),
             overlayItem(appContext),
@@ -954,6 +959,37 @@ private fun exactAlarmItem(context: Context): CgmReadinessItem? {
     )
 }
 
+private fun fullScreenIntentItem(context: Context): CgmReadinessItem? {
+    // Since Android 14 the manifest declaration alone no longer grants
+    // USE_FULL_SCREEN_INTENT; it can be missing after install and is taken away
+    // again by app updates, so it is re-checked on every snapshot, not cached.
+    if (!FullScreenIntentReadiness.shouldCheck(Build.VERSION.SDK_INT, isFullScreenDeliveryEnabledForAnyAlert())) {
+        return null
+    }
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+    val ready = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+        manager?.canUseFullScreenIntent() != false
+    return CgmReadinessItem(
+        id = "full_screen_intent",
+        titleRes = R.string.cgm_readiness_full_screen_title,
+        detailRes = if (ready) {
+            R.string.cgm_readiness_full_screen_ready_detail
+        } else {
+            R.string.cgm_readiness_full_screen_detail
+        },
+        status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
+        icon = Icons.Filled.Fullscreen,
+        action = if (ready) null else CgmReadinessAction.OpenFullScreenIntentSettings,
+        actionLabelRes = if (ready) null else R.string.cgm_readiness_open_full_screen_action
+    )
+}
+
+private fun isFullScreenDeliveryEnabledForAnyAlert(): Boolean {
+    val alerts = AlertType.settingsEntries.map { AlertRepository.loadConfig(it) }
+    val customAlerts = runCatching { CustomAlertRepository.getAll() }.getOrDefault(emptyList())
+    return FullScreenIntentReadiness.anyAlertUsesFullScreen(alerts, customAlerts)
+}
+
 private fun batteryOptimizationItem(context: Context): CgmReadinessItem? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
     val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -1109,6 +1145,13 @@ private fun Context.startReadinessSettingsActivity(action: CgmReadinessAction) {
         CgmReadinessAction.OpenExactAlarmSettings -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri)
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
+            }
+        }
+        CgmReadinessAction.OpenFullScreenIntentSettings -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri)
             } else {
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
             }
