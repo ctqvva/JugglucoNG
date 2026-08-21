@@ -2550,8 +2550,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_end_now">Nu beëindigen</string>
     <string name="quiet_window_ended_title">Alarmen weer actief</string>
     <string name="quiet_window_ended_text">Het stiltevenster is voorbij.</string>
-    <string name="quiet_window_breakthrough_title">Doorbreken na</string>
-    <string name="quiet_window_breakthrough_desc">Een stil alarm dat zo lang actief blijft, klinkt toch</string>
+    <string name="quiet_window_breakthrough_title">Stil voor hoogstens</string>
+    <string name="quiet_window_breakthrough_desc">Een gedempt alarm dat langer actief blijft, klinkt alsnog</string>
     <string name="quiet_window_tile_label">Alarmen stil</string>
     <string name="quiet_window_tile_default_title">Snelle-instellingen-tegel</string>
     <string name="quiet_window_tile_default_desc">Wat één tik op de tegel start; een tweede tik beëindigt het venster</string>

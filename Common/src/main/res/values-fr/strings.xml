@@ -2513,8 +2513,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">Terminer maintenant</string>
     <string name="quiet_window_ended_title">Alarmes de nouveau actives</string>
     <string name="quiet_window_ended_text">La fenêtre de silence est terminée.</string>
-    <string name="quiet_window_breakthrough_title">Sonner après</string>
-    <string name="quiet_window_breakthrough_desc">Une alarme en silence qui reste active aussi longtemps sonne quand même</string>
+    <string name="quiet_window_breakthrough_title">Silencieuse au plus</string>
+    <string name="quiet_window_breakthrough_desc">Une alarme mise en silence qui reste active plus longtemps sonne quand même</string>
     <string name="quiet_window_tile_label">Alarmes en silence</string>
     <string name="quiet_window_tile_default_title">Tuile de réglages rapides</string>
     <string name="quiet_window_tile_default_desc">Ce qu’un appui sur la tuile démarre ; un second appui termine la fenêtre</string>

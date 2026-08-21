@@ -2507,8 +2507,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">Avsluta nu</string>
     <string name="quiet_window_ended_title">Larmen aktiva igen</string>
     <string name="quiet_window_ended_text">Det tysta fönstret är över.</string>
-    <string name="quiet_window_breakthrough_title">Bryt igenom efter</string>
-    <string name="quiet_window_breakthrough_desc">Ett tystat larm som är aktivt så här länge låter ändå</string>
+    <string name="quiet_window_breakthrough_title">Tyst i högst</string>
+    <string name="quiet_window_breakthrough_desc">Ett tystat larm som är aktivt längre ljuder ändå</string>
     <string name="quiet_window_tile_label">Tysta larm</string>
     <string name="quiet_window_tile_default_title">Snabbinställningsruta</string>
     <string name="quiet_window_tile_default_desc">Vad ett tryck på rutan startar; ett andra tryck avslutar fönstret</string>

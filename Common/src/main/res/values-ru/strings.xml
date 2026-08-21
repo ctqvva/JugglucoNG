@@ -2550,8 +2550,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">Закончить сейчас</string>
     <string name="quiet_window_ended_title">Сигналы снова активны</string>
     <string name="quiet_window_ended_text">Тихое окно закончилось.</string>
-    <string name="quiet_window_breakthrough_title">Пробиться через</string>
-    <string name="quiet_window_breakthrough_desc">Приглушённый сигнал, активный так долго, всё равно зазвучит</string>
+    <string name="quiet_window_breakthrough_title">Без звука не дольше</string>
+    <string name="quiet_window_breakthrough_desc">Заглушённый сигнал, который остаётся активным дольше, всё равно прозвучит</string>
     <string name="quiet_window_tile_label">Тихие сигналы</string>
     <string name="quiet_window_tile_default_title">Плитка быстрых настроек</string>
     <string name="quiet_window_tile_default_desc">Что запускает одно нажатие на плитку; второе нажатие заканчивает окно</string>

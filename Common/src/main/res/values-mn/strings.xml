@@ -2622,8 +2622,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="quiet_window_end_now">Одоо дуусгах</string>
     <string name="quiet_window_ended_title">Сэрүүлэг дахин идэвхтэй</string>
     <string name="quiet_window_ended_text">Чимээгүй цонх дууслаа.</string>
-    <string name="quiet_window_breakthrough_title">Дараах хугацааны дараа дуугарах</string>
-    <string name="quiet_window_breakthrough_desc">Ийм удаан идэвхтэй хэвээр байгаа намсгасан сэрүүлэг ямар ч байсан дуугарна</string>
+    <string name="quiet_window_breakthrough_title">Дээд тал нь дуугүй</string>
+    <string name="quiet_window_breakthrough_desc">Үүнээс удаан идэвхтэй байгаа дуугүй сэрүүлэг ямар ч байсан дуугарна</string>
     <string name="quiet_window_tile_label">Чимээгүй сэрүүлэг</string>
     <string name="quiet_window_tile_default_title">Түргэн тохиргооны хавтан</string>
     <string name="quiet_window_tile_default_desc">Хавтан дээр нэг товшиход эхлэх хугацаа; хоёр дахь товшилт цонхыг дуусгана</string>

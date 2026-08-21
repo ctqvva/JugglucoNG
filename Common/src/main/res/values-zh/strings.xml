@@ -2523,8 +2523,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">立即结束</string>
     <string name="quiet_window_ended_title">警报已恢复</string>
     <string name="quiet_window_ended_text">静音时段已结束。</string>
-    <string name="quiet_window_breakthrough_title">突破静音时间</string>
-    <string name="quiet_window_breakthrough_desc">被静音的警报持续这么久仍会响铃</string>
+    <string name="quiet_window_breakthrough_title">最多静音</string>
+    <string name="quiet_window_breakthrough_desc">静音的警报持续超过此时长仍会响起</string>
     <string name="quiet_window_tile_label">警报静音</string>
     <string name="quiet_window_tile_default_title">快捷设置图块</string>
     <string name="quiet_window_tile_default_desc">点按图块一次开始的时长；再次点按结束时段</string>

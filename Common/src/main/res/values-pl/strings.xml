@@ -2541,8 +2541,8 @@
     <string name="quiet_window_end_now">Zakończ teraz</string>
     <string name="quiet_window_ended_title">Alarmy znów aktywne</string>
     <string name="quiet_window_ended_text">Okno ciszy się skończyło.</string>
-    <string name="quiet_window_breakthrough_title">Przebicie po</string>
-    <string name="quiet_window_breakthrough_desc">Wyciszony alarm aktywny tak długo i tak zadzwoni</string>
+    <string name="quiet_window_breakthrough_title">Wyciszony najwyżej</string>
+    <string name="quiet_window_breakthrough_desc">Wyciszony alarm, który pozostaje aktywny dłużej, i tak zadzwoni</string>
     <string name="quiet_window_tile_label">Ciche alarmy</string>
     <string name="quiet_window_tile_default_title">Kafelek szybkich ustawień</string>
     <string name="quiet_window_tile_default_desc">Co uruchamia jedno dotknięcie kafelka; drugie dotknięcie kończy okno</string>

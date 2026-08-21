@@ -2497,8 +2497,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">Termina ora</string>
     <string name="quiet_window_ended_title">Allarmi di nuovo attivi</string>
     <string name="quiet_window_ended_text">La finestra di silenzio è terminata.</string>
-    <string name="quiet_window_breakthrough_title">Suona dopo</string>
-    <string name="quiet_window_breakthrough_desc">Un allarme silenziato che resta attivo così a lungo suona comunque</string>
+    <string name="quiet_window_breakthrough_title">In silenzio al massimo</string>
+    <string name="quiet_window_breakthrough_desc">Un allarme silenziato che resta attivo più a lungo suona comunque</string>
     <string name="quiet_window_tile_label">Allarmi in silenzio</string>
     <string name="quiet_window_tile_default_title">Riquadro impostazioni rapide</string>
     <string name="quiet_window_tile_default_desc">Ciò che un tocco sul riquadro avvia; un secondo tocco termina la finestra</string>

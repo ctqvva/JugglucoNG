@@ -2546,8 +2546,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="quiet_window_end_now">Jetzt beenden</string>
     <string name="quiet_window_ended_title">Alarme wieder aktiv</string>
     <string name="quiet_window_ended_text">Das Ruhefenster ist beendet.</string>
-    <string name="quiet_window_breakthrough_title">Durchbruch nach</string>
-    <string name="quiet_window_breakthrough_desc">Ein stummer Alarm, der so lange aktiv bleibt, tönt trotzdem</string>
+    <string name="quiet_window_breakthrough_title">Stumm höchstens</string>
+    <string name="quiet_window_breakthrough_desc">Bleibt ein stummgeschalteter Alarm länger aktiv, ertönt er trotzdem</string>
     <string name="quiet_window_tile_label">Alarme ruhig</string>
     <string name="quiet_window_tile_default_title">Schnelleinstellungs-Kachel</string>
     <string name="quiet_window_tile_default_desc">Was ein Tipp auf die Kachel startet; ein zweiter Tipp beendet das Fenster</string>

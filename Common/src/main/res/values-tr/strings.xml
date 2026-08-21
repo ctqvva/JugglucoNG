@@ -2535,8 +2535,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="quiet_window_end_now">Şimdi bitir</string>
     <string name="quiet_window_ended_title">Alarmlar yeniden etkin</string>
     <string name="quiet_window_ended_text">Sessiz pencere sona erdi.</string>
-    <string name="quiet_window_breakthrough_title">Şu süre sonra çal</string>
-    <string name="quiet_window_breakthrough_desc">Bu kadar süre etkin kalan susturulmuş bir alarm yine de çalar</string>
+    <string name="quiet_window_breakthrough_title">En fazla sessiz</string>
+    <string name="quiet_window_breakthrough_desc">Bu süreden uzun aktif kalan sessiz bir alarm yine de çalar</string>
     <string name="quiet_window_tile_label">Sessiz alarmlar</string>
     <string name="quiet_window_tile_default_title">Hızlı ayarlar kutucuğu</string>
     <string name="quiet_window_tile_default_desc">Kutucuğa bir dokunuşun başlattığı süre; ikinci dokunuş pencereyi bitirir</string>

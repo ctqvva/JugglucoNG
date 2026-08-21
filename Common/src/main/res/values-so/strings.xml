@@ -2707,8 +2707,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="quiet_window_end_now">Hadda dhammee</string>
     <string name="quiet_window_ended_title">Digniinaha mar kale way shaqaynayaan</string>
     <string name="quiet_window_ended_text">Daaqaddii aamusnaanta way dhammaatay.</string>
-    <string name="quiet_window_breakthrough_title">Soo bax ka dib</string>
-    <string name="quiet_window_breakthrough_desc">Digniin la aamusiyey oo intaas firfircoon ahaata si kastaba way dhawaaqaysaa</string>
+    <string name="quiet_window_breakthrough_title">Aamusan ugu badnaan</string>
+    <string name="quiet_window_breakthrough_desc">Digniin la aamusiiyey oo ka dheer sii shaqaysa way dhawaaqaysaa si kastaba</string>
     <string name="quiet_window_tile_label">Digniino aamusan</string>
     <string name="quiet_window_tile_default_title">Tiirka dejinta degdegga</string>
     <string name="quiet_window_tile_default_desc">Waxa hal taabasho ee tiirka bilowdo; taabashada labaad ayaa daaqadda dhammaysa</string>

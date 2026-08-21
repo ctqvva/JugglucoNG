@@ -2732,8 +2732,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_end_now">End now</string>
     <string name="quiet_window_ended_title">Alarms active again</string>
     <string name="quiet_window_ended_text">The quiet window has ended.</string>
-    <string name="quiet_window_breakthrough_title">Break through after</string>
-    <string name="quiet_window_breakthrough_desc">A silenced alarm that stays active this long sounds anyway</string>
+    <string name="quiet_window_breakthrough_title">Silent for at most</string>
+    <string name="quiet_window_breakthrough_desc">A silenced alarm that stays active longer than this sounds anyway</string>
     <string name="quiet_window_tile_label">Quiet alarms</string>
     <string name="quiet_window_tile_default_title">Quick-settings tile</string>
     <string name="quiet_window_tile_default_desc">What one tap on the tile starts; a second tap ends the window</string>
