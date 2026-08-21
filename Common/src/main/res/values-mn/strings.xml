@@ -1220,6 +1220,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_follow_title">Nightscout дагагч</string>
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
     <string name="nightscout_follow_status_following">Nightscout-ийг дагаж байна</string>
+    <string name="nightscout_follow_use_v3_api">Дагахдаа v3 API ашиглах</string>
+    <string name="nightscout_follow_use_v3_api_desc">/api/v1-ийн оронд /api/v3-аас уншина. Хандалтын токенд api:entries:read, api:treatments:read, api:devicestatus:read шаардлагатай. Өөрчилсөн эрх зөвхөн дараагийн токен солилцоонд хүчинтэй тул 403 үргэлжилвэл аппыг дахин эхлүүлнэ үү.</string>
     <string name="nightscout_follow_status_syncing">Nightscout-ийг шинэчилж байна</string>
     <string name="nightscout_follow_status_paused">Nightscout дагагч түр зогссон</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL-г оруулна уу</string>

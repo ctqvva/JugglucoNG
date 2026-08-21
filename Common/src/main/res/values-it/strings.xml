@@ -1390,6 +1390,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Follower Nightscout</string>
     <string name="nightscout_follow_status_idle">Follower Nightscout inattivo</string>
     <string name="nightscout_follow_status_following">Connessione a Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Usa l\'API v3 per seguire</string>
+    <string name="nightscout_follow_use_v3_api_desc">Legge da /api/v3 invece di /api/v1. Il token di accesso richiede api:entries:read, api:treatments:read e api:devicestatus:read. I ruoli modificati hanno effetto solo al successivo scambio del token: riavvia l\'app se un 403 persiste.</string>
     <string name="nightscout_follow_status_syncing">Aggiornamento Nightscout</string>
     <string name="nightscout_follow_status_paused">Follower Nightscout in pausa</string>
     <string name="nightscout_follow_status_config_needed">Inserisci URL Nightscout</string>

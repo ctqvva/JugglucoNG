@@ -16,6 +16,9 @@ object NightscoutFollowerRegistry {
     private const val PREF_ENABLED = "nightscout_follower_enabled"
     private const val PREF_URL = "nightscout_follower_url"
     private const val PREF_SECRET = "nightscout_follower_secret"
+    //The uploader's v3 flag is an uploader setting and never reaches here: a follower may point
+    //at an entirely different server than the one this phone uploads to.
+    private const val PREF_USE_V3 = "nightscout_follower_v3"
     private const val PREF_COMPLETE_HISTORY_PREFIX = "nightscout_follower_complete_history_v1_"
     const val SENSOR_PREFIX = "NSF-"
 
@@ -23,6 +26,7 @@ object NightscoutFollowerRegistry {
         val enabled: Boolean,
         val url: String,
         val secret: String,
+        val useV3: Boolean = false,
     ) {
         val sensorId: String get() = deriveSensorId(url)
         val isUsable: Boolean get() = enabled && url.isNotBlank()
@@ -61,13 +65,21 @@ object NightscoutFollowerRegistry {
             enabled = prefs(context).getBoolean(PREF_ENABLED, false),
             url = normalizeUrl(prefs(context).getString(PREF_URL, null)),
             secret = prefs(context).getString(PREF_SECRET, null).orEmpty(),
+            useV3 = prefs(context).getBoolean(PREF_USE_V3, false),
         )
 
-    fun saveConfig(context: Context, enabled: Boolean, url: String?, secret: String?) {
+    fun saveConfig(
+        context: Context,
+        enabled: Boolean,
+        url: String?,
+        secret: String?,
+        useV3: Boolean = loadConfig(context).useV3,
+    ) {
         prefs(context).edit()
             .putBoolean(PREF_ENABLED, enabled)
             .putString(PREF_URL, normalizeUrl(url).takeIf { it.isNotEmpty() })
             .putString(PREF_SECRET, secret?.trim()?.takeIf { it.isNotEmpty() })
+            .putBoolean(PREF_USE_V3, useV3)
             .apply()
         ManagedSensorUiSignals.markDeviceListDirty()
     }
@@ -93,14 +105,21 @@ object NightscoutFollowerRegistry {
             serial = config.sensorId,
             url = config.url,
             secret = config.secret,
+            useV3 = config.useV3,
             dataptr = dataptr,
         )
     }
 
-    fun enableFollowerSensor(context: Context, url: String?, secret: String?, connectNow: Boolean = true): String? {
+    fun enableFollowerSensor(
+        context: Context,
+        url: String?,
+        secret: String?,
+        connectNow: Boolean = true,
+        useV3: Boolean = loadConfig(context).useV3,
+    ): String? {
         val normalizedUrl = normalizeUrl(url)
         if (normalizedUrl.isEmpty()) return null
-        saveConfig(context, enabled = true, url = normalizedUrl, secret = secret)
+        saveConfig(context, enabled = true, url = normalizedUrl, secret = secret, useV3 = useV3)
         val sensorId = deriveSensorId(normalizedUrl)
         if (connectNow) {
             connectSensor(context, sensorId)

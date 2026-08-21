@@ -145,6 +145,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var receiveTreatments by rememberSaveable { mutableStateOf(JournalTreatmentUploader.getReceiveTreatments()) }
     var uploadIob by rememberSaveable { mutableStateOf(NightPost.getUploadIob()) }
     var isV3 by rememberSaveable { mutableStateOf(Natives.getnightscoutV3()) }
+    var followerV3 by rememberSaveable { mutableStateOf(followerConfig.useV3) }
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var lastResponseCode by rememberSaveable { mutableStateOf(0) }
     var lastAttemptTime by rememberSaveable { mutableStateOf(0L) }
@@ -174,17 +175,17 @@ fun NightscoutSettingsScreen(navController: NavController) {
         JournalTreatmentUploader.setReceiveTreatments(receiveTreatments)
         if (followActive) {
             if (normalizedUrl.isBlank()) {
-                NightscoutFollowerRegistry.saveConfig(context, enabled = true, url = normalizedUrl, secret = secret)
+                NightscoutFollowerRegistry.saveConfig(context, enabled = true, url = normalizedUrl, secret = secret, useV3 = followerV3)
             } else if (connectFollower) {
-                NightscoutFollowerRegistry.enableFollowerSensor(context, normalizedUrl, secret)
+                NightscoutFollowerRegistry.enableFollowerSensor(context, normalizedUrl, secret, useV3 = followerV3)
             } else {
-                NightscoutFollowerRegistry.saveConfig(context, enabled = true, url = normalizedUrl, secret = secret)
+                NightscoutFollowerRegistry.saveConfig(context, enabled = true, url = normalizedUrl, secret = secret, useV3 = followerV3)
             }
         } else {
             if (NightscoutFollowerRegistry.loadConfig(context).enabled) {
                 NightscoutFollowerRegistry.disableFollowerSensor(context)
             }
-            NightscoutFollowerRegistry.saveConfig(context, enabled = false, url = normalizedUrl, secret = secret)
+            NightscoutFollowerRegistry.saveConfig(context, enabled = false, url = normalizedUrl, secret = secret, useV3 = followerV3)
         }
     }
 
@@ -586,6 +587,26 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(stringResource(R.string.resend_data_reset))
                     }
+                }
+            }
+
+            // Follow-only items. The uploader's v3 switch above is an uploader setting: a
+            // follower may point at a different server, so it carries its own.
+            if (mode == NightscoutMode.FOLLOW) {
+                item("nightscout_follow_options_group") {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.nightscout_follow_use_v3_api),
+                        subtitle = stringResource(R.string.nightscout_follow_use_v3_api_desc),
+                        checked = followerV3,
+                        onCheckedChange = {
+                            followerV3 = it
+                            persistSettings(connectFollower = isActive)
+                        },
+                        icon = Icons.Default.Science,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        enabled = isActive,
+                        position = CardPosition.SINGLE
+                    )
                 }
             }
         }

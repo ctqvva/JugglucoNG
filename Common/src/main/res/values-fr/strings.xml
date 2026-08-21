@@ -1406,6 +1406,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Suivi Nightscout</string>
     <string name="nightscout_follow_status_idle">Suivi Nightscout inactif</string>
     <string name="nightscout_follow_status_following">Suivi de Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Utiliser l\'API v3 pour le suivi</string>
+    <string name="nightscout_follow_use_v3_api_desc">Lit /api/v3 au lieu de /api/v1. Le jeton d\'accès requiert api:entries:read, api:treatments:read et api:devicestatus:read. Les rôles modifiés ne prennent effet qu\'au prochain échange de jeton : redémarrez l\'application si un 403 persiste.</string>
     <string name="nightscout_follow_status_syncing">Actualisation de Nightscout</string>
     <string name="nightscout_follow_status_paused">Suivi Nightscout en pause</string>
     <string name="nightscout_follow_status_config_needed">Saisir l’URL Nightscout</string>

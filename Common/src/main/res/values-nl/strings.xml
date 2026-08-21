@@ -1443,6 +1443,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_follow_title">Nightscout-volger</string>
     <string name="nightscout_follow_status_idle">Nightscout-volger inactief</string>
     <string name="nightscout_follow_status_following">Nightscout volgen</string>
+    <string name="nightscout_follow_use_v3_api">v3-API gebruiken om te volgen</string>
+    <string name="nightscout_follow_use_v3_api_desc">Leest van /api/v3 in plaats van /api/v1. Het toegangstoken heeft api:entries:read, api:treatments:read en api:devicestatus:read nodig. Gewijzigde rollen werken pas bij de volgende tokenuitwisseling: herstart de app als een 403 aanhoudt.</string>
     <string name="nightscout_follow_status_syncing">Nightscout vernieuwen</string>
     <string name="nightscout_follow_status_paused">Nightscout-volger gepauzeerd</string>
     <string name="nightscout_follow_status_config_needed">Nightscout-URL invoeren</string>

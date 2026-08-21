@@ -1489,6 +1489,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_title">Nightscoout raaca</string>
     <string name="nightscout_follow_status_idle">Nightscoout raaca</string>
     <string name="nightscout_follow_status_following">Ka dib Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Isticmaal API v3 raacitaanka</string>
+    <string name="nightscout_follow_use_v3_api_desc">Waxay ka akhridaa /api/v3 halkii /api/v1. Token-ka gelitaanka wuxuu u baahan yahay api:entries:read, api:treatments:read iyo api:devicestatus:read. Doorarka la beddelay waxay shaqeeyaan oo keliya beddelka token-ka ee xiga: dib u bilow abka haddii 403 sii socoto.</string>
     <string name="nightscout_follow_status_syncing">Nightscout oo soo kicinaysa</string>
     <string name="nightscout_follow_status_paused">Habeenimadii raacdayaashii waa hakad</string>
     <string name="nightscout_follow_status_config_needed">Geli Nightscout URL</string>
