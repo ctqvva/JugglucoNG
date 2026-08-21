@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -283,57 +286,74 @@ internal fun QuietWindowSettingsCard() {
                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
-            Column(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                DurationSlider(
-                    label = stringResource(R.string.quiet_window_breakthrough_title),
-                    value = breakthroughMinutes,
-                    range = QuietWindow.MIN_BREAKTHROUGH_MINUTES..QuietWindow.MAX_BREAKTHROUGH_MINUTES,
-                    stepSize = 5,
-                    onValueChange = {
-                        breakthroughMinutes = it
-                        QuietWindow.setBreakthroughMinutes(it)
-                    }
-                )
-                Text(
-                    stringResource(R.string.quiet_window_breakthrough_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                )
-                Text(
-                    stringResource(R.string.quiet_window_tile_default_title),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuietWindow.PRESET_MINUTES.forEach { minutes ->
-                        FilterChip(
-                            selected = defaultMinutes == minutes,
-                            onClick = {
-                                defaultMinutes = minutes
-                                QuietWindow.setDefaultMinutes(minutes)
-                            },
-                            label = { Text(quietDurationLabel(minutes)) }
-                        )
-                    }
+        }
+    }
+
+    // The window's own settings sit on the plain settings surface, not on the tinted
+    // opener row: a selected FilterChip is secondaryContainer itself and vanishes there.
+    Spacer(Modifier.height(8.dp))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            DurationSlider(
+                label = stringResource(R.string.quiet_window_breakthrough_title),
+                value = breakthroughMinutes,
+                range = QuietWindow.MIN_BREAKTHROUGH_MINUTES..QuietWindow.MAX_BREAKTHROUGH_MINUTES,
+                stepSize = 5,
+                onValueChange = {
+                    breakthroughMinutes = it
+                    QuietWindow.setBreakthroughMinutes(it)
                 }
-                Text(
-                    stringResource(R.string.quiet_window_tile_default_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    OutlinedButton(onClick = { requestAddQuietWindowTile(context) }) {
-                        Text(stringResource(R.string.quiet_window_add_tile))
-                    }
-                } else {
-                    Text(
-                        stringResource(R.string.quiet_window_add_tile_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+            )
+            Text(
+                stringResource(R.string.quiet_window_breakthrough_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                stringResource(R.string.quiet_window_tile_default_title),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuietWindow.PRESET_MINUTES.forEach { minutes ->
+                    val selected = defaultMinutes == minutes
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            defaultMinutes = minutes
+                            QuietWindow.setDefaultMinutes(minutes)
+                        },
+                        label = { Text(quietDurationLabel(minutes)) },
+                        leadingIcon = if (selected) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        } else null
                     )
                 }
+            }
+            Text(
+                stringResource(R.string.quiet_window_tile_default_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                OutlinedButton(onClick = { requestAddQuietWindowTile(context) }) {
+                    Text(stringResource(R.string.quiet_window_add_tile))
+                }
+            } else {
+                Text(
+                    stringResource(R.string.quiet_window_add_tile_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
