@@ -1243,7 +1243,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="newlabelhelp">Help voor nieuwe labels</string>
     <string name="nightnumhelp">Nachtelijke hulp</string>
     <string name="nightscout_enable_upload">Schakel Nightscout-upload in</string>
-    <string name="nightscout_send_amounts_desc">Upload insuline/koolhydraten (behandelingen)</string>
+    <string name="nightscout_send_amounts_desc">Upload insuline/koolhydraten (behandelingen). Het toegangstoken heeft api:treatments:create, api:treatments:update en api:treatments:delete nodig.</string>
     <string name="nightscout_send_long_insulin">Langwerkende insuline verzenden</string>
     <string name="nightscout_send_long_insulin_desc">Basale en ultralangwerkende insuline naar Nightscout uploaden</string>
     <string name="nightscout_receive_amounts">Hoeveelheden ontvangen</string>
@@ -2331,7 +2331,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_handover_multiple_text">De sensor is verlopen, maar er zijn meerdere opvolgende sensoren actief. Automatische overdracht overgeslagen; schakel handmatig over.</string>
     <string name="sensor_handover_successor_ready">Opvolgende sensor is klaar; de automatische overdracht neemt het over bij verlopen</string>
     <string name="nightscout_upload_iob">IOB naar Nightscout sturen</string>
-    <string name="nightscout_upload_iob_desc">Nightscout toont dan deze waarde in plaats van de eigen berekening op basis van het profiel. eIOB en COB worden daarnaast in een apart veld verstuurd.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout toont dan deze waarde in plaats van de eigen berekening op basis van het profiel. eIOB en COB worden daarnaast in een apart veld verstuurd. Het toegangstoken heeft api:devicestatus:create nodig.</string>
     <string name="journal_iob_source_remote">Waarden van het uploadende apparaat (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Er is nog een andere sensor aan het Ottai-account gekoppeld. Ontkoppel deze in de Ottai-app of verwijder die sensor hier om de koppeling vrij te geven en probeer het opnieuw.</string>
     <string name="ottai_cloud_offline_routes">Importeer een bestand met aanmeldgegevens om zonder cloud verder te gaan — een QR-scan vult alleen de sensorcode in en NFC maakt de sensor alleen wakker.</string>

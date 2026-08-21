@@ -1235,7 +1235,7 @@
     <string name="newlabelhelp">Pomoc Newlabel</string>
     <string name="nightnumhelp">Pomoc Nightnum</string>
     <string name="nightscout_enable_upload">Włącz przesyłanie Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Prześlij insulinę/węglowodany (leczenia)</string>
+    <string name="nightscout_send_amounts_desc">Prześlij insulinę/węglowodany (leczenia). Token dostępu wymaga uprawnień api:treatments:create, api:treatments:update i api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Wysyłaj insulinę długodziałającą</string>
     <string name="nightscout_send_long_insulin_desc">Uwzględniaj insulinę bazową i ultradługodziałającą w wysyłaniu do Nightscout</string>
     <string name="nightscout_receive_amounts">Odbieraj wartości</string>
@@ -2322,7 +2322,7 @@
     <string name="sensor_handover_multiple_text">Czujnik wygasł, ale aktywnych jest kilka czujników następczych. Pominięto automatyczne przełączenie; przełącz ręcznie.</string>
     <string name="sensor_handover_successor_ready">Czujnik następczy jest gotowy; automatyczne przełączenie nastąpi po wygaśnięciu</string>
     <string name="nightscout_upload_iob">Wysyłaj IOB do Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout wyświetli tę wartość zamiast własnego obliczenia na podstawie profilu. eIOB i COB są dodatkowo wysyłane w osobnym polu.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout wyświetli tę wartość zamiast własnego obliczenia na podstawie profilu. eIOB i COB są dodatkowo wysyłane w osobnym polu. Token dostępu wymaga uprawnienia api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Wartości z urządzenia wysyłającego dane (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Z kontem Ottai nadal jest powiązany inny sensor. Odłącz go w aplikacji Ottai albo usuń ten sensor tutaj, aby zwolnić powiązanie, a następnie spróbuj ponownie.</string>
     <string name="ottai_cloud_offline_routes">Zaimportuj plik danych logowania, aby kontynuować bez chmury — skan QR tylko uzupełnia kod sensora, a NFC jedynie go wybudza.</string>

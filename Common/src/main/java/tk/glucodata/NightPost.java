@@ -147,6 +147,18 @@ private static  String getstart(HttpURLConnection con,int max)  throws IOExcepti
 final  static String nothing=Applic.getContext().getString(R.string.triednothing).intern();
 final static String success=Applic.getContext().getString(R.string.success).intern();
 static private String uploadstatus=nothing;
+/**
+ * Body of the last answer the primary (treatment) path got from Nightscout, for the
+ * journal uploader. A refusal there carries the reason in the body ("Missing permission
+ * api:treatments:update"), and the bare status code the call returns is not enough to
+ * act on it. Empty when the last request never got an answer.
+ */
+private static volatile String lastPrimaryResponseBody="";
+
+@Keep
+static public String getLastPrimaryResponseBody() {
+    return lastPrimaryResponseBody;
+    }
 @Keep
 static public boolean deleteUrl(String urlstring,String secret) {
     patch();
@@ -182,6 +194,7 @@ static public boolean deleteUrl(String urlstring,String secret) {
 
         final int code=urlConnection.getResponseCode();
         String res=getstring(urlConnection);
+        lastPrimaryResponseBody=res;
         if(code==HTTP_OK || code==HttpURLConnection.HTTP_NO_CONTENT) {
             {if(doLog) {Log.i(LOG_ID,"deleteUrl success "+res);};};
             uploadstatus=success;
@@ -196,6 +209,7 @@ static public boolean deleteUrl(String urlstring,String secret) {
 
         }
     catch(Throwable th) {
+        lastPrimaryResponseBody="";
         String error ="deleteUrl error:\n"+stackline(th);
         uploadstatus=error;
         Log.e(LOG_ID,error);
@@ -549,6 +563,8 @@ private static int uploadWithTimeouts(
         }
         final int code=urlConnection.getResponseCode();
         String res=getstring(urlConnection);
+        if(updateVisibleStatus)
+            lastPrimaryResponseBody=res;
         final String resstr=requestKind+" upload ResponseCode="+code+"\n"+res;
         if(code!=200&&code!=201) {
             if(updateVisibleStatus)
@@ -564,8 +580,10 @@ private static int uploadWithTimeouts(
          }
     catch(Throwable th) {
         final String posterror=requestKind+" upload failure:\n"+stackline(th);
-        if(updateVisibleStatus)
+        if(updateVisibleStatus) {
+            lastPrimaryResponseBody="";
             uploadstatus=posterror;
+            }
         Log.e(LOG_ID,posterror);
         return -1;
         }

@@ -1229,7 +1229,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments)</string>
+    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments). Хандалтын токенд api:treatments:create, api:treatments:update, api:treatments:delete шаардлагатай.</string>
     <string name="nightscout_send_long_insulin">Удаан үйлдэлтэй инсулин илгээх</string>
     <string name="nightscout_send_long_insulin_desc">Nightscout руу суурь болон хэт удаан инсулиныг хамт илгээх</string>
     <string name="nightscout_settings_title">Nightscout тохиргоо</string>
@@ -2403,7 +2403,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_handover_multiple_text">Мэдрэгчийн хугацаа дууссан ч хэд хэдэн залгамжлагч мэдрэгч идэвхтэй байна. Автомат шилжүүлгийг алгаслаа; гараар шилжүүлнэ үү.</string>
     <string name="sensor_handover_successor_ready">Залгамжлагч мэдрэгч бэлэн; хугацаа дуусахад автомат шилжүүлэг ажиллана</string>
     <string name="nightscout_upload_iob">IOB-г Nightscout руу илгээх</string>
-    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ. Хандалтын токенд api:devicestatus:create шаардлагатай.</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. Ottai апп-аас салгах эсвэл эндээс тухайн мэдрэгчийг устгаж холболтыг чөлөөлөөд дахин оролдоно уу.</string>
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>

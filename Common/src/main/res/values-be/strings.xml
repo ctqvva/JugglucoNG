@@ -1199,7 +1199,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Даведка Newlabel</string>
     <string name="nightnumhelp">Даведка Nightnum</string>
     <string name="nightscout_enable_upload">Уключыць загрузку Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Загрузіць інсулін/вугляводы (лячэнне)</string>
+    <string name="nightscout_send_amounts_desc">Загрузіць інсулін/вугляводы (лячэнне). Токену доступу патрэбныя api:treatments:create, api:treatments:update і api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Адпраўляць інсулін працяглага дзеяння</string>
     <string name="nightscout_send_long_insulin_desc">Уключаць базальны і звышдоўгі інсулін у загрузкі Nightscout</string>
     <string name="nightscout_receive_amounts">Атрымліваць сумы</string>
@@ -2355,7 +2355,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Сенсар скончыўся, але актыўныя некалькі сенсараў-пераемнікаў. Аўтаматычная перадача прапушчана; пераключыцеся ўручную.</string>
     <string name="sensor_handover_successor_ready">Сенсар-пераемнік гатовы; аўтаматычная перадача спрацуе пры заканчэнні</string>
     <string name="nightscout_upload_iob">Адпраўляць IOB у Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout будзе паказваць гэта значэнне замест уласнага разліку з профілю. eIOB і COB дадаткова перадаюцца ў асобным полі.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout будзе паказваць гэта значэнне замест уласнага разліку з профілю. eIOB і COB дадаткова перадаюцца ў асобным полі. Токену доступу патрэбна api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Значэнні з прылады, якая адпраўляе даныя (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Да ўліковага запісу Ottai усё яшчэ прывязаны іншы датчык. Адвяжыце яго ў праграме Ottai або выдаліце той датчык тут, каб вызваліць прывязку, і паўтарыце спробу.</string>
     <string name="ottai_cloud_offline_routes">Імпартуйце файл уліковых даных, каб працягнуць без воблака — QR-код толькі запаўняе код датчыка, а NFC толькі абуджае яго.</string>

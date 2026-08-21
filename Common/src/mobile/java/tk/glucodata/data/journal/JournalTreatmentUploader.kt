@@ -37,8 +37,32 @@ object JournalTreatmentUploader {
 
     private data class UploadResult(
         val code: Int,
-        val remoteId: String? = null
+        val remoteId: String? = null,
+        /** What the server said when it refused, so a 403 can name the missing permission. */
+        val message: String = ""
     )
+
+    /**
+     * The server's own words when it has any. A refused write says which permission is missing
+     * ("Missing permission api:treatments:update", typical of a role that may create but not
+     * change), and that sentence is the whole difference between an actionable failure and a
+     * bare status code.
+     */
+    internal fun serverMessage(body: String): String {
+        val trimmed = body.trim()
+        if (!trimmed.startsWith("{")) return trimmed.take(160)
+        val message = runCatching {
+            JSONObject(trimmed).let { it.optNonBlank("message") ?: it.optNonBlank("description") }
+        }.getOrNull()
+        return message ?: trimmed.take(160)
+    }
+
+    private fun JSONObject.optNonBlank(key: String): String? =
+        optString(key).trim().takeIf { it.isNotEmpty() }
+
+    /** "code" alone, or "code: what the server said" when it said anything. */
+    internal fun failureText(code: Int, message: String): String =
+        if (message.isBlank()) code.toString() else "$code: $message"
 
     // Mirrors writetreatment(V3) acceptance: 200/201 always; 409 only on V3 (POST conflict).
     private fun isUploadOk(code: Int, useV3: Boolean): Boolean {
@@ -158,7 +182,7 @@ object JournalTreatmentUploader {
                     postV1Treatment(baseUrl, rawSecret, json, localIdentifier, entry.timestamp)
                 }
                 if (!isUploadOk(result.code, useV3)) {
-                    Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${result.code}")
+                    Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${failureText(result.code, result.message)}")
                     uploadOk = false
                     break
                 }
@@ -226,7 +250,8 @@ object JournalTreatmentUploader {
             secretHashed,
             false
         )
-        return UploadResult(code = code, remoteId = remoteId)
+        val message = if (isUploadOk(code, useV3)) "" else serverMessage(NightPost.getLastPrimaryResponseBody())
+        return UploadResult(code = code, remoteId = remoteId, message = message)
     }
 
     private fun postV1Treatment(
@@ -266,6 +291,7 @@ object JournalTreatmentUploader {
                 ?: if (code in 200..299) findRemoteIdByIdentifier(baseUrl, secret, localIdentifier, timestamp) else null
             if (code !in 200..299) {
                 Log.e(LOG_ID, "postV1Treatment ResponseCode=$code\n${body.take(512)}")
+                return UploadResult(code = code, message = serverMessage(body))
             } else if (responseId == null) {
                 Log.w(LOG_ID, "postV1Treatment success without returned Nightscout _id; using local identifier")
             } else {

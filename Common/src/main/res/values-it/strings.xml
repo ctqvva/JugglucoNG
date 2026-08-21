@@ -1190,7 +1190,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Aiuto per le nuove etichette</string>
     <string name="nightnumhelp">Aiuto Nightnum</string>
     <string name="nightscout_enable_upload">Abilita il caricamento di Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Carica insulina/carboidrati (trattamenti)</string>
+    <string name="nightscout_send_amounts_desc">Carica insulina/carboidrati (trattamenti). Il token di accesso richiede api:treatments:create, api:treatments:update e api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Invia insulina a lunga durata</string>
     <string name="nightscout_send_long_insulin_desc">Includi l’insulina basale e ultralenta nei caricamenti Nightscout</string>
     <string name="nightscout_receive_amounts">Ricevi quantità</string>
@@ -2278,7 +2278,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Il sensore è scaduto, ma sono attivi più sensori successori. Passaggio automatico saltato; cambia manualmente.</string>
     <string name="sensor_handover_successor_ready">Il sensore successore è pronto; il passaggio automatico interverrà alla scadenza</string>
     <string name="nightscout_upload_iob">Invia IOB a Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout mostrerà questo valore al posto del proprio calcolo basato sul profilo. eIOB e COB vengono inoltre inviati in un campo separato.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout mostrerà questo valore al posto del proprio calcolo basato sul profilo. eIOB e COB vengono inoltre inviati in un campo separato. Il token di accesso richiede api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valori dal dispositivo che invia i dati (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un altro sensore è ancora associato all’account Ottai. Dissocialo nell’app Ottai oppure rimuovilo qui per liberare l’associazione, quindi riprova.</string>
     <string name="ottai_cloud_offline_routes">Importa un file di credenziali per continuare senza cloud: la scansione QR inserisce solo il codice del sensore e l’NFC si limita a riattivarlo.</string>

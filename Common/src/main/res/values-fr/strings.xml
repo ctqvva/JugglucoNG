@@ -1206,7 +1206,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Aide Newlabel</string>
     <string name="nightnumhelp">Aide Nightnum</string>
     <string name="nightscout_enable_upload">Activer le téléchargement Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Télécharger de l\'insuline/des glucides (traitements)</string>
+    <string name="nightscout_send_amounts_desc">Télécharger de l\'insuline/des glucides (traitements). Le jeton d\'accès a besoin de api:treatments:create, api:treatments:update et api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Envoyer l’insuline à action prolongée</string>
     <string name="nightscout_send_long_insulin_desc">Inclure l’insuline basale et à action ultra-longue dans les envois Nightscout</string>
     <string name="nightscout_receive_amounts">Recevoir les quantités</string>
@@ -2294,7 +2294,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Le capteur a expiré, mais plusieurs capteurs successeurs sont actifs. Transfert automatique ignoré ; veuillez changer manuellement.</string>
     <string name="sensor_handover_successor_ready">Le capteur successeur est prêt ; le transfert automatique prendra le relais à l\'expiration</string>
     <string name="nightscout_upload_iob">Envoyer l’IOB vers Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout affiche alors cette valeur au lieu de son propre calcul basé sur le profil. L’eIOB et les glucides actifs (COB) sont également envoyés dans un champ distinct.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout affiche alors cette valeur au lieu de son propre calcul basé sur le profil. L’eIOB et les glucides actifs (COB) sont également envoyés dans un champ distinct. Le jeton d\'accès a besoin de api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valeurs de l’appareil émetteur (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un autre capteur est encore associé au compte Ottai. Dissociez-le dans l’application Ottai ou supprimez ce capteur ici pour libérer l’association, puis réessayez.</string>
     <string name="ottai_cloud_offline_routes">Importez un fichier d’identifiants pour continuer sans le cloud — le scan QR renseigne uniquement le code du capteur et le NFC ne fait que le réveiller.</string>

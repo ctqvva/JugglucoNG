@@ -1200,7 +1200,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Newlabel Hjälp</string>
     <string name="nightnumhelp">Nightnum Hjälp</string>
     <string name="nightscout_enable_upload">Aktivera uppladdning av Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Ladda upp insulin/kolhydrater (behandlingar)</string>
+    <string name="nightscout_send_amounts_desc">Ladda upp insulin/kolhydrater (behandlingar). Åtkomsttoken behöver api:treatments:create, api:treatments:update och api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Skicka långverkande insulin</string>
     <string name="nightscout_send_long_insulin_desc">Inkludera basinsulin och ultralångverkande insulin i Nightscout-uppladdningar</string>
     <string name="nightscout_receive_amounts">Ta emot mängder</string>
@@ -2288,7 +2288,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Sensorn har löpt ut, men flera efterföljande sensorer är aktiva. Automatiskt byte hoppades över; byt manuellt.</string>
     <string name="sensor_handover_successor_ready">Efterföljande sensor är redo; det automatiska bytet tar över vid utgång</string>
     <string name="nightscout_upload_iob">Skicka IOB till Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält. Åtkomsttoken behöver api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Värden från den uppladdande enheten (Nightscout)</string>
     <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Koppla bort den i Ottai-appen eller ta bort sensorn här för att frigöra kopplingen och försök sedan igen.</string>
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
