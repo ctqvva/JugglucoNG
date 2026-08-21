@@ -1211,6 +1211,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Стварыць віртуальны датчык толькі для чытання з гэтага URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Спачатку ўвядзіце URL Nightscout</string>
     <string name="nightscout_test_testing">Праверка...</string>
+    <string name="nightscout_refresh_token">Абнавіць токен</string>
+    <string name="nightscout_token_refreshing">Абнаўленне токена...</string>
+    <string name="nightscout_token_ok">Токен сапраўдны да %1$s - дазволы: %2$s</string>
+    <string name="nightscout_token_error">Не ўдалося абнавіць токен - %1$s</string>
     <string name="nightscout_test_error">Памылка - %1$s</string>
     <string name="nightscout_test_ok">Падключана - HTTP %1$d</string>
     <string name="nightscout_test_connection">Праверыць злучэнне</string>

@@ -1579,6 +1579,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_test_ok">Connected - HTTP %1$d</string>
     <string name="nightscout_test_error">Failed - %1$s</string>
     <string name="nightscout_test_testing">Testing...</string>
+    <string name="nightscout_refresh_token">Refresh token</string>
+    <string name="nightscout_token_refreshing">Refreshing token...</string>
+    <string name="nightscout_token_ok">Token valid until %1$s - permissions: %2$s</string>
+    <string name="nightscout_token_error">Token refresh failed - %1$s</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
     <string name="no_calibrations_to_export">No calibrations to export</string>
     <string name="not_implemented_natively">Not implemented natively</string>

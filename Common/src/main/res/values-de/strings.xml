@@ -1284,6 +1284,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_desc">Erstellt einen schreibgeschützten virtuellen Sensor aus dieser Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Zuerst eine Nightscout-URL eingeben</string>
     <string name="nightscout_test_testing">Test läuft...</string>
+    <string name="nightscout_refresh_token">Token erneuern</string>
+    <string name="nightscout_token_refreshing">Token wird erneuert...</string>
+    <string name="nightscout_token_ok">Token gültig bis %1$s - Berechtigungen: %2$s</string>
+    <string name="nightscout_token_error">Token erneuern fehlgeschlagen - %1$s</string>
     <string name="nightscout_test_error">Fehlgeschlagen - %1$s</string>
     <string name="nightscout_test_ok">Verbunden - HTTP %1$d</string>
     <string name="nightscout_test_connection">Verbindung testen</string>

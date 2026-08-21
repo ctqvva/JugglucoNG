@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,6 +92,17 @@ private sealed class TestState {
     data class Err(val message: String) : TestState()
 }
 
+/**
+ * Outcome of a forced token exchange. The permissions are shown because they are the point:
+ * a role fixed on the server is only in effect once a token carries it.
+ */
+private sealed class TokenState {
+    object Idle : TokenState()
+    object Refreshing : TokenState()
+    data class Ok(val expiresAtMillis: Long, val permissions: List<String>) : TokenState()
+    data class Err(val message: String) : TokenState()
+}
+
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
 private fun applyNightscoutTestAuth(
@@ -152,6 +164,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var retryMinutes by rememberSaveable { mutableStateOf(0) }
     var uploaderRunning by rememberSaveable { mutableStateOf(false) }
     var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
+    var tokenState by remember { mutableStateOf<TokenState>(TokenState.Idle) }
 
     var mode by rememberSaveable {
         mutableStateOf(
@@ -224,6 +237,29 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     if (code in 200..299) TestState.Ok(code) else TestState.Err("HTTP $code")
                 } catch (e: Exception) {
                     TestState.Err(e.localizedMessage?.take(80) ?: context.getString(R.string.status_connection_failed))
+                }
+            }
+        }
+    }
+
+    fun refreshToken() {
+        if (!requireUrl()) return
+        tokenState = TokenState.Refreshing
+        // The exchange reads the stored URL and access token, so what is on screen has to be
+        // stored first -- the same as "Send now" does.
+        persistSettings()
+        coroutineScope.launch {
+            tokenState = withContext(Dispatchers.IO) {
+                try {
+                    val exchange = NightPost.refreshToken()
+                    val grant = exchange.grant()
+                    if (grant != null) {
+                        TokenState.Ok(grant.expiresAtMillis, grant.permissions)
+                    } else {
+                        TokenState.Err(exchange.error().ifBlank { context.getString(R.string.status_connection_failed) })
+                    }
+                } catch (e: Exception) {
+                    TokenState.Err(e.localizedMessage?.take(80) ?: context.getString(R.string.status_connection_failed))
                 }
             }
         }
@@ -400,25 +436,63 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
 
-            // Test connection — available regardless of mode
+            // Test connection and token refresh — available regardless of mode
             item("nightscout_test") {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(
-                        onClick = { testConnection() },
-                        enabled = isActive && testState !is TestState.Testing,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                    ) {
-                        if (testState is TestState.Testing) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(stringResource(R.string.nightscout_test_testing))
-                        } else {
-                            Icon(Icons.Default.NetworkCheck, contentDescription = null)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(stringResource(R.string.nightscout_test_connection))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { testConnection() },
+                            enabled = isActive && testState !is TestState.Testing,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 56.dp)
+                        ) {
+                            if (testState is TestState.Testing) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(stringResource(R.string.nightscout_test_testing))
+                            } else {
+                                Icon(Icons.Default.NetworkCheck, contentDescription = null)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(stringResource(R.string.nightscout_test_connection))
+                            }
                         }
+                        OutlinedButton(
+                            onClick = { refreshToken() },
+                            enabled = isActive && tokenState !is TokenState.Refreshing,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 56.dp)
+                        ) {
+                            if (tokenState is TokenState.Refreshing) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(stringResource(R.string.nightscout_token_refreshing))
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(stringResource(R.string.nightscout_refresh_token))
+                            }
+                        }
+                    }
+                    when (val t = tokenState) {
+                        is TokenState.Ok -> Text(
+                            text = stringResource(
+                                R.string.nightscout_token_ok,
+                                formatStatusTime(t.expiresAtMillis / 1000L),
+                                t.permissions.joinToString(", ").ifEmpty { "-" }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                        is TokenState.Err -> Text(
+                            text = stringResource(R.string.nightscout_token_error, t.message),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                        else -> {}
                     }
                     when (val s = testState) {
                         is TestState.Ok -> Text(

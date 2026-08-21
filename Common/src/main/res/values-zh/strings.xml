@@ -1228,6 +1228,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">从此 Nightscout URL 创建只读虚拟传感器。</string>
     <string name="nightscout_follow_url_required">请先输入 Nightscout URL</string>
     <string name="nightscout_test_testing">正在测试...</string>
+    <string name="nightscout_refresh_token">刷新令牌</string>
+    <string name="nightscout_token_refreshing">正在刷新令牌…</string>
+    <string name="nightscout_token_ok">令牌有效期至 %1$s - 权限：%2$s</string>
+    <string name="nightscout_token_error">刷新令牌失败 - %1$s</string>
     <string name="nightscout_test_error">失败 - %1$s</string>
     <string name="nightscout_test_ok">已连接 - HTTP %1$d</string>
     <string name="nightscout_test_connection">测试连接</string>

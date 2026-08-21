@@ -1255,6 +1255,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_follow_desc">Maak een alleen-lezen virtuele sensor van deze Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Voer eerst een Nightscout-URL in</string>
     <string name="nightscout_test_testing">Testen...</string>
+    <string name="nightscout_refresh_token">Token vernieuwen</string>
+    <string name="nightscout_token_refreshing">Token wordt vernieuwd...</string>
+    <string name="nightscout_token_ok">Token geldig tot %1$s - machtigingen: %2$s</string>
+    <string name="nightscout_token_error">Token vernieuwen mislukt - %1$s</string>
     <string name="nightscout_test_error">Mislukt - %1$s</string>
     <string name="nightscout_test_ok">Verbonden - HTTP %1$d</string>
     <string name="nightscout_test_connection">Verbinding testen</string>

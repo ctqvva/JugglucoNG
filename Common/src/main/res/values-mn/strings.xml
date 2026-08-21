@@ -2151,6 +2151,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
     <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох</string>
     <string name="nightscout_test_testing">Шалгаж байна...</string>
+    <string name="nightscout_refresh_token">Токен шинэчлэх</string>
+    <string name="nightscout_token_refreshing">Токен шинэчилж байна...</string>
+    <string name="nightscout_token_ok">Токен %1$s хүртэл хүчинтэй - эрхүүд: %2$s</string>
+    <string name="nightscout_token_error">Токен шинэчлэх амжилтгүй боллоо - %1$s</string>
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
     <string name="nightscout_test_ok">Холбогдсон - HTTP %1$d</string>
     <string name="nightscout_test_connection">Холболтыг шалгах</string>

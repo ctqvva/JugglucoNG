@@ -1516,6 +1516,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_test_ok">Ku xidhan - HTTP %1$d</string>
     <string name="nightscout_test_error">Fashilmay - %1$s</string>
     <string name="nightscout_test_testing">Tijaabinta...</string>
+    <string name="nightscout_refresh_token">Cusboonaysii token-ka</string>
+    <string name="nightscout_token_refreshing">Token-ka waa la cusboonaysiinayaa...</string>
+    <string name="nightscout_token_ok">Token-ku wuxuu shaqaynayaa ilaa %1$s - oggolaanshaha: %2$s</string>
+    <string name="nightscout_token_error">Cusboonaysiinta token-ka way fashilantay - %1$s</string>
     <string name="no_active_sensor_selected">Dareem firfircoon lama dooran</string>
     <string name="no_calibrations_to_export">Ma jiro wax qiyaas ah oo la dhoofiyo</string>
     <string name="not_implemented_natively">Aan si asal ah loo hirgelin</string>

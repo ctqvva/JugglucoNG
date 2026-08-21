@@ -1249,6 +1249,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Создать виртуальный датчик только для чтения из этого URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Сначала введите URL Nightscout</string>
     <string name="nightscout_test_testing">Проверка...</string>
+    <string name="nightscout_refresh_token">Обновить токен</string>
+    <string name="nightscout_token_refreshing">Обновление токена...</string>
+    <string name="nightscout_token_ok">Токен действителен до %1$s - разрешения: %2$s</string>
+    <string name="nightscout_token_error">Не удалось обновить токен - %1$s</string>
     <string name="nightscout_test_error">Ошибка - %1$s</string>
     <string name="nightscout_test_ok">Подключено - HTTP %1$d</string>
     <string name="nightscout_test_connection">Проверить подключение</string>

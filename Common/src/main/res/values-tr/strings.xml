@@ -1240,6 +1240,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_follow_desc">Bu Nightscout URL\'sinden salt okunur sanal sensör oluşturur.</string>
     <string name="nightscout_follow_url_required">Önce bir Nightscout URL\'si girin</string>
     <string name="nightscout_test_testing">Test ediliyor...</string>
+    <string name="nightscout_refresh_token">Belirteci yenile</string>
+    <string name="nightscout_token_refreshing">Belirteç yenileniyor...</string>
+    <string name="nightscout_token_ok">Belirteç %1$s tarihine kadar geçerli - izinler: %2$s</string>
+    <string name="nightscout_token_error">Belirteç yenilenemedi - %1$s</string>
     <string name="nightscout_test_error">Başarısız - %1$s</string>
     <string name="nightscout_test_ok">Bağlandı - HTTP %1$d</string>
     <string name="nightscout_test_connection">Bağlantıyı test et</string>

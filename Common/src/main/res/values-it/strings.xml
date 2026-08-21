@@ -1202,6 +1202,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Crea un sensore virtuale di sola lettura da questo URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Inserisci prima un URL Nightscout</string>
     <string name="nightscout_test_testing">Test...</string>
+    <string name="nightscout_refresh_token">Rinnova token</string>
+    <string name="nightscout_token_refreshing">Rinnovo del token...</string>
+    <string name="nightscout_token_ok">Token valido fino a %1$s - permessi: %2$s</string>
+    <string name="nightscout_token_error">Rinnovo del token non riuscito - %1$s</string>
     <string name="nightscout_test_error">Errore - %1$s</string>
     <string name="nightscout_test_ok">Connesso - HTTP %1$d</string>
     <string name="nightscout_test_connection">Prova connessione</string>
