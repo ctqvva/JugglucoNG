@@ -39,14 +39,17 @@ public class EventReport extends BaseMessage {
 
         log("EventReport: handle: " + handle + " rt: " + relativeTime + " " + eventType);
 
-        // Anchored once for the whole scan, not per report: see OpContext.referenceTime.
-        long referencetime=context.referenceTime(relativeTime);
         List<OpContext.Doses> doses=context.doses;
         var er = new EventReport();
         er.handle = handle;
 
         switch (eventType) {
             case MDC_NOTI_SEGMENT_DATA:
+                // Anchored once for the whole scan, not per report: see OpContext.referenceTime.
+                // Pinned here and not above, because the configuration report that opens a
+                // scan arrives first and its time field is not the pen's live counter; an
+                // anchor taken from it puts every dose of the read out of the window.
+                long referencetime=context.referenceTime(relativeTime);
                 er.instance = getUnsignedShort(buffer);
                 er.index = getUnsignedInt(buffer);
                 er.count = (int)getUnsignedInt(buffer);
