@@ -55,18 +55,33 @@ object PenDoseParser {
 
     /**
      * @param referenceTimeSeconds epoch second the segment's relative time was anchored to
-     * @param nowSeconds epoch second used to reject records outside the plausible window
+     * @param nowSeconds epoch second used to reject records outside the plausible window:
+     *   older than [MAX_AGE_SECONDS], or after now
+     * @param dropped receives every well-formed record the window rejected, so the caller
+     *   can say what it threw away rather than losing it in silence
      * @return decoded doses, oldest first, with priming shots flagged
      */
-    fun parse(referenceTimeSeconds: Long, raw: ByteArray?, nowSeconds: Long): List<PenDose> {
+    fun parse(
+        referenceTimeSeconds: Long,
+        raw: ByteArray?,
+        nowSeconds: Long,
+        dropped: PenDropTally? = null,
+    ): List<PenDose> {
         if (raw == null) return emptyList()
         val oldest = nowSeconds - MAX_AGE_SECONDS
+        val newest = nowSeconds
         val decoded = ArrayList<PenDose>(raw.size / RECORD_SIZE)
         var offset = 0
         while (offset + RECORD_SIZE <= raw.size) {
             val record = decode(referenceTimeSeconds, raw, offset)
-            if (record != null && record.timestampSeconds in oldest..nowSeconds) {
-                decoded.add(record)
+            if (record != null) {
+                when {
+                    record.timestampSeconds < oldest ->
+                        dropped?.record(PenDropReason.TOO_OLD, record, referenceTimeSeconds, nowSeconds)
+                    record.timestampSeconds > newest ->
+                        dropped?.record(PenDropReason.IN_THE_FUTURE, record, referenceTimeSeconds, nowSeconds)
+                    else -> decoded.add(record)
+                }
             }
             offset += RECORD_SIZE
         }
@@ -124,5 +139,50 @@ object PenDoseParser {
                 next.timestampSeconds - dose.timestampSeconds in 0..PRIMING_WINDOW_SECONDS
             if (priming) dose.copy(priming = true) else dose
         }
+    }
+}
+
+/** Why a well-formed record was left out of a parse. */
+enum class PenDropReason { TOO_OLD, IN_THE_FUTURE }
+
+/**
+ * What one parse, or one whole scan, refused.
+ *
+ * A pen holds hundreds of doses and most of a long log is past [PenDoseParser.MAX_AGE_SECONDS],
+ * so this counts per reason and keeps the details of only the first few, enough to show
+ * where a rejected record sat relative to the anchor and the clock without flooding the log.
+ */
+class PenDropTally {
+    private val counts = IntArray(PenDropReason.values().size)
+    private val samples = ArrayList<String>(SAMPLE_LIMIT)
+
+    fun record(reason: PenDropReason, dose: PenDose, referenceTimeSeconds: Long, nowSeconds: Long) {
+        counts[reason.ordinal]++
+        if (samples.size < SAMPLE_LIMIT) {
+            samples.add(
+                "${reason.name.lowercase()} rel=${dose.relativeSeconds} ts=${dose.timestampSeconds} " +
+                    "ref=$referenceTimeSeconds now=$nowSeconds (${dose.timestampSeconds - nowSeconds}s from now) " +
+                    "${dose.units}U"
+            )
+        }
+    }
+
+    fun count(reason: PenDropReason): Int = counts[reason.ordinal]
+
+    val total: Int get() = counts.sum()
+
+    val isEmpty: Boolean get() = total == 0
+
+    /** One line for the log: counts per reason, then the first few records in full. */
+    fun describe(): String {
+        if (isEmpty) return "dropped none"
+        val perReason = PenDropReason.values()
+            .filter { count(it) > 0 }
+            .joinToString(", ") { "${count(it)} ${it.name.lowercase()}" }
+        return "dropped $perReason; first: ${samples.joinToString(" | ")}"
+    }
+
+    private companion object {
+        const val SAMPLE_LIMIT = 3
     }
 }

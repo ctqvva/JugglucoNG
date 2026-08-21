@@ -1,7 +1,11 @@
 package tk.glucodata.NovoPen.opennov;
 
+import static tk.glucodata.Log.doLog;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import tk.glucodata.Log;
 
 import tk.glucodata.NovoPen.opennov.mt.ARequest;
 import tk.glucodata.NovoPen.opennov.mt.Apdu;
@@ -18,6 +22,7 @@ import tk.glucodata.NovoPen.opennov.mt.TrigSegmDataXfer;
  */
 
 public class OpContext {
+    private static final String TAG = "OpenNov";
 
     public Specification specification;
 //    public RelativeTime relativeTime;
@@ -56,7 +61,9 @@ public class OpContext {
      */
     public long referenceTime(long relativeTime) {
         if (referencetime == UNSET_REFERENCE_TIME) {
-            referencetime = (System.currentTimeMillis() / 1000L) - relativeTime;
+            long now = System.currentTimeMillis() / 1000L;
+            referencetime = now - relativeTime;
+            if (doLog) Log.i(TAG, "Anchor pinned: now=" + now + " rt=" + relativeTime + " reference=" + referencetime);
         }
         return referencetime;
     }

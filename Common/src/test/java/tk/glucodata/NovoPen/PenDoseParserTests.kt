@@ -95,6 +95,48 @@ class PenDoseParserTests {
     }
 
     @Test
+    fun tallyNamesWhatTheWindowRefused() {
+        // One ancient chunk, one chunk with a record far ahead and a good one: a tally
+        // spans a scan, and the caller learns about the two it lost without diffing.
+        val tally = PenDropTally()
+        val ancient = PenDoseParser.parse(
+            reference - PenDoseParser.MAX_AGE_SECONDS - 60L, record(0, 50), now, tally,
+        )
+        val kept = PenDoseParser.parse(reference, records(record(7_200, 40), record(600, 30)), now, tally)
+
+        assertTrue(ancient.isEmpty())
+        assertEquals(1, kept.size)
+        assertEquals(1, tally.count(PenDropReason.TOO_OLD))
+        assertEquals(1, tally.count(PenDropReason.IN_THE_FUTURE))
+        assertTrue(tally.describe(), tally.describe().contains("1 too_old, 1 in_the_future"))
+        assertTrue(tally.describe(), tally.describe().contains("rel=7200"))
+    }
+
+    @Test
+    fun tallyIgnoresRecordsThatNeverDecoded() {
+        // Garbage is not a dropped dose; only well-formed records the window rejected count.
+        val tally = PenDropTally()
+        val broken = record(600, 85).also { it[4] = 0x00 }
+
+        PenDoseParser.parse(reference, broken, now, tally)
+
+        assertTrue(tally.isEmpty)
+        assertEquals("dropped none", tally.describe())
+    }
+
+    @Test
+    fun tallyKeepsOnlyTheFirstFewInDetail() {
+        // A long log has hundreds past the age limit; count them all, spell out three.
+        val tally = PenDropTally()
+        val raw = records(*Array(10) { record(it.toLong(), 50) })
+
+        PenDoseParser.parse(reference - PenDoseParser.MAX_AGE_SECONDS - 60L, raw, now, tally)
+
+        assertEquals(10, tally.count(PenDropReason.TOO_OLD))
+        assertEquals(3, tally.describe().split(" | ").size)
+    }
+
+    @Test
     fun ignoresTrailingPartialRecord() {
         val raw = records(record(600, 50), byteArrayOf(0x00, 0x01, 0x02))
 
