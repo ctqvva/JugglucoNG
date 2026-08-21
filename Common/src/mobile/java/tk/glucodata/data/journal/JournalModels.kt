@@ -75,6 +75,7 @@ data class JournalEntry(
     val insulinCurveWasApproximated: Boolean = false,
     /** Where the content originated before it arrived through [source]. */
     val originSource: JournalEntrySource? = null,
+    val mealId: Long? = null,
 )
 
 data class JournalEntryInput(
@@ -98,6 +99,7 @@ data class JournalEntryInput(
     val nsRemoteId: String? = null,
     /** Authoritative source supplied by an importer, distinct from its transport. */
     val originSource: JournalEntrySource? = null,
+    val mealId: Long? = null,
 )
 
 data class JournalFood(

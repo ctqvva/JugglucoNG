@@ -8,6 +8,10 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import tk.glucodata.data.journal.CloneJournalRecoveryTombstoneEntity
 import tk.glucodata.data.journal.CloneJournalTombstoneEntity
+import tk.glucodata.data.meal.MealDao
+import tk.glucodata.data.meal.MealEntity
+import tk.glucodata.data.meal.MealItemEntity
+import tk.glucodata.data.meal.MealProductEntity
 import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
@@ -74,13 +78,17 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalPendingDeleteEntity::class,
         CloneJournalTombstoneEntity::class,
         CloneJournalRecoveryTombstoneEntity::class,
+        MealEntity::class,
+        MealItemEntity::class,
+        MealProductEntity::class,
         CloneRecoveryImportEntity::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
     
+    abstract fun mealDao(): MealDao
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
@@ -768,6 +776,102 @@ abstract class HistoryDatabase : RoomDatabase() {
             )
         }
 
+        private val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "journal_entries", "mealId")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN mealId INTEGER")
+                }
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_mealId ON journal_entries (mealId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        label TEXT NOT NULL,
+                        servings REAL,
+                        cookedWeightGrams REAL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        archivedAt INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meals_archivedAt ON meals (archivedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meals_updatedAt ON meals (updatedAt)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_items (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        mealId INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        barcode TEXT,
+                        source TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        brand TEXT,
+                        basis TEXT NOT NULL,
+                        carbsGrams REAL NOT NULL,
+                        proteinGrams REAL,
+                        fatGrams REAL,
+                        fiberGrams REAL,
+                        sugarsGrams REAL,
+                        polyolsGrams REAL,
+                        kcal REAL,
+                        netQuantity REAL,
+                        netUnit TEXT,
+                        servingText TEXT,
+                        servingQuantity REAL,
+                        servingUnit TEXT,
+                        servingPieces REAL,
+                        servingPieceLabel TEXT,
+                        servingsPerBatch REAL,
+                        densityGramsPerMl REAL,
+                        pieceGrams REAL,
+                        quantityText TEXT NOT NULL,
+                        factor REAL,
+                        amountGrams REAL,
+                        amountMilliliters REAL,
+                        plausibilityFlags TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_items_mealId ON meal_items (mealId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_items_barcode ON meal_items (barcode)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_products (
+                        barcode TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        brand TEXT,
+                        basis TEXT NOT NULL,
+                        carbsGrams REAL NOT NULL,
+                        proteinGrams REAL,
+                        fatGrams REAL,
+                        fiberGrams REAL,
+                        sugarsGrams REAL,
+                        polyolsGrams REAL,
+                        kcal REAL,
+                        netQuantity REAL,
+                        netUnit TEXT,
+                        servingText TEXT,
+                        servingQuantity REAL,
+                        servingUnit TEXT,
+                        servingPieces REAL,
+                        servingPieceLabel TEXT,
+                        densityGramsPerMl REAL,
+                        pieceGrams REAL,
+                        plausibilityFlags TEXT,
+                        fetchedAt INTEGER NOT NULL,
+                        lastUsedAt INTEGER NOT NULL,
+                        PRIMARY KEY(barcode)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_products_lastUsedAt ON meal_products (lastUsedAt)")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -805,7 +909,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     bridgeCloneToV30(28),
                     bridgeCloneToV30(29),
                     MIGRATION_30_31,
-                    MIGRATION_31_32
+                    MIGRATION_31_32,
+                    MIGRATION_32_33
                 )
                 .build().also { INSTANCE = it }
             }

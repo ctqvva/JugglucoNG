@@ -164,7 +164,9 @@ data class JournalEntryDraft(
     val doseGlucoseMgDl: Float? = null,
     val pairWithDose: Boolean = false,
     val pairedAmountText: String = "",
-    val foodItems: List<JournalDraftFoodItem> = emptyList()
+    val foodItems: List<JournalDraftFoodItem> = emptyList(),
+    /** Set when the entry was started from a meal; copied onto every entry the sheet saves. */
+    val mealId: Long? = null
 )
 
 data class JournalDraftFoodItem(
@@ -357,6 +359,11 @@ fun JournalEntrySheet(
     doseProfile: JournalDoseProfile? = null,
     initialType: JournalEntryType,
     existingEntry: JournalEntry? = null,
+    /**
+     * Values to start a new entry from (a meal's "eaten" step). Editable like any draft; the
+     * dose calculator runs on the current glucose and IOB, not on anything stored with the meal.
+     */
+    prefill: JournalEntryInput? = null,
     onDismiss: () -> Unit,
     onSave: (JournalEntryInput) -> Unit,
     onSaveEntries: ((List<JournalEntryInput>) -> Unit)? = null,
@@ -380,7 +387,8 @@ fun JournalEntrySheet(
         suggestedChartAnchorGlucoseMgDl,
         suggestedAmountFraction,
         unit,
-        insulinPresets
+        insulinPresets,
+        prefill
     ) {
         buildDraft(
             existingEntry = existingEntry,
@@ -389,7 +397,9 @@ fun JournalEntrySheet(
             unit = unit,
             suggestedGlucoseMgDl = suggestedGlucoseMgDl,
             suggestedChartAnchorGlucoseMgDl = suggestedChartAnchorGlucoseMgDl,
-            suggestedAmountFraction = suggestedAmountFraction
+            suggestedAmountFraction = suggestedAmountFraction,
+            prefill = prefill,
+            foodMacrosEnabled = foodMacrosEnabled
         )
     }
     var draft by remember(
@@ -400,7 +410,8 @@ fun JournalEntrySheet(
         suggestedChartAnchorGlucoseMgDl,
         suggestedAmountFraction,
         unit,
-        insulinPresets
+        insulinPresets,
+        prefill
     ) {
         mutableStateOf(initialDraft)
     }
@@ -902,8 +913,29 @@ private fun buildDraft(
     unit: String,
     suggestedGlucoseMgDl: Float? = null,
     suggestedChartAnchorGlucoseMgDl: Float? = null,
-    suggestedAmountFraction: Float? = null
+    suggestedAmountFraction: Float? = null,
+    prefill: JournalEntryInput? = null,
+    foodMacrosEnabled: Boolean = false
 ): JournalEntryDraft {
+    if (existingEntry == null && prefill != null) {
+        return JournalEntryDraft(
+            type = prefill.type,
+            timestamp = prefill.timestamp,
+            title = prefill.title,
+            amountText = prefill.amount?.let(::formatFloatForEditor).orEmpty(),
+            glucoseText = prefill.glucoseValueMgDl?.let { formatGlucoseForEditor(it, unit) }.orEmpty(),
+            durationText = prefill.durationMinutes?.toString()
+                ?: if (prefill.type == JournalEntryType.CARBS) JournalMealShape.MIXED.durationMinutes.toString() else "",
+            note = prefill.note.orEmpty(),
+            intensity = prefill.intensity,
+            insulinPresetId = prefill.insulinPresetId,
+            foodId = prefill.foodId,
+            proteinText = if (foodMacrosEnabled) prefill.proteinGrams?.let(::formatFloatForEditor).orEmpty() else "",
+            fatText = if (foodMacrosEnabled) prefill.fatGrams?.let(::formatFloatForEditor).orEmpty() else "",
+            doseGlucoseMgDl = suggestedGlucoseMgDl,
+            mealId = prefill.mealId
+        )
+    }
     if (existingEntry == null) {
         return JournalEntryDraft(
             type = initialType,
@@ -943,7 +975,8 @@ private fun buildDraft(
         proteinText = existingEntry.proteinGrams?.let(::formatFloatForEditor).orEmpty(),
         fatText = existingEntry.fatGrams?.let(::formatFloatForEditor).orEmpty(),
         chartAnchorGlucoseMgDl = existingEntry.glucoseValueMgDl,
-        doseGlucoseMgDl = existingEntry.glucoseValueMgDl
+        doseGlucoseMgDl = existingEntry.glucoseValueMgDl,
+        mealId = existingEntry.mealId
     )
 }
 
@@ -1147,7 +1180,8 @@ private fun JournalEntryDraft.toInput(
                 note = noteValue,
                 amount = amountValue,
                 glucoseValueMgDl = chartAnchorGlucoseMgDl,
-                insulinPresetId = presetId
+                insulinPresetId = presetId,
+                mealId = mealId
             )
         }
 
@@ -1168,7 +1202,8 @@ private fun JournalEntryDraft.toInput(
                 durationMinutes = absorptionMinutes,
                 foodId = foodId?.takeIf { it > 0L },
                 proteinGrams = if (foodMacrosEnabled) proteinText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
-                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null
+                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
+                mealId = mealId
             )
         }
 
@@ -1240,7 +1275,8 @@ private fun JournalEntryDraft.toInputs(
                 title = preset.displayName,
                 amount = amountValue,
                 glucoseValueMgDl = chartAnchorGlucoseMgDl,
-                insulinPresetId = presetId
+                insulinPresetId = presetId,
+                mealId = mealId
             )
         }
 
@@ -1256,7 +1292,8 @@ private fun JournalEntryDraft.toInputs(
                 durationMinutes = durationText.parseIntOrNull()?.coerceIn(15, 480),
                 proteinGrams = null,
                 fatGrams = null,
-                foodId = null
+                foodId = null,
+                mealId = mealId
             )
         }
 

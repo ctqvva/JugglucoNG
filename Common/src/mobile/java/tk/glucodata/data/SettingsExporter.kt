@@ -523,6 +523,7 @@ object SettingsExporter {
             .putNullable("recoveryId", recoveryId)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
+            .putNullable("mealId", mealId)
             .putNullable("insulinCurveJsonSnapshot", insulinCurveJsonSnapshot)
             .putNullable("insulinCurveProfileId", insulinCurveProfileId)
             .putNullable("insulinCurveModelVersion", insulinCurveModelVersion)
@@ -594,6 +595,7 @@ object SettingsExporter {
                         ) ?: CloneJournalIdentity.newRecoveryId(),
                         createdAt = item.optLong("createdAt", item.getLong("timestamp")),
                         updatedAt = item.optLong("updatedAt", item.getLong("timestamp")),
+                        mealId = item.optNullableLong("mealId"),
                         insulinCurveJsonSnapshot = item.optNullableString("insulinCurveJsonSnapshot"),
                         insulinCurveProfileId = item.optNullableString("insulinCurveProfileId"),
                         insulinCurveModelVersion = item.optNullableInt("insulinCurveModelVersion"),
