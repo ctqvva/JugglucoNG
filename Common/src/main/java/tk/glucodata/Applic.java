@@ -943,6 +943,10 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
             NumAlarm.handlealarm(this);
             Maintenance.setMaintenancealarm(this);
+            // A quiet window is checked against the wall clock on every start: an
+            // expired one ends now, a running one re-arms its expiry alarm. A process
+            // kill must never stretch it.
+            tk.glucodata.alerts.QuietWindow.syncOnStart(this);
             initbroadcasts();
             initproccalled = true;
             if (isWearable && !(dataAtStart = hasData())) {

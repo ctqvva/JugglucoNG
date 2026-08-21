@@ -2687,4 +2687,32 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucosechartvaluecomplicationlabel">Garaaf + qiime</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Garaaf + qiime + fallaadh</string>
     <string name="glucosechartfullcomplicationlabel">Garaaf + qiime + fallaadh + waqti</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Daaqad aamusnaan</string>
+    <string name="quiet_window_desc">Aamusi digniinaha muddo; iskeed bay u dhammaataa</string>
+    <string name="quiet_window_inactive">Digniinuhu sidii caadiga ahayd ayay u dhawaaqaan</string>
+    <string name="quiet_window_active_until">Digniinaha aamusan ilaa %1$s</string>
+    <string name="quiet_window_until_short">ilaa %1$s</string>
+    <string name="quiet_window_chip">Aamusan ilaa %1$s</string>
+    <string name="quiet_window_mode_title">Inta daaqaddu socoto</string>
+    <string name="quiet_window_mode_vibrate_only">Gariir kaliya</string>
+    <string name="quiet_window_mode_notification_only">Ogeysiis kaliya</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Cod ma jiro; gariirka, ogeysiiska iyo digniinta shaashadda buuxda way sii jiraan</string>
+    <string name="quiet_window_mode_notification_only_desc">Cod iyo gariir midna – doorashada ammaanka yar</string>
+    <string name="quiet_window_start_for">Bilow muddo</string>
+    <string name="quiet_window_preset_until">Ilaa…</string>
+    <string name="quiet_window_until_i_end">Ilaa aan dhammeeyo</string>
+    <string name="quiet_window_until_i_end_desc">Ugu dambayn 24 saac ka dib iskeed bay u dhammaataa</string>
+    <string name="quiet_window_very_low_note">Digniinaha aad-u-hooseeya had iyo jeer way dhawaaqaan, digniin la aamusiyey oo firfircoon ahaanaysaana way soo baxdaa.</string>
+    <string name="quiet_window_end_now">Hadda dhammee</string>
+    <string name="quiet_window_ended_title">Digniinaha mar kale way shaqaynayaan</string>
+    <string name="quiet_window_ended_text">Daaqaddii aamusnaanta way dhammaatay.</string>
+    <string name="quiet_window_breakthrough_title">Soo bax ka dib</string>
+    <string name="quiet_window_breakthrough_desc">Digniin la aamusiyey oo intaas firfircoon ahaata si kastaba way dhawaaqaysaa</string>
+    <string name="quiet_window_tile_label">Digniino aamusan</string>
+    <string name="quiet_window_tile_default_title">Tiirka dejinta degdegga</string>
+    <string name="quiet_window_tile_default_desc">Waxa hal taabasho ee tiirka bilowdo; taabashada labaad ayaa daaqadda dhammaysa</string>
+    <string name="quiet_window_add_tile">Ku dar tiirka dejinta degdegga</string>
+    <string name="quiet_window_add_tile_hint">Tiirka waxaa lagu dari karaa tafatiraha dejinta degdegga ee barta xaaladda.</string>
+    <string name="quiet_window_select_end_time">Aamusan ilaa</string>
 </resources>

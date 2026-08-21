@@ -2493,4 +2493,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Courbe + valeur</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Courbe + valeur + flèche</string>
     <string name="glucosechartfullcomplicationlabel">Courbe + valeur + flèche + heure</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Fenêtre de silence</string>
+    <string name="quiet_window_desc">Couper les alarmes un moment ; se termine d’elle-même</string>
+    <string name="quiet_window_inactive">Les alarmes sonnent normalement</string>
+    <string name="quiet_window_active_until">Alarmes en silence jusqu’à %1$s</string>
+    <string name="quiet_window_until_short">jusqu’à %1$s</string>
+    <string name="quiet_window_chip">Silence jusqu’à %1$s</string>
+    <string name="quiet_window_mode_title">Pendant la fenêtre</string>
+    <string name="quiet_window_mode_vibrate_only">Vibreur seul</string>
+    <string name="quiet_window_mode_notification_only">Notification seule</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Pas de son ; vibreur, notification et alarme plein écran restent</string>
+    <string name="quiet_window_mode_notification_only_desc">Ni son ni vibreur – le choix le moins sûr</string>
+    <string name="quiet_window_start_for">Démarrer pour</string>
+    <string name="quiet_window_preset_until">Jusqu’à…</string>
+    <string name="quiet_window_until_i_end">Jusqu’à ce que je l’arrête</string>
+    <string name="quiet_window_until_i_end_desc">Se termine d’elle-même après 24 heures au plus tard</string>
+    <string name="quiet_window_very_low_note">Les alarmes très bas sonnent toujours, et une alarme en silence qui reste active finit par sonner.</string>
+    <string name="quiet_window_end_now">Terminer maintenant</string>
+    <string name="quiet_window_ended_title">Alarmes de nouveau actives</string>
+    <string name="quiet_window_ended_text">La fenêtre de silence est terminée.</string>
+    <string name="quiet_window_breakthrough_title">Sonner après</string>
+    <string name="quiet_window_breakthrough_desc">Une alarme en silence qui reste active aussi longtemps sonne quand même</string>
+    <string name="quiet_window_tile_label">Alarmes en silence</string>
+    <string name="quiet_window_tile_default_title">Tuile de réglages rapides</string>
+    <string name="quiet_window_tile_default_desc">Ce qu’un appui sur la tuile démarre ; un second appui termine la fenêtre</string>
+    <string name="quiet_window_add_tile">Ajouter la tuile de réglages rapides</string>
+    <string name="quiet_window_add_tile_hint">La tuile peut être ajoutée depuis l’éditeur des réglages rapides de la barre d’état.</string>
+    <string name="quiet_window_select_end_time">Silence jusqu’à</string>
 </resources>

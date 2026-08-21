@@ -687,6 +687,20 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
     }
 
+    // A screen asked for from outside Compose (tile long press, notification tap).
+    LaunchedEffect(navController) {
+        PendingNavigation.route.collect { route ->
+            if (route != null) {
+                try {
+                    navController.navigate(route)
+                } catch (t: Throwable) {
+                    android.util.Log.w("MainNavigation", "pending navigation to $route failed: $t")
+                }
+                PendingNavigation.consume()
+            }
+        }
+    }
+
     BackHandler(enabled = currentRoute == "dashboard") {
         // OPTION 1 (Current): Traditional Android - Back button exits/destroys app
         (context as? Activity)?.finish()

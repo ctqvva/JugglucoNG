@@ -2503,4 +2503,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">图表 + 数值</string>
     <string name="glucosechartvaluearrowcomplicationlabel">图表 + 数值 + 箭头</string>
     <string name="glucosechartfullcomplicationlabel">图表 + 数值 + 箭头 + 时间</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">静音时段</string>
+    <string name="quiet_window_desc">让警报安静一段时间；到时自动结束</string>
+    <string name="quiet_window_inactive">警报照常响铃</string>
+    <string name="quiet_window_active_until">警报静音至 %1$s</string>
+    <string name="quiet_window_until_short">至 %1$s</string>
+    <string name="quiet_window_chip">静音至 %1$s</string>
+    <string name="quiet_window_mode_title">时段期间</string>
+    <string name="quiet_window_mode_vibrate_only">仅振动</string>
+    <string name="quiet_window_mode_notification_only">仅通知</string>
+    <string name="quiet_window_mode_vibrate_only_desc">无声音；振动、通知和全屏警报保留</string>
+    <string name="quiet_window_mode_notification_only_desc">无声音也无振动——较不安全的选择</string>
+    <string name="quiet_window_start_for">开始，持续</string>
+    <string name="quiet_window_preset_until">直到…</string>
+    <string name="quiet_window_until_i_end">直到我结束</string>
+    <string name="quiet_window_until_i_end_desc">最迟 24 小时后自动结束</string>
+    <string name="quiet_window_very_low_note">极低警报始终响铃；被静音但持续存在的警报会突破静音。</string>
+    <string name="quiet_window_end_now">立即结束</string>
+    <string name="quiet_window_ended_title">警报已恢复</string>
+    <string name="quiet_window_ended_text">静音时段已结束。</string>
+    <string name="quiet_window_breakthrough_title">突破静音时间</string>
+    <string name="quiet_window_breakthrough_desc">被静音的警报持续这么久仍会响铃</string>
+    <string name="quiet_window_tile_label">警报静音</string>
+    <string name="quiet_window_tile_default_title">快捷设置图块</string>
+    <string name="quiet_window_tile_default_desc">点按图块一次开始的时长；再次点按结束时段</string>
+    <string name="quiet_window_add_tile">添加快捷设置图块</string>
+    <string name="quiet_window_add_tile_hint">可在状态栏的快捷设置编辑器中添加该图块。</string>
+    <string name="quiet_window_select_end_time">静音至</string>
 </resources>

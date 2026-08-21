@@ -2554,4 +2554,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Ціхае акно</string>
+    <string name="quiet_window_desc">Прыглушыць сігналы на час; заканчваецца само</string>
+    <string name="quiet_window_inactive">Сігналы гучаць як звычайна</string>
+    <string name="quiet_window_active_until">Сігналы без гуку да %1$s</string>
+    <string name="quiet_window_until_short">да %1$s</string>
+    <string name="quiet_window_chip">Без гуку да %1$s</string>
+    <string name="quiet_window_mode_title">Падчас акна</string>
+    <string name="quiet_window_mode_vibrate_only">Толькі вібрацыя</string>
+    <string name="quiet_window_mode_notification_only">Толькі апавяшчэнне</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Без гуку; вібрацыя, апавяшчэнне і поўнаэкранны сігнал застаюцца</string>
+    <string name="quiet_window_mode_notification_only_desc">Без гуку і без вібрацыі – менш бяспечны выбар</string>
+    <string name="quiet_window_start_for">Запусціць на</string>
+    <string name="quiet_window_preset_until">Да…</string>
+    <string name="quiet_window_until_i_end">Пакуль я не скончу</string>
+    <string name="quiet_window_until_i_end_desc">Заканчваецца само не пазней чым праз 24 гадзіны</string>
+    <string name="quiet_window_very_low_note">Сігналы «вельмі нізка» заўсёды гучаць, а прыглушаны сігнал, які застаецца актыўным, прабіваецца.</string>
+    <string name="quiet_window_end_now">Скончыць зараз</string>
+    <string name="quiet_window_ended_title">Сігналы зноў актыўныя</string>
+    <string name="quiet_window_ended_text">Ціхае акно скончылася.</string>
+    <string name="quiet_window_breakthrough_title">Прабіцца праз</string>
+    <string name="quiet_window_breakthrough_desc">Прыглушаны сігнал, актыўны так доўга, усё роўна загучыць</string>
+    <string name="quiet_window_tile_label">Ціхія сігналы</string>
+    <string name="quiet_window_tile_default_title">Плітка хуткіх налад</string>
+    <string name="quiet_window_tile_default_desc">Што запускае адзін націск на плітку; другі націск заканчвае акно</string>
+    <string name="quiet_window_add_tile">Дадаць плітку хуткіх налад</string>
+    <string name="quiet_window_add_tile_hint">Плітку можна дадаць у рэдактары хуткіх налад у радку стану.</string>
+    <string name="quiet_window_select_end_time">Без гуку да</string>
 </resources>

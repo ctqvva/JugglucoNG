@@ -89,6 +89,7 @@ import tk.glucodata.alerts.AlertConfig;
 import tk.glucodata.alerts.AlertNotificationDismissAction;
 import tk.glucodata.alerts.AlertRepository;
 import tk.glucodata.alerts.AlertStateTracker;
+import tk.glucodata.alerts.QuietWindow;
 import tk.glucodata.drivers.ManagedSensorRuntime;
 import tk.glucodata.drivers.ManagedSensorStatusPolicy;
 import java.util.Collections;
@@ -1656,6 +1657,19 @@ public class Notify {
     }
     // static int alarmnr=0;
 
+    /**
+     * Quiet window: a silenced alarm has stayed active past the breakthrough time.
+     * Deliver its effects again; playringhier finds the silenced episode old
+     * enough and lets sound and vibration through.
+     */
+    public static void breakThroughQuietWindow(int kind) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (onenot != null) {
+                onenot.mksound(kind);
+            }
+        });
+    }
+
     public static void playring(Ringtone ring, int duration, boolean sound, boolean flash, boolean vibrate,
             boolean disturb, int kind) {
         if (onenot == null)
@@ -1822,6 +1836,18 @@ public class Notify {
 
     private synchronized void playringhier(AlertSoundHandle soundHandle, int duration, boolean sound, boolean flash,
             boolean vibrate, boolean disturb, int kind, String hapticProfile, long effectDurationMs) {
+        playringhier(soundHandle, duration, sound, flash, vibrate, disturb, kind, hapticProfile, effectDurationMs,
+                false);
+    }
+
+    /**
+     * {@code customAlert}: a custom alert delivers as kind 0/1 (LOW/HIGH) and shares their
+     * channels, but it is not their episode — the quiet window keeps its silenced
+     * episode apart, under its own key. Nothing else here reads the flag.
+     */
+    private synchronized void playringhier(AlertSoundHandle soundHandle, int duration, boolean sound, boolean flash,
+            boolean vibrate, boolean disturb, int kind, String hapticProfile, long effectDurationMs,
+            boolean customAlert) {
         final int sanitizedDuration = sanitizeAlarmDurationSeconds(duration);
         if (sanitizedDuration != duration) {
             duration = sanitizedDuration;
@@ -1865,7 +1891,7 @@ public class Notify {
                         delayedAlertEffectPriority = Integer.MIN_VALUE;
                     }
                     target.playringhier(soundHandle, finalDuration, sound, flash, vibrate, disturb, kind,
-                            hapticProfile, effectDurationMs);
+                            hapticProfile, effectDurationMs, customAlert);
                 }, delayMs, TimeUnit.MILLISECONDS);
                 if (doLog) {
                     Log.i(LOG_ID, "Delaying alert effects kind=" + kind + " by " + delayMs + "ms");
@@ -1876,13 +1902,40 @@ public class Notify {
                     nowMs + ALERT_EFFECT_START_GAP_MS);
         }
 
+        // Quiet window: a temporary, self-expiring cut of sound (and, in
+        // notification-only mode, vibration) decided by AlertDeliveryPolicy. VERY_LOW
+        // ignores it, and a silenced alarm that stays active past the breakthrough
+        // time sounds as if there were no window. Nothing else here changes.
+        final long quietNowMs = System.currentTimeMillis();
+        final boolean quietWindow = QuietWindow.untilMs(quietNowMs) > 0L
+                && AlertDeliveryPolicy.quietWindowAppliesTo(kind);
+        boolean quietBreakThrough = false;
+        String quietMode = null;
+        if (quietWindow) {
+            // A custom alert is not LOW/HIGH's episode; it is tracked under its own key.
+            final int episodeKind = customAlert ? QuietWindow.customEpisodeKind(kind) : kind;
+            final long silencedSinceMs = QuietWindow.noteSilencedDelivery(episodeKind, quietNowMs);
+            quietBreakThrough = AlertDeliveryPolicy.quietWindowBreaksThrough(silencedSinceMs, quietNowMs,
+                    QuietWindow.breakthroughMillis());
+            quietMode = QuietWindow.mode();
+            if (doLog) {
+                Log.i(LOG_ID, "Quiet window: kind=" + kind + " silencedSince=" + silencedSinceMs
+                        + (quietBreakThrough ? " -> breaking through" : " -> sound off"));
+            }
+        }
+        final boolean quietSilencesSound = AlertDeliveryPolicy.shouldSilenceSound(quietWindow, kind,
+                quietBreakThrough);
+        final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
+                quietMode, kind, quietBreakThrough);
+
         notifyfocus = true;
         doTurnFocuson();
         stopalarm();
         // final int[] curfilter={-1};
         final boolean glucosealarm = kind < 2 || kind > 4;
         if (!DontTalk) {
-            if (glucosealarm && Natives.speakalarms()) {
+            // Speech is sound: a quiet window silences it too.
+            if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 if (current != null) {
                     SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
@@ -1892,7 +1945,10 @@ public class Notify {
         }
         final boolean[] doplaysound = { true };
         final boolean hasSoundHandle = soundHandle != null && soundHandle.isPresent();
-        if (sound) {
+        if (sound && quietSilencesSound) {
+            // Quiet window: no sound, and no DND override for a sound that will not play.
+            doplaysound[0] = false;
+        } else if (sound) {
             if (!hasSoundHandle) {
                 doplaysound[0] = false;
                 if (doLog) {
@@ -1965,7 +2021,7 @@ public class Notify {
                     stopvibratealarm();
                 }
                 if (!DontTalk) {
-                    if (glucosealarm && Natives.speakalarms()) {
+                    if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
                         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                         if (current != null) {
                             Applic.scheduler.schedule(
@@ -2023,7 +2079,8 @@ public class Notify {
         // and flash immediately; add the audible alarm only after the configured
         // delay. Only when both sound and vibration are on for this alert (else
         // there is either nothing to delay, or a silent gap with no signal).
-        final int soundDelaySeconds = (sound && vibrate) ? getSoundDelaySeconds(kind) : 0;
+        // A sound the quiet window silences has nothing to delay.
+        final int soundDelaySeconds = (sound && vibrate && !quietSilencesSound) ? getSoundDelaySeconds(kind) : 0;
         final long soundDelayMs = TimeUnit.SECONDS.toMillis(soundDelaySeconds);
         final boolean canPlaySound = sound && doplaysound[0] && hasSoundHandle && soundHandle != null;
 
@@ -2032,7 +2089,8 @@ public class Notify {
                 Flash.start(app, 200L);
             }
         }
-        if (vibrate) {
+        // Quiet window in notification-only mode: no vibration either.
+        if (vibrate && !quietSuppressesVibration) {
             // The finite pattern must also span the silent delay phase
             // ("vibrate first"), else it runs out before the sound starts.
             vibratealarm(kind, resolvedHapticProfile, duration, soundDelaySeconds);
@@ -2363,7 +2421,7 @@ public class Notify {
                             vibrate, hapticProfile, finalDuration);
 
                     onenot.playringhier(soundHandle, finalDuration, sound, flash, vibrate, disturb, kind,
-                            hapticProfile, effectDurationMs);
+                            hapticProfile, effectDurationMs, true);
 
                     if (doLog)
                         Log.i(LOG_ID, "Custom Alert: sound=" + sound + " flash=" + flash + " vibrate=" + vibrate

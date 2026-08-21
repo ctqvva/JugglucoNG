@@ -2477,4 +2477,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Grafico + valore</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafico + valore + freccia</string>
     <string name="glucosechartfullcomplicationlabel">Grafico + valore + freccia + ora</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Finestra di silenzio</string>
+    <string name="quiet_window_desc">Silenzia gli allarmi per un po’; termina da sola</string>
+    <string name="quiet_window_inactive">Gli allarmi suonano come al solito</string>
+    <string name="quiet_window_active_until">Allarmi silenziati fino alle %1$s</string>
+    <string name="quiet_window_until_short">fino alle %1$s</string>
+    <string name="quiet_window_chip">Silenzio fino alle %1$s</string>
+    <string name="quiet_window_mode_title">Durante la finestra</string>
+    <string name="quiet_window_mode_vibrate_only">Solo vibrazione</string>
+    <string name="quiet_window_mode_notification_only">Solo notifica</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Nessun suono; vibrazione, notifica e allarme a schermo intero restano</string>
+    <string name="quiet_window_mode_notification_only_desc">Né suono né vibrazione – la scelta meno sicura</string>
+    <string name="quiet_window_start_for">Avvia per</string>
+    <string name="quiet_window_preset_until">Fino alle…</string>
+    <string name="quiet_window_until_i_end">Finché non la termino</string>
+    <string name="quiet_window_until_i_end_desc">Termina da sola al più tardi dopo 24 ore</string>
+    <string name="quiet_window_very_low_note">Gli allarmi molto basso suonano sempre, e un allarme silenziato che resta attivo finisce per suonare.</string>
+    <string name="quiet_window_end_now">Termina ora</string>
+    <string name="quiet_window_ended_title">Allarmi di nuovo attivi</string>
+    <string name="quiet_window_ended_text">La finestra di silenzio è terminata.</string>
+    <string name="quiet_window_breakthrough_title">Suona dopo</string>
+    <string name="quiet_window_breakthrough_desc">Un allarme silenziato che resta attivo così a lungo suona comunque</string>
+    <string name="quiet_window_tile_label">Allarmi in silenzio</string>
+    <string name="quiet_window_tile_default_title">Riquadro impostazioni rapide</string>
+    <string name="quiet_window_tile_default_desc">Ciò che un tocco sul riquadro avvia; un secondo tocco termina la finestra</string>
+    <string name="quiet_window_add_tile">Aggiungi riquadro impostazioni rapide</string>
+    <string name="quiet_window_add_tile_hint">Il riquadro si aggiunge dall’editor delle impostazioni rapide nella barra di stato.</string>
+    <string name="quiet_window_select_end_time">Silenzio fino alle</string>
 </resources>

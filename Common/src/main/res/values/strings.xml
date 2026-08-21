@@ -2712,4 +2712,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Chart + value</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Chart + value + arrow</string>
     <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Quiet window</string>
+    <string name="quiet_window_desc">Silence alarms for a while; it ends by itself</string>
+    <string name="quiet_window_inactive">Alarms sound as usual</string>
+    <string name="quiet_window_active_until">Alarms silent until %1$s</string>
+    <string name="quiet_window_until_short">until %1$s</string>
+    <string name="quiet_window_chip">Silent until %1$s</string>
+    <string name="quiet_window_mode_title">During the window</string>
+    <string name="quiet_window_mode_vibrate_only">Vibrate only</string>
+    <string name="quiet_window_mode_notification_only">Notification only</string>
+    <string name="quiet_window_mode_vibrate_only_desc">No sound; vibration, notification and full-screen alarm stay</string>
+    <string name="quiet_window_mode_notification_only_desc">No sound and no vibration – the less safe choice</string>
+    <string name="quiet_window_start_for">Start for</string>
+    <string name="quiet_window_preset_until">Until…</string>
+    <string name="quiet_window_until_i_end">Until I end it</string>
+    <string name="quiet_window_until_i_end_desc">Ends by itself after 24 hours at the latest</string>
+    <string name="quiet_window_very_low_note">Very-low alarms always sound, and a silenced alarm that stays active breaks through.</string>
+    <string name="quiet_window_end_now">End now</string>
+    <string name="quiet_window_ended_title">Alarms active again</string>
+    <string name="quiet_window_ended_text">The quiet window has ended.</string>
+    <string name="quiet_window_breakthrough_title">Break through after</string>
+    <string name="quiet_window_breakthrough_desc">A silenced alarm that stays active this long sounds anyway</string>
+    <string name="quiet_window_tile_label">Quiet alarms</string>
+    <string name="quiet_window_tile_default_title">Quick-settings tile</string>
+    <string name="quiet_window_tile_default_desc">What one tap on the tile starts; a second tap ends the window</string>
+    <string name="quiet_window_add_tile">Add quick-settings tile</string>
+    <string name="quiet_window_add_tile_hint">The tile can be added from the quick-settings editor in the status bar.</string>
+    <string name="quiet_window_select_end_time">Silent until</string>
 </resources>

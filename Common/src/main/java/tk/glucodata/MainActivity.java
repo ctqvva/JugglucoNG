@@ -553,6 +553,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if (intent == null)
             return;
         final Bundle extras = intent.getExtras();
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            // A screen asked for from outside Compose: the quick-settings tile's long
+            // press, or a notification carrying a route. The Compose host navigates
+            // once it is composed, so this also works from a cold start.
+            if ("android.service.quicksettings.action.QS_TILE_PREFERENCES".equals(intent.getAction())) {
+                tk.glucodata.ui.PendingNavigation.request("settings/alerts");
+                return;
+            }
+            final String route = intent.getStringExtra(tk.glucodata.ui.PendingNavigation.EXTRA_ROUTE);
+            if (route != null && !route.isEmpty()) {
+                tk.glucodata.ui.PendingNavigation.request(route);
+                return;
+            }
+        }
         if (extras != null) {
             if (extras.getBoolean(Notify.fromnotification, false)) {
                 {

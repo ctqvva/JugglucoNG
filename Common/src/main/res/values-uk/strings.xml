@@ -2559,4 +2559,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значення</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значення + стрілка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значення + стрілка + час</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Тихе вікно</string>
+    <string name="quiet_window_desc">Приглушити сигнали на деякий час; завершується саме</string>
+    <string name="quiet_window_inactive">Сигнали звучать як зазвичай</string>
+    <string name="quiet_window_active_until">Сигнали без звуку до %1$s</string>
+    <string name="quiet_window_until_short">до %1$s</string>
+    <string name="quiet_window_chip">Без звуку до %1$s</string>
+    <string name="quiet_window_mode_title">Під час вікна</string>
+    <string name="quiet_window_mode_vibrate_only">Лише вібрація</string>
+    <string name="quiet_window_mode_notification_only">Лише сповіщення</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Без звуку; вібрація, сповіщення та повноекранний сигнал залишаються</string>
+    <string name="quiet_window_mode_notification_only_desc">Без звуку й без вібрації – менш безпечний вибір</string>
+    <string name="quiet_window_start_for">Запустити на</string>
+    <string name="quiet_window_preset_until">До…</string>
+    <string name="quiet_window_until_i_end">Поки я не завершу</string>
+    <string name="quiet_window_until_i_end_desc">Завершується саме щонайпізніше через 24 години</string>
+    <string name="quiet_window_very_low_note">Сигнали «дуже низько» завжди звучать, а приглушений сигнал, що лишається активним, пробивається.</string>
+    <string name="quiet_window_end_now">Завершити зараз</string>
+    <string name="quiet_window_ended_title">Сигнали знову активні</string>
+    <string name="quiet_window_ended_text">Тихе вікно завершилося.</string>
+    <string name="quiet_window_breakthrough_title">Пробитися через</string>
+    <string name="quiet_window_breakthrough_desc">Приглушений сигнал, активний так довго, усе одно зазвучить</string>
+    <string name="quiet_window_tile_label">Тихі сигнали</string>
+    <string name="quiet_window_tile_default_title">Плитка швидких налаштувань</string>
+    <string name="quiet_window_tile_default_desc">Що запускає одне натискання на плитку; друге натискання завершує вікно</string>
+    <string name="quiet_window_add_tile">Додати плитку швидких налаштувань</string>
+    <string name="quiet_window_add_tile_hint">Плитку можна додати в редакторі швидких налаштувань у рядку стану.</string>
+    <string name="quiet_window_select_end_time">Без звуку до</string>
 </resources>

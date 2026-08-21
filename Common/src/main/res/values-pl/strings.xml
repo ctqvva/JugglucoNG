@@ -2521,4 +2521,32 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Okno ciszy</string>
+    <string name="quiet_window_desc">Wycisz alarmy na jakiś czas; kończy się samo</string>
+    <string name="quiet_window_inactive">Alarmy dzwonią jak zwykle</string>
+    <string name="quiet_window_active_until">Alarmy wyciszone do %1$s</string>
+    <string name="quiet_window_until_short">do %1$s</string>
+    <string name="quiet_window_chip">Cisza do %1$s</string>
+    <string name="quiet_window_mode_title">W czasie okna</string>
+    <string name="quiet_window_mode_vibrate_only">Tylko wibracja</string>
+    <string name="quiet_window_mode_notification_only">Tylko powiadomienie</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Bez dźwięku; wibracja, powiadomienie i alarm pełnoekranowy zostają</string>
+    <string name="quiet_window_mode_notification_only_desc">Bez dźwięku i bez wibracji – mniej bezpieczny wybór</string>
+    <string name="quiet_window_start_for">Uruchom na</string>
+    <string name="quiet_window_preset_until">Do…</string>
+    <string name="quiet_window_until_i_end">Aż je zakończę</string>
+    <string name="quiet_window_until_i_end_desc">Kończy się samo najpóźniej po 24 godzinach</string>
+    <string name="quiet_window_very_low_note">Alarmy bardzo niskiego poziomu zawsze dzwonią, a wyciszony alarm, który pozostaje aktywny, przebija się.</string>
+    <string name="quiet_window_end_now">Zakończ teraz</string>
+    <string name="quiet_window_ended_title">Alarmy znów aktywne</string>
+    <string name="quiet_window_ended_text">Okno ciszy się skończyło.</string>
+    <string name="quiet_window_breakthrough_title">Przebicie po</string>
+    <string name="quiet_window_breakthrough_desc">Wyciszony alarm aktywny tak długo i tak zadzwoni</string>
+    <string name="quiet_window_tile_label">Ciche alarmy</string>
+    <string name="quiet_window_tile_default_title">Kafelek szybkich ustawień</string>
+    <string name="quiet_window_tile_default_desc">Co uruchamia jedno dotknięcie kafelka; drugie dotknięcie kończy okno</string>
+    <string name="quiet_window_add_tile">Dodaj kafelek szybkich ustawień</string>
+    <string name="quiet_window_add_tile_hint">Kafelek można dodać w edytorze szybkich ustawień na pasku stanu.</string>
+    <string name="quiet_window_select_end_time">Cisza do</string>
 </resources>

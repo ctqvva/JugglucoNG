@@ -2515,4 +2515,32 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Sessiz pencere</string>
+    <string name="quiet_window_desc">Alarmları bir süre sustur; kendiliğinden biter</string>
+    <string name="quiet_window_inactive">Alarmlar her zamanki gibi çalar</string>
+    <string name="quiet_window_active_until">Alarmlar %1$s’e kadar sessiz</string>
+    <string name="quiet_window_until_short">%1$s’e kadar</string>
+    <string name="quiet_window_chip">%1$s’e kadar sessiz</string>
+    <string name="quiet_window_mode_title">Pencere boyunca</string>
+    <string name="quiet_window_mode_vibrate_only">Yalnızca titreşim</string>
+    <string name="quiet_window_mode_notification_only">Yalnızca bildirim</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Ses yok; titreşim, bildirim ve tam ekran alarm kalır</string>
+    <string name="quiet_window_mode_notification_only_desc">Ne ses ne titreşim – daha az güvenli seçim</string>
+    <string name="quiet_window_start_for">Şu süreyle başlat</string>
+    <string name="quiet_window_preset_until">Şu saate kadar…</string>
+    <string name="quiet_window_until_i_end">Ben bitirene kadar</string>
+    <string name="quiet_window_until_i_end_desc">En geç 24 saat sonra kendiliğinden biter</string>
+    <string name="quiet_window_very_low_note">Çok düşük alarmları her zaman çalar; susturulmuş ama etkin kalan bir alarm sesi açar.</string>
+    <string name="quiet_window_end_now">Şimdi bitir</string>
+    <string name="quiet_window_ended_title">Alarmlar yeniden etkin</string>
+    <string name="quiet_window_ended_text">Sessiz pencere sona erdi.</string>
+    <string name="quiet_window_breakthrough_title">Şu süre sonra çal</string>
+    <string name="quiet_window_breakthrough_desc">Bu kadar süre etkin kalan susturulmuş bir alarm yine de çalar</string>
+    <string name="quiet_window_tile_label">Sessiz alarmlar</string>
+    <string name="quiet_window_tile_default_title">Hızlı ayarlar kutucuğu</string>
+    <string name="quiet_window_tile_default_desc">Kutucuğa bir dokunuşun başlattığı süre; ikinci dokunuş pencereyi bitirir</string>
+    <string name="quiet_window_add_tile">Hızlı ayarlar kutucuğu ekle</string>
+    <string name="quiet_window_add_tile_hint">Kutucuk, durum çubuğundaki hızlı ayarlar düzenleyicisinden eklenebilir.</string>
+    <string name="quiet_window_select_end_time">Şu saate kadar sessiz</string>
 </resources>

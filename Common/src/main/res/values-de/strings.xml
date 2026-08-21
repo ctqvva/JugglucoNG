@@ -2526,4 +2526,32 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <!-- Alarm quiet window -->
+    <string name="quiet_window_title">Ruhefenster</string>
+    <string name="quiet_window_desc">Alarme eine Weile stummschalten; endet von selbst</string>
+    <string name="quiet_window_inactive">Alarme tönen wie gewohnt</string>
+    <string name="quiet_window_active_until">Alarme stumm bis %1$s</string>
+    <string name="quiet_window_until_short">bis %1$s</string>
+    <string name="quiet_window_chip">Stumm bis %1$s</string>
+    <string name="quiet_window_mode_title">Während des Fensters</string>
+    <string name="quiet_window_mode_vibrate_only">Nur Vibration</string>
+    <string name="quiet_window_mode_notification_only">Nur Benachrichtigung</string>
+    <string name="quiet_window_mode_vibrate_only_desc">Kein Ton; Vibration, Benachrichtigung und Vollbild-Alarm bleiben</string>
+    <string name="quiet_window_mode_notification_only_desc">Kein Ton und keine Vibration – die unsicherere Wahl</string>
+    <string name="quiet_window_start_for">Starten für</string>
+    <string name="quiet_window_preset_until">Bis…</string>
+    <string name="quiet_window_until_i_end">Bis ich es beende</string>
+    <string name="quiet_window_until_i_end_desc">Endet spätestens nach 24 Stunden von selbst</string>
+    <string name="quiet_window_very_low_note">Sehr-niedrig-Alarme tönen immer, und ein stummer Alarm, der aktiv bleibt, bricht durch.</string>
+    <string name="quiet_window_end_now">Jetzt beenden</string>
+    <string name="quiet_window_ended_title">Alarme wieder aktiv</string>
+    <string name="quiet_window_ended_text">Das Ruhefenster ist beendet.</string>
+    <string name="quiet_window_breakthrough_title">Durchbruch nach</string>
+    <string name="quiet_window_breakthrough_desc">Ein stummer Alarm, der so lange aktiv bleibt, tönt trotzdem</string>
+    <string name="quiet_window_tile_label">Alarme ruhig</string>
+    <string name="quiet_window_tile_default_title">Schnelleinstellungs-Kachel</string>
+    <string name="quiet_window_tile_default_desc">Was ein Tipp auf die Kachel startet; ein zweiter Tipp beendet das Fenster</string>
+    <string name="quiet_window_add_tile">Schnelleinstellungs-Kachel hinzufügen</string>
+    <string name="quiet_window_add_tile_hint">Die Kachel lässt sich im Editor der Schnelleinstellungen in der Statusleiste hinzufügen.</string>
+    <string name="quiet_window_select_end_time">Stumm bis</string>
 </resources>

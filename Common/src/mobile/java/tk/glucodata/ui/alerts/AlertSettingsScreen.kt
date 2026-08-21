@@ -280,6 +280,13 @@ fun AlertSettingsScreen(
                 )
             }
 
+            // === QUIET WINDOW ===
+            item(key = "quiet-window") {
+                Spacer(Modifier.height(8.dp))
+                QuietWindowSettingsCard()
+                Spacer(Modifier.height(8.dp))
+            }
+
             // === HIGH ALERTS SECTION ===
             item(key = "high-alerts-header") {
                 SectionHeader(
