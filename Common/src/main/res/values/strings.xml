@@ -2692,6 +2692,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Ready — hold the pen to the phone</string>
     <string name="insulin_pen_full_read_desc">A pen keeps months of doses and takes several seconds of steady contact to read out. Use this to go back further than the last import.</string>
     <string name="insulin_pen_read_cut_short">The pen moved away too soon. Hold it against the phone until it vibrates.</string>
+    <string name="insulin_pen_background_title">Import in the background</string>
+    <string name="insulin_pen_background_desc">When the app is not open, a pen held to the phone has its new doses added to the journal without asking. Air shots are skipped. The screen has to be on and the phone unlocked — Android does not read NFC with the screen off. Any contactless card held to the phone wakes the reader for a moment, and other card apps may ask which app to use.</string>
+    <string name="insulin_pen_import_channel">Pen imports</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d dose added to the journal</item>
+        <item quantity="other">%d doses added to the journal</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d dose read — open the app to choose the insulin</item>
+        <item quantity="other">%d doses read — open the app to choose the insulin</item>
+    </plurals>
     <string name="status_watch_reading">Watch is reading this sensor</string>
     <string name="return_sensor_to_phone">Return sensor to phone</string>
     <string name="wear_prediction_title">Prediction</string>

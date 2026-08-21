@@ -2473,6 +2473,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Prêt — approchez le stylo du téléphone</string>
     <string name="insulin_pen_full_read_desc">Un stylo conserve des mois de doses et demande plusieurs secondes de contact stable. Ceci permet de remonter au-delà du dernier import.</string>
     <string name="insulin_pen_read_cut_short">Le stylo a été retiré trop tôt. Maintenez-le contre le téléphone jusqu\'à ce qu\'il vibre.</string>
+    <string name="insulin_pen_background_title">Importer en arrière-plan</string>
+    <string name="insulin_pen_background_desc">Quand l’application n’est pas ouverte, un stylo approché du téléphone voit ses nouvelles doses ajoutées au journal sans confirmation. Les purges sont ignorées. L’écran doit être allumé et le téléphone déverrouillé — Android ne lit pas le NFC écran éteint. Toute carte sans contact approchée du téléphone réveille un instant le lecteur, et d’autres applications de cartes peuvent demander laquelle utiliser.</string>
+    <string name="insulin_pen_import_channel">Imports de stylo</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d dose ajoutée au journal</item>
+        <item quantity="other">%d doses ajoutées au journal</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d dose lue — ouvrez l’application pour choisir l’insuline</item>
+        <item quantity="other">%d doses lues — ouvrez l’application pour choisir l’insuline</item>
+    </plurals>
     <string name="status_watch_reading">La montre lit ce capteur</string>
     <string name="return_sensor_to_phone">Reprendre le capteur sur le téléphone</string>
     <string name="wear_prediction_title">Prévision</string>

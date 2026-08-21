@@ -61,6 +61,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -69,6 +70,7 @@ import java.util.Date
 fun InsulinPenSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val enabled by InsulinPenManager.enabled.collectAsStateWithLifecycle()
+    val backgroundImportEnabled by InsulinPenManager.backgroundImportEnabled.collectAsStateWithLifecycle()
     val pens by InsulinPenManager.pens.collectAsStateWithLifecycle()
     val presets by rememberInsulinPresets()
     val journalEnabled = remember(context) {
@@ -109,6 +111,19 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     onCheckedChange = InsulinPenManager::setEnabled,
                     icon = Icons.Default.Vaccines,
                 )
+            }
+
+            if (enabled) {
+                item("pen_background") {
+                    Spacer(Modifier.size(16.dp))
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.insulin_pen_background_title),
+                        subtitle = stringResource(R.string.insulin_pen_background_desc),
+                        checked = backgroundImportEnabled,
+                        onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
+                        icon = Icons.Default.Contactless,
+                    )
+                }
             }
 
             // Doses become journal entries, so with the journal switched off a scan would

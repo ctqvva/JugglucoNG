@@ -70,6 +70,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import tk.glucodata.InsulinPenManager
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
@@ -685,6 +686,23 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     LaunchedEffect(currentRoute) {
         dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
+    }
+
+    // A screen asked for from outside Compose — a notification's tap — is parked in
+    // PendingNavigation by MainActivity and taken here, so it works from a cold start.
+    LaunchedEffect(navController) {
+        PendingNavigation.route.collect { route ->
+            if (route != null) {
+                runCatching { navController.navigate(route) { launchSingleTop = true } }
+                PendingNavigation.consume()
+            }
+        }
+    }
+
+    // The pen receiver is a manifest component switched by a setting; line it up with
+    // the settings once per start, for an upgrade or a restored backup.
+    LaunchedEffect(Unit) {
+        InsulinPenManager.syncBackgroundReceiver(context)
     }
 
     BackHandler(enabled = currentRoute == "dashboard") {

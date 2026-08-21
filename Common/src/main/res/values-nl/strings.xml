@@ -2510,6 +2510,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_full_read_armed">Klaar — houd de pen tegen de telefoon</string>
     <string name="insulin_pen_full_read_desc">Een pen bewaart maanden aan doses en heeft enkele seconden stabiel contact nodig. Hiermee ga je verder terug dan de laatste import.</string>
     <string name="insulin_pen_read_cut_short">De pen ging te snel weg. Houd hem tegen de telefoon tot deze trilt.</string>
+    <string name="insulin_pen_background_title">Op de achtergrond importeren</string>
+    <string name="insulin_pen_background_desc">Als de app niet open is, worden de nieuwe doses van een pen die tegen de telefoon wordt gehouden zonder vragen aan het logboek toegevoegd. Ontluchtingen worden overgeslagen. Het scherm moet aan staan en de telefoon ontgrendeld zijn — Android leest geen NFC met het scherm uit. Elke contactloze kaart tegen de telefoon wekt de lezer even, en andere kaart-apps kunnen vragen welke app te gebruiken.</string>
+    <string name="insulin_pen_import_channel">Pen-imports</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d dosis aan het dagboek toegevoegd</item>
+        <item quantity="other">%d doses aan het dagboek toegevoegd</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d dosis gelezen — open de app om de insuline te kiezen</item>
+        <item quantity="other">%d doses gelezen — open de app om de insuline te kiezen</item>
+    </plurals>
     <string name="status_watch_reading">De horloge leest deze sensor</string>
     <string name="return_sensor_to_phone">Sensor terug naar telefoon</string>
     <string name="wear_prediction_title">Voorspelling</string>

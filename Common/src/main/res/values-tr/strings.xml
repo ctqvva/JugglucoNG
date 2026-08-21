@@ -2495,6 +2495,17 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_full_read_armed">Hazır — kalemi telefona tutun</string>
     <string name="insulin_pen_full_read_desc">Bir kalem aylarca dozu saklar ve tamamının okunması birkaç saniye sabit temas ister. Son aktarımdan daha geriye gitmek için kullanın.</string>
     <string name="insulin_pen_read_cut_short">Kalem çok erken uzaklaştı. Telefon titreyene kadar kalemi tutun.</string>
+    <string name="insulin_pen_background_title">Arka planda içe aktar</string>
+    <string name="insulin_pen_background_desc">Uygulama açık değilken telefona tutulan kalemin yeni dozları sorulmadan günlüğe eklenir. Hava atışları atlanır. Ekran açık ve telefon kilidi çözülmüş olmalıdır — Android ekran kapalıyken NFC okumaz. Telefona tutulan herhangi bir temassız kart okuyucuyu bir an uyandırır ve diğer kart uygulamaları hangi uygulamanın kullanılacağını sorabilir.</string>
+    <string name="insulin_pen_import_channel">Kalem içe aktarımları</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d doz günlüğe eklendi</item>
+        <item quantity="other">%d doz günlüğe eklendi</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d doz okundu — insülini seçmek için uygulamayı açın</item>
+        <item quantity="other">%d doz okundu — insülini seçmek için uygulamayı açın</item>
+    </plurals>
     <string name="status_watch_reading">Sensörü saat okuyor</string>
     <string name="return_sensor_to_phone">Sensörü telefona geri al</string>
     <string name="wear_prediction_title">Tahmin</string>

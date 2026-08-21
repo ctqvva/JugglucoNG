@@ -2582,6 +2582,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_full_read_armed">Бэлэн — үзгээ утсандаа ойртуулна уу</string>
     <string name="insulin_pen_full_read_desc">Үзэг хэдэн сарын тунг хадгалдаг бөгөөд бүрэн уншихад хэдэн секунд тогтвортой хүрэлцээ шаардана. Сүүлийн оруулснаас цааш ухахад ашиглана.</string>
     <string name="insulin_pen_read_cut_short">Үзгийг хэт эрт авчихлаа. Утас чичрэх хүртэл барина уу.</string>
+    <string name="insulin_pen_background_title">Арын горимд импортлох</string>
+    <string name="insulin_pen_background_desc">Апп нээлттэй биш үед утсанд ойртуулсан үзэгний шинэ тунгууд асуулгүйгээр өдрийн тэмдэглэлд нэмэгдэнэ. Агааржуулалтын тунг алгасна. Дэлгэц асаалттай, утас түгжээгүй байх ёстой — дэлгэц унтраалттай үед Android NFC уншдаггүй. Утсанд ойртуулсан аливаа контактгүй карт уншигчийг хормын төдий сэрээх бөгөөд бусад картын аппууд аль аппыг ашиглахыг асууж магадгүй.</string>
+    <string name="insulin_pen_import_channel">Үзэгний импорт</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d тун тэмдэглэлд нэмэгдлээ</item>
+        <item quantity="other">%d тун тэмдэглэлд нэмэгдлээ</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d тун уншлаа — инсулинаа сонгохын тулд аппаа нээнэ үү</item>
+        <item quantity="other">%d тун уншлаа — инсулинаа сонгохын тулд аппаа нээнэ үү</item>
+    </plurals>
     <string name="status_watch_reading">Цаг энэ мэдрэгчийг уншиж байна</string>
     <string name="return_sensor_to_phone">Мэдрэгчийг утсанд буцаах</string>
     <string name="wear_prediction_title">Таамаглал</string>

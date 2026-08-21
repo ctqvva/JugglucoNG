@@ -2506,6 +2506,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_full_read_armed">Bereit — Pen an das Telefon halten</string>
     <string name="insulin_pen_full_read_desc">Ein Pen speichert Monate an Dosen und braucht mehrere Sekunden ruhigen Kontakt. Damit gehen Sie weiter zurück als bis zum letzten Import.</string>
     <string name="insulin_pen_read_cut_short">Der Pen war zu kurz am Telefon. Halten Sie ihn dran, bis es vibriert.</string>
+    <string name="insulin_pen_background_title">Im Hintergrund importieren</string>
+    <string name="insulin_pen_background_desc">Ist die App nicht geöffnet, werden die neuen Dosen eines an das Telefon gehaltenen Pens ohne Rückfrage ins Tagebuch übernommen. Entlüftungsstöße werden übersprungen. Der Bildschirm muss an und das Telefon entsperrt sein — bei ausgeschaltetem Bildschirm liest Android kein NFC. Jede kontaktlose Karte am Telefon weckt den Leser kurz, und andere Karten-Apps fragen womöglich, welche App verwendet werden soll.</string>
+    <string name="insulin_pen_import_channel">Pen-Importe</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d Dosis ins Tagebuch übernommen</item>
+        <item quantity="other">%d Dosen ins Tagebuch übernommen</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d Dosis gelesen — App öffnen, um das Insulin zu wählen</item>
+        <item quantity="other">%d Dosen gelesen — App öffnen, um das Insulin zu wählen</item>
+    </plurals>
     <string name="status_watch_reading">Die Uhr liest diesen Sensor</string>
     <string name="return_sensor_to_phone">Sensor an Smartphone zurückgeben</string>
     <string name="wear_prediction_title">Prognose</string>

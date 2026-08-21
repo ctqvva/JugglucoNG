@@ -1,6 +1,8 @@
 package tk.glucodata
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.annotation.Keep
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +16,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.NovoPen.PenDose
 import tk.glucodata.NovoPen.PenDoseParser
+import tk.glucodata.NovoPen.PenImportNotifier
+import tk.glucodata.NovoPen.PenUnattendedImportPolicy
 import tk.glucodata.NovoPen.opennov.OpContext
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
@@ -45,6 +49,7 @@ object InsulinPenManager {
     private const val LOG_ID = "InsulinPen"
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val ENABLED_KEY = "insulin_pen_enabled"
+    private const val BACKGROUND_IMPORT_KEY = "insulin_pen_background_import"
     private const val PENS_KEY = "insulin_pen_registry"
 
     /** A newly paired pen only offers this much of its stored log pre-selected. */
@@ -75,6 +80,48 @@ object InsulinPenManager {
     fun setEnabled(enabled: Boolean) {
         _enabled.value = enabled
         prefs.edit().putBoolean(ENABLED_KEY, enabled).apply()
+        syncBackgroundReceiver(Applic.app)
+    }
+
+    private val _backgroundImportEnabled = MutableStateFlow(prefs.getBoolean(BACKGROUND_IMPORT_KEY, false))
+    val backgroundImportEnabled: StateFlow<Boolean> = _backgroundImportEnabled.asStateFlow()
+
+    /**
+     * Off until asked for: with the app in the background a pen tap imports without a
+     * review sheet, so it is the reader's choice to take that. See
+     * [tk.glucodata.ui.PenTagReceiverActivity].
+     */
+    @JvmStatic
+    fun isBackgroundImportEnabled(): Boolean = _backgroundImportEnabled.value
+
+    fun setBackgroundImportEnabled(context: Context, enabled: Boolean) {
+        _backgroundImportEnabled.value = enabled
+        prefs.edit().putBoolean(BACKGROUND_IMPORT_KEY, enabled).apply()
+        syncBackgroundReceiver(context)
+    }
+
+    /**
+     * The receiver activity is a manifest component, so the system only hands it a tag
+     * while it is enabled: enabled exactly when pens are read and the background import
+     * is on. Called on each change and once per start, so an upgrade or a restored
+     * backup ends up matching the settings.
+     */
+    fun syncBackgroundReceiver(context: Context) {
+        val wanted = isEnabled() && isBackgroundImportEnabled()
+        runCatching {
+            val pm = context.packageManager
+            val receiver = ComponentName(context, tk.glucodata.ui.PenTagReceiverActivity::class.java)
+            val state = if (wanted) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            if (pm.getComponentEnabledSetting(receiver) != state) {
+                pm.setComponentEnabledSetting(receiver, state, PackageManager.DONT_KILL_APP)
+            }
+        }.onFailure { error ->
+            Log.e(LOG_ID, "Pen receiver component: ${Log.stackline(error)}")
+        }
     }
 
     fun pen(serial: String): InsulinPen? = _pens.value.firstOrNull { it.serial == serial }
@@ -123,27 +170,68 @@ object InsulinPenManager {
         update(serial) { it.copy(lastScanAt = System.currentTimeMillis(), fullReadArmed = false) }
         scope.launch {
             val now = nowSeconds()
-            val doses = PenDoseParser.merge(
-                chunks.map { PenDoseParser.parse(it.referencetime, it.rawdoses, now) }
-            )
-            val cutoff = now - REVIEW_WINDOW_SECONDS
-            val repository = JournalRepository()
-            val fresh = doses
-                .filter { it.timestampSeconds > cutoff }
-                .filterNot { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
+            val fresh = freshDoses(serial, chunks, now)
             if (fresh.isEmpty()) {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
                 return@launch
             }
             val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
-            InsulinPenScanBus.offer(
-                PenScanResult(
-                    serial = serial,
-                    doses = fresh.sortedByDescending(PenDose::timestampSeconds),
-                    preselectFromSeconds = preselectFrom,
-                )
-            )
+            InsulinPenScanBus.offer(PenScanResult(serial, fresh, preselectFrom))
         }
+    }
+
+    /**
+     * The same read, taken with the app in the background: nobody will see a sheet, so
+     * what a foreground scan would have offered is written — the pen's insulin, air shots
+     * left out — and a notification says what happened. A pen without an insulin chosen
+     * has nothing to name its doses with, so its doses wait for the sheet instead and the
+     * notification says so. The decision itself is [PenUnattendedImportPolicy].
+     */
+    @JvmStatic
+    fun onScannedUnattended(serial: String, chunks: List<OpContext.Doses>) {
+        val known = pen(serial)
+        update(serial) { it.copy(lastScanAt = System.currentTimeMillis(), fullReadArmed = false) }
+        scope.launch {
+            val context = Applic.app
+            val now = nowSeconds()
+            val fresh = freshDoses(serial, chunks, now)
+            val presetName = known?.insulinName?.takeIf { it.isNotBlank() }
+            when (val plan = PenUnattendedImportPolicy.plan(fresh, hasPreset = presetName != null)) {
+                PenUnattendedImportPolicy.Plan.NothingNew ->
+                    PenImportNotifier.nothingNew(context, serial)
+
+                is PenUnattendedImportPolicy.Plan.Import -> {
+                    // importDoses moves the cursor over the doses it is handed, nothing
+                    // beyond — so the air shots left out here never mark a later real
+                    // dose as done. That is the rule the review sheet already relies on.
+                    val saved = importDoses(serial, plan.doses, known?.insulinPresetId ?: 0L, presetName!!)
+                    PenImportNotifier.imported(context, serial, saved)
+                }
+
+                is PenUnattendedImportPolicy.Plan.Review -> {
+                    val preselectFrom = if (known == null) now - FIRST_SCAN_PRESELECT_SECONDS else 0L
+                    InsulinPenScanBus.offer(PenScanResult(serial, plan.doses, preselectFrom))
+                    PenImportNotifier.awaitingReview(context, serial, plan.doses.size)
+                }
+            }
+        }
+    }
+
+    /**
+     * What a scan has to offer, newest first: the chunks parsed and merged, cut to the
+     * review window, minus what the journal already holds. One function for both the
+     * review sheet and the unattended import, so the two cannot come to differ.
+     */
+    private suspend fun freshDoses(serial: String, chunks: List<OpContext.Doses>, now: Long): List<PenDose> {
+        val doses = PenDoseParser.merge(
+            chunks.map { PenDoseParser.parse(it.referencetime, it.rawdoses, now) }
+        )
+        val cutoff = now - REVIEW_WINDOW_SECONDS
+        val repository = JournalRepository()
+        return doses
+            .filter { it.timestampSeconds > cutoff }
+            .filterNot { repository.hasEntryWithSourceRecordId(sourceRecordId(serial, it)) }
+            .sortedByDescending(PenDose::timestampSeconds)
     }
 
     /**
