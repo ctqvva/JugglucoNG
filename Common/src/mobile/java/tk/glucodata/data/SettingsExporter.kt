@@ -401,6 +401,7 @@ object SettingsExporter {
             .putNullable("sourceRecordId", sourceRecordId)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
+            .putNullable("mealId", mealId)
     }
 
     private fun JournalInsulinPresetEntity.toJson(): JSONObject {
@@ -458,7 +459,8 @@ object SettingsExporter {
                         source = item.optString("source", "import"),
                         sourceRecordId = item.optNullableString("sourceRecordId"),
                         createdAt = item.optLong("createdAt", item.getLong("timestamp")),
-                        updatedAt = item.optLong("updatedAt", item.getLong("timestamp"))
+                        updatedAt = item.optLong("updatedAt", item.getLong("timestamp")),
+                        mealId = item.optNullableLong("mealId")
                     )
                 )
             }

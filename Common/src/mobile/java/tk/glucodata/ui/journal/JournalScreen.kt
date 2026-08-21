@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
@@ -106,6 +107,7 @@ fun JournalScreen(
     onOpenFoodLibrary: () -> Unit,
     onOpenInsulinLibrary: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenMeals: (() -> Unit)? = null,
     showTitle: Boolean = true,
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp,
@@ -168,6 +170,7 @@ fun JournalScreen(
                 item(key = "journal-title") {
                     JournalHeader(
                         onOpenFoodLibrary = onOpenFoodLibrary,
+                        onOpenMeals = onOpenMeals,
                         onOpenInsulinLibrary = onOpenInsulinLibrary
                     )
                 }
@@ -411,7 +414,8 @@ internal fun journalQuickAddTimestamp(
 @Composable
 private fun JournalHeader(
     onOpenFoodLibrary: () -> Unit,
-    onOpenInsulinLibrary: () -> Unit
+    onOpenInsulinLibrary: () -> Unit,
+    onOpenMeals: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -430,6 +434,15 @@ private fun JournalHeader(
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
+            onOpenMeals?.let { openMeals ->
+                IconButton(onClick = openMeals, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.LunchDining,
+                        contentDescription = stringResource(R.string.meal_title),
+                        tint = journalTypeColor(JournalEntryType.CARBS)
+                    )
+                }
+            }
             IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Default.Restaurant,

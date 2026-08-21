@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.QrCodeScanner
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -173,6 +175,7 @@ fun JournalSettingsScreen(
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
     val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsState()
+    val journalMealOnlineLookup by viewModel.journalMealOnlineLookup.collectAsState()
     val journalDashboardQuickAddButton by viewModel.journalDashboardQuickAddButton.collectAsState()
     val journalHealthConnectActivityEnabled by viewModel.journalHealthConnectActivityEnabled.collectAsState()
     val aapsJournalImportEnabled by viewModel.aapsJournalImportEnabled.collectAsState()
@@ -371,6 +374,24 @@ fun JournalSettingsScreen(
                         onClick = { navController.navigate("settings/journal/insulin") },
                         icon = Icons.Default.Vaccines,
                         iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.MIDDLE
+                    )
+                    SettingsItem(
+                        title = stringResource(R.string.meal_settings_entry),
+                        subtitle = stringResource(R.string.meal_settings_entry_desc),
+                        showArrow = true,
+                        onClick = { navController.navigate("journal/meals") },
+                        icon = Icons.Default.LunchDining,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.meal_online_lookup_title),
+                        subtitle = stringResource(R.string.meal_online_lookup_desc),
+                        checked = journalMealOnlineLookup,
+                        onCheckedChange = { viewModel.setJournalMealOnlineLookup(it) },
+                        icon = Icons.Default.QrCodeScanner,
+                        iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.BOTTOM
                     )
                 }

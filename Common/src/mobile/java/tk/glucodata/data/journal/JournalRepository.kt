@@ -23,6 +23,10 @@ class JournalRepository {
         return dao.observeEntries().map { entries -> entries.map(JournalEntryEntity::toModel) }
     }
 
+    fun observeEntriesForMeal(mealId: Long): Flow<List<JournalEntry>> {
+        return dao.observeEntriesForMeal(mealId).map { entries -> entries.map(JournalEntryEntity::toModel) }
+    }
+
     fun observeInsulinPresets(): Flow<List<JournalInsulinPreset>> {
         return dao.observeInsulinPresets().map { presets -> presets.map(JournalInsulinPresetEntity::toModel) }
     }
@@ -69,7 +73,9 @@ class JournalRepository {
             proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
             fatGrams = input.fatGrams?.coerceAtLeast(0f),
             nsUploadedAt = existing?.nsUploadedAt,
-            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId
+            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId,
+            // An edit from the plain journal editor does not know about meals; keep the link.
+            mealId = input.mealId ?: existing?.mealId
         )
         val id = dao.upsertEntry(entity)
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
@@ -456,7 +462,8 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         source = JournalEntrySource.fromStorage(source),
         sourceRecordId = sourceRecordId,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        mealId = mealId
     )
 }
 

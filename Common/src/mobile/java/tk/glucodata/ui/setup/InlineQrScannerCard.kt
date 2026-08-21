@@ -84,16 +84,29 @@ private class RejectedScan {
     @Volatile var atMs: Long = 0L
 }
 
+/** The sensor-pairing codes: what every setup wizard scans. */
+val SENSOR_CODE_FORMATS: List<Int> = listOf(Barcode.FORMAT_QR_CODE, Barcode.FORMAT_DATA_MATRIX)
+
+/** Retail product barcodes, for the meal scanner. */
+val PRODUCT_BARCODE_FORMATS: List<Int> = listOf(
+    Barcode.FORMAT_EAN_13,
+    Barcode.FORMAT_EAN_8,
+    Barcode.FORMAT_UPC_A,
+    Barcode.FORMAT_UPC_E
+)
+
 /**
  * @param onScanResult invoked with a decoded payload; return true if the caller accepted it, which
  *   stops the camera. Returning false leaves the scanner running — a stray code in frame (a box's
  *   "app download" QR, a code for a different sensor type) must not be able to end the scan.
+ * @param barcodeFormats ML Kit formats to decode; defaults to the sensor-pairing codes.
  */
 @Composable
 @SuppressLint("ClickableViewAccessibility")
 fun InlineQrScannerCard(
     modifier: Modifier = Modifier,
     scannerEnabled: Boolean = true,
+    barcodeFormats: List<Int> = SENSOR_CODE_FORMATS,
     onScanResult: (String) -> Boolean,
     onManualFallback: (() -> Unit)? = null,
     manualFallbackLabel: String? = null,
@@ -139,15 +152,16 @@ fun InlineQrScannerCard(
         )
     }
 
-    val scannerOptions = remember {
+    val scannerOptions = remember(barcodeFormats) {
+        val formats = barcodeFormats.ifEmpty { SENSOR_CODE_FORMATS }
         BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_QR_CODE,
-                Barcode.FORMAT_DATA_MATRIX
-            )
+            .setBarcodeFormats(formats.first(), *formats.drop(1).toIntArray())
             .build()
     }
-    val barcodeScanner = remember { BarcodeScanning.getClient(scannerOptions) }
+    val barcodeScanner = remember(scannerOptions) { BarcodeScanning.getClient(scannerOptions) }
+    DisposableEffect(barcodeScanner) {
+        onDispose { barcodeScanner.close() }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -170,7 +184,6 @@ fun InlineQrScannerCard(
             camera = null
             torchEnabled = false
             analyzerExecutor.shutdown()
-            barcodeScanner.close()
         }
     }
 

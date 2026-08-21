@@ -117,6 +117,7 @@ class DashboardViewModel(
         const val JOURNAL_FOOD_LIBRARY_KEY = "dashboard_journal_food_library_enabled"
         const val JOURNAL_EIOB_DISPLAY_KEY = "dashboard_journal_eiob_display_enabled"
         const val JOURNAL_QUICKADD_ALWAYS_NOW_KEY = "dashboard_journal_quickadd_always_now"
+        const val JOURNAL_MEAL_ONLINE_LOOKUP_KEY = "dashboard_journal_meal_online_lookup"
         const val JOURNAL_DASHBOARD_QUICKADD_KEY = "dashboard_journal_quickadd_button"
         const val GLUCOSE_RANGE_COLORS_KEY = "glucose_value_range_colors_enabled"
         const val ARROW_FORECAST_COLORS_KEY = "glucose_arrow_forecast_colors_enabled"
@@ -314,6 +315,9 @@ class DashboardViewModel(
 
     private val _journalQuickAddAlwaysNow = MutableStateFlow(false)
     val journalQuickAddAlwaysNow = _journalQuickAddAlwaysNow.asStateFlow()
+    private val _journalMealOnlineLookup = MutableStateFlow(true)
+    /** Whether a scanned barcode may be looked up at Open Food Facts; the cache works regardless. */
+    val journalMealOnlineLookup = _journalMealOnlineLookup.asStateFlow()
 
     private val _journalDashboardQuickAddButton = MutableStateFlow(false)
     val journalDashboardQuickAddButton = _journalDashboardQuickAddButton.asStateFlow()
@@ -630,6 +634,7 @@ class DashboardViewModel(
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
         _journalQuickAddAlwaysNow.value = prefs.getBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, false)
+        _journalMealOnlineLookup.value = prefs.getBoolean(JOURNAL_MEAL_ONLINE_LOOKUP_KEY, true)
         _journalDashboardQuickAddButton.value = prefs.getBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, false)
         _glucoseValueRangeColorsEnabled.value = prefs.getBoolean(GLUCOSE_RANGE_COLORS_KEY, false)
         _glucoseArrowForecastColorsEnabled.value = prefs.getBoolean(ARROW_FORECAST_COLORS_KEY, false)
@@ -1409,6 +1414,13 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, enabled).apply()
         _journalQuickAddAlwaysNow.value = enabled
+    }
+
+    fun setJournalMealOnlineLookup(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(JOURNAL_MEAL_ONLINE_LOOKUP_KEY, enabled).apply()
+        _journalMealOnlineLookup.value = enabled
     }
 
     fun setJournalDashboardQuickAddButton(enabled: Boolean) {
