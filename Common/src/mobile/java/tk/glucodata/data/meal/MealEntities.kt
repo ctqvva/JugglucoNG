@@ -113,5 +113,7 @@ data class MealProductEntity(
     val pieceGrams: Float?,
     val plausibilityFlags: String?,
     val fetchedAt: Long,
-    val lastUsedAt: Long
+    val lastUsedAt: Long,
+    /** When these values were last sent to Open Food Facts; null = never (or not yet succeeded). */
+    val contributedAt: Long? = null
 )

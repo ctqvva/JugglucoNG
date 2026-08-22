@@ -134,7 +134,9 @@ internal fun MealProductSheet(
     onDismiss: () -> Unit,
     onSubmit: (ScannedProduct, String, QuantityResolution.Resolved?) -> Unit,
     onRemove: (() -> Unit)?,
-    onPhotograph: (() -> Unit)? = null
+    onPhotograph: (() -> Unit)? = null,
+    /** Present when the Open Food Facts contribution is switched on; receives the product as edited. */
+    onContribute: ((ScannedProduct) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val original = request.product
@@ -254,6 +256,24 @@ internal fun MealProductSheet(
                 }
                 onRemove?.let { remove ->
                     TextButton(onClick = remove) { Text(stringResource(R.string.meal_remove_item)) }
+                }
+            }
+            if (onContribute != null && product != null && product.canContribute) {
+                val sentAt = original?.contributedAt
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    sentAt?.let {
+                        Text(
+                            text = stringResource(
+                                R.string.meal_contribute_sent_on,
+                                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it))
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TextButton(onClick = { onContribute(product) }) {
+                        Text(stringResource(if (sentAt == null) R.string.meal_contribute_send else R.string.meal_contribute_send_again))
+                    }
                 }
             }
             if (resolution is QuantityResolution.Missing) {
