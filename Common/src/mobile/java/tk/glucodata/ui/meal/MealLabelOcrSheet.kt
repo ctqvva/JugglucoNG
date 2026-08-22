@@ -2,11 +2,17 @@
 
 package tk.glucodata.ui.meal
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -34,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -43,8 +50,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import java.io.File
@@ -202,12 +212,17 @@ internal fun MealLabelOcrSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Which side is the next photo of
+            // Which side is the next photo of — the hint below follows the selection.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(LabelPhotoKind.NUTRITION, LabelPhotoKind.FRONT, LabelPhotoKind.INGREDIENTS, LabelPhotoKind.OTHER).forEach { kind ->
                     FilterChip(selected = nextKind == kind, onClick = { nextKind = kind }, label = { Text(photoKindLabel(kind)) })
                 }
             }
+            Text(
+                text = stringResource(R.string.meal_ocr_next_photo, photoKindLabel(nextKind)) + " — " + photoKindHint(nextKind),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalButton(onClick = { capture(nextKind) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null)
@@ -224,9 +239,16 @@ internal fun MealLabelOcrSheet(
                 }
             }
 
-            // The photos so far
+            // The photos so far, with a preview each
             photos.forEachIndexed { index, photo ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LabelPhotoThumbnail(
+                        file = photo.file,
+                        modifier = Modifier
+                            .width(56.dp)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
                     if (photo.processing) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
                     }
@@ -328,6 +350,38 @@ internal fun MealLabelOcrSheet(
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         }
+    }
+}
+
+/** What a photo of this side should show; changes with the selected chip so the choice is felt. */
+@Composable
+internal fun photoKindHint(kind: LabelPhotoKind): String = when (kind) {
+    LabelPhotoKind.FRONT -> stringResource(R.string.meal_ocr_hint_front)
+    LabelPhotoKind.NUTRITION -> stringResource(R.string.meal_ocr_hint_nutrition)
+    LabelPhotoKind.INGREDIENTS -> stringResource(R.string.meal_ocr_hint_ingredients)
+    LabelPhotoKind.PACKAGING, LabelPhotoKind.OTHER -> stringResource(R.string.meal_ocr_hint_other)
+}
+
+/** A small preview of a stored label photo, decoded off the main thread. */
+@Composable
+internal fun LabelPhotoThumbnail(file: File, modifier: Modifier = Modifier) {
+    var bitmap by remember(file.path, file.lastModified()) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(file.path, file.lastModified()) {
+        bitmap = withContext(Dispatchers.IO) {
+            runCatching {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.path, bounds)
+                var sample = 1
+                while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 320) sample *= 2
+                BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+            }.getOrNull()
+        }
+    }
+    val bmp = bitmap
+    if (bmp != null) {
+        Image(bitmap = bmp.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier)
+    } else {
+        Box(modifier = modifier)
     }
 }
 
