@@ -1,4 +1,16 @@
-# Spike: compression lows (PISA) — feasibility findings
+# Compression lows (PISA): spike findings and what got built
+
+> **Status update (2026-08-23):** the spike graduated. The branch now carries the full
+> feature set — the pure retrospective detector, the live **sensor pressure hold**
+> ("compression low gatekeeper": opt-in, experimental, LOW-only, VERY_LOW untouched,
+> gentle SENSOR_PRESSURE cue, receipts, self-disable), the **hypo episode log** (every
+> below-range episode of the last 30 days, user-togglable pressure classification), and
+> the **statistics retro-fix** (confirmed pressure episodes drop out of the Compose
+> stats with a visible count; flipping the toggle back restores the numbers). Every
+> threshold is user-configurable past the recommended rails by deliberate product
+> decision — warnings, not locks. All defaults remain conservative educated guesses
+> awaiting real-trace tuning; the episode log's toggles are the calibration scorecard.
+> The original spike findings below stand as written.
 
 Outcome of the spike in `~/input/jugglucong-compression-low-spike.md`. The Phase-1
 retrospective detector is feasible with pieces the codebase already has, and a working,
