@@ -2733,4 +2733,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_contribute_send">Open Food Facts руу илгээх</string>
     <string name="meal_contribute_send_again">Open Food Facts руу дахин илгээх</string>
     <string name="meal_contribute_sent_on">%1$s-д Open Food Facts руу илгээсэн</string>
+    <string name="meal_send_photos_intro">Байршуулахад шошгын зураг нэмэх эсвэл дахин авах: урд тал, тэжээлийн хүснэгт, орц, бусад тал.</string>
+    <string name="meal_send_use_photos">Зургуудыг ашиглах</string>
+    <string name="meal_send_photos_status">Энэ бүтээгдэхүүнд %1$d зураг хадгалсан</string>
+    <string name="meal_send_no_photos">Хадгалсан зураг алга; нэмэхгүй бол утгууд зураггүй илгээгдэнэ.</string>
+    <string name="meal_send_add_photos">Зураг нэмэх</string>
+    <string name="meal_send_now">Одоо илгээх</string>
 </resources>

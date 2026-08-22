@@ -89,11 +89,17 @@ internal fun deleteLabelPhotos(photos: List<ContributionPhoto>) {
  * pre-filled product to confirm. Nothing leaves the phone from here; uploading to Open Food
  * Facts is a separate, opt-in step after confirmation.
  */
+/**
+ * @param photosOnly collect photos for an upload without running OCR (the product is already
+ *   known); [onPhotos] receives them instead of [onProduct].
+ */
 @Composable
 internal fun MealLabelOcrSheet(
     barcode: String?,
     onDismiss: () -> Unit,
-    onProduct: (ScannedProduct, List<ContributionPhoto>) -> Unit
+    onProduct: (ScannedProduct, List<ContributionPhoto>) -> Unit,
+    photosOnly: Boolean = false,
+    onPhotos: ((List<ContributionPhoto>) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,6 +118,10 @@ internal fun MealLabelOcrSheet(
     }
 
     fun runOcr(photo: LabelPhoto) {
+        if (photosOnly) {
+            photo.processing = false
+            return
+        }
         scope.launch {
             try {
                 photo.lines = withContext(Dispatchers.Default) {
@@ -181,9 +191,13 @@ internal fun MealLabelOcrSheet(
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.meal_ocr_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(if (photosOnly) R.string.meal_send_add_photos else R.string.meal_ocr_title), style = MaterialTheme.typography.titleLarge)
             Text(
-                text = if (barcode != null) stringResource(R.string.meal_ocr_intro_barcode, barcode) else stringResource(R.string.meal_ocr_intro),
+                text = when {
+                    photosOnly -> stringResource(R.string.meal_send_photos_intro)
+                    barcode != null -> stringResource(R.string.meal_ocr_intro_barcode, barcode)
+                    else -> stringResource(R.string.meal_ocr_intro)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -233,7 +247,7 @@ internal fun MealLabelOcrSheet(
             }
 
             // What was read
-            if (photos.isNotEmpty() && !busy) {
+            if (photos.isNotEmpty() && !busy && !photosOnly) {
                 if (nameCandidates.isNotEmpty()) {
                     Text(stringResource(R.string.meal_ocr_name_candidates), style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -281,6 +295,11 @@ internal fun MealLabelOcrSheet(
                 Button(
                     enabled = photos.isNotEmpty() && !busy,
                     onClick = {
+                        if (photosOnly) {
+                            handedOver = true
+                            onPhotos?.invoke(photos.map { ContributionPhoto(it.file, it.kind) })
+                            return@Button
+                        }
                         val facts = nutrition?.facts
                         val basis = nutrition?.basis ?: tk.glucodata.data.meal.NutritionBasis.PER_100G
                         val serving = ServingSizeParser.parse(nutrition?.servingText)
@@ -305,7 +324,7 @@ internal fun MealLabelOcrSheet(
                         onProduct(product, photos.map { ContributionPhoto(it.file, it.kind) })
                     },
                     modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.meal_ocr_use_values)) }
+                ) { Text(stringResource(if (photosOnly) R.string.meal_send_use_photos else R.string.meal_ocr_use_values)) }
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         }

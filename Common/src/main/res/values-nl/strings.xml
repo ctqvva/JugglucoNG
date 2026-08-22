@@ -2661,4 +2661,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_contribute_send">Naar Open Food Facts sturen</string>
     <string name="meal_contribute_send_again">Opnieuw naar Open Food Facts sturen</string>
     <string name="meal_contribute_sent_on">Naar Open Food Facts gestuurd op %1$s</string>
+    <string name="meal_send_photos_intro">Maak of vervang etiketfoto’s voor het uploaden: voorkant, voedingswaardetabel, ingrediënten, andere kanten.</string>
+    <string name="meal_send_use_photos">Foto’s gebruiken</string>
+    <string name="meal_send_photos_status">%1$d foto’s opgeslagen voor dit product</string>
+    <string name="meal_send_no_photos">Geen foto’s opgeslagen; de waarden gaan zonder foto’s als je er geen toevoegt.</string>
+    <string name="meal_send_add_photos">Foto’s toevoegen</string>
+    <string name="meal_send_now">Nu versturen</string>
 </resources>

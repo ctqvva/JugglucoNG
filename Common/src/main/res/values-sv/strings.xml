@@ -2618,4 +2618,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_send">Skicka till Open Food Facts</string>
     <string name="meal_contribute_send_again">Skicka igen till Open Food Facts</string>
     <string name="meal_contribute_sent_on">Skickat till Open Food Facts %1$s</string>
+    <string name="meal_send_photos_intro">Lägg till eller ta om etikettfoton för uppladdningen: framsida, näringstabell, ingredienser, andra sidor.</string>
+    <string name="meal_send_use_photos">Använd foton</string>
+    <string name="meal_send_photos_status">%1$d foton sparade för produkten</string>
+    <string name="meal_send_no_photos">Inga foton sparade; värdena skickas utan foton om du inte lägger till några.</string>
+    <string name="meal_send_add_photos">Lägg till foton</string>
+    <string name="meal_send_now">Skicka nu</string>
 </resources>

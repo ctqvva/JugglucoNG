@@ -2652,4 +2652,10 @@
     <string name="meal_contribute_send">Wyślij do Open Food Facts</string>
     <string name="meal_contribute_send_again">Wyślij ponownie do Open Food Facts</string>
     <string name="meal_contribute_sent_on">Wysłano do Open Food Facts %1$s</string>
+    <string name="meal_send_photos_intro">Dodaj lub powtórz zdjęcia etykiety do wysyłki: przód, tabela wartości odżywczych, składniki, inne strony.</string>
+    <string name="meal_send_use_photos">Użyj zdjęć</string>
+    <string name="meal_send_photos_status">%1$d zdjęć zapisanych dla tego produktu</string>
+    <string name="meal_send_no_photos">Brak zapisanych zdjęć; wartości zostaną wysłane bez zdjęć, jeśli żadnych nie dodasz.</string>
+    <string name="meal_send_add_photos">Dodaj zdjęcia</string>
+    <string name="meal_send_now">Wyślij teraz</string>
 </resources>

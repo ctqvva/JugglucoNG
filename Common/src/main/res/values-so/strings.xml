@@ -2818,4 +2818,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_contribute_send">U dir Open Food Facts</string>
     <string name="meal_contribute_send_again">Mar kale u dir Open Food Facts</string>
     <string name="meal_contribute_sent_on">Waxaa loo diray Open Food Facts %1$s</string>
+    <string name="meal_send_photos_intro">Ku dar ama dib u qaad sawirrada calaamadda ee soo gelinta: dhinaca hore, shaxda nafaqada, walxaha, dhinacyo kale.</string>
+    <string name="meal_send_use_photos">Isticmaal sawirrada</string>
+    <string name="meal_send_photos_status">%1$d sawir ayaa loo kaydiyey alaabtan</string>
+    <string name="meal_send_no_photos">Sawir lama kaydin; qiyamka ayaa la dirayaa sawir la’aan haddii aadan ku darin.</string>
+    <string name="meal_send_add_photos">Ku dar sawirro</string>
+    <string name="meal_send_now">Hadda dir</string>
 </resources>

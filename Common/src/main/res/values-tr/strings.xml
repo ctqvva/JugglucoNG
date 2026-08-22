@@ -2646,4 +2646,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_contribute_send">Open Food Facts’e gönder</string>
     <string name="meal_contribute_send_again">Open Food Facts’e yeniden gönder</string>
     <string name="meal_contribute_sent_on">%1$s tarihinde Open Food Facts’e gönderildi</string>
+    <string name="meal_send_photos_intro">Yükleme için etiket fotoğrafı ekleyin veya yeniden çekin: ön yüz, besin değerleri tablosu, içindekiler, diğer yüzler.</string>
+    <string name="meal_send_use_photos">Fotoğrafları kullan</string>
+    <string name="meal_send_photos_status">Bu ürün için %1$d fotoğraf saklandı</string>
+    <string name="meal_send_no_photos">Saklanan fotoğraf yok; eklemezseniz değerler fotoğrafsız gönderilir.</string>
+    <string name="meal_send_add_photos">Fotoğraf ekle</string>
+    <string name="meal_send_now">Şimdi gönder</string>
 </resources>

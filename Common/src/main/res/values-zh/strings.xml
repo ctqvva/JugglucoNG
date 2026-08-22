@@ -2634,4 +2634,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_send">发送至 Open Food Facts</string>
     <string name="meal_contribute_send_again">再次发送至 Open Food Facts</string>
     <string name="meal_contribute_sent_on">已于 %1$s 发送至 Open Food Facts</string>
+    <string name="meal_send_photos_intro">为上传添加或重拍标签照片：正面、营养成分表、配料、其他面。</string>
+    <string name="meal_send_use_photos">使用照片</string>
+    <string name="meal_send_photos_status">已为此产品保存 %1$d 张照片</string>
+    <string name="meal_send_no_photos">没有保存的照片；若不添加，数值将不带照片发送。</string>
+    <string name="meal_send_add_photos">添加照片</string>
+    <string name="meal_send_now">立即发送</string>
 </resources>

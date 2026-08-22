@@ -2690,4 +2690,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_send">Надіслати до Open Food Facts</string>
     <string name="meal_contribute_send_again">Надіслати до Open Food Facts ще раз</string>
     <string name="meal_contribute_sent_on">Надіслано до Open Food Facts %1$s</string>
+    <string name="meal_send_photos_intro">Додайте або перезніміть фото етикетки для надсилання: лицьовий бік, таблиця поживної цінності, склад, інші боки.</string>
+    <string name="meal_send_use_photos">Використати фото</string>
+    <string name="meal_send_photos_status">Збережено фото для цього продукту: %1$d</string>
+    <string name="meal_send_no_photos">Фото не збережено; значення підуть без фото, якщо ви їх не додасте.</string>
+    <string name="meal_send_add_photos">Додати фото</string>
+    <string name="meal_send_now">Надіслати зараз</string>
 </resources>

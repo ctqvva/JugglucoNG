@@ -71,6 +71,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tk.glucodata.data.meal.ContributionPhoto
 import tk.glucodata.data.meal.ContributionResult
+import tk.glucodata.data.meal.LabelPhotoKind
+import tk.glucodata.data.meal.LabelPhotoStore
 import tk.glucodata.data.meal.Meal
 import tk.glucodata.data.meal.MealContributionSettings
 import tk.glucodata.data.meal.NutritionSource
@@ -117,6 +119,8 @@ fun MealScreen(
     var productSheet by remember { mutableStateOf<ProductSheetRequest?>(null) }
     var ocrRequest by remember { mutableStateOf<OcrRequest?>(null) }
     var attachBarcodeFor by remember { mutableStateOf<Pair<ScannedProduct, List<ContributionPhoto>>?>(null) }
+    var sendRequest by remember { mutableStateOf<ScannedProduct?>(null) }
+    var sendAddPhotos by remember { mutableStateOf(false) }
     var showAttachScanner by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -318,8 +322,8 @@ fun MealScreen(
                     scope.launch {
                         // What goes out is what is stored: keep the cache in step with the edit.
                         repository.rememberProduct(code, edited)
-                        contributeLabelProduct(context, repository, code, edited, emptyList())
-                        productSheet = productSheet?.copy(product = repository.cachedProduct(code) ?: edited)
+                        productSheet = null
+                        sendRequest = edited
                     }
                 }
             } else null,
@@ -362,6 +366,38 @@ fun MealScreen(
                 }
             }
         )
+    }
+
+    sendRequest?.let { product ->
+        val code = product.barcode
+        if (code == null) {
+            sendRequest = null
+        } else if (sendAddPhotos) {
+            MealLabelOcrSheet(
+                barcode = code,
+                photosOnly = true,
+                onDismiss = { sendAddPhotos = false },
+                onProduct = { _, _ -> },
+                onPhotos = { photos ->
+                    LabelPhotoStore.store(context, code, photos)
+                    sendAddPhotos = false
+                }
+            )
+        } else {
+            MealSendDialog(
+                product = product,
+                photos = LabelPhotoStore.photosFor(context, code),
+                uploadPhotos = remember(product) { MealContributionSettings.load(context).uploadPhotos },
+                onAddPhotos = { sendAddPhotos = true },
+                onSend = {
+                    sendRequest = null
+                    scope.launch {
+                        contributeLabelProduct(context, repository, code, product, LabelPhotoStore.photosFor(context, code))
+                    }
+                },
+                onDismiss = { sendRequest = null }
+            )
+        }
     }
 
     attachBarcodeFor?.let { (product, photos) ->
@@ -690,6 +726,44 @@ internal fun Meal.eatReference(): NutritionReference = NutritionReference.forMea
 internal data class OcrRequest(val barcode: String?)
 
 /**
+ * Before a send: what will go out, which label photos exist for the product, and the chance to
+ * add or retake some. Photos are only mentioned when the photo switch is on.
+ */
+@Composable
+private fun MealSendDialog(
+    product: ScannedProduct,
+    photos: List<ContributionPhoto>,
+    uploadPhotos: Boolean,
+    onAddPhotos: () -> Unit,
+    onSend: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.meal_contribute_send)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(listOfNotNull(product.brand, product.displayName).joinToString(" · ") + " · " + product.barcode.orEmpty())
+                if (uploadPhotos) {
+                    val kinds = listOf(LabelPhotoKind.FRONT, LabelPhotoKind.NUTRITION, LabelPhotoKind.INGREDIENTS)
+                    val labels = kinds.map { it to photoKindLabel(it) }
+                    val status = labels.joinToString("   ") { (kind, label) ->
+                        (if (photos.any { it.kind == kind }) "✓ " else "– ") + label
+                    }
+                    Text(stringResource(R.string.meal_send_photos_status, photos.size) + "\n" + status, style = MaterialTheme.typography.bodySmall)
+                    if (photos.isEmpty()) {
+                        Text(stringResource(R.string.meal_send_no_photos), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = onAddPhotos) { Text(stringResource(R.string.meal_send_add_photos)) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onSend) { Text(stringResource(R.string.meal_send_now)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
+    )
+}
+
+/**
  * After the user confirmed a product read from its label: send it to Open Food Facts when the
  * opt-in is set and credentials exist, then drop the photos either way. Only the confirmed
  * values and, if separately allowed, the photos leave the phone.
@@ -702,10 +776,14 @@ private suspend fun contributeLabelProduct(
     photos: List<ContributionPhoto>
 ) {
     val settings = MealContributionSettings.load(context)
-    if (!settings.isUsable || product.facts.carbsGrams < 0f) {
+    if (!settings.enabled) {
+        // Contributions are off: nothing is kept.
         deleteLabelPhotos(photos)
         return
     }
+    // Keep the photos under the barcode so a later or repeated send can still carry them.
+    val stored = withContext(Dispatchers.IO) { LabelPhotoStore.store(context, barcode, photos) }
+    if (!settings.isUsable || product.facts.carbsGrams < 0f) return
     val result = withContext(Dispatchers.IO) {
         OpenFoodFactsContributor.contribute(
             barcode = barcode,
@@ -715,11 +793,14 @@ private suspend fun contributeLabelProduct(
             languageCode = Locale.getDefault().language,
             appUuid = settings.appUuid,
             comment = "Values read from the label and confirmed in JugglucoNG",
-            photos = if (settings.uploadPhotos) photos else emptyList()
+            photos = if (settings.uploadPhotos) stored else emptyList()
         )
     }
-    deleteLabelPhotos(photos)
-    if (result is ContributionResult.Sent) repository.markContributed(barcode)
+    if (result is ContributionResult.Sent) {
+        repository.markContributed(barcode)
+        // Photos went out (or were not wanted): no need to keep them.
+        if (!settings.uploadPhotos || result.photosFailed == 0) withContext(Dispatchers.IO) { LabelPhotoStore.clear(context, barcode) }
+    }
     val message = when (result) {
         is ContributionResult.Sent -> context.getString(R.string.meal_contribute_sent)
         is ContributionResult.Rejected -> context.getString(R.string.meal_contribute_failed, result.message ?: "")

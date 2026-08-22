@@ -2657,4 +2657,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_contribute_send">An Open Food Facts senden</string>
     <string name="meal_contribute_send_again">Erneut an Open Food Facts senden</string>
     <string name="meal_contribute_sent_on">Am %1$s an Open Food Facts gesendet</string>
+    <string name="meal_send_photos_intro">Etikettenfotos für den Upload aufnehmen oder ergänzen: Vorderseite, Nährwerttabelle, Zutaten, weitere Seiten.</string>
+    <string name="meal_send_use_photos">Fotos übernehmen</string>
+    <string name="meal_send_photos_status">%1$d Fotos zu diesem Produkt gespeichert</string>
+    <string name="meal_send_no_photos">Keine Fotos gespeichert; die Werte gehen ohne Fotos raus, wenn du keine ergänzt.</string>
+    <string name="meal_send_add_photos">Fotos hinzufügen</string>
+    <string name="meal_send_now">Jetzt senden</string>
 </resources>

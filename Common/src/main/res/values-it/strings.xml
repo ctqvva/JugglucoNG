@@ -2608,4 +2608,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_send">Invia a Open Food Facts</string>
     <string name="meal_contribute_send_again">Invia di nuovo a Open Food Facts</string>
     <string name="meal_contribute_sent_on">Inviato a Open Food Facts il %1$s</string>
+    <string name="meal_send_photos_intro">Aggiungi o rifai le foto dell’etichetta per l’invio: fronte, tabella nutrizionale, ingredienti, altri lati.</string>
+    <string name="meal_send_use_photos">Usa le foto</string>
+    <string name="meal_send_photos_status">%1$d foto salvate per questo prodotto</string>
+    <string name="meal_send_no_photos">Nessuna foto salvata; i valori partono senza foto se non ne aggiungi.</string>
+    <string name="meal_send_add_photos">Aggiungi foto</string>
+    <string name="meal_send_now">Invia ora</string>
 </resources>
