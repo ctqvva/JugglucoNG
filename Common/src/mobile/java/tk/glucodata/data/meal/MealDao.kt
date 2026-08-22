@@ -52,4 +52,10 @@ interface MealDao {
 
     @Query("UPDATE meal_products SET lastUsedAt = :usedAt WHERE barcode = :barcode")
     suspend fun touchProduct(barcode: String, usedAt: Long)
+
+    @Query("SELECT * FROM meal_products ORDER BY lastUsedAt DESC LIMIT 200")
+    fun observeProducts(): Flow<List<MealProductEntity>>
+
+    @Query("SELECT * FROM meal_items WHERE barcode IS NULL ORDER BY updatedAt DESC LIMIT 200")
+    fun observeManualItems(): Flow<List<MealItemEntity>>
 }

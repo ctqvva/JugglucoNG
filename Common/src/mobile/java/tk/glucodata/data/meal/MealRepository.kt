@@ -1,7 +1,9 @@
 package tk.glucodata.data.meal
 
 import kotlinx.coroutines.Dispatchers
+import java.util.Locale
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
@@ -139,6 +141,26 @@ class MealRepository {
 
     private suspend fun touchMeal(mealId: Long, now: Long) {
         dao.getMeal(mealId)?.let { dao.upsertMeal(it.copy(updatedAt = now)) }
+    }
+
+    /**
+     * Everything used before, most recent first: the product cache (scanned, label-read or typed
+     * with a barcode) and, once per name, manual items without a barcode from earlier meals.
+     */
+    fun observeRecentProducts(): Flow<List<ScannedProduct>> =
+        combine(dao.observeProducts(), dao.observeManualItems()) { products, manual ->
+            val cached = products.map { it.toScannedProduct() }
+            val seenManual = HashSet<String>()
+            val manualProducts = manual.mapNotNull { item ->
+                val key = "${item.displayName}|${item.brand.orEmpty()}".lowercase(Locale.ROOT)
+                if (!seenManual.add(key)) null else item.toModel().toScannedProduct()
+            }
+            cached + manualProducts
+        }
+
+    /** Marks a cached product as used now, so the recent list keeps the cupboard regulars on top. */
+    suspend fun touchProduct(barcode: String) {
+        dao.touchProduct(barcode, System.currentTimeMillis())
     }
 
     /** The cached product for a barcode, if any; the cache is also where learned answers live. */
