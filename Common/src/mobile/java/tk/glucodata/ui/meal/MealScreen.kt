@@ -64,7 +64,16 @@ import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import androidx.compose.ui.platform.LocalContext
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import tk.glucodata.data.meal.ContributionPhoto
+import tk.glucodata.data.meal.ContributionResult
 import tk.glucodata.data.meal.Meal
+import tk.glucodata.data.meal.MealContributionSettings
+import tk.glucodata.data.meal.NutritionSource
+import tk.glucodata.data.meal.OpenFoodFactsContributor
 import tk.glucodata.data.meal.MealItem
 import tk.glucodata.data.meal.MealMath
 import tk.glucodata.data.meal.MealRepository
@@ -101,8 +110,12 @@ fun MealScreen(
     val presetsById = remember(insulinPresets) { insulinPresets.associateBy { it.id } }
     val totals = remember(items) { MealMath.totals(items) }
 
+    val context = LocalContext.current
     var showScanner by remember { mutableStateOf(false) }
     var productSheet by remember { mutableStateOf<ProductSheetRequest?>(null) }
+    var ocrRequest by remember { mutableStateOf<OcrRequest?>(null) }
+    var attachBarcodeFor by remember { mutableStateOf<Pair<ScannedProduct, List<ContributionPhoto>>?>(null) }
+    var showAttachScanner by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showEatSheet by remember { mutableStateOf(false) }
@@ -246,6 +259,27 @@ fun MealScreen(
             onProduct = { product, barcode ->
                 showScanner = false
                 productSheet = ProductSheetRequest(product = product, barcode = barcode, existingItem = null)
+            },
+            onPhotograph = { barcode ->
+                showScanner = false
+                ocrRequest = OcrRequest(barcode)
+            }
+        )
+    }
+
+    ocrRequest?.let { request ->
+        MealLabelOcrSheet(
+            barcode = request.barcode,
+            onDismiss = { ocrRequest = null },
+            onProduct = { product, photos ->
+                ocrRequest = null
+                productSheet = ProductSheetRequest(
+                    product = product,
+                    barcode = request.barcode,
+                    existingItem = null,
+                    startEditing = true,
+                    photos = photos
+                )
             }
         )
     }
@@ -253,8 +287,16 @@ fun MealScreen(
     productSheet?.let { request ->
         MealProductSheet(
             request = request,
-            onDismiss = { productSheet = null },
+            onDismiss = {
+                deleteLabelPhotos(request.photos)
+                productSheet = null
+            },
+            onPhotograph = {
+                productSheet = null
+                ocrRequest = OcrRequest(request.barcode)
+            },
             onSubmit = { product: ScannedProduct, quantityText: String, resolution: QuantityResolution.Resolved? ->
+                val fromLabel = request.product?.source == NutritionSource.OCR_LABEL
                 scope.launch {
                     val existing = request.existingItem
                     if (existing == null) {
@@ -262,12 +304,20 @@ fun MealScreen(
                     } else {
                         repository.updateItem(existing.id, product, quantityText, resolution)
                     }
-                    product.barcode?.let { code ->
-                        // A manual product for a known barcode, or an answered question, is remembered.
-                        if (request.product == null || request.product.reference != product.reference) {
+                    val code = product.barcode
+                    if (code != null) {
+                        // A manual or label-read product for a known barcode, or an answered
+                        // question, is remembered so the next scan is a hit.
+                        if (request.product == null || fromLabel || request.product.reference != product.reference) {
                             repository.rememberProduct(code, product)
                         }
+                        if (fromLabel) contributeLabelProduct(context, code, product, request.photos)
+                    } else if (!fromLabel) {
+                        deleteLabelPhotos(request.photos)
                     }
+                }
+                if (fromLabel && product.barcode == null && request.existingItem == null) {
+                    attachBarcodeFor = product to request.photos
                 }
                 productSheet = null
             },
@@ -278,6 +328,48 @@ fun MealScreen(
                 }
             }
         )
+    }
+
+    attachBarcodeFor?.let { (product, photos) ->
+        if (!showAttachScanner) {
+            AlertDialog(
+                onDismissRequest = {
+                    deleteLabelPhotos(photos)
+                    attachBarcodeFor = null
+                },
+                title = { Text(stringResource(R.string.meal_ocr_attach_barcode_title)) },
+                text = { Text(stringResource(R.string.meal_ocr_attach_barcode_text)) },
+                confirmButton = {
+                    TextButton(onClick = { showAttachScanner = true }) { Text(stringResource(R.string.meal_ocr_attach_barcode_scan)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        deleteLabelPhotos(photos)
+                        attachBarcodeFor = null
+                    }) { Text(stringResource(R.string.meal_ocr_attach_barcode_skip)) }
+                }
+            )
+        } else {
+            MealScanSheet(
+                repository = repository,
+                allowNetwork = false,
+                onDismiss = {
+                    showAttachScanner = false
+                    deleteLabelPhotos(photos)
+                    attachBarcodeFor = null
+                },
+                onProduct = { _, _ -> },
+                onBarcode = { code ->
+                    showAttachScanner = false
+                    attachBarcodeFor = null
+                    val attached = product.copy(barcode = code)
+                    scope.launch {
+                        repository.rememberProduct(code, attached)
+                        contributeLabelProduct(context, code, attached, photos)
+                    }
+                }
+            )
+        }
     }
 
     if (showEatSheet && current != null) {
@@ -377,7 +469,11 @@ fun MealScreen(
 internal data class ProductSheetRequest(
     val product: ScannedProduct?,
     val barcode: String?,
-    val existingItem: MealItem?
+    val existingItem: MealItem?,
+    /** Open with the value fields visible — an OCR result must be checked, not just accepted. */
+    val startEditing: Boolean = false,
+    /** Label photos behind an OCR product; uploaded (opt-in) or deleted after confirmation. */
+    val photos: List<ContributionPhoto> = emptyList()
 )
 
 @Composable
@@ -556,3 +652,42 @@ private fun LinkedEntryRow(entry: JournalEntry, presetName: String?, onClick: ()
 
 /** The reference the engine uses when the whole meal is the thing being eaten. */
 internal fun Meal.eatReference(): NutritionReference = NutritionReference.forMeal(servings, cookedWeightGrams)
+
+internal data class OcrRequest(val barcode: String?)
+
+/**
+ * After the user confirmed a product read from its label: send it to Open Food Facts when the
+ * opt-in is set and credentials exist, then drop the photos either way. Only the confirmed
+ * values and, if separately allowed, the photos leave the phone.
+ */
+private suspend fun contributeLabelProduct(
+    context: android.content.Context,
+    barcode: String,
+    product: ScannedProduct,
+    photos: List<ContributionPhoto>
+) {
+    val settings = MealContributionSettings.load(context)
+    if (!settings.isUsable || product.facts.carbsGrams < 0f) {
+        deleteLabelPhotos(photos)
+        return
+    }
+    val result = withContext(Dispatchers.IO) {
+        OpenFoodFactsContributor.contribute(
+            barcode = barcode,
+            product = product,
+            userId = settings.userId,
+            password = settings.password,
+            languageCode = Locale.getDefault().language,
+            appUuid = settings.appUuid,
+            comment = "Values read from the label and confirmed in JugglucoNG",
+            photos = if (settings.uploadPhotos) photos else emptyList()
+        )
+    }
+    deleteLabelPhotos(photos)
+    val message = when (result) {
+        is ContributionResult.Sent -> context.getString(R.string.meal_contribute_sent)
+        is ContributionResult.Rejected -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
+        is ContributionResult.Failed -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
+    }
+    tk.glucodata.Applic.Toaster(message)
+}

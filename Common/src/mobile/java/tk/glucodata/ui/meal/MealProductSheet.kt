@@ -133,12 +133,13 @@ internal fun MealProductSheet(
     request: ProductSheetRequest,
     onDismiss: () -> Unit,
     onSubmit: (ScannedProduct, String, QuantityResolution.Resolved?) -> Unit,
-    onRemove: (() -> Unit)?
+    onRemove: (() -> Unit)?,
+    onPhotograph: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val original = request.product
     var form by remember(request) { mutableStateOf(ProductForm.from(original)) }
-    var editing by remember(request) { mutableStateOf(original == null) }
+    var editing by remember(request) { mutableStateOf(original == null || request.startEditing) }
     var amountText by remember(request) { mutableStateOf(request.existingItem?.quantityText ?: "") }
     val product = remember(form) { form.toProduct(original, request.barcode) }
     val reference = product?.reference
@@ -181,7 +182,17 @@ internal fun MealProductSheet(
                 )
                 TextButton(onClick = { editing = true }) { Text(stringResource(R.string.meal_edit_values)) }
             } else {
+                if (original?.source == NutritionSource.OCR_LABEL) {
+                    Text(
+                        text = stringResource(R.string.meal_ocr_confirm_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 ProductFormFields(form = form, onChange = { form = it })
+                if (original == null && onPhotograph != null) {
+                    TextButton(onClick = onPhotograph) { Text(stringResource(R.string.meal_ocr_button)) }
+                }
                 if (original != null) {
                     TextButton(onClick = { editing = false }) { Text(stringResource(R.string.meal_done_editing)) }
                 }

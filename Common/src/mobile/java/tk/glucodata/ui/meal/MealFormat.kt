@@ -59,6 +59,7 @@ internal fun sourceLabel(source: NutritionSource): String = when (source) {
     NutritionSource.OPEN_FOOD_FACTS -> stringResource(R.string.meal_source_off)
     NutritionSource.MANUAL -> stringResource(R.string.meal_source_manual)
     NutritionSource.MEAL -> stringResource(R.string.meal_title)
+    NutritionSource.OCR_LABEL -> stringResource(R.string.meal_source_ocr)
 }
 
 @Composable

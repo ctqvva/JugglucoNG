@@ -61,12 +61,20 @@ private const val MISS_RETRY_MS = 60_000L
  * a re-scan loop that hammered the API. Codes are never "consumed" by the card; it keeps its own
  * cooldown per rejected payload, and this sheet remembers misses for a minute.
  */
+/**
+ * @param onPhotograph offered after a miss: read the label instead (the barcode is passed on so
+ *   the result is stored under it).
+ * @param onBarcode when set, a valid code is handed out without any lookup — used to attach a
+ *   barcode to a product that was read from its label.
+ */
 @Composable
 internal fun MealScanSheet(
     repository: MealRepository,
     allowNetwork: Boolean,
     onDismiss: () -> Unit,
-    onProduct: (ScannedProduct?, String) -> Unit
+    onProduct: (ScannedProduct?, String) -> Unit,
+    onPhotograph: ((String) -> Unit)? = null,
+    onBarcode: ((String) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var state by remember { mutableStateOf<ScanState>(ScanState.Idle) }
@@ -76,6 +84,10 @@ internal fun MealScanSheet(
     val scanning = state is ScanState.Idle && pendingBarcode == null
 
     fun offerBarcode(code: String): Boolean {
+        if (onBarcode != null) {
+            onBarcode(code)
+            return true
+        }
         if (pendingBarcode != null || state !is ScanState.Idle) return false
         val missedAt = recentMisses[code]
         if (missedAt != null && android.os.SystemClock.elapsedRealtime() - missedAt < MISS_RETRY_MS) return false
@@ -113,7 +125,10 @@ internal fun MealScanSheet(
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.meal_scan_product), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(if (onBarcode != null) R.string.meal_ocr_attach_barcode_title else R.string.meal_scan_product),
+                style = MaterialTheme.typography.titleLarge
+            )
             val current = state
             InlineQrScannerCard(
                 modifier = Modifier
@@ -144,7 +159,12 @@ internal fun MealScanSheet(
                         color = MaterialTheme.colorScheme.error
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onProduct(null, current.barcode) }) {
+                        onPhotograph?.let { photograph ->
+                            Button(onClick = { photograph(current.barcode) }) {
+                                Text(stringResource(R.string.meal_ocr_button))
+                            }
+                        }
+                        TextButton(onClick = { onProduct(null, current.barcode) }) {
                             Text(stringResource(R.string.meal_add_manual))
                         }
                         TextButton(onClick = { state = ScanState.Idle }) {

@@ -22,7 +22,9 @@ enum class NutritionBasis(val storageValue: String) {
 enum class NutritionSource(val storageValue: String) {
     OPEN_FOOD_FACTS("off"),
     MANUAL("manual"),
-    MEAL("meal");
+    MEAL("meal"),
+    /** Read off a label photo on the device and confirmed by the user. */
+    OCR_LABEL("ocr:label");
 
     companion object {
         fun fromStorage(value: String?): NutritionSource =
