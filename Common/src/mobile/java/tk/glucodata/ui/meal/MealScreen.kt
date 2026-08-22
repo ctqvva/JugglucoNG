@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -212,7 +212,7 @@ fun MealScreen(
                     enabled = current != null && totals.resolvedItems > 0,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Restaurant, contentDescription = null)
+                    Icon(Icons.Default.LunchDining, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.meal_eaten))
                 }

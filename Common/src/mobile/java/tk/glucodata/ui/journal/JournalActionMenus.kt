@@ -25,8 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -71,7 +71,7 @@ fun JournalEntryType.journalActionLabel(): String = when (this) {
 
 fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
     JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.Restaurant
+    JournalEntryType.CARBS -> Icons.Default.LunchDining
     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
     JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
@@ -237,7 +237,7 @@ fun JournalExpandableFab(
                 onMealSelected?.let { openMeals ->
                     JournalMenuRow(
                         label = stringResource(R.string.meal_title),
-                        icon = Icons.Default.LunchDining,
+                        icon = Icons.Default.Restaurant,
                         actionTint = journalTypeColor(JournalEntryType.CARBS),
                         iconContainerColor = journalTypeSelectedContainerColor(JournalEntryType.CARBS),
                         labelContainerColor = journalTypeSubtleContainerColor(JournalEntryType.CARBS),

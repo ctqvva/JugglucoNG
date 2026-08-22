@@ -14,7 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,7 +102,7 @@ fun MealsScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(
-                        imageVector = Icons.Default.LunchDining,
+                        imageVector = Icons.Default.Restaurant,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary
                     )
@@ -169,7 +169,7 @@ private fun MealRow(meal: Meal, items: List<MealItem>, position: CardPosition, o
         subtitle = subtitle,
         showArrow = true,
         onClick = onClick,
-        icon = Icons.Default.LunchDining,
+        icon = Icons.Default.Restaurant,
         iconTint = MaterialTheme.colorScheme.secondary,
         position = position,
         modifier = Modifier.fillMaxWidth()
