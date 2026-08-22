@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -143,6 +144,10 @@ private fun CropSurface(bitmap: Bitmap, rect: CropRect, onRectChange: (CropRect)
         val oy = (boxH - imgH) / 2f
         fun toPx(r: CropRect) = Rect(ox + r.left * imgW, oy + r.top * imgH, ox + r.right * imgW, oy + r.bottom * imgH)
         var active by remember { mutableStateOf<Handle?>(null) }
+        // The gesture block is created once; it must read the rectangle as it is now, not as it
+        // was when the block started, or every drag computes from the first rectangle and snaps back.
+        val currentRect by rememberUpdatedState(rect)
+        val currentOnRectChange by rememberUpdatedState(onRectChange)
 
         Image(bitmap = bitmap.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
         Canvas(
@@ -151,7 +156,7 @@ private fun CropSurface(bitmap: Bitmap, rect: CropRect, onRectChange: (CropRect)
                 .pointerInput(bitmap) {
                     detectDragGestures(
                         onDragStart = { pos ->
-                            val r = toPx(rect)
+                            val r = toPx(currentRect)
                             fun near(x: Float, y: Float) = (pos - Offset(x, y)).getDistance() < handlePx
                             active = when {
                                 near(r.left, r.top) -> Handle.TL
@@ -168,7 +173,7 @@ private fun CropSurface(bitmap: Bitmap, rect: CropRect, onRectChange: (CropRect)
                             change.consume()
                             val dx = drag.x / imgW
                             val dy = drag.y / imgH
-                            val r = rect
+                            val r = currentRect
                             val next = when (active) {
                                 Handle.TL -> r.copy(left = r.left + dx, top = r.top + dy)
                                 Handle.TR -> r.copy(right = r.right + dx, top = r.top + dy)
@@ -181,7 +186,7 @@ private fun CropSurface(bitmap: Bitmap, rect: CropRect, onRectChange: (CropRect)
                                 }
                                 null -> r
                             }
-                            onRectChange(next.clamped())
+                            currentOnRectChange(next.clamped())
                         }
                     )
                 }
