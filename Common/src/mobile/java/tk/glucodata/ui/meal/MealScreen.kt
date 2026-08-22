@@ -409,10 +409,12 @@ fun MealScreen(
                 sending = sendInProgress,
                 result = sendResult,
                 onAddPhotos = { sendAddPhotos = true },
+                onCategoryChange = { category -> sendRequest = product.copy(category = category) },
                 onSend = {
                     sendInProgress = true
                     sendResult = null
                     scope.launch {
+                        repository.rememberProduct(code, product)
                         sendResult = contributeLabelProduct(context, repository, code, product, LabelPhotoStore.photosFor(context, code), showToast = false)
                         sendInProgress = false
                     }
@@ -764,6 +766,7 @@ private fun MealSendDialog(
     sending: Boolean,
     result: ContributionResult?,
     onAddPhotos: () -> Unit,
+    onCategoryChange: (String) -> Unit,
     onSend: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -801,6 +804,30 @@ private fun MealSendDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
+                }
+                if (result == null) {
+                    OutlinedTextField(
+                        value = product.category.orEmpty(),
+                        onValueChange = onCategoryChange,
+                        label = { Text(stringResource(R.string.meal_off_category)) },
+                        placeholder = { Text(stringResource(R.string.meal_off_category_hint)) },
+                        singleLine = true,
+                        enabled = !sending,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    val missing = buildList {
+                        if (product.category.isNullOrBlank()) add(stringResource(R.string.meal_off_category))
+                        if (product.facts.saturatedFatGrams == null) add(stringResource(R.string.meal_saturated_fat))
+                        if (product.facts.sugarsGrams == null) add(stringResource(R.string.meal_sugars))
+                        if (product.facts.saltGrams == null) add(stringResource(R.string.meal_salt))
+                    }
+                    if (missing.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.meal_send_nutriscore_missing, missing.joinToString(", ")),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Text(stringResource(R.string.meal_send_fields_title), style = MaterialTheme.typography.labelLarge)
                 Text(

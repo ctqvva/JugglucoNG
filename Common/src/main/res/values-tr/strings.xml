@@ -2664,4 +2664,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_contribute_log_title">Yükleme günlüğü</string>
     <string name="meal_contribute_log_empty">Henüz yükleme yok.</string>
     <string name="meal_contribute_last">Son yükleme %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Doymuş yağ</string>
+    <string name="meal_salt">Tuz</string>
+    <string name="meal_sugars">Şeker</string>
+    <string name="meal_off_category">Kategori (Open Food Facts)</string>
+    <string name="meal_off_category_hint">örn. Çikolata barları, Kahvaltılık gevrekler</string>
+    <string name="meal_send_nutriscore_missing">Nutri-Score için Open Food Facts’te hâlâ eksik: %1$s</string>
 </resources>

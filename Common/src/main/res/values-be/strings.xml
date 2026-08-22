@@ -2703,4 +2703,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Журнал адправак</string>
     <string name="meal_contribute_log_empty">Адправак пакуль няма.</string>
     <string name="meal_contribute_last">Апошняя адпраўка %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Насычаныя тлушчы</string>
+    <string name="meal_salt">Соль</string>
+    <string name="meal_sugars">Цукры</string>
+    <string name="meal_off_category">Катэгорыя (Open Food Facts)</string>
+    <string name="meal_off_category_hint">напр. Шакаладныя батончыкі, Сняданкавыя шматкі</string>
+    <string name="meal_send_nutriscore_missing">Для Nutri-Score у Open Food Facts яшчэ не хапае: %1$s</string>
 </resources>

@@ -2708,4 +2708,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Журнал надсилань</string>
     <string name="meal_contribute_log_empty">Надсилань ще немає.</string>
     <string name="meal_contribute_last">Останнє надсилання %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Насичені жири</string>
+    <string name="meal_salt">Сіль</string>
+    <string name="meal_sugars">Цукри</string>
+    <string name="meal_off_category">Категорія (Open Food Facts)</string>
+    <string name="meal_off_category_hint">напр. Шоколадні батончики, Сніданкові пластівці</string>
+    <string name="meal_send_nutriscore_missing">Для Nutri-Score Open Food Facts ще бракує: %1$s</string>
 </resources>

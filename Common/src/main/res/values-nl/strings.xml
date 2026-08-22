@@ -2679,4 +2679,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_contribute_log_title">Uploadlogboek</string>
     <string name="meal_contribute_log_empty">Nog geen uploads.</string>
     <string name="meal_contribute_last">Laatste upload %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Verzadigd vet</string>
+    <string name="meal_salt">Zout</string>
+    <string name="meal_sugars">Suikers</string>
+    <string name="meal_off_category">Categorie (Open Food Facts)</string>
+    <string name="meal_off_category_hint">bijv. Chocoladerepen, Ontbijtgranen</string>
+    <string name="meal_send_nutriscore_missing">Voor een Nutri-Score mist Open Food Facts nog: %1$s</string>
 </resources>

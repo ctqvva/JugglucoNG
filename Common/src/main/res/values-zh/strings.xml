@@ -2652,4 +2652,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">上传日志</string>
     <string name="meal_contribute_log_empty">尚无上传。</string>
     <string name="meal_contribute_last">上次上传 %1$s：%2$s</string>
+    <string name="meal_saturated_fat">饱和脂肪</string>
+    <string name="meal_salt">盐</string>
+    <string name="meal_sugars">糖</string>
+    <string name="meal_off_category">类别（Open Food Facts）</string>
+    <string name="meal_off_category_hint">例如 巧克力棒、早餐谷物</string>
+    <string name="meal_send_nutriscore_missing">Open Food Facts 计算 Nutri-Score 还缺少：%1$s</string>
 </resources>

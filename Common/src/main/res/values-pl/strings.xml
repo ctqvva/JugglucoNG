@@ -2670,4 +2670,10 @@
     <string name="meal_contribute_log_title">Dziennik wysyłek</string>
     <string name="meal_contribute_log_empty">Brak wysyłek.</string>
     <string name="meal_contribute_last">Ostatnia wysyłka %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Tłuszcze nasycone</string>
+    <string name="meal_salt">Sól</string>
+    <string name="meal_sugars">Cukry</string>
+    <string name="meal_off_category">Kategoria (Open Food Facts)</string>
+    <string name="meal_off_category_hint">np. Batony czekoladowe, Płatki śniadaniowe</string>
+    <string name="meal_send_nutriscore_missing">Do Nutri-Score Open Food Facts potrzebuje jeszcze: %1$s</string>
 </resources>

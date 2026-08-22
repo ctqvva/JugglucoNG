@@ -2679,4 +2679,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Журнал отправок</string>
     <string name="meal_contribute_log_empty">Отправок пока нет.</string>
     <string name="meal_contribute_last">Последняя отправка %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Насыщенные жиры</string>
+    <string name="meal_salt">Соль</string>
+    <string name="meal_sugars">Сахара</string>
+    <string name="meal_off_category">Категория (Open Food Facts)</string>
+    <string name="meal_off_category_hint">напр. Шоколадные батончики, Сухие завтраки</string>
+    <string name="meal_send_nutriscore_missing">Для Nutri-Score в Open Food Facts не хватает: %1$s</string>
 </resources>

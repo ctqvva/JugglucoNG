@@ -2626,4 +2626,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Registro invii</string>
     <string name="meal_contribute_log_empty">Nessun invio finora.</string>
     <string name="meal_contribute_last">Ultimo invio %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Grassi saturi</string>
+    <string name="meal_salt">Sale</string>
+    <string name="meal_sugars">Zuccheri</string>
+    <string name="meal_off_category">Categoria (Open Food Facts)</string>
+    <string name="meal_off_category_hint">es. Barrette di cioccolato, Cereali per la colazione</string>
+    <string name="meal_send_nutriscore_missing">Per un Nutri-Score a Open Food Facts manca ancora: %1$s</string>
 </resources>

@@ -54,7 +54,10 @@ data class NutritionFacts(
     val fiberGrams: Float? = null,
     val sugarsGrams: Float? = null,
     val polyolsGrams: Float? = null,
-    val kcal: Float? = null
+    val kcal: Float? = null,
+    /** Label values Open Food Facts needs for a Nutri-Score; not used by the meal math. */
+    val saturatedFatGrams: Float? = null,
+    val saltGrams: Float? = null
 ) {
     fun scaled(factor: Float): NutritionFacts = NutritionFacts(
         carbsGrams = carbsGrams * factor,
@@ -63,7 +66,9 @@ data class NutritionFacts(
         fiberGrams = fiberGrams?.times(factor),
         sugarsGrams = sugarsGrams?.times(factor),
         polyolsGrams = polyolsGrams?.times(factor),
-        kcal = kcal?.times(factor)
+        kcal = kcal?.times(factor),
+        saturatedFatGrams = saturatedFatGrams?.times(factor),
+        saltGrams = saltGrams?.times(factor)
     )
 
     operator fun plus(other: NutritionFacts): NutritionFacts = NutritionFacts(
@@ -73,7 +78,9 @@ data class NutritionFacts(
         fiberGrams = addNullable(fiberGrams, other.fiberGrams),
         sugarsGrams = addNullable(sugarsGrams, other.sugarsGrams),
         polyolsGrams = addNullable(polyolsGrams, other.polyolsGrams),
-        kcal = addNullable(kcal, other.kcal)
+        kcal = addNullable(kcal, other.kcal),
+        saturatedFatGrams = addNullable(saturatedFatGrams, other.saturatedFatGrams),
+        saltGrams = addNullable(saltGrams, other.saltGrams)
     )
 
     companion object {
@@ -149,7 +156,9 @@ data class ScannedProduct(
     val facts: NutritionFacts,
     val reference: NutritionReference,
     /** Last successful upload to Open Food Facts, from the product cache; null = never. */
-    val contributedAt: Long? = null
+    val contributedAt: Long? = null,
+    /** Free-text category for Open Food Facts ("Chocolate bars"); it needs one for a Nutri-Score. */
+    val category: String? = null
 ) {
     /** Anything with a barcode that did not come from Open Food Facts itself can be sent there. */
     val canContribute: Boolean get() = barcode != null && source != NutritionSource.OPEN_FOOD_FACTS

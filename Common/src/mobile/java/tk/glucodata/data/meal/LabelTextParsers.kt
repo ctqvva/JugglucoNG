@@ -138,6 +138,8 @@ object NutritionLabelParser {
         val (fiber, fiberLine) = findValue(fiberWords)
         val (protein, proteinLine) = findValue(proteinWords)
         val (polyols, polyolsLine) = findValue(polyolWords)
+        val (saturated, saturatedLine) = findValue(saturatesWords)
+        val (salt, saltLine) = findValue(saltWords)
 
         var kcal: Float? = null
         var kcalLine: String? = null
@@ -165,6 +167,8 @@ object NutritionLabelParser {
         fiberLine?.let { evidence["fiber"] = it }
         proteinLine?.let { evidence["protein"] = it }
         polyolsLine?.let { evidence["polyols"] = it }
+        saturatedLine?.let { evidence["saturated_fat"] = it }
+        saltLine?.let { evidence["salt"] = it }
         kcalLine?.let { evidence["kcal"] = it }
 
         val facts = carbs?.let {
@@ -175,7 +179,9 @@ object NutritionLabelParser {
                 fiberGrams = fiber,
                 sugarsGrams = sugars,
                 polyolsGrams = polyols,
-                kcal = kcal
+                kcal = kcal,
+                saturatedFatGrams = saturated,
+                saltGrams = salt
             )
         }
         return LabelNutrition(facts = facts, basis = basis, servingText = servingText, evidence = evidence)

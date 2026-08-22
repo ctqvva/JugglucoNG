@@ -66,7 +66,10 @@ private data class ProductForm(
     val servingQuantity: String,
     val servingUnit: AmountUnit,
     val density: String,
-    val pieceGrams: String
+    val pieceGrams: String,
+    val saturatedFat: String = "",
+    val salt: String = "",
+    val category: String = ""
 ) {
     companion object {
         fun from(product: ScannedProduct?): ProductForm {
@@ -86,7 +89,10 @@ private data class ProductForm(
                 servingQuantity = MealFormat.editor(ref?.servingQuantity),
                 servingUnit = ref?.servingUnit ?: if (ref?.basis == NutritionBasis.PER_100ML) AmountUnit.MILLILITER else AmountUnit.GRAM,
                 density = MealFormat.editor(ref?.densityGramsPerMl),
-                pieceGrams = MealFormat.editor(ref?.pieceGrams)
+                pieceGrams = MealFormat.editor(ref?.pieceGrams),
+                saturatedFat = MealFormat.editor(facts?.saturatedFatGrams),
+                salt = MealFormat.editor(facts?.saltGrams),
+                category = product?.category.orEmpty()
             )
         }
     }
@@ -108,8 +114,12 @@ private data class ProductForm(
                 fiberGrams = MealFormat.parseEditor(fiber),
                 sugarsGrams = original?.facts?.sugarsGrams?.takeIf { basis == originalRef?.basis },
                 polyolsGrams = original?.facts?.polyolsGrams?.takeIf { basis == originalRef?.basis },
-                kcal = MealFormat.parseEditor(kcal)
+                kcal = MealFormat.parseEditor(kcal),
+                saturatedFatGrams = MealFormat.parseEditor(saturatedFat),
+                saltGrams = MealFormat.parseEditor(salt)
             ),
+            contributedAt = original?.contributedAt,
+            category = category.trim().takeIf { it.isNotEmpty() },
             reference = NutritionReference(
                 basis = basis,
                 netQuantity = MealFormat.parseEditor(netQuantity)?.takeIf { it > 0f },
@@ -426,6 +436,18 @@ private fun ProductFormFields(form: ProductForm, onChange: (ProductForm) -> Unit
         NumberField(stringResource(R.string.meal_fiber), form.fiber, "g", Modifier.weight(1f)) { onChange(form.copy(fiber = it)) }
         NumberField(stringResource(R.string.meal_kcal), form.kcal, "", Modifier.weight(1f)) { onChange(form.copy(kcal = it)) }
     }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField(stringResource(R.string.meal_saturated_fat), form.saturatedFat, "g", Modifier.weight(1f)) { onChange(form.copy(saturatedFat = it)) }
+        NumberField(stringResource(R.string.meal_salt), form.salt, "g", Modifier.weight(1f)) { onChange(form.copy(salt = it)) }
+    }
+    OutlinedTextField(
+        value = form.category,
+        onValueChange = { onChange(form.copy(category = it)) },
+        label = { Text(stringResource(R.string.meal_off_category)) },
+        placeholder = { Text(stringResource(R.string.meal_off_category_hint)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         NumberField(stringResource(R.string.meal_product_net_quantity), form.netQuantity, form.netUnit.symbol, Modifier.weight(1f)) { onChange(form.copy(netQuantity = it)) }
         UnitToggle(form.netUnit) { onChange(form.copy(netUnit = it)) }

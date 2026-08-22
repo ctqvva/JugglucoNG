@@ -2751,4 +2751,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_contribute_log_title">Байршуулалтын бүртгэл</string>
     <string name="meal_contribute_log_empty">Байршуулалт алга.</string>
     <string name="meal_contribute_last">Сүүлийн байршуулалт %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Ханасан өөх тос</string>
+    <string name="meal_salt">Давс</string>
+    <string name="meal_sugars">Сахар</string>
+    <string name="meal_off_category">Ангилал (Open Food Facts)</string>
+    <string name="meal_off_category_hint">ж.нь Шоколадан баар, Өглөөний үр тариа</string>
+    <string name="meal_send_nutriscore_missing">Nutri-Score-д Open Food Facts-д дутуу байна: %1$s</string>
 </resources>

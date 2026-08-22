@@ -35,6 +35,7 @@ import tk.glucodata.data.meal.MealProductEntity
  *   v12 — per-preset dose-calculation eligibility
  *   v13 — meals (composition + product cache) and the mealId correlation on journal entries
  *   v14 — contributedAt on the product cache (sent to Open Food Facts)
+ *   v15 — saturated fat, salt and an OFF category on the product cache (Nutri-Score inputs)
  */
 @Database(
     entities = [
@@ -48,7 +49,7 @@ import tk.glucodata.data.meal.MealProductEntity
         MealItemEntity::class,
         MealProductEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -356,6 +357,15 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /** v14 -> v15: the label values Open Food Facts needs for a Nutri-Score. */
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -375,7 +385,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
-                    MIGRATION_13_14
+                    MIGRATION_13_14,
+                    MIGRATION_14_15
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

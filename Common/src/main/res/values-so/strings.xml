@@ -2836,4 +2836,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_contribute_log_title">Diiwaanka soo gelinta</string>
     <string name="meal_contribute_log_empty">Weli wax soo gelin ah ma jiro.</string>
     <string name="meal_contribute_last">Soo gelintii ugu dambeysay %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Dufan la wada buuxiyey</string>
+    <string name="meal_salt">Cusbo</string>
+    <string name="meal_sugars">Sonkor</string>
+    <string name="meal_off_category">Qayb (Open Food Facts)</string>
+    <string name="meal_off_category_hint">tus. Shukulaato, Badarka quraacda</string>
+    <string name="meal_send_nutriscore_missing">Nutri-Score, Open Food Facts wali wuxuu u baahan yahay: %1$s</string>
 </resources>

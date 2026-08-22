@@ -2636,4 +2636,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Uppladdningslogg</string>
     <string name="meal_contribute_log_empty">Inga uppladdningar ännu.</string>
     <string name="meal_contribute_last">Senaste uppladdning %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Mättat fett</string>
+    <string name="meal_salt">Salt</string>
+    <string name="meal_sugars">Sockerarter</string>
+    <string name="meal_off_category">Kategori (Open Food Facts)</string>
+    <string name="meal_off_category_hint">t.ex. Chokladkakor, Frukostflingor</string>
+    <string name="meal_send_nutriscore_missing">För ett Nutri-Score saknar Open Food Facts ännu: %1$s</string>
 </resources>

@@ -2675,4 +2675,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_contribute_log_title">Upload-Protokoll</string>
     <string name="meal_contribute_log_empty">Noch keine Uploads.</string>
     <string name="meal_contribute_last">Letzter Upload %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Gesättigte Fettsäuren</string>
+    <string name="meal_salt">Salz</string>
+    <string name="meal_sugars">Zucker</string>
+    <string name="meal_off_category">Kategorie (Open Food Facts)</string>
+    <string name="meal_off_category_hint">z. B. Schokoriegel, Frühstückscerealien</string>
+    <string name="meal_send_nutriscore_missing">Für einen Nutri-Score fehlt Open Food Facts noch: %1$s</string>
 </resources>

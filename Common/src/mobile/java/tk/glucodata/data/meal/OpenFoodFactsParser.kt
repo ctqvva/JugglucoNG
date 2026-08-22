@@ -62,7 +62,9 @@ object OpenFoodFactsParser {
             sugarsGrams = nutriments.finite("sugars$suffix"),
             polyolsGrams = nutriments.finite("polyols$suffix"),
             kcal = nutriments.finite("energy-kcal$suffix")
-                ?: nutriments.finite("energy-kj$suffix")?.let { it / 4.184f }
+                ?: nutriments.finite("energy-kj$suffix")?.let { it / 4.184f },
+            saturatedFatGrams = nutriments.finite("saturated-fat$suffix"),
+            saltGrams = nutriments.finite("salt$suffix")
         )
 
         val servingText = product.optString("serving_size").trim().takeIf { it.isNotEmpty() }

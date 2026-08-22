@@ -2861,4 +2861,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Upload log</string>
     <string name="meal_contribute_log_empty">No uploads yet.</string>
     <string name="meal_contribute_last">Last upload %1$s: %2$s</string>
+    <string name="meal_saturated_fat">Saturated fat</string>
+    <string name="meal_salt">Salt</string>
+    <string name="meal_sugars">Sugars</string>
+    <string name="meal_off_category">Category (Open Food Facts)</string>
+    <string name="meal_off_category_hint">e.g. Chocolate bars, Breakfast cereals</string>
+    <string name="meal_send_nutriscore_missing">For a Nutri-Score, Open Food Facts still needs: %1$s</string>
 </resources>

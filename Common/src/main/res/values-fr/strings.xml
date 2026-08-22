@@ -2642,4 +2642,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_log_title">Journal des envois</string>
     <string name="meal_contribute_log_empty">Aucun envoi pour l’instant.</string>
     <string name="meal_contribute_last">Dernier envoi %1$s : %2$s</string>
+    <string name="meal_saturated_fat">Acides gras saturés</string>
+    <string name="meal_salt">Sel</string>
+    <string name="meal_sugars">Sucres</string>
+    <string name="meal_off_category">Catégorie (Open Food Facts)</string>
+    <string name="meal_off_category_hint">ex. Barres chocolatées, Céréales pour petit-déjeuner</string>
+    <string name="meal_send_nutriscore_missing">Pour un Nutri-Score, il manque encore à Open Food Facts : %1$s</string>
 </resources>

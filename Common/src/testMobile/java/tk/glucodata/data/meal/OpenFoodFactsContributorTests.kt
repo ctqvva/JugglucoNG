@@ -11,7 +11,8 @@ class OpenFoodFactsContributorTests {
         displayName = "Marzipan bar",
         brand = "Ritter Sport",
         source = NutritionSource.OCR_LABEL,
-        facts = NutritionFacts(carbsGrams = 52f, proteinGrams = 7f, fatGrams = 27f, fiberGrams = 6.2f, sugarsGrams = 51f, kcal = 496f),
+        facts = NutritionFacts(carbsGrams = 52f, proteinGrams = 7f, fatGrams = 27f, fiberGrams = 6.2f, sugarsGrams = 51f, kcal = 496f, saturatedFatGrams = 11f, saltGrams = 0.1f),
+        category = "Chocolate bars",
         reference = NutritionReference(
             basis = NutritionBasis.PER_100G,
             netQuantity = 100f, netUnit = AmountUnit.GRAM,
@@ -37,6 +38,10 @@ class OpenFoodFactsContributorTests {
         assertEquals("52", f["nutriment_carbohydrates"])
         assertEquals("g", f["nutriment_carbohydrates_unit"])
         assertEquals("6.2", f["nutriment_fiber"])
+        assertEquals("11", f["nutriment_saturated-fat"])
+        assertEquals("0.1", f["nutriment_salt"])
+        assertEquals("51", f["nutriment_sugars"])
+        assertEquals("Chocolate bars", f["categories"])
         assertEquals("496", f["nutriment_energy-kcal"])
         assertEquals("kcal", f["nutriment_energy-kcal_unit"])
         assertEquals("abc", f["app_uuid"])
