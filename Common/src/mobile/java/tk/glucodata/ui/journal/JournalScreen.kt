@@ -108,6 +108,7 @@ fun JournalScreen(
     onOpenInsulinLibrary: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenMeals: (() -> Unit)? = null,
+    onNewMeal: (() -> Unit)? = null,
     showTitle: Boolean = true,
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp,
@@ -372,7 +373,7 @@ fun JournalScreen(
         }
 
         JournalExpandableFab(
-            onMealSelected = onOpenMeals,
+            onMealSelected = onNewMeal,
             expanded = fabExpanded,
             onExpandedChange = {
                 fabExpanded = it

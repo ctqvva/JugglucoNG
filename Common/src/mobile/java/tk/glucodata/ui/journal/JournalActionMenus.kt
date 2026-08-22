@@ -188,8 +188,8 @@ fun JournalFloatingActionMenu(
 }
 
 /**
- * @param onMealSelected when set, the menu gets a "Meals" row on top that opens the meal list —
- *   a meal is composed while cooking and logged later, so it is not a journal entry type.
+ * @param onMealSelected when set, the menu gets a "New meal" row on top that creates a meal and
+ *   opens it — a meal is composed while cooking and logged later, so it is not an entry type.
  */
 @Composable
 fun JournalExpandableFab(
@@ -236,7 +236,7 @@ fun JournalExpandableFab(
                 val mealRowOffset = if (onMealSelected != null) 1 else 0
                 onMealSelected?.let { openMeals ->
                     JournalMenuRow(
-                        label = stringResource(R.string.meal_title),
+                        label = stringResource(R.string.meal_new),
                         icon = Icons.Default.Restaurant,
                         actionTint = journalTypeColor(JournalEntryType.CARBS),
                         iconContainerColor = journalTypeSelectedContainerColor(JournalEntryType.CARBS),
