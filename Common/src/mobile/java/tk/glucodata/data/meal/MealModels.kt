@@ -152,7 +152,8 @@ internal fun MealProductEntity.toScannedProduct(): ScannedProduct = ScannedProdu
         servingPieceLabel = servingPieceLabel,
         densityGramsPerMl = densityGramsPerMl,
         pieceGrams = pieceGrams
-    )
+    ),
+    contributedAt = contributedAt
 )
 
 internal fun ScannedProduct.toProductEntity(barcode: String, now: Long, existing: MealProductEntity?): MealProductEntity =
@@ -181,5 +182,6 @@ internal fun ScannedProduct.toProductEntity(barcode: String, now: Long, existing
         pieceGrams = reference.pieceGrams ?: existing?.pieceGrams,
         plausibilityFlags = NutritionPlausibilityFlag.encode(plausibility),
         fetchedAt = now,
-        lastUsedAt = now
+        lastUsedAt = now,
+        contributedAt = contributedAt ?: existing?.contributedAt
     )

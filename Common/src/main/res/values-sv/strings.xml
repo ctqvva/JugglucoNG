@@ -2615,4 +2615,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_photos_desc">Foton blir en del av den öppna databasen (CC BY-SA)</string>
     <string name="meal_contribute_sent">Skickat till Open Food Facts</string>
     <string name="meal_contribute_failed">Kunde inte skicka till Open Food Facts: %1$s</string>
+    <string name="meal_contribute_send">Skicka till Open Food Facts</string>
+    <string name="meal_contribute_send_again">Skicka igen till Open Food Facts</string>
+    <string name="meal_contribute_sent_on">Skickat till Open Food Facts %1$s</string>
 </resources>

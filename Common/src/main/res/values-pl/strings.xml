@@ -2649,4 +2649,7 @@
     <string name="meal_contribute_photos_desc">Zdjęcia stają się częścią otwartej bazy (CC BY-SA)</string>
     <string name="meal_contribute_sent">Wysłano do Open Food Facts</string>
     <string name="meal_contribute_failed">Nie udało się wysłać do Open Food Facts: %1$s</string>
+    <string name="meal_contribute_send">Wyślij do Open Food Facts</string>
+    <string name="meal_contribute_send_again">Wyślij ponownie do Open Food Facts</string>
+    <string name="meal_contribute_sent_on">Wysłano do Open Food Facts %1$s</string>
 </resources>

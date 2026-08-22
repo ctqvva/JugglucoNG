@@ -2687,4 +2687,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_photos_desc">Фото стають частиною відкритої бази (CC BY-SA)</string>
     <string name="meal_contribute_sent">Надіслано до Open Food Facts</string>
     <string name="meal_contribute_failed">Не вдалося надіслати до Open Food Facts: %1$s</string>
+    <string name="meal_contribute_send">Надіслати до Open Food Facts</string>
+    <string name="meal_contribute_send_again">Надіслати до Open Food Facts ще раз</string>
+    <string name="meal_contribute_sent_on">Надіслано до Open Food Facts %1$s</string>
 </resources>

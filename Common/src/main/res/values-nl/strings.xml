@@ -2658,4 +2658,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_contribute_photos_desc">Foto’s worden deel van de open database (CC BY-SA)</string>
     <string name="meal_contribute_sent">Naar Open Food Facts gestuurd</string>
     <string name="meal_contribute_failed">Versturen naar Open Food Facts mislukt: %1$s</string>
+    <string name="meal_contribute_send">Naar Open Food Facts sturen</string>
+    <string name="meal_contribute_send_again">Opnieuw naar Open Food Facts sturen</string>
+    <string name="meal_contribute_sent_on">Naar Open Food Facts gestuurd op %1$s</string>
 </resources>

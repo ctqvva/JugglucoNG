@@ -2815,4 +2815,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_contribute_photos_desc">Sawirradu waxay ka mid noqdaan xogta furan (CC BY-SA)</string>
     <string name="meal_contribute_sent">Waxaa loo diray Open Food Facts</string>
     <string name="meal_contribute_failed">Looma diri karin Open Food Facts: %1$s</string>
+    <string name="meal_contribute_send">U dir Open Food Facts</string>
+    <string name="meal_contribute_send_again">Mar kale u dir Open Food Facts</string>
+    <string name="meal_contribute_sent_on">Waxaa loo diray Open Food Facts %1$s</string>
 </resources>

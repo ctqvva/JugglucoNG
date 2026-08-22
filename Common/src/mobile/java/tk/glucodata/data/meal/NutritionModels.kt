@@ -147,8 +147,13 @@ data class ScannedProduct(
     val brand: String?,
     val source: NutritionSource,
     val facts: NutritionFacts,
-    val reference: NutritionReference
+    val reference: NutritionReference,
+    /** Last successful upload to Open Food Facts, from the product cache; null = never. */
+    val contributedAt: Long? = null
 ) {
+    /** Anything with a barcode that did not come from Open Food Facts itself can be sent there. */
+    val canContribute: Boolean get() = barcode != null && source != NutritionSource.OPEN_FOOD_FACTS
+
     val plausibility: Set<NutritionPlausibilityFlag>
         get() = NutritionPlausibility.check(facts, reference.basis)
 }

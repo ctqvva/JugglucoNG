@@ -2840,4 +2840,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_photos_desc">Photos become part of the open database (CC BY-SA)</string>
     <string name="meal_contribute_sent">Sent to Open Food Facts</string>
     <string name="meal_contribute_failed">Could not send to Open Food Facts: %1$s</string>
+    <string name="meal_contribute_send">Send to Open Food Facts</string>
+    <string name="meal_contribute_send_again">Send again to Open Food Facts</string>
+    <string name="meal_contribute_sent_on">Sent to Open Food Facts on %1$s</string>
 </resources>

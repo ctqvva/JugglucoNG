@@ -2643,4 +2643,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_contribute_photos_desc">Fotoğraflar açık veritabanının parçası olur (CC BY-SA)</string>
     <string name="meal_contribute_sent">Open Food Facts’e gönderildi</string>
     <string name="meal_contribute_failed">Open Food Facts’e gönderilemedi: %1$s</string>
+    <string name="meal_contribute_send">Open Food Facts’e gönder</string>
+    <string name="meal_contribute_send_again">Open Food Facts’e yeniden gönder</string>
+    <string name="meal_contribute_sent_on">%1$s tarihinde Open Food Facts’e gönderildi</string>
 </resources>

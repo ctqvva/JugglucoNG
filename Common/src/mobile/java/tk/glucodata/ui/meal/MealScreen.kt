@@ -305,12 +305,24 @@ fun MealScreen(
     }
 
     productSheet?.let { request ->
+        val contributionUsable = remember(request) { MealContributionSettings.load(context).isUsable }
         MealProductSheet(
             request = request,
             onDismiss = {
                 deleteLabelPhotos(request.photos)
                 productSheet = null
             },
+            onContribute = if (contributionUsable) { edited ->
+                val code = edited.barcode
+                if (code != null) {
+                    scope.launch {
+                        // What goes out is what is stored: keep the cache in step with the edit.
+                        repository.rememberProduct(code, edited)
+                        contributeLabelProduct(context, repository, code, edited, emptyList())
+                        productSheet = productSheet?.copy(product = repository.cachedProduct(code) ?: edited)
+                    }
+                }
+            } else null,
             onPhotograph = {
                 productSheet = null
                 ocrRequest = OcrRequest(request.barcode)
@@ -333,7 +345,7 @@ fun MealScreen(
                         } else {
                             repository.touchProduct(code)
                         }
-                        if (fromLabel) contributeLabelProduct(context, code, product, request.photos)
+                        if (fromLabel) contributeLabelProduct(context, repository, code, product, request.photos)
                     } else if (!fromLabel) {
                         deleteLabelPhotos(request.photos)
                     }
@@ -387,7 +399,7 @@ fun MealScreen(
                     val attached = product.copy(barcode = code)
                     scope.launch {
                         repository.rememberProduct(code, attached)
-                        contributeLabelProduct(context, code, attached, photos)
+                        contributeLabelProduct(context, repository, code, attached, photos)
                     }
                 }
             )
@@ -684,6 +696,7 @@ internal data class OcrRequest(val barcode: String?)
  */
 private suspend fun contributeLabelProduct(
     context: android.content.Context,
+    repository: MealRepository,
     barcode: String,
     product: ScannedProduct,
     photos: List<ContributionPhoto>
@@ -706,6 +719,7 @@ private suspend fun contributeLabelProduct(
         )
     }
     deleteLabelPhotos(photos)
+    if (result is ContributionResult.Sent) repository.markContributed(barcode)
     val message = when (result) {
         is ContributionResult.Sent -> context.getString(R.string.meal_contribute_sent)
         is ContributionResult.Rejected -> context.getString(R.string.meal_contribute_failed, result.message ?: "")

@@ -232,6 +232,12 @@ class MealRepository {
         dao.upsertProduct(product.toProductEntity(barcode, existing?.fetchedAt ?: now, existing).copy(lastUsedAt = now))
     }
 
+    /** Records a successful upload to Open Food Facts, so the sheet can say so and offer "send again". */
+    suspend fun markContributed(barcode: String, at: Long = System.currentTimeMillis()) {
+        val existing = dao.getProduct(barcode) ?: return
+        dao.upsertProduct(existing.copy(contributedAt = at))
+    }
+
     /** Writes a learned reference value (density, piece weight, net weight) back to the preset. */
     suspend fun learnReference(barcode: String, reference: NutritionReference) {
         val existing = dao.getProduct(barcode) ?: return

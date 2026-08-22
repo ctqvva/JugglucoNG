@@ -2654,4 +2654,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_contribute_photos_desc">Fotos werden Teil der offenen Datenbank (CC BY-SA)</string>
     <string name="meal_contribute_sent">An Open Food Facts gesendet</string>
     <string name="meal_contribute_failed">Senden an Open Food Facts fehlgeschlagen: %1$s</string>
+    <string name="meal_contribute_send">An Open Food Facts senden</string>
+    <string name="meal_contribute_send_again">Erneut an Open Food Facts senden</string>
+    <string name="meal_contribute_sent_on">Am %1$s an Open Food Facts gesendet</string>
 </resources>

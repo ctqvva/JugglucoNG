@@ -2621,4 +2621,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_contribute_photos_desc">Les photos rejoignent la base ouverte (CC BY-SA)</string>
     <string name="meal_contribute_sent">Envoyé à Open Food Facts</string>
     <string name="meal_contribute_failed">Envoi à Open Food Facts impossible : %1$s</string>
+    <string name="meal_contribute_send">Envoyer à Open Food Facts</string>
+    <string name="meal_contribute_send_again">Renvoyer à Open Food Facts</string>
+    <string name="meal_contribute_sent_on">Envoyé à Open Food Facts le %1$s</string>
 </resources>
