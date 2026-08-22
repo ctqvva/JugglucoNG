@@ -2697,6 +2697,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_online_lookup_desc">Open Food Facts руу зөвхөн баркод илгээгдэнэ; хариултыг төхөөрөмж дээр кэшилнэ</string>
     <string name="meal_settings_entry">Хоол ба бүтээгдэхүүний сканнер</string>
     <string name="meal_settings_entry_desc">Баркод скан хийж, хоол бүрдүүлж, идсэнээ бүртгэх</string>
+    <string name="meal_recent_title">Сүүлийн бүтээгдэхүүн</string>
+    <string name="meal_recent_search">Нэр, брэнд эсвэл баркодоор хайх</string>
+    <string name="meal_recent_empty">Одоогоор скан хийсэн эсвэл нэмсэн зүйл алга.</string>
     <string name="meal_ocr_title">Шошго унших</string>
     <string name="meal_ocr_intro">Тэжээлийн хүснэгтийг зургийг нь ав; нэр, савны хэмжээний тулд урд талыг, шаардлагатай бол бусад талыг нэм. Бүгд энэ утсан дээр уншигдана.</string>
     <string name="meal_ocr_intro_barcode">%1$s-д бүтээгдэхүүн алга. Тэжээлийн хүснэгтийг зургийг нь ав; нэр, савны хэмжээний тулд урд талыг болон бусад талыг нэм. Утгууд энэ баркодын доор хадгалагдана.</string>

@@ -2621,6 +2621,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_online_lookup_desc">Nur der Barcode geht an Open Food Facts; Antworten werden auf dem Gerät gespeichert</string>
     <string name="meal_settings_entry">Mahlzeiten &amp; Produktscanner</string>
     <string name="meal_settings_entry_desc">Barcodes scannen, Mahlzeit zusammenstellen, Gegessenes eintragen</string>
+    <string name="meal_recent_title">Zuletzt verwendet</string>
+    <string name="meal_recent_search">Name, Marke oder Barcode suchen</string>
+    <string name="meal_recent_empty">Noch nichts gescannt oder hinzugefügt.</string>
     <string name="meal_ocr_title">Etikett lesen</string>
     <string name="meal_ocr_intro">Nährwerttabelle fotografieren; für Name und Packungsgröße die Vorderseite dazu, und jede weitere Seite, die du brauchst. Alles wird auf diesem Telefon gelesen.</string>
     <string name="meal_ocr_intro_barcode">Noch kein Produkt zu %1$s. Nährwerttabelle fotografieren; für Name und Packungsgröße die Vorderseite dazu, und jede weitere Seite. Die Werte werden unter diesem Barcode gespeichert.</string>

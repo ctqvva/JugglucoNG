@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Unarchive
@@ -112,6 +113,7 @@ fun MealScreen(
 
     val context = LocalContext.current
     var showScanner by remember { mutableStateOf(false) }
+    var showRecent by remember { mutableStateOf(false) }
     var productSheet by remember { mutableStateOf<ProductSheetRequest?>(null) }
     var ocrRequest by remember { mutableStateOf<OcrRequest?>(null) }
     var attachBarcodeFor by remember { mutableStateOf<Pair<ScannedProduct, List<ContributionPhoto>>?>(null) }
@@ -183,6 +185,13 @@ fun MealScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.meal_add_manual))
                     }
+                }
+            }
+            item(key = "recent") {
+                FilledTonalButton(onClick = { showRecent = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.History, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.meal_recent_title))
                 }
             }
 
@@ -267,6 +276,17 @@ fun MealScreen(
         )
     }
 
+    if (showRecent) {
+        MealRecentSheet(
+            repository = repository,
+            onDismiss = { showRecent = false },
+            onPick = { product ->
+                showRecent = false
+                productSheet = ProductSheetRequest(product = product, barcode = product.barcode, existingItem = null)
+            }
+        )
+    }
+
     ocrRequest?.let { request ->
         MealLabelOcrSheet(
             barcode = request.barcode,
@@ -310,6 +330,8 @@ fun MealScreen(
                         // question, is remembered so the next scan is a hit.
                         if (request.product == null || fromLabel || request.product.reference != product.reference) {
                             repository.rememberProduct(code, product)
+                        } else {
+                            repository.touchProduct(code)
                         }
                         if (fromLabel) contributeLabelProduct(context, code, product, request.photos)
                     } else if (!fromLabel) {

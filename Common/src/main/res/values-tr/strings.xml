@@ -2610,6 +2610,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_online_lookup_desc">Open Food Facts’e yalnızca barkod gider; yanıtlar cihazda önbelleğe alınır</string>
     <string name="meal_settings_entry">Öğünler ve ürün tarayıcı</string>
     <string name="meal_settings_entry_desc">Barkod tarayın, öğün oluşturun, yediğinizi kaydedin</string>
+    <string name="meal_recent_title">Son ürünler</string>
+    <string name="meal_recent_search">Ad, marka veya barkod ara</string>
+    <string name="meal_recent_empty">Henüz bir şey taranmadı veya eklenmedi.</string>
     <string name="meal_ocr_title">Etiketi oku</string>
     <string name="meal_ocr_intro">Besin değerleri tablosunu fotoğraflayın; ad ve paket boyutu için ön yüzü, gerekirse diğer yüzleri ekleyin. Her şey bu telefonda okunur.</string>
     <string name="meal_ocr_intro_barcode">%1$s için henüz ürün yok. Besin değerleri tablosunu fotoğraflayın; ad ve paket boyutu için ön yüzü ve diğer yüzleri ekleyin. Değerler bu barkodun altına kaydedilir.</string>

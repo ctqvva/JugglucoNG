@@ -2782,6 +2782,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_online_lookup_desc">Baarkoodhka keliya ayaa loo dirayaa Open Food Facts; jawaabaha qalabka ayaa lagu kaydiyaa</string>
     <string name="meal_settings_entry">Cuntooyin &amp; iskaanka alaabta</string>
     <string name="meal_settings_entry_desc">Iskaan garee baarkoodh, samee cunto, diiwaangeli waxaad cunto</string>
+    <string name="meal_recent_title">Alaabta dhowaan</string>
+    <string name="meal_recent_search">Raadi magac, summad ama baarkoodh</string>
+    <string name="meal_recent_empty">Weli waxba lama iskaan garayn lamana darin.</string>
     <string name="meal_ocr_title">Akhri calaamadda</string>
     <string name="meal_ocr_intro">Sawir shaxda nafaqada; ku dar dhinaca hore magaca iyo cabbirka baakadda, iyo dhinac kasta oo kale oo aad u baahan tahay. Wax walba waxaa lagu akhriyaa taleefankan.</string>
     <string name="meal_ocr_intro_barcode">Weli alaab looma helin %1$s. Sawir shaxda nafaqada; ku dar dhinaca hore magaca iyo cabbirka baakadda, iyo dhinac kasta oo kale. Qiyamka waxaa lagu kaydinayaa baarkoodhkan hoostiisa.</string>

@@ -2616,6 +2616,9 @@
     <string name="meal_online_lookup_desc">Do Open Food Facts trafia tylko kod kreskowy; odpowiedzi są zapisywane na urządzeniu</string>
     <string name="meal_settings_entry">Posiłki i skaner produktów</string>
     <string name="meal_settings_entry_desc">Skanuj kody, składaj posiłek, zapisuj, co jesz</string>
+    <string name="meal_recent_title">Ostatnie produkty</string>
+    <string name="meal_recent_search">Szukaj nazwy, marki lub kodu</string>
+    <string name="meal_recent_empty">Nic jeszcze nie zeskanowano ani nie dodano.</string>
     <string name="meal_ocr_title">Odczytaj etykietę</string>
     <string name="meal_ocr_intro">Sfotografuj tabelę wartości odżywczych; dodaj przód dla nazwy i wielkości opakowania oraz każdą inną potrzebną stronę. Wszystko jest odczytywane na tym telefonie.</string>
     <string name="meal_ocr_intro_barcode">Brak produktu dla %1$s. Sfotografuj tabelę wartości odżywczych; dodaj przód dla nazwy i wielkości opakowania oraz każdą inną stronę. Wartości zostaną zapisane pod tym kodem.</string>

@@ -2625,6 +2625,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_online_lookup_desc">Alleen de barcode gaat naar Open Food Facts; antwoorden worden op het toestel bewaard</string>
     <string name="meal_settings_entry">Maaltijden &amp; productscanner</string>
     <string name="meal_settings_entry_desc">Barcodes scannen, een maaltijd samenstellen, loggen wat je eet</string>
+    <string name="meal_recent_title">Recente producten</string>
+    <string name="meal_recent_search">Zoek op naam, merk of barcode</string>
+    <string name="meal_recent_empty">Nog niets gescand of toegevoegd.</string>
     <string name="meal_ocr_title">Etiket lezen</string>
     <string name="meal_ocr_intro">Fotografeer de voedingswaardetabel; voeg de voorkant toe voor naam en inhoud, en elke andere kant die je nodig hebt. Alles wordt op deze telefoon gelezen.</string>
     <string name="meal_ocr_intro_barcode">Nog geen product voor %1$s. Fotografeer de voedingswaardetabel; voeg de voorkant toe voor naam en inhoud, en elke andere kant. De waarden worden onder deze barcode opgeslagen.</string>

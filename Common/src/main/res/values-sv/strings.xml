@@ -2582,6 +2582,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_online_lookup_desc">Bara streckkoden skickas till Open Food Facts; svaren sparas på enheten</string>
     <string name="meal_settings_entry">Måltider &amp; produktskanner</string>
     <string name="meal_settings_entry_desc">Skanna streckkoder, bygg en måltid, logga det du äter</string>
+    <string name="meal_recent_title">Senaste produkter</string>
+    <string name="meal_recent_search">Sök namn, märke eller streckkod</string>
+    <string name="meal_recent_empty">Inget skannat eller tillagt ännu.</string>
     <string name="meal_ocr_title">Läs etiketten</string>
     <string name="meal_ocr_intro">Fotografera näringstabellen; lägg till framsidan för namn och förpackningsstorlek och vilken annan sida du behöver. Allt läses på den här telefonen.</string>
     <string name="meal_ocr_intro_barcode">Ingen produkt för %1$s ännu. Fotografera näringstabellen; lägg till framsidan för namn och förpackningsstorlek och vilken annan sida som helst. Värdena sparas under den här streckkoden.</string>

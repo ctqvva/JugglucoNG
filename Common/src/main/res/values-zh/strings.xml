@@ -2598,6 +2598,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_online_lookup_desc">只有条形码会发送到 Open Food Facts；结果缓存在设备上</string>
     <string name="meal_settings_entry">餐食与产品扫描</string>
     <string name="meal_settings_entry_desc">扫描条形码、组合餐食、记录所吃</string>
+    <string name="meal_recent_title">最近的产品</string>
+    <string name="meal_recent_search">搜索名称、品牌或条形码</string>
+    <string name="meal_recent_empty">尚未扫描或添加任何产品。</string>
     <string name="meal_ocr_title">读取标签</string>
     <string name="meal_ocr_intro">拍摄营养成分表；再拍正面以获取名称和净含量，需要时拍其他面。全部在本机识别。</string>
     <string name="meal_ocr_intro_barcode">还没有 %1$s 的产品。拍摄营养成分表；再拍正面以获取名称和净含量，需要时拍其他面。数值将保存在此条形码下。</string>

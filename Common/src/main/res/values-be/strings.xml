@@ -2649,6 +2649,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_online_lookup_desc">У Open Food Facts перадаецца толькі штрыхкод; адказы кэшуюцца на прыладзе</string>
     <string name="meal_settings_entry">Прыёмы ежы і сканер прадуктаў</string>
     <string name="meal_settings_entry_desc">Скануйце штрыхкоды, складайце страву, запісвайце з’едзенае</string>
+    <string name="meal_recent_title">Нядаўнія прадукты</string>
+    <string name="meal_recent_search">Пошук па назве, марцы або штрыхкодзе</string>
+    <string name="meal_recent_empty">Пакуль нічога не адсканавана і не дададзена.</string>
     <string name="meal_ocr_title">Прачытаць этыкетку</string>
     <string name="meal_ocr_intro">Сфатаграфуйце табліцу харчовай каштоўнасці; дадайце пярэдні бок для назвы і аб’ёму ўпакоўкі і любы іншы патрэбны бок. Усё распазнаецца на гэтым тэлефоне.</string>
     <string name="meal_ocr_intro_barcode">Прадукту для %1$s пакуль няма. Сфатаграфуйце табліцу харчовай каштоўнасці; дадайце пярэдні бок для назвы і аб’ёму ўпакоўкі і любы іншы бок. Значэнні захаваюцца пад гэтым штрыхкодам.</string>

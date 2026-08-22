@@ -2588,6 +2588,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_online_lookup_desc">Seul le code-barres est envoyé à Open Food Facts ; les réponses sont mises en cache sur l’appareil</string>
     <string name="meal_settings_entry">Repas et scanner de produits</string>
     <string name="meal_settings_entry_desc">Scanner des codes-barres, composer un repas, noter ce que vous mangez</string>
+    <string name="meal_recent_title">Produits récents</string>
+    <string name="meal_recent_search">Rechercher nom, marque ou code-barres</string>
+    <string name="meal_recent_empty">Rien de scanné ni d’ajouté pour l’instant.</string>
     <string name="meal_ocr_title">Lire l’étiquette</string>
     <string name="meal_ocr_intro">Photographiez le tableau nutritionnel ; ajoutez la face avant pour le nom et la contenance, et toute autre face utile. Tout est lu sur ce téléphone.</string>
     <string name="meal_ocr_intro_barcode">Aucun produit pour %1$s. Photographiez le tableau nutritionnel ; ajoutez la face avant pour le nom et la contenance, et toute autre face. Les valeurs sont enregistrées sous ce code-barres.</string>
