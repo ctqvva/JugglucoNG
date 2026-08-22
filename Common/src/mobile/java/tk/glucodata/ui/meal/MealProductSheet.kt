@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -209,7 +210,11 @@ internal fun MealProductSheet(
                 }
                 ProductFormFields(form = form, onChange = { form = it })
                 if (original == null && onPhotograph != null) {
-                    TextButton(onClick = onPhotograph) { Text(stringResource(R.string.meal_ocr_button)) }
+                    OutlinedButton(onClick = onPhotograph, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.meal_ocr_button))
+                    }
                 }
                 if (original != null) {
                     TextButton(onClick = { editing = false }) { Text(stringResource(R.string.meal_done_editing)) }
