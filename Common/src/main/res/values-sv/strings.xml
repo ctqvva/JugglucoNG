@@ -2491,6 +2491,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Måltider</string>
     <string name="meal_new">Ny måltid</string>
+    <string name="meal_current_prefix">Aktuell måltid: %1$s</string>
     <string name="meal_default_label">Måltid</string>
     <string name="meal_empty">Inga måltider ännu. Skapa en när du lagar mat, skanna det som går i och logga det du äter när du äter.</string>
     <string name="meal_open_section">Öppna</string>

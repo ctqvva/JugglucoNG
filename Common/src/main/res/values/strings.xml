@@ -2716,6 +2716,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Meals</string>
     <string name="meal_new">New meal</string>
+    <string name="meal_current_prefix">Current meal: %1$s</string>
     <string name="meal_default_label">Meal</string>
     <string name="meal_empty">No meals yet. Create one while cooking, scan what goes in, and log what you eat when you eat it.</string>
     <string name="meal_open_section">Open</string>

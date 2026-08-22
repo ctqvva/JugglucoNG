@@ -2497,6 +2497,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Repas</string>
     <string name="meal_new">Nouveau repas</string>
+    <string name="meal_current_prefix">Repas en cours : %1$s</string>
     <string name="meal_default_label">Repas</string>
     <string name="meal_empty">Aucun repas. Créez-en un en cuisinant, scannez les produits et notez ce que vous mangez au moment du repas.</string>
     <string name="meal_open_section">En cours</string>

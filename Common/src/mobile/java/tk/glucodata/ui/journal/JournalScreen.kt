@@ -109,6 +109,8 @@ fun JournalScreen(
     modifier: Modifier = Modifier,
     onOpenMeals: (() -> Unit)? = null,
     onNewMeal: (() -> Unit)? = null,
+    currentMealLabel: String? = null,
+    onOpenCurrentMeal: (() -> Unit)? = null,
     showTitle: Boolean = true,
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp,
@@ -374,6 +376,8 @@ fun JournalScreen(
 
         JournalExpandableFab(
             onMealSelected = onNewMeal,
+            currentMealLabel = currentMealLabel,
+            onCurrentMealSelected = onOpenCurrentMeal,
             expanded = fabExpanded,
             onExpandedChange = {
                 fabExpanded = it

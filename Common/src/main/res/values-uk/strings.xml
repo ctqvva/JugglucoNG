@@ -2563,6 +2563,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Прийоми їжі</string>
     <string name="meal_new">Новий прийом їжі</string>
+    <string name="meal_current_prefix">Поточний прийом їжі: %1$s</string>
     <string name="meal_default_label">Прийом їжі</string>
     <string name="meal_empty">Поки немає прийомів їжі. Створіть під час готування, відскануйте продукти й записуйте з’їдене, коли їсте.</string>
     <string name="meal_open_section">Відкриті</string>

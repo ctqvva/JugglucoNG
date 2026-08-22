@@ -2525,6 +2525,7 @@
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Posiłki</string>
     <string name="meal_new">Nowy posiłek</string>
+    <string name="meal_current_prefix">Bieżący posiłek: %1$s</string>
     <string name="meal_default_label">Posiłek</string>
     <string name="meal_empty">Brak posiłków. Utwórz posiłek podczas gotowania, zeskanuj produkty i zapisz, co jesz, gdy to jesz.</string>
     <string name="meal_open_section">Otwarte</string>

@@ -2534,6 +2534,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Приёмы пищи</string>
     <string name="meal_new">Новый приём пищи</string>
+    <string name="meal_current_prefix">Текущий приём пищи: %1$s</string>
     <string name="meal_default_label">Приём пищи</string>
     <string name="meal_empty">Пока нет приёмов пищи. Создайте во время готовки, отсканируйте продукты и записывайте съеденное, когда едите.</string>
     <string name="meal_open_section">Открытые</string>

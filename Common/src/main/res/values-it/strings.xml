@@ -2481,6 +2481,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Pasti</string>
     <string name="meal_new">Nuovo pasto</string>
+    <string name="meal_current_prefix">Pasto in corso: %1$s</string>
     <string name="meal_default_label">Pasto</string>
     <string name="meal_empty">Nessun pasto. Creane uno mentre cucini, scansiona i prodotti e registra ciò che mangi quando lo mangi.</string>
     <string name="meal_open_section">Aperti</string>

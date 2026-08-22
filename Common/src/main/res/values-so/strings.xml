@@ -2691,6 +2691,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Cuntooyin</string>
     <string name="meal_new">Cunto cusub</string>
+    <string name="meal_current_prefix">Cuntada hadda: %1$s</string>
     <string name="meal_default_label">Cunto</string>
     <string name="meal_empty">Weli cunto ma jirto. Samee mid markaad karinayso, iskaan garee waxa gala, oo diiwaangeli waxaad cunto markaad cunayso.</string>
     <string name="meal_open_section">Furan</string>
