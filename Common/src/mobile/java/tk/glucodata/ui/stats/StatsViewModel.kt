@@ -373,12 +373,14 @@ class StatsViewModel : ViewModel() {
         val clampedDays = reportDays.coerceIn(1, MAX_REPORT_DAYS)
         val cutoff = System.currentTimeMillis() - (clampedDays.toLong() * DAY_MS)
         val reportHistory = resolveHistoryForStartTime(cutoff)
+        // The exported report is the document a clinician reads: it must carry the same
+        // pressure exclusions the screen shows, or the two disagree about the same window.
         val filteredHistory = resolveStatsDisplayHistory(
             history = reportHistory,
             viewMode = _viewMode.value,
             unit = _unit.value
         ).filter {
-            it.timestamp >= cutoff && isStatsValueValid(it.value)
+            it.timestamp >= cutoff && isStatsValueValid(it.value) && !isPressureExcluded(it.timestamp)
         }
         val filteredTemperature = _temperaturePoints.value.filter { it.timestamp >= cutoff }
 

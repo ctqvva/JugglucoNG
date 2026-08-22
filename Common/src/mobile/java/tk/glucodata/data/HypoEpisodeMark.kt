@@ -15,9 +15,10 @@ import kotlinx.coroutines.flow.Flow
  * are never rewritten, matching the delete-tombstone precedent: flipping a mark back
  * restores the statistics because nothing was ever removed.
  *
- * [episodeKeyMs] is the episode's start timestamp rounded down to the minute — stable
- * across re-imports and re-scans, which may shift a boundary by a few seconds but not
- * by a minute bucket.
+ * [episodeKeyMs] is the episode's start timestamp rounded down to the minute. A later
+ * re-scan may move a boundary (backfill, a changed low target), so readers match a
+ * recomputed episode to its mark by OVERLAP of the stored window, never by key equality
+ * — see [findFor]. The key is only the primary key.
  */
 @Entity(tableName = "hypo_episode_marks")
 data class HypoEpisodeMark(
@@ -38,6 +39,14 @@ data class HypoEpisodeMark(
         const val SOURCE_HOLD = "hold"
 
         fun keyFor(startMs: Long): Long = startMs - startMs % 60_000L
+
+        /**
+         * The mark belonging to an episode spanning [startMs, endMs]: the stored window
+         * that overlaps it. Overlap, not key equality, so a boundary that drifted after
+         * the mark was written still finds its mark and the toggle can undo it.
+         */
+        fun findFor(marks: Collection<HypoEpisodeMark>, startMs: Long, endMs: Long): HypoEpisodeMark? =
+            marks.firstOrNull { it.episodeKeyMs <= endMs && it.endMs >= startMs }
     }
 }
 
