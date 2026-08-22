@@ -690,10 +690,18 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     // A screen asked for from outside Compose — a notification's tap — is parked in
     // PendingNavigation by MainActivity and taken here, so it works from a cold start.
+    // It is placed directly above the dashboard, as a tab tap would place it, so the
+    // bar keeps working: whatever was open is popped (state saved), Back returns to
+    // the dashboard, and the dashboard tab is one tap away.
     LaunchedEffect(navController) {
         PendingNavigation.route.collect { route ->
             if (route != null) {
-                runCatching { navController.navigate(route) { launchSingleTop = true } }
+                runCatching {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                    }
+                }
                 PendingNavigation.consume()
             }
         }
