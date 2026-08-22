@@ -2842,4 +2842,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_off_category">Qayb (Open Food Facts)</string>
     <string name="meal_off_category_hint">tus. Shukulaato, Badarka quraacda</string>
     <string name="meal_send_nutriscore_missing">Nutri-Score, Open Food Facts wali wuxuu u baahan yahay: %1$s</string>
+    <string name="meal_crop_title">Jar sawirka</string>
+    <string name="meal_crop_hint">Jiid geesaha si calaamadda keliya u hadho — waxay caawisaa aqoonsiga qoraalka waxayna Open Food Facts siisaa sawir nadiif ah. Taabo sawir yar dambe si aad mar kale u jarto.</string>
+    <string name="meal_crop_apply">Jar</string>
+    <string name="meal_crop_skip">Sidiisa u isticmaal</string>
 </resources>

@@ -2681,4 +2681,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_off_category">Kategorie (Open Food Facts)</string>
     <string name="meal_off_category_hint">z. B. Schokoriegel, Frühstückscerealien</string>
     <string name="meal_send_nutriscore_missing">Für einen Nutri-Score fehlt Open Food Facts noch: %1$s</string>
+    <string name="meal_crop_title">Foto zuschneiden</string>
+    <string name="meal_crop_hint">Ecken ziehen, bis nur das Etikett übrig ist — das hilft der Texterkennung und gibt Open Food Facts ein sauberes Bild. Später ein Vorschaubild antippen, um erneut zuzuschneiden.</string>
+    <string name="meal_crop_apply">Zuschneiden</string>
+    <string name="meal_crop_skip">So verwenden</string>
 </resources>

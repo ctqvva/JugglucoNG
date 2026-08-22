@@ -2685,4 +2685,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_off_category">Categorie (Open Food Facts)</string>
     <string name="meal_off_category_hint">bijv. Chocoladerepen, Ontbijtgranen</string>
     <string name="meal_send_nutriscore_missing">Voor een Nutri-Score mist Open Food Facts nog: %1$s</string>
+    <string name="meal_crop_title">Foto bijsnijden</string>
+    <string name="meal_crop_hint">Sleep de hoeken tot alleen het etiket overblijft — dat helpt de tekstherkenning en geeft Open Food Facts een schonere foto. Tik later op een miniatuur om opnieuw bij te snijden.</string>
+    <string name="meal_crop_apply">Bijsnijden</string>
+    <string name="meal_crop_skip">Zo gebruiken</string>
 </resources>

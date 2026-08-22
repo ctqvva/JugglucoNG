@@ -2642,4 +2642,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_off_category">Kategori (Open Food Facts)</string>
     <string name="meal_off_category_hint">t.ex. Chokladkakor, Frukostflingor</string>
     <string name="meal_send_nutriscore_missing">För ett Nutri-Score saknar Open Food Facts ännu: %1$s</string>
+    <string name="meal_crop_title">Beskär fotot</string>
+    <string name="meal_crop_hint">Dra i hörnen så att bara etiketten blir kvar — det hjälper textigenkänningen och ger Open Food Facts en renare bild. Tryck på en miniatyr senare för att beskära igen.</string>
+    <string name="meal_crop_apply">Beskär</string>
+    <string name="meal_crop_skip">Använd som det är</string>
 </resources>

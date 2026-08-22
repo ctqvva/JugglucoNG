@@ -2670,4 +2670,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_off_category">Kategori (Open Food Facts)</string>
     <string name="meal_off_category_hint">örn. Çikolata barları, Kahvaltılık gevrekler</string>
     <string name="meal_send_nutriscore_missing">Nutri-Score için Open Food Facts’te hâlâ eksik: %1$s</string>
+    <string name="meal_crop_title">Fotoğrafı kırp</string>
+    <string name="meal_crop_hint">Yalnızca etiket kalacak şekilde köşeleri sürükleyin — metin tanımaya yardımcı olur ve Open Food Facts’e daha temiz bir görüntü verir. Yeniden kırpmak için daha sonra bir küçük resme dokunun.</string>
+    <string name="meal_crop_apply">Kırp</string>
+    <string name="meal_crop_skip">Olduğu gibi kullan</string>
 </resources>

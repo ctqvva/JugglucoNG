@@ -2757,4 +2757,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_off_category">Ангилал (Open Food Facts)</string>
     <string name="meal_off_category_hint">ж.нь Шоколадан баар, Өглөөний үр тариа</string>
     <string name="meal_send_nutriscore_missing">Nutri-Score-д Open Food Facts-д дутуу байна: %1$s</string>
+    <string name="meal_crop_title">Зургийг тайрах</string>
+    <string name="meal_crop_hint">Зөвхөн шошго үлдэхээр булангуудыг чирнэ үү — текст таних болон Open Food Facts-д илүү цэвэр зураг өгнө. Дараа нь дахин тайрахын тулд жижиг зураг дээр дарна уу.</string>
+    <string name="meal_crop_apply">Тайрах</string>
+    <string name="meal_crop_skip">Байгаагаар ашиглах</string>
 </resources>

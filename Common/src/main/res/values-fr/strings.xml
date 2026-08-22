@@ -2648,4 +2648,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_off_category">Catégorie (Open Food Facts)</string>
     <string name="meal_off_category_hint">ex. Barres chocolatées, Céréales pour petit-déjeuner</string>
     <string name="meal_send_nutriscore_missing">Pour un Nutri-Score, il manque encore à Open Food Facts : %1$s</string>
+    <string name="meal_crop_title">Recadrer la photo</string>
+    <string name="meal_crop_hint">Faites glisser les coins pour ne garder que l’étiquette — cela aide la reconnaissance de texte et donne une image plus propre à Open Food Facts. Touchez une miniature plus tard pour recadrer à nouveau.</string>
+    <string name="meal_crop_apply">Recadrer</string>
+    <string name="meal_crop_skip">Utiliser telle quelle</string>
 </resources>

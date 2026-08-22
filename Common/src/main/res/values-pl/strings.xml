@@ -2676,4 +2676,8 @@
     <string name="meal_off_category">Kategoria (Open Food Facts)</string>
     <string name="meal_off_category_hint">np. Batony czekoladowe, Płatki śniadaniowe</string>
     <string name="meal_send_nutriscore_missing">Do Nutri-Score Open Food Facts potrzebuje jeszcze: %1$s</string>
+    <string name="meal_crop_title">Przytnij zdjęcie</string>
+    <string name="meal_crop_hint">Przeciągnij rogi, aby zostawić tylko etykietę — to pomaga w rozpoznawaniu tekstu i daje Open Food Facts czystsze zdjęcie. Później stuknij miniaturę, aby przyciąć ponownie.</string>
+    <string name="meal_crop_apply">Przytnij</string>
+    <string name="meal_crop_skip">Użyj bez zmian</string>
 </resources>

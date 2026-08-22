@@ -2714,4 +2714,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_off_category">Категорія (Open Food Facts)</string>
     <string name="meal_off_category_hint">напр. Шоколадні батончики, Сніданкові пластівці</string>
     <string name="meal_send_nutriscore_missing">Для Nutri-Score Open Food Facts ще бракує: %1$s</string>
+    <string name="meal_crop_title">Обрізати фото</string>
+    <string name="meal_crop_hint">Потягніть кути, щоб залишити лише етикетку — це допомагає розпізнаванню тексту й дає Open Food Facts чистіше зображення. Пізніше торкніться мініатюри, щоб обрізати знову.</string>
+    <string name="meal_crop_apply">Обрізати</string>
+    <string name="meal_crop_skip">Залишити як є</string>
 </resources>

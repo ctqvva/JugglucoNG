@@ -2709,4 +2709,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_off_category">Катэгорыя (Open Food Facts)</string>
     <string name="meal_off_category_hint">напр. Шакаладныя батончыкі, Сняданкавыя шматкі</string>
     <string name="meal_send_nutriscore_missing">Для Nutri-Score у Open Food Facts яшчэ не хапае: %1$s</string>
+    <string name="meal_crop_title">Абрэзаць фота</string>
+    <string name="meal_crop_hint">Пацягніце куты, каб пакінуць толькі этыкетку — гэта дапамагае распазнаванню тэксту і дае Open Food Facts чысцейшую выяву. Пазней краніце мініяцюру, каб абрэзаць зноў.</string>
+    <string name="meal_crop_apply">Абрэзаць</string>
+    <string name="meal_crop_skip">Пакінуць як ёсць</string>
 </resources>

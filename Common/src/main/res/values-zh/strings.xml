@@ -2658,4 +2658,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_off_category">类别（Open Food Facts）</string>
     <string name="meal_off_category_hint">例如 巧克力棒、早餐谷物</string>
     <string name="meal_send_nutriscore_missing">Open Food Facts 计算 Nutri-Score 还缺少：%1$s</string>
+    <string name="meal_crop_title">裁剪照片</string>
+    <string name="meal_crop_hint">拖动四角只保留标签——有助于文字识别，也让 Open Food Facts 得到更干净的图片。之后点击缩略图可重新裁剪。</string>
+    <string name="meal_crop_apply">裁剪</string>
+    <string name="meal_crop_skip">直接使用</string>
 </resources>
