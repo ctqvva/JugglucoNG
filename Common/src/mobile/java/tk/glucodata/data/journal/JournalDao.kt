@@ -18,6 +18,9 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE mealId = :mealId ORDER BY timestamp ASC, id ASC")
     fun observeEntriesForMeal(mealId: Long): Flow<List<JournalEntryEntity>>
 
+    @Query("SELECT id FROM journal_entries WHERE mealId = :mealId")
+    suspend fun getEntryIdsForMeal(mealId: Long): List<Long>
+
     @Query("SELECT * FROM journal_entries WHERE sourceRecordId = :sourceRecordId LIMIT 1")
     suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
 

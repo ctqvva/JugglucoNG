@@ -127,6 +127,7 @@ private fun DashboardRoute(
         onNavigateToPredictionModelProfile = {
             navController.navigate("settings/predictive-simulation/model-profile")
         },
+        onNavigateToMeals = { navController.navigate("journal/meals") },
         onTriggerCalibration = onTriggerCalibration
     )
 }

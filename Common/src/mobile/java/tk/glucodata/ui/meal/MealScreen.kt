@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -330,18 +331,41 @@ fun MealScreen(
     }
 
     if (showDeleteConfirm && current != null) {
+        val entryCount = linkedEntries.size
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text(stringResource(R.string.meal_delete)) },
-            text = { Text(stringResource(R.string.meal_delete_confirm)) },
+            text = {
+                Text(
+                    if (entryCount == 0) stringResource(R.string.meal_delete_confirm)
+                    else stringResource(R.string.meal_delete_confirm_entries, entryCount)
+                )
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm = false
-                    scope.launch {
-                        repository.deleteMeal(current.id)
-                        navController.popBackStack()
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (entryCount > 0) {
+                        // Everything: the meal, its items, and every journal entry logged for it
+                        // (each through the normal delete path, so Nightscout tombstones are kept).
+                        TextButton(
+                            onClick = {
+                                showDeleteConfirm = false
+                                scope.launch {
+                                    journalRepository.deleteEntriesForMeal(current.id)
+                                    repository.deleteMeal(current.id)
+                                    navController.popBackStack()
+                                }
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) { Text(stringResource(R.string.meal_delete_all)) }
                     }
-                }) { Text(stringResource(R.string.delete)) }
+                    TextButton(onClick = {
+                        showDeleteConfirm = false
+                        scope.launch {
+                            repository.deleteMeal(current.id)
+                            navController.popBackStack()
+                        }
+                    }) { Text(stringResource(if (entryCount > 0) R.string.meal_delete_only else R.string.delete)) }
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) }
