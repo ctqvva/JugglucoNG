@@ -121,6 +121,8 @@ fun MealScreen(
     var attachBarcodeFor by remember { mutableStateOf<Pair<ScannedProduct, List<ContributionPhoto>>?>(null) }
     var sendRequest by remember { mutableStateOf<ScannedProduct?>(null) }
     var sendAddPhotos by remember { mutableStateOf(false) }
+    // Barcodes sent from the product sheet in this session: "Add to meal" must not send them again.
+    val sentFromSheet = remember { mutableSetOf<String>() }
     var showAttachScanner by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -320,8 +322,11 @@ fun MealScreen(
                 val code = edited.barcode
                 if (code != null) {
                     scope.launch {
-                        // What goes out is what is stored: keep the cache in step with the edit.
+                        // What goes out is what is stored: keep the cache in step with the edit,
+                        // and park the label photos under the barcode before the dialog counts them.
                         repository.rememberProduct(code, edited)
+                        withContext(Dispatchers.IO) { LabelPhotoStore.store(context, code, request.photos) }
+                        sentFromSheet += code
                         productSheet = null
                         sendRequest = edited
                     }
@@ -349,7 +354,11 @@ fun MealScreen(
                         } else {
                             repository.touchProduct(code)
                         }
-                        if (fromLabel) contributeLabelProduct(context, repository, code, product, request.photos)
+                        if (fromLabel && code !in sentFromSheet) {
+                            contributeLabelProduct(context, repository, code, product, request.photos)
+                        } else if (fromLabel) {
+                            withContext(Dispatchers.IO) { LabelPhotoStore.store(context, code, request.photos) }
+                        }
                     } else if (!fromLabel) {
                         deleteLabelPhotos(request.photos)
                     }
