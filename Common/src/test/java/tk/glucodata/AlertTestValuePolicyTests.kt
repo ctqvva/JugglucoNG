@@ -27,7 +27,8 @@ class AlertTestValuePolicyTests {
                 AlertType.MISSED_READING,
                 AlertType.SENSOR_EXPIRY,
                 AlertType.FALLING_FAST,
-                AlertType.RISING_FAST -> null
+                AlertType.RISING_FAST,
+                AlertType.SENSOR_PRESSURE -> null
             }
             val config = AlertConfig(type = type, threshold = threshold)
             val value = AlertTestValuePolicy.resolve(type, config, true, 8.8f)
@@ -48,7 +49,8 @@ class AlertTestValuePolicyTests {
                 AlertType.MISSED_READING,
                 AlertType.SENSOR_EXPIRY,
                 AlertType.FALLING_FAST,
-                AlertType.RISING_FAST -> assertEquals(8.8f, value, 0.001f)
+                AlertType.RISING_FAST,
+                AlertType.SENSOR_PRESSURE -> assertEquals(8.8f, value, 0.001f)
             }
         }
     }
