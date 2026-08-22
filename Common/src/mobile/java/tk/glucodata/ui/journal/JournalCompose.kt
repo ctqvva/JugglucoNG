@@ -53,7 +53,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
@@ -1445,7 +1445,7 @@ private fun JournalDoseAssistCard(
                 )
             ) {
                 Icon(
-                    imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.Restaurant,
+                    imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.LunchDining,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1646,7 +1646,7 @@ private fun JournalFoodLibrarySelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Restaurant,
+                    imageVector = Icons.Default.LunchDining,
                     contentDescription = null,
                     tint = visibleItems.firstOrNull()?.accentColor?.let(::Color)
                         ?: MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2430,7 +2430,7 @@ private fun JournalActionRow(
                     imageVector = when (action) {
                         JournalTrayAction.CALIBRATE -> Icons.Default.Bloodtype
                         JournalTrayAction.INSULIN -> Icons.Default.Vaccines
-                        JournalTrayAction.CARBS -> Icons.Default.Restaurant
+                        JournalTrayAction.CARBS -> Icons.Default.LunchDining
                         JournalTrayAction.FINGERSTICK -> Icons.Default.Bloodtype
                         JournalTrayAction.ACTIVITY -> Icons.Default.DirectionsRun
                         JournalTrayAction.NOTE -> Icons.AutoMirrored.Filled.Label
@@ -3518,7 +3518,7 @@ private fun String.trimTrailingLabel(): String {
 private fun journalTypeIcon(type: JournalEntryType): ImageVector {
     return when (type) {
         JournalEntryType.INSULIN -> Icons.Default.Vaccines
-        JournalEntryType.CARBS -> Icons.Default.Restaurant
+        JournalEntryType.CARBS -> Icons.Default.LunchDining
         JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
         JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
         JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label

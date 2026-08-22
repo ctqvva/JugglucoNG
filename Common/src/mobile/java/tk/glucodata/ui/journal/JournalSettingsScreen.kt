@@ -47,13 +47,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.QrCodeScanner
 
 import androidx.compose.material3.Button
@@ -306,7 +306,7 @@ fun JournalSettingsScreen(
                         subtitle = stringResource(R.string.journal_food_macros_desc),
                         checked = journalFoodMacrosEnabled,
                         onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Default.LunchDining,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE,
                         enabled = journalEnabled
@@ -363,7 +363,7 @@ fun JournalSettingsScreen(
                         ),
                         showArrow = true,
                         onClick = { navController.navigate("settings/journal/foods") },
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Default.LunchDining,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP
                     )
@@ -381,7 +381,7 @@ fun JournalSettingsScreen(
                         subtitle = stringResource(R.string.meal_settings_entry_desc),
                         showArrow = true,
                         onClick = { navController.navigate("journal/meals") },
-                        icon = Icons.Default.LunchDining,
+                        icon = Icons.Default.Restaurant,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE
                     )
@@ -493,7 +493,7 @@ private fun JournalIntelligenceCard(
             JournalIntelligenceRow(
                 title = stringResource(R.string.journal_food_macros_title),
                 subtitle = stringResource(R.string.journal_food_macros_desc),
-                icon = Icons.Default.Restaurant,
+                icon = Icons.Default.LunchDining,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 checked = foodMacrosEnabled,
                 enabled = journalEnabled,
@@ -575,7 +575,7 @@ private fun JournalLibraryHub(
         JournalLibraryTile(
             title = stringResource(R.string.journal_food_library),
             subtitle = stringResource(R.string.journal_food_library_count, activeFoods, totalFoods),
-            icon = Icons.Default.Restaurant,
+            icon = Icons.Default.LunchDining,
             tint = MaterialTheme.colorScheme.secondary,
             shape = RoundedCornerShape(topStart = 34.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 28.dp),
             modifier = Modifier.weight(1f),
@@ -730,7 +730,7 @@ fun JournalFoodLibraryScreen(
                     subtitle = stringResource(R.string.journal_food_choose_desc),
                     checked = foodLibraryEnabled,
                     onCheckedChange = { viewModel.setJournalFoodLibraryEnabled(it) },
-                    icon = Icons.Default.Restaurant,
+                    icon = Icons.Default.LunchDining,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.SINGLE
                 )
@@ -1079,7 +1079,7 @@ private fun JournalFoodRow(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Restaurant,
+                        imageVector = Icons.Default.LunchDining,
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(22.dp)

@@ -72,7 +72,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.DatePicker
@@ -4627,7 +4627,7 @@ private fun JournalMarkerChip(
             Icon(
                 imageVector = when (marker.type) {
                     JournalEntryType.INSULIN -> Icons.Default.Vaccines
-                    JournalEntryType.CARBS -> Icons.Default.Restaurant
+                    JournalEntryType.CARBS -> Icons.Default.LunchDining
                     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
                     JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
                     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
