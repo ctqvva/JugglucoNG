@@ -114,6 +114,7 @@ private fun DashboardRoute(
     onTriggerCalibration: (CalibrationSheetState) -> Unit
 ) {
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
+    val newMealAction = tk.glucodata.ui.meal.rememberNewMealAction(navController)
 
     DashboardScreen(
         viewModel = dashboardViewModel,
@@ -127,7 +128,7 @@ private fun DashboardRoute(
         onNavigateToPredictionModelProfile = {
             navController.navigate("settings/predictive-simulation/model-profile")
         },
-        onNavigateToMeals = { navController.navigate("journal/meals") },
+        onNewMeal = newMealAction,
         onTriggerCalibration = onTriggerCalibration
     )
 }
@@ -354,6 +355,7 @@ private fun JournalRoute(
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
+    val newMealAction = tk.glucodata.ui.meal.rememberNewMealAction(navController)
 
     fun openJournalEditor(
         timestamp: Long,
@@ -416,6 +418,7 @@ private fun JournalRoute(
         onOpenFoodLibrary = { navController.navigate("settings/journal/foods") },
         onOpenInsulinLibrary = { navController.navigate("settings/journal/insulin") },
         onOpenMeals = { navController.navigate("journal/meals") },
+        onNewMeal = newMealAction,
         modifier = modifier,
         showTitle = showTitle,
         useStatusBarsPadding = useStatusBarsPadding,
