@@ -149,7 +149,7 @@ fun AlertSettingsScreen(
     }
 
     val lowAlerts = remember {
-        listOf(AlertType.LOW, AlertType.VERY_LOW)
+        listOf(AlertType.LOW, AlertType.VERY_LOW, AlertType.SENSOR_PRESSURE)
     }
 
     val predictiveAlerts = remember {
@@ -431,6 +431,14 @@ fun AlertSettingsScreen(
                     text = stringResource(R.string.add_low_alert),
                     onClick = { createDefaultCustomAlert(CustomAlertType.LOW) }
                 )
+            }
+
+            // Sensor-pressure hold (the compression-low gatekeeper) — its opt-in and
+            // thresholds; the SENSOR_PRESSURE cue's tone and haptics live in the card
+            // list above with its alarm siblings.
+            item(key = "sensor-pressure-hold") {
+                Spacer(Modifier.height(4.dp))
+                SensorPressureHoldCard(isMmol = isMmol)
             }
 
             // === PREDICTIVE ALERTS SECTION ===
@@ -2090,6 +2098,7 @@ private fun getAlertIconAndColor(type: AlertType, isDark: Boolean): Pair<ImageVe
         AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to Color(0xFF78909C)
         AlertType.LOSS -> Icons.Default.BluetoothDisabled to Color(0xFF90A4AE)
         AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to Color(0xFF7E57C2)
+        AlertType.SENSOR_PRESSURE -> Icons.Default.Notifications to Color(0xFF8D6E63)
         else -> Icons.Default.Notifications to Color(0xFF42A5F5)  // Default blue
     }
 }

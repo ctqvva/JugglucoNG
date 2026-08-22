@@ -98,6 +98,13 @@ internal class CompressionHoldState {
     /** Disabling the feature mid-hold releases the alarm rather than leaving a latch. */
     fun onDisabled(): Action = escalateIfHolding("feature-disabled")
 
+    /**
+     * Ends a running hold for a reason decided outside the state machine — e.g. the
+     * VERY_LOW alert taking over: the hard floor fired through a different alert type,
+     * so the hold is over and counts as escalated, but LOW itself must not double-alarm.
+     */
+    fun forceEscalate(reason: String): Action = escalateIfHolding(reason)
+
     private fun escalateIfHolding(reason: String): Action {
         if (!holding) return Action.None
         reset()

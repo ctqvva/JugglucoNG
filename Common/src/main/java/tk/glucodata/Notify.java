@@ -600,6 +600,7 @@ public class Notify {
     public static final String CHANNEL_LOSS = "LOSS";
     public static final String CHANNEL_MISSED_READING = "MISSED_READING";
     public static final String CHANNEL_SENSOR_EXPIRY = "SENSOR_EXPIRY";
+    public static final String CHANNEL_SENSOR_PRESSURE = "SENSOR_PRESSURE";
     // private static final String LOSSALARM = "LossofSensorAlarm";
     private static String GLUCOSENOTIFICATION = "glucoseNotification";
 
@@ -617,6 +618,8 @@ public class Notify {
                 return CHANNEL_HIGH;
             case 11:
                 return CHANNEL_SENSOR_EXPIRY;
+            case 14:
+                return CHANNEL_SENSOR_PRESSURE;
             default:
                 return GLUCOSEALARM;
         }
@@ -714,6 +717,17 @@ public class Notify {
             channelSensorExpiry.setShowBadge(false);
             channelSensorExpiry.setLockscreenVisibility(VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channelSensorExpiry);
+
+            NotificationChannel channelSensorPressure = new NotificationChannel(
+                    CHANNEL_SENSOR_PRESSURE,
+                    context.getString(R.string.alert_sensor_pressure),
+                    NotificationManager.IMPORTANCE_HIGH);
+            channelSensorPressure
+                    .setDescription(context.getString(R.string.sensor_pressure_channel_description));
+            channelSensorPressure.setSound(null, null);
+            channelSensorPressure.setShowBadge(false);
+            channelSensorPressure.setLockscreenVisibility(VISIBILITY_PUBLIC);
+            notificationManager.createNotificationChannel(channelSensorPressure);
         }
 
     }

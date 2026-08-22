@@ -22,6 +22,7 @@ import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
 import tk.glucodata.data.prediction.PredictionModelProfileStore
+import tk.glucodata.logic.CompressionLowDetector
 
 object OutboundApiJournalSnapshot {
     private const val PREFS_NAME = "tk.glucodata_preferences"
@@ -96,6 +97,40 @@ object OutboundApiJournalSnapshot {
         }
         broadcastIobCache = BroadcastIobCache(atMillis, fresh)
         return fresh
+    }
+
+    /**
+     * Whether the newest journal insulin dose is past its curve-derived activity peak
+     * at [timeMillis]: 1 = past, 0 = not yet, -1 = unknown. Resolved from src/main via
+     * reflection (JournalIobAccess) for the compression-low hold. "No doses inside the
+     * lookback window" is a vacuous 1 — with nothing on board there is no ramp-up to
+     * wait out, and the hold's separate IOB gate judges the amount. Unknown is returned
+     * on the main thread and on any failure; the hold treats it as "do not hold".
+     */
+    @JvmStatic
+    fun lastDosePeakPassed(timeMillis: Long): Int {
+        if (Looper.myLooper() == Looper.getMainLooper()) return -1
+        return runBlocking {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val app = Applic.app ?: return@runCatching -1
+                    val prefs = app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                    if (!prefs.getBoolean(JOURNAL_ENABLED_KEY, true)) return@runCatching -1
+                    val dao = HistoryDatabase.getInstance(app).journalDao()
+                    val presetsById = dao.getInsulinPresets().map { toPresetModel(it) }.associateBy { it.id }
+                    val maxPresetDurationMs = presetsById.values
+                        .maxOfOrNull { it.durationMinutes.coerceAtLeast(0) }?.times(60_000L)
+                        ?: DEFAULT_ACTIVE_WINDOW_MS
+                    val startMillis = (timeMillis - maxOf(DEFAULT_ACTIVE_WINDOW_MS, maxPresetDurationMs) - 60_000L)
+                        .coerceAtLeast(0L)
+                    val entries = dao.getEntriesBetween(startMillis, timeMillis)
+                    val doses = JournalIobCalculator.dosesFromEntities(entries, presetsById)
+                    val newest = doses.maxByOrNull { it.timestampMillis } ?: return@runCatching 1
+                    val curve = newest.preset.curvePoints.map { it.minute to it.activity }
+                    if (CompressionLowDetector.dosePeakPassed(newest.timestampMillis, curve, timeMillis)) 1 else 0
+                }.getOrDefault(-1)
+            }
+        }
     }
 
     private suspend fun buildBroadcastIob(atMillis: Long): FloatArray? {

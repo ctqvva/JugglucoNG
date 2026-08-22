@@ -19,7 +19,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
     PERSISTENT_HIGH(10, R.string.alert_persistent_high),
     SENSOR_EXPIRY(11, R.string.alert_sensor_expiry),
     FALLING_FAST(12, R.string.alert_falling_fast),
-    RISING_FAST(13, R.string.alert_rising_fast);
+    RISING_FAST(13, R.string.alert_rising_fast),
+    SENSOR_PRESSURE(14, R.string.alert_sensor_pressure);
 
     companion object {
         fun fromId(id: Int): AlertType? = entries.find { it.id == id }
@@ -41,7 +42,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
             LOSS,
             SENSOR_EXPIRY,
             FALLING_FAST,
-            RISING_FAST
+            RISING_FAST,
+            SENSOR_PRESSURE
         )
     }
 }
@@ -379,6 +381,21 @@ object AlertDefaults {
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.SOFT,
                 defaultSnoozeMinutes = 30
+            )
+            // The cue of the sensor-pressure hold: two different actions deserve two
+            // different signals — "low" means glucose, this means take the pressure
+            // off the sensor, at a desk as much as in bed. Gentle on purpose (a
+            // position change, not a full wake-up), but through DND, because the hold
+            // also runs while its owner sleeps. The hold runtime refuses to hold at
+            // all while this type is disabled: a hold is quieter than an alarm,
+            // never silent.
+            AlertType.SENSOR_PRESSURE -> AlertConfig(
+                type = type,
+                enabled = true,
+                deliveryMode = AlertDeliveryMode.NOTIFICATION_ONLY,
+                hapticProfile = HapticProfile.SOFT,
+                overrideDND = true,
+                defaultSnoozeMinutes = 5
             )
             else -> AlertConfig(type = type)
         }
