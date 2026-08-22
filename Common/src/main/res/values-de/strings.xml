@@ -2542,6 +2542,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_unarchive">Wieder öffnen</string>
     <string name="meal_delete">Mahlzeit löschen</string>
     <string name="meal_delete_confirm">Diese Mahlzeit und ihre Zutaten löschen? Journal-Einträge bleiben erhalten.</string>
+    <string name="meal_delete_only">Nur Mahlzeit löschen</string>
+    <string name="meal_delete_all">Alles löschen</string>
+    <string name="meal_delete_confirm_entries">Diese Mahlzeit und ihre Zutaten löschen? „Alles löschen“ entfernt auch die %1$d dazu eingetragenen Journal-Einträge; „Nur Mahlzeit löschen“ behält sie.</string>
     <string name="meal_scan_product">Barcode scannen</string>
     <string name="meal_scan_again">Erneut scannen</string>
     <string name="meal_add_manual">Manuell hinzufügen</string>

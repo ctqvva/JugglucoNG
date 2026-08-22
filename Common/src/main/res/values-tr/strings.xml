@@ -2531,6 +2531,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_unarchive">Yeniden aç</string>
     <string name="meal_delete">Öğünü sil</string>
     <string name="meal_delete_confirm">Bu öğün ve öğeleri silinsin mi? Günlük kayıtları kalır.</string>
+    <string name="meal_delete_only">Yalnızca öğünü sil</string>
+    <string name="meal_delete_all">Tümünü sil</string>
+    <string name="meal_delete_confirm_entries">Bu öğün ve öğeleri silinsin mi? “Tümünü sil” bunun için kaydedilen %1$d günlük kaydını da siler; “Yalnızca öğünü sil” onları korur.</string>
     <string name="meal_scan_product">Barkod tara</string>
     <string name="meal_scan_again">Tekrar tara</string>
     <string name="meal_add_manual">Elle ekle</string>

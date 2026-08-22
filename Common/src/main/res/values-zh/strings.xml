@@ -2519,6 +2519,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_unarchive">重新打开</string>
     <string name="meal_delete">删除餐食</string>
     <string name="meal_delete_confirm">删除此餐食及其食材？日志条目会保留。</string>
+    <string name="meal_delete_only">仅删除餐食</string>
+    <string name="meal_delete_all">全部删除</string>
+    <string name="meal_delete_confirm_entries">删除此餐食及其食材？“全部删除”会同时删除为其记录的 %1$d 条日志条目；“仅删除餐食”会保留它们。</string>
     <string name="meal_scan_product">扫描条形码</string>
     <string name="meal_scan_again">重新扫描</string>
     <string name="meal_add_manual">手动添加</string>

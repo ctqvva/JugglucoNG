@@ -2504,6 +2504,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_unarchive">Reabrir</string>
     <string name="meal_delete">Eliminar refeição</string>
     <string name="meal_delete_confirm">Eliminar esta refeição e os seus itens? As entradas do diário mantêm-se.</string>
+    <string name="meal_delete_only">Eliminar só a refeição</string>
+    <string name="meal_delete_all">Eliminar tudo</string>
+    <string name="meal_delete_confirm_entries">Eliminar esta refeição e os seus itens? “Eliminar tudo” remove também as %1$d entradas do diário registadas para ela; “Eliminar só a refeição” mantém-nas.</string>
     <string name="meal_scan_product">Ler código de barras</string>
     <string name="meal_scan_again">Ler novamente</string>
     <string name="meal_add_manual">Adicionar manualmente</string>

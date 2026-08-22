@@ -2703,6 +2703,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_unarchive">Dib u fur</string>
     <string name="meal_delete">Tirtir cuntada</string>
     <string name="meal_delete_confirm">Ma tirtirtaa cuntadan iyo shaygeeda? Qoraallada xusuusqorka way hadhayaan.</string>
+    <string name="meal_delete_only">Tirtir cuntada keliya</string>
+    <string name="meal_delete_all">Tirtir dhammaan</string>
+    <string name="meal_delete_confirm_entries">Ma tirtirtaa cuntadan iyo shaygeeda? “Tirtir dhammaan” wuxuu kaloo tirtirayaa %1$d qoraal ee xusuusqorka loo diiwaangeliyey; “Tirtir cuntada keliya” wuu hayaa.</string>
     <string name="meal_scan_product">Iskaan garee baarkoodhka</string>
     <string name="meal_scan_again">Mar kale iskaan garee</string>
     <string name="meal_add_manual">Gacanta ku dar</string>

@@ -2537,6 +2537,9 @@
     <string name="meal_unarchive">Otwórz ponownie</string>
     <string name="meal_delete">Usuń posiłek</string>
     <string name="meal_delete_confirm">Usunąć ten posiłek i jego pozycje? Wpisy dziennika pozostaną.</string>
+    <string name="meal_delete_only">Usuń tylko posiłek</string>
+    <string name="meal_delete_all">Usuń wszystko</string>
+    <string name="meal_delete_confirm_entries">Usunąć ten posiłek i jego pozycje? „Usuń wszystko” usuwa też %1$d wpisów dziennika zapisanych dla niego; „Usuń tylko posiłek” je zachowuje.</string>
     <string name="meal_scan_product">Skanuj kod kreskowy</string>
     <string name="meal_scan_again">Skanuj ponownie</string>
     <string name="meal_add_manual">Dodaj ręcznie</string>

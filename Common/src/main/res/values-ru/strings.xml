@@ -2546,6 +2546,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_unarchive">Открыть снова</string>
     <string name="meal_delete">Удалить приём пищи</string>
     <string name="meal_delete_confirm">Удалить этот приём пищи и его позиции? Записи дневника останутся.</string>
+    <string name="meal_delete_only">Удалить только приём пищи</string>
+    <string name="meal_delete_all">Удалить всё</string>
+    <string name="meal_delete_confirm_entries">Удалить этот приём пищи и его позиции? «Удалить всё» удалит и %1$d записей дневника, сделанных для него; «Удалить только приём пищи» оставит их.</string>
     <string name="meal_scan_product">Сканировать штрихкод</string>
     <string name="meal_scan_again">Сканировать снова</string>
     <string name="meal_add_manual">Добавить вручную</string>

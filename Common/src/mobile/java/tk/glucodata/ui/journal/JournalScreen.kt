@@ -372,6 +372,7 @@ fun JournalScreen(
         }
 
         JournalExpandableFab(
+            onMealSelected = onOpenMeals,
             expanded = fabExpanded,
             onExpandedChange = {
                 fabExpanded = it

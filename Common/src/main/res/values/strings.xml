@@ -2728,6 +2728,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_unarchive">Reopen</string>
     <string name="meal_delete">Delete meal</string>
     <string name="meal_delete_confirm">Delete this meal and its items? Journal entries stay.</string>
+    <string name="meal_delete_only">Delete meal only</string>
+    <string name="meal_delete_all">Delete all</string>
+    <string name="meal_delete_confirm_entries">Delete this meal and its items? “Delete all” also removes the %1$d journal entries logged for it; “Delete meal only” keeps them.</string>
     <string name="meal_scan_product">Scan barcode</string>
     <string name="meal_scan_again">Scan again</string>
     <string name="meal_add_manual">Add by hand</string>

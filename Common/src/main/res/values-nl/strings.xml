@@ -2546,6 +2546,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_unarchive">Heropenen</string>
     <string name="meal_delete">Maaltijd verwijderen</string>
     <string name="meal_delete_confirm">Deze maaltijd en de items verwijderen? Dagboekregels blijven staan.</string>
+    <string name="meal_delete_only">Alleen maaltijd verwijderen</string>
+    <string name="meal_delete_all">Alles verwijderen</string>
+    <string name="meal_delete_confirm_entries">Deze maaltijd en de items verwijderen? “Alles verwijderen” verwijdert ook de %1$d dagboekregels die ervoor zijn gelogd; “Alleen maaltijd verwijderen” laat ze staan.</string>
     <string name="meal_scan_product">Barcode scannen</string>
     <string name="meal_scan_again">Opnieuw scannen</string>
     <string name="meal_add_manual">Handmatig toevoegen</string>

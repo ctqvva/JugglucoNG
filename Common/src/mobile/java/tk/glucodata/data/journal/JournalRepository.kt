@@ -132,6 +132,16 @@ class JournalRepository {
         }
     }
 
+    /**
+     * Deletes every entry logged for a meal, one by one through [deleteEntry] so each row gets
+     * its Nightscout tombstone and the IOB/calibration listeners fire as for a manual delete.
+     */
+    suspend fun deleteEntriesForMeal(mealId: Long): Int {
+        val ids = dao.getEntryIdsForMeal(mealId)
+        ids.forEach { deleteEntry(it) }
+        return ids.size
+    }
+
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
         val existing = input.id?.let { dao.getInsulinPresetById(it) }
         val entity = JournalInsulinPresetEntity(

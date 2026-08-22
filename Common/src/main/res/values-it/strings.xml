@@ -2493,6 +2493,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_unarchive">Riapri</string>
     <string name="meal_delete">Elimina pasto</string>
     <string name="meal_delete_confirm">Eliminare questo pasto e i suoi elementi? Le voci del diario restano.</string>
+    <string name="meal_delete_only">Elimina solo il pasto</string>
+    <string name="meal_delete_all">Elimina tutto</string>
+    <string name="meal_delete_confirm_entries">Eliminare questo pasto e i suoi elementi? “Elimina tutto” rimuove anche le %1$d voci del diario registrate per esso; “Elimina solo il pasto” le conserva.</string>
     <string name="meal_scan_product">Scansiona codice a barre</string>
     <string name="meal_scan_again">Scansiona di nuovo</string>
     <string name="meal_add_manual">Aggiungi a mano</string>

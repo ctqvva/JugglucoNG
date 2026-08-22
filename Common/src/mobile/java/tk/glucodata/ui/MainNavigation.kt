@@ -121,6 +121,7 @@ private fun DashboardRoute(
         onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
         onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") },
         onNavigateToAppUpdates = { navController.navigate("settings/app-updates") },
+        onNavigateToMeals = { navController.navigate("journal/meals") },
         onTriggerCalibration = onTriggerCalibration
     )
 }
