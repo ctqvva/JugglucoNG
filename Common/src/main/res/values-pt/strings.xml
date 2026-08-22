@@ -2506,6 +2506,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Eliminar esta refeição e os seus itens? As entradas do diário mantêm-se.</string>
     <string name="meal_delete_only">Eliminar só a refeição</string>
     <string name="meal_delete_all">Eliminar tudo</string>
+    <string name="meal_delete_all_count">Eliminar tudo (+%1$d entradas do diário)</string>
     <string name="meal_delete_confirm_entries">Eliminar esta refeição e os seus itens? “Eliminar tudo” remove também as %1$d entradas do diário registadas para ela; “Eliminar só a refeição” mantém-nas.</string>
     <string name="meal_scan_product">Ler código de barras</string>
     <string name="meal_scan_again">Ler novamente</string>
@@ -2647,4 +2648,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Arraste os cantos para ficar só com o rótulo — ajuda o reconhecimento de texto e dá ao Open Food Facts uma imagem mais limpa. Toque numa miniatura mais tarde para recortar de novo.</string>
     <string name="meal_crop_apply">Recortar</string>
     <string name="meal_crop_skip">Usar assim</string>
+    <string name="meal_product_barcode">Código de barras (opcional)</string>
+    <string name="meal_product_barcode_hint">Com código de barras o produto fica guardado para a próxima leitura e pode ser enviado para o Open Food Facts.</string>
 </resources>

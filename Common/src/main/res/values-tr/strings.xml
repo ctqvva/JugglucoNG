@@ -2533,6 +2533,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_delete_confirm">Bu öğün ve öğeleri silinsin mi? Günlük kayıtları kalır.</string>
     <string name="meal_delete_only">Yalnızca öğünü sil</string>
     <string name="meal_delete_all">Tümünü sil</string>
+    <string name="meal_delete_all_count">Tümünü sil (+%1$d günlük kaydı)</string>
     <string name="meal_delete_confirm_entries">Bu öğün ve öğeleri silinsin mi? “Tümünü sil” bunun için kaydedilen %1$d günlük kaydını da siler; “Yalnızca öğünü sil” onları korur.</string>
     <string name="meal_scan_product">Barkod tara</string>
     <string name="meal_scan_again">Tekrar tara</string>
@@ -2674,4 +2675,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_crop_hint">Yalnızca etiket kalacak şekilde köşeleri sürükleyin — metin tanımaya yardımcı olur ve Open Food Facts’e daha temiz bir görüntü verir. Yeniden kırpmak için daha sonra bir küçük resme dokunun.</string>
     <string name="meal_crop_apply">Kırp</string>
     <string name="meal_crop_skip">Olduğu gibi kullan</string>
+    <string name="meal_product_barcode">Barkod (isteğe bağlı)</string>
+    <string name="meal_product_barcode_hint">Barkodla ürün bir sonraki tarama için saklanır ve Open Food Facts’e gönderilebilir.</string>
 </resources>

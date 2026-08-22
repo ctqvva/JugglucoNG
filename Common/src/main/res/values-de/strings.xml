@@ -2544,6 +2544,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_delete_confirm">Diese Mahlzeit und ihre Zutaten löschen? Journal-Einträge bleiben erhalten.</string>
     <string name="meal_delete_only">Nur Mahlzeit löschen</string>
     <string name="meal_delete_all">Alles löschen</string>
+    <string name="meal_delete_all_count">Alles löschen (+%1$d Journal-Einträge)</string>
     <string name="meal_delete_confirm_entries">Diese Mahlzeit und ihre Zutaten löschen? „Alles löschen“ entfernt auch die %1$d dazu eingetragenen Journal-Einträge; „Nur Mahlzeit löschen“ behält sie.</string>
     <string name="meal_scan_product">Barcode scannen</string>
     <string name="meal_scan_again">Erneut scannen</string>
@@ -2685,4 +2686,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_crop_hint">Ecken ziehen, bis nur das Etikett übrig ist — das hilft der Texterkennung und gibt Open Food Facts ein sauberes Bild. Später ein Vorschaubild antippen, um erneut zuzuschneiden.</string>
     <string name="meal_crop_apply">Zuschneiden</string>
     <string name="meal_crop_skip">So verwenden</string>
+    <string name="meal_product_barcode">Barcode (optional)</string>
+    <string name="meal_product_barcode_hint">Mit Barcode wird das Produkt für den nächsten Scan gespeichert und kann an Open Food Facts gesendet werden.</string>
 </resources>

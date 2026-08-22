@@ -2511,6 +2511,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Supprimer ce repas et ses éléments ? Les entrées du journal restent.</string>
     <string name="meal_delete_only">Supprimer le repas seul</string>
     <string name="meal_delete_all">Tout supprimer</string>
+    <string name="meal_delete_all_count">Tout supprimer (+%1$d entrées du journal)</string>
     <string name="meal_delete_confirm_entries">Supprimer ce repas et ses éléments ? « Tout supprimer » retire aussi les %1$d entrées du journal notées pour lui ; « Supprimer le repas seul » les conserve.</string>
     <string name="meal_scan_product">Scanner le code-barres</string>
     <string name="meal_scan_again">Scanner à nouveau</string>
@@ -2652,4 +2653,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Faites glisser les coins pour ne garder que l’étiquette — cela aide la reconnaissance de texte et donne une image plus propre à Open Food Facts. Touchez une miniature plus tard pour recadrer à nouveau.</string>
     <string name="meal_crop_apply">Recadrer</string>
     <string name="meal_crop_skip">Utiliser telle quelle</string>
+    <string name="meal_product_barcode">Code-barres (facultatif)</string>
+    <string name="meal_product_barcode_hint">Avec un code-barres, le produit est mémorisé pour le prochain scan et peut être envoyé à Open Food Facts.</string>
 </resources>

@@ -2705,6 +2705,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_delete_confirm">Ma tirtirtaa cuntadan iyo shaygeeda? Qoraallada xusuusqorka way hadhayaan.</string>
     <string name="meal_delete_only">Tirtir cuntada keliya</string>
     <string name="meal_delete_all">Tirtir dhammaan</string>
+    <string name="meal_delete_all_count">Tirtir dhammaan (+%1$d qoraal xusuusqor)</string>
     <string name="meal_delete_confirm_entries">Ma tirtirtaa cuntadan iyo shaygeeda? “Tirtir dhammaan” wuxuu kaloo tirtirayaa %1$d qoraal ee xusuusqorka loo diiwaangeliyey; “Tirtir cuntada keliya” wuu hayaa.</string>
     <string name="meal_scan_product">Iskaan garee baarkoodhka</string>
     <string name="meal_scan_again">Mar kale iskaan garee</string>
@@ -2846,4 +2847,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_crop_hint">Jiid geesaha si calaamadda keliya u hadho — waxay caawisaa aqoonsiga qoraalka waxayna Open Food Facts siisaa sawir nadiif ah. Taabo sawir yar dambe si aad mar kale u jarto.</string>
     <string name="meal_crop_apply">Jar</string>
     <string name="meal_crop_skip">Sidiisa u isticmaal</string>
+    <string name="meal_product_barcode">Baarkoodh (ikhtiyaari)</string>
+    <string name="meal_product_barcode_hint">Baarkoodh lagu daro, alaabta ayaa loo kaydiyaa iskaanka xiga waxaana loo diri karaa Open Food Facts.</string>
 </resources>

@@ -129,6 +129,8 @@ fun MealScreen(
     var sendRequest by remember { mutableStateOf<ScannedProduct?>(null) }
     var sendAddPhotos by remember { mutableStateOf(false) }
     var sendInProgress by remember { mutableStateOf(false) }
+    var manualBarcodeScan by remember { mutableStateOf(false) }
+    var scannedBarcodeForForm by remember { mutableStateOf<String?>(null) }
     var sendResult by remember { mutableStateOf<ContributionResult?>(null) }
     // Barcodes sent from the product sheet in this session: "Add to meal" must not send them again.
     val sentFromSheet = remember { mutableSetOf<String>() }
@@ -345,6 +347,8 @@ fun MealScreen(
                 productSheet = null
                 ocrRequest = OcrRequest(request.barcode)
             },
+            onScanBarcode = { manualBarcodeScan = true },
+            scannedBarcode = scannedBarcodeForForm,
             onSubmit = { product: ScannedProduct, quantityText: String, resolution: QuantityResolution.Resolved? ->
                 val fromLabel = request.product?.source == NutritionSource.OCR_LABEL
                 scope.launch {
@@ -372,16 +376,31 @@ fun MealScreen(
                         deleteLabelPhotos(request.photos)
                     }
                 }
-                if (fromLabel && product.barcode == null && request.existingItem == null) {
+                if (product.barcode == null && request.existingItem == null && product.source != NutritionSource.OPEN_FOOD_FACTS) {
+                    // A label-read or hand-typed product without a barcode: offer to attach one now.
                     attachBarcodeFor = product to request.photos
                 }
                 productSheet = null
+                scannedBarcodeForForm = null
             },
             onRemove = request.existingItem?.let { existing ->
                 {
                     scope.launch { repository.deleteItem(existing.id) }
                     productSheet = null
                 }
+            }
+        )
+    }
+
+    if (manualBarcodeScan) {
+        MealScanSheet(
+            repository = repository,
+            allowNetwork = false,
+            onDismiss = { manualBarcodeScan = false },
+            onProduct = { _, _ -> },
+            onBarcode = { code ->
+                manualBarcodeScan = false
+                scannedBarcodeForForm = code
             }
         )
     }
@@ -526,36 +545,29 @@ fun MealScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text(stringResource(R.string.meal_delete)) },
-            text = {
-                Text(
-                    if (entryCount == 0) stringResource(R.string.meal_delete_confirm)
-                    else stringResource(R.string.meal_delete_confirm_entries, entryCount)
-                )
-            },
+            text = { Text(stringResource(R.string.meal_delete_confirm_entries, entryCount)) },
             confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (entryCount > 0) {
-                        // Everything: the meal, its items, and every journal entry logged for it
-                        // (each through the normal delete path, so Nightscout tombstones are kept).
-                        TextButton(
-                            onClick = {
-                                showDeleteConfirm = false
-                                scope.launch {
-                                    journalRepository.deleteEntriesForMeal(current.id)
-                                    repository.deleteMeal(current.id)
-                                    navController.popBackStack()
-                                }
-                            },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) { Text(stringResource(R.string.meal_delete_all)) }
-                    }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    // Everything: the meal, its items, and every journal entry logged for it
+                    // (each through the normal delete path, so Nightscout tombstones are kept).
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirm = false
+                            scope.launch {
+                                journalRepository.deleteEntriesForMeal(current.id)
+                                repository.deleteMeal(current.id)
+                                navController.popBackStack()
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) { Text(stringResource(R.string.meal_delete_all_count, entryCount)) }
                     TextButton(onClick = {
                         showDeleteConfirm = false
                         scope.launch {
                             repository.deleteMeal(current.id)
                             navController.popBackStack()
                         }
-                    }) { Text(stringResource(if (entryCount > 0) R.string.meal_delete_only else R.string.delete)) }
+                    }) { Text(stringResource(R.string.meal_delete_only)) }
                 }
             },
             dismissButton = {

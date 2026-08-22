@@ -2730,6 +2730,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Delete this meal and its items? Journal entries stay.</string>
     <string name="meal_delete_only">Delete meal only</string>
     <string name="meal_delete_all">Delete all</string>
+    <string name="meal_delete_all_count">Delete all (+%1$d journal entries)</string>
     <string name="meal_delete_confirm_entries">Delete this meal and its items? “Delete all” also removes the %1$d journal entries logged for it; “Delete meal only” keeps them.</string>
     <string name="meal_scan_product">Scan barcode</string>
     <string name="meal_scan_again">Scan again</string>
@@ -2871,4 +2872,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Drag the corners to keep just the label — it helps the text recognition and gives Open Food Facts a cleaner picture. Tap a thumbnail later to crop again.</string>
     <string name="meal_crop_apply">Crop</string>
     <string name="meal_crop_skip">Use as is</string>
+    <string name="meal_product_barcode">Barcode (optional)</string>
+    <string name="meal_product_barcode_hint">With a barcode the product is stored for the next scan and can be sent to Open Food Facts.</string>
 </resources>

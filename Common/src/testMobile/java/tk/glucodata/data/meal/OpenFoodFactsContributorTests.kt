@@ -59,6 +59,14 @@ class OpenFoodFactsContributorTests {
     }
 
     @Test
+    fun imageUploadAnswersAreReadTheWayOffSendsThem() {
+        assertTrue(OpenFoodFactsContributor.imageUploadSucceeded("""{"status":"status ok","imgid":123,"image":{"imgid":123}}"""))
+        assertTrue(OpenFoodFactsContributor.imageUploadSucceeded("""{"status":1}"""))
+        assertFalse(OpenFoodFactsContributor.imageUploadSucceeded("""{"status":"status not ok","error":"field imgupload_front_en not set"}"""))
+        assertFalse(OpenFoodFactsContributor.imageUploadSucceeded("not json"))
+    }
+
+    @Test
     fun photoKindsMapToOffImageFields() {
         assertEquals("front", LabelPhotoKind.FRONT.offImageField)
         assertEquals("nutrition", LabelPhotoKind.NUTRITION.offImageField)

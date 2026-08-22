@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -48,6 +49,7 @@ import tk.glucodata.data.meal.NutritionFacts
 import tk.glucodata.data.meal.NutritionPlausibility
 import tk.glucodata.data.meal.NutritionReference
 import tk.glucodata.data.meal.NutritionSource
+import tk.glucodata.data.meal.ProductBarcode
 import tk.glucodata.data.meal.QuantityResolution
 import tk.glucodata.data.meal.QuantityResolver
 import tk.glucodata.data.meal.ScannedProduct
@@ -70,7 +72,9 @@ private data class ProductForm(
     val pieceGrams: String,
     val saturatedFat: String = "",
     val salt: String = "",
-    val category: String = ""
+    val category: String = "",
+    /** Typed barcode for a product entered by hand; only a valid EAN/UPC is used. */
+    val barcode: String = ""
 ) {
     companion object {
         fun from(product: ScannedProduct?): ProductForm {
@@ -93,7 +97,8 @@ private data class ProductForm(
                 pieceGrams = MealFormat.editor(ref?.pieceGrams),
                 saturatedFat = MealFormat.editor(facts?.saturatedFatGrams),
                 salt = MealFormat.editor(facts?.saltGrams),
-                category = product?.category.orEmpty()
+                category = product?.category.orEmpty(),
+                barcode = product?.barcode.orEmpty()
             )
         }
     }
@@ -104,7 +109,7 @@ private data class ProductForm(
         val displayName = name.trim().ifEmpty { return null }
         val originalRef = original?.reference
         return ScannedProduct(
-            barcode = barcode ?: original?.barcode,
+            barcode = barcode ?: original?.barcode ?: ProductBarcode.normalize(this.barcode),
             displayName = displayName,
             brand = brand.trim().takeIf { it.isNotEmpty() },
             source = original?.source ?: NutritionSource.MANUAL,
@@ -152,13 +157,19 @@ internal fun MealProductSheet(
     onRemove: (() -> Unit)?,
     onPhotograph: (() -> Unit)? = null,
     /** Present when the Open Food Facts contribution is switched on; receives the product as edited. */
-    onContribute: ((ScannedProduct) -> Unit)? = null
+    onContribute: ((ScannedProduct) -> Unit)? = null,
+    /** Opens the barcode scanner for the manual form; the result arrives through [scannedBarcode]. */
+    onScanBarcode: (() -> Unit)? = null,
+    scannedBarcode: String? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = androidx.compose.ui.platform.LocalContext.current
     val original = request.product
     var form by remember(request) { mutableStateOf(ProductForm.from(original)) }
     var editing by remember(request) { mutableStateOf(original == null || request.startEditing) }
+    androidx.compose.runtime.LaunchedEffect(scannedBarcode) {
+        scannedBarcode?.let { form = form.copy(barcode = it) }
+    }
     var amountText by remember(request) { mutableStateOf(request.existingItem?.quantityText ?: "") }
     val product = remember(form) { form.toProduct(original, request.barcode) }
     val reference = product?.reference
@@ -208,7 +219,7 @@ internal fun MealProductSheet(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                ProductFormFields(form = form, onChange = { form = it })
+                ProductFormFields(form = form, onChange = { form = it }, showBarcodeField = request.barcode == null && original?.barcode == null, onScanBarcode = onScanBarcode)
                 if (original == null && onPhotograph != null) {
                     OutlinedButton(onClick = onPhotograph, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.CameraAlt, contentDescription = null)
@@ -411,7 +422,7 @@ private fun UnitToggle(unit: AmountUnit, onChange: (AmountUnit) -> Unit) {
 }
 
 @Composable
-private fun ProductFormFields(form: ProductForm, onChange: (ProductForm) -> Unit) {
+private fun ProductFormFields(form: ProductForm, onChange: (ProductForm) -> Unit, showBarcodeField: Boolean = false, onScanBarcode: (() -> Unit)? = null) {
     OutlinedTextField(
         value = form.name,
         onValueChange = { onChange(form.copy(name = it)) },
@@ -453,6 +464,26 @@ private fun ProductFormFields(form: ProductForm, onChange: (ProductForm) -> Unit
         singleLine = true,
         modifier = Modifier.fillMaxWidth()
     )
+    if (showBarcodeField) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = form.barcode,
+                onValueChange = { onChange(form.copy(barcode = it.filter(Char::isDigit))) },
+                label = { Text(stringResource(R.string.meal_product_barcode)) },
+                placeholder = { Text(stringResource(R.string.meal_barcode_hint)) },
+                singleLine = true,
+                isError = form.barcode.length >= 8 && ProductBarcode.normalize(form.barcode) == null,
+                supportingText = { Text(stringResource(R.string.meal_product_barcode_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
+            )
+            onScanBarcode?.let { scan ->
+                androidx.compose.material3.FilledTonalIconButton(onClick = scan) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = stringResource(R.string.meal_scan_product))
+                }
+            }
+        }
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         NumberField(stringResource(R.string.meal_product_net_quantity), form.netQuantity, form.netUnit.symbol, Modifier.weight(1f)) { onChange(form.copy(netQuantity = it)) }
         UnitToggle(form.netUnit) { onChange(form.copy(netUnit = it)) }

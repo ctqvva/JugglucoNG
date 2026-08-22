@@ -2539,6 +2539,7 @@
     <string name="meal_delete_confirm">Usunąć ten posiłek i jego pozycje? Wpisy dziennika pozostaną.</string>
     <string name="meal_delete_only">Usuń tylko posiłek</string>
     <string name="meal_delete_all">Usuń wszystko</string>
+    <string name="meal_delete_all_count">Usuń wszystko (+%1$d wpisów dziennika)</string>
     <string name="meal_delete_confirm_entries">Usunąć ten posiłek i jego pozycje? „Usuń wszystko” usuwa też %1$d wpisów dziennika zapisanych dla niego; „Usuń tylko posiłek” je zachowuje.</string>
     <string name="meal_scan_product">Skanuj kod kreskowy</string>
     <string name="meal_scan_again">Skanuj ponownie</string>
@@ -2680,4 +2681,6 @@
     <string name="meal_crop_hint">Przeciągnij rogi, aby zostawić tylko etykietę — to pomaga w rozpoznawaniu tekstu i daje Open Food Facts czystsze zdjęcie. Później stuknij miniaturę, aby przyciąć ponownie.</string>
     <string name="meal_crop_apply">Przytnij</string>
     <string name="meal_crop_skip">Użyj bez zmian</string>
+    <string name="meal_product_barcode">Kod kreskowy (opcjonalnie)</string>
+    <string name="meal_product_barcode_hint">Z kodem kreskowym produkt zostanie zapisany na następny skan i może trafić do Open Food Facts.</string>
 </resources>

@@ -2572,6 +2572,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Выдаліць гэты прыём ежы і яго пазіцыі? Запісы дзённіка застануцца.</string>
     <string name="meal_delete_only">Выдаліць толькі прыём ежы</string>
     <string name="meal_delete_all">Выдаліць усё</string>
+    <string name="meal_delete_all_count">Выдаліць усё (+%1$d запісаў дзённіка)</string>
     <string name="meal_delete_confirm_entries">Выдаліць гэты прыём ежы і яго пазіцыі? «Выдаліць усё» выдаліць і %1$d запісаў дзённіка, зробленых для яго; «Выдаліць толькі прыём ежы» пакіне іх.</string>
     <string name="meal_scan_product">Сканаваць штрыхкод</string>
     <string name="meal_scan_again">Сканаваць зноў</string>
@@ -2713,4 +2714,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Пацягніце куты, каб пакінуць толькі этыкетку — гэта дапамагае распазнаванню тэксту і дае Open Food Facts чысцейшую выяву. Пазней краніце мініяцюру, каб абрэзаць зноў.</string>
     <string name="meal_crop_apply">Абрэзаць</string>
     <string name="meal_crop_skip">Пакінуць як ёсць</string>
+    <string name="meal_product_barcode">Штрыхкод (неабавязкова)</string>
+    <string name="meal_product_barcode_hint">Са штрыхкодам прадукт захаваецца для наступнага сканавання і яго можна даслаць у Open Food Facts.</string>
 </resources>

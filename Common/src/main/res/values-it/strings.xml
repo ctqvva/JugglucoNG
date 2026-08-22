@@ -2495,6 +2495,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Eliminare questo pasto e i suoi elementi? Le voci del diario restano.</string>
     <string name="meal_delete_only">Elimina solo il pasto</string>
     <string name="meal_delete_all">Elimina tutto</string>
+    <string name="meal_delete_all_count">Elimina tutto (+%1$d voci del diario)</string>
     <string name="meal_delete_confirm_entries">Eliminare questo pasto e i suoi elementi? “Elimina tutto” rimuove anche le %1$d voci del diario registrate per esso; “Elimina solo il pasto” le conserva.</string>
     <string name="meal_scan_product">Scansiona codice a barre</string>
     <string name="meal_scan_again">Scansiona di nuovo</string>
@@ -2636,4 +2637,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Trascina gli angoli per tenere solo l’etichetta — aiuta il riconoscimento del testo e dà a Open Food Facts un’immagine più pulita. Tocca una miniatura più tardi per ritagliare di nuovo.</string>
     <string name="meal_crop_apply">Ritaglia</string>
     <string name="meal_crop_skip">Usa così com’è</string>
+    <string name="meal_product_barcode">Codice a barre (facoltativo)</string>
+    <string name="meal_product_barcode_hint">Con un codice a barre il prodotto viene salvato per la prossima scansione e può essere inviato a Open Food Facts.</string>
 </resources>

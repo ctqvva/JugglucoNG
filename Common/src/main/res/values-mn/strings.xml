@@ -2620,6 +2620,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_delete_confirm">Энэ хоол болон түүний зүйлсийг устгах уу? Тэмдэглэлийн бичлэгүүд хадгалагдана.</string>
     <string name="meal_delete_only">Зөвхөн хоолыг устгах</string>
     <string name="meal_delete_all">Бүгдийг устгах</string>
+    <string name="meal_delete_all_count">Бүгдийг устгах (+%1$d тэмдэглэлийн бичлэг)</string>
     <string name="meal_delete_confirm_entries">Энэ хоол болон түүний зүйлсийг устгах уу? “Бүгдийг устгах” нь үүнд бүртгэсэн %1$d тэмдэглэлийн бичлэгийг мөн устгана; “Зөвхөн хоолыг устгах” тэдгээрийг үлдээнэ.</string>
     <string name="meal_scan_product">Баркод скан хийх</string>
     <string name="meal_scan_again">Дахин скан хийх</string>
@@ -2761,4 +2762,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_crop_hint">Зөвхөн шошго үлдэхээр булангуудыг чирнэ үү — текст таних болон Open Food Facts-д илүү цэвэр зураг өгнө. Дараа нь дахин тайрахын тулд жижиг зураг дээр дарна уу.</string>
     <string name="meal_crop_apply">Тайрах</string>
     <string name="meal_crop_skip">Байгаагаар ашиглах</string>
+    <string name="meal_product_barcode">Баркод (заавал биш)</string>
+    <string name="meal_product_barcode_hint">Баркодтой бол бүтээгдэхүүн дараагийн сканд хадгалагдаж, Open Food Facts руу илгээж болно.</string>
 </resources>

@@ -143,11 +143,23 @@ object OpenFoodFactsContributor {
             )
             appUuid?.takeIf { it.isNotBlank() }?.let { photoFields["app_uuid"] = it }
             val result = postMultipart("$host$IMAGE_PATH", photoFields, file = photo.file, fileField = "imgupload_$imageField")
-            val ok = result != null && result.first in 200..299 &&
-                (runCatching { JSONObject(result.second).optInt("status", -1) }.getOrNull() ?: 0) == 1
-            if (ok) sent++ else failed++
+            if (result != null && result.first in 200..299 && imageUploadSucceeded(result.second)) sent++ else failed++
         }
         return ContributionResult.Sent(sent, failed)
+    }
+
+    /**
+     * The image endpoint does not answer `status: 1` like the product endpoint; it says
+     * `"status": "status ok"` and returns an `imgid` (docs/api/ref/responses/add_photo_to_existing_product.yaml).
+     */
+    fun imageUploadSucceeded(body: String): Boolean {
+        val json = runCatching { JSONObject(body) }.getOrNull() ?: return false
+        val status = json.opt("status")
+        return when (status) {
+            is Number -> status.toInt() == 1
+            is String -> status.trim().lowercase(Locale.ROOT).let { it == "status ok" || it.startsWith("status ok") } || json.has("imgid")
+            else -> json.has("imgid")
+        }
     }
 
     private fun formatNumber(value: Float): String =

@@ -2505,6 +2505,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_delete_confirm">Ta bort måltiden och dess poster? Dagboksposterna finns kvar.</string>
     <string name="meal_delete_only">Ta bara bort måltiden</string>
     <string name="meal_delete_all">Ta bort allt</string>
+    <string name="meal_delete_all_count">Ta bort allt (+%1$d dagboksposter)</string>
     <string name="meal_delete_confirm_entries">Ta bort måltiden och dess poster? ”Ta bort allt” tar även bort de %1$d dagboksposter som loggats för den; ”Ta bara bort måltiden” behåller dem.</string>
     <string name="meal_scan_product">Skanna streckkod</string>
     <string name="meal_scan_again">Skanna igen</string>
@@ -2646,4 +2647,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_hint">Dra i hörnen så att bara etiketten blir kvar — det hjälper textigenkänningen och ger Open Food Facts en renare bild. Tryck på en miniatyr senare för att beskära igen.</string>
     <string name="meal_crop_apply">Beskär</string>
     <string name="meal_crop_skip">Använd som det är</string>
+    <string name="meal_product_barcode">Streckkod (valfritt)</string>
+    <string name="meal_product_barcode_hint">Med en streckkod sparas produkten till nästa skanning och kan skickas till Open Food Facts.</string>
 </resources>
