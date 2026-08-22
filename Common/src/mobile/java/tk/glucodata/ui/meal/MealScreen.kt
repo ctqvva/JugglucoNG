@@ -545,12 +545,12 @@ fun MealScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text(stringResource(R.string.meal_delete)) },
-            text = { Text(stringResource(R.string.meal_delete_confirm_entries, entryCount)) },
-            confirmButton = {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.meal_delete_confirm_entries, entryCount))
                     // Everything: the meal, its items, and every journal entry logged for it
                     // (each through the normal delete path, so Nightscout tombstones are kept).
-                    TextButton(
+                    androidx.compose.material3.OutlinedButton(
                         onClick = {
                             showDeleteConfirm = false
                             scope.launch {
@@ -559,18 +559,22 @@ fun MealScreen(
                                 navController.popBackStack()
                             }
                         },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) { Text(stringResource(R.string.meal_delete_all_count, entryCount)) }
-                    TextButton(onClick = {
-                        showDeleteConfirm = false
-                        scope.launch {
-                            repository.deleteMeal(current.id)
-                            navController.popBackStack()
-                        }
-                    }) { Text(stringResource(R.string.meal_delete_only)) }
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.meal_delete_all_count, entryCount), maxLines = 2) }
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = {
+                            showDeleteConfirm = false
+                            scope.launch {
+                                repository.deleteMeal(current.id)
+                                navController.popBackStack()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.meal_delete_only), maxLines = 2) }
                 }
             },
-            dismissButton = {
+            confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
