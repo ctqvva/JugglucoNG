@@ -2849,4 +2849,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_send_no_photos">No photos stored; the values go out without photos unless you add some.</string>
     <string name="meal_send_add_photos">Add photos</string>
     <string name="meal_send_now">Send now</string>
+    <string name="meal_ocr_next_photo">Next photo: %1$s</string>
+    <string name="meal_ocr_hint_front">name, brand and net quantity</string>
+    <string name="meal_ocr_hint_nutrition">the table with the per 100 g / 100 ml column</string>
+    <string name="meal_ocr_hint_ingredients">the ingredients list</string>
+    <string name="meal_ocr_hint_other">any other side with useful information</string>
+    <string name="meal_send_fields_title">Data that will be sent</string>
+    <string name="meal_send_sending">Sending…</string>
+    <string name="meal_send_result_ok">Sent. Photos: %1$d sent, %2$d failed.</string>
+    <string name="meal_send_result_failed">Failed: %1$s</string>
+    <string name="meal_contribute_log_title">Upload log</string>
+    <string name="meal_contribute_log_empty">No uploads yet.</string>
+    <string name="meal_contribute_last">Last upload %1$s: %2$s</string>
 </resources>

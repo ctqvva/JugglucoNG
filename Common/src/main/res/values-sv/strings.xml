@@ -2624,4 +2624,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_send_no_photos">Inga foton sparade; värdena skickas utan foton om du inte lägger till några.</string>
     <string name="meal_send_add_photos">Lägg till foton</string>
     <string name="meal_send_now">Skicka nu</string>
+    <string name="meal_ocr_next_photo">Nästa foto: %1$s</string>
+    <string name="meal_ocr_hint_front">namn, märke och nettoinnehåll</string>
+    <string name="meal_ocr_hint_nutrition">tabellen med kolumnen per 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">ingredienslistan</string>
+    <string name="meal_ocr_hint_other">vilken annan sida som helst med nyttig information</string>
+    <string name="meal_send_fields_title">Data som skickas</string>
+    <string name="meal_send_sending">Skickar…</string>
+    <string name="meal_send_result_ok">Skickat. Foton: %1$d skickade, %2$d misslyckade.</string>
+    <string name="meal_send_result_failed">Misslyckades: %1$s</string>
+    <string name="meal_contribute_log_title">Uppladdningslogg</string>
+    <string name="meal_contribute_log_empty">Inga uppladdningar ännu.</string>
+    <string name="meal_contribute_last">Senaste uppladdning %1$s: %2$s</string>
 </resources>

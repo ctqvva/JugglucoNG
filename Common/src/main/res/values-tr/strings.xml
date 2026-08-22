@@ -2652,4 +2652,16 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_send_no_photos">Saklanan fotoğraf yok; eklemezseniz değerler fotoğrafsız gönderilir.</string>
     <string name="meal_send_add_photos">Fotoğraf ekle</string>
     <string name="meal_send_now">Şimdi gönder</string>
+    <string name="meal_ocr_next_photo">Sonraki fotoğraf: %1$s</string>
+    <string name="meal_ocr_hint_front">ad, marka ve net miktar</string>
+    <string name="meal_ocr_hint_nutrition">100 g / 100 ml sütunlu tablo</string>
+    <string name="meal_ocr_hint_ingredients">içindekiler listesi</string>
+    <string name="meal_ocr_hint_other">faydalı bilgi içeren başka bir yüz</string>
+    <string name="meal_send_fields_title">Gönderilecek veriler</string>
+    <string name="meal_send_sending">Gönderiliyor…</string>
+    <string name="meal_send_result_ok">Gönderildi. Fotoğraf: %1$d gönderildi, %2$d başarısız.</string>
+    <string name="meal_send_result_failed">Başarısız: %1$s</string>
+    <string name="meal_contribute_log_title">Yükleme günlüğü</string>
+    <string name="meal_contribute_log_empty">Henüz yükleme yok.</string>
+    <string name="meal_contribute_last">Son yükleme %1$s: %2$s</string>
 </resources>

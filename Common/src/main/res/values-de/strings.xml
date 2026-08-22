@@ -2663,4 +2663,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_send_no_photos">Keine Fotos gespeichert; die Werte gehen ohne Fotos raus, wenn du keine ergänzt.</string>
     <string name="meal_send_add_photos">Fotos hinzufügen</string>
     <string name="meal_send_now">Jetzt senden</string>
+    <string name="meal_ocr_next_photo">Nächstes Foto: %1$s</string>
+    <string name="meal_ocr_hint_front">Name, Marke und Füllmenge</string>
+    <string name="meal_ocr_hint_nutrition">die Tabelle mit der Spalte je 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">die Zutatenliste</string>
+    <string name="meal_ocr_hint_other">jede weitere Seite mit nützlichen Angaben</string>
+    <string name="meal_send_fields_title">Daten, die gesendet werden</string>
+    <string name="meal_send_sending">Wird gesendet…</string>
+    <string name="meal_send_result_ok">Gesendet. Fotos: %1$d gesendet, %2$d fehlgeschlagen.</string>
+    <string name="meal_send_result_failed">Fehlgeschlagen: %1$s</string>
+    <string name="meal_contribute_log_title">Upload-Protokoll</string>
+    <string name="meal_contribute_log_empty">Noch keine Uploads.</string>
+    <string name="meal_contribute_last">Letzter Upload %1$s: %2$s</string>
 </resources>

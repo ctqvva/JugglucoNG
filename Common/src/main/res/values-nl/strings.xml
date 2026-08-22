@@ -2667,4 +2667,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_send_no_photos">Geen foto’s opgeslagen; de waarden gaan zonder foto’s als je er geen toevoegt.</string>
     <string name="meal_send_add_photos">Foto’s toevoegen</string>
     <string name="meal_send_now">Nu versturen</string>
+    <string name="meal_ocr_next_photo">Volgende foto: %1$s</string>
+    <string name="meal_ocr_hint_front">naam, merk en inhoud</string>
+    <string name="meal_ocr_hint_nutrition">de tabel met de kolom per 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">de ingrediëntenlijst</string>
+    <string name="meal_ocr_hint_other">elke andere kant met nuttige informatie</string>
+    <string name="meal_send_fields_title">Gegevens die worden verstuurd</string>
+    <string name="meal_send_sending">Versturen…</string>
+    <string name="meal_send_result_ok">Verstuurd. Foto’s: %1$d verstuurd, %2$d mislukt.</string>
+    <string name="meal_send_result_failed">Mislukt: %1$s</string>
+    <string name="meal_contribute_log_title">Uploadlogboek</string>
+    <string name="meal_contribute_log_empty">Nog geen uploads.</string>
+    <string name="meal_contribute_last">Laatste upload %1$s: %2$s</string>
 </resources>

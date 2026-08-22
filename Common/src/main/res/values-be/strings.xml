@@ -2691,4 +2691,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_send_no_photos">Фота не захаваныя; значэнні пойдуць без фота, калі вы іх не дадасце.</string>
     <string name="meal_send_add_photos">Дадаць фота</string>
     <string name="meal_send_now">Даслаць зараз</string>
+    <string name="meal_ocr_next_photo">Наступнае фота: %1$s</string>
+    <string name="meal_ocr_hint_front">назва, марка і аб’ём упакоўкі</string>
+    <string name="meal_ocr_hint_nutrition">табліца са слупком на 100 г / 100 мл</string>
+    <string name="meal_ocr_hint_ingredients">спіс інгрэдыентаў</string>
+    <string name="meal_ocr_hint_other">любы іншы бок з карыснай інфармацыяй</string>
+    <string name="meal_send_fields_title">Даныя, якія будуць дасланыя</string>
+    <string name="meal_send_sending">Адпраўка…</string>
+    <string name="meal_send_result_ok">Даслана. Фота: даслана %1$d, не ўдалося %2$d.</string>
+    <string name="meal_send_result_failed">Не ўдалося: %1$s</string>
+    <string name="meal_contribute_log_title">Журнал адправак</string>
+    <string name="meal_contribute_log_empty">Адправак пакуль няма.</string>
+    <string name="meal_contribute_last">Апошняя адпраўка %1$s: %2$s</string>
 </resources>

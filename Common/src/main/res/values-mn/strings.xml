@@ -2739,4 +2739,16 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_send_no_photos">Хадгалсан зураг алга; нэмэхгүй бол утгууд зураггүй илгээгдэнэ.</string>
     <string name="meal_send_add_photos">Зураг нэмэх</string>
     <string name="meal_send_now">Одоо илгээх</string>
+    <string name="meal_ocr_next_photo">Дараагийн зураг: %1$s</string>
+    <string name="meal_ocr_hint_front">нэр, брэнд, цэвэр хэмжээ</string>
+    <string name="meal_ocr_hint_nutrition">100 г / 100 мл баганатай хүснэгт</string>
+    <string name="meal_ocr_hint_ingredients">орцын жагсаалт</string>
+    <string name="meal_ocr_hint_other">хэрэгтэй мэдээлэлтэй бусад тал</string>
+    <string name="meal_send_fields_title">Илгээх өгөгдөл</string>
+    <string name="meal_send_sending">Илгээж байна…</string>
+    <string name="meal_send_result_ok">Илгээсэн. Зураг: %1$d илгээсэн, %2$d амжилтгүй.</string>
+    <string name="meal_send_result_failed">Амжилтгүй: %1$s</string>
+    <string name="meal_contribute_log_title">Байршуулалтын бүртгэл</string>
+    <string name="meal_contribute_log_empty">Байршуулалт алга.</string>
+    <string name="meal_contribute_last">Сүүлийн байршуулалт %1$s: %2$s</string>
 </resources>

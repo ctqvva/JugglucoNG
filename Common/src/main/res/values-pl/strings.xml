@@ -2658,4 +2658,16 @@
     <string name="meal_send_no_photos">Brak zapisanych zdjęć; wartości zostaną wysłane bez zdjęć, jeśli żadnych nie dodasz.</string>
     <string name="meal_send_add_photos">Dodaj zdjęcia</string>
     <string name="meal_send_now">Wyślij teraz</string>
+    <string name="meal_ocr_next_photo">Następne zdjęcie: %1$s</string>
+    <string name="meal_ocr_hint_front">nazwa, marka i zawartość netto</string>
+    <string name="meal_ocr_hint_nutrition">tabela z kolumną na 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">lista składników</string>
+    <string name="meal_ocr_hint_other">każda inna strona z przydatnymi informacjami</string>
+    <string name="meal_send_fields_title">Dane, które zostaną wysłane</string>
+    <string name="meal_send_sending">Wysyłanie…</string>
+    <string name="meal_send_result_ok">Wysłano. Zdjęcia: %1$d wysłanych, %2$d nieudanych.</string>
+    <string name="meal_send_result_failed">Niepowodzenie: %1$s</string>
+    <string name="meal_contribute_log_title">Dziennik wysyłek</string>
+    <string name="meal_contribute_log_empty">Brak wysyłek.</string>
+    <string name="meal_contribute_last">Ostatnia wysyłka %1$s: %2$s</string>
 </resources>

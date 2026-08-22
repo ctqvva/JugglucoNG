@@ -2614,4 +2614,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_send_no_photos">Nessuna foto salvata; i valori partono senza foto se non ne aggiungi.</string>
     <string name="meal_send_add_photos">Aggiungi foto</string>
     <string name="meal_send_now">Invia ora</string>
+    <string name="meal_ocr_next_photo">Prossima foto: %1$s</string>
+    <string name="meal_ocr_hint_front">nome, marca e contenuto netto</string>
+    <string name="meal_ocr_hint_nutrition">la tabella con la colonna per 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">l’elenco degli ingredienti</string>
+    <string name="meal_ocr_hint_other">ogni altro lato con informazioni utili</string>
+    <string name="meal_send_fields_title">Dati che verranno inviati</string>
+    <string name="meal_send_sending">Invio…</string>
+    <string name="meal_send_result_ok">Inviato. Foto: %1$d inviate, %2$d non riuscite.</string>
+    <string name="meal_send_result_failed">Non riuscito: %1$s</string>
+    <string name="meal_contribute_log_title">Registro invii</string>
+    <string name="meal_contribute_log_empty">Nessun invio finora.</string>
+    <string name="meal_contribute_last">Ultimo invio %1$s: %2$s</string>
 </resources>

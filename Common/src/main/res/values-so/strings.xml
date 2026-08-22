@@ -2824,4 +2824,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_send_no_photos">Sawir lama kaydin; qiyamka ayaa la dirayaa sawir la’aan haddii aadan ku darin.</string>
     <string name="meal_send_add_photos">Ku dar sawirro</string>
     <string name="meal_send_now">Hadda dir</string>
+    <string name="meal_ocr_next_photo">Sawirka xiga: %1$s</string>
+    <string name="meal_ocr_hint_front">magac, summad iyo cadadka saafiga ah</string>
+    <string name="meal_ocr_hint_nutrition">shaxda leh tiirka 100 g / 100 ml</string>
+    <string name="meal_ocr_hint_ingredients">liiska walxaha</string>
+    <string name="meal_ocr_hint_other">dhinac kasta oo kale oo macluumaad faa’iido leh</string>
+    <string name="meal_send_fields_title">Xogta la dirayo</string>
+    <string name="meal_send_sending">Waa la dirayaa…</string>
+    <string name="meal_send_result_ok">Waa la diray. Sawirro: %1$d la diray, %2$d guuldareystay.</string>
+    <string name="meal_send_result_failed">Guuldareystay: %1$s</string>
+    <string name="meal_contribute_log_title">Diiwaanka soo gelinta</string>
+    <string name="meal_contribute_log_empty">Weli wax soo gelin ah ma jiro.</string>
+    <string name="meal_contribute_last">Soo gelintii ugu dambeysay %1$s: %2$s</string>
 </resources>
