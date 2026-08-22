@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.data.meal.AmountUnit
+import tk.glucodata.data.meal.MealContributionLog
 import tk.glucodata.data.meal.MissingReference
 import tk.glucodata.data.meal.NutritionBasis
 import tk.glucodata.data.meal.NutritionFacts
@@ -143,6 +144,7 @@ internal fun MealProductSheet(
     onContribute: ((ScannedProduct) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = androidx.compose.ui.platform.LocalContext.current
     val original = request.product
     var form by remember(request) { mutableStateOf(ProductForm.from(original)) }
     var editing by remember(request) { mutableStateOf(original == null || request.startEditing) }
@@ -264,7 +266,19 @@ internal fun MealProductSheet(
             }
             if (onContribute != null && product != null && product.canContribute) {
                 val sentAt = original?.contributedAt
+                val lastAttempt = remember(product.barcode, sentAt) { product.barcode?.let { MealContributionLog.lastFor(context, it) } }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    lastAttempt?.let { attempt ->
+                        Text(
+                            text = stringResource(
+                                R.string.meal_contribute_last,
+                                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(attempt.at)),
+                                (if (attempt.ok) "✓ " else "✗ ") + attempt.message
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (attempt.ok) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                        )
+                    }
                     sentAt?.let {
                         Text(
                             text = stringResource(

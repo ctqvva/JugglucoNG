@@ -115,6 +115,7 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import tk.glucodata.data.meal.MealContributionLog
 import tk.glucodata.data.meal.MealContributionSettings
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalBuiltInCurveProfile
@@ -460,8 +461,29 @@ private fun MealContributionSettingsItems() {
                 onCheckedChange = { update(settings.copy(uploadPhotos = it)) },
                 icon = Icons.Default.CloudUpload,
                 iconTint = MaterialTheme.colorScheme.secondary,
-                position = CardPosition.BOTTOM
+                position = CardPosition.MIDDLE
             )
+            val log = remember(settings) { MealContributionLog.entries(context) }
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.meal_contribute_log_title), style = MaterialTheme.typography.titleSmall)
+                    if (log.isEmpty()) {
+                        Text(stringResource(R.string.meal_contribute_log_empty), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    log.take(15).forEach { e ->
+                        Text(
+                            text = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(e.at)) +
+                                "  " + (if (e.ok) "✓" else "✗") + "  " + e.name.ifBlank { e.barcode } + " — " + e.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (e.ok) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
         }
     }
 }

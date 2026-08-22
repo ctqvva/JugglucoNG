@@ -1,8 +1,13 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package tk.glucodata.ui.meal
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -70,7 +75,9 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tk.glucodata.data.meal.ContributionPhoto
+import tk.glucodata.data.meal.ContributionLogEntry
 import tk.glucodata.data.meal.ContributionResult
+import tk.glucodata.data.meal.MealContributionLog
 import tk.glucodata.data.meal.LabelPhotoKind
 import tk.glucodata.data.meal.LabelPhotoStore
 import tk.glucodata.data.meal.Meal
@@ -121,6 +128,8 @@ fun MealScreen(
     var attachBarcodeFor by remember { mutableStateOf<Pair<ScannedProduct, List<ContributionPhoto>>?>(null) }
     var sendRequest by remember { mutableStateOf<ScannedProduct?>(null) }
     var sendAddPhotos by remember { mutableStateOf(false) }
+    var sendInProgress by remember { mutableStateOf(false) }
+    var sendResult by remember { mutableStateOf<ContributionResult?>(null) }
     // Barcodes sent from the product sheet in this session: "Add to meal" must not send them again.
     val sentFromSheet = remember { mutableSetOf<String>() }
     var showAttachScanner by remember { mutableStateOf(false) }
@@ -397,14 +406,23 @@ fun MealScreen(
                 product = product,
                 photos = LabelPhotoStore.photosFor(context, code),
                 uploadPhotos = remember(product) { MealContributionSettings.load(context).uploadPhotos },
+                sending = sendInProgress,
+                result = sendResult,
                 onAddPhotos = { sendAddPhotos = true },
                 onSend = {
-                    sendRequest = null
+                    sendInProgress = true
+                    sendResult = null
                     scope.launch {
-                        contributeLabelProduct(context, repository, code, product, LabelPhotoStore.photosFor(context, code))
+                        sendResult = contributeLabelProduct(context, repository, code, product, LabelPhotoStore.photosFor(context, code), showToast = false)
+                        sendInProgress = false
                     }
                 },
-                onDismiss = { sendRequest = null }
+                onDismiss = {
+                    if (!sendInProgress) {
+                        sendRequest = null
+                        sendResult = null
+                    }
+                }
             )
         }
     }
@@ -743,17 +761,70 @@ private fun MealSendDialog(
     product: ScannedProduct,
     photos: List<ContributionPhoto>,
     uploadPhotos: Boolean,
+    sending: Boolean,
+    result: ContributionResult?,
     onAddPhotos: () -> Unit,
     onSend: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val fields = remember(product) {
+        val settings = MealContributionSettings.load(context)
+        OpenFoodFactsContributor.productFields(
+            barcode = product.barcode.orEmpty(), product = product, userId = settings.userId, password = "",
+            languageCode = Locale.getDefault().language, appUuid = settings.appUuid, comment = ""
+        ).filterKeys { it != "password" && it != "comment" && it != "app_uuid" }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.meal_contribute_send)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 Text(listOfNotNull(product.brand, product.displayName).joinToString(" · ") + " · " + product.barcode.orEmpty())
+                if (sending) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.width(20.dp).height(20.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.meal_send_sending))
+                    }
+                }
+                result?.let { r ->
+                    val (ok, text) = when (r) {
+                        is ContributionResult.Sent -> true to stringResource(R.string.meal_send_result_ok, r.photosSent, r.photosFailed)
+                        is ContributionResult.Rejected -> false to stringResource(R.string.meal_send_result_failed, r.message ?: "")
+                        is ContributionResult.Failed -> false to stringResource(R.string.meal_send_result_failed, r.message ?: "")
+                    }
+                    Text(
+                        text = (if (ok) "✓ " else "✗ ") + text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                }
+                Text(stringResource(R.string.meal_send_fields_title), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = fields.entries.joinToString("\n") { (k, v) -> "$k = $v" },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace
+                )
                 if (uploadPhotos) {
+                    if (photos.isNotEmpty()) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            photos.forEach { photo ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    LabelPhotoThumbnail(
+                                        file = photo.file,
+                                        modifier = Modifier
+                                            .width(72.dp)
+                                            .height(72.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                    Text(photoKindLabel(photo.kind), style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
                     val kinds = listOf(LabelPhotoKind.FRONT, LabelPhotoKind.NUTRITION, LabelPhotoKind.INGREDIENTS)
                     val labels = kinds.map { it to photoKindLabel(it) }
                     val status = labels.joinToString("   ") { (kind, label) ->
@@ -767,8 +838,14 @@ private fun MealSendDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onSend) { Text(stringResource(R.string.meal_send_now)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
+        confirmButton = {
+            if (result == null) {
+                TextButton(onClick = onSend, enabled = !sending) { Text(stringResource(R.string.meal_send_now)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+            }
+        },
+        dismissButton = { if (result == null) TextButton(onClick = onDismiss, enabled = !sending) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -782,17 +859,18 @@ private suspend fun contributeLabelProduct(
     repository: MealRepository,
     barcode: String,
     product: ScannedProduct,
-    photos: List<ContributionPhoto>
-) {
+    photos: List<ContributionPhoto>,
+    showToast: Boolean = true
+): ContributionResult? {
     val settings = MealContributionSettings.load(context)
     if (!settings.enabled) {
         // Contributions are off: nothing is kept.
         deleteLabelPhotos(photos)
-        return
+        return null
     }
     // Keep the photos under the barcode so a later or repeated send can still carry them.
     val stored = withContext(Dispatchers.IO) { LabelPhotoStore.store(context, barcode, photos) }
-    if (!settings.isUsable || product.facts.carbsGrams < 0f) return
+    if (!settings.isUsable || product.facts.carbsGrams < 0f) return null
     val result = withContext(Dispatchers.IO) {
         OpenFoodFactsContributor.contribute(
             barcode = barcode,
@@ -810,10 +888,26 @@ private suspend fun contributeLabelProduct(
         // Photos went out (or were not wanted): no need to keep them.
         if (!settings.uploadPhotos || result.photosFailed == 0) withContext(Dispatchers.IO) { LabelPhotoStore.clear(context, barcode) }
     }
-    val message = when (result) {
-        is ContributionResult.Sent -> context.getString(R.string.meal_contribute_sent)
-        is ContributionResult.Rejected -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
-        is ContributionResult.Failed -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
+    val (ok, detail) = MealContributionLog.describe(result)
+    MealContributionLog.append(
+        context,
+        ContributionLogEntry(
+            at = System.currentTimeMillis(),
+            barcode = barcode,
+            name = listOfNotNull(product.brand, product.displayName).joinToString(" · "),
+            ok = ok,
+            message = detail,
+            photosSent = (result as? ContributionResult.Sent)?.photosSent ?: 0,
+            photosFailed = (result as? ContributionResult.Sent)?.photosFailed ?: 0
+        )
+    )
+    if (showToast) {
+        val message = when (result) {
+            is ContributionResult.Sent -> context.getString(R.string.meal_contribute_sent)
+            is ContributionResult.Rejected -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
+            is ContributionResult.Failed -> context.getString(R.string.meal_contribute_failed, result.message ?: "")
+        }
+        tk.glucodata.Applic.Toaster(message)
     }
-    tk.glucodata.Applic.Toaster(message)
+    return result
 }
