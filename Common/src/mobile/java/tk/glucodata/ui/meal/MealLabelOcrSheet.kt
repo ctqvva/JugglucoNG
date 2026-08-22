@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -116,6 +117,7 @@ internal fun MealLabelOcrSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val photos = remember { mutableStateListOf<LabelPhoto>() }
     var pendingCapture by remember { mutableStateOf<LabelPhoto?>(null) }
+    var cropPhoto by remember { mutableStateOf<LabelPhoto?>(null) }
     var nextKind by remember { mutableStateOf(LabelPhotoKind.NUTRITION) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var handedOver by remember { mutableStateOf(false) }
@@ -151,7 +153,7 @@ internal fun MealLabelOcrSheet(
         if (photo == null) return@rememberLauncherForActivityResult
         if (ok && photo.file.length() > 0) {
             photos += photo
-            runOcr(photo)
+            cropPhoto = photo
         } else {
             runCatching { photo.file.delete() }
         }
@@ -167,7 +169,7 @@ internal fun MealLabelOcrSheet(
             }
             if (copied) {
                 photos += photo
-                runOcr(photo)
+                cropPhoto = photo
             }
         }
     }
@@ -189,6 +191,20 @@ internal fun MealLabelOcrSheet(
     val carbsWord = stringResource(R.string.meal_carbs)
     val proteinWord = stringResource(R.string.meal_protein)
     val fatWord = stringResource(R.string.meal_fat)
+
+    cropPhoto?.let { photo ->
+        LabelCropDialog(
+            file = photo.file,
+            onDone = { _ ->
+                cropPhoto = null
+                // OCR runs on whatever is on disk now: cropped or as taken; a re-crop re-reads.
+                photo.lines = emptyList()
+                photo.processing = true
+                photo.failed = false
+                runOcr(photo)
+            }
+        )
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -248,6 +264,7 @@ internal fun MealLabelOcrSheet(
                             .width(56.dp)
                             .height(56.dp)
                             .clip(RoundedCornerShape(8.dp))
+                            .clickable { cropPhoto = photo }
                     )
                     if (photo.processing) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
