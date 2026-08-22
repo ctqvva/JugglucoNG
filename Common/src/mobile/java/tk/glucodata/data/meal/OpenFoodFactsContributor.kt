@@ -75,6 +75,7 @@ object OpenFoodFactsContributor {
         )
         appUuid?.takeIf { it.isNotBlank() }?.let { fields["app_uuid"] = it }
         product.brand?.takeIf { it.isNotBlank() }?.let { fields["brands"] = it }
+        product.category?.takeIf { it.isNotBlank() }?.let { fields["categories"] = it }
         val ref = product.reference
         ref.netQuantity?.takeIf { it > 0f }?.let { net ->
             fields["quantity"] = "${formatNumber(net)} ${ref.netUnit?.symbol ?: "g"}"
@@ -96,6 +97,8 @@ object OpenFoodFactsContributor {
         put("carbohydrates", facts.carbsGrams)
         put("sugars", facts.sugarsGrams)
         put("fat", facts.fatGrams)
+        put("saturated-fat", facts.saturatedFatGrams)
+        put("salt", facts.saltGrams)
         put("fiber", facts.fiberGrams)
         put("proteins", facts.proteinGrams)
         put("polyols", facts.polyolsGrams)

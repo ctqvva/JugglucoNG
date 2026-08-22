@@ -83,7 +83,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         MealProductEntity::class,
         CloneRecoveryImportEntity::class
     ],
-    version = 34,
+    version = 35,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -878,6 +878,14 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -917,7 +925,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_30_31,
                     MIGRATION_31_32,
                     MIGRATION_32_33,
-                    MIGRATION_33_34
+                    MIGRATION_33_34,
+                    MIGRATION_34_35
                 )
                 .build().also { INSTANCE = it }
             }

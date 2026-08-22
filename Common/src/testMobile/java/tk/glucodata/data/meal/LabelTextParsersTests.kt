@@ -62,6 +62,8 @@ class LabelTextParsersTests {
         assertEquals(6.2f, facts.fiberGrams!!, 0.001f)
         assertEquals(7f, facts.proteinGrams!!, 0.001f)
         assertEquals(496f, facts.kcal!!, 0.001f)
+        assertEquals(11f, facts.saturatedFatGrams!!, 0.001f)
+        assertEquals(0.1f, facts.saltGrams!!, 0.001f)
         assertTrue(result.evidence["carbs"]!!.contains("Kohlenhydrate"))
         // Saturates must not be taken as the fat value.
         assertTrue(result.evidence["fat"]!!.startsWith("Fett 27"))

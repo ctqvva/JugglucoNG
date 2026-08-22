@@ -139,8 +139,11 @@ internal fun MealProductEntity.toScannedProduct(): ScannedProduct = ScannedProdu
         fiberGrams = fiberGrams,
         sugarsGrams = sugarsGrams,
         polyolsGrams = polyolsGrams,
-        kcal = kcal
+        kcal = kcal,
+        saturatedFatGrams = saturatedFatGrams,
+        saltGrams = saltGrams
     ),
+    category = offCategory,
     reference = NutritionReference(
         basis = NutritionBasis.fromStorage(basis),
         netQuantity = netQuantity,
@@ -183,5 +186,8 @@ internal fun ScannedProduct.toProductEntity(barcode: String, now: Long, existing
         plausibilityFlags = NutritionPlausibilityFlag.encode(plausibility),
         fetchedAt = now,
         lastUsedAt = now,
-        contributedAt = contributedAt ?: existing?.contributedAt
+        contributedAt = contributedAt ?: existing?.contributedAt,
+        saturatedFatGrams = facts.saturatedFatGrams,
+        saltGrams = facts.saltGrams,
+        offCategory = category?.takeIf { it.isNotBlank() } ?: existing?.offCategory
     )
