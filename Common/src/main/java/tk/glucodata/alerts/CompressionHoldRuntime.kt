@@ -60,20 +60,28 @@ internal object CompressionHoldRuntime {
     private val holdState = CompressionHoldState()
     private var lastSuspect: CompressionLowDetector.OngoingSuspect? = null
 
+    // One hold per LOW episode: once a hold has escalated, the same episode is never
+    // held again — otherwise a delivery refused by a rearm cooldown would let a fresh
+    // full-length hold start on the same falling trace, doubling the configured bound.
+    private var episodeSpent = false
+
     // --- settings surface (read by the alert settings screen) ---
 
     fun isOptedIn(): Boolean = prefs()?.getBoolean(PREF_ENABLED, false) == true
 
     fun isSelfDisabled(): Boolean = prefs()?.getBoolean(PREF_SELF_DISABLED, false) == true
 
-    /** Re-enabling clears the self-disable latch and starts the escalation count fresh. */
+    /**
+     * Re-enabling clears the self-disable latch and starts the escalation count fresh.
+     * Disabling only flips the pref: the next alert tick (under the alert lock) sees
+     * "not opted in" and releases any running hold there — the state machine is never
+     * touched from the UI thread.
+     */
     fun setEnabled(enabled: Boolean) {
         val p = prefs() ?: return
         p.edit().putBoolean(PREF_ENABLED, enabled).apply()
         if (enabled) {
             p.edit().remove(PREF_SELF_DISABLED).remove(PREF_LOG).apply()
-        } else {
-            release(holdState.onDisabled())
         }
     }
 
@@ -152,8 +160,13 @@ internal object CompressionHoldRuntime {
 
     /**
      * Gate for an undelivered, unsnoozed LOW alarm. True means "withhold this tick".
-     * The turn-over cue and every log line happen in here; the caller only keeps the
-     * episode pending so the alarm fires the instant the hold lifts.
+     * The cue and every log line happen in here; the caller only keeps the episode
+     * pending so the alarm fires the instant the hold lifts.
+     *
+     * The cue is load-bearing, not decoration: if it cannot actually sound — its type
+     * disabled, snoozed, outside its schedule, or refused by the alert tracker — no hold
+     * starts and LOW fires as if the feature were off. A hold is quieter than an alarm,
+     * never silent.
      */
     fun gateLow(displayValue: Float, rate: Float): Boolean {
         try {
@@ -162,14 +175,16 @@ internal object CompressionHoldRuntime {
                 release(holdState.onDisabled())
                 return false
             }
-            val turnOverConfig = AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)
-            if (!turnOverConfig.enabled) {
-                // A hold without its cue would be silence, and silence is forbidden.
+            val cueConfig = AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)
+            if (!cueConfig.enabled || SnoozeManager.isSnoozed(AlertType.SENSOR_PRESSURE) ||
+                !cueConfig.isActiveNow()
+            ) {
                 release(holdState.onDisabled())
                 return false
             }
             val valueMgdl = toMgdl(displayValue)
-            val suspicion = if (!holdState.holding) assessSuspicion(nowMs, valueMgdl) else null
+            val mayStart = !holdState.holding && !episodeSpent
+            val suspicion = if (mayStart) assessSuspicion(nowMs, valueMgdl) else null
             val action = holdState.onLowActive(
                 nowMs = nowMs,
                 valueMgdl = valueMgdl,
@@ -179,14 +194,22 @@ internal object CompressionHoldRuntime {
             )
             return when (action) {
                 is CompressionHoldState.Action.StartHold -> {
+                    if (!fireCue(displayValue, rate, suspicion)) {
+                        // Refused cue: undo the hold before it ever withheld anything.
+                        holdState.forceEscalate("cue-refused")
+                        resetCueTracker()
+                        Log.i(LOG_ID, "Cue refused, not holding")
+                        return false
+                    }
                     lastSuspect = suspicion
-                    fireTurnOverCue(turnOverConfig, displayValue, rate, suspicion)
                     Log.i(LOG_ID, "Holding LOW: $suspicion")
                     true
                 }
                 is CompressionHoldState.Action.ContinueHold -> true
                 is CompressionHoldState.Action.Escalate -> {
-                    recordOutcome(nowMs, CompressionHoldLog.Outcome.ESCALATED, action.reason)
+                    episodeSpent = true
+                    recordOutcome(nowMs, CompressionHoldLog.Outcome.ESCALATED, action.reason,
+                        heldMs = nowMs - (holdStartForRecord ?: nowMs))
                     false
                 }
                 else -> false
@@ -199,25 +222,38 @@ internal object CompressionHoldRuntime {
         }
     }
 
-    /** The LOW condition cleared: a running hold resolved itself. */
+    /** The LOW condition cleared: a running hold resolved itself; the episode is over. */
     fun onLowCleared() {
         try {
             release(holdState.onLowCleared(System.currentTimeMillis()))
+            episodeSpent = false
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "onLowCleared", t)
         }
     }
 
-    /** VERY_LOW is firing: the hard floor spoke through its own alert type. */
-    fun onVeryLowTakingOver() {
+    /**
+     * VERY_LOW has taken the priority pick: the hard floor spoke through its own alert
+     * type, and the held LOW must not sit behind it. Returns true when a hold was
+     * running — the caller then ends VERY_LOW's own snooze/pending detour and lets the
+     * alarm path fire, because a held LOW parked behind a snoozed VERY_LOW would be
+     * silenced for the snooze, not the hold window.
+     */
+    fun onVeryLowTakingOver(): Boolean {
         try {
+            val wasHolding = holdState.holding
+            if (wasHolding) episodeSpent = true
             release(holdState.forceEscalate("hard-floor"))
+            return wasHolding
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "onVeryLowTakingOver", t)
+            return false
         }
     }
 
     // --- internals ---
+
+    private var holdStartForRecord: Long? = null
 
     private fun release(action: CompressionHoldState.Action) {
         val nowMs = System.currentTimeMillis()
@@ -227,10 +263,21 @@ internal object CompressionHoldRuntime {
                     heldMs = action.heldMillis)
             }
             is CompressionHoldState.Action.Escalate -> {
-                recordOutcome(nowMs, CompressionHoldLog.Outcome.ESCALATED, action.reason)
+                recordOutcome(nowMs, CompressionHoldLog.Outcome.ESCALATED, action.reason,
+                    heldMs = nowMs - (holdStartForRecord ?: nowMs))
             }
             else -> {}
         }
+    }
+
+    /**
+     * The alert tracker latches a type after it fires and only the owning path resets
+     * it; for every other type that is clearRuntimeAlert. For the cue it is this — at
+     * every hold end — so the NEXT hold's cue is not eaten by the latch (it would have
+     * been: after the first hold ever, all later holds were silent).
+     */
+    private fun resetCueTracker() {
+        AlertStateTracker.resetState(AlertType.SENSOR_PRESSURE)
     }
 
     private fun assessSuspicion(nowMs: Long, valueMgdl: Float): CompressionLowDetector.OngoingSuspect? {
@@ -256,20 +303,25 @@ internal object CompressionHoldRuntime {
         return suspect
     }
 
-    private fun fireTurnOverCue(
-        config: AlertConfig,
+    /** True only if the cue actually went out; a refusal means the hold must not start. */
+    private fun fireCue(
         displayValue: Float,
         rate: Float,
         suspect: CompressionLowDetector.OngoingSuspect?
-    ) {
-        val context = Applic.app ?: return
+    ): Boolean {
+        val context = Applic.app ?: return false
+        // A stale latch from a cue that was never cleanly ended (process death mid-hold)
+        // must not refuse this one.
+        resetCueTracker()
         val base = context.getString(R.string.sensor_pressure_cue_message)
         val detail = suspect?.let {
             " (%.1f mg/dL/min, IOB %.1f U)".format(it.meanDropMgdlPerMinute, iobForDisplay())
         } ?: ""
-        Notify.triggerSupplementalGlucoseAlert(
+        val fired = Notify.triggerSupplementalGlucoseAlert(
             AlertType.SENSOR_PRESSURE.id, displayValue, rate, base + detail
         )
+        if (fired) holdStartForRecord = System.currentTimeMillis()
+        return fired
     }
 
     private fun iobForDisplay(): Float =
@@ -277,8 +329,10 @@ internal object CompressionHoldRuntime {
 
     private fun recordOutcome(nowMs: Long, outcome: CompressionHoldLog.Outcome, reason: String, heldMs: Long = 0L) {
         Notify.cancelRetrySession(AlertType.SENSOR_PRESSURE.id, "sensor-pressure-hold-$reason")
+        resetCueTracker()
+        holdStartForRecord = null
         val p = prefs() ?: return
-        val startMs = nowMs - heldMs
+        val startMs = nowMs - heldMs.coerceAtLeast(0L)
         val log = CompressionHoldLog.decode(p.getString(PREF_LOG, null))
             .pruned(nowMs)
             .record(CompressionHoldLog.Entry(startMs, nowMs, outcome, reason))

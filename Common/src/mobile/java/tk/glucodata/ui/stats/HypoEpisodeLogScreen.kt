@@ -40,11 +40,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
 import tk.glucodata.Natives
-import tk.glucodata.NotificationHistorySource
 import tk.glucodata.R
 import tk.glucodata.alerts.CompressionHoldRuntime
 import tk.glucodata.data.CompressionEpisodeClassifier
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.HypoEpisodeMark
 import tk.glucodata.logic.CompressionLowDetector
 import tk.glucodata.ui.GlucosePoint
@@ -89,6 +89,9 @@ internal fun HypoEpisodeLogScreen(navController: NavController) {
         scope.launch(Dispatchers.IO) {
             val context = Applic.app ?: return@launch
             val dao = HistoryDatabase.getInstance(context).hypoEpisodeDao()
+            // Any mark overlapping this episode is replaced or removed — a boundary that
+            // drifted since the mark was written must not leave an orphan behind.
+            HypoEpisodeMark.findFor(dao.getAll(), row.startMs, row.endMs)?.let { dao.delete(it.episodeKeyMs) }
             if (pressure) {
                 dao.upsert(
                     HypoEpisodeMark(
@@ -100,8 +103,6 @@ internal fun HypoEpisodeLogScreen(navController: NavController) {
                         updatedAt = System.currentTimeMillis()
                     )
                 )
-            } else {
-                dao.delete(HypoEpisodeMark.keyFor(row.startMs))
             }
         }
     }
@@ -225,12 +226,13 @@ private suspend fun loadRows(): List<HypoLogRow> {
     val nowMs = System.currentTimeMillis()
     val startMs = nowMs - 30L * 24 * 60 * 60_000L
 
-    // Everything below runs in mg/dL: history, targets, detector.
-    val historyMgdl = NotificationHistorySource.getDisplayHistory(startMs, false)
-    if (historyMgdl.isEmpty()) return emptyList()
-    val uiPoints = historyMgdl.map {
-        GlucosePoint(value = it.value, time = "", timestamp = it.timestamp, rawValue = it.rawValue)
-    }
+    // The same multi-sensor, display-mapped series the statistics screen computes its
+    // episodes from (a 30-day window routinely spans two or three sensors); mg/dL
+    // throughout — history, targets, detector.
+    val uiPoints = HistoryRepository(context).getDisplayHistoryForStats(null, startMs)
+        .filter { it.value > 0f }
+    if (uiPoints.isEmpty()) return emptyList()
+    val historyMgdl = uiPoints
 
     val lowMgdl = toMgdlTarget(Natives.targetlow()).takeIf { it > 0f } ?: 70f
     val veryLowMgdl = toMgdlTarget(Natives.alarmverylow()).takeIf { it > 0f } ?: 54f
@@ -249,13 +251,12 @@ private suspend fun loadRows(): List<HypoLogRow> {
     }.getOrDefault(emptyList())
     val holdLog = runCatching { CompressionHoldRuntime.loadLog() }.getOrDefault(null)
     val marks = HistoryDatabase.getInstance(context).hypoEpisodeDao().getAll()
-        .associateBy { it.episodeKeyMs }
 
     fun overlaps(aStart: Long, aEnd: Long, bStart: Long, bEnd: Long) =
         aStart <= bEnd && bStart <= aEnd
 
     return episodes.map { episode ->
-        val mark = marks[HypoEpisodeMark.keyFor(episode.startMillis)]
+        val mark = HypoEpisodeMark.findFor(marks, episode.startMillis, episode.endMillis)
         val detectorHit = detected.any {
             overlaps(episode.startMillis, episode.endMillis, it.onsetMillis, it.recoveryMillis)
         }
