@@ -46,49 +46,98 @@ import kotlin.math.min
  */
 object CompressionLowDetector {
 
-    /** The falling segment's mean rate must be steeper than this (mg/dL per minute). */
-    const val SUSPECT_DROP_MGDL_PER_MINUTE = 2.0f
+    /**
+     * Every detection threshold, fully user-tunable. The defaults are the conservative
+     * literature-informed values; tuning them against one's own recorded episodes —
+     * with the episode log as the scorecard — is the calibration path. [sanitized]
+     * guards against nonsense, not against opinion: recommended ranges are the UI's
+     * job to signal, with warnings, never to enforce. The hard floor and the maximum
+     * hold time are not in here — those live with the hold, not with detection.
+     */
+    data class Tuning(
+        /** The falling segment's mean rate must be steeper than this (mg/dL per minute). */
+        val suspectDropMgdlPerMinute: Float = 2.0f,
+        /** A fall shallower than this is noise territory, whatever its rate. */
+        val minDropDepthMgdl: Float = 25f,
+        /** The pre-onset window the baseline is judged over. */
+        val flatWindowMinutes: Long = 15L,
+        /** At least this much of the window must actually be recorded before onset. */
+        val minFlatSpanMinutes: Long = 10L,
+        /** Mean pre-onset slope at or above this counts as quiet (mg/dL per minute). */
+        val flatMinRateMgdlPerMinute: Float = -0.5f,
+        /** No pre-onset sample may sit further than this below the onset value. */
+        val flatDipToleranceMgdl: Float = 10f,
+        /** The rebound must arrive within this window after the nadir, or the low is real. */
+        val recoveryWindowMinutes: Long = 45L,
+        /** Recovered means back within this band under the pre-drop baseline. */
+        val recoveryBandMgdl: Float = 15f,
+        /** Observed depth must exceed IOB × ISF by this factor to count as unexplained. */
+        val unexplainedFactor: Float = 1.25f,
+        /** Journal carbs below this many grams do not explain a rebound. */
+        val negligibleCarbGrams: Float = 5f,
+        /** Carbs are looked up from this long before onset: eating just ahead of the
+         *  fall registering is what a treated real low looks like. */
+        val carbLookbackMinutes: Long = 30L,
+        /** A recording hole wider than this inside the episode or the pre-onset window
+         *  makes the shape assumed rather than observed, and is never classified. */
+        val maxGapMinutes: Long = 10L
+    ) {
+        /**
+         * Guards against nonsense only — non-finite values, zero or negative rates,
+         * a recorded-span floor above the window it spans. The user owns every value
+         * beyond that: the RECOMMENDED ranges are UI guidance with warning styling,
+         * never enforcement. That is a deliberate product decision — an opted-in user
+         * keeps full authority, and the settings screen owes them friction and plain
+         * words, not a locked door.
+         */
+        fun sanitized(): Tuning = Tuning(
+            suspectDropMgdlPerMinute = suspectDropMgdlPerMinute.finiteIn(0.5f, 20f, DEFAULT.suspectDropMgdlPerMinute),
+            minDropDepthMgdl = minDropDepthMgdl.finiteIn(5f, 200f, DEFAULT.minDropDepthMgdl),
+            flatWindowMinutes = flatWindowMinutes.coerceIn(5L, 60L),
+            minFlatSpanMinutes = minFlatSpanMinutes.coerceIn(1L, flatWindowMinutes.coerceIn(5L, 60L)),
+            flatMinRateMgdlPerMinute = flatMinRateMgdlPerMinute.finiteIn(-5f, 0f, DEFAULT.flatMinRateMgdlPerMinute),
+            flatDipToleranceMgdl = flatDipToleranceMgdl.finiteIn(1f, 50f, DEFAULT.flatDipToleranceMgdl),
+            recoveryWindowMinutes = recoveryWindowMinutes.coerceIn(10L, 120L),
+            recoveryBandMgdl = recoveryBandMgdl.finiteIn(5f, 50f, DEFAULT.recoveryBandMgdl),
+            unexplainedFactor = unexplainedFactor.finiteIn(0.5f, 3f, DEFAULT.unexplainedFactor),
+            negligibleCarbGrams = negligibleCarbGrams.finiteIn(0f, 30f, DEFAULT.negligibleCarbGrams),
+            carbLookbackMinutes = carbLookbackMinutes.coerceIn(0L, 120L),
+            maxGapMinutes = maxGapMinutes.coerceIn(2L, 30L)
+        )
 
-    /** A fall shallower than this is noise territory, whatever its rate. */
-    const val MIN_DROP_DEPTH_MGDL = 25f
+        private fun Float.finiteIn(lo: Float, hi: Float, default: Float): Float =
+            if (isFinite()) coerceIn(lo, hi) else default
 
-    /** The pre-onset window the baseline is judged over. */
-    const val FLAT_WINDOW_MINUTES = 15L
+        internal val maxGapMs: Long get() = maxGapMinutes * MINUTE_MS
 
-    /** At least this much of the window must actually be recorded before onset. */
-    const val MIN_FLAT_SPAN_MINUTES = 10L
-
-    /** Mean pre-onset slope at or above this counts as quiet (mg/dL per minute). */
-    const val FLAT_MIN_RATE_MGDL_PER_MINUTE = -0.5f
-
-    /** No pre-onset sample may sit further than this below the onset value. */
-    const val FLAT_DIP_TOLERANCE_MGDL = 10f
-
-    /** The rebound must arrive within this window after the nadir, or the low is treated as real. */
-    const val RECOVERY_WINDOW_MINUTES = 45L
-
-    /** Recovered means back within this band under the pre-drop baseline. */
-    const val RECOVERY_BAND_MGDL = 15f
-
-    /** Observed depth must exceed the IOB-explainable drop by this factor to count as unexplained. */
-    const val UNEXPLAINED_FACTOR = 1.25f
-
-    /** Journal carbs below this many grams do not explain a rebound. */
-    const val NEGLIGIBLE_CARB_GRAMS = 5f
-
-    /** Carbs are looked up from this long before onset: eating just ahead of the fall
-     *  registering is what a treated real low looks like. */
-    const val CARB_LOOKBACK_MINUTES = 30L
-
-    /** A recording hole wider than this inside the episode or the pre-onset window makes
-     *  the shape assumed rather than observed, and an assumed V must not be classified. */
-    const val MAX_GAP_MINUTES = 10L
+        companion object {
+            val DEFAULT = Tuning()
+        }
+    }
 
     private const val MINUTE_MS = 60_000L
-    private const val MAX_GAP_MS = MAX_GAP_MINUTES * MINUTE_MS
     private const val MIN_RATE_SPACING_MS = 30_000L
 
+    /** A reading older than this cannot support a live suspicion — the fall is history, not ongoing. */
+    const val STALE_READING_MINUTES = 6L
+
     data class Sample(val timestampMillis: Long, val mgdl: Float)
+
+    /**
+     * A live compression suspicion: the fall is still in progress, so only the
+     * pre-rebound conditions are knowable. The rebound itself is what a hold window
+     * exists to observe.
+     */
+    data class OngoingSuspect(
+        val onsetMillis: Long,
+        val baselineMgdl: Float,
+        val currentMgdl: Float,
+        /** Mean fall over the segment, negative, mg/dL per minute. */
+        val meanDropMgdlPerMinute: Float,
+        val depthMgdl: Float,
+        /** How much drop the journal's insulin could account for: IOB × ISF. */
+        val explainableDropMgdl: Float
+    )
 
     data class Episode(
         val onsetMillis: Long,
@@ -137,21 +186,19 @@ object CompressionLowDetector {
         iobUnitsAt: (timestampMillis: Long) -> Float,
         dosePeakPassedAt: (timestampMillis: Long) -> Boolean,
         carbGramsBetween: (startMillis: Long, endMillis: Long) -> Float,
-        sensorStartMillis: Long? = null
+        sensorStartMillis: Long? = null,
+        tuning: Tuning = Tuning.DEFAULT
     ): List<Episode> {
         if (!isfMgdlPerUnit.isFinite() || isfMgdlPerUnit <= 0f) return emptyList()
-        val trace = samples.asSequence()
-            .filter { it.mgdl.isFinite() && it.mgdl > 0f }
-            .groupBy { it.timestampMillis }
-            .map { (_, sameInstant) -> sameInstant.minBy { it.mgdl } }
-            .sortedBy { it.timestampMillis }
+        val t = tuning.sanitized()
+        val trace = sanitize(samples)
         if (trace.size < 3) return emptyList()
 
         val episodes = mutableListOf<Episode>()
         var i = 0
         while (i < trace.size - 1) {
             val rate = rateFrom(trace, i, trace.size - 1)
-            if (rate == null || rate >= -SUSPECT_DROP_MGDL_PER_MINUTE) {
+            if (rate == null || rate >= -t.suspectDropMgdlPerMinute) {
                 i++
                 continue
             }
@@ -161,7 +208,7 @@ object CompressionLowDetector {
                 nadirIndex++
             }
             val episode = confirm(trace, onsetIndex, nadirIndex, isfMgdlPerUnit,
-                iobUnitsAt, dosePeakPassedAt, carbGramsBetween, sensorStartMillis)
+                iobUnitsAt, dosePeakPassedAt, carbGramsBetween, sensorStartMillis, t)
             if (episode != null) {
                 episodes += episode
                 while (i < trace.size && trace[i].timestampMillis <= episode.recoveryMillis) i++
@@ -172,6 +219,70 @@ object CompressionLowDetector {
         return episodes
     }
 
+    /**
+     * Judges whether the trace ENDS in a fall that carries the compression signature —
+     * the live-alarm variant of [detect], for a hold decision at the moment a low alarm
+     * would fire. Conditions 1-4 of the retrospective detector apply (steep mean fall,
+     * quiet baseline, IOB cannot explain, dose past peak); rebound and carbs cannot be
+     * known yet and are the hold window's job to observe. Returns null on any doubt:
+     * stale data, a hole, a broken IOB value, or an incomplete picture all mean the low
+     * is treated as real.
+     */
+    fun assessOngoing(
+        samples: List<Sample>,
+        nowMillis: Long,
+        isfMgdlPerUnit: Float,
+        iobUnits: Float,
+        dosePeakPassed: Boolean,
+        tuning: Tuning = Tuning.DEFAULT
+    ): OngoingSuspect? {
+        if (!isfMgdlPerUnit.isFinite() || isfMgdlPerUnit <= 0f) return null
+        if (!iobUnits.isFinite() || iobUnits < 0f) return null
+        if (!dosePeakPassed) return null
+        val t = tuning.sanitized()
+        val trace = sanitize(samples)
+        if (trace.size < 3) return null
+
+        val current = trace.last()
+        if (nowMillis - current.timestampMillis > STALE_READING_MINUTES * MINUTE_MS) return null
+
+        var onsetIndex = trace.size - 1
+        while (onsetIndex > 0 &&
+            trace[onsetIndex - 1].mgdl >= trace[onsetIndex].mgdl &&
+            trace[onsetIndex].timestampMillis - trace[onsetIndex - 1].timestampMillis <= t.maxGapMs
+        ) {
+            onsetIndex--
+        }
+        // A flat shoulder walked through above is baseline, not fall: onset is its last
+        // sample, so a constant baseline does not swallow its own quiet window.
+        while (onsetIndex < trace.size - 2 && trace[onsetIndex + 1].mgdl == trace[onsetIndex].mgdl) {
+            onsetIndex++
+        }
+        if (onsetIndex == trace.size - 1) return null
+
+        val onset = trace[onsetIndex]
+        val depth = onset.mgdl - current.mgdl
+        if (depth < t.minDropDepthMgdl) return null
+        val fallMinutes = (current.timestampMillis - onset.timestampMillis) / MINUTE_MS.toFloat()
+        if (fallMinutes <= 0f) return null
+        val meanRate = -depth / fallMinutes
+        if (depth / fallMinutes < t.suspectDropMgdlPerMinute) return null
+
+        if (!baselineQuietBefore(trace, onsetIndex, t)) return null
+
+        val explainable = iobUnits * isfMgdlPerUnit
+        if (depth <= explainable * t.unexplainedFactor) return null
+
+        return OngoingSuspect(
+            onsetMillis = onset.timestampMillis,
+            baselineMgdl = onset.mgdl,
+            currentMgdl = current.mgdl,
+            meanDropMgdlPerMinute = meanRate,
+            depthMgdl = depth,
+            explainableDropMgdl = explainable
+        )
+    }
+
     private fun confirm(
         trace: List<Sample>,
         onsetIndex: Int,
@@ -180,41 +291,42 @@ object CompressionLowDetector {
         iobUnitsAt: (Long) -> Float,
         dosePeakPassedAt: (Long) -> Boolean,
         carbGramsBetween: (Long, Long) -> Float,
-        sensorStartMillis: Long?
+        sensorStartMillis: Long?,
+        t: Tuning
     ): Episode? {
         val onset = trace[onsetIndex]
         val nadir = trace[nadirIndex]
         val depth = onset.mgdl - nadir.mgdl
-        if (depth < MIN_DROP_DEPTH_MGDL) return null
+        if (depth < t.minDropDepthMgdl) return null
 
         val fallMinutes = (nadir.timestampMillis - onset.timestampMillis) / MINUTE_MS.toFloat()
         if (fallMinutes <= 0f) return null
-        if (depth / fallMinutes < SUSPECT_DROP_MGDL_PER_MINUTE) return null
+        if (depth / fallMinutes < t.suspectDropMgdlPerMinute) return null
 
         var steepest = 0f
         for (k in onsetIndex until nadirIndex) {
-            if (trace[k + 1].timestampMillis - trace[k].timestampMillis > MAX_GAP_MS) return null
+            if (trace[k + 1].timestampMillis - trace[k].timestampMillis > t.maxGapMs) return null
             rateFrom(trace, k, nadirIndex)?.let { steepest = min(steepest, it) }
         }
 
-        if (!baselineQuietBefore(trace, onsetIndex)) return null
+        if (!baselineQuietBefore(trace, onsetIndex, t)) return null
 
         val iob = iobUnitsAt(onset.timestampMillis)
         if (!iob.isFinite() || iob < 0f) return null
         val explainable = iob * isfMgdlPerUnit
-        if (depth <= explainable * UNEXPLAINED_FACTOR) return null
+        if (depth <= explainable * t.unexplainedFactor) return null
         if (!dosePeakPassedAt(onset.timestampMillis)) return null
 
-        val recoveryDeadline = nadir.timestampMillis + RECOVERY_WINDOW_MINUTES * MINUTE_MS
+        val recoveryDeadline = nadir.timestampMillis + t.recoveryWindowMinutes * MINUTE_MS
         var recovery: Sample? = null
         var previous = nadir
         for (k in nadirIndex + 1 until trace.size) {
             val sample = trace[k]
             if (sample.timestampMillis > recoveryDeadline) break
-            if (sample.timestampMillis - previous.timestampMillis > MAX_GAP_MS) return null
+            if (sample.timestampMillis - previous.timestampMillis > t.maxGapMs) return null
             if (sample.mgdl < nadir.mgdl) return null
             previous = sample
-            if (sample.mgdl >= onset.mgdl - RECOVERY_BAND_MGDL) {
+            if (sample.mgdl >= onset.mgdl - t.recoveryBandMgdl) {
                 recovery = sample
                 break
             }
@@ -222,10 +334,10 @@ object CompressionLowDetector {
         if (recovery == null) return null
 
         val carbs = carbGramsBetween(
-            onset.timestampMillis - CARB_LOOKBACK_MINUTES * MINUTE_MS,
+            onset.timestampMillis - t.carbLookbackMinutes * MINUTE_MS,
             recovery.timestampMillis
         )
-        if (!carbs.isFinite() || carbs >= NEGLIGIBLE_CARB_GRAMS) return null
+        if (!carbs.isFinite() || carbs >= t.negligibleCarbGrams) return null
 
         val ageHours = sensorStartMillis?.let { start ->
             ((onset.timestampMillis - start) / MINUTE_MS / 60f).takeIf { it >= 0f }
@@ -248,21 +360,21 @@ object CompressionLowDetector {
      * sample below the onset level beyond tolerance (a recent dip means recent
      * instability), and a mean slope that is not already falling.
      */
-    private fun baselineQuietBefore(trace: List<Sample>, onsetIndex: Int): Boolean {
+    private fun baselineQuietBefore(trace: List<Sample>, onsetIndex: Int, t: Tuning): Boolean {
         val onset = trace[onsetIndex]
-        val windowStart = onset.timestampMillis - FLAT_WINDOW_MINUTES * MINUTE_MS
+        val windowStart = onset.timestampMillis - t.flatWindowMinutes * MINUTE_MS
         var firstIndex = onsetIndex
         while (firstIndex > 0 && trace[firstIndex - 1].timestampMillis >= windowStart) firstIndex--
         if (firstIndex == onsetIndex) return false
 
         val first = trace[firstIndex]
-        if (onset.timestampMillis - first.timestampMillis < MIN_FLAT_SPAN_MINUTES * MINUTE_MS) return false
+        if (onset.timestampMillis - first.timestampMillis < t.minFlatSpanMinutes * MINUTE_MS) return false
         for (k in firstIndex until onsetIndex) {
-            if (trace[k + 1].timestampMillis - trace[k].timestampMillis > MAX_GAP_MS) return false
-            if (trace[k].mgdl < onset.mgdl - FLAT_DIP_TOLERANCE_MGDL) return false
+            if (trace[k + 1].timestampMillis - trace[k].timestampMillis > t.maxGapMs) return false
+            if (trace[k].mgdl < onset.mgdl - t.flatDipToleranceMgdl) return false
         }
         val spanMinutes = (onset.timestampMillis - first.timestampMillis) / MINUTE_MS.toFloat()
-        return (onset.mgdl - first.mgdl) / spanMinutes >= FLAT_MIN_RATE_MGDL_PER_MINUTE
+        return (onset.mgdl - first.mgdl) / spanMinutes >= t.flatMinRateMgdlPerMinute
     }
 
     /**
@@ -270,6 +382,13 @@ object CompressionLowDetector {
      * away, bounded by [lastIndex] — adjacent-pair rates on sub-30 s cadences are noise,
      * and skipping them entirely would blind the scan on dense streams.
      */
+    private fun sanitize(samples: List<Sample>): List<Sample> =
+        samples.asSequence()
+            .filter { it.mgdl.isFinite() && it.mgdl > 0f }
+            .groupBy { it.timestampMillis }
+            .map { (_, sameInstant) -> sameInstant.minBy { it.mgdl } }
+            .sortedBy { it.timestampMillis }
+
     private fun rateFrom(trace: List<Sample>, i: Int, lastIndex: Int): Float? {
         val from = trace[i]
         for (j in i + 1..lastIndex) {
