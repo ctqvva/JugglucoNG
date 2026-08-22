@@ -900,6 +900,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_recovery_band_description">For the episode log: recovered means back within this distance of the pre-fall level.</string>
     <string name="tuning_carb_grams_label">Carb ignore limit</string>
     <string name="tuning_carb_grams_description">Journal carbs below this amount do not count as an explanation for a recovery.</string>
+    <string name="hypo_episode_log_title">Hypo Episodes</string>
+    <string name="hypo_episode_log_empty">No below-range episodes in the last 30 days.</string>
+    <string name="hypo_episode_log_explainer">Every below-range episode of the last 30 days. Mark an episode as sensor pressure to exclude it from the statistics — the raw readings stay untouched, and flipping the switch back restores the numbers. Suggestions come from the pressure detector and from held alarms; nothing is excluded until you confirm it.</string>
+    <string name="hypo_episode_log_range">%1$s–%2$s · %3$d min · nadir %4$s</string>
+    <string name="hypo_episode_log_pressure_toggle">Pressure</string>
+    <string name="hypo_episode_log_suggested">Looks like sensor pressure</string>
+    <string name="hypo_episode_log_excluded_note">Excluded from statistics</string>
+    <string name="stats_excluded_episodes_label">%1$d episodes excluded as sensor pressure</string>
+    <string name="stats_open_hypo_log">Hypo episodes</string>
     <string name="tuning_carb_lookback_label">Carb look-back</string>
     <string name="tuning_carb_lookback_description">Carbs logged up to this long before the fall still count as explaining a recovery — eating just before the drop registers is what a treated real low looks like.</string>
     <string name="delta_change_label">Change per %1$d min</string>

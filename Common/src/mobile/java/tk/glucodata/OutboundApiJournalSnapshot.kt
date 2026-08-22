@@ -389,7 +389,7 @@ object OutboundApiJournalSnapshot {
         return (elapsedMinutes / durationMinutes.coerceAtLeast(1f)).coerceIn(0f, 1f)
     }
 
-    private fun toPresetModel(entity: JournalInsulinPresetEntity): JournalInsulinPreset =
+    internal fun toPresetModel(entity: JournalInsulinPresetEntity): JournalInsulinPreset =
         JournalInsulinPreset(
             id = entity.id,
             displayName = entity.displayName,
