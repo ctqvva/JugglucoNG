@@ -373,6 +373,8 @@ dependencies {
     mobileImplementation "androidx.camera:camera-view:$cameraXVersion"
     mobileImplementation 'com.google.guava:guava:33.5.0-android'
     mobileImplementation 'com.google.mlkit:barcode-scanning:17.3.0'
+    // On-device text recognition for reading nutrition labels when a barcode is unknown (meals).
+    mobileImplementation 'com.google.mlkit:text-recognition:16.0.1'
 
     // ---- wear ----
     wearImplementation 'androidx.activity:activity-ktx:1.11.0'
