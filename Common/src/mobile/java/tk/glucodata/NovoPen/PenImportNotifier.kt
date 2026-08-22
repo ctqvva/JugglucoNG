@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import tk.glucodata.MainActivity
 import tk.glucodata.R
 import tk.glucodata.ui.PendingNavigation
+import java.util.concurrent.TimeUnit
 
 /**
  * The result of a pen read taken with the app in the background. There is no sheet to
@@ -20,7 +21,14 @@ import tk.glucodata.ui.PendingNavigation
  * app itself when the read is waiting for a review.
  */
 internal object PenImportNotifier {
-    private const val CHANNEL_ID = "PEN_IMPORT"
+    /**
+     * High importance, so the result shows as a heads-up for a moment: the app is not
+     * on screen, and a notification that only lands in the shade is invisible to the
+     * person holding the pen. The first channel was default importance; a channel's
+     * importance cannot be raised once it exists, so it is replaced.
+     */
+    private const val CHANNEL_ID = "PEN_IMPORT_RESULT"
+    private const val LEGACY_CHANNEL_ID = "PEN_IMPORT"
     private const val NOTIFICATION_ID = 0x5045
 
     private const val PREFS_NAME = "tk.glucodata_preferences"
@@ -44,14 +52,15 @@ internal object PenImportNotifier {
     }
 
     private fun show(context: Context, serial: String, text: String, openJournal: Boolean) {
+        // Said on screen as the foreground scan says it: the receiver activity is still
+        // up while the result is known, so the toast shows over whatever is there.
+        tk.glucodata.Applic.Toaster(text)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         createChannel(context, manager)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            // Notifications refused: say it the way the foreground scan does, at least.
-            tk.glucodata.Applic.Toaster(text)
             return
         }
         val contentIntent = PendingIntent.getActivity(
@@ -71,10 +80,10 @@ internal object PenImportNotifier {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(contentIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
+            .setTimeoutAfter(TimeUnit.HOURS.toMillis(12))
             .build()
         manager.notify(NOTIFICATION_ID, notification)
     }
@@ -88,16 +97,16 @@ internal object PenImportNotifier {
     }
 
     private fun createChannel(context: Context, manager: NotificationManager) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
-            manager.getNotificationChannel(CHANNEL_ID) != null
-        ) {
-            return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (manager.getNotificationChannel(LEGACY_CHANNEL_ID) != null) {
+            manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         }
+        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
                 context.getString(R.string.insulin_pen_import_channel),
-                NotificationManager.IMPORTANCE_DEFAULT,
+                NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 setSound(null, null)
                 setShowBadge(false)
