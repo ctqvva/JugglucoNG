@@ -48,10 +48,18 @@ private sealed class ScanState {
     data class Miss(val barcode: String, val messageRes: Int, val detail: String? = null) : ScanState()
 }
 
+/** A barcode that just missed is not looked up again from this sheet for this long. */
+private const val MISS_RETRY_MS = 60_000L
+
 /**
  * The existing camera card, told to read retail barcodes. A code that is not a valid EAN/UPC is
  * rejected so the camera keeps running; a valid one is looked up cache-first. A miss offers the
  * manual form with the barcode already filled in, so the next scan of that product is a hit.
+ *
+ * Cadence: the card stays mounted and is merely paused while a lookup runs and after a miss, so
+ * it is not re-created with the camera back on while the same code is still in frame — that was
+ * a re-scan loop that hammered the API. Codes are never "consumed" by the card; it keeps its own
+ * cooldown per rejected payload, and this sheet remembers misses for a minute.
  */
 @Composable
 internal fun MealScanSheet(
@@ -64,11 +72,25 @@ internal fun MealScanSheet(
     var state by remember { mutableStateOf<ScanState>(ScanState.Idle) }
     var manualCode by remember { mutableStateOf("") }
     var pendingBarcode by remember { mutableStateOf<String?>(null) }
+    val recentMisses = remember { mutableMapOf<String, Long>() }
+    val scanning = state is ScanState.Idle && pendingBarcode == null
+
+    fun offerBarcode(code: String): Boolean {
+        if (pendingBarcode != null || state !is ScanState.Idle) return false
+        val missedAt = recentMisses[code]
+        if (missedAt != null && android.os.SystemClock.elapsedRealtime() - missedAt < MISS_RETRY_MS) return false
+        pendingBarcode = code
+        return true
+    }
 
     LaunchedEffect(pendingBarcode) {
         val code = pendingBarcode ?: return@LaunchedEffect
         state = ScanState.Looking(code)
-        state = when (val outcome = repository.lookupProduct(code, allowNetwork)) {
+        val outcome = repository.lookupProduct(code, allowNetwork)
+        if (outcome !is ProductLookupOutcome.Hit) {
+            recentMisses[code] = android.os.SystemClock.elapsedRealtime()
+        }
+        state = when (outcome) {
             is ProductLookupOutcome.Hit -> {
                 onProduct(outcome.product, code)
                 ScanState.Idle
@@ -93,24 +115,20 @@ internal fun MealScanSheet(
         ) {
             Text(stringResource(R.string.meal_scan_product), style = MaterialTheme.typography.titleLarge)
             val current = state
-            if (current !is ScanState.Looking) {
-                InlineQrScannerCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
-                    scannerEnabled = pendingBarcode == null,
-                    barcodeFormats = PRODUCT_BARCODE_FORMATS,
-                    onScanResult = { raw ->
-                        val code = ProductBarcode.normalize(raw)
-                        if (code != null && pendingBarcode == null) {
-                            pendingBarcode = code
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                )
-            }
+            InlineQrScannerCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                scannerEnabled = scanning,
+                barcodeFormats = PRODUCT_BARCODE_FORMATS,
+                onScanResult = { raw ->
+                    // Always false: the card must not consume the code and stop for good; pausing
+                    // is done through scannerEnabled, and a rejected payload gets the card's cooldown.
+                    val code = ProductBarcode.normalize(raw)
+                    if (code != null) offerBarcode(code)
+                    false
+                }
+            )
             when (current) {
                 ScanState.Idle -> Unit
                 is ScanState.Looking -> {
@@ -149,7 +167,14 @@ internal fun MealScanSheet(
                 )
                 TextButton(
                     enabled = ProductBarcode.normalize(manualCode) != null && pendingBarcode == null,
-                    onClick = { pendingBarcode = ProductBarcode.normalize(manualCode) }
+                    onClick = {
+                        ProductBarcode.normalize(manualCode)?.let { code ->
+                            // A typed code is a deliberate retry: forget the earlier miss.
+                            recentMisses.remove(code)
+                            if (state !is ScanState.Idle) state = ScanState.Idle
+                            offerBarcode(code)
+                        }
+                    }
                 ) {
                     Text(stringResource(R.string.meal_lookup))
                 }
