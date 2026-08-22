@@ -171,13 +171,27 @@ class MealRepository {
                 ProductLookupOutcome.Offline
             }
         }
+        // A recent miss is answered from memory: OFF allows 15 product reads a minute per IP,
+        // and a code that is not in the database will not appear there in the next ten minutes.
+        synchronized(recentMisses) {
+            val missedAt = recentMisses[barcode]
+            if (missedAt != null && now - missedAt < NEGATIVE_CACHE_MS) {
+                return@withContext if (cached != null) {
+                    ProductLookupOutcome.Hit(cached.toScannedProduct(), fromCache = true)
+                } else {
+                    ProductLookupOutcome.NotFound
+                }
+            }
+        }
         when (val result = OpenFoodFactsClient.lookup(barcode)) {
             is ProductLookupResult.Found -> {
                 val entity = result.product.toProductEntity(barcode, now, cached)
                 dao.upsertProduct(entity)
+                synchronized(recentMisses) { recentMisses.remove(barcode) }
                 ProductLookupOutcome.Hit(entity.toScannedProduct(), fromCache = false)
             }
             ProductLookupResult.NotFound -> {
+                synchronized(recentMisses) { recentMisses[barcode] = now }
                 if (cached != null) ProductLookupOutcome.Hit(cached.toScannedProduct(), fromCache = true)
                 else ProductLookupOutcome.NotFound
             }
@@ -190,6 +204,7 @@ class MealRepository {
 
     /** Stores a manually entered or corrected product so the barcode resolves next time. */
     suspend fun rememberProduct(barcode: String, product: ScannedProduct) {
+        synchronized(recentMisses) { recentMisses.remove(barcode) }
         val now = System.currentTimeMillis()
         val existing = dao.getProduct(barcode)
         dao.upsertProduct(product.toProductEntity(barcode, existing?.fetchedAt ?: now, existing).copy(lastUsedAt = now))
@@ -213,6 +228,10 @@ class MealRepository {
 
     companion object {
         const val DEFAULT_CACHE_MAX_AGE_MS = 30L * 24 * 60 * 60 * 1000
+        const val NEGATIVE_CACHE_MS = 10L * 60 * 1000
+
+        /** Barcodes that Open Food Facts did not know, with the time of the answer; per process. */
+        private val recentMisses = HashMap<String, Long>()
     }
 }
 
