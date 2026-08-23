@@ -19,6 +19,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -991,14 +992,23 @@ fun OttaiSetupWizard(
                                 },
                                 label = { Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint)) },
                                 isError = useSms && phone.isNotBlank() && smsPhone == null,
-                                prefix = if (useSms) {
+                                leadingIcon = if (useSms) {
                                     {
-                                        Box {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(80.dp)
+                                                .height(56.dp),
+                                        ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier
-                                                    .height(48.dp)
-                                                    .clickable { smsCountryMenuExpanded = true },
+                                                    .fillMaxSize()
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null,
+                                                        onClick = { smsCountryMenuExpanded = true },
+                                                    )
+                                                    .padding(start = 16.dp, end = 8.dp),
                                             ) {
                                                 Text(smsCountry.prefix)
                                                 Icon(
