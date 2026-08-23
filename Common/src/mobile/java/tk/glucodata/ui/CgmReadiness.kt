@@ -448,16 +448,25 @@ private fun CgmReadinessSummaryCard(
         }
     }
     val visibleItems = items.take(maxVisibleItems)
+    val supportingColor = if (elevated) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = if (elevated) {
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.64f)
+            MaterialTheme.colorScheme.errorContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.24f)),
+        border = if (elevated) {
+            null
+        } else {
+            BorderStroke(1.dp, primaryColor.copy(alpha = 0.24f))
+        },
         shadowElevation = if (elevated) 1.dp else 0.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -481,14 +490,14 @@ private fun CgmReadinessSummaryCard(
                     Text(
                         text = summaryText ?: stringResource(R.string.cgm_readiness_summary_body, attentionCount),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = supportingColor
                     )
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Filled.Close,
                         contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = supportingColor
                     )
                 }
             }
