@@ -84,7 +84,8 @@ import tk.glucodata.drivers.ottai.OttaiCloudClient
 import tk.glucodata.drivers.ottai.OttaiConstants
 import tk.glucodata.drivers.ottai.OttaiNfc
 import tk.glucodata.drivers.ottai.OttaiRegistry
-import tk.glucodata.drivers.ottai.normalizeOttaiCnPhone
+import tk.glucodata.drivers.ottai.OttaiSmsCountry
+import tk.glucodata.drivers.ottai.normalizeOttaiPhone
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -403,6 +404,7 @@ fun OttaiSetupWizard(
     var step by remember { mutableStateOf(OttaiSetupStep.SENSOR) }
 
     var phone by remember { mutableStateOf("") }
+    var smsCountry by remember { mutableStateOf(OttaiSmsCountry.MAINLAND_CHINA) }
     var region by remember {
         mutableStateOf(
             if (alreadySignedIn && OttaiRegistry.loadApiBase(context) == OttaiConstants.API_BASE) {
@@ -966,11 +968,32 @@ fun OttaiSetupWizard(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             val useSms = region.usesSms
-                            val cnPhone = phone.takeIf { useSms }?.let(::normalizeOttaiCnPhone)
+                            val smsPhone = phone.takeIf { useSms }
+                                ?.let { normalizeOttaiPhone(it, smsCountry) }
+                            if (useSms) {
+                                ConnectedButtonGroup(
+                                    options = OttaiSmsCountry.entries.toList(),
+                                    selectedOption = smsCountry,
+                                    onOptionSelected = { selected ->
+                                        if (selected != smsCountry) {
+                                            smsCountry = selected
+                                            phone = ""
+                                            requestId = ""
+                                            code = ""
+                                            smsStatus = ""
+                                            smsStatusIsError = false
+                                        }
+                                    },
+                                    label = { Text(it.prefix) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                             OutlinedTextField(
                                 value = phone,
                                 onValueChange = { value ->
-                                    val next = if (useSms) value.filter(Char::isDigit).take(11) else value.trim()
+                                    val next = if (useSms) {
+                                        value.filter(Char::isDigit).take(smsCountry.subscriberDigits)
+                                    } else value.trim()
                                     if (next != phone && useSms) {
                                         requestId = ""
                                         code = ""
@@ -980,8 +1003,8 @@ fun OttaiSetupWizard(
                                     phone = next
                                 },
                                 label = { Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint)) },
-                                isError = useSms && phone.isNotBlank() && cnPhone == null,
-                                prefix = if (useSms) { { Text("+86") } } else null,
+                                isError = useSms && phone.isNotBlank() && smsPhone == null,
+                                prefix = if (useSms) { { Text(smsCountry.prefix) } } else null,
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = if (useSms) KeyboardType.Phone else KeyboardType.Email,
@@ -997,13 +1020,19 @@ fun OttaiSetupWizard(
                             if (useSms) {
                                 OutlinedButton(
                                     onClick = {
-                                        val normalizedPhone = cnPhone ?: return@OutlinedButton
+                                        val normalizedPhone = smsPhone ?: return@OutlinedButton
                                         busy = true
                                         smsStatus = ""
                                         smsStatusIsError = false
                                         scope.launch {
                                             val rid = withContext(Dispatchers.IO) {
-                                                runCatching { OttaiCloudClient.requestSmsCode(context, normalizedPhone) }
+                                                runCatching {
+                                                    OttaiCloudClient.requestSmsCode(
+                                                        context,
+                                                        normalizedPhone,
+                                                        smsCountry.phoneCode,
+                                                    )
+                                                }
                                                     .onFailure { Log.w(tag, "smsCode: ${it.message}") }.getOrNull()
                                             }
                                             busy = false
@@ -1019,7 +1048,7 @@ fun OttaiSetupWizard(
                                             }
                                         }
                                     },
-                                    enabled = !busy && cnPhone != null,
+                                    enabled = !busy && smsPhone != null,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text(stringResource(R.string.ottai_send_code)) }
                                 OutlinedTextField(
@@ -1043,18 +1072,29 @@ fun OttaiSetupWizard(
                                 }
                                 Button(
                                     onClick = {
-                                        val normalizedPhone = cnPhone ?: return@Button
+                                        val normalizedPhone = smsPhone ?: return@Button
                                         busy = true
                                         smsStatus = ""
                                         smsStatusIsError = false
                                         scope.launch {
                                             val ok = withContext(Dispatchers.IO) {
-                                                runCatching { OttaiCloudClient.smsLogin(context, normalizedPhone, code, requestId)?.ok == true }
+                                                runCatching {
+                                                    OttaiCloudClient.smsLogin(
+                                                        context,
+                                                        normalizedPhone,
+                                                        code,
+                                                        requestId,
+                                                        smsCountry.phoneCode,
+                                                    )?.ok == true
+                                                }
                                                     .onFailure { Log.w(tag, "smsLogin: ${it.message}") }.getOrDefault(false)
                                             }
                                             busy = false
                                             if (ok) {
-                                                OttaiRegistry.saveAccountLogin(context, phone.trim())
+                                                OttaiRegistry.saveAccountLogin(
+                                                    context,
+                                                    smsCountry.prefix + normalizedPhone,
+                                                )
                                                 smsStatus = ""
                                                 signedIn = true
                                             } else {

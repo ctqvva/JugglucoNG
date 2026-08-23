@@ -96,7 +96,7 @@ object OttaiCloudClient {
         val ok: Boolean get() = accessToken.isNotBlank() && glucoseSecretKey.isNotBlank()
     }
 
-    /** China mobile numbers are 11 digits; phoneCode "86" carries the country code. */
+    /** SMS endpoints receive subscriber digits separately from their phoneCode. */
     private fun normalizePhone(raw: String): String {
         var d = raw.filter { it.isDigit() }
         if (d.length == 13 && d.startsWith("86")) d = d.substring(2)
@@ -347,14 +347,14 @@ object OttaiCloudClient {
     }
 
     /** POST /user/smsCode — needs apiToken; sig over (phone, apiToken). Returns requestId. */
-    fun requestSmsCode(ctx: Context, phone: String): String? {
+    fun requestSmsCode(ctx: Context, phone: String, phoneCode: String = "86"): String? {
         val profile = OttaiRegistry.SessionProfile.CN_PHONE
         val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
         val ts = now()
         val deviceId = requestDeviceId(ctx, profile)
         val ph = normalizePhone(phone)
         val body = JSONObject().apply {
-            put("phoneCode", "86")
+            put("phoneCode", phoneCode)
             put("phone", ph)
             put("apiToken", apiToken)
             // smsType=1 (login). REQUIRED: without it the server still sends the SMS and
@@ -372,13 +372,19 @@ object OttaiCloudClient {
     }
 
     /** POST /user/smsLogin — sig over (requestId, phone, validCode). Persists creds. */
-    fun smsLogin(ctx: Context, phone: String, code: String, requestId: String): LoginResult? {
+    fun smsLogin(
+        ctx: Context,
+        phone: String,
+        code: String,
+        requestId: String,
+        phoneCode: String = "86",
+    ): LoginResult? {
         val profile = OttaiRegistry.SessionProfile.CN_PHONE
         val ts = now()
         val deviceId = requestDeviceId(ctx, profile)
         val ph = normalizePhone(phone)
         val body = JSONObject().apply {
-            put("phoneCode", "86")
+            put("phoneCode", phoneCode)
             put("phone", ph)
             put("validCode", code)
             put("requestId", requestId)
