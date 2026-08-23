@@ -1150,11 +1150,16 @@ private fun AlertSettingsExpanded(
                 // Slider in tenths of mg/dl per minute; 0 = off. VERY_HIGH is not among them:
                 // there the number itself is the problem.
                 if (config.type == AlertType.PERSISTENT_HIGH || config.type == AlertType.HIGH) {
+                    // HIGH fires on crossing and is what somebody counts on to hear about a
+                    // high at all, so its steps are whole arrows: off, falling, falling fast.
+                    // PERSISTENT_HIGH has already waited out a duration, so any steady
+                    // downward movement answers it and its scale is finer.
+                    val isHigh = config.type == AlertType.HIGH
                     DurationSlider(
                         label = stringResource(R.string.persistent_high_fall_suppress_label),
                         value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
-                        range = 0..20,
-                        stepSize = 1,
+                        range = if (isHigh) 0..30 else 0..20,
+                        stepSize = if (isHigh) 10 else 1,
                         onValueChange = { v -> onConfigChange(config.copy(fallRateSuppress = v / 10f)) },
                         valueText = {
                             if (it == 0) stringResource(R.string.alert_feature_off)

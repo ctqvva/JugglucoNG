@@ -285,7 +285,27 @@ object AlertDefaults {
     const val THRESHOLD_REARM_MARGIN_MMOL = 0.6f
 
     // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
+    /**
+     * PERSISTENT_HIGH's bar. That alert has already waited out a duration and its sentence is
+     * "this is not coming down", so any steady downward movement answers it.
+     */
     const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 0.5f
+
+    /**
+     * HIGH's bar, and it is a different question. That alert fires the moment the line is
+     * crossed and is the one somebody relies on to hear about a high at all, so silencing it
+     * needs a fall this app would actually call a fall. Its own vocabulary: TrendArrowAngle
+     * draws anything under 0.5 as level, and ExchangeTrend, which is what it tells other
+     * apps, does not say "falling" until 2.0 and "falling fast" until 3.0. Two is a real
+     * downward arrow, around 120 mg/dl an hour.
+     */
+    const val HIGH_FALL_RATE_MGDL_PER_MIN = 2.0f
+
+    /**
+     * And nothing quieter than this may silence a high, whatever is stored: one is where this
+     * app stops calling the movement level. A setting below it is treated as this.
+     */
+    const val HIGH_FALL_RATE_FLOOR_MGDL_PER_MIN = 1.0f
 
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
