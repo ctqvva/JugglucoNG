@@ -2702,7 +2702,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Select all</string>
     <string name="insulin_pen_select_none">Clear</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Air shot</string>
+    <string name="insulin_pen_replaces">replaces %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d air shot skipped</string>
     <string name="insulin_pen_add_doses">Add %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses added to the journal</string>
     <string name="insulin_pens_journal_off">The journal is switched off, so imported doses would not be shown anywhere.</string>

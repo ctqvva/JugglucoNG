@@ -2592,7 +2592,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_select_all">Бүгдийг сонгох</string>
     <string name="insulin_pen_select_none">Цэвэрлэх</string>
     <string name="insulin_pen_units">%1$s нэгж</string>
-    <string name="insulin_pen_priming">Агаар гаргалт</string>
+    <string name="insulin_pen_replaces">%1$s-г орлуулна</string>
+    <string name="insulin_pen_priming_skipped">%1$d агааржуулалт алгасав</string>
     <string name="insulin_pen_add_doses">%1$d тун нэмэх</string>
     <string name="insulin_pen_doses_added">Тэмдэглэлд %1$d тун нэмэгдлээ</string>
     <string name="insulin_pens_journal_off">Тэмдэглэл унтраалттай тул оруулсан тунгууд хаана ч харагдахгүй.</string>

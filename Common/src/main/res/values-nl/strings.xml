@@ -2520,7 +2520,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_select_all">Alles selecteren</string>
     <string name="insulin_pen_select_none">Wissen</string>
     <string name="insulin_pen_units">%1$s E</string>
-    <string name="insulin_pen_priming">Ontluchting</string>
+    <string name="insulin_pen_replaces">vervangt %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d ontluchting overgeslagen</string>
     <string name="insulin_pen_add_doses">%1$d doses toevoegen</string>
     <string name="insulin_pen_doses_added">%1$d doses toegevoegd aan het dagboek</string>
     <string name="insulin_pens_journal_off">Het dagboek staat uit, dus ingelezen doses worden nergens getoond.</string>

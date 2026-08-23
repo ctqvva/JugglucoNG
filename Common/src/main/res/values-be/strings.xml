@@ -2544,7 +2544,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Выбраць усе</string>
     <string name="insulin_pen_select_none">Зняць выбар</string>
     <string name="insulin_pen_units">%1$s ад.</string>
-    <string name="insulin_pen_priming">Пракачка</string>
+    <string name="insulin_pen_replaces">замяняе %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d прапуск паветра прапушчаны</string>
     <string name="insulin_pen_add_doses">Дадаць доз: %1$d</string>
     <string name="insulin_pen_doses_added">Дададзена доз у дзённік: %1$d</string>
     <string name="insulin_pens_journal_off">Дзённік выключаны, таму імпартаваныя дозы нідзе не з\'явяцца.</string>

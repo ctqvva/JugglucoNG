@@ -18,8 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -34,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tk.glucodata.InsulinPenManager
 import tk.glucodata.InsulinPenScanBus
 import tk.glucodata.NovoPen.PenDose
+import tk.glucodata.NovoPen.PenSheetOffer
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalInsulinPreset
 import java.text.DateFormat
@@ -63,12 +68,17 @@ fun InsulinPenScanSheetHost() {
     val chosenInsulin = selectableInsulins.firstOrNull { it.id == chosenInsulinId }
         ?: selectableInsulins.firstOrNull()
 
+    // One list, one count: what the sheet may offer at all. A dose standing for an entry
+    // the reader already wrote starts out ticked, since leaving it unticked would keep the
+    // duplicate it was found to be.
+    val offered = remember(result) { PenSheetOffer.offerable(result.doses) }
     var selected by remember(result) {
         mutableStateOf(
-            result.doses
-                .filter { !it.priming && it.timestampSeconds >= result.preselectFromSeconds }
-                .map(PenDose::relativeSeconds)
-                .toSet()
+            PenSheetOffer.preselection(
+                result.doses,
+                result.merges.keys,
+                result.preselectFromSeconds,
+            )
         )
     }
 
@@ -85,7 +95,7 @@ fun InsulinPenScanSheetHost() {
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                stringResource(R.string.insulin_pen_new_doses, result.doses.size),
+                stringResource(R.string.insulin_pen_new_doses, offered.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -120,16 +130,16 @@ fun InsulinPenScanSheetHost() {
                 )
                 TextButton(
                     onClick = {
-                        selected = if (selected.size == result.doses.size) {
+                        selected = if (selected.size == offered.size) {
                             emptySet()
                         } else {
-                            result.doses.map(PenDose::relativeSeconds).toSet()
+                            offered.map(PenDose::relativeSeconds).toSet()
                         }
                     }
                 ) {
                     Text(
                         stringResource(
-                            if (selected.size == result.doses.size) {
+                            if (selected.size == offered.size) {
                                 R.string.insulin_pen_select_none
                             } else {
                                 R.string.insulin_pen_select_all
@@ -143,9 +153,10 @@ fun InsulinPenScanSheetHost() {
                 modifier = Modifier.heightIn(max = 280.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(result.doses, key = PenDose::relativeSeconds) { dose ->
+                items(offered, key = PenDose::relativeSeconds) { dose ->
                     DoseRow(
                         dose = dose,
+                        replacesEntryAtSeconds = result.merges[dose.relativeSeconds]?.entryTimestampSeconds,
                         checked = dose.relativeSeconds in selected,
                         onCheckedChange = { checked ->
                             selected = if (checked) {
@@ -158,15 +169,34 @@ fun InsulinPenScanSheetHost() {
                 }
             }
 
+            if (result.skippedPrimingDoses > 0) {
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    stringResource(R.string.insulin_pen_priming_skipped, result.skippedPrimingDoses),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             Spacer(Modifier.size(16.dp))
             Button(
                 onClick = {
                     val insulin = chosenInsulin ?: return@Button
+                    val confirmed = offered.filter { it.relativeSeconds in selected }
                     InsulinPenManager.importDosesAsync(
                         serial = result.serial,
-                        doses = result.doses.filter { it.relativeSeconds in selected },
+                        doses = confirmed,
                         presetId = insulin.id,
                         presetName = insulin.displayName,
+                        // Only what was left ticked is merged; unticking is how the reader
+                        // says the pairing is wrong, and then the entry stays as it was. A
+                        // different insulin than the one the pairing was worked out for
+                        // drops the proposals too: they were matched on that insulin.
+                        merges = if (insulin.id == storedPreset) {
+                            result.merges.filterKeys { rel -> confirmed.any { it.relativeSeconds == rel } }
+                        } else {
+                            emptyMap()
+                        },
                     )
                     InsulinPenScanBus.clear()
                 },
@@ -180,8 +210,14 @@ fun InsulinPenScanSheetHost() {
 }
 
 @Composable
-private fun DoseRow(dose: PenDose, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun DoseRow(
+    dose: PenDose,
+    replacesEntryAtSeconds: Long?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     val timeFormat = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
+    val hourFormat = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
     Surface(
         onClick = { onCheckedChange(!checked) },
         shape = RoundedCornerShape(12.dp),
@@ -205,12 +241,43 @@ private fun DoseRow(dose: PenDose, checked: Boolean, onCheckedChange: (Boolean) 
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (dose.priming) {
-                Text(
-                    stringResource(R.string.insulin_pen_priming),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (replacesEntryAtSeconds != null) {
+                val label = stringResource(
+                    R.string.insulin_pen_replaces,
+                    hourFormat.format(Date(replacesEntryAtSeconds * 1000L)),
                 )
+                // Which entry it replaces is the point of the marker, so the time is never
+                // cut short: it is either there in full or the icon carries it alone.
+                val screenWidth = LocalConfiguration.current.screenWidthDp
+                var roomForText by remember(dose.relativeSeconds, screenWidth) { mutableStateOf(true) }
+                Row(
+                    // A share of the row, not first claim on it: the amount and the time are
+                    // what the row is about, and they may not be squeezed into wrapping by a
+                    // long translation. What does not fit here becomes the icon alone.
+                    modifier = Modifier.weight(0.5f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        // Said once: the text beside it carries the same words when it fits.
+                        contentDescription = label.takeUnless { roomForText },
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    if (roomForText) {
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            softWrap = false,
+                            onTextLayout = { layout ->
+                                if (layout.hasVisualOverflow) roomForText = false
+                            },
+                        )
+                    }
+                }
             }
         }
     }

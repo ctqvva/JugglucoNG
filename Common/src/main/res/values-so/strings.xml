@@ -2677,7 +2677,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_select_all">Dhammaan dooro</string>
     <string name="insulin_pen_select_none">Nadiifi</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Hawo-bixin</string>
+    <string name="insulin_pen_replaces">beddelaya %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d hawo-bixin ayaa la booday</string>
     <string name="insulin_pen_add_doses">Ku dar %1$d qiyaas</string>
     <string name="insulin_pen_doses_added">%1$d qiyaas ayaa xusuus-qorka lagu daray</string>
     <string name="insulin_pens_journal_off">Xusuus-qorka waa la damiyay, sidaas darteed qiyaasaha la soo geliyo meelna kama muuqan doonaan.</string>
