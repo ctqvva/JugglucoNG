@@ -107,13 +107,14 @@ object StateDoseHintCalculator {
     /**
      * @param history the drawn readings, oldest first, in display units.
      * @param unit the display unit, for the mg/dL conversion.
-     * @param targetHighDisplay upper bound of the in-range band — the "this is high" gate
-     *   for the insulin case. Not the dose target: the band is a display range, far too
-     *   wide to dose against, but exactly right for deciding whether a value is high.
+     * @param targetHighDisplay upper bound of the in-range band, which picks which of the
+     *   two correction cases a reading belongs to. Never what a correction aims at: the band
+     *   is a display range, far too wide to dose against, but exactly right for telling
+     *   "high" from "still in range".
      * @param doseTargetMgDl what a correction aims at.
      * @param iobUnits insulin on board — remaining future action, the whole of it.
-     * @param eiobUnits the acting part of it; only used to tell "the insulin is not enough"
-     *   from an ordinary uncorrected high, which is not this hint's business.
+     * @param eiobUnits the acting part of it. Read only above the band, to tell "the insulin
+     *   is not enough" from an ordinary uncorrected high, which is not this hint's business.
      * @param parameters sensitivity and carb ratio for now, from the model profile.
      * @param horizonMinutes how far ahead the falling case looks.
      * @param correctInRange whether a value that is still inside the range but sitting well
