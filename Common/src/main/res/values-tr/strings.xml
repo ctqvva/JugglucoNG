@@ -1558,6 +1558,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Doz hedefi</string>
     <string name="predictive_dose_target_explanation">İnsülin ve karbonhidrat önerileri bu değere göre düzeltir. Grafikteki hedef aralıktan ayrıdır.</string>
+    <string name="state_dose_hint_title">Doz ipucu</string>
+    <string name="state_dose_hint_desc">Değer doz hedefinin altına doğru giderken karbonhidrat, insülin zaten etki ederken yüksek kalıyorsa düzeltme önerir. Miktarlar model profilindeki duyarlılık ve karbonhidrat oranından hesaplanır; önce onları ayarlayın.</string>
+    <string name="state_dose_hint_horizon">Doz ipucu ufku</string>
+    <string name="state_dose_hint_horizon_explanation">Değer düşerken karbonhidrat önerisinin ne kadar ileriye baktığı. Kısa: daha geç ve daha seyrek; uzun: daha erken ve daha sık.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Tahmin ufku</string>
@@ -1616,6 +1620,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Aktif insülin %1$s</string>
     <string name="dashboard_eiob_full">Şu an etkin %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s ~%2$d dk içinde</string>
+    <string name="dashboard_dose_hint_carbs">≏ Karbonhidrat: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Karbonhidrat: %1$s g — ~%3$d dk içinde %2$s altına</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Karbonhidrat: %1$s g — zaten %2$s altında</string>
+    <string name="dashboard_dose_hint_insulin">≏ İnsülin: %1$s Ü</string>
     <string name="journal_dose_covers_carbs">%1$s g karşılar</string>
     <string name="journal_dose_food_component">Yemek %1$s</string>
     <string name="journal_dose_correction_component">Düzeltme %1$s</string>

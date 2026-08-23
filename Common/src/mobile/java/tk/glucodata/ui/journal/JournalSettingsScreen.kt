@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.History
 
@@ -169,6 +170,7 @@ fun JournalSettingsScreen(
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalNavigationTabEnabled by viewModel.journalNavigationTabEnabled.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
+    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
@@ -276,6 +278,16 @@ fun JournalSettingsScreen(
                         icon = Icons.Default.Calculate,
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.TOP,
+                        enabled = journalEnabled
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.state_dose_hint_title),
+                        subtitle = stringResource(R.string.state_dose_hint_desc),
+                        checked = stateDoseHintEnabled,
+                        onCheckedChange = { viewModel.setStateDoseHintEnabled(it) },
+                        icon = Icons.Default.TipsAndUpdates,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = CardPosition.MIDDLE,
                         enabled = journalEnabled
                     )
                     SettingsItem(

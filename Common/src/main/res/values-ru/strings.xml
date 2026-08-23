@@ -1573,6 +1573,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Целевое значение для дозы</string>
     <string name="predictive_dose_target_explanation">Рекомендации по инсулину и углеводам корректируют до этого значения. Оно не связано с целевым диапазоном на графике.</string>
+    <string name="state_dose_hint_title">Подсказка по дозе</string>
+    <string name="state_dose_hint_desc">Предлагает углеводы, когда значение идёт ниже цели дозирования, и коррекцию, когда оно остаётся высоким, хотя инсулин уже действует. Количества считаются из чувствительности и углеводного коэффициента профиля модели — задайте их сначала.</string>
+    <string name="state_dose_hint_horizon">Горизонт подсказки</string>
+    <string name="state_dose_hint_horizon_explanation">Насколько далеко вперёд смотрит углеводное предложение при падении значения. Короче — позже и реже, длиннее — раньше и чаще.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Горизонт прогноза</string>
@@ -1631,6 +1635,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Активный инсулин %1$s</string>
     <string name="dashboard_eiob_full">Действует сейчас %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s через ~%2$d мин</string>
+    <string name="dashboard_dose_hint_carbs">≏ Углеводы: %1$s г</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Углеводы: %1$s г — ниже %2$s через ~%3$d мин</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Углеводы: %1$s г — уже ниже %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Инсулин: %1$s ЕД</string>
     <string name="journal_dose_covers_carbs">Покрывает %1$s г</string>
     <string name="journal_dose_food_component">Еда %1$s</string>
     <string name="journal_dose_correction_component">Коррекция %1$s</string>

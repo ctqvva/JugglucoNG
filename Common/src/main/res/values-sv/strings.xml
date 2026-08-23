@@ -1530,6 +1530,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Målvärde för dos</string>
     <string name="predictive_dose_target_explanation">Insulin- och kolhydratförslag korrigerar mot det här värdet. Det är skilt från målområdet i diagrammet.</string>
+    <string name="state_dose_hint_title">Dostips</string>
+    <string name="state_dose_hint_desc">Föreslår kolhydrater när värdet är på väg under dosmålet, och en korrigering när det stannar högt trots att insulin redan verkar. Mängderna räknas ur känsligheten och kolhydratkvoten i modellprofilen — ställ in dem först.</string>
+    <string name="state_dose_hint_horizon">Dostipsets horisont</string>
+    <string name="state_dose_hint_horizon_explanation">Hur långt fram kolhydratförslaget tittar medan värdet faller. Kortare: senare och mer sällan; längre: tidigare och oftare.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Prognoshorisont</string>
@@ -1588,6 +1592,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Aktivt insulin %1$s</string>
     <string name="dashboard_eiob_full">Verkar nu %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s om ~%2$d min</string>
+    <string name="dashboard_dose_hint_carbs">≏ Kolhydrater: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Kolhydrater: %1$s g — under %2$s om ~%3$d min</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Kolhydrater: %1$s g — redan under %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Insulin: %1$s E</string>
     <string name="journal_dose_covers_carbs">%1$s g täcks</string>
     <string name="journal_dose_food_component">Mat %1$s</string>
     <string name="journal_dose_correction_component">Korrigering %1$s</string>

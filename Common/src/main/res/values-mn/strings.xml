@@ -1545,6 +1545,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Тунгийн зорилтот утга</string>
     <string name="predictive_dose_target_explanation">Инсулин болон нүүрс усны зөвлөмж энэ утга руу залруулна. Энэ нь графикт харуулсан зорилтот мужаас тусдаа.</string>
+    <string name="state_dose_hint_title">Тунгийн зөвлөмж</string>
+    <string name="state_dose_hint_desc">Утга тунгийн зорилтоос доош чиглэж байвал нүүрс ус, инсулин аль хэдийн үйлчилж байхад өндөр хэвээр байвал залруулга санал болгоно. Хэмжээг загварын профилийн мэдрэг байдал ба нүүрс усны харьцаанаас тооцно — эхлээд тэдгээрийг тохируулна уу.</string>
+    <string name="state_dose_hint_horizon">Тунгийн зөвлөмжийн хугацаа</string>
+    <string name="state_dose_hint_horizon_explanation">Утга буурч байхад нүүрс усны санал хэр хол урагш харахыг заана. Богино нь хожуу, урт нь эрт мэдэгдэнэ.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Forecast horizon</string>
@@ -1602,6 +1606,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Идэвхтэй инсулин %1$s</string>
     <string name="dashboard_eiob_full">Одоо үйлчилж буй %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s ~%2$d мин дараа</string>
+    <string name="dashboard_dose_hint_carbs">≏ Нүүрс ус: %1$s г</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Нүүрс ус: %1$s г — ~%3$d мин дараа %2$s-аас доош</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Нүүрс ус: %1$s г — аль хэдийн %2$s-аас доош</string>
+    <string name="dashboard_dose_hint_insulin">≏ Инсулин: %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g covered</string>
     <string name="journal_dose_food_component">Food %1$s</string>
     <string name="journal_dose_correction_component">Correction %1$s</string>

@@ -1812,6 +1812,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_absorption_value">%1$.0f g/saacaddii</string>
     <string name="predictive_dose_target">Bartilmaameedka qiyaasta</string>
     <string name="predictive_dose_target_explanation">Talooyinka insuliinta iyo kaarbohaydraytka waxay saxaan ilaa qiimahan. Wuu ka duwan yahay xadka bartilmaameedka ee garaafka lagu muujiyay.</string>
+    <string name="state_dose_hint_title">Talo qiyaas ah</string>
+    <string name="state_dose_hint_desc">Waxay soo jeedisaa kaarbohaydrayt marka qiimuhu ku sii socdo hoosta bartilmaameedka qiyaasta, iyo saxid marka uu sarreeyo in kastoo insuliin hore u shaqaynayso. Tirooyinka waxaa laga xisaabiyaa dareenka iyo saamiga kaarbohaydraytka ee astaanta modelka — marka hore dejiso.</string>
+    <string name="state_dose_hint_horizon">Muddada talada</string>
+    <string name="state_dose_hint_horizon_explanation">Inta ay talada kaarbohaydraytku hore u fiiriso marka qiimuhu hoos u dhacayo. Gaaban: goor dambe oo yar; dheer: goor hore oo badan.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Saadaasha hawada sare</string>
@@ -1869,6 +1873,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Insuliin firfircoon %1$s</string>
     <string name="dashboard_eiob_full">Hadda shaqaynaya %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s ~%2$d daq gudahood</string>
+    <string name="dashboard_dose_hint_carbs">≏ Kaarbohaydrayt: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Kaarbohaydrayt: %1$s g — ka hooseeya %2$s ~%3$d daq gudahood</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Kaarbohaydrayt: %1$s g — horeba uga hooseeya %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Insuliin: %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g daboolay</string>
     <string name="journal_dose_food_component">Cuntada %1$s</string>
     <string name="journal_dose_correction_component">Sixitaan %1$s</string>

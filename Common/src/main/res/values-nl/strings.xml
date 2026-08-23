@@ -1573,6 +1573,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Doelwaarde voor dosering</string>
     <string name="predictive_dose_target_explanation">Insuline- en koolhydraatsuggesties corrigeren naar deze waarde. Die staat los van het streefbereik op de grafiek.</string>
+    <string name="state_dose_hint_title">Doseringshint</string>
+    <string name="state_dose_hint_desc">Stelt koolhydraten voor als de waarde onder het doseerdoel zakt, en een correctie als ze hoog blijft terwijl er al insuline werkt. De hoeveelheden komen uit de gevoeligheid en koolhydraatratio van het modelprofiel; stel die eerst in.</string>
+    <string name="state_dose_hint_horizon">Horizon van de hint</string>
+    <string name="state_dose_hint_horizon_explanation">Hoe ver het koolhydraatvoorstel vooruitkijkt bij een dalende waarde. Korter meldt later en minder vaak, langer eerder en vaker.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Voorspellingshorizon</string>
@@ -1631,6 +1635,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Actieve insuline %1$s</string>
     <string name="dashboard_eiob_full">Nu werkzaam %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s over ~%2$d min</string>
+    <string name="dashboard_dose_hint_carbs">≏ Koolhydraten: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Koolhydraten: %1$s g — onder %2$s over ~%3$d min</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Koolhydraten: %1$s g — al onder %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Insuline: %1$s E</string>
     <string name="journal_dose_covers_carbs">%1$s g gedekt</string>
     <string name="journal_dose_food_component">Eten %1$s</string>
     <string name="journal_dose_correction_component">Correctie %1$s</string>

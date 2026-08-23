@@ -149,10 +149,13 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.prediction.GlucosePredictionPoint
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
+import tk.glucodata.data.prediction.StateDoseHint
+import tk.glucodata.data.prediction.StateDoseHintKind
 import tk.glucodata.ui.getDisplayValues
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.SensorColors
+import java.text.NumberFormat
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
@@ -557,6 +560,7 @@ fun DashboardChartSection(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    stateDoseHint: StateDoseHint? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
     appChartRangeColors: Boolean = false,
@@ -601,6 +605,7 @@ fun DashboardChartSection(
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
+                        stateDoseHint = stateDoseHint,
                         activeInsulinFromRemote = activeInsulinFromRemote,
                         showEiob = showEiob,
                         appChartRangeColors = appChartRangeColors,
@@ -674,6 +679,7 @@ fun InteractiveGlucoseChart(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    stateDoseHint: StateDoseHint? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
     appChartRangeColors: Boolean = false,
@@ -3561,6 +3567,65 @@ fun InteractiveGlucoseChart(
                     LocalContext.current,
                     summary.activeUntil?.minus(System.currentTimeMillis())
                 )
+                val doseHintAmount = remember(stateDoseHint?.kind, stateDoseHint?.amount) {
+                    stateDoseHint?.let { hint ->
+                        NumberFormat.getNumberInstance().apply {
+                            minimumFractionDigits =
+                                if (hint.kind == StateDoseHintKind.INSULIN) 1 else 0
+                            maximumFractionDigits = minimumFractionDigits
+                            isGroupingUsed = false
+                        }.format(hint.amount)
+                    }
+                }
+                val doseHintTargetLabel = stateDoseHint?.let { hint ->
+                    if (isMmol) {
+                        stringResource(
+                            R.string.predictive_dose_target_value_mmol,
+                            GlucoseFormatter.mgToMmol(hint.targetMgDl)
+                        )
+                    } else {
+                        stringResource(R.string.predictive_dose_target_value_mgdl, hint.targetMgDl)
+                    }
+                }
+                // Collapsed shows the bare amount and, where there is one, when the state it
+                // is about arrives — a number with no time reads as "do this now", which is
+                // only true of the insulin case. Expanded has room to name both.
+                val doseHintLabel = if (stateDoseHint != null && doseHintAmount != null) {
+                    val minutesAhead = stateDoseHint.minutesAhead?.takeIf { it > 0 }
+                    when (stateDoseHint.kind) {
+                        StateDoseHintKind.CARBS -> if (!isActiveInsulinExpanded) {
+                            val amount = stringResource(R.string.unit_carbs_value, doseHintAmount)
+                            if (minutesAhead != null) {
+                                stringResource(R.string.dashboard_dose_hint_short_in, amount, minutesAhead)
+                            } else {
+                                stringResource(R.string.dashboard_dose_hint_short, amount)
+                            }
+                        } else if (minutesAhead != null && doseHintTargetLabel != null) {
+                            stringResource(
+                                R.string.dashboard_dose_hint_carbs_in,
+                                doseHintAmount,
+                                doseHintTargetLabel,
+                                minutesAhead
+                            )
+                        } else if (doseHintTargetLabel != null) {
+                            stringResource(
+                                R.string.dashboard_dose_hint_carbs_below,
+                                doseHintAmount,
+                                doseHintTargetLabel
+                            )
+                        } else {
+                            stringResource(R.string.dashboard_dose_hint_carbs, doseHintAmount)
+                        }
+                        StateDoseHintKind.INSULIN -> if (isActiveInsulinExpanded) {
+                            stringResource(R.string.dashboard_dose_hint_insulin, doseHintAmount)
+                        } else {
+                            stringResource(
+                                R.string.dashboard_dose_hint_short,
+                                stringResource(R.string.unit_insulin_value, doseHintAmount)
+                            )
+                        }
+                    }
+                } else null
                 val activeInsulinCorner by animateDpAsState(
                     targetValue = if (isActiveInsulinExpanded) 24.dp else 16.dp,
                     animationSpec = activeInsulinMotionSpec(),
@@ -3629,9 +3694,18 @@ fun InteractiveGlucoseChart(
                                 }
                             }
                         }
-                        // While collapsed, how long the insulin still runs. Expanded states
-                        // the end time in full below.
-                        if (remainingLabel != null && !isActiveInsulinExpanded) {
+                        // The hint, or — collapsed and with nothing to suggest — how long the
+                        // insulin still runs. Not both on one collapsed line: the hint already
+                        // carries its own time, and the card is under half the chart wide.
+                        // Expanded states the end time in full below either way.
+                        if (doseHintLabel != null) {
+                            Text(
+                                text = doseHintLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (isActiveInsulinExpanded) 2 else 1
+                            )
+                        } else if (remainingLabel != null && !isActiveInsulinExpanded) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.AccessTime,

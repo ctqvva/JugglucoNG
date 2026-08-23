@@ -154,6 +154,8 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.prediction.GlucosePredictionSeries
+import tk.glucodata.data.prediction.StateDoseHint
+import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
@@ -345,6 +347,8 @@ fun DashboardScreen(
     val dashboardRowsShowDelta by viewModel.dashboardRowsShowDelta.collectAsState()
     val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
+    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
+    val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
@@ -474,6 +478,39 @@ fun DashboardScreen(
             smoothOnlyGraph = dataSmoothingGraphOnly,
             collapseChunks = dataSmoothingCollapseChunks
         )
+    }
+    // Read off the current state, not off the far end of the forecast: the hint answers
+    // "what does the value need right now", which is a question the last point of a curve
+    // several hours out cannot answer.
+    val stateDoseHint: StateDoseHint? = remember(
+        stateDoseHintEnabled,
+        stateDoseHintHorizonMinutes,
+        journalEnabled,
+        consumerHistory,
+        activeInsulinSummary,
+        unit,
+        targetHigh,
+        predictionDoseTargetMgDl,
+        predictionSettings,
+        journalNow
+    ) {
+        val summary = activeInsulinSummary
+        if (!stateDoseHintEnabled || !journalEnabled || summary == null) {
+            null
+        } else {
+            StateDoseHintCalculator.calculate(
+                history = consumerHistory,
+                unit = unit,
+                targetHighDisplay = targetHigh,
+                doseTargetMgDl = predictionDoseTargetMgDl,
+                iobUnits = summary.iobUnits,
+                eiobUnits = summary.eiobUnits,
+                parameters = predictionSettings.modelParametersAt(journalNow),
+                horizonMinutes = stateDoseHintHorizonMinutes,
+                nowMillis = journalNow,
+                maxReadingAgeMillis = Notify.glucosetimeout
+            )
+        }
     }
     val predictionSeries = remember(
         journalEnabled,
@@ -1451,6 +1488,7 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    stateDoseHint = stateDoseHint,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
                                     appChartRangeColors = appChartRangeColorsEnabled,
@@ -1663,6 +1701,7 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    stateDoseHint = stateDoseHint,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
                                     appChartRangeColors = appChartRangeColorsEnabled,

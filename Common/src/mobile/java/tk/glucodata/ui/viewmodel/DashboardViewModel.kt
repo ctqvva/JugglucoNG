@@ -38,6 +38,7 @@ import tk.glucodata.data.journal.JournalInsulinPresetInput
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
+import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -131,6 +132,8 @@ class DashboardViewModel(
         const val PREDICTION_HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
         const val PREDICTION_NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
+        const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
+        const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
         const val PREDICTION_CARB_RATIO_DEFAULT = 10f
         const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
         const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
@@ -302,6 +305,15 @@ class DashboardViewModel(
 
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
+
+    // Off by default: the amounts are only as good as the sensitivity and carb ratio in
+    // the model profile, and an untouched profile still holds the built-in defaults.
+    private val _stateDoseHintEnabled = MutableStateFlow(false)
+    val stateDoseHintEnabled = _stateDoseHintEnabled.asStateFlow()
+
+    private val _stateDoseHintHorizonMinutes =
+        MutableStateFlow(StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+    val stateDoseHintHorizonMinutes = _stateDoseHintHorizonMinutes.asStateFlow()
 
     private val _journalFoodMacrosEnabled = MutableStateFlow(false)
     val journalFoodMacrosEnabled = _journalFoodMacrosEnabled.asStateFlow()
@@ -626,6 +638,13 @@ class DashboardViewModel(
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
+        _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, false)
+        _stateDoseHintHorizonMinutes.value = prefs
+            .getInt(STATE_DOSE_HINT_HORIZON_KEY, StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+            .coerceIn(
+                StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+                StateDoseHintCalculator.HORIZON_MINUTES_MAX
+            )
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
@@ -1380,6 +1399,24 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_DOSE_CALCULATOR_KEY, enabled).apply()
         _journalDoseCalculatorEnabled.value = enabled
+    }
+
+    fun setStateDoseHintEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_KEY, enabled).apply()
+        _stateDoseHintEnabled.value = enabled
+    }
+
+    fun setStateDoseHintHorizonMinutes(value: Int) {
+        val normalized = value.coerceIn(
+            StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+            StateDoseHintCalculator.HORIZON_MINUTES_MAX
+        )
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putInt(STATE_DOSE_HINT_HORIZON_KEY, normalized).apply()
+        _stateDoseHintHorizonMinutes.value = normalized
     }
 
     fun setJournalFoodMacrosEnabled(enabled: Boolean) {

@@ -1531,6 +1531,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Alvo de dose</string>
     <string name="predictive_dose_target_explanation">As sugestões de insulina e hidratos de carbono corrigem para este valor. É separado do intervalo alvo mostrado no gráfico.</string>
+    <string name="state_dose_hint_title">Sugestão de dose</string>
+    <string name="state_dose_hint_desc">Sugere hidratos quando o valor segue para baixo do alvo de dose, e uma correção quando se mantém alto apesar de já haver insulina a atuar. As quantidades vêm da sensibilidade e do rácio de hidratos do perfil do modelo — defina-os primeiro.</string>
+    <string name="state_dose_hint_horizon">Horizonte da sugestão</string>
+    <string name="state_dose_hint_horizon_explanation">Até onde a sugestão de hidratos olha em frente enquanto o valor desce. Mais curto: mais tarde e menos vezes; mais longo: mais cedo e mais vezes.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Horizonte da previsão</string>
@@ -1589,6 +1593,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Insulina ativa %1$s</string>
     <string name="dashboard_eiob_full">Ativa agora %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s daqui a ~%2$d min</string>
+    <string name="dashboard_dose_hint_carbs">≏ Hidratos: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Hidratos: %1$s g — abaixo de %2$s daqui a ~%3$d min</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Hidratos: %1$s g — já abaixo de %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Insulina: %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g cobertos</string>
     <string name="journal_dose_food_component">Comida %1$s</string>
     <string name="journal_dose_correction_component">Correção %1$s</string>

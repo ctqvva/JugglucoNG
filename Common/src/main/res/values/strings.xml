@@ -2018,6 +2018,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Dose target</string>
     <string name="predictive_dose_target_explanation">Insulin and carb suggestions correct toward this value. It is separate from the in-range band shown on the chart.</string>
+    <string name="state_dose_hint_title">Dose hint</string>
+    <string name="state_dose_hint_desc">Suggests carbs when the value is heading below the dose target, and a correction when it stays high although insulin is already acting. The amounts are computed from the sensitivity and carb ratio in the model profile, so set those first.</string>
+    <string name="state_dose_hint_horizon">Dose hint horizon</string>
+    <string name="state_dose_hint_horizon_explanation">How far ahead the carb suggestion looks while the value is falling. Shorter reacts later and says less; longer reacts earlier and says more.</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Forecast horizon</string>
@@ -2075,6 +2079,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Insulin on board %1$s</string>
     <string name="dashboard_eiob_full">Effective now %1$s</string>
+    <string name="dashboard_dose_hint_short">≏ %1$s</string>
+    <string name="dashboard_dose_hint_short_in">≏ %1$s in ~%2$d min</string>
+    <string name="dashboard_dose_hint_carbs">≏ Carbs: %1$s g</string>
+    <string name="dashboard_dose_hint_carbs_in">≏ Carbs: %1$s g — under %2$s in ~%3$d min</string>
+    <string name="dashboard_dose_hint_carbs_below">≏ Carbs: %1$s g — already under %2$s</string>
+    <string name="dashboard_dose_hint_insulin">≏ Insulin: %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g covered</string>
     <string name="journal_dose_food_component">Food %1$s</string>
     <string name="journal_dose_correction_component">Correction %1$s</string>
