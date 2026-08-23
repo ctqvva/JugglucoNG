@@ -2757,4 +2757,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="hypo_episode_log_counted_note">Waa lagu tiriyay tirakoobka</string>
     <string name="hypo_episode_log_chart_caption">Hadhka: dhacdada. 30 min oo macluumaad ah dhinac kasta. Xariiqyada: xadadkaaga hoose iyo kuwa aad u hooseeya.</string>
     <string name="hypo_episode_log_no_trace">Akhris lama diiwaan gelin dhacdadan.</string>
+    <string name="sensor_pressure_hold_expand">Muuji dejinta</string>
+    <string name="sensor_pressure_hold_collapse">Qari dejinta</string>
+    <string name="sensor_pressure_cue_disabled_warning">Marka digniinta fudud la damiyo, hakintu waa mid aamusan: digniinaha hoose weli waa la hakiyaa oo weli way dhacayaan haddii qiimuhu soo kaban waayo, kaliya calaamad ma heshid inta la sugayo.</string>
+    <string name="sensor_pressure_cue_settings_title">Digniinta fudud</string>
+    <string name="sensor_pressure_cue_settings_description">Sida digniinta fudud u dhawaaqdo oo loo dareemo inta digniinta hoose la hakinayo. Waxay u ciyaartaa astaantan oo keliya, sidaas darteed way la shidmaysaa oo la damaysaa.</string>
 </resources>

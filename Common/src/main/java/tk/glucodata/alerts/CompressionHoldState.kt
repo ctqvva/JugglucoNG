@@ -14,8 +14,9 @@ import kotlin.math.min
  *  - BOUNDED: the hold never outlives its configured window; expiry fires the alarm.
  *  - ONLY WHILE THE PATTERN HOLDS: pressure lifting means an upturn within minutes. If
  *    the value has not risen off its floor by the grace deadline, the alarm fires.
- *  - The caller owes the user a signal at hold start (the turn-over cue) — a hold is
- *    quieter than an alarm, never silent.
+ *  - The caller owes the user a signal at hold start (the cue), unless the user has
+ *    deliberately switched that signal off; a hold that was meant to signal and could
+ *    not must not run at all.
  *
  * Pure and clock-free: every decision takes `nowMs`, and the caller owns persistence,
  * suspicion assessment, and delivery. One instance tracks one LOW episode at a time.

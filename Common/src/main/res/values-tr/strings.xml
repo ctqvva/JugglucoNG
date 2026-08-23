@@ -2585,4 +2585,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="hypo_episode_log_counted_note">İstatistiklere dahil edildi</string>
     <string name="hypo_episode_log_chart_caption">Gölgeli alan: olay. Her iki yanda 30 min bağlam. Çizgiler: düşük ve çok düşük eşikleriniz.</string>
     <string name="hypo_episode_log_no_trace">Bu olay için kaydedilmiş okuma yok.</string>
+    <string name="sensor_pressure_hold_expand">Ayarları göster</string>
+    <string name="sensor_pressure_hold_collapse">Ayarları gizle</string>
+    <string name="sensor_pressure_cue_disabled_warning">Uyarı kapalıyken bekletme sessiz olur: düşük alarmları yine bekletilir ve değer toparlanmazsa yine çalar, yalnızca beklenirken size hiçbir uyarı verilmez.</string>
+    <string name="sensor_pressure_cue_settings_title">Uyarı</string>
+    <string name="sensor_pressure_cue_settings_description">Bir düşük alarmı bekletilirken uyarının nasıl duyulacağı ve hissedileceği. Yalnızca bu özellik için çalar, bu yüzden onunla birlikte açılıp kapanır.</string>
 </resources>

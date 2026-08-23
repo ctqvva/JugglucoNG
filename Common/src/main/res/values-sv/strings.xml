@@ -2557,4 +2557,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Räknas i statistiken</string>
     <string name="hypo_episode_log_chart_caption">Skuggat: episoden. 30 min sammanhang på var sida. Linjer: dina gränser för lågt och mycket lågt.</string>
     <string name="hypo_episode_log_no_trace">Inga värden registrerade för den här episoden.</string>
+    <string name="sensor_pressure_hold_expand">Visa inställningar</string>
+    <string name="sensor_pressure_hold_collapse">Dölj inställningar</string>
+    <string name="sensor_pressure_cue_disabled_warning">Med signalen av sker tillbakahållningen tyst: larm för lågt värde hålls fortfarande tillbaka och utlöses fortfarande om värdet inte återhämtar sig, du får bara ingen signal medan det väntas.</string>
+    <string name="sensor_pressure_cue_settings_title">Signalen</string>
+    <string name="sensor_pressure_cue_settings_description">Hur signalen låter och känns medan ett larm för lågt värde hålls tillbaka. Den spelas bara för den här funktionen och slås därför på och av tillsammans med den.</string>
 </resources>

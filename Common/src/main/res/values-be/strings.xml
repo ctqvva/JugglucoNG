@@ -2624,4 +2624,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Улічваецца ў статыстыцы</string>
     <string name="hypo_episode_log_chart_caption">Зацемнена: эпізод. Па 30 min кантэксту з кожнага боку. Лініі: вашы парогі нізкага і вельмі нізкага.</string>
     <string name="hypo_episode_log_no_trace">Для гэтага эпізоду няма запісаных паказанняў.</string>
+    <string name="sensor_pressure_hold_expand">Паказаць налады</string>
+    <string name="sensor_pressure_hold_collapse">Схаваць налады</string>
+    <string name="sensor_pressure_cue_disabled_warning">Пры выключанай падказцы затрымка адбываецца моўчкі: сігналы нізкай глюкозы па-ранейшаму затрымліваюцца і па-ранейшаму спрацоўваюць, калі значэнне не адновіцца, вы проста не атрымліваеце сігналу, пакуль ідзе чаканне.</string>
+    <string name="sensor_pressure_cue_settings_title">Падказка</string>
+    <string name="sensor_pressure_cue_settings_description">Як гучыць і адчуваецца падказка, пакуль сігнал нізкай глюкозы затрыманы. Яна прайграецца толькі для гэтай функцыі, таму ўключаецца і выключаецца разам з ёй.</string>
 </resources>

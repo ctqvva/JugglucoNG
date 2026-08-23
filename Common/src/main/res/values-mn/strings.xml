@@ -2672,4 +2672,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="hypo_episode_log_counted_note">Статистикт тооцогдсон</string>
     <string name="hypo_episode_log_chart_caption">Сүүдэрлэсэн хэсэг: тохиолдол. Хоёр талд 30 min нэмэлт хугацаа. Шугамууд: таны бага ба маш бага босго.</string>
     <string name="hypo_episode_log_no_trace">Энэ тохиолдлын уншилт бүртгэгдээгүй.</string>
+    <string name="sensor_pressure_hold_expand">Тохиргоог харуулах</string>
+    <string name="sensor_pressure_hold_collapse">Тохиргоог нуух</string>
+    <string name="sensor_pressure_cue_disabled_warning">Сануулга унтраалттай үед саатуулалт чимээгүй явагдана: бага глюкозын дохиог хэвээр саатуулж, утга сэргэхгүй бол хэвээр дуугарна, зөвхөн хүлээх хугацаанд танд ямар ч дохио өгөхгүй.</string>
+    <string name="sensor_pressure_cue_settings_title">Сануулга</string>
+    <string name="sensor_pressure_cue_settings_description">Бага глюкозын дохиог саатуулж байх үед сануулга хэрхэн сонсогдож, мэдрэгдэх нь. Энэ нь зөвхөн энэ функцэд ажилладаг тул түүнтэй хамт асаж, унтарна.</string>
 </resources>

@@ -2573,4 +2573,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">已计入统计</string>
     <string name="hypo_episode_log_chart_caption">阴影部分：该次发作。两侧各 30 min 上下文。横线：您的低值和非常低值阈值。</string>
     <string name="hypo_episode_log_no_trace">本次发作没有记录到读数。</string>
+    <string name="sensor_pressure_hold_expand">显示设置</string>
+    <string name="sensor_pressure_hold_collapse">隐藏设置</string>
+    <string name="sensor_pressure_cue_disabled_warning">关闭提示后，延后将静默进行：低血糖警报仍会被延后，数值未回升时仍会响起，只是等待期间您不会收到任何提示。</string>
+    <string name="sensor_pressure_cue_settings_title">提示</string>
+    <string name="sensor_pressure_cue_settings_description">低血糖警报被延后期间，提示的声音与震动方式。它仅用于此功能，因此随该功能一起开启和关闭。</string>
 </resources>

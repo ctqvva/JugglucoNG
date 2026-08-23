@@ -2558,4 +2558,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Contado nas estatísticas</string>
     <string name="hypo_episode_log_chart_caption">Sombreado: o episódio. 30 min de contexto de cada lado. Linhas: seus limites baixo e muito baixo.</string>
     <string name="hypo_episode_log_no_trace">Nenhuma leitura registrada para este episódio.</string>
+    <string name="sensor_pressure_hold_expand">Mostrar definições</string>
+    <string name="sensor_pressure_hold_collapse">Ocultar definições</string>
+    <string name="sensor_pressure_cue_disabled_warning">Com o aviso desligado, a retenção é silenciosa: os alarmes de hipoglicemia continuam a ser retidos e continuam a disparar se o valor não se recuperar, só não recebe qualquer sinal enquanto se espera.</string>
+    <string name="sensor_pressure_cue_settings_title">O aviso</string>
+    <string name="sensor_pressure_cue_settings_description">Como o aviso soa e se sente enquanto um alarme de hipoglicemia está retido. Toca apenas para esta função, por isso liga-se e desliga-se com ela.</string>
 </resources>

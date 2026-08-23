@@ -2600,4 +2600,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="hypo_episode_log_counted_note">Meegeteld in de statistieken</string>
     <string name="hypo_episode_log_chart_caption">Gearceerd: de episode. 30 min context aan weerszijden. Lijnen: je drempels voor laag en zeer laag.</string>
     <string name="hypo_episode_log_no_trace">Geen metingen vastgelegd voor deze episode.</string>
+    <string name="sensor_pressure_hold_expand">Instellingen tonen</string>
+    <string name="sensor_pressure_hold_collapse">Instellingen verbergen</string>
+    <string name="sensor_pressure_cue_disabled_warning">Met het signaal uit gebeurt het vasthouden stil: laag-alarmen worden nog steeds vastgehouden en gaan nog steeds af als de waarde niet herstelt, je krijgt alleen geen signaal terwijl er gewacht wordt.</string>
+    <string name="sensor_pressure_cue_settings_title">Het signaal</string>
+    <string name="sensor_pressure_cue_settings_description">Hoe het signaal klinkt en voelt terwijl een laag-alarm wordt vastgehouden. Het klinkt alleen voor deze functie en gaat er dus samen mee aan en uit.</string>
 </resources>

@@ -42,8 +42,11 @@ enum class AlertType(val id: Int, val nameResId: Int) {
             LOSS,
             SENSOR_EXPIRY,
             FALLING_FAST,
-            RISING_FAST,
-            SENSOR_PRESSURE
+            RISING_FAST
+            // SENSOR_PRESSURE is deliberately absent: it is not an alarm anyone arms on
+            // its own, it is the cue of the sensor-pressure hold and nothing else can
+            // fire it. Its settings live inside that feature's card, so it never appears
+            // as a lone enabled alarm in the list, on the watch, or in SMS destinations.
         )
     }
 }
@@ -386,12 +389,12 @@ object AlertDefaults {
             // different signals — "low" means glucose, this means take the pressure
             // off the sensor, at a desk as much as in bed. Gentle on purpose (a
             // position change, not a full wake-up), but through DND, because the hold
-            // also runs while its owner sleeps. The hold runtime refuses to hold at
-            // all while this type is disabled: a hold is quieter than an alarm,
-            // never silent.
+            // also runs while its owner sleeps. Off until the hold is switched on,
+            // which arms it. Switching it back off is allowed and means a silent hold:
+            // the delay, the floor and the escalation stay, only the signal goes.
             AlertType.SENSOR_PRESSURE -> AlertConfig(
                 type = type,
-                enabled = true,
+                enabled = false,
                 deliveryMode = AlertDeliveryMode.NOTIFICATION_ONLY,
                 hapticProfile = HapticProfile.SOFT,
                 overrideDND = true,

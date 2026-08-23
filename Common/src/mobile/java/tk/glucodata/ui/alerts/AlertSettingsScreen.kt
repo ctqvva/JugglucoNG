@@ -149,7 +149,7 @@ fun AlertSettingsScreen(
     }
 
     val lowAlerts = remember {
-        listOf(AlertType.LOW, AlertType.VERY_LOW, AlertType.SENSOR_PRESSURE)
+        listOf(AlertType.LOW, AlertType.VERY_LOW)
     }
 
     val predictiveAlerts = remember {
@@ -433,12 +433,17 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // Sensor-pressure hold (the compression-low gatekeeper) — its opt-in and
-            // thresholds; the SENSOR_PRESSURE cue's tone and haptics live in the card
-            // list above with its alarm siblings.
+            // Sensor-pressure hold (the compression-low gatekeeper): opt-in,
+            // thresholds, and the cue's own sound and haptics — the whole feature in
+            // one place, because its cue is not an alarm you arm by itself.
             item(key = "sensor-pressure-hold") {
                 Spacer(Modifier.height(4.dp))
-                SensorPressureHoldCard(isMmol = isMmol)
+                SensorPressureHoldCard(
+                    isMmol = isMmol,
+                    onPickCueSound = { currentUri, typeId, onPicked ->
+                        soundPickerRequest = Triple(currentUri, typeId, onPicked)
+                    }
+                )
             }
 
             // === PREDICTIVE ALERTS SECTION ===

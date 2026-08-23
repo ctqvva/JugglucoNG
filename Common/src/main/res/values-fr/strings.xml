@@ -2563,4 +2563,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Compté dans les statistiques</string>
     <string name="hypo_episode_log_chart_caption">Zone ombrée : l\'épisode. 30 min de contexte de chaque côté. Lignes : vos seuils faible et très faible.</string>
     <string name="hypo_episode_log_no_trace">Aucune mesure enregistrée pour cet épisode.</string>
+    <string name="sensor_pressure_hold_expand">Afficher les paramètres</string>
+    <string name="sensor_pressure_hold_collapse">Masquer les paramètres</string>
+    <string name="sensor_pressure_cue_disabled_warning">Si le signal est désactivé, la retenue se fait en silence : les alarmes d\'hypo sont toujours retenues et se déclenchent toujours si la valeur ne remonte pas, vous n\'avez simplement aucun signal pendant l\'attente.</string>
+    <string name="sensor_pressure_cue_settings_title">Le signal</string>
+    <string name="sensor_pressure_cue_settings_description">Comment le signal sonne et se ressent pendant qu\'une alarme d\'hypo est retenue. Il ne joue que pour cette fonction, il s\'active et se désactive donc avec elle.</string>
 </resources>

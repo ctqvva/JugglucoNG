@@ -83,6 +83,12 @@ internal object CompressionHoldRuntime {
         if (enabled) {
             p.edit().remove(PREF_SELF_DISABLED).remove(PREF_LOG).apply()
         }
+        // The cue is armed by this switch and nothing else: it is not an alarm anyone
+        // turns on by itself, and a hold whose cue cannot sound is refused outright.
+        runCatching {
+            val cue = AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)
+            if (cue.enabled != enabled) AlertRepository.saveConfig(cue.copy(enabled = enabled))
+        }.onFailure { Log.stack(LOG_ID, "setEnabled cue", it) }
     }
 
     fun maxHoldMinutes(): Int =
@@ -163,10 +169,12 @@ internal object CompressionHoldRuntime {
      * The cue and every log line happen in here; the caller only keeps the episode
      * pending so the alarm fires the instant the hold lifts.
      *
-     * The cue is load-bearing, not decoration: if it cannot actually sound — its type
-     * disabled, snoozed, outside its schedule, or refused by the alert tracker — no hold
-     * starts and LOW fires as if the feature were off. A hold is quieter than an alarm,
-     * never silent.
+     * Silence has two meanings and they are not the same. Switching the cue off is a
+     * deliberate choice to be left alone: the hold still runs, silently, and the floor,
+     * the window and the escalation are untouched. A cue that is switched ON but cannot
+     * sound (snoozed, outside its schedule, refused by the alert tracker) is a
+     * malfunction, and there no hold starts at all — LOW fires as if the feature were
+     * off, because the user is expecting a signal that would never come.
      */
     fun gateLow(displayValue: Float, rate: Float): Boolean {
         try {
@@ -176,8 +184,9 @@ internal object CompressionHoldRuntime {
                 return false
             }
             val cueConfig = AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)
-            if (!cueConfig.enabled || SnoozeManager.isSnoozed(AlertType.SENSOR_PRESSURE) ||
-                !cueConfig.isActiveNow()
+            val cueWanted = cueConfig.enabled
+            if (cueWanted &&
+                (SnoozeManager.isSnoozed(AlertType.SENSOR_PRESSURE) || !cueConfig.isActiveNow())
             ) {
                 release(holdState.onDisabled())
                 return false
@@ -194,15 +203,17 @@ internal object CompressionHoldRuntime {
             )
             return when (action) {
                 is CompressionHoldState.Action.StartHold -> {
-                    if (!fireCue(displayValue, rate, suspicion)) {
-                        // Refused cue: undo the hold before it ever withheld anything.
+                    if (cueWanted && !fireCue(displayValue, rate, suspicion)) {
+                        // A cue that was meant to sound and did not: undo the hold
+                        // before it ever withheld anything.
                         holdState.forceEscalate("cue-refused")
                         resetCueTracker()
                         Log.i(LOG_ID, "Cue refused, not holding")
                         return false
                     }
+                    holdStartForRecord = nowMs
                     lastSuspect = suspicion
-                    Log.i(LOG_ID, "Holding LOW: $suspicion")
+                    Log.i(LOG_ID, "Holding LOW${if (cueWanted) "" else " (cue off, silent)"}: $suspicion")
                     true
                 }
                 is CompressionHoldState.Action.ContinueHold -> true
@@ -317,11 +328,9 @@ internal object CompressionHoldRuntime {
         val detail = suspect?.let {
             " (%.1f mg/dL/min, IOB %.1f U)".format(it.meanDropMgdlPerMinute, iobForDisplay())
         } ?: ""
-        val fired = Notify.triggerSupplementalGlucoseAlert(
+        return Notify.triggerSupplementalGlucoseAlert(
             AlertType.SENSOR_PRESSURE.id, displayValue, rate, base + detail
         )
-        if (fired) holdStartForRecord = System.currentTimeMillis()
-        return fired
     }
 
     private fun iobForDisplay(): Float =

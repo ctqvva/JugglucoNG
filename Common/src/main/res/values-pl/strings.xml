@@ -2591,4 +2591,9 @@
     <string name="hypo_episode_log_counted_note">Liczony w statystykach</string>
     <string name="hypo_episode_log_chart_caption">Zacienione: epizod. 30 min kontekstu po każdej stronie. Linie: Twoje progi niski i bardzo niski.</string>
     <string name="hypo_episode_log_no_trace">Brak zapisanych odczytów dla tego epizodu.</string>
+    <string name="sensor_pressure_hold_expand">Pokaż ustawienia</string>
+    <string name="sensor_pressure_hold_collapse">Ukryj ustawienia</string>
+    <string name="sensor_pressure_cue_disabled_warning">Przy wyłączonej podpowiedzi wstrzymanie odbywa się po cichu: alarmy niskiej glukozy nadal są wstrzymywane i nadal się włączają, gdy wartość nie wraca do normy, po prostu nie otrzymujesz żadnego sygnału w czasie oczekiwania.</string>
+    <string name="sensor_pressure_cue_settings_title">Podpowiedź</string>
+    <string name="sensor_pressure_cue_settings_description">Jak podpowiedź brzmi i jak ją czuć, gdy alarm niskiej glukozy jest wstrzymany. Odtwarza się tylko dla tej funkcji, więc włącza się i wyłącza razem z nią.</string>
 </resources>

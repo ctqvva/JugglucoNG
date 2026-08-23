@@ -2547,4 +2547,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Conteggiato nelle statistiche</string>
     <string name="hypo_episode_log_chart_caption">Area ombreggiata: l\'episodio. 30 min di contesto per lato. Linee: le tue soglie basso e molto basso.</string>
     <string name="hypo_episode_log_no_trace">Nessuna lettura registrata per questo episodio.</string>
+    <string name="sensor_pressure_hold_expand">Mostra impostazioni</string>
+    <string name="sensor_pressure_hold_collapse">Nascondi impostazioni</string>
+    <string name="sensor_pressure_cue_disabled_warning">Con il segnale disattivato la trattenuta è silenziosa: gli allarmi di ipoglicemia vengono comunque trattenuti e suonano comunque se il valore non risale, semplicemente non ricevi alcun segnale durante l\'attesa.</string>
+    <string name="sensor_pressure_cue_settings_title">Il segnale</string>
+    <string name="sensor_pressure_cue_settings_description">Come suona e si percepisce il segnale mentre un allarme di ipoglicemia è trattenuto. Suona solo per questa funzione, quindi si attiva e si disattiva insieme a essa.</string>
 </resources>

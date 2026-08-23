@@ -861,6 +861,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_optin_title">Hold low alarms on suspected pressure</string>
     <string name="sensor_pressure_hold_optin_summary">When a sudden low looks like pressure on the sensor, the low alarm waits a few minutes and a gentle cue plays instead; if the value does not recover, the full alarm fires. This trusts your journal completely.</string>
     <string name="sensor_pressure_hold_optin_more">How it works and what the risk is</string>
+    <string name="sensor_pressure_hold_expand">Show settings</string>
+    <string name="sensor_pressure_hold_collapse">Hide settings</string>
+    <string name="sensor_pressure_cue_disabled_warning">With the cue off the hold is silent: low alarms are still held back and still fire when the value does not recover, you just get no signal while one waits.</string>
+    <string name="sensor_pressure_cue_settings_title">The cue</string>
+    <string name="sensor_pressure_cue_settings_description">How the signal sounds and feels while a low alarm is held back. It plays only for this feature, so it is switched on and off with it.</string>
     <string name="sensor_pressure_hold_optin_less">Show less</string>
     <string name="hypo_episode_log_pressure_toggle_long">Mark as sensor pressure</string>
     <string name="hypo_episode_log_counted_note">Counted in statistics</string>

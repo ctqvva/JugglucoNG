@@ -2596,4 +2596,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="hypo_episode_log_counted_note">In der Statistik gezählt</string>
     <string name="hypo_episode_log_chart_caption">Schattiert: die Episode. 30 min Kontext auf beiden Seiten. Linien: Ihre Schwellen für niedrig und sehr niedrig.</string>
     <string name="hypo_episode_log_no_trace">Für diese Episode sind keine Messwerte aufgezeichnet.</string>
+    <string name="sensor_pressure_hold_expand">Einstellungen anzeigen</string>
+    <string name="sensor_pressure_hold_collapse">Einstellungen ausblenden</string>
+    <string name="sensor_pressure_cue_disabled_warning">Ist der Hinweis aus, geschieht das Zurückhalten lautlos: Niedrig-Alarme werden weiterhin zurückgehalten und lösen weiterhin aus, wenn sich der Wert nicht erholt, Sie bekommen nur kein Signal, solange gewartet wird.</string>
+    <string name="sensor_pressure_cue_settings_title">Der Hinweis</string>
+    <string name="sensor_pressure_cue_settings_description">Wie der Hinweis klingt und sich anfühlt, während ein Niedrig-Alarm zurückgehalten wird. Er spielt nur für diese Funktion und wird deshalb mit ihr ein- und ausgeschaltet.</string>
 </resources>
