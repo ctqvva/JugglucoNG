@@ -18,6 +18,7 @@ import tk.glucodata.NovoPen.PenDropTally
 import tk.glucodata.NovoPen.PenDuplicateReconciler
 import tk.glucodata.NovoPen.PenImportCursor
 import tk.glucodata.NovoPen.PenJournalEntry
+import tk.glucodata.NovoPen.PenManualMergePlanner
 import tk.glucodata.NovoPen.PenReconcilePlan
 import tk.glucodata.NovoPen.PenSourceIds
 import tk.glucodata.NovoPen.opennov.OpContext
@@ -176,26 +177,44 @@ object InsulinPenManager {
             val fresh = inWindow
                 .filterNot { it.relativeSeconds in present }
                 .filter { PenImportCursor.isAhead(it, cursor, fullRead) }
+            // A dose the reader wrote down before injecting is already in the journal, just
+            // not under the pen's name. Merging it onto that entry has to happen before the
+            // sheet is built, so the same injection is not offered as a second row. A full
+            // read is the reader asking to see the whole log and decide on it themselves,
+            // so it merges nothing: that is the one scan that can carry weeks of doses.
+            val merged = if (fullRead) {
+                emptySet()
+            } else {
+                mergeManualEntries(serial, fresh, known?.insulinPresetId, repository)
+            }
+            val offer = fresh.filterNot { it.relativeSeconds in merged }
+            val held = present + merged
             Log.i(
                 LOG_ID,
                 "Pen $serial: ${chunks.size} chunk(s), ${parsed.sumOf { it.size }} parsed, " +
                     "${doses.size} after merge, newest rel=${doses.maxOfOrNull(PenDose::relativeSeconds)}, " +
                     "cursor rel=$cursor${if (fullRead) " (full read)" else ""}, " +
                     "${inWindow.size} within ${REVIEW_WINDOW_SECONDS / 86_400} days, " +
-                    "${inWindow.size - present.size} not in the journal, ${fresh.size} to offer; " +
+                    "${inWindow.size - present.size} not in the journal, ${merged.size} merged " +
+                    "onto hand-written entries, ${offer.size} to offer; " +
                     dropped.describe(),
             )
+            // Duplicates to clean up and doses merged onto entries are separate news, and
+            // the cleanup is the one that asks for something, so it is said first.
             if (duplicates > 0) {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_duplicates_found, duplicates))
-            } else if (fresh.isEmpty()) {
+            }
+            if (merged.isNotEmpty()) {
+                Applic.Toaster(Applic.app.getString(R.string.insulin_pen_merged_manual, merged.size))
+            } else if (duplicates == 0 && offer.isEmpty()) {
                 Applic.Toaster(Applic.app.getString(R.string.insulin_pen_no_new_doses))
             }
-            if (fresh.isEmpty()) {
+            if (offer.isEmpty()) {
                 // A scan with nothing to offer still says how far the journal reaches, so the
                 // next tap does not walk the pen's whole log again — but only as far as it was
                 // seen to reach. A dose this scan never found in the journal stays ahead of the
                 // cursor, whatever kept it out, so the next scan looks at it again.
-                PenImportCursor.provenUpTo(inWindow) { it.relativeSeconds in present }
+                PenImportCursor.provenUpTo(inWindow) { it.relativeSeconds in held }
                     ?.let { advanceCursor(serial, it) }
                 return@launch
             }
@@ -203,7 +222,7 @@ object InsulinPenManager {
             InsulinPenScanBus.offer(
                 PenScanResult(
                     serial = serial,
-                    doses = fresh.sortedByDescending(PenDose::timestampSeconds),
+                    doses = offer.sortedByDescending(PenDose::timestampSeconds),
                     preselectFromSeconds = preselectFrom,
                 )
             )
@@ -326,6 +345,58 @@ object InsulinPenManager {
         }.getOrElse { error ->
             Log.e(LOG_ID, "Pen reconcile failed: ${Log.stackline(error)}")
             0
+        }
+    }
+
+    /**
+     * Merges doses onto insulin entries the reader wrote by hand shortly before injecting,
+     * so one injection stays one row. The decision is [PenManualMergePlanner]'s; this reads
+     * the candidates and writes the outcome.
+     *
+     * @return the pen counters of the doses that found an entry — they are in the journal
+     *   now and must not be offered again
+     */
+    private suspend fun mergeManualEntries(
+        serial: String,
+        doses: List<PenDose>,
+        penInsulinPresetId: Long?,
+        repository: JournalRepository,
+    ): Set<Long> {
+        if (doses.isEmpty()) return emptySet()
+        return runCatching {
+            val window = PenManualMergePlanner.MATCH_WINDOW_SECONDS
+            val from = (doses.minOf(PenDose::timestampSeconds) - window) * 1000L
+            val to = (doses.maxOf(PenDose::timestampSeconds) + window) * 1000L
+            val entries = PenManualMergePlanner.candidates(
+                repository.entriesFromSourceBetween(JournalEntrySource.MANUAL, from, to),
+            )
+            val plan = PenManualMergePlanner.plan(serial, doses, entries, penInsulinPresetId)
+            plan.alignmentBreak?.let { stop ->
+                Log.i(
+                    LOG_ID,
+                    "Pen $serial: hand-written entries stop lining up at #${stop.position + 1} " +
+                        "(pen ${stop.doseUnits} U against journal ${stop.entryUnits} U, " +
+                        "${stop.secondsApart}s apart); matching the rest by time and amount",
+                )
+            }
+            val merged = LinkedHashSet<Long>()
+            plan.merges.forEach { merge ->
+                val adopted = repository.adoptPenDose(
+                    merge.entryId,
+                    merge.sourceRecordId,
+                    merge.timestampSeconds * 1000L,
+                )
+                if (adopted) merged.add(merge.doseRelativeSeconds)
+            }
+            if (merged.isNotEmpty()) {
+                Log.i(LOG_ID, "Pen $serial: ${merged.size} dose(s) merged onto hand-written entries")
+                UiRefreshBus.requestDataRefresh()
+                if (Natives.getpostTreatments()) Natives.wakeuploader()
+            }
+            merged as Set<Long>
+        }.getOrElse { error ->
+            Log.e(LOG_ID, "Pen manual merge failed: ${Log.stackline(error)}")
+            emptySet()
         }
     }
 
