@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <ctime>
 #include <memory>
@@ -517,20 +518,20 @@ extern double getdelta(float change);
 extern std::string_view getdeltaname(float change);
 extern int mkv1streamid(char *outiter,const sensorname_t *name,int num);
 
-//Every other exchange output gets the data-smoothing average applied in Java, by
+//Every other exchange output gets data smoothing applied in Java, by
 //CurrentDisplaySource.resolveCurrentForExchange. The Nightscout uploader builds its
-//entries here, straight from the stored polls, so it has to run the same average
+//entries here, straight from the stored polls, so it has to run the same filter
 //itself or Nightscout stays the one destination carrying unsmoothed values.
 //Read/written by the uploader thread only, refreshed once per upload pass so a
 //120-item backfill chunk does not cross into Java per sample.
 static int uploadSmoothingSeconds=0;
 
-//Mirrors DataSmoothing.smoothNativePoints: an unweighted mean of every stored
-//sample within +/-window/2 of the sample's own timestamp. Returns 0 (meaning
-//"keep the stored value") when smoothing is off or nothing else falls in the
-//window. The newest sample therefore only averages older neighbours, exactly as
-//the live value does on the Java side. Polls are time-ordered, so an empty slot
-//or a sample past the window ends the walk.
+//Mirrors GlucoseSmoothing.smoothLane: complete windows use their centred mean;
+//when a series boundary clips the window, a degree-1 time regression is evaluated
+//at the sample timestamp and clamped to the measured range. Returns 0 (meaning
+//"keep the stored value") when smoothing is off or fewer than two valid samples
+//fall in the window. Polls are time-ordered, so an empty slot or a sample past the
+//window ends the walk.
 template <class Getvalue>
 static int smoothPollWindow(std::span<const ScanData> gdata,const int pos,Getvalue getvalue) {
     if(uploadSmoothingSeconds<=0||pos<0||pos>=(int)gdata.size())
@@ -539,27 +540,74 @@ static int smoothPollWindow(std::span<const ScanData> gdata,const int pos,Getval
     const uint32_t half=(uint32_t)uploadSmoothingSeconds/2;
     if(!tim||!half||getvalue(pos)<=0)
         return 0;
-    double sum=0.0;
+    const uint64_t minTime=tim>=half?tim-half:0;
+    const uint64_t maxTime=(uint64_t)tim+half;
+    double sumX=0.0;
+    double sumY=0.0;
+    double sumXX=0.0;
+    double sumXY=0.0;
     int count=0;
-    for(int i=pos;i>=0;--i) {
+    int measuredMin=INT_MAX;
+    int measuredMax=INT_MIN;
+    bool leftClipped=false;
+    bool rightClipped=false;
+    int i=pos;
+    for(;i>=0;--i) {
         const uint32_t eltime=gdata[i].gettime();
-        if(!eltime||eltime+half<tim)
+        if(!eltime) {
+            leftClipped=true;
+            break;
+            }
+        if(eltime<minTime)
             break;
         if(const int val=getvalue(i);val>0) {
-            sum+=val;
+            const double x=(double)((int64_t)eltime-(int64_t)tim);
+            sumX+=x;
+            sumY+=val;
+            sumXX+=x*x;
+            sumXY+=x*val;
+            measuredMin=std::min(measuredMin,val);
+            measuredMax=std::max(measuredMax,val);
             ++count;
             }
         }
-    for(int i=pos+1;i<(int)gdata.size();++i) {
+    if(i<0)
+        leftClipped=gdata.empty()||gdata.front().gettime()>minTime;
+    i=pos+1;
+    for(;i<(int)gdata.size();++i) {
         const uint32_t eltime=gdata[i].gettime();
-        if(!eltime||eltime>tim+half)
+        if(!eltime) {
+            rightClipped=true;
+            break;
+            }
+        if(eltime>maxTime)
             break;
         if(const int val=getvalue(i);val>0) {
-            sum+=val;
+            const double x=(double)((int64_t)eltime-(int64_t)tim);
+            sumX+=x;
+            sumY+=val;
+            sumXX+=x*x;
+            sumXY+=x*val;
+            measuredMin=std::min(measuredMin,val);
+            measuredMax=std::max(measuredMax,val);
             ++count;
             }
         }
-    return count>1?(int)lround(sum/count):0;
+    if(i>=(int)gdata.size())
+        rightClipped=gdata.empty()||gdata.back().gettime()<maxTime;
+    if(count<=1)
+        return 0;
+    if(!leftClipped&&!rightClipped)
+        return (int)lround(sumY/count);
+
+    const double denominator=count*sumXX-sumX*sumX;
+    if(denominator<=1e-12)
+        return (int)lround(sumY/count);
+    const double slope=(count*sumXY-sumX*sumY)/denominator;
+    const double fitted=(sumY-slope*sumX)/count;
+    if(!std::isfinite(fitted))
+        return (int)lround(sumY/count);
+    return (int)lround(std::clamp(fitted,(double)measuredMin,(double)measuredMax));
     }
 
 //Deliberately never calls ScanData::valid(): that patches a zero timestamp from the
