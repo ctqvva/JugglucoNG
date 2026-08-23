@@ -2153,7 +2153,7 @@
     <string name="notification_show_cob_desc">Pokaż COB z Dziennika w wierszu stanu</string>
     <string name="notification_show_delta_minutes_desc">Pokaż zmianę z %1$d min obok strzałki</string>
     <string name="dashboard_rows_show_delta_title">Delta na liście odczytów</string>
-    <string name="dashboard_rows_show_delta_desc">Pokaż zmianę obok każdego odczytu</string>
+    <string name="dashboard_rows_show_delta_desc">Pokaż zmianę obok każdego odczytu, na pulpicie i w historii</string>
     <string name="glucose_range_colors_title">Koloruj wartości według zakresu</string>
     <string name="glucose_range_colors_desc">Użyj kolorów zakresu na pulpicie i w powiadomieniu</string>
     <string name="very_range_title">Bardzo niski / bardzo wysoki</string>

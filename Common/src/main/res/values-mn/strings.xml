@@ -2234,7 +2234,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_show_cob_desc">Журналын COB-г төлөвийн мөрөнд харуулна</string>
     <string name="notification_show_delta_minutes_desc">%1$d минутын өөрчлөлтийг сумны хажууд харуулна</string>
     <string name="dashboard_rows_show_delta_title">Уншилтын жагсаалтын дельта</string>
-    <string name="dashboard_rows_show_delta_desc">Уншилт бүрийн хажууд өөрчлөлтийг харуулна</string>
+    <string name="dashboard_rows_show_delta_desc">Уншилт бүрийн хажууд өөрчлөлтийг хянах самбар болон түүхэнд харуулна</string>
     <string name="glucose_range_colors_title">Утгыг хязгаараар будах</string>
     <string name="glucose_range_colors_desc">Хяналтын самбар болон мэдэгдэлд хязгаарын өнгө ашиглана</string>
     <string name="very_range_title">Маш бага / маш өндөр</string>

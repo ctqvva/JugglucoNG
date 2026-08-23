@@ -2120,7 +2120,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Mostrar COB do Diário na linha de estado</string>
     <string name="notification_show_delta_minutes_desc">Mostrar a variação de %1$d min junto à seta</string>
     <string name="dashboard_rows_show_delta_title">Delta na lista de leituras</string>
-    <string name="dashboard_rows_show_delta_desc">Mostrar a variação junto a cada leitura</string>
+    <string name="dashboard_rows_show_delta_desc">Mostrar a variação junto a cada leitura, no painel e no histórico</string>
     <string name="glucose_range_colors_title">Colorir valores por intervalo</string>
     <string name="glucose_range_colors_desc">Usar cores de intervalo no painel e na notificação</string>
     <string name="very_range_title">Muito baixo / muito alto</string>

@@ -2331,7 +2331,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_large_arrow_desc">Falaarta ku dheeree ogeysiisyada, widgets-ka iyo AOD</string>
     <string name="notification_show_delta_minutes_desc">Muuji isbeddelka %1$d daqiiqo agta falaarta</string>
     <string name="dashboard_rows_show_delta_title">Delta liiska akhrisyada</string>
-    <string name="dashboard_rows_show_delta_desc">Muuji isbeddelka agta akhris kasta</string>
+    <string name="dashboard_rows_show_delta_desc">Muuji isbeddelka agta akhris kasta, shaashadda hore iyo taariikhda</string>
     <string name="glucose_palette_sheet_desc">Dooro palette ama habee xad kasta oo gulukoos ah</string>
     <string name="glucose_palette_saturation">Dheregsanaanta</string>
     <string name="glucose_palette_brightness">Iftiinka</string>

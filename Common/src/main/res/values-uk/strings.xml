@@ -2191,7 +2191,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Показувати COB Журналу в рядку стану</string>
     <string name="notification_show_delta_minutes_desc">Показувати зміну за %1$d хв біля стрілки</string>
     <string name="dashboard_rows_show_delta_title">Дельта у списку значень</string>
-    <string name="dashboard_rows_show_delta_desc">Показувати зміну біля кожного значення</string>
+    <string name="dashboard_rows_show_delta_desc">Показувати зміну біля кожного значення на панелі та в історії</string>
     <string name="glucose_range_colors_title">Колір значень за діапазоном</string>
     <string name="glucose_range_colors_desc">Використовувати кольори діапазонів на головній і в сповіщенні</string>
     <string name="very_range_title">Дуже низький / дуже високий</string>
