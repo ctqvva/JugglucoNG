@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -97,10 +96,15 @@ internal fun SensorPressureHoldCard(
                         .weight(1f)
                         .clickable { cardExpanded = !cardExpanded }
                 ) {
+                    // The title is the flexible one and the badge keeps its intrinsic
+                    // width: a long translation has to push the title onto a second
+                    // line, never squeeze "Experimentell" into a column of letters.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             stringResource(R.string.sensor_pressure_hold_section_title),
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         Spacer(Modifier.width(8.dp))
                         Surface(
@@ -110,6 +114,8 @@ internal fun SensorPressureHoldCard(
                             Text(
                                 stringResource(R.string.experimental_badge),
                                 style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                softWrap = false,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -117,7 +123,8 @@ internal fun SensorPressureHoldCard(
                     Text(
                         stringResource(R.string.sensor_pressure_hold_optin_title),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
                     )
                 }
                 Switch(
@@ -131,15 +138,17 @@ internal fun SensorPressureHoldCard(
                         if (enabled) cardExpanded = true
                     }
                 )
-                IconButton(onClick = { cardExpanded = !cardExpanded }) {
-                    Icon(
-                        if (cardExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = stringResource(
-                            if (cardExpanded) R.string.sensor_pressure_hold_collapse
-                            else R.string.sensor_pressure_hold_expand
-                        )
-                    )
-                }
+                Icon(
+                    if (cardExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = stringResource(
+                        if (cardExpanded) R.string.sensor_pressure_hold_collapse
+                        else R.string.sensor_pressure_hold_expand
+                    ),
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(24.dp)
+                        .clickable { cardExpanded = !cardExpanded }
+                )
             }
             if (selfDisabled) {
                 Text(
@@ -492,9 +501,13 @@ private fun LabeledSlider(
 
 @Composable
 private fun FloorModeOption(label: String, selected: Boolean, onSelect: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         RadioButton(selected = selected, onClick = onSelect)
-        Text(label, style = MaterialTheme.typography.bodyMedium)
+        // Weighted so a long translation wraps instead of running off the card.
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }
 
