@@ -375,7 +375,8 @@ object AlertRuntimeManager {
         rate: Float
     ): String {
         if (type == AlertType.HIGH &&
-            FallSuppressionPolicy.fallingSuppresses(rate, config?.fallRateSuppress)
+            config?.fallRateSuppress != null &&
+            FallSuppressionPolicy.fallingSuppresses(rate, config.fallRateSuppress)
         ) {
             return "high-falling"
         }

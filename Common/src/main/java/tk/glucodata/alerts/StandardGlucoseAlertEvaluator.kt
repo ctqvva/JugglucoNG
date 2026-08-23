@@ -56,6 +56,7 @@ internal object StandardGlucoseAlertEvaluator {
                     forecastMinutes = config.forecastMinutes
                 )
             } else if (type == AlertType.HIGH &&
+                config.fallRateSuppress != null &&
                 FallSuppressionPolicy.fallingSuppresses(rate, config.fallRateSuppress)
             ) {
                 // Being high while coming down fast is the correction working. The episode

@@ -1145,7 +1145,7 @@ private fun AlertSettingsExpanded(
                     )
                 }
 
-                // === Falling-value suppression (PERSISTENT_HIGH only) ===
+                // === Falling-value suppression ===
                 // These alerts say the value is not coming down; a steep fall proves it is.
                 // Slider in tenths of mg/dl per minute; 0 = off. VERY_HIGH is not among them:
                 // there the number itself is the problem.

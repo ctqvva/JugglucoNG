@@ -287,9 +287,6 @@ object AlertDefaults {
     // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
     const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 0.5f
 
-    @Deprecated("Named for the one alert that had it first", ReplaceWith("FALL_RATE_SUPPRESS_MGDL_PER_MIN"))
-    const val PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN = FALL_RATE_SUPPRESS_MGDL_PER_MIN
-
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
     // cover silences the alert; setting it below 1 suppresses earlier, 0 = off.
@@ -333,9 +330,13 @@ object AlertDefaults {
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 overrideDND = false,
-                // Silent while the value is coming down fast, like PERSISTENT_HIGH. The
-                // slider turns it off for anyone who wants the old behaviour.
-                fallRateSuppress = FALL_RATE_SUPPRESS_MGDL_PER_MIN,
+                // Off unless asked for. The same rule as PERSISTENT_HIGH, but this is the
+                // alarm somebody relies on to hear about a high at all, and it is on by
+                // default: switching it to conditional under everybody who upgrades is not
+                // a decision to make on their behalf. The slider turns it on, and the
+                // magnitude it lands on is the flat-arrow boundary, so a drift the app draws
+                // as level does not silence anything unless that is what was asked for.
+                fallRateSuppress = null,
                 defaultSnoozeMinutes = 30
             )
             AlertType.VERY_LOW -> AlertConfig(

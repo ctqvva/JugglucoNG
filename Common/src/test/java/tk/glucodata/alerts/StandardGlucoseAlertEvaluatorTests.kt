@@ -408,9 +408,12 @@ class StandardGlucoseAlertEvaluatorTests {
         assertTrue(falling.containsKey(AlertType.VERY_HIGH))
     }
 
-    /** Turning the slider to zero is how somebody keeps the alert they had. */
+    /** Off unless asked for, which is how everybody who upgrades keeps the alert they had. */
     @Test
     fun highFiresInAFallWhenTheSuppressionIsOff() {
+        val offByDefault = AlertDefaults.defaultConfig(AlertType.HIGH, isMmol = true)
+        assertTrue(offByDefault.fallRateSuppress == null || offByDefault.fallRateSuppress == 0f)
+
         val configs = mapOf(
             AlertType.HIGH to AlertConfig(
                 AlertType.HIGH, enabled = true, threshold = 9.0f, fallRateSuppress = 0f
