@@ -319,7 +319,11 @@ object AlertRepository {
             soundDelaySeconds = readSoundDelaySeconds(type),
             rearmMargin = readRearmMargin(type, base.rearmMargin),
             rearmMinIntervalMinutes = readRearmMinInterval(type, base.rearmMinIntervalMinutes),
-            iobCoverageFactor = readIobCoverage(type, base.iobCoverageFactor)
+            iobCoverageFactor = readIobCoverage(type, base.iobCoverageFactor),
+            // HIGH is a native-backed type and so loads through here, not through
+            // loadFromPrefs. The setting has no native counterpart, so without this
+            // read it is written on save and dropped on every restart.
+            fallRateSuppress = readFallRateSuppress(type, base.fallRateSuppress)
         )
     }
 
