@@ -975,8 +975,14 @@ static bool uploadJournalTreatmentsViaJava(bool useV3) {
         }
     return res==JNI_TRUE;
     }
+/* What a failed pass wants tried again, and how long the treatments branch waits before it
+   does. Only the uploader thread touches these. */
+static uintptr_t retrypending=0;
+static int treatmentbackoffmin=0;
+
 static void uploaderthread() {
     int waitmin=0;
+    bool glucosefailed=false;
     uploaderrunning=true;
     lastNightUploadWaitMinutes = waitmin;
     const char view[]{"UPLOADER"};
@@ -1006,9 +1012,17 @@ static void uploaderthread() {
             LOGSTRING("end uploaderthread\n");
             return;
             }
-        const auto current=uploadercondition.dobackup;
+        /* What was asked for, plus what the last pass could not deliver. Clearing dobackup
+           used to be the whole of a failed attempt: the branch set waitmin and continued,
+           and the pass that woke a quarter of an hour later found the mask empty and did
+           nothing at all. The reading stream hides that for glucose by raising wakestream
+           every minute; treatments have no such heartbeat, so a backlog sat there until
+           something unrelated came along. */
+        const auto current=(uploadercondition.dobackup|retrypending);
         uploadercondition.dobackup=0;
+        retrypending=0;
         bool useV3=settings->data()->nightscoutV3;
+        glucosefailed=false;
         const bool prioritizeRecent=(current&Backup::wakestream);
         if(current&(Backup::wakestream|Backup::wakeall)) {
             bool uploaded = useV3?uploadCGM3(prioritizeRecent):uploadCGM(prioritizeRecent);
@@ -1023,11 +1037,13 @@ static void uploaderthread() {
                 uploaded = uploadCGM3(prioritizeRecent);
             }
             if(!uploaded) {
-                waitmin=lastNightUploadConfigError?0:15;
-                lastNightUploadWaitMinutes = waitmin;
-                continue;
+                glucosefailed=true;
+                retrypending|=(current&(Backup::wakestream|Backup::wakeall));
                 }
             }
+        /* Treatments are attempted even when the glucose upload has just failed. They are
+           separate endpoints failing for separate reasons, and returning here meant one bad
+           reading upload also swallowed the wake a journal entry had raised. */
         if(current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments)) {
             bool treatmentsOk = uploadJournalTreatmentsViaJava(useV3);
             if(!treatmentsOk && !useV3 && lastNightUploadCode==404) {
@@ -1041,10 +1057,23 @@ static void uploaderthread() {
                 treatmentsOk = uploadJournalTreatmentsViaJava(true);
             }
             if(!treatmentsOk) {
-                waitmin=lastNightUploadConfigError?0:15;
-                lastNightUploadWaitMinutes = waitmin;
-                continue;
+                /* Ask again without waiting for anything else to happen, and more slowly
+                   each time: an entry the server will never accept must not be retried
+                   every quarter of an hour for the rest of the day. */
+                retrypending|=Backup::waketreatments;
+                treatmentbackoffmin=treatmentbackoffmin?(treatmentbackoffmin<120?treatmentbackoffmin*2:240):15;
                 }
+            else
+                treatmentbackoffmin=0;
+            }
+        if(glucosefailed||(retrypending&Backup::waketreatments)) {
+            /* Whichever wants looking at sooner decides when this thread wakes again. */
+            int failwait=lastNightUploadConfigError?0:15;
+            if(!glucosefailed)
+                failwait=lastNightUploadConfigError?0:treatmentbackoffmin;
+            waitmin=failwait;
+            lastNightUploadWaitMinutes = waitmin;
+            continue;
             }
         //Best effort: Java posts this on a bounded, dedicated executor. Its endpoint status never
         //overwrites the primary glucose uploader status or blocks this serialized upload loop.
