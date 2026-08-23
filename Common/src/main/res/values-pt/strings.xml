@@ -541,6 +541,9 @@
     <string name="rearm_min_interval_label">Tempo mínimo entre alarmes</string>
     <string name="pre_high_iob_coverage_label">Cobertura de insulina</string>
     <string name="alert_feature_off">Desligado</string>
+    <string name="fall_rate_slanting_down">a descer ligeiramente</string>
+    <string name="fall_rate_falling">a descer</string>
+    <string name="fall_rate_falling_fast">a descer depressa</string>
     <string name="persistent_high_fall_suppress_label">Silenciar em queda</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Perfil de volume/vibracao</string>

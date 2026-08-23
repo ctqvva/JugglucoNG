@@ -1059,6 +1059,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
     <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
+    <string name="fall_rate_slanting_down">бага зэрэг буурч байна</string>
+    <string name="fall_rate_falling">буурч байна</string>
+    <string name="fall_rate_falling_fast">хурдан буурч байна</string>
     <string name="persistent_high_fall_suppress_label">Буурахад дуугүй</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Дууны түвшин/Чичиргээний профайл</string>

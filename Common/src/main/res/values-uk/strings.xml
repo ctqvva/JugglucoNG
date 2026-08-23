@@ -653,6 +653,9 @@
     <string name="rearm_min_interval_label">Мінімальний інтервал між тривогами</string>
     <string name="pre_high_iob_coverage_label">Покриття інсуліном</string>
     <string name="alert_feature_off">Вимк.</string>
+    <string name="fall_rate_slanting_down">трохи знижується</string>
+    <string name="fall_rate_falling">знижується</string>
+    <string name="fall_rate_falling_fast">швидко знижується</string>
     <string name="persistent_high_fall_suppress_label">Тихо при падінні</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профіль гучності/вібрації</string>

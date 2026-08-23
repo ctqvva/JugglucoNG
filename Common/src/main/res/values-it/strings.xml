@@ -514,6 +514,9 @@
     <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
     <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
     <string name="alert_feature_off">Disattivato</string>
+    <string name="fall_rate_slanting_down">in leggera discesa</string>
+    <string name="fall_rate_falling">in discesa</string>
+    <string name="fall_rate_falling_fast">in rapida discesa</string>
     <string name="persistent_high_fall_suppress_label">Silenzia in discesa</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profilo volume/vibrazione</string>

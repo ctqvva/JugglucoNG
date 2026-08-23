@@ -286,10 +286,22 @@ object AlertDefaults {
 
     // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
     /**
-     * PERSISTENT_HIGH's bar. That alert has already waited out a duration and its sentence is
-     * "this is not coming down", so any steady downward movement answers it.
+     * One scale for both high alerts, in whole arrows, because that is the only precision the
+     * number behind it has: it is a regression over the last ten to twenty minutes, not a
+     * measurement of this minute. The steps are this app's own vocabulary, the same ones it
+     * tells other apps through ExchangeTrend: one is a 45 degree fall, two is falling, three
+     * is falling fast.
+     *
+     * PERSISTENT_HIGH's default is the first of them. It used to be half, which this app draws
+     * as level, so the change makes it suppress less and alarm more.
      */
-    const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 0.5f
+    const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 1.0f
+
+    /** The step the scale moves in, so the slider and the floor cannot drift apart. */
+    const val FALL_RATE_STEP_MGDL_PER_MIN = 1.0f
+
+    /** The furthest the scale goes: a fall this app calls fast. */
+    const val FALL_RATE_MAX_MGDL_PER_MIN = 3.0f
 
     /**
      * HIGH's bar, and it is a different question. That alert fires the moment the line is
