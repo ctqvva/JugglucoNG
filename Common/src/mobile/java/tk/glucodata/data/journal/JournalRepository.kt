@@ -79,8 +79,11 @@ class JournalRepository {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
         // Every kind of entry, not only the ones that move IOB: a fingerstick or a note is
-        // sent to Nightscout too, and nothing else will wake the uploader for it.
-        tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        // sent to Nightscout too, and nothing else will wake the uploader for it. What came
+        // from another system is never sent back, so importing from one does not wake it.
+        if (!isMirroredSource(input.source)) {
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        }
         return id
     }
 
@@ -160,6 +163,12 @@ class JournalRepository {
         dao.deleteInsulinPresetById(presetId)
         tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
     }
+
+    /** Rows this app mirrors from elsewhere; the uploader skips them, so a wake is wasted. */
+    private fun isMirroredSource(source: JournalEntrySource): Boolean =
+        source == JournalEntrySource.AAPS ||
+            source == JournalEntrySource.NIGHTSCOUT ||
+            source == JournalEntrySource.API
 
     private fun affectsIob(entryType: String?): Boolean {
         return entryType == JournalEntryType.INSULIN.storageValue ||

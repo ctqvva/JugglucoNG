@@ -975,14 +975,20 @@ static bool uploadJournalTreatmentsViaJava(bool useV3) {
         }
     return res==JNI_TRUE;
     }
-/* What a failed pass wants tried again, and how long the treatments branch waits before it
-   does. Only the uploader thread touches these. */
+/* What a failed pass wants tried again, how long the treatments branch waits before it does,
+   and when that wait is up. The wait needs its own clock: waitmin only applies when this
+   thread actually sleeps, and with a sensor streaming it is woken every minute, so a backoff
+   expressed as a sleep would throttle nothing at all. Only the uploader thread touches these. */
 static uintptr_t retrypending=0;
 static int treatmentbackoffmin=0;
+static std::chrono::steady_clock::time_point treatmentnextattempt{};
 
 static void uploaderthread() {
     int waitmin=0;
     bool glucosefailed=false;
+    retrypending=0;
+    treatmentbackoffmin=0;
+    treatmentnextattempt=std::chrono::steady_clock::time_point{};
     uploaderrunning=true;
     lastNightUploadWaitMinutes = waitmin;
     const char view[]{"UPLOADER"};
@@ -1022,9 +1028,17 @@ static void uploaderthread() {
            and the pass that woke a quarter of an hour later found the mask empty and did
            nothing at all. The reading stream hides that for glucose by raising wakestream
            every minute; treatments have no such heartbeat, so a backlog sat there until
-           something unrelated came along. */
-        const auto current=(uploadercondition.dobackup|retrypending);
-        uploadercondition.dobackup=0;
+           something unrelated came along.
+
+           Read and cleared under the same lock the raising side takes: a wake landing
+           between the read and the clear would otherwise be wiped out by the clear, and
+           since its branch never ran, nothing would carry it forward either. */
+        uintptr_t current;
+            {
+            std::lock_guard<std::mutex> lck(uploadercondition.backupmutex);
+            current=(uploadercondition.dobackup|retrypending);
+            uploadercondition.dobackup=0;
+            }
         retrypending=0;
         bool useV3=settings->data()->nightscoutV3;
         glucosefailed=false;
@@ -1046,10 +1060,17 @@ static void uploaderthread() {
                 retrypending|=(current&(Backup::wakestream|Backup::wakeall));
                 }
             }
+        const auto nowsteady=std::chrono::steady_clock::now();
+        const bool treatmentsdue=(nowsteady>=treatmentnextattempt);
         /* Treatments are attempted even when the glucose upload has just failed. They are
            separate endpoints failing for separate reasons, and returning here meant one bad
            reading upload also swallowed the wake a journal entry had raised. */
-        if(current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments)) {
+        if((current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments))&&!treatmentsdue) {
+            /* Still holding off after a refusal. Keep the reason so it is asked again once
+               the hold is up, rather than losing it to this pass. */
+            retrypending|=Backup::waketreatments;
+            }
+        else if(current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments)) {
             bool treatmentsOk = uploadJournalTreatmentsViaJava(useV3);
             if(!treatmentsOk && !useV3 && lastNightUploadCode==404) {
                 LOGSTRING("Nightscout v1 treatments endpoint returned 404, retrying with v3\n");
@@ -1067,24 +1088,31 @@ static void uploaderthread() {
                    every quarter of an hour for the rest of the day. */
                 retrypending|=Backup::waketreatments;
                 treatmentbackoffmin=treatmentbackoffmin?(treatmentbackoffmin<120?treatmentbackoffmin*2:240):15;
+                treatmentnextattempt=nowsteady+std::chrono::minutes(treatmentbackoffmin);
                 }
-            else
+            else {
                 treatmentbackoffmin=0;
+                treatmentnextattempt=std::chrono::steady_clock::time_point{};
+                }
             }
-        if(glucosefailed||(retrypending&Backup::waketreatments)) {
-            /* Whichever wants looking at sooner decides when this thread wakes again. */
-            int failwait=lastNightUploadConfigError?0:15;
-            if(!glucosefailed)
-                failwait=lastNightUploadConfigError?0:treatmentbackoffmin;
-            waitmin=failwait;
-            lastNightUploadWaitMinutes = waitmin;
-            continue;
+        /* Device status is not the treatments endpoint and does not fail with it. Skipping it
+           while a treatment is being refused would stop reporting IOB for as long as that
+           lasts, which can be indefinitely. A failed reading upload still skips it, as it
+           always has: that one shares its endpoint and its answer. */
+        if(!glucosefailed) {
+            //Best effort: Java posts this on a bounded, dedicated executor. Its endpoint status never
+            //overwrites the primary glucose uploader status or blocks this serialized upload loop.
+            uploadDeviceStatus();
+            uploadIobDeviceStatus();
             }
-        //Best effort: Java posts this on a bounded, dedicated executor. Its endpoint status never
-        //overwrites the primary glucose uploader status or blocks this serialized upload loop.
-        uploadDeviceStatus();
-        uploadIobDeviceStatus();
-        waitmin=5*60;
+        if(glucosefailed)
+            waitmin=lastNightUploadConfigError?1:15;
+        else if(retrypending&Backup::waketreatments)
+            /* Never zero while something is carried forward: a wait of nothing with work
+               pending is a loop that never sleeps. */
+            waitmin=treatmentbackoffmin?treatmentbackoffmin:15;
+        else
+            waitmin=5*60;
         lastNightUploadWaitMinutes = waitmin;
         }
     }
