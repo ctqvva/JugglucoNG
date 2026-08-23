@@ -78,6 +78,26 @@ object JournalTreatmentUploader {
      */
     internal enum class OldCopyAction { KEEP, DELETE }
 
+    /** Whether a v3 write creates a document or changes one the server already holds. */
+    internal enum class TreatmentWrite { CREATE, UPDATE }
+
+    /**
+     * What a v3 document is named. The time is part of the name because v3 will not let a
+     * client move a document's date: an entry whose time was corrected is a different
+     * document, and saying so in the identifier is what turns that write into a create the
+     * server accepts, after which the old copy is deleted as any other stale copy is.
+     */
+    internal fun datedIdentifier(entryId: Long, timestampMillis: Long): String =
+        ID_PREFIX + entryId.toString(16) + "-" + timestampMillis.toString(16)
+
+    /**
+     * An update only where the server already holds this exact document; anything else is a
+     * create. Entries written before the time was part of the name land here too, once each:
+     * they are created afresh under the new name and their old copy is then removed.
+     */
+    internal fun treatmentWrite(nsRemoteId: String?, identifier: String): TreatmentWrite =
+        if (nsRemoteId != null && nsRemoteId == identifier) TreatmentWrite.UPDATE else TreatmentWrite.CREATE
+
     internal fun oldCopyAction(oldRemoteId: String?, acceptedRemoteId: String?): OldCopyAction =
         if (oldRemoteId == null || oldRemoteId == acceptedRemoteId) OldCopyAction.KEEP else OldCopyAction.DELETE
 
@@ -216,7 +236,7 @@ object JournalTreatmentUploader {
 
                 val localIdentifier = ID_PREFIX + entry.id.toString(16)
                 val remoteId = if (useV3) {
-                    entry.nsRemoteId ?: localIdentifier
+                    datedIdentifier(entry.id, entry.timestamp)
                 } else {
                     localIdentifier
                 }
@@ -237,6 +257,13 @@ object JournalTreatmentUploader {
                 )
                     ?: continue
                 val result = if (useV3) {
+                    // v3 takes a POST carrying a name it already holds as a change to that
+                    // document, and refuses the fields it will not let a client move. So a
+                    // change to what a dose says is sent without them, while a change to
+                    // when it was given is a new document under a new name.
+                    if (treatmentWrite(entry.nsRemoteId, remoteId) == TreatmentWrite.UPDATE) {
+                        JournalTreatmentTransfer.stripImmutableForUpdate(json)
+                    }
                     uploadViaNightPost(baseUrl, json, secretHashed, useV3, remoteId)
                 } else {
                     json.remove("_id")

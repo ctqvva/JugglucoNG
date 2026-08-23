@@ -155,4 +155,72 @@ class JournalTreatmentUploaderTests {
         backoff.recordFailure(254L, 1_000_000L)
         assertFalse(backoff.shouldHold(254L, 1_000_000L - 5 * 60_000L))
     }
+
+    /**
+     * v3 refuses to let a client move a document's date: an entry whose time was corrected
+     * cannot be an update, it has to be a new document. The name carries the time so the
+     * uploader can tell the two apart without keeping a second copy of what it last sent.
+     */
+    @Test
+    fun aCorrectedTimeIsADifferentDocument() {
+        val atFirst = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L)
+        val moved = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_600_000L)
+
+        assertTrue(atFirst != moved)
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.UPDATE,
+            JournalTreatmentUploader.treatmentWrite(atFirst, atFirst)
+        )
+        // The stored copy is the one at the old time, so this write creates.
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.CREATE,
+            JournalTreatmentUploader.treatmentWrite(atFirst, moved)
+        )
+        // And then the old copy is the one to remove, which is already the rule.
+        assertEquals(
+            JournalTreatmentUploader.OldCopyAction.DELETE,
+            JournalTreatmentUploader.oldCopyAction(atFirst, moved)
+        )
+    }
+
+    @Test
+    fun anEntryTheServerDoesNotHoldIsCreated() {
+        val identifier = JournalTreatmentUploader.datedIdentifier(7L, 1_700_000_000_000L)
+
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.CREATE,
+            JournalTreatmentUploader.treatmentWrite(null, identifier)
+        )
+    }
+
+    /** Written before the time was part of the name: created once under the new name. */
+    @Test
+    fun anEntryStoredUnderTheOlderNameIsCreatedAfresh() {
+        val legacy = "jng-j-1a7"
+        val identifier = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L)
+
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.CREATE,
+            JournalTreatmentUploader.treatmentWrite(legacy, identifier)
+        )
+        assertEquals(
+            JournalTreatmentUploader.OldCopyAction.DELETE,
+            JournalTreatmentUploader.oldCopyAction(legacy, identifier)
+        )
+    }
+
+    /** The same amount at the same time is a change to what it says, which v3 allows. */
+    @Test
+    fun anEditedAmountStaysAnUpdate() {
+        val identifier = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L)
+
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.UPDATE,
+            JournalTreatmentUploader.treatmentWrite(identifier, identifier)
+        )
+        assertEquals(
+            JournalTreatmentUploader.OldCopyAction.KEEP,
+            JournalTreatmentUploader.oldCopyAction(identifier, identifier)
+        )
+    }
 }

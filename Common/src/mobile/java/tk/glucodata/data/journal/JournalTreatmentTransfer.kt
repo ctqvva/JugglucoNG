@@ -122,6 +122,23 @@ object JournalTreatmentTransfer {
         return json
     }
 
+/**
+     * The same document with the fields v3 will not let a client change taken out.
+     *
+     * v3 answers an update that carries them with 400 "Field date cannot be modified by the
+     * client", and refuses on the first one it finds, so the time-identity fields go
+     * together: the document being updated is by definition the one at that time. What is
+     * left is the payload — amount, notes, the insulin — which is all an update is for.
+     */
+    fun stripImmutableForUpdate(json: JSONObject): JSONObject = json
+        .apply {
+            remove("date")
+            remove("created_at")
+            remove("utcOffset")
+            // Server-owned: the identifier names the document, _id is Nightscout's own copy.
+            remove("_id")
+        }
+
     fun parseTreatment(
         context: Context,
         treatment: JSONObject,

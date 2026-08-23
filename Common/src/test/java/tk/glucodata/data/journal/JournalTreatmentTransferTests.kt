@@ -2,6 +2,7 @@ package tk.glucodata.data.journal
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 
@@ -32,5 +33,35 @@ class JournalTreatmentTransferTests {
         assertEquals(JournalEntrySource.NIGHTSCOUT, entry.source)
         assertEquals("nightscout:NSF-TEST:xdrip-mbg-id:fingerstick", entry.sourceRecordId)
         assertEquals("xdrip-mbg-id", entry.nsRemoteId)
+    }
+
+    /**
+     * What an update may carry. v3 answers a document that still names its own time with
+     * 400 "Field date cannot be modified by the client" and stops at the first such field,
+     * so they are removed together; what is left is what an update is for.
+     */
+    @Test
+    fun anUpdateCarriesNoFieldTheServerOwns() {
+        val json = org.json.JSONObject()
+            .put("date", 1_700_000_000_000L)
+            .put("created_at", "2023-11-14T22:13:20.000Z")
+            .put("utcOffset", 0)
+            .put("_id", "jng-j-1a7-18bd0a4b800")
+            .put("identifier", "jng-j-1a7-18bd0a4b800")
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 4.0)
+            .put("notes", "kept")
+
+        JournalTreatmentTransfer.stripImmutableForUpdate(json)
+
+        assertFalse(json.has("date"))
+        assertFalse(json.has("created_at"))
+        assertFalse(json.has("utcOffset"))
+        assertFalse(json.has("_id"))
+        // The name of the document being changed has to stay, and so does what it says.
+        assertEquals("jng-j-1a7-18bd0a4b800", json.optString("identifier"))
+        assertEquals("Correction Bolus", json.optString("eventType"))
+        assertEquals(4.0, json.optDouble("insulin"), 0.001)
+        assertEquals("kept", json.optString("notes"))
     }
 }
