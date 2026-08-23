@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -32,7 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import tk.glucodata.Notify
 import tk.glucodata.R
+import tk.glucodata.alerts.AlertRepository
+import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CompressionHoldRuntime
 import tk.glucodata.logic.CompressionLowDetector
 import kotlin.math.roundToInt
@@ -41,14 +45,21 @@ import kotlin.math.roundToLong
 private const val MGDL_PER_MMOL = 18.0182f
 
 /**
- * The settings card of the sensor-pressure hold (the "compression low gatekeeper").
+ * The settings card of the sensor-pressure hold (the "compression low gatekeeper"),
+ * including the cue's own sound and haptics: the cue is not an alarm anyone arms on its
+ * own, so it does not sit in the alert list pretending to be one — it lives here, with
+ * the feature that is the only thing able to fire it, and the opt-in switch arms it.
+ *
  * Everything here is user-owned by deliberate decision, safety rails included: the
  * recommended values are defaults and warning texts, never locks. The card owes the
  * user plain words for every lever — nobody should need a search engine to understand
  * what a knob does or why they would touch it.
  */
 @Composable
-internal fun SensorPressureHoldCard(isMmol: Boolean) {
+internal fun SensorPressureHoldCard(
+    isMmol: Boolean,
+    onPickCueSound: (currentUri: String?, typeId: Int, onPicked: (String?) -> Unit) -> Unit
+) {
     var optedIn by remember { mutableStateOf(CompressionHoldRuntime.isOptedIn()) }
     var selfDisabled by remember { mutableStateOf(CompressionHoldRuntime.isSelfDisabled()) }
     var maxHold by remember { mutableStateOf(CompressionHoldRuntime.maxHoldMinutes()) }
@@ -57,7 +68,14 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
     var selfDisableLimit by remember { mutableStateOf(CompressionHoldRuntime.selfDisableLimit()) }
     var tuning by remember { mutableStateOf(CompressionHoldRuntime.loadTuning()) }
     var advancedExpanded by remember { mutableStateOf(false) }
+    var cueConfig by remember { mutableStateOf(AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)) }
     val log = remember(optedIn) { CompressionHoldRuntime.loadLog() }
+
+    fun saveCue(updated: tk.glucodata.alerts.AlertConfig) {
+        if (updated == cueConfig) return
+        cueConfig = updated
+        AlertRepository.saveConfig(updated)
+    }
 
     fun saveTuning(updated: CompressionLowDetector.Tuning) {
         tuning = updated
@@ -69,14 +87,22 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
         colors = CardDefaults.cardColors()
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Collapsed by default: this is a whole feature, not one alarm, and the
+            // alert screen is a list of alarms. The header carries what matters at a
+            // glance — what it is, that it is experimental, and whether it is on.
+            var cardExpanded by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable { cardExpanded = !cardExpanded }
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             stringResource(R.string.sensor_pressure_hold_section_title),
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Spacer(Modifier.weight(1f))
+                        Spacer(Modifier.width(8.dp))
                         Surface(
                             color = MaterialTheme.colorScheme.tertiaryContainer,
                             shape = MaterialTheme.shapes.small
@@ -88,60 +114,32 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
                             )
                         }
                     }
-                }
-            }
-            // Two sentences up front; the full risk text lives one tap away — a wall of
-            // prose next to a master switch is read by nobody.
-            var descriptionExpanded by remember { mutableStateOf(false) }
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { descriptionExpanded = !descriptionExpanded }
-            ) {
-                Text(
-                    stringResource(R.string.sensor_pressure_hold_optin_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        stringResource(
-                            if (descriptionExpanded) R.string.sensor_pressure_hold_optin_less
-                            else R.string.sensor_pressure_hold_optin_more
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Icon(
-                        if (descriptionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                if (descriptionExpanded) {
-                    Text(
-                        stringResource(R.string.sensor_pressure_hold_optin_description),
+                        stringResource(R.string.sensor_pressure_hold_optin_title),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.sensor_pressure_hold_optin_title),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
-                )
                 Switch(
                     checked = optedIn && !selfDisabled,
                     onCheckedChange = { enabled ->
+                        // setEnabled arms the cue too; read back what it wrote.
                         CompressionHoldRuntime.setEnabled(enabled)
+                        cueConfig = AlertRepository.loadConfig(AlertType.SENSOR_PRESSURE)
                         optedIn = enabled
                         selfDisabled = false
+                        if (enabled) cardExpanded = true
                     }
                 )
+                IconButton(onClick = { cardExpanded = !cardExpanded }) {
+                    Icon(
+                        if (cardExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = stringResource(
+                            if (cardExpanded) R.string.sensor_pressure_hold_collapse
+                            else R.string.sensor_pressure_hold_expand
+                        )
+                    )
+                }
             }
             if (selfDisabled) {
                 Text(
@@ -164,116 +162,187 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
                 )
             }
 
-            if (optedIn) {
-                LabeledSlider(
-                    label = stringResource(R.string.sensor_pressure_hold_max_hold_label),
-                    description = stringResource(R.string.sensor_pressure_hold_max_hold_description),
-                    valueText = "$maxHold min",
-                    value = maxHold.toFloat(),
-                    range = 1f..30f,
-                    onChange = {
-                        maxHold = it.roundToInt()
-                        CompressionHoldRuntime.setMaxHoldMinutes(maxHold)
-                    }
-                )
-                if (maxHold > CompressionHoldRuntime.RECOMMENDED_MAX_HOLD_MINUTES) {
-                    WarningText(
-                        stringResource(
-                            R.string.sensor_pressure_hold_warning_long_hold,
-                            CompressionHoldRuntime.RECOMMENDED_MAX_HOLD_MINUTES
-                        )
-                    )
-                }
-
-                Text(
-                    stringResource(R.string.sensor_pressure_hold_floor_label),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    stringResource(R.string.sensor_pressure_hold_floor_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                FloorModeOption(
-                    label = stringResource(R.string.sensor_pressure_hold_floor_very_low),
-                    selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
+            if (cardExpanded) {
+                // Two sentences up front; the full risk text lives one tap away — a wall of
+                // prose next to a master switch is read by nobody.
+                var descriptionExpanded by remember { mutableStateOf(false) }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { descriptionExpanded = !descriptionExpanded }
                 ) {
-                    floorMode = CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
-                    CompressionHoldRuntime.setFloorMode(floorMode)
-                }
-                FloorModeOption(
-                    label = stringResource(R.string.sensor_pressure_hold_floor_custom) +
-                        "  (" + formatGlucose(floorCustomMgdl, isMmol) + ")",
-                    selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_CUSTOM
-                ) {
-                    floorMode = CompressionHoldRuntime.FLOOR_MODE_CUSTOM
-                    CompressionHoldRuntime.setFloorMode(floorMode)
-                }
-                if (floorMode == CompressionHoldRuntime.FLOOR_MODE_CUSTOM) {
-                    LabeledSlider(
-                        label = "",
-                        description = null,
-                        valueText = formatGlucose(floorCustomMgdl, isMmol),
-                        value = floorCustomMgdl,
-                        range = 36f..80f,
-                        onChange = {
-                            floorCustomMgdl = it.roundToInt().toFloat()
-                            CompressionHoldRuntime.setFloorCustomMgdl(floorCustomMgdl)
-                        }
-                    )
-                }
-                FloorModeOption(
-                    label = stringResource(R.string.sensor_pressure_hold_floor_off),
-                    selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_OFF
-                ) {
-                    floorMode = CompressionHoldRuntime.FLOOR_MODE_OFF
-                    CompressionHoldRuntime.setFloorMode(floorMode)
-                }
-                if (floorMode == CompressionHoldRuntime.FLOOR_MODE_OFF) {
-                    WarningText(stringResource(R.string.sensor_pressure_hold_floor_off_warning))
-                }
-
-                LabeledSlider(
-                    label = stringResource(R.string.sensor_pressure_hold_self_disable_label),
-                    description = stringResource(R.string.sensor_pressure_hold_self_disable_description),
-                    valueText = if (selfDisableLimit == 0)
-                        stringResource(R.string.sensor_pressure_hold_never)
-                    else selfDisableLimit.toString(),
-                    value = selfDisableLimit.toFloat(),
-                    range = 0f..10f,
-                    onChange = {
-                        selfDisableLimit = it.roundToInt()
-                        CompressionHoldRuntime.setSelfDisableLimit(selfDisableLimit)
-                    }
-                )
-                if (selfDisableLimit == 0) {
-                    WarningText(stringResource(R.string.sensor_pressure_hold_never_warning))
-                }
-
-                OutlinedButton(
-                    onClick = { advancedExpanded = !advancedExpanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        if (advancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
                     Text(
-                        stringResource(
-                            if (advancedExpanded) R.string.sensor_pressure_hold_advanced_hide
-                            else R.string.sensor_pressure_hold_advanced
-                        )
-                    )
-                }
-                if (advancedExpanded) {
-                    Text(
-                        stringResource(R.string.sensor_pressure_hold_advanced_description),
+                        stringResource(R.string.sensor_pressure_hold_optin_summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TuningSliders(tuning, ::saveTuning)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(
+                                if (descriptionExpanded) R.string.sensor_pressure_hold_optin_less
+                                else R.string.sensor_pressure_hold_optin_more
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            if (descriptionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    if (descriptionExpanded) {
+                        Text(
+                            stringResource(R.string.sensor_pressure_hold_optin_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+                if (optedIn) {
+                    LabeledSlider(
+                        label = stringResource(R.string.sensor_pressure_hold_max_hold_label),
+                        description = stringResource(R.string.sensor_pressure_hold_max_hold_description),
+                        valueText = "$maxHold min",
+                        value = maxHold.toFloat(),
+                        range = 1f..30f,
+                        onChange = {
+                            maxHold = it.roundToInt()
+                            CompressionHoldRuntime.setMaxHoldMinutes(maxHold)
+                        }
+                    )
+                    if (maxHold > CompressionHoldRuntime.RECOMMENDED_MAX_HOLD_MINUTES) {
+                        WarningText(
+                            stringResource(
+                                R.string.sensor_pressure_hold_warning_long_hold,
+                                CompressionHoldRuntime.RECOMMENDED_MAX_HOLD_MINUTES
+                            )
+                        )
+                    }
+
+                    Text(
+                        stringResource(R.string.sensor_pressure_hold_floor_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        stringResource(R.string.sensor_pressure_hold_floor_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FloorModeOption(
+                        label = stringResource(R.string.sensor_pressure_hold_floor_very_low),
+                        selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
+                    ) {
+                        floorMode = CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
+                        CompressionHoldRuntime.setFloorMode(floorMode)
+                    }
+                    FloorModeOption(
+                        label = stringResource(R.string.sensor_pressure_hold_floor_custom) +
+                            "  (" + formatGlucose(floorCustomMgdl, isMmol) + ")",
+                        selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_CUSTOM
+                    ) {
+                        floorMode = CompressionHoldRuntime.FLOOR_MODE_CUSTOM
+                        CompressionHoldRuntime.setFloorMode(floorMode)
+                    }
+                    if (floorMode == CompressionHoldRuntime.FLOOR_MODE_CUSTOM) {
+                        LabeledSlider(
+                            label = "",
+                            description = null,
+                            valueText = formatGlucose(floorCustomMgdl, isMmol),
+                            value = floorCustomMgdl,
+                            range = 36f..80f,
+                            onChange = {
+                                floorCustomMgdl = it.roundToInt().toFloat()
+                                CompressionHoldRuntime.setFloorCustomMgdl(floorCustomMgdl)
+                            }
+                        )
+                    }
+                    FloorModeOption(
+                        label = stringResource(R.string.sensor_pressure_hold_floor_off),
+                        selected = floorMode == CompressionHoldRuntime.FLOOR_MODE_OFF
+                    ) {
+                        floorMode = CompressionHoldRuntime.FLOOR_MODE_OFF
+                        CompressionHoldRuntime.setFloorMode(floorMode)
+                    }
+                    if (floorMode == CompressionHoldRuntime.FLOOR_MODE_OFF) {
+                        WarningText(stringResource(R.string.sensor_pressure_hold_floor_off_warning))
+                    }
+
+                    LabeledSlider(
+                        label = stringResource(R.string.sensor_pressure_hold_self_disable_label),
+                        description = stringResource(R.string.sensor_pressure_hold_self_disable_description),
+                        valueText = if (selfDisableLimit == 0)
+                            stringResource(R.string.sensor_pressure_hold_never)
+                        else selfDisableLimit.toString(),
+                        value = selfDisableLimit.toFloat(),
+                        range = 0f..10f,
+                        onChange = {
+                            selfDisableLimit = it.roundToInt()
+                            CompressionHoldRuntime.setSelfDisableLimit(selfDisableLimit)
+                        }
+                    )
+                    if (selfDisableLimit == 0) {
+                        WarningText(stringResource(R.string.sensor_pressure_hold_never_warning))
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.sensor_pressure_cue_settings_title),
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                stringResource(R.string.sensor_pressure_cue_settings_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = cueConfig.enabled,
+                            onCheckedChange = { on -> saveCue(cueConfig.copy(enabled = on)) }
+                        )
+                    }
+                    if (!cueConfig.enabled) {
+                        WarningText(stringResource(R.string.sensor_pressure_cue_disabled_warning))
+                    }
+                    CommonAlertSettings(
+                        config = cueConfig,
+                        onConfigChange = ::saveCue,
+                        onPickSound = { current ->
+                            onPickCueSound(current.customSoundUri, current.type.id) { uri ->
+                                saveCue(cueConfig.copy(customSoundUri = uri))
+                            }
+                        },
+                        onTest = { Notify.testTrigger(AlertType.SENSOR_PRESSURE.id) }
+                    )
+
+                    OutlinedButton(
+                        onClick = { advancedExpanded = !advancedExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            if (advancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(
+                                if (advancedExpanded) R.string.sensor_pressure_hold_advanced_hide
+                                else R.string.sensor_pressure_hold_advanced
+                            )
+                        )
+                    }
+                    if (advancedExpanded) {
+                        Text(
+                            stringResource(R.string.sensor_pressure_hold_advanced_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TuningSliders(tuning, ::saveTuning)
+                    }
                 }
             }
         }
