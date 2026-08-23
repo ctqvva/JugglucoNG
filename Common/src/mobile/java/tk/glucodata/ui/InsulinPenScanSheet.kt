@@ -20,6 +20,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Contactless
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -36,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -242,41 +245,43 @@ private fun DoseRow(
                 )
             }
             if (replacesEntryAtSeconds != null) {
-                val label = stringResource(
-                    R.string.insulin_pen_replaces,
-                    hourFormat.format(Date(replacesEntryAtSeconds * 1000L)),
-                )
-                // Which entry it replaces is the point of the marker, so the time is never
-                // cut short: it is either there in full or the icon carries it alone.
-                val screenWidth = LocalConfiguration.current.screenWidthDp
-                var roomForText by remember(dose.relativeSeconds, screenWidth) { mutableStateOf(true) }
+                val at = hourFormat.format(Date(replacesEntryAtSeconds * 1000L))
+                val label = stringResource(R.string.insulin_pen_replaces, at)
+                // What becomes what, said in the two icons the journal already uses for those
+                // sources: a hand-written entry turns into this pen's dose. The icons need no
+                // translating and no room to speak, so the words beside them only have to
+                // carry which entry it is, and that is a time.
                 Row(
-                    // A share of the row, not first claim on it: the amount and the time are
-                    // what the row is about, and they may not be squeezed into wrapping by a
-                    // long translation. What does not fit here becomes the icon alone.
-                    modifier = Modifier.weight(0.5f, fill = false),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .semantics(mergeDescendants = true) { contentDescription = label },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Icon(
                         imageVector = Icons.Default.SwapHoriz,
-                        // Said once: the text beside it carries the same words when it fits.
-                        contentDescription = label.takeUnless { roomForText },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Contactless,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
                     )
-                    if (roomForText) {
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            softWrap = false,
-                            onTextLayout = { layout ->
-                                if (layout.hasVisualOverflow) roomForText = false
-                            },
-                        )
-                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        at,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
                 }
             }
         }
