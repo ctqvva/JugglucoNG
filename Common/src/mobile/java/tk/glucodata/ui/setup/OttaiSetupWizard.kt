@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,10 +40,13 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -405,6 +409,7 @@ fun OttaiSetupWizard(
 
     var phone by remember { mutableStateOf("") }
     var smsCountry by remember { mutableStateOf(OttaiSmsCountry.MAINLAND_CHINA) }
+    var smsCountryMenuExpanded by remember { mutableStateOf(false) }
     var region by remember {
         mutableStateOf(
             if (alreadySignedIn && OttaiRegistry.loadApiBase(context) == OttaiConstants.API_BASE) {
@@ -970,24 +975,6 @@ fun OttaiSetupWizard(
                             val useSms = region.usesSms
                             val smsPhone = phone.takeIf { useSms }
                                 ?.let { normalizeOttaiPhone(it, smsCountry) }
-                            if (useSms) {
-                                ConnectedButtonGroup(
-                                    options = OttaiSmsCountry.entries.toList(),
-                                    selectedOption = smsCountry,
-                                    onOptionSelected = { selected ->
-                                        if (selected != smsCountry) {
-                                            smsCountry = selected
-                                            phone = ""
-                                            requestId = ""
-                                            code = ""
-                                            smsStatus = ""
-                                            smsStatusIsError = false
-                                        }
-                                    },
-                                    label = { Text(it.prefix) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
                             OutlinedTextField(
                                 value = phone,
                                 onValueChange = { value ->
@@ -1004,7 +991,46 @@ fun OttaiSetupWizard(
                                 },
                                 label = { Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint)) },
                                 isError = useSms && phone.isNotBlank() && smsPhone == null,
-                                prefix = if (useSms) { { Text(smsCountry.prefix) } } else null,
+                                prefix = if (useSms) {
+                                    {
+                                        Box {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .height(48.dp)
+                                                    .clickable { smsCountryMenuExpanded = true },
+                                            ) {
+                                                Text(smsCountry.prefix)
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
+                                            DropdownMenu(
+                                                expanded = smsCountryMenuExpanded,
+                                                onDismissRequest = { smsCountryMenuExpanded = false },
+                                            ) {
+                                                OttaiSmsCountry.entries.forEach { country ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(country.prefix) },
+                                                        onClick = {
+                                                            smsCountryMenuExpanded = false
+                                                            if (country != smsCountry) {
+                                                                smsCountry = country
+                                                                phone = ""
+                                                                requestId = ""
+                                                                code = ""
+                                                                smsStatus = ""
+                                                                smsStatusIsError = false
+                                                            }
+                                                        },
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else null,
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = if (useSms) KeyboardType.Phone else KeyboardType.Email,
