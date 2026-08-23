@@ -74,4 +74,34 @@ class JournalSyncStatusTests {
         }
         assertEquals(JournalSyncFailure.NONE, JournalSyncFailure.fromStorage(99))
     }
+
+    /**
+     * "Failing since 17:22" reads as something being tried and refused over and over. It was
+     * also what the app said after a single refusal that nothing had followed for hours,
+     * which is a different state and the one worth knowing about: the line now carries when
+     * the path was last exercised at all.
+     */
+    @Test
+    fun everyCycleRecordsThatItWasTried() {
+        val failed = applySyncFailure(JournalSyncState(), now = 1_000L, code = 0, failure = JournalSyncFailure.UPLOAD)
+        assertEquals(1_000L, failed.lastAttemptAt)
+        assertEquals(1_000L, failed.failingSince)
+
+        // Refused again much later: still one run of failures, but it was tried just now.
+        val again = applySyncFailure(failed, now = 9_000L, code = 400, failure = JournalSyncFailure.UPLOAD)
+        assertEquals(1_000L, again.failingSince)
+        assertEquals(9_000L, again.lastAttemptAt)
+    }
+
+    @Test
+    fun aCycleWithNothingToSendCountsAsHavingTried() {
+        val failed = applySyncFailure(JournalSyncState(), now = 1_000L, code = 0, failure = JournalSyncFailure.UPLOAD)
+
+        val quiet = applySyncSuccess(failed, now = 5_000L, acceptedDocument = false)
+
+        // Nothing was sent, so "last sent" stands still, but the path was exercised.
+        assertEquals(0L, quiet.lastSuccessAt)
+        assertEquals(5_000L, quiet.lastAttemptAt)
+        assertFalse(quiet.isFailing)
+    }
 }

@@ -1561,8 +1561,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_last_success">Last success: %1$s</string>
     <string name="nightscout_status_treatments_never">Treatments: nothing sent yet</string>
     <string name="nightscout_status_treatments_ok">Treatments: last sent %1$s</string>
-    <string name="nightscout_status_treatments_upload_failing">Treatments: sending has failed since %1$s (%2$s)</string>
-    <string name="nightscout_status_treatments_delete_failing">Treatments: deletions refused since %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_upload_failing">Treatments: sending has failed since %1$s, last tried %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Treatments: deletions refused since %1$s, last tried %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">no response</string>
     <string name="nightscout_send_amounts_desc">Upload Insulin/Carbs (Treatments)</string>
     <string name="nightscout_send_long_insulin">Send long-acting insulin</string>

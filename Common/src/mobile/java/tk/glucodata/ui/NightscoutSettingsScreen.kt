@@ -294,12 +294,14 @@ fun NightscoutSettingsScreen(navController: NavController) {
         treatmentSync.failure == JournalSyncFailure.UPLOAD -> context.getString(
             R.string.nightscout_status_treatments_upload_failing,
             formatStatusMillis(treatmentSync.failingSince),
-            failureDetail(context, treatmentSync.failureCode)
+            failureDetail(context, treatmentSync.failureCode),
+            formatStatusMillis(treatmentSync.lastAttemptAt)
         )
         treatmentSync.failure == JournalSyncFailure.DELETE -> context.getString(
             R.string.nightscout_status_treatments_delete_failing,
             formatStatusMillis(treatmentSync.failingSince),
-            failureDetail(context, treatmentSync.failureCode)
+            failureDetail(context, treatmentSync.failureCode),
+            formatStatusMillis(treatmentSync.lastAttemptAt)
         )
         treatmentSync.lastSuccessAt > 0L -> context.getString(
             R.string.nightscout_status_treatments_ok,

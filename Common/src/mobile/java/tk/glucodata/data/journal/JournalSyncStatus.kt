@@ -18,12 +18,16 @@ enum class JournalSyncFailure(val storageValue: Int) {
 /**
  * @param lastSuccessAt when Nightscout last accepted a treatment document from us.
  * @param failingSince the start of the current run of failures, 0 while healthy.
+ * @param lastAttemptAt when the treatment path was last exercised at all, whatever came of
+ *   it. "Failing since" without it reads as something being tried and refused over and over,
+ *   which is not the same state as one refusal hours ago that nothing has followed.
  */
 data class JournalSyncState(
     val lastSuccessAt: Long = 0L,
     val failingSince: Long = 0L,
     val failureCode: Int = 0,
-    val failure: JournalSyncFailure = JournalSyncFailure.NONE
+    val failure: JournalSyncFailure = JournalSyncFailure.NONE,
+    val lastAttemptAt: Long = 0L
 ) {
     val isFailing: Boolean get() = failure != JournalSyncFailure.NONE
 }
@@ -38,7 +42,8 @@ internal fun applySyncSuccess(
     lastSuccessAt = if (acceptedDocument) now else state.lastSuccessAt,
     failingSince = 0L,
     failureCode = 0,
-    failure = JournalSyncFailure.NONE
+    failure = JournalSyncFailure.NONE,
+    lastAttemptAt = now
 )
 
 internal fun applySyncFailure(
@@ -51,7 +56,8 @@ internal fun applySyncFailure(
     // a sync path has been dead for days rather than for one cycle.
     failingSince = if (state.isFailing && state.failingSince > 0L) state.failingSince else now,
     failureCode = code,
-    failure = failure
+    failure = failure,
+    lastAttemptAt = now
 )
 
 /**
@@ -67,6 +73,7 @@ object JournalSyncStatus {
     private const val KEY_FAILING_SINCE = "journal_sync_failing_since"
     private const val KEY_FAILURE_CODE = "journal_sync_failure_code"
     private const val KEY_FAILURE_KIND = "journal_sync_failure_kind"
+    private const val KEY_LAST_ATTEMPT = "journal_sync_last_attempt"
 
     @Volatile
     private var cached: JournalSyncState? = null
@@ -81,7 +88,8 @@ object JournalSyncStatus {
             lastSuccessAt = getLong(KEY_LAST_SUCCESS, 0L),
             failingSince = getLong(KEY_FAILING_SINCE, 0L),
             failureCode = getInt(KEY_FAILURE_CODE, 0),
-            failure = JournalSyncFailure.fromStorage(getInt(KEY_FAILURE_KIND, 0))
+            failure = JournalSyncFailure.fromStorage(getInt(KEY_FAILURE_KIND, 0)),
+            lastAttemptAt = getLong(KEY_LAST_ATTEMPT, 0L)
         )
     }
 
@@ -100,6 +108,7 @@ object JournalSyncStatus {
             .putLong(KEY_FAILING_SINCE, next.failingSince)
             .putInt(KEY_FAILURE_CODE, next.failureCode)
             .putInt(KEY_FAILURE_KIND, next.failure.storageValue)
+            .putLong(KEY_LAST_ATTEMPT, next.lastAttemptAt)
             .apply()
     }
 }

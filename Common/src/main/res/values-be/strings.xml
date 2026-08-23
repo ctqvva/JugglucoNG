@@ -1410,8 +1410,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_last_success">Апошні поспех: %1$s</string>
     <string name="nightscout_status_treatments_never">Лячэнне: пакуль нічога не адпраўлена</string>
     <string name="nightscout_status_treatments_ok">Лячэнне: апошняя адпраўка %1$s</string>
-    <string name="nightscout_status_treatments_upload_failing">Лячэнне: адпраўка не праходзіць з %1$s (%2$s)</string>
-    <string name="nightscout_status_treatments_delete_failing">Лячэнне: выдаленні адхіляюцца з %1$s (%2$s)</string>
+    <string name="nightscout_status_treatments_upload_failing">Лячэнне: адпраўка не ўдаецца з %1$s, апошняя спроба %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Лячэнне: выдаленні адхіляюцца з %1$s, апошняя спроба %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">няма адказу</string>
     <string name="nightscout_sync_actions_title">Дзеянні сінхранізацыі</string>
     <string name="expand_action">Разгарнуць</string>
