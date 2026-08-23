@@ -2490,6 +2490,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Pennan avläst. Inga nya doser.</string>
     <string name="insulin_pen_duplicates_removed">Tog bort %1$d dubblerade doser från tidigare avläsningar</string>
     <string name="insulin_pen_duplicates_found">%1$d dubblerade doser från tidigare avläsningar. Ta bort dem i pennans inställningar.</string>
+    <string name="insulin_pen_merged_manual">%1$d dos(er) stämde med det du redan matat in för hand.</string>
     <string name="insulin_pen_cleanup">Ta bort dubblerade doser</string>
     <string name="insulin_pen_cleanup_count">Ta bort %1$d dubblerade doser</string>
     <string name="insulin_pen_cleanup_desc">Tidigare versioner skrev en dos på nytt vid varje avläsning. Pennans egen logg säger att det var enstaka injektioner.</string>

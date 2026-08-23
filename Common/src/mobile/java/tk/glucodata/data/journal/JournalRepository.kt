@@ -120,6 +120,44 @@ class JournalRepository {
         }
     }
 
+    /**
+     * Adopts an entry a pen has now confirmed as one of its doses: the row stays, with its
+     * amount, its insulin and whatever note was written on it, and takes the dose's stable
+     * name and the time the pen measured. Keeping the row rather than replacing it is what
+     * saves the note, and Nightscout knows the treatment by that row, so re-timing it there
+     * is a correction rather than a second treatment.
+     *
+     * @return false when the entry is gone, or another row already carries that name
+     */
+    suspend fun adoptPenDose(entryId: Long, sourceRecordId: String, timestampMillis: Long): Boolean {
+        val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
+        val adopted = database.withTransaction {
+            val existing = dao.getEntryById(entryId) ?: return@withTransaction false
+            // Only insulin is a pen's to claim; anything else would also need the glucose
+            // side of a change told about it.
+            if (existing.entryType != JournalEntryType.INSULIN.storageValue) return@withTransaction false
+            val taken = dao.getEntryBySourceRecordId(id)
+            // sourceRecordId is unique and the upsert replaces on conflict, so a name
+            // already in use has to stop the adoption rather than overwrite that row.
+            if (taken != null && taken.id != entryId) return@withTransaction false
+            dao.upsertEntry(
+                existing.copy(
+                    timestamp = timestampMillis,
+                    source = JournalEntrySource.PEN.storageValue,
+                    sourceRecordId = id,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            true
+        }
+        if (adopted) {
+            // The dose moved in time and is insulin, so IOB and the treatment upload both
+            // have to look again; updatedAt is what marks the row for a fresh upload.
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        return adopted
+    }
+
     suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>) {
         val ids = sourceRecordIds
             .map { it.trim() }

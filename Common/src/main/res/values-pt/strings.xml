@@ -2491,6 +2491,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Caneta lida. Sem doses novas.</string>
     <string name="insulin_pen_duplicates_removed">%1$d doses duplicadas de leituras anteriores removidas</string>
     <string name="insulin_pen_duplicates_found">%1$d doses duplicadas de leituras anteriores. Remova-as nas definições da caneta.</string>
+    <string name="insulin_pen_merged_manual">%1$d dose(s) correspondiam ao que já tinha introduzido à mão.</string>
     <string name="insulin_pen_cleanup">Remover doses duplicadas</string>
     <string name="insulin_pen_cleanup_count">Remover %1$d doses duplicadas</string>
     <string name="insulin_pen_cleanup_desc">As versões anteriores gravavam uma dose de novo em cada leitura. O registo da caneta diz que foram injeções únicas.</string>
