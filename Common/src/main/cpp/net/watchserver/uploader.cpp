@@ -999,11 +999,16 @@ static void uploaderthread() {
                 std::unique_lock<std::mutex> lck(uploadercondition.backupmutex);
             LOGGER("UPLOADER before lock waitmin=%d\n",waitmin);
              auto now = std::chrono::system_clock::now();
+            /* The mask is asked about again here, holding the lock. It was read without it
+               above, so a wake landing in between set its bit, called notify_one with nobody
+               waiting yet, and was then slept through for as long as the wait lasts. That is
+               a request to send now, answered hours later or not at all. */
             #ifndef NOLOG
             auto status=
             #endif
-                        uploadercondition.backupcond.wait_until(lck, now + std::chrono::minutes(waitmin));
-            LOGGER("UPLOADER after lock %stimeout\n",(status==std::cv_status::no_timeout)?"no-":"");
+                        uploadercondition.backupcond.wait_until(lck, now + std::chrono::minutes(waitmin),
+                                [](){ return uploadercondition.dobackup!=0; });
+            LOGGER("UPLOADER after lock %stimeout\n",status?"no-":"");
             }
         if(uploadercondition.dobackup&Backup::wakeend) {
             uploadercondition.dobackup=0;
