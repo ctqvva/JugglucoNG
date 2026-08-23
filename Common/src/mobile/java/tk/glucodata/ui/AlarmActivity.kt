@@ -145,11 +145,17 @@ class AlarmActivity : ComponentActivity() {
         } catch (_: Throwable) {
             null
         }
-        val fallbackRate = selectAlarmRate(
-            intent.getFloatExtra(EXTRA_RATE, Float.NaN).takeIf { it.isFinite() },
-            latestRate
-        )
-        val trendResult = computeAlarmTrendResult(fallbackRate)
+        // The rate the alert fired on, carried in the intent. An alarm has to point the way
+        // the movement it fired on was going: read again here it can describe the run-up
+        // instead, and a "high" arriving with a falling arrow argues against itself in the
+        // one moment it needs to be believed.
+        val firedRate = intent.getFloatExtra(EXTRA_RATE, Float.NaN).takeIf { it.isFinite() }
+        val fallbackRate = selectAlarmRate(firedRate, latestRate)
+        val trendResult = if (firedRate != null) {
+            alarmTrendResult(firedRate)
+        } else {
+            computeAlarmTrendResult(fallbackRate)
+        }
         val alertType = AlertType.fromId(intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1))
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)
 
@@ -305,22 +311,19 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    private fun fallbackAlarmTrendResult(rate: Float): TrendEngine.TrendResult {
+    /**
+     * An arrow for a rate somebody else measured. The boundaries are the engine's own, so an
+     * alarm drawn from the fired rate and a row drawn from a measured one mean the same
+     * thing by the same picture.
+     */
+    private fun alarmTrendResult(rate: Float): TrendEngine.TrendResult {
         if (!rate.isFinite()) {
             return TrendEngine.TrendResult(TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
         }
-
-        val state = when {
-            rate > 2.0f -> TrendEngine.TrendState.DoubleUp
-            rate > 1.0f -> TrendEngine.TrendState.SingleUp
-            rate > 0.05f -> TrendEngine.TrendState.FortyFiveUp
-            rate >= -0.05f -> TrendEngine.TrendState.Flat
-            rate >= -1.0f -> TrendEngine.TrendState.FortyFiveDown
-            rate >= -2.0f -> TrendEngine.TrendState.SingleDown
-            else -> TrendEngine.TrendState.DoubleDown
-        }
-        return TrendEngine.TrendResult(state, rate, 0f, 1f, 0f)
+        return TrendEngine.TrendResult(TrendEngine.stateFor(rate), rate, 0f, 1f, 0f)
     }
+
+    private fun fallbackAlarmTrendResult(rate: Float): TrendEngine.TrendResult = alarmTrendResult(rate)
 
     private fun cancelAlarmNotification() {
         (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(81432)

@@ -267,12 +267,33 @@ internal fun buildTrendHistory(consumerHistory: List<GlucosePoint>): List<Glucos
  * An anchor with no old-enough partner (start of the data, or a gap wider than
  * the pairing rules allow) yields null, never a NaN text.
  */
+/**
+ * A row's measured change: the text it shows, and the same movement as a rate the arrow
+ * beside it can be drawn from.
+ *
+ * The rate is mg/dL per minute, which is what every arrow in the app rotates by, whatever
+ * unit the reading is displayed in.
+ */
+internal data class ReadingDelta(val text: String, val rateMgdlPerMinute: Float)
+
 internal fun readingDeltaTexts(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
     deltaIntervalMinutes: Int
-): List<String?> {
+): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes)
+    .map { it?.text }
+
+/**
+ * The walk itself. One pairing serves both the number and the arrow, so a row cannot show
+ * a rise beside a falling arrow: they are the same two readings, read once.
+ */
+internal fun readingDeltas(
+    anchorTimestamps: List<Long>,
+    history: List<GlucosePoint>,
+    isMmol: Boolean,
+    deltaIntervalMinutes: Int
+): List<ReadingDelta?> {
     if (anchorTimestamps.isEmpty()) return emptyList()
     val newestFirst = history.asReversed()
     val minGap = tk.glucodata.GlucoseDelta.minGapMillis(deltaIntervalMinutes)
@@ -298,7 +319,9 @@ internal fun readingDeltaTexts(
             previous.timestamp, previous.value,
             deltaIntervalMinutes
         )
-        tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
+        val text = tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
+            ?: return@map null
+        ReadingDelta(text, perMinuteMgdl(delta, isMmol, deltaIntervalMinutes))
     }
 }
 
@@ -383,4 +406,14 @@ internal class RowDeltaIndex(
         /** The bucket of the rows no sensor owns; a string no serial can be. */
         const val SHARED = "\u0000shared"
     }
+}
+
+/**
+ * The delta is a change over the configured window, in the unit on screen; an arrow turns by
+ * mg/dL per minute. Same movement, said the way the arrow reads it.
+ */
+private fun perMinuteMgdl(delta: Float, isMmol: Boolean, deltaIntervalMinutes: Int): Float {
+    val minutes = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(deltaIntervalMinutes)
+    val perMinute = delta / minutes
+    return if (isMmol) perMinute * tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else perMinute
 }
