@@ -1657,6 +1657,12 @@
     <string name="journal_type_fingerstick">Pomiar z palca</string>
     <string name="journal_type_activity">Aktywność</string>
     <string name="journal_type_note">Notatka</string>
+    <string name="journal_source_pen">Odczytano ze wstrzykiwacza</string>
+    <string name="journal_source_nightscout">Odebrano z Nightscout</string>
+    <string name="journal_source_aaps">Odebrano z AAPS</string>
+    <string name="journal_source_api">Odebrano przez API</string>
+    <string name="journal_source_health_connect">Z Health Connect</string>
+    <string name="journal_source_meter">Z glukometru</string>
     <string name="journal_note_label">Notatka</string>
     <string name="journal_onset_label">Początek działania</string>
     <string name="journal_add_preset">Dodaj typ insuliny</string>

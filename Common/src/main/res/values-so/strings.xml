@@ -1926,6 +1926,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_fingerstick">Farta gacanta</string>
     <string name="journal_type_activity">Hawsha</string>
     <string name="journal_type_note">Ogow</string>
+    <string name="journal_source_pen">Laga akhriyay qalinka</string>
+    <string name="journal_source_nightscout">Laga helay Nightscout</string>
+    <string name="journal_source_aaps">Laga helay AAPS</string>
+    <string name="journal_source_api">Lagu helay API</string>
+    <string name="journal_source_health_connect">Ka yimid Health Connect</string>
+    <string name="journal_source_meter">Ka yimid qalabka cabbirka</string>
     <string name="journal_note_label">Ogow</string>
     <string name="journal_onset_label">Bilawga</string>
     <string name="journal_add_preset">Ku dar nooca insulin</string>

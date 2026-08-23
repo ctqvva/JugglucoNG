@@ -510,6 +510,26 @@ fun JournalEntrySheet(
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.SemiBold
                         )
+                        existingEntry?.source?.presentation()?.let { source ->
+                            // The icon on the row only explains itself for NFC; here the
+                            // origin is spelled out.
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = source.icon,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = stringResource(source.labelRes),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 //                        Text(
 //                            text = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
 //                                .format(Date(draft.timestamp)),
@@ -2681,6 +2701,18 @@ fun JournalInlineChip(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                entry.source.presentation()?.let { source ->
+                    // Where the number came from, in the colour of secondary text so it never
+                    // competes with the amount. Manual entries draw nothing here.
+                    Icon(
+                        imageVector = source.icon,
+                        contentDescription = stringResource(source.labelRes),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(top = if (expanded) 3.dp else 0.dp)
+                            .size(if (expanded) 14.dp else 12.dp)
+                    )
+                }
             }
         }
     }
@@ -2836,6 +2868,15 @@ private fun JournalEntryChip(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
+            entry.source.presentation()?.let { source ->
+                Icon(
+                    imageVector = source.icon,
+                    contentDescription = stringResource(source.labelRes),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             Text(
                 text = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(entry.timestamp)),
                 style = MaterialTheme.typography.labelMedium,

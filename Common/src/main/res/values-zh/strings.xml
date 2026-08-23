@@ -1638,6 +1638,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">指尖血糖</string>
     <string name="journal_type_activity">活动</string>
     <string name="journal_type_note">备注</string>
+    <string name="journal_source_pen">从胰岛素笔读取</string>
+    <string name="journal_source_nightscout">来自 Nightscout</string>
+    <string name="journal_source_aaps">来自 AAPS</string>
+    <string name="journal_source_api">通过 API 接收</string>
+    <string name="journal_source_health_connect">来自 Health Connect</string>
+    <string name="journal_source_meter">来自血糖仪</string>
     <string name="journal_note_label">备注</string>
     <string name="journal_onset_label">起效时间</string>
     <string name="journal_add_preset">添加胰岛素类型</string>

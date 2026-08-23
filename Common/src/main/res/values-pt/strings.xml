@@ -1623,6 +1623,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Ponta de dedo</string>
     <string name="journal_type_activity">Atividade</string>
     <string name="journal_type_note">Nota</string>
+    <string name="journal_source_pen">Lido da caneta</string>
+    <string name="journal_source_nightscout">Recebido do Nightscout</string>
+    <string name="journal_source_aaps">Recebido do AAPS</string>
+    <string name="journal_source_api">Recebido via API</string>
+    <string name="journal_source_health_connect">Do Health Connect</string>
+    <string name="journal_source_meter">Do medidor</string>
     <string name="journal_note_label">Nota</string>
     <string name="journal_onset_label">Início da ação</string>
     <string name="journal_add_preset">Adicionar tipo de insulina</string>
