@@ -135,6 +135,7 @@ class DashboardViewModel(
         const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
         const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
         const val STATE_DOSE_HINT_PROFILE_NOTICE_KEY = "dashboard_state_dose_hint_profile_notice_ack"
+        const val STATE_DOSE_HINT_IN_RANGE_KEY = "dashboard_state_dose_hint_in_range_enabled"
         const val PREDICTION_CARB_RATIO_DEFAULT = 10f
         const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
         const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
@@ -314,6 +315,12 @@ class DashboardViewModel(
     // installation that never touched it takes the new default.
     private val _stateDoseHintEnabled = MutableStateFlow(true)
     val stateDoseHintEnabled = _stateDoseHintEnabled.asStateFlow()
+
+    // Its own switch rather than part of the rule: whether to correct inside the range is a
+    // matter of therapy style, and folding it in would push anyone who disagrees into
+    // switching the whole hint off, carb branch included.
+    private val _stateDoseHintCorrectInRange = MutableStateFlow(true)
+    val stateDoseHintCorrectInRange = _stateDoseHintCorrectInRange.asStateFlow()
 
     private val _stateDoseHintProfileNoticeAck = MutableStateFlow(false)
     val stateDoseHintProfileNoticeAck = _stateDoseHintProfileNoticeAck.asStateFlow()
@@ -649,6 +656,7 @@ class DashboardViewModel(
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
         _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
+        _stateDoseHintCorrectInRange.value = prefs.getBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, true)
         _stateDoseHintProfileNoticeAck.value = prefs.getBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, false)
         _stateDoseHintHorizonMinutes.value = prefs
             .getInt(STATE_DOSE_HINT_HORIZON_KEY, StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
@@ -1418,6 +1426,13 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(STATE_DOSE_HINT_KEY, enabled).apply()
         _stateDoseHintEnabled.value = enabled
+    }
+
+    fun setStateDoseHintCorrectInRange(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, enabled).apply()
+        _stateDoseHintCorrectInRange.value = enabled
     }
 
     fun acknowledgeStateDoseHintProfileNotice() {

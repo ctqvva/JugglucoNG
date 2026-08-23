@@ -1602,6 +1602,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target_explanation">Прапановы інсуліну і вугляводаў карэктуюць да гэтага значэння. Яно не звязана з мэтавым дыяпазонам на графіку.</string>
     <string name="state_dose_hint_title">Падказка па дозе</string>
     <string name="state_dose_hint_desc">Прапануе вугляводы, калі значэнне ідзе ніжэй за мэту дозы, і карэкцыю, калі яно застаецца высокім, хоць інсулін ужо дзейнічае. Колькасці разлічваюцца з адчувальнасці і вугляводнага каэфіцыента мадэльнага профілю — спачатку задайце іх.</string>
+    <string name="state_dose_hint_in_range_title">Карэктаваць і ў верхняй частцы дыяпазону</string>
+    <string name="state_dose_hint_in_range_desc">Прапануе карэкцыю таксама тады, калі значэнне стаіць прыкметна вышэй за мэту дазавання і трымаецца там, бо больш нічога не дзейнічае. Незанесеныя вугляводы могуць рабіць графік роўным, пакуль ежа яшчэ ўсмоктваецца; карэкцыя тады ляжа зверху. Лічба — гэта разлік з профілю, а не рэкамендацыя.</string>
     <string name="state_dose_hint_horizon">Гарызонт падказкі па дозе</string>
     <string name="state_dose_hint_horizon_explanation">Наколькі далёка наперад глядзіць вугляводная прапанова пры падзенні значэння. Карацей — пазней і радзей, даўжэй — раней і часцей.</string>
     <string name="state_dose_hint_profile_notice_title">Праверце мадэльны профіль</string>

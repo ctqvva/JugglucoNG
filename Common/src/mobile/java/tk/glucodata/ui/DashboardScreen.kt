@@ -350,6 +350,7 @@ fun DashboardScreen(
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
     val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
     val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
+    val stateDoseHintCorrectInRange by viewModel.stateDoseHintCorrectInRange.collectAsState()
     val stateDoseHintProfileNoticeAck by viewModel.stateDoseHintProfileNoticeAck.collectAsState()
     val predictionModelProfileSaved by viewModel.predictionModelProfileSaved.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
@@ -488,6 +489,7 @@ fun DashboardScreen(
     val stateDoseHint: StateDoseHint? = remember(
         stateDoseHintEnabled,
         stateDoseHintHorizonMinutes,
+        stateDoseHintCorrectInRange,
         journalEnabled,
         consumerHistory,
         activeInsulinSummary,
@@ -510,6 +512,7 @@ fun DashboardScreen(
                 eiobUnits = summary.eiobUnits,
                 parameters = predictionSettings.modelParametersAt(journalNow),
                 horizonMinutes = stateDoseHintHorizonMinutes,
+                correctInRange = stateDoseHintCorrectInRange,
                 nowMillis = journalNow,
                 maxReadingAgeMillis = Notify.glucosetimeout
             )

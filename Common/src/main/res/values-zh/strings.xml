@@ -1548,6 +1548,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target_explanation">胰岛素和碳水化合物建议以此数值为校正目标。它与图表上显示的目标范围无关。</string>
     <string name="state_dose_hint_title">剂量提示</string>
     <string name="state_dose_hint_desc">当血糖正走向剂量目标以下时建议碳水，当胰岛素已在起效而血糖仍偏高时建议追加校正。数值由模型配置中的敏感系数和碳水系数算出，请先设好它们。</string>
+    <string name="state_dose_hint_in_range_title">在目标区间上半段也校正</string>
+    <string name="state_dose_hint_in_range_desc">当血糖明显高于剂量目标并停在那里、已没有任何东西能把它拉下来时，也给出校正建议。未记录的碳水可能让曲线看起来平稳，而食物其实仍在吸收，校正就会叠加上去。这个数字是按你的配置算出来的，不是医嘱。</string>
     <string name="state_dose_hint_horizon">剂量提示前瞻时长</string>
     <string name="state_dose_hint_horizon_explanation">血糖下降时碳水建议向前看多远。越短越晚提示、提示越少；越长越早提示、提示越多。</string>
     <string name="state_dose_hint_profile_notice_title">检查模型配置</string>

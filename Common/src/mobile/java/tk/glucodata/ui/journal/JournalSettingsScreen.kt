@@ -42,6 +42,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
@@ -171,6 +172,7 @@ fun JournalSettingsScreen(
     val journalNavigationTabEnabled by viewModel.journalNavigationTabEnabled.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
     val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
+    val stateDoseHintCorrectInRange by viewModel.stateDoseHintCorrectInRange.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
@@ -289,6 +291,16 @@ fun JournalSettingsScreen(
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.MIDDLE,
                         enabled = journalEnabled
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.state_dose_hint_in_range_title),
+                        subtitle = stringResource(R.string.state_dose_hint_in_range_desc),
+                        checked = stateDoseHintCorrectInRange,
+                        onCheckedChange = { viewModel.setStateDoseHintCorrectInRange(it) },
+                        icon = Icons.Default.CenterFocusStrong,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE,
+                        enabled = journalEnabled && stateDoseHintEnabled
                     )
                     SettingsItem(
                         title = stringResource(R.string.predictive_model_tuning),

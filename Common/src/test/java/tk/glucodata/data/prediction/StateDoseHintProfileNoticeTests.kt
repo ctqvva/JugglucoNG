@@ -88,6 +88,7 @@ class StateDoseHintProfileNoticeTests {
                     PredictionModelProfileStore.DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT
             ),
             horizonMinutes = StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT,
+            correctInRange = true,
             nowMillis = now,
             maxReadingAgeMillis = 15 * 60_000L
         )

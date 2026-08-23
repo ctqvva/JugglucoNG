@@ -48,6 +48,7 @@ class StateDoseHintTests {
         doseTargetMgDl: Float = 90f,
         parameters: PredictionModelParameters = this.parameters,
         horizonMinutes: Int = 45,
+        correctInRange: Boolean = true,
         nowMillis: Long = now
     ) = StateDoseHintCalculator.calculate(
         history = history,
@@ -58,6 +59,7 @@ class StateDoseHintTests {
         eiobUnits = eiobUnits,
         parameters = parameters,
         horizonMinutes = horizonMinutes,
+        correctInRange = correctInRange,
         nowMillis = nowMillis,
         maxReadingAgeMillis = maxAge
     )
@@ -207,6 +209,88 @@ class StateDoseHintTests {
                 eiobUnits = 0.5f
             )
         )
+    }
+
+    @Test
+    fun elevatedFlatAndNothingLeftInFlightSuggestsACorrection() {
+        // 171 mg/dL, dose target 90, in-range high 180, flat, 0.3 U on board. Nothing is
+        // going to move that on its own.
+        val result = hint(
+            history = history(endValue = 171f, slopePerMinute = 0f),
+            iobUnits = 0.3f,
+            eiobUnits = 0.1f
+        )
+        assertNotNull(result)
+        assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
+        // (171 - 90) / 54 = 1.5 U, minus the whole 0.3 U on board = 1.2, rounded DOWN to
+        // the pen's half unit. 1.5 would be rounding to the nearest, which hands out
+        // insulin the arithmetic did not ask for.
+        assertEquals(1.0f, result.amount, 0.001f)
+        assertNull(result.minutesAhead)
+    }
+
+    @Test
+    fun theSameStateWithEnoughOnBoardSaysNothing() {
+        assertNull(
+            hint(
+                history = history(endValue = 171f, slopePerMinute = 0f),
+                iobUnits = 2.0f,
+                eiobUnits = 0.8f
+            )
+        )
+    }
+
+    @Test
+    fun justAboveTheTargetIsNotWorthADose() {
+        // 105 never gets past the hysteresis band; 112 does, and is then stopped by the
+        // margin the in-range case starts at.
+        assertNull(hint(history(endValue = 105f, slopePerMinute = 0f), iobUnits = 0.1f, eiobUnits = 0.05f))
+        assertNull(hint(history(endValue = 112f, slopePerMinute = 0f), iobUnits = 0.1f, eiobUnits = 0.05f))
+    }
+
+    @Test
+    fun aboveTheRangeStaysWithTheRuleItAlreadyHad() {
+        // 200 is above the in-range high, so the existing rule owns it, and that rule wants
+        // insulin already acting. The in-range case must not pick the reading up instead.
+        assertNull(
+            hint(
+                history = history(endValue = 200f, slopePerMinute = 0f),
+                iobUnits = 0.3f,
+                eiobUnits = 0f
+            )
+        )
+    }
+
+    @Test
+    fun anElevatedButFallingValueIsNotCorrected() {
+        assertNull(
+            hint(
+                history = history(endValue = 171f, slopePerMinute = -0.6f),
+                iobUnits = 0.3f,
+                eiobUnits = 0.1f
+            )
+        )
+    }
+
+    @Test
+    fun withTheInRangeSwitchOffOnlyThatCaseGoesQuiet() {
+        assertNull(
+            hint(
+                history = history(endValue = 171f, slopePerMinute = 0f),
+                iobUnits = 0.3f,
+                eiobUnits = 0.1f,
+                correctInRange = false
+            )
+        )
+        // The carb branch is untouched by that switch.
+        val carbs = hint(
+            history = history(endValue = 150f, slopePerMinute = -1.5f),
+            iobUnits = 1.0f,
+            eiobUnits = 0.6f,
+            correctInRange = false
+        )
+        assertNotNull(carbs)
+        assertEquals(StateDoseHintKind.CARBS, carbs!!.kind)
     }
 
     @Test

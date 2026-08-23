@@ -1567,6 +1567,8 @@
     <string name="predictive_dose_target_explanation">Sugestie insuliny i węglowodanów korygują do tej wartości. Jest niezależna od zakresu docelowego na wykresie.</string>
     <string name="state_dose_hint_title">Podpowiedź dawki</string>
     <string name="state_dose_hint_desc">Proponuje węglowodany, gdy wartość zmierza poniżej celu dawkowania, i korektę, gdy pozostaje wysoka mimo już działającej insuliny. Ilości wynikają z wrażliwości i przelicznika węglowodanowego w profilu modelu — ustaw je najpierw.</string>
+    <string name="state_dose_hint_in_range_title">Koryguj też w górnej części zakresu</string>
+    <string name="state_dose_hint_in_range_desc">Proponuje korektę także wtedy, gdy wartość stoi wyraźnie powyżej celu dawkowania i nie rusza się, bo nic już na nią nie działa. Niezapisane węglowodany mogą upodobnić wykres do płaskiego, gdy jedzenie wciąż się wchłania, a korekta doszłaby wtedy na wierzch. Liczba to wyliczenie z profilu, nie zalecenie.</string>
     <string name="state_dose_hint_horizon">Horyzont podpowiedzi</string>
     <string name="state_dose_hint_horizon_explanation">Jak daleko wprzód patrzy propozycja węglowodanów przy spadającej wartości. Krócej: później i rzadziej; dłużej: wcześniej i częściej.</string>
     <string name="state_dose_hint_profile_notice_title">Sprawdź profil modelu</string>
