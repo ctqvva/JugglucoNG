@@ -1715,6 +1715,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="cgm_readiness_open_location_action">Konumu aç</string>
     <string name="cgm_readiness_open_notifications_action">Bildirimleri aç</string>
     <string name="cgm_readiness_open_alarm_action">Alarm erişimini aç</string>
+    <string name="cgm_readiness_open_full_screen_action">Tam ekran alarmlara izin ver</string>
     <string name="cgm_readiness_open_battery_action">Pil ayarlarını aç</string>
     <string name="cgm_readiness_open_dnd_action">DND erişimini aç</string>
     <string name="cgm_readiness_open_overlay_action">Yer paylaşımı erişimini aç</string>
@@ -1742,6 +1743,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="cgm_readiness_exact_alarm_title">Kesin alarmlar</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Kesin alarm planlama izinli.</string>
     <string name="cgm_readiness_exact_alarm_detail">Güvenilir hatırlatmalar, yeniden bağlanma kontrolleri ve zaman kritik uyarılar için kesin alarmlara izin verin.</string>
+    <string name="cgm_readiness_full_screen_title">Tam ekran alarmlar</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarmlar kilitli ekranı uyandırabilir.</string>
+    <string name="cgm_readiness_full_screen_detail">Bu izin olmadan alarmlar kilitli ekranı artık uyandırmaz ve yalnızca bildirim olarak görünür. Android her uygulama güncellemesinde izni geri alabilir; güncellemeden sonra kontrol edin.</string>
     <string name="cgm_readiness_battery_title">Pil sınırsız</string>
     <string name="cgm_readiness_battery_ready_detail">Bu uygulama için Android pil optimizasyonu kapalı.</string>
     <string name="cgm_readiness_battery_detail">Arka plan BLE, alarmlar ve ağ eşitlemesi durmasın diye pil optimizasyonunu kapatın.</string>

@@ -1761,6 +1761,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Адкрыць геалакацыю</string>
     <string name="cgm_readiness_open_notifications_action">Адкрыць апавяшчэнні</string>
     <string name="cgm_readiness_open_alarm_action">Адкрыць доступ будзільнікаў</string>
+    <string name="cgm_readiness_open_full_screen_action">Дазволіць поўнаэкранныя трывогі</string>
     <string name="cgm_readiness_open_battery_action">Адкрыць налады батарэі</string>
     <string name="cgm_readiness_open_dnd_action">Адкрыць доступ DND</string>
     <string name="cgm_readiness_open_overlay_action">Адкрыць доступ накладання</string>
@@ -1788,6 +1789,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Дакладныя будзільнікі</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Планаванне дакладных будзільнікаў дазволена.</string>
     <string name="cgm_readiness_exact_alarm_detail">Дазвольце дакладныя будзільнікі для надзейных напамінаў, праверак перападключэння і тэрміновых трывог.</string>
+    <string name="cgm_readiness_full_screen_title">Поўнаэкранныя трывогі</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Трывогі могуць абуджаць заблакаваны экран.</string>
+    <string name="cgm_readiness_full_screen_detail">Без гэтага дазволу трывогі больш не абуджаюць заблакаваны экран і паказваюцца толькі як апавяшчэнне. Android можа адклікаць яго пры кожным абнаўленні праграмы — правярайце пасля абнаўленняў.</string>
     <string name="cgm_readiness_battery_title">Батарэя без абмежаванняў</string>
     <string name="cgm_readiness_battery_ready_detail">Аптымізацыя батарэі Android выключана для гэтай праграмы.</string>
     <string name="cgm_readiness_battery_detail">Выключыце аптымізацыю батарэі, каб фонавыя BLE, трывогі і сеткавая сінхранізацыя не спыняліся.</string>

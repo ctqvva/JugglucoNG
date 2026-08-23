@@ -1812,6 +1812,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="cgm_readiness_open_location_action">Standort öffnen</string>
     <string name="cgm_readiness_open_notifications_action">Benachrichtigungen öffnen</string>
     <string name="cgm_readiness_open_alarm_action">Alarmzugriff öffnen</string>
+    <string name="cgm_readiness_open_full_screen_action">Vollbild-Alarme erlauben</string>
     <string name="cgm_readiness_open_battery_action">Akku-Einstellungen öffnen</string>
     <string name="cgm_readiness_open_dnd_action">DND-Zugriff öffnen</string>
     <string name="cgm_readiness_open_overlay_action">Overlay-Zugriff öffnen</string>
@@ -1839,6 +1840,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="cgm_readiness_exact_alarm_title">Exakte Alarme</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Exakte Alarmplanung ist erlaubt.</string>
     <string name="cgm_readiness_exact_alarm_detail">Exakte Alarme für zuverlässige Erinnerungen, Wiederverbindungsprüfungen und zeitkritische Alarme erlauben.</string>
+    <string name="cgm_readiness_full_screen_title">Vollbild-Alarme</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarme dürfen den gesperrten Bildschirm aufwecken.</string>
+    <string name="cgm_readiness_full_screen_detail">Ohne diese Berechtigung wecken Alarme den gesperrten Bildschirm nicht mehr auf und erscheinen nur als Benachrichtigung. Android kann sie bei jedem App-Update wieder entziehen – nach Updates prüfen.</string>
     <string name="cgm_readiness_battery_title">Akku uneingeschränkt</string>
     <string name="cgm_readiness_battery_ready_detail">Android-Akkuoptimierung ist für diese App deaktiviert.</string>
     <string name="cgm_readiness_battery_detail">Akkuoptimierung deaktivieren, damit Hintergrund-BLE, Alarme und Netzwerksync nicht gestoppt werden.</string>

@@ -1688,6 +1688,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Abrir Localização</string>
     <string name="cgm_readiness_open_notifications_action">Abrir Notificações</string>
     <string name="cgm_readiness_open_alarm_action">Abrir acesso a alarmes</string>
+    <string name="cgm_readiness_open_full_screen_action">Permitir alarmes em ecrã inteiro</string>
     <string name="cgm_readiness_open_battery_action">Abrir configurações de bateria</string>
     <string name="cgm_readiness_open_dnd_action">Abrir acesso DND</string>
     <string name="cgm_readiness_open_overlay_action">Abrir acesso de sobreposição</string>
@@ -1715,6 +1716,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Alarmes exatos</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Agendamento de alarmes exatos permitido.</string>
     <string name="cgm_readiness_exact_alarm_detail">Permita alarmes exatos para lembretes confiáveis, checagens de reconexão e alertas críticos.</string>
+    <string name="cgm_readiness_full_screen_title">Alarmes em ecrã inteiro</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Os alarmes podem acordar o ecrã bloqueado.</string>
+    <string name="cgm_readiness_full_screen_detail">Sem esta permissão, os alarmes deixam de acordar o ecrã bloqueado e aparecem apenas como notificação. O Android pode retirá-la a cada atualização da app; verifique após atualizar.</string>
     <string name="cgm_readiness_battery_title">Bateria irrestrita</string>
     <string name="cgm_readiness_battery_ready_detail">Otimização de bateria do Android desativada para este app.</string>
     <string name="cgm_readiness_battery_detail">Desative otimização de bateria para não parar BLE em segundo plano, alarmes e sincronização de rede.</string>
