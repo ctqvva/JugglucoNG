@@ -1663,9 +1663,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Активний інсулін %1$s</string>
     <string name="dashboard_eiob_full">Діє зараз %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Вуглеводи: %1$s г</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Інсулін: %1$s ОД</string>
     <string name="journal_dose_covers_carbs">Покриває %1$s г</string>
     <string name="journal_dose_food_component">Їжа %1$s</string>
     <string name="journal_dose_correction_component">Корекція %1$s</string>

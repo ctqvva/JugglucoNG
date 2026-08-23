@@ -1623,9 +1623,6 @@
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Aktywna insulina %1$s</string>
     <string name="dashboard_eiob_full">Działa teraz %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Węglowodany: %1$s g</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Insulina: %1$s j.</string>
     <string name="journal_dose_covers_carbs">Pokrywa %1$s g</string>
     <string name="journal_dose_food_component">Jedzenie %1$s</string>
     <string name="journal_dose_correction_component">Korekta %1$s</string>

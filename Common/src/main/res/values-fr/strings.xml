@@ -1594,9 +1594,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Insuline active %1$s</string>
     <string name="dashboard_eiob_full">Effet actuel %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Glucides : %1$s g</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Insuline : %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g couverts</string>
     <string name="journal_dose_food_component">Repas %1$s</string>
     <string name="journal_dose_correction_component">Correction %1$s</string>

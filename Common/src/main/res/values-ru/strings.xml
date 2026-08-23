@@ -1631,9 +1631,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Активный инсулин %1$s</string>
     <string name="dashboard_eiob_full">Действует сейчас %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Углеводы: %1$s г</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Инсулин: %1$s ЕД</string>
     <string name="journal_dose_covers_carbs">Покрывает %1$s г</string>
     <string name="journal_dose_food_component">Еда %1$s</string>
     <string name="journal_dose_correction_component">Коррекция %1$s</string>

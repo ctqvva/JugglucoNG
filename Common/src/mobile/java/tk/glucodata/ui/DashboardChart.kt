@@ -149,8 +149,6 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.prediction.GlucosePredictionPoint
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
-import tk.glucodata.data.prediction.ForecastDoseRecommendation
-import tk.glucodata.data.prediction.ForecastDoseRecommendationKind
 import tk.glucodata.ui.getDisplayValues
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -158,7 +156,6 @@ import tk.glucodata.ui.viewmodel.SensorColors
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
-import java.text.NumberFormat
 
 private const val PREVIEW_WINDOW_MODE_EXPANDED_ONLY = 0
 private const val PREVIEW_WINDOW_MODE_ALWAYS = 1
@@ -562,7 +559,6 @@ fun DashboardChartSection(
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
-    forecastDoseRecommendation: ForecastDoseRecommendation? = null,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
@@ -607,7 +603,6 @@ fun DashboardChartSection(
                         activeInsulinSummary = activeInsulinSummary,
                         activeInsulinFromRemote = activeInsulinFromRemote,
                         showEiob = showEiob,
-                        forecastDoseRecommendation = forecastDoseRecommendation,
                         appChartRangeColors = appChartRangeColors,
                         predictionPoints = predictionPoints,
                         predictionSeries = predictionSeries,
@@ -681,7 +676,6 @@ fun InteractiveGlucoseChart(
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
-    forecastDoseRecommendation: ForecastDoseRecommendation? = null,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
@@ -3552,10 +3546,7 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
-            // The suggestion is not about insulin already given, so it must survive an empty
-            // board: a meal with nothing dosed for it is exactly when it has something to say.
-            if (activeInsulinSummary != null || forecastDoseRecommendation != null) {
-                val summary = activeInsulinSummary
+            activeInsulinSummary?.let { summary ->
                 val unitsLabel = { units: Float ->
                     if (units % 1f < 0.05f) {
                         units.roundToInt().toString()
@@ -3563,63 +3554,13 @@ fun InteractiveGlucoseChart(
                         String.format(java.util.Locale.getDefault(), "%.1f", units)
                     }
                 }
-                val iobValue = summary?.let {
-                    stringResource(R.string.unit_insulin_value, unitsLabel(it.iobUnits))
-                }
-                val eiobValue = summary?.let {
-                    stringResource(R.string.unit_insulin_value, unitsLabel(it.eiobUnits))
-                }
-                val totalUnitsLabel = summary?.let { unitsLabel(it.totalUnits) }
+                val iobValue = stringResource(R.string.unit_insulin_value, unitsLabel(summary.iobUnits))
+                val eiobValue = stringResource(R.string.unit_insulin_value, unitsLabel(summary.eiobUnits))
+                val totalUnitsLabel = unitsLabel(summary.totalUnits)
                 val remainingLabel = formatRemainingDuration(
                     LocalContext.current,
-                    summary?.activeUntil?.minus(System.currentTimeMillis())
+                    summary.activeUntil?.minus(System.currentTimeMillis())
                 )
-                val forecastRecommendationAmount = remember(
-                    forecastDoseRecommendation?.kind,
-                    forecastDoseRecommendation?.amount
-                ) {
-                    forecastDoseRecommendation?.let { recommendation ->
-                        NumberFormat.getNumberInstance().apply {
-                            minimumFractionDigits = if (
-                                recommendation.kind == ForecastDoseRecommendationKind.INSULIN
-                            ) 1 else 0
-                            maximumFractionDigits = minimumFractionDigits
-                            isGroupingUsed = false
-                        }.format(recommendation.amount)
-                    }
-                }
-                // Collapsed shows the bare amount ("≏ 17 g" — the unit already says which);
-                // expanded has room to name what is being suggested. Standing alone it always
-                // names it: without the IoB line above, "≏ 2,3 U" has nothing to lean on.
-                val nameTheRecommendation = isActiveInsulinExpanded || summary == null
-                val forecastRecommendationLabel = if (
-                    forecastDoseRecommendation != null && forecastRecommendationAmount != null
-                ) {
-                    when (forecastDoseRecommendation.kind) {
-                        ForecastDoseRecommendationKind.CARBS -> if (nameTheRecommendation) {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_carbs,
-                                forecastRecommendationAmount
-                            )
-                        } else {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_short,
-                                stringResource(R.string.unit_carbs_value, forecastRecommendationAmount)
-                            )
-                        }
-                        ForecastDoseRecommendationKind.INSULIN -> if (nameTheRecommendation) {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_insulin,
-                                forecastRecommendationAmount
-                            )
-                        } else {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_short,
-                                stringResource(R.string.unit_insulin_value, forecastRecommendationAmount)
-                            )
-                        }
-                    }
-                } else null
                 val activeInsulinCorner by animateDpAsState(
                     targetValue = if (isActiveInsulinExpanded) 24.dp else 16.dp,
                     animationSpec = activeInsulinMotionSpec(),
@@ -3640,14 +3581,7 @@ fun InteractiveGlucoseChart(
                         .widthIn(max = activeInsulinMaxWidth)
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
-                        // Nothing to expand into when the suggestion stands alone, so no tap.
-                        .then(
-                            if (summary != null) {
-                                Modifier.clickable { isActiveInsulinExpanded = !isActiveInsulinExpanded }
-                            } else {
-                                Modifier
-                            }
-                        ),
+                        .clickable { isActiveInsulinExpanded = !isActiveInsulinExpanded },
                     shape = activeInsulinShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
                     tonalElevation = 0.dp,
@@ -3661,94 +3595,60 @@ fun InteractiveGlucoseChart(
                     ) {
                         // Expanding spells the abbreviations out in place instead of
                         // repeating the same two numbers in a second block below.
-                        if (iobValue != null) {
-                            if (isActiveInsulinExpanded) {
+                        if (isActiveInsulinExpanded) {
+                            Text(
+                                text = stringResource(R.string.dashboard_iob_full, iobValue),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (showEiob) {
                                 Text(
-                                    text = stringResource(R.string.dashboard_iob_full, iobValue),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
+                                    text = stringResource(R.string.dashboard_eiob_full, eiobValue),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (showEiob && eiobValue != null) {
+                            }
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.dashboard_iob_short, iobValue),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                if (showEiob) {
                                     Text(
-                                        text = stringResource(R.string.dashboard_eiob_full, eiobValue),
+                                        text = stringResource(R.string.dashboard_eiob_short, eiobValue),
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            } else {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.dashboard_iob_short, iobValue),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1
                                     )
-                                    if (showEiob && eiobValue != null) {
-                                        Text(
-                                            text = stringResource(R.string.dashboard_eiob_short, eiobValue),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1
-                                        )
-                                    }
                                 }
                             }
                         }
-                        // The suggestion and, while collapsed, how long the insulin still runs.
-                        // Expanded states the end time in full below. With an empty board this
-                        // is the card's only line.
-                        if (forecastRecommendationLabel != null ||
-                            (remainingLabel != null && !isActiveInsulinExpanded)
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                forecastRecommendationLabel?.let { label ->
-                                    // Alone in the card it is the content, not a footnote to it.
-                                    Text(
-                                        text = label,
-                                        style = if (summary == null) {
-                                            MaterialTheme.typography.labelLarge
-                                        } else {
-                                            MaterialTheme.typography.labelMedium
-                                        },
-                                        fontWeight = if (summary == null) FontWeight.SemiBold else null,
-                                        color = if (summary == null) {
-                                            MaterialTheme.colorScheme.onSurface
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        // Standing alone the label names what it suggests, which
-                                        // is long enough in some locales to need the second line.
-                                        maxLines = if (isActiveInsulinExpanded || summary == null) 2 else 1
-                                    )
-                                }
-                                if (!isActiveInsulinExpanded) {
-                                    remainingLabel?.let { label ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.AccessTime,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = label,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
-                                }
+                        // While collapsed, how long the insulin still runs. Expanded states
+                        // the end time in full below.
+                        if (remainingLabel != null && !isActiveInsulinExpanded) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = remainingLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
                             }
                         }
-                        if (isActiveInsulinExpanded && summary != null && totalUnitsLabel != null) {
+                        if (isActiveInsulinExpanded) {
                             Text(
                                 text = stringResource(
                                     R.string.journal_active_insulin_summary,

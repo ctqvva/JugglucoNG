@@ -1869,9 +1869,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Insuliin firfircoon %1$s</string>
     <string name="dashboard_eiob_full">Hadda shaqaynaya %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Kaarbohaydrayt: %1$s g</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Insuliin: %1$s U</string>
     <string name="journal_dose_covers_carbs">%1$s g daboolay</string>
     <string name="journal_dose_food_component">Cuntada %1$s</string>
     <string name="journal_dose_correction_component">Sixitaan %1$s</string>

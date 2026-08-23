@@ -153,10 +153,7 @@ import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
-import tk.glucodata.data.prediction.calculateForecastDoseRecommendation
-import tk.glucodata.data.prediction.ForecastDoseRecommendation
 import tk.glucodata.data.prediction.GlucosePredictionSeries
-import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
@@ -500,41 +497,6 @@ fun DashboardScreen(
             viewMode = viewMode,
             settings = predictionSettings
         )
-    }
-    val forecastDoseRecommendation: ForecastDoseRecommendation? = remember(
-        journalDoseCalculatorEnabled,
-        predictionSeries,
-        viewMode,
-        unit,
-        targetLow,
-        predictionDoseTargetMgDl,
-        predictionSettings,
-        journalNow
-    ) {
-        if (!journalDoseCalculatorEnabled) {
-            null
-        } else {
-            val primarySeries = predictionSeries.lastOrNull {
-                it.kind == GlucosePredictionSeriesKind.CALIBRATED
-            } ?: predictionSeries.firstOrNull {
-                it.kind == if (viewMode == 1 || viewMode == 3) {
-                    GlucosePredictionSeriesKind.RAW
-                } else {
-                    GlucosePredictionSeriesKind.AUTO
-                }
-            } ?: predictionSeries.firstOrNull()
-            primarySeries?.let {
-                calculateForecastDoseRecommendation(
-                    predictionPoints = it.points,
-                    unit = unit,
-                    targetLow = targetLow,
-                    doseTargetMgDl = predictionDoseTargetMgDl,
-                    settings = predictionSettings,
-                    nowMillis = journalNow,
-                    maxBaselineAgeMillis = Notify.glucosetimeout
-                )
-            }
-        }
     }
     // Per-peer prediction series so the simulation extends every drawn line,
     // not just the primary. Same journal/settings (same person), each peer's
@@ -1491,7 +1453,6 @@ fun DashboardScreen(
                                     activeInsulinSummary = activeInsulinSummary,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
-                                    forecastDoseRecommendation = forecastDoseRecommendation,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
                                     graphSmoothingMinutes = visualSmoothingMinutes,
@@ -1704,7 +1665,6 @@ fun DashboardScreen(
                                     activeInsulinSummary = activeInsulinSummary,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
-                                    forecastDoseRecommendation = forecastDoseRecommendation,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
                                     graphSmoothingMinutes = visualSmoothingMinutes,

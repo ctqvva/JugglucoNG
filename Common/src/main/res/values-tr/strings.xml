@@ -1616,9 +1616,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Aktif insülin %1$s</string>
     <string name="dashboard_eiob_full">Şu an etkin %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Karbonhidrat: %1$s g</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ İnsülin: %1$s Ü</string>
     <string name="journal_dose_covers_carbs">%1$s g karşılar</string>
     <string name="journal_dose_food_component">Yemek %1$s</string>
     <string name="journal_dose_correction_component">Düzeltme %1$s</string>

@@ -1631,9 +1631,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dashboard_eiob_short">eIoB %1$s</string>
     <string name="dashboard_iob_full">Actieve insuline %1$s</string>
     <string name="dashboard_eiob_full">Nu werkzaam %1$s</string>
-    <string name="dashboard_forecast_recommendation_short">≏ %1$s</string>
-    <string name="dashboard_forecast_recommendation_carbs">≏ Koolhydraten: %1$s g</string>
-    <string name="dashboard_forecast_recommendation_insulin">≏ Insuline: %1$s E</string>
     <string name="journal_dose_covers_carbs">%1$s g gedekt</string>
     <string name="journal_dose_food_component">Eten %1$s</string>
     <string name="journal_dose_correction_component">Correctie %1$s</string>
