@@ -1028,7 +1028,7 @@ static void uploaderthread() {
                 continue;
                 }
             }
-        if(current&(Backup::wakenums|Backup::wakeall)) {
+        if(current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments)) {
             bool treatmentsOk = uploadJournalTreatmentsViaJava(useV3);
             if(!treatmentsOk && !useV3 && lastNightUploadCode==404) {
                 LOGSTRING("Nightscout v1 treatments endpoint returned 404, retrying with v3\n");
@@ -1072,6 +1072,24 @@ void wakeuploader() {
     }
     }
 
+/* A journal entry was written, changed or deleted. Its own reason, so treatments no longer
+   depend on a number path raising wakenums for reasons of its own. */
+void waketreatmentsuploader() {
+    bool ready=uploaderrunning.load();
+    if(!ready && settings->data()->nightuploadon) {
+        auto env=getenv();
+        if(env && inituploader(env)) {
+            lastNightUploadConfigError = false;
+            ready=true;
+            }
+    }
+    if(ready) {
+        lastNightUploadWaitMinutes = 0;
+        uploadercondition.wakebackup(Backup::waketreatments);
+        LOGSTRING("Nightscout wake source=journal mask=treatments\n");
+    }
+    }
+
 static bool wakestreamuploader(JNIEnv *env,const char *source,const long long timestampMillis) {
     if(!settings->data()->nightuploadon)
         return false;
@@ -1099,6 +1117,9 @@ void wakestreamuploader() {
 #include "fromjava.h"    
 extern "C" JNIEXPORT void JNICALL fromjava(wakeuploader) (JNIEnv *env, jclass clazz) {
     wakeuploader();
+    } 
+extern "C" JNIEXPORT void JNICALL fromjava(waketreatments) (JNIEnv *env, jclass clazz) {
+    waketreatmentsuploader();
     } 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(wakeNightscoutForLiveReading)
     (JNIEnv *env,jclass clazz,jstring jsource,jlong timestampMillis) {
