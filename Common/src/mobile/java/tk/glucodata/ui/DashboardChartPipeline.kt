@@ -252,6 +252,15 @@ internal fun buildTrendHistory(consumerHistory: List<GlucosePoint>): List<Glucos
     buildDisplayReadings(consumerHistory, limit = TREND_HISTORY_LIMIT)
 
 /**
+ * A row's measured change: the text it shows, and the same movement as a rate the arrow
+ * beside it can be drawn from.
+ *
+ * The rate is mg/dL per minute, which is what every arrow in the app rotates by, whatever
+ * unit the reading is displayed in.
+ */
+internal data class ReadingDelta(val text: String, val rateMgdlPerMinute: Float)
+
+/**
  * The "Δ" readout of the hero card, anchored at arbitrary points in time: for each
  * anchor timestamp, the delta the hero would have shown when that reading was the
  * newest one. The hero's own readout is the single-anchor case (the newest point),
@@ -267,14 +276,6 @@ internal fun buildTrendHistory(consumerHistory: List<GlucosePoint>): List<Glucos
  * An anchor with no old-enough partner (start of the data, or a gap wider than
  * the pairing rules allow) yields null, never a NaN text.
  */
-/**
- * A row's measured change: the text it shows, and the same movement as a rate the arrow
- * beside it can be drawn from.
- *
- * The rate is mg/dL per minute, which is what every arrow in the app rotates by, whatever
- * unit the reading is displayed in.
- */
-internal data class ReadingDelta(val text: String, val rateMgdlPerMinute: Float)
 
 internal fun readingDeltaTexts(
     anchorTimestamps: List<Long>,

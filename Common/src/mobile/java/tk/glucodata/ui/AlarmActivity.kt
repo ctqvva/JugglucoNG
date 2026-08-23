@@ -150,11 +150,11 @@ class AlarmActivity : ComponentActivity() {
         // instead, and a "high" arriving with a falling arrow argues against itself in the
         // one moment it needs to be believed.
         val firedRate = intent.getFloatExtra(EXTRA_RATE, Float.NaN).takeIf { it.isFinite() }
-        val fallbackRate = selectAlarmRate(firedRate, latestRate)
         val trendResult = if (firedRate != null) {
             alarmTrendResult(firedRate)
         } else {
-            computeAlarmTrendResult(fallbackRate)
+            // No rate came with the alarm: read one, as before.
+            computeAlarmTrendResult(selectAlarmRate(null, latestRate))
         }
         val alertType = AlertType.fromId(intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1))
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)

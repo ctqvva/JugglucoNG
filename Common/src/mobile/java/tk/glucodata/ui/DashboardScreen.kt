@@ -1188,21 +1188,25 @@ fun DashboardScreen(
             // timestamp — over the same unsmoothed history the hero reads, so the
             // newest row and the hero can never disagree.
             // The rows' movement is read once and used twice: the Δ text, and the rate the
-            // row's arrow turns by. The arrow is put on this basis whether or not the text is
-            // shown, so a row always answers one question — what changed just now — while the
-            // hero keeps the longer regression, where stability is wanted.
+            // row's arrow turns by. Only where the number is actually shown, though: with the
+            // column off there is nothing for the arrow to contradict, and rebasing it anyway
+            // would let a display setting quietly decide what an arrow means.
             val recentReadingDeltas = remember(
-                recentReadings, glucoseHistory, unit, deltaIntervalMinutes
+                dashboardRowsShowDelta, recentReadings, glucoseHistory, unit, deltaIntervalMinutes
             ) {
-                readingDeltas(
-                    recentReadings.map { it.timestamp },
-                    glucoseHistory,
-                    tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
-                    deltaIntervalMinutes
-                )
+                if (dashboardRowsShowDelta) {
+                    readingDeltas(
+                        recentReadings.map { it.timestamp },
+                        glucoseHistory,
+                        tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+                        deltaIntervalMinutes
+                    )
+                } else {
+                    emptyList()
+                }
             }
-            val recentReadingDeltaTexts = remember(dashboardRowsShowDelta, recentReadingDeltas) {
-                if (dashboardRowsShowDelta) recentReadingDeltas.map { it?.text } else emptyList()
+            val recentReadingDeltaTexts = remember(recentReadingDeltas) {
+                recentReadingDeltas.map { it?.text }
             }
             val peerSeriesById = remember(multiSensorDisplay) {
                 multiSensorDisplay.series.associateBy { it.sensorId }
