@@ -1,6 +1,9 @@
 package tk.glucodata.ui.stats
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +26,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,7 +80,11 @@ private data class HypoLogRow(
     val nadirMgdl: Float,
     val confirmedPressure: Boolean,
     val suggestedPressure: Boolean,
-    val suggestionSource: String?
+    val suggestionSource: String?,
+    /** mg/dL samples from 30 min before onset to 30 min after recovery, for the chart. */
+    val trace: List<Pair<Long, Float>>,
+    val lowMgdl: Float,
+    val veryLowMgdl: Float
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +92,7 @@ private data class HypoLogRow(
 internal fun HypoEpisodeLogScreen(navController: NavController) {
     val isMmol = Applic.unit == 1
     var rows by remember { mutableStateOf<List<HypoLogRow>?>(null) }
+    var selected by remember { mutableStateOf<HypoLogRow?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -152,22 +169,189 @@ internal fun HypoEpisodeLogScreen(navController: NavController) {
                     Spacer(Modifier.height(8.dp))
                 }
                 items(current, key = { it.startMs }) { row ->
-                    HypoEpisodeRow(row, isMmol) { pressure -> setPressure(row, pressure) }
+                    HypoEpisodeRow(
+                        row = row,
+                        isMmol = isMmol,
+                        onOpen = { selected = row },
+                        onSetPressure = { pressure -> setPressure(row, pressure) }
+                    )
                 }
             }
+        }
+    }
+
+    // The sheet reads its row back out of the live list so the toggle inside it and the
+    // toggle on the row behind it can never disagree.
+    val selectedLive = selected?.let { sel -> rows?.firstOrNull { it.startMs == sel.startMs } }
+    if (selectedLive != null) {
+        ModalBottomSheet(onDismissRequest = { selected = null }) {
+            HypoEpisodeDetail(
+                row = selectedLive,
+                isMmol = isMmol,
+                onSetPressure = { pressure -> setPressure(selectedLive, pressure) }
+            )
         }
     }
 }
 
 @Composable
-private fun HypoEpisodeRow(row: HypoLogRow, isMmol: Boolean, onSetPressure: (Boolean) -> Unit) {
+private fun HypoEpisodeDetail(row: HypoLogRow, isMmol: Boolean, onSetPressure: (Boolean) -> Unit) {
+    val zone = remember { ZoneId.systemDefault() }
+    val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
+    val timeFormat = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    val start = remember(row.startMs) { Instant.ofEpochMilli(row.startMs).atZone(zone) }
+    val end = remember(row.endMs) { Instant.ofEpochMilli(row.endMs).atZone(zone) }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(start.format(dateFormat), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(
+                R.string.hypo_episode_log_range,
+                start.format(timeFormat),
+                end.format(timeFormat),
+                row.durationMinutes,
+                formatNadir(row.nadirMgdl, isMmol)
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        EpisodeTraceChart(
+            row = row,
+            isMmol = isMmol,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        )
+        Text(
+            stringResource(R.string.hypo_episode_log_chart_caption),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (row.suggestedPressure && !row.confirmedPressure) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    stringResource(R.string.hypo_episode_log_suggested),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.hypo_episode_log_pressure_toggle_long),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    stringResource(
+                        if (row.confirmedPressure) R.string.hypo_episode_log_excluded_note
+                        else R.string.hypo_episode_log_counted_note
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (row.confirmedPressure) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = row.confirmedPressure, onCheckedChange = onSetPressure)
+        }
+    }
+}
+
+/**
+ * The episode's glucose curve with half an hour of context on either side: the shape is
+ * the whole argument — a V that snaps back is pressure, a trough that lingers is a low.
+ */
+@Composable
+private fun EpisodeTraceChart(row: HypoLogRow, isMmol: Boolean, modifier: Modifier = Modifier) {
+    val trace = row.trace
+    if (trace.size < 2) {
+        Box(modifier, contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.hypo_episode_log_no_trace),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+    val lineColor = MaterialTheme.colorScheme.primary
+    val episodeBand = MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
+    val lowLine = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+    val veryLowLine = MaterialTheme.colorScheme.error
+    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val tMin = trace.first().first
+    val tMax = trace.last().first
+    val values = trace.map { it.second }
+    val yMin = minOf(values.min(), row.veryLowMgdl) - 10f
+    val yMax = maxOf(values.max(), row.lowMgdl) + 10f
+    val lowLabel = formatNadir(row.lowMgdl, isMmol)
+    val veryLowLabel = formatNadir(row.veryLowMgdl, isMmol)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        fun x(t: Long) = ((t - tMin).toFloat() / (tMax - tMin).coerceAtLeast(1L).toFloat()) * w
+        fun y(v: Float) = h - ((v - yMin) / (yMax - yMin).coerceAtLeast(1f)) * h
+
+        // Episode span
+        drawRect(
+            color = episodeBand,
+            topLeft = Offset(x(row.startMs), 0f),
+            size = androidx.compose.ui.geometry.Size(x(row.endMs) - x(row.startMs), h)
+        )
+        // Threshold guides
+        listOf(row.lowMgdl to lowLine, row.veryLowMgdl to veryLowLine).forEach { (v, c) ->
+            val yy = y(v)
+            drawLine(c, Offset(0f, yy), Offset(w, yy), strokeWidth = 1.dp.toPx())
+        }
+        drawText(textMeasurer, lowLabel, topLeft = Offset(4.dp.toPx(), y(row.lowMgdl) - 14.dp.toPx()), style = labelStyle)
+        drawText(textMeasurer, veryLowLabel, topLeft = Offset(4.dp.toPx(), y(row.veryLowMgdl) + 2.dp.toPx()), style = labelStyle)
+        // Light vertical grid at the episode edges
+        listOf(row.startMs, row.endMs).forEach { t ->
+            drawLine(gridColor, Offset(x(t), 0f), Offset(x(t), h), strokeWidth = 1.dp.toPx())
+        }
+        // The curve
+        val path = Path()
+        trace.forEachIndexed { i, (t, v) ->
+            if (i == 0) path.moveTo(x(t), y(v)) else path.lineTo(x(t), y(v))
+        }
+        drawPath(path, lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+        // Nadir dot
+        val nadir = trace.minByOrNull { it.second }
+        if (nadir != null) {
+            drawCircle(veryLowLine, radius = 4.dp.toPx(), center = Offset(x(nadir.first), y(nadir.second)))
+        }
+    }
+}
+
+@Composable
+private fun HypoEpisodeRow(
+    row: HypoLogRow,
+    isMmol: Boolean,
+    onOpen: () -> Unit,
+    onSetPressure: (Boolean) -> Unit
+) {
     val zone = remember { ZoneId.systemDefault() }
     val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
     val timeFormat = remember { DateTimeFormatter.ofPattern("HH:mm") }
     val start = remember(row.startMs) { Instant.ofEpochMilli(row.startMs).atZone(zone) }
     val end = remember(row.endMs) { Instant.ofEpochMilli(row.endMs).atZone(zone) }
 
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -255,8 +439,12 @@ private suspend fun loadRows(): List<HypoLogRow> {
     fun overlaps(aStart: Long, aEnd: Long, bStart: Long, bEnd: Long) =
         aStart <= bEnd && bStart <= aEnd
 
+    val contextMs = 30L * 60_000L
     return episodes.map { episode ->
         val mark = HypoEpisodeMark.findFor(marks, episode.startMillis, episode.endMillis)
+        val trace = historyMgdl
+            .filter { it.timestamp in (episode.startMillis - contextMs)..(episode.endMillis + contextMs) }
+            .map { it.timestamp to it.value }
         val detectorHit = detected.any {
             overlaps(episode.startMillis, episode.endMillis, it.onsetMillis, it.recoveryMillis)
         }
@@ -275,7 +463,10 @@ private suspend fun loadRows(): List<HypoLogRow> {
                 holdHit -> HypoEpisodeMark.SOURCE_HOLD
                 detectorHit -> HypoEpisodeMark.SOURCE_DETECTOR
                 else -> null
-            }
+            },
+            trace = trace,
+            lowMgdl = targets.lowMgDl,
+            veryLowMgdl = targets.veryLowMgDl
         )
     }
 }

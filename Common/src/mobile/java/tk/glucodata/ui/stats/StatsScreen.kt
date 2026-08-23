@@ -91,6 +91,8 @@ import androidx.compose.material3.DateRangePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -758,15 +760,21 @@ private fun StatsCardContent(
             // The honest label: cleaned numbers must say they are cleaned, and the row
             // is the door to the log where the cleaning is done and undone.
             if (onOpenHypoEpisodes != null) {
-                TextButton(onClick = onOpenHypoEpisodes) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onOpenHypoEpisodes,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         if (excludedEpisodes > 0) {
                             stringResource(R.string.stats_excluded_episodes_label, excludedEpisodes)
                         } else {
                             stringResource(R.string.stats_open_hypo_log)
                         },
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f)
                     )
+                    Icon(Icons.Default.ChevronRight, contentDescription = null)
                 }
             }
         }
