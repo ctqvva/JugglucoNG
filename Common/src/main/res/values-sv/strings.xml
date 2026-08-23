@@ -2550,4 +2550,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Hypoepisoder</string>
     <string name="tuning_carb_lookback_label">Kolhydrat-tillbakablick</string>
     <string name="tuning_carb_lookback_description">Kolhydrater som förts in upp till så här långt före fallet räknas fortfarande som förklaring till en återhämtning — att äta strax innan raset registreras är precis så ett behandlat verkligt lågt värde ser ut.</string>
+    <string name="sensor_pressure_hold_optin_summary">När ett plötsligt lågt värde ser ut som sensortryck väntar larmet för lågt värde några minuter och en diskret signal spelas i stället; om värdet inte återhämtar sig utlöses det fulla larmet. Detta litar helt på din dagbok.</string>
+    <string name="sensor_pressure_hold_optin_more">Så fungerar det och vad risken är</string>
+    <string name="sensor_pressure_hold_optin_less">Visa mindre</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Markera som sensortryck</string>
+    <string name="hypo_episode_log_counted_note">Räknas i statistiken</string>
+    <string name="hypo_episode_log_chart_caption">Skuggat: episoden. 30 min sammanhang på var sida. Linjer: dina gränser för lågt och mycket lågt.</string>
+    <string name="hypo_episode_log_no_trace">Inga värden registrerade för den här episoden.</string>
 </resources>

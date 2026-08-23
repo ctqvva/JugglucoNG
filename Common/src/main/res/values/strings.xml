@@ -859,6 +859,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_section_title">Sensor Pressure Hold</string>
     <string name="experimental_badge">Experimental</string>
     <string name="sensor_pressure_hold_optin_title">Hold low alarms on suspected pressure</string>
+    <string name="sensor_pressure_hold_optin_summary">When a sudden low looks like pressure on the sensor, the low alarm waits a few minutes and a gentle cue plays instead; if the value does not recover, the full alarm fires. This trusts your journal completely.</string>
+    <string name="sensor_pressure_hold_optin_more">How it works and what the risk is</string>
+    <string name="sensor_pressure_hold_optin_less">Show less</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Mark as sensor pressure</string>
+    <string name="hypo_episode_log_counted_note">Counted in statistics</string>
+    <string name="hypo_episode_log_chart_caption">Shaded: the episode. 30 min of context on either side. Lines: your low and very-low thresholds.</string>
+    <string name="hypo_episode_log_no_trace">No readings recorded for this episode.</string>
     <string name="sensor_pressure_hold_optin_description">Lying or leaning on the sensor can squeeze the tissue around it and fake a sudden low. When a fall looks like that — too fast for the insulin in your journal, out of a calm curve — the low alarm is held back for a few minutes and the gentle Sensor Pressure cue plays instead. If the value recovers, it was pressure; if not, the full alarm fires. This trusts your journal completely: a dose or rescue carbs that were never entered can make a real low look like pressure. Enable only if you log reliably — you carry that risk.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Switched itself off after %1$d escalated holds. Toggle on again to retry with a fresh record.</string>
     <string name="sensor_pressure_hold_max_hold_label">Maximum hold time</string>

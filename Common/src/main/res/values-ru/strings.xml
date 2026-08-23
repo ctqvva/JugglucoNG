@@ -2593,4 +2593,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Эпизоды гипогликемии</string>
     <string name="tuning_carb_lookback_label">Учёт углеводов назад</string>
     <string name="tuning_carb_lookback_description">Углеводы, внесённые не более чем за это время до падения, всё ещё считаются объяснением восстановления — поесть прямо перед тем, как падение зафиксируется, — так выглядит купированная настоящая гипогликемия.</string>
+    <string name="sensor_pressure_hold_optin_summary">Когда резкое падение глюкозы похоже на давление на сенсор, сигнал низкой глюкозы ждёт несколько минут, а вместо него звучит мягкая подсказка; если значение не восстанавливается, срабатывает полный сигнал. Функция полностью доверяет вашему журналу.</string>
+    <string name="sensor_pressure_hold_optin_more">Как это работает и в чём риск</string>
+    <string name="sensor_pressure_hold_optin_less">Скрыть</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Отметить как давление на сенсор</string>
+    <string name="hypo_episode_log_counted_note">Учитывается в статистике</string>
+    <string name="hypo_episode_log_chart_caption">Затенено: эпизод. По 30 min контекста с каждой стороны. Линии: ваши пороги низкого и очень низкого.</string>
+    <string name="hypo_episode_log_no_trace">Для этого эпизода нет записанных показаний.</string>
 </resources>

@@ -1,5 +1,6 @@
 package tk.glucodata.ui.alerts
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,15 +8,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,11 +90,44 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
                     }
                 }
             }
-            Text(
-                stringResource(R.string.sensor_pressure_hold_optin_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Two sentences up front; the full risk text lives one tap away — a wall of
+            // prose next to a master switch is read by nobody.
+            var descriptionExpanded by remember { mutableStateOf(false) }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { descriptionExpanded = !descriptionExpanded }
+            ) {
+                Text(
+                    stringResource(R.string.sensor_pressure_hold_optin_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(
+                            if (descriptionExpanded) R.string.sensor_pressure_hold_optin_less
+                            else R.string.sensor_pressure_hold_optin_more
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        if (descriptionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                if (descriptionExpanded) {
+                    Text(
+                        stringResource(R.string.sensor_pressure_hold_optin_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.sensor_pressure_hold_optin_title),
@@ -210,7 +250,16 @@ internal fun SensorPressureHoldCard(isMmol: Boolean) {
                     WarningText(stringResource(R.string.sensor_pressure_hold_never_warning))
                 }
 
-                TextButton(onClick = { advancedExpanded = !advancedExpanded }) {
+                OutlinedButton(
+                    onClick = { advancedExpanded = !advancedExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        if (advancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         stringResource(
                             if (advancedExpanded) R.string.sensor_pressure_hold_advanced_hide

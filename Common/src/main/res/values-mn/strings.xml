@@ -2665,4 +2665,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_open_hypo_log">Гипогликемийн тохиолдлууд</string>
     <string name="tuning_carb_lookback_label">Нүүрс усны эргэн харах хугацаа</string>
     <string name="tuning_carb_lookback_description">Уналтаас өмнө энэ хугацааны дотор тэмдэглэсэн нүүрс ус сэргэлтийг тайлбарлана гэж тооцогдоно — уналт бүртгэгдэхийн яг өмнө идэх нь эмчилсэн жинхэнэ бага глюкозын шинж юм.</string>
+    <string name="sensor_pressure_hold_optin_summary">Гэнэтийн бага глюкоз мэдрэгчийн даралт мэт харагдвал бага глюкозын дохио хэдэн минут хүлээж, оронд нь зөөлөн сануулга дуугарна; утга сэргэхгүй бол бүрэн дохио дуугарна. Энэ нь таны тэмдэглэлд бүрэн итгэдэг.</string>
+    <string name="sensor_pressure_hold_optin_more">Хэрхэн ажилладаг ба ямар эрсдэлтэй вэ</string>
+    <string name="sensor_pressure_hold_optin_less">Бага харуулах</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Мэдрэгчийн даралт гэж тэмдэглэх</string>
+    <string name="hypo_episode_log_counted_note">Статистикт тооцогдсон</string>
+    <string name="hypo_episode_log_chart_caption">Сүүдэрлэсэн хэсэг: тохиолдол. Хоёр талд 30 min нэмэлт хугацаа. Шугамууд: таны бага ба маш бага босго.</string>
+    <string name="hypo_episode_log_no_trace">Энэ тохиолдлын уншилт бүртгэгдээгүй.</string>
 </resources>

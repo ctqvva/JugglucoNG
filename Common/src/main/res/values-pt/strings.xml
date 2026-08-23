@@ -2551,4 +2551,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Episódios de hipoglicemia</string>
     <string name="tuning_carb_lookback_label">Janela retroativa de carboidratos</string>
     <string name="tuning_carb_lookback_description">Carboidratos registrados até esse tempo antes da queda ainda contam como explicação para uma recuperação — comer pouco antes de a queda aparecer é a cara de uma hipoglicemia real tratada.</string>
+    <string name="sensor_pressure_hold_optin_summary">Quando uma hipoglicemia repentina parece pressão no sensor, o alarme espera alguns minutos e, no lugar dele, toca um aviso discreto; se o valor não se recuperar, o alarme completo dispara. Esta função confia totalmente no seu diário.</string>
+    <string name="sensor_pressure_hold_optin_more">Como funciona e qual é o risco</string>
+    <string name="sensor_pressure_hold_optin_less">Mostrar menos</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Marcar como pressão no sensor</string>
+    <string name="hypo_episode_log_counted_note">Contado nas estatísticas</string>
+    <string name="hypo_episode_log_chart_caption">Sombreado: o episódio. 30 min de contexto de cada lado. Linhas: seus limites baixo e muito baixo.</string>
+    <string name="hypo_episode_log_no_trace">Nenhuma leitura registrada para este episódio.</string>
 </resources>

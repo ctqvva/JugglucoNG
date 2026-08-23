@@ -2750,4 +2750,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="stats_open_hypo_log">Dhacdooyinka hypo</string>
     <string name="tuning_carb_lookback_label">Dib-u-eegista karbohaydraytka</string>
     <string name="tuning_carb_lookback_description">Karbohaydraytyada la qoray ilaa intan ka hor hoos u dhaca ayaa weli loo tiriyaa inay sharxaan soo kabasho — wax cunista isla ka hor inta hoos u dhacu diiwaangashan waa sida uu u eg yahay hoos u dhac dhab ah oo la daaweeyay.</string>
+    <string name="sensor_pressure_hold_optin_summary">Marka hoos u dhac lama filaan ah uu u eg yahay cadaadiska dareemaha, digniinta hoose waxay sugaysaa dhowr daqiiqo, waxaana la ciyaarayaa digniin fudud; haddii qiimuhu soo kaban waayo, digniinta buuxda ayaa dhacaysa. Tani si buuxda ayay u aaminaysaa buuggaaga xusuusta.</string>
+    <string name="sensor_pressure_hold_optin_more">Sida ay u shaqeyso iyo waxa khatarta ah</string>
+    <string name="sensor_pressure_hold_optin_less">Muuji wax yar</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Ku calaamadee cadaadis dareemaha</string>
+    <string name="hypo_episode_log_counted_note">Waa lagu tiriyay tirakoobka</string>
+    <string name="hypo_episode_log_chart_caption">Hadhka: dhacdada. 30 min oo macluumaad ah dhinac kasta. Xariiqyada: xadadkaaga hoose iyo kuwa aad u hooseeya.</string>
+    <string name="hypo_episode_log_no_trace">Akhris lama diiwaan gelin dhacdadan.</string>
 </resources>

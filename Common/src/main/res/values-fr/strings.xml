@@ -2556,4 +2556,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Épisodes d\'hypo</string>
     <string name="tuning_carb_lookback_label">Fenêtre rétrospective des glucides</string>
     <string name="tuning_carb_lookback_description">Les glucides consignés jusqu\'à cette durée avant la chute comptent encore comme explication d\'une remontée — manger juste avant que la baisse ne s\'enregistre est le profil d\'une vraie hypo traitée.</string>
+    <string name="sensor_pressure_hold_optin_summary">Quand une hypo soudaine ressemble à une pression sur le capteur, l\'alarme d\'hypo attend quelques minutes et un signal discret joue à la place ; si la valeur ne remonte pas, l\'alarme complète se déclenche. Cette fonction fait entièrement confiance à votre journal.</string>
+    <string name="sensor_pressure_hold_optin_more">Comment ça marche et quel est le risque</string>
+    <string name="sensor_pressure_hold_optin_less">Afficher moins</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Marquer comme pression sur le capteur</string>
+    <string name="hypo_episode_log_counted_note">Compté dans les statistiques</string>
+    <string name="hypo_episode_log_chart_caption">Zone ombrée : l\'épisode. 30 min de contexte de chaque côté. Lignes : vos seuils faible et très faible.</string>
+    <string name="hypo_episode_log_no_trace">Aucune mesure enregistrée pour cet épisode.</string>
 </resources>

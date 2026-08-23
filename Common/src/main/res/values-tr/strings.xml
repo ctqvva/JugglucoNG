@@ -2578,4 +2578,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stats_open_hypo_log">Hipo olayları</string>
     <string name="tuning_carb_lookback_label">Karbonhidrat geriye bakış</string>
     <string name="tuning_carb_lookback_description">Düşüşten en fazla bu kadar önce kaydedilen karbonhidratlar yine de toparlanmayı açıklar sayılır — düşüş kaydedilmeden hemen önce yemek yemek, tedavi edilmiş gerçek bir düşüşün görünümüdür.</string>
+    <string name="sensor_pressure_hold_optin_summary">Ani bir düşüş sensör basıncına benziyorsa, düşük alarmı birkaç dakika bekler ve bunun yerine hafif bir uyarı çalar; değer toparlanmazsa tam alarm çalar. Bu özellik günlüğünüze tamamen güvenir.</string>
+    <string name="sensor_pressure_hold_optin_more">Nasıl çalışır ve riski nedir</string>
+    <string name="sensor_pressure_hold_optin_less">Daha az göster</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Sensör basıncı olarak işaretle</string>
+    <string name="hypo_episode_log_counted_note">İstatistiklere dahil edildi</string>
+    <string name="hypo_episode_log_chart_caption">Gölgeli alan: olay. Her iki yanda 30 min bağlam. Çizgiler: düşük ve çok düşük eşikleriniz.</string>
+    <string name="hypo_episode_log_no_trace">Bu olay için kaydedilmiş okuma yok.</string>
 </resources>

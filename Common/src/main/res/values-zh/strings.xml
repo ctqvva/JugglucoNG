@@ -2566,4 +2566,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">低血糖发作</string>
     <string name="tuning_carb_lookback_label">碳水回溯</string>
     <string name="tuning_carb_lookback_description">下降前这段时间内记录的碳水仍算作回升的解释——在下降被记录前刚吃过东西，正是经过处理的真正低血糖的样子。</string>
+    <string name="sensor_pressure_hold_optin_summary">当骤降看起来像传感器压迫时，低血糖警报会等待几分钟，改为播放轻柔提示；若数值未回升，则完整警报响起。此功能完全信任您的日志。</string>
+    <string name="sensor_pressure_hold_optin_more">工作原理与风险所在</string>
+    <string name="sensor_pressure_hold_optin_less">显示较少</string>
+    <string name="hypo_episode_log_pressure_toggle_long">标记为传感器压迫</string>
+    <string name="hypo_episode_log_counted_note">已计入统计</string>
+    <string name="hypo_episode_log_chart_caption">阴影部分：该次发作。两侧各 30 min 上下文。横线：您的低值和非常低值阈值。</string>
+    <string name="hypo_episode_log_no_trace">本次发作没有记录到读数。</string>
 </resources>

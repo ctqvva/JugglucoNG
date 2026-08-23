@@ -2584,4 +2584,11 @@
     <string name="stats_open_hypo_log">Epizody hipoglikemii</string>
     <string name="tuning_carb_lookback_label">Okres wsteczny węglowodanów</string>
     <string name="tuning_carb_lookback_description">Węglowodany wpisane najwyżej tyle czasu przed spadkiem nadal liczą się jako wyjaśnienie powrotu do normy — jedzenie tuż przed zarejestrowaniem spadku to obraz leczonego prawdziwego niedocukrzenia.</string>
+    <string name="sensor_pressure_hold_optin_summary">Gdy nagły spadek glukozy wygląda jak nacisk na sensor, alarm niskiej glukozy czeka kilka minut i zamiast niego odtwarzana jest delikatna podpowiedź; jeśli wartość nie wraca do normy, włącza się pełny alarm. Funkcja całkowicie ufa Twojemu dziennikowi.</string>
+    <string name="sensor_pressure_hold_optin_more">Jak to działa i na czym polega ryzyko</string>
+    <string name="sensor_pressure_hold_optin_less">Pokaż mniej</string>
+    <string name="hypo_episode_log_pressure_toggle_long">Oznacz jako nacisk na sensor</string>
+    <string name="hypo_episode_log_counted_note">Liczony w statystykach</string>
+    <string name="hypo_episode_log_chart_caption">Zacienione: epizod. 30 min kontekstu po każdej stronie. Linie: Twoje progi niski i bardzo niski.</string>
+    <string name="hypo_episode_log_no_trace">Brak zapisanych odczytów dla tego epizodu.</string>
 </resources>
