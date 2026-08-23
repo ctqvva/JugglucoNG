@@ -55,6 +55,8 @@ class PenManualMergeTests {
         // The pen's time is the measured one, so the entry moves onto it.
         assertEquals(dose.timestampSeconds, merge.timestampSeconds)
         assertEquals(3_600L, merge.doseRelativeSeconds)
+        // The entry's own time comes along, so the sheet can say which one it replaces.
+        assertEquals(written.timestampSeconds, merge.entryTimestampSeconds)
         assertNull(plan.alignmentBreak)
     }
 

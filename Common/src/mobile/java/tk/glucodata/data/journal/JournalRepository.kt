@@ -2,6 +2,7 @@ package tk.glucodata.data.journal
 
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.map
 import android.content.Context
 import tk.glucodata.Applic
@@ -129,13 +130,26 @@ class JournalRepository {
      *
      * @return false when the entry is gone, or another row already carries that name
      */
-    suspend fun adoptPenDose(entryId: Long, sourceRecordId: String, timestampMillis: Long): Boolean {
+    suspend fun adoptPenDose(
+        entryId: Long,
+        sourceRecordId: String,
+        timestampMillis: Long,
+        expectedUnits: Float,
+    ): Boolean {
         val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
         val adopted = database.withTransaction {
             val existing = dao.getEntryById(entryId) ?: return@withTransaction false
             // Only insulin is a pen's to claim; anything else would also need the glucose
             // side of a change told about it.
             if (existing.entryType != JournalEntryType.INSULIN.storageValue) return@withTransaction false
+            // Only a row still written by hand, and only while it still says what it said
+            // when the pairing was worked out: the amount is what decided that pairing, and
+            // between proposing and confirming there is a sheet open and time to edit.
+            if (existing.source != JournalEntrySource.MANUAL.storageValue) return@withTransaction false
+            val amount = existing.amount ?: return@withTransaction false
+            if ((amount * 10f).roundToInt() != (expectedUnits * 10f).roundToInt()) {
+                return@withTransaction false
+            }
             val taken = dao.getEntryBySourceRecordId(id)
             // sourceRecordId is unique and the upsert replaces on conflict, so a name
             // already in use has to stop the adoption rather than overwrite that row.

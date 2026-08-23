@@ -2500,7 +2500,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Markera alla</string>
     <string name="insulin_pen_select_none">Rensa</string>
     <string name="insulin_pen_units">%1$s E</string>
-    <string name="insulin_pen_priming">Luftskott</string>
+    <string name="insulin_pen_replaces">ersätter %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d luftning överhoppad</string>
     <string name="insulin_pen_add_doses">Lägg till %1$d doser</string>
     <string name="insulin_pen_doses_added">%1$d doser tillagda i dagboken</string>
     <string name="insulin_pens_journal_off">Dagboken är avstängd, så inlästa doser skulle inte visas någonstans.</string>

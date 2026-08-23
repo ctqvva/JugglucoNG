@@ -2539,7 +2539,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_select_all">Alle auswählen</string>
     <string name="insulin_pen_select_none">Leeren</string>
     <string name="insulin_pen_units">%1$s E</string>
-    <string name="insulin_pen_priming">Entlüftung</string>
+    <string name="insulin_pen_replaces">ersetzt %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d Entlüftung übersprungen</string>
     <string name="insulin_pen_add_doses">%1$d Dosen hinzufügen</string>
     <string name="insulin_pen_doses_added">%1$d Dosen ins Tagebuch übernommen</string>
     <string name="insulin_pens_journal_off">Das Tagebuch ist ausgeschaltet, übernommene Dosen würden nirgends erscheinen.</string>

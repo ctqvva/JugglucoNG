@@ -2490,7 +2490,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Seleziona tutto</string>
     <string name="insulin_pen_select_none">Deseleziona</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Spurgo</string>
+    <string name="insulin_pen_replaces">sostituisce le %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d spurgo saltato</string>
     <string name="insulin_pen_add_doses">Aggiungi %1$d dosi</string>
     <string name="insulin_pen_doses_added">%1$d dosi aggiunte al diario</string>
     <string name="insulin_pens_journal_off">Il diario è disattivato, quindi le dosi importate non verrebbero mostrate.</string>

@@ -2528,7 +2528,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_select_all">Tümünü seç</string>
     <string name="insulin_pen_select_none">Temizle</string>
     <string name="insulin_pen_units">%1$s Ü</string>
-    <string name="insulin_pen_priming">Hava atımı</string>
+    <string name="insulin_pen_replaces">%1$s yerine geçer</string>
+    <string name="insulin_pen_priming_skipped">%1$d hava atışı atlandı</string>
     <string name="insulin_pen_add_doses">%1$d doz ekle</string>
     <string name="insulin_pen_doses_added">Günlüğe %1$d doz eklendi</string>
     <string name="insulin_pens_journal_off">Günlük kapalı, bu yüzden aktarılan dozlar hiçbir yerde görünmez.</string>

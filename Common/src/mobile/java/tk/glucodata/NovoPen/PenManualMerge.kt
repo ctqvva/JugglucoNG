@@ -22,6 +22,10 @@ data class PenManualMerge(
     val timestampSeconds: Long,
     /** The dose it stands for, so the caller can drop it from what it offers. */
     val doseRelativeSeconds: Long,
+    /** When that entry was written, so a sheet can say which one it would replace. */
+    val entryTimestampSeconds: Long,
+    /** What it said at the time, so the amount can decide again when this is carried out. */
+    val entryUnits: Float,
 )
 
 /**
@@ -180,6 +184,8 @@ object PenManualMergePlanner {
         sourceRecordId = PenSourceIds.stable(serial, dose),
         timestampSeconds = dose.timestampSeconds,
         doseRelativeSeconds = dose.relativeSeconds,
+        entryTimestampSeconds = entry.timestampSeconds,
+        entryUnits = entry.units,
     )
 
     /** Doses come off the pen in tenths of a unit; compare them there, not as floats. */
