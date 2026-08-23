@@ -1540,6 +1540,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Propose des glucides quand la valeur descend sous la cible de dose, et une correction quand elle reste haute alors que l\'insuline agit déjà. Les quantités sont calculées à partir de la sensibilité et du ratio glucidique du profil du modèle : réglez-les d\'abord.</string>
     <string name="state_dose_hint_horizon">Horizon de la suggestion</string>
     <string name="state_dose_hint_horizon_explanation">Jusqu\'où la suggestion de glucides regarde en avant quand la valeur baisse. Plus court : plus tard et plus rare ; plus long : plus tôt et plus souvent.</string>
+    <string name="state_dose_hint_profile_notice_title">Vérifiez votre profil de modèle</string>
+    <string name="state_dose_hint_profile_notice_body">La suggestion de dose calcule avec la sensibilité et le ratio glucidique par défaut, car aucun profil de modèle n\'a encore été enregistré. La suggestion s\'affiche quand même ; renseignez vos propres valeurs pour que les quantités vous correspondent.</string>
+    <string name="state_dose_hint_profile_notice_open">Ouvrir le profil du modèle</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Horizon de prévision</string>

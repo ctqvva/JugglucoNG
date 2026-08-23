@@ -1524,6 +1524,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Propone carboidrati quando il valore sta scendendo sotto il target di dose, e una correzione quando resta alto benché l\'insulina stia già agendo. Le quantità sono calcolate da sensibilità e rapporto carboidrati del profilo del modello: impostali prima.</string>
     <string name="state_dose_hint_horizon">Orizzonte del suggerimento</string>
     <string name="state_dose_hint_horizon_explanation">Quanto avanti guarda il suggerimento di carboidrati mentre il valore scende. Più corto: più tardi e più raro; più lungo: prima e più spesso.</string>
+    <string name="state_dose_hint_profile_notice_title">Controlla il profilo del modello</string>
+    <string name="state_dose_hint_profile_notice_body">Il suggerimento di dose calcola con la sensibilità e il rapporto carboidrati predefiniti, perché nessun profilo del modello è ancora stato salvato. Il suggerimento viene mostrato comunque; imposta i tuoi valori perché le quantità ti corrispondano.</string>
+    <string name="state_dose_hint_profile_notice_open">Apri il profilo del modello</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Orizzonte previsione</string>

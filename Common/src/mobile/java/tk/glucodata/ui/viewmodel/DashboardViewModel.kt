@@ -134,6 +134,7 @@ class DashboardViewModel(
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
         const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
         const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
+        const val STATE_DOSE_HINT_PROFILE_NOTICE_KEY = "dashboard_state_dose_hint_profile_notice_ack"
         const val PREDICTION_CARB_RATIO_DEFAULT = 10f
         const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
         const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
@@ -306,10 +307,19 @@ class DashboardViewModel(
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
 
-    // Off by default: the amounts are only as good as the sensitivity and carb ratio in
-    // the model profile, and an untouched profile still holds the built-in defaults.
-    private val _stateDoseHintEnabled = MutableStateFlow(false)
+    // On by default. The amounts are only as good as the sensitivity and carb ratio in the
+    // model profile, but a hint the reader acts on is not the place to withhold information
+    // over that -- the profile is named once instead, see stateDoseHintProfileNoticeAck.
+    // Anyone who switched it off keeps that: the key is written on every toggle, so only an
+    // installation that never touched it takes the new default.
+    private val _stateDoseHintEnabled = MutableStateFlow(true)
     val stateDoseHintEnabled = _stateDoseHintEnabled.asStateFlow()
+
+    private val _stateDoseHintProfileNoticeAck = MutableStateFlow(false)
+    val stateDoseHintProfileNoticeAck = _stateDoseHintProfileNoticeAck.asStateFlow()
+
+    private val _predictionModelProfileSaved = MutableStateFlow(false)
+    val predictionModelProfileSaved = _predictionModelProfileSaved.asStateFlow()
 
     private val _stateDoseHintHorizonMinutes =
         MutableStateFlow(StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
@@ -638,7 +648,8 @@ class DashboardViewModel(
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
-        _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, false)
+        _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
+        _stateDoseHintProfileNoticeAck.value = prefs.getBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, false)
         _stateDoseHintHorizonMinutes.value = prefs
             .getInt(STATE_DOSE_HINT_HORIZON_KEY, StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
             .coerceIn(
@@ -671,6 +682,7 @@ class DashboardViewModel(
             .getFloat(PREDICTION_INSULIN_SENSITIVITY_KEY, PREDICTION_INSULIN_SENSITIVITY_DEFAULT)
             .coerceIn(10f, 180f)
         _predictionModelProfile.value = PredictionModelProfileStore.load(prefs)
+        _predictionModelProfileSaved.value = PredictionModelProfileStore.isSaved(prefs)
         _predictionCarbRatioGramsPerUnit.value = _predictionModelProfile.value.blocks.first().carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value =
             _predictionModelProfile.value.blocks.first().insulinSensitivityMgDlPerUnit
@@ -1408,6 +1420,13 @@ class DashboardViewModel(
         _stateDoseHintEnabled.value = enabled
     }
 
+    fun acknowledgeStateDoseHintProfileNotice() {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, true).apply()
+        _stateDoseHintProfileNoticeAck.value = true
+    }
+
     fun setStateDoseHintHorizonMinutes(value: Int) {
         val normalized = value.coerceIn(
             StateDoseHintCalculator.HORIZON_MINUTES_MIN,
@@ -1636,6 +1655,7 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         PredictionModelProfileStore.save(prefs, profile)
         _predictionModelProfile.value = profile
+        _predictionModelProfileSaved.value = true
         val first = profile.blocks.first()
         _predictionCarbRatioGramsPerUnit.value = first.carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value = first.insulinSensitivityMgDlPerUnit

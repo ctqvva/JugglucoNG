@@ -1604,6 +1604,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Прапануе вугляводы, калі значэнне ідзе ніжэй за мэту дозы, і карэкцыю, калі яно застаецца высокім, хоць інсулін ужо дзейнічае. Колькасці разлічваюцца з адчувальнасці і вугляводнага каэфіцыента мадэльнага профілю — спачатку задайце іх.</string>
     <string name="state_dose_hint_horizon">Гарызонт падказкі па дозе</string>
     <string name="state_dose_hint_horizon_explanation">Наколькі далёка наперад глядзіць вугляводная прапанова пры падзенні значэння. Карацей — пазней і радзей, даўжэй — раней і часцей.</string>
+    <string name="state_dose_hint_profile_notice_title">Праверце мадэльны профіль</string>
+    <string name="state_dose_hint_profile_notice_body">Падказка па дозе лічыць з убудаванай адчувальнасцю і вугляводным каэфіцыентам, бо мадэльны профіль яшчэ не захаваны. Прапанова паказваецца ў любым выпадку; задайце свае значэнні, каб колькасці адпавядалі вам.</string>
+    <string name="state_dose_hint_profile_notice_open">Адкрыць мадэльны профіль</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Гарызонт прагнозу</string>

@@ -1816,6 +1816,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="state_dose_hint_desc">Waxay soo jeedisaa kaarbohaydrayt marka qiimuhu ku sii socdo hoosta bartilmaameedka qiyaasta, iyo saxid marka uu sarreeyo in kastoo insuliin hore u shaqaynayso. Tirooyinka waxaa laga xisaabiyaa dareenka iyo saamiga kaarbohaydraytka ee astaanta modelka — marka hore dejiso.</string>
     <string name="state_dose_hint_horizon">Muddada talada</string>
     <string name="state_dose_hint_horizon_explanation">Inta ay talada kaarbohaydraytku hore u fiiriso marka qiimuhu hoos u dhacayo. Gaaban: goor dambe oo yar; dheer: goor hore oo badan.</string>
+    <string name="state_dose_hint_profile_notice_title">Hubi astaanta modelka</string>
+    <string name="state_dose_hint_profile_notice_body">Talada qiyaasta waxay ku xisaabinaysaa dareenka iyo saamiga kaarbohaydraytka ee caadiga ah, maxaa yeelay wali astaan model lama kaydin. Talada waa la tusayaa si kastaba ha ahaatee; geli qiyamkaaga si tirooyinku kuugu habboonaadaan.</string>
+    <string name="state_dose_hint_profile_notice_open">Fur astaanta modelka</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Saadaasha hawada sare</string>

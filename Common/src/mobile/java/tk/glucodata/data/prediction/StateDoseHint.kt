@@ -224,6 +224,22 @@ object StateDoseHintCalculator {
         return StateDoseHint(StateDoseHintKind.INSULIN, units, target)
     }
 
+    /**
+     * Whether the one-time "check your model profile" notice belongs on screen.
+     *
+     * The amounts are computed from the sensitivity and carb ratio in the model profile, and
+     * an untouched profile still holds the built-in defaults. The answer to that is to say
+     * so once, not to withhold the hint: this one adds information the reader then acts on,
+     * where the insulin-coverage check it inherited the worry from suppresses a warning the
+     * reader never sees. It also stops for good once acknowledged, so a suggestion every
+     * five minutes does not drag a notice along with it.
+     */
+    fun profileNoticeDue(
+        hintPresent: Boolean,
+        modelProfileSaved: Boolean,
+        noticeAcknowledged: Boolean
+    ): Boolean = hintPresent && !modelProfileSaved && !noticeAcknowledged
+
     private class Trend(val slopeMgDlPerMinute: Float, val spanMinutes: Float)
 
     /** Least-squares slope over the readings inside the trend window, in mg/dL per minute. */

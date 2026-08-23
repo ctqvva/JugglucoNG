@@ -1562,6 +1562,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="state_dose_hint_desc">Değer doz hedefinin altına doğru giderken karbonhidrat, insülin zaten etki ederken yüksek kalıyorsa düzeltme önerir. Miktarlar model profilindeki duyarlılık ve karbonhidrat oranından hesaplanır; önce onları ayarlayın.</string>
     <string name="state_dose_hint_horizon">Doz ipucu ufku</string>
     <string name="state_dose_hint_horizon_explanation">Değer düşerken karbonhidrat önerisinin ne kadar ileriye baktığı. Kısa: daha geç ve daha seyrek; uzun: daha erken ve daha sık.</string>
+    <string name="state_dose_hint_profile_notice_title">Model profilinizi kontrol edin</string>
+    <string name="state_dose_hint_profile_notice_body">Henüz bir model profili kaydedilmediği için doz ipucu yerleşik duyarlılık ve karbonhidrat oranıyla hesaplıyor. Öneri yine de gösterilir; miktarların size uyması için kendi değerlerinizi girin.</string>
+    <string name="state_dose_hint_profile_notice_open">Model profilini aç</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Tahmin ufku</string>

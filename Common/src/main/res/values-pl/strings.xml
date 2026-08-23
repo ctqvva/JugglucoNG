@@ -1569,6 +1569,9 @@
     <string name="state_dose_hint_desc">Proponuje węglowodany, gdy wartość zmierza poniżej celu dawkowania, i korektę, gdy pozostaje wysoka mimo już działającej insuliny. Ilości wynikają z wrażliwości i przelicznika węglowodanowego w profilu modelu — ustaw je najpierw.</string>
     <string name="state_dose_hint_horizon">Horyzont podpowiedzi</string>
     <string name="state_dose_hint_horizon_explanation">Jak daleko wprzód patrzy propozycja węglowodanów przy spadającej wartości. Krócej: później i rzadziej; dłużej: wcześniej i częściej.</string>
+    <string name="state_dose_hint_profile_notice_title">Sprawdź profil modelu</string>
+    <string name="state_dose_hint_profile_notice_body">Podpowiedź dawki liczy z wbudowaną wrażliwością i przelicznikiem węglowodanowym, bo profil modelu nie został jeszcze zapisany. Propozycja i tak jest pokazywana; wpisz własne wartości, żeby ilości do ciebie pasowały.</string>
+    <string name="state_dose_hint_profile_notice_open">Otwórz profil modelu</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Horyzont prognozy</string>

@@ -281,6 +281,7 @@ fun DashboardScreen(
     onNavigateToMqAccount: () -> Unit = {},
     onNavigateToReadiness: () -> Unit = {},
     onNavigateToAppUpdates: () -> Unit = {},
+    onNavigateToPredictionModelProfile: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
     // Read once here: the LazyColumns below use Arrangement.spacedBy, which reserves its gap
@@ -349,6 +350,8 @@ fun DashboardScreen(
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
     val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
     val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
+    val stateDoseHintProfileNoticeAck by viewModel.stateDoseHintProfileNoticeAck.collectAsState()
+    val predictionModelProfileSaved by viewModel.predictionModelProfileSaved.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
@@ -535,6 +538,11 @@ fun DashboardScreen(
             settings = predictionSettings
         )
     }
+    val stateDoseHintProfileNoticeDue = StateDoseHintCalculator.profileNoticeDue(
+        hintPresent = stateDoseHint != null,
+        modelProfileSaved = predictionModelProfileSaved,
+        noticeAcknowledged = stateDoseHintProfileNoticeAck
+    )
     // Per-peer prediction series so the simulation extends every drawn line,
     // not just the primary. Same journal/settings (same person), each peer's
     // own points + view mode.
@@ -1297,6 +1305,13 @@ fun DashboardScreen(
                             onOpenAppUpdates = onNavigateToAppUpdates
                         )
                     }
+                    if (stateDoseHintProfileNoticeDue) {
+                        StateDoseHintProfileBanner(
+                            modifier = Modifier.padding(top = 12.dp),
+                            onAcknowledge = { viewModel.acknowledgeStateDoseHintProfileNotice() },
+                            onOpenModelProfile = onNavigateToPredictionModelProfile
+                        )
+                    }
                 }
             )
             } else if (isLandscape) {
@@ -1378,6 +1393,15 @@ fun DashboardScreen(
                     if (appUpdateBannerVisible) {
                         item {
                             DashboardAppUpdateBanner(onOpenAppUpdates = onNavigateToAppUpdates)
+                        }
+                    }
+
+                    if (stateDoseHintProfileNoticeDue) {
+                        item {
+                            StateDoseHintProfileBanner(
+                                onAcknowledge = { viewModel.acknowledgeStateDoseHintProfileNotice() },
+                                onOpenModelProfile = onNavigateToPredictionModelProfile
+                            )
                         }
                     }
 

@@ -1550,6 +1550,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">当血糖正走向剂量目标以下时建议碳水，当胰岛素已在起效而血糖仍偏高时建议追加校正。数值由模型配置中的敏感系数和碳水系数算出，请先设好它们。</string>
     <string name="state_dose_hint_horizon">剂量提示前瞻时长</string>
     <string name="state_dose_hint_horizon_explanation">血糖下降时碳水建议向前看多远。越短越晚提示、提示越少；越长越早提示、提示越多。</string>
+    <string name="state_dose_hint_profile_notice_title">检查模型配置</string>
+    <string name="state_dose_hint_profile_notice_body">尚未保存模型配置，所以剂量提示按内置的敏感系数和碳水系数计算。建议照常显示；填入你自己的数值，算出的量才贴合你。</string>
+    <string name="state_dose_hint_profile_notice_open">打开模型配置</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">预测时长</string>

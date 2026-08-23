@@ -1535,6 +1535,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Sugere hidratos quando o valor segue para baixo do alvo de dose, e uma correção quando se mantém alto apesar de já haver insulina a atuar. As quantidades vêm da sensibilidade e do rácio de hidratos do perfil do modelo — defina-os primeiro.</string>
     <string name="state_dose_hint_horizon">Horizonte da sugestão</string>
     <string name="state_dose_hint_horizon_explanation">Até onde a sugestão de hidratos olha em frente enquanto o valor desce. Mais curto: mais tarde e menos vezes; mais longo: mais cedo e mais vezes.</string>
+    <string name="state_dose_hint_profile_notice_title">Verifique o perfil do modelo</string>
+    <string name="state_dose_hint_profile_notice_body">A sugestão de dose calcula com a sensibilidade e o rácio de hidratos predefinidos, porque ainda não foi guardado nenhum perfil do modelo. A sugestão aparece na mesma; defina os seus valores para que as quantidades lhe sirvam.</string>
+    <string name="state_dose_hint_profile_notice_open">Abrir perfil do modelo</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Horizonte da previsão</string>

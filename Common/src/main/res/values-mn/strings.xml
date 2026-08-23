@@ -1549,6 +1549,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="state_dose_hint_desc">Утга тунгийн зорилтоос доош чиглэж байвал нүүрс ус, инсулин аль хэдийн үйлчилж байхад өндөр хэвээр байвал залруулга санал болгоно. Хэмжээг загварын профилийн мэдрэг байдал ба нүүрс усны харьцаанаас тооцно — эхлээд тэдгээрийг тохируулна уу.</string>
     <string name="state_dose_hint_horizon">Тунгийн зөвлөмжийн хугацаа</string>
     <string name="state_dose_hint_horizon_explanation">Утга буурч байхад нүүрс усны санал хэр хол урагш харахыг заана. Богино нь хожуу, урт нь эрт мэдэгдэнэ.</string>
+    <string name="state_dose_hint_profile_notice_title">Загварын профилээ шалгана уу</string>
+    <string name="state_dose_hint_profile_notice_body">Загварын профил хараахан хадгалагдаагүй тул тунгийн зөвлөмж нь өгөгдмөл мэдрэг байдал ба нүүрс усны харьцаагаар тооцож байна. Санал ямар ч тохиолдолд харагдана; хэмжээ тань тохирохын тулд өөрийн утгуудаа оруулна уу.</string>
+    <string name="state_dose_hint_profile_notice_open">Загварын профил нээх</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Forecast horizon</string>

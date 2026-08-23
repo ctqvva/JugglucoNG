@@ -1534,6 +1534,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Föreslår kolhydrater när värdet är på väg under dosmålet, och en korrigering när det stannar högt trots att insulin redan verkar. Mängderna räknas ur känsligheten och kolhydratkvoten i modellprofilen — ställ in dem först.</string>
     <string name="state_dose_hint_horizon">Dostipsets horisont</string>
     <string name="state_dose_hint_horizon_explanation">Hur långt fram kolhydratförslaget tittar medan värdet faller. Kortare: senare och mer sällan; längre: tidigare och oftare.</string>
+    <string name="state_dose_hint_profile_notice_title">Kontrollera din modellprofil</string>
+    <string name="state_dose_hint_profile_notice_body">Dostipset räknar med den inbyggda känsligheten och kolhydratkvoten, eftersom ingen modellprofil har sparats än. Förslaget visas ändå; lägg in dina egna värden så att mängderna passar dig.</string>
+    <string name="state_dose_hint_profile_notice_open">Öppna modellprofilen</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Prognoshorisont</string>

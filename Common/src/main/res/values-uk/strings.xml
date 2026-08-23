@@ -1609,6 +1609,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Пропонує вуглеводи, коли значення йде нижче цілі дозування, і корекцію, коли воно лишається високим, хоча інсулін уже діє. Кількості обчислюються з чутливості та вуглеводного коефіцієнта профілю моделі — спершу задайте їх.</string>
     <string name="state_dose_hint_horizon">Горизонт підказки</string>
     <string name="state_dose_hint_horizon_explanation">Наскільки далеко вперед дивиться вуглеводна пропозиція, поки значення падає. Коротше — пізніше й рідше, довше — раніше й частіше.</string>
+    <string name="state_dose_hint_profile_notice_title">Перевірте профіль моделі</string>
+    <string name="state_dose_hint_profile_notice_body">Підказка щодо дози рахує з вбудованою чутливістю та вуглеводним коефіцієнтом, бо профіль моделі ще не збережено. Пропозицію показано в будь-якому разі; задайте власні значення, щоб кількості вам відповідали.</string>
+    <string name="state_dose_hint_profile_notice_open">Відкрити профіль моделі</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Горизонт прогнозу</string>

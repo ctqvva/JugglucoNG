@@ -1577,6 +1577,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Предлагает углеводы, когда значение идёт ниже цели дозирования, и коррекцию, когда оно остаётся высоким, хотя инсулин уже действует. Количества считаются из чувствительности и углеводного коэффициента профиля модели — задайте их сначала.</string>
     <string name="state_dose_hint_horizon">Горизонт подсказки</string>
     <string name="state_dose_hint_horizon_explanation">Насколько далеко вперёд смотрит углеводное предложение при падении значения. Короче — позже и реже, длиннее — раньше и чаще.</string>
+    <string name="state_dose_hint_profile_notice_title">Проверьте профиль модели</string>
+    <string name="state_dose_hint_profile_notice_body">Подсказка по дозе считает со встроенной чувствительностью и углеводным коэффициентом, потому что профиль модели ещё не сохранён. Предложение показывается в любом случае; задайте свои значения, чтобы количества подходили вам.</string>
+    <string name="state_dose_hint_profile_notice_open">Открыть профиль модели</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Горизонт прогноза</string>

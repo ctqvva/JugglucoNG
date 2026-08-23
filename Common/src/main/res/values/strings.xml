@@ -2022,6 +2022,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Suggests carbs when the value is heading below the dose target, and a correction when it stays high although insulin is already acting. The amounts are computed from the sensitivity and carb ratio in the model profile, so set those first.</string>
     <string name="state_dose_hint_horizon">Dose hint horizon</string>
     <string name="state_dose_hint_horizon_explanation">How far ahead the carb suggestion looks while the value is falling. Shorter reacts later and says less; longer reacts earlier and says more.</string>
+    <string name="state_dose_hint_profile_notice_title">Check your model profile</string>
+    <string name="state_dose_hint_profile_notice_body">The dose hint is computing with the built-in sensitivity and carb ratio, because no model profile has been saved yet. The suggestion is shown either way; set your own values so the amounts fit you.</string>
+    <string name="state_dose_hint_profile_notice_open">Open model profile</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Forecast horizon</string>

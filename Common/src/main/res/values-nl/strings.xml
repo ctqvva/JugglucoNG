@@ -1577,6 +1577,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="state_dose_hint_desc">Stelt koolhydraten voor als de waarde onder het doseerdoel zakt, en een correctie als ze hoog blijft terwijl er al insuline werkt. De hoeveelheden komen uit de gevoeligheid en koolhydraatratio van het modelprofiel; stel die eerst in.</string>
     <string name="state_dose_hint_horizon">Horizon van de hint</string>
     <string name="state_dose_hint_horizon_explanation">Hoe ver het koolhydraatvoorstel vooruitkijkt bij een dalende waarde. Korter meldt later en minder vaak, langer eerder en vaker.</string>
+    <string name="state_dose_hint_profile_notice_title">Controleer je modelprofiel</string>
+    <string name="state_dose_hint_profile_notice_body">De doseringshint rekent met de ingebouwde gevoeligheid en koolhydraatratio, omdat er nog geen modelprofiel is opgeslagen. Het voorstel wordt sowieso getoond; zet je eigen waarden neer zodat de hoeveelheden bij je passen.</string>
+    <string name="state_dose_hint_profile_notice_open">Modelprofiel openen</string>
     <string name="predictive_dose_target_value_mmol">%1$.1f mmol/L</string>
     <string name="predictive_dose_target_value_mgdl">%1$.0f mg/dL</string>
     <string name="predictive_forecast_horizon">Voorspellingshorizon</string>
