@@ -285,7 +285,10 @@ object AlertDefaults {
     const val THRESHOLD_REARM_MARGIN_MMOL = 0.6f
 
     // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
-    const val PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN = 0.5f
+    const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 0.5f
+
+    @Deprecated("Named for the one alert that had it first", ReplaceWith("FALL_RATE_SUPPRESS_MGDL_PER_MIN"))
+    const val PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN = FALL_RATE_SUPPRESS_MGDL_PER_MIN
 
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
@@ -330,6 +333,9 @@ object AlertDefaults {
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 overrideDND = false,
+                // Silent while the value is coming down fast, like PERSISTENT_HIGH. The
+                // slider turns it off for anyone who wants the old behaviour.
+                fallRateSuppress = FALL_RATE_SUPPRESS_MGDL_PER_MIN,
                 defaultSnoozeMinutes = 30
             )
             AlertType.VERY_LOW -> AlertConfig(
@@ -389,7 +395,7 @@ object AlertDefaults {
                 enabled = false,
                 threshold = if (isMmol) PERSISTENT_HIGH_THRESHOLD_MMOL else PERSISTENT_HIGH_THRESHOLD_MGDL,
                 durationMinutes = PERSISTENT_HIGH_MINUTES,
-                fallRateSuppress = PERSISTENT_HIGH_FALL_RATE_MGDL_PER_MIN,
+                fallRateSuppress = FALL_RATE_SUPPRESS_MGDL_PER_MIN,
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 defaultSnoozeMinutes = 60

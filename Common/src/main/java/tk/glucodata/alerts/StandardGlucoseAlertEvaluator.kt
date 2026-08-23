@@ -55,6 +55,13 @@ internal object StandardGlucoseAlertEvaluator {
                     rearmMargin = config.rearmMargin,
                     forecastMinutes = config.forecastMinutes
                 )
+            } else if (type == AlertType.HIGH &&
+                FallSuppressionPolicy.fallingSuppresses(rate, config.fallRateSuppress)
+            ) {
+                // Being high while coming down fast is the correction working. The episode
+                // is left to end on its own terms rather than held open, so a value that
+                // stops falling above the threshold is high again straight away.
+                false
             } else {
                 isThresholdConditionActive(
                     type = type,

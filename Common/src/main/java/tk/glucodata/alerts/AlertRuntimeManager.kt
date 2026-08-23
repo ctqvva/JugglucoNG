@@ -374,6 +374,11 @@ object AlertRuntimeManager {
         glucoseValue: Float,
         rate: Float
     ): String {
+        if (type == AlertType.HIGH &&
+            FallSuppressionPolicy.fallingSuppresses(rate, config?.fallRateSuppress)
+        ) {
+            return "high-falling"
+        }
         if (type != AlertType.PRE_LOW && type != AlertType.PRE_HIGH) {
             return "standard-condition-cleared"
         }
@@ -501,7 +506,7 @@ object AlertRuntimeManager {
         // running retries, but do NOT reset the timer: if the value stagnates
         // above the threshold again, the high phase was continuous and the
         // alarm must not wait out a fresh full duration.
-        if (PersistentHighPolicy.fallingSuppresses(currentRateLocked(), config.fallRateSuppress)) {
+        if (FallSuppressionPolicy.fallingSuppresses(currentRateLocked(), config.fallRateSuppress)) {
             clearRuntimeAlert(type, "persistent-high-falling")
             return
         }

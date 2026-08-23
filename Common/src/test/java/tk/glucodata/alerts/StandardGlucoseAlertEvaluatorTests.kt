@@ -348,4 +348,106 @@ class StandardGlucoseAlertEvaluatorTests {
         assertTrue(AlertType.LOW in untrusted)
         assertTrue(AlertType.PRE_LOW in trusted)
     }
+
+    /**
+     * The field case: "high" arrived while the value was dropping eighteen a minute under a
+     * correction that was plainly working. A steep fall is the evidence the alert would be
+     * arguing against, so the alert waits until the fall stops.
+     */
+    @Test
+    fun highStaysQuietWhileTheValueIsComingDownFast() {
+        val configs = mapOf(
+            AlertType.HIGH to AlertConfig(
+                AlertType.HIGH, enabled = true, threshold = 9.0f,
+                fallRateSuppress = AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+            )
+        )
+
+        val falling = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 13.0f,
+            rate = -3.5f,
+            configs = configs,
+            alertTypes = listOf(AlertType.HIGH),
+            isMmol = true,
+            isConfigActive = activeConfig
+        )
+        val stalled = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 13.0f,
+            rate = -0.1f,
+            configs = configs,
+            alertTypes = listOf(AlertType.HIGH),
+            isMmol = true,
+            isConfigActive = activeConfig
+        )
+
+        assertTrue(falling.isEmpty())
+        // Still high, no longer coming down: that is what the alert is for, and it does not
+        // wait out anything first.
+        assertTrue(stalled.containsKey(AlertType.HIGH))
+    }
+
+    /** There the number is the problem, whichever way it is going. */
+    @Test
+    fun veryHighFiresEvenInASteepFall() {
+        val configs = mapOf(
+            AlertType.VERY_HIGH to AlertConfig(
+                AlertType.VERY_HIGH, enabled = true, threshold = 14.0f,
+                fallRateSuppress = AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+            )
+        )
+
+        val falling = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 16.0f,
+            rate = -3.5f,
+            configs = configs,
+            alertTypes = listOf(AlertType.VERY_HIGH),
+            isMmol = true,
+            isConfigActive = activeConfig
+        )
+
+        assertTrue(falling.containsKey(AlertType.VERY_HIGH))
+    }
+
+    /** Turning the slider to zero is how somebody keeps the alert they had. */
+    @Test
+    fun highFiresInAFallWhenTheSuppressionIsOff() {
+        val configs = mapOf(
+            AlertType.HIGH to AlertConfig(
+                AlertType.HIGH, enabled = true, threshold = 9.0f, fallRateSuppress = 0f
+            )
+        )
+
+        val falling = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 13.0f,
+            rate = -3.5f,
+            configs = configs,
+            alertTypes = listOf(AlertType.HIGH),
+            isMmol = true,
+            isConfigActive = activeConfig
+        )
+
+        assertTrue(falling.containsKey(AlertType.HIGH))
+    }
+
+    /** A rate nobody could measure is not evidence of anything. */
+    @Test
+    fun highFiresWhenTheRateIsUnknown() {
+        val configs = mapOf(
+            AlertType.HIGH to AlertConfig(
+                AlertType.HIGH, enabled = true, threshold = 9.0f,
+                fallRateSuppress = AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+            )
+        )
+
+        val unknown = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 13.0f,
+            rate = Float.NaN,
+            configs = configs,
+            alertTypes = listOf(AlertType.HIGH),
+            isMmol = true,
+            isConfigActive = activeConfig
+        )
+
+        assertTrue(unknown.containsKey(AlertType.HIGH))
+    }
 }

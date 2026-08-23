@@ -1146,9 +1146,10 @@ private fun AlertSettingsExpanded(
                 }
 
                 // === Falling-value suppression (PERSISTENT_HIGH only) ===
-                // The alert says "your correction was not enough"; a steep fall
-                // proves it was. Slider in tenths of mg/dl per minute; 0 = off.
-                if (config.type == AlertType.PERSISTENT_HIGH) {
+                // These alerts say the value is not coming down; a steep fall proves it is.
+                // Slider in tenths of mg/dl per minute; 0 = off. VERY_HIGH is not among them:
+                // there the number itself is the problem.
+                if (config.type == AlertType.PERSISTENT_HIGH || config.type == AlertType.HIGH) {
                     DurationSlider(
                         label = stringResource(R.string.persistent_high_fall_suppress_label),
                         value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
