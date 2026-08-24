@@ -10,10 +10,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import tk.glucodata.InsulinPenManager
 import tk.glucodata.MainActivity
 import tk.glucodata.R
 import tk.glucodata.ui.PendingNavigation
-import java.util.concurrent.TimeUnit
 
 /**
  * The result of a pen read taken with the app in the background. There is no sheet to
@@ -51,10 +51,18 @@ internal object PenImportNotifier {
         show(context, serial, text, openJournal = false)
     }
 
+    fun cancel(context: Context) {
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+            ?.cancel(NOTIFICATION_ID)
+    }
+
     private fun show(context: Context, serial: String, text: String, openJournal: Boolean) {
         // Said on screen as the foreground scan says it: the receiver activity is still
         // up while the result is known, so the toast shows over whatever is there.
         tk.glucodata.Applic.Toaster(text)
+        val timeoutMillis = PenImportNotificationPolicy.timeoutMillis(
+            InsulinPenManager.importNotificationDurationMinutes(),
+        ) ?: return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         createChannel(context, manager)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -83,7 +91,7 @@ internal object PenImportNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)
-            .setTimeoutAfter(TimeUnit.HOURS.toMillis(12))
+            .setTimeoutAfter(timeoutMillis)
             .build()
         manager.notify(NOTIFICATION_ID, notification)
     }

@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import tk.glucodata.InsulinPen
 import tk.glucodata.InsulinPenManager
+import tk.glucodata.NovoPen.PenImportNotificationPolicy
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalRepository
@@ -69,12 +72,15 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
+import kotlin.math.roundToInt
 
 @Composable
 fun InsulinPenSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val enabled by InsulinPenManager.enabled.collectAsStateWithLifecycle()
     val backgroundImportEnabled by InsulinPenManager.backgroundImportEnabled.collectAsStateWithLifecycle()
+    val importNotificationDurationMinutes by
+        InsulinPenManager.importNotificationDurationMinutes.collectAsStateWithLifecycle()
     val pens by InsulinPenManager.pens.collectAsStateWithLifecycle()
     val presets by rememberInsulinPresets()
     val journalEnabled = remember(context) {
@@ -128,6 +134,53 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         icon = Icons.Default.Nfc,
                         position = CardPosition.TOP,
                     )
+                    var notificationDurationIndex by remember(importNotificationDurationMinutes) {
+                        mutableFloatStateOf(
+                            PenImportNotificationPolicy.sliderIndexForDuration(
+                                importNotificationDurationMinutes,
+                            ),
+                        )
+                    }
+                    val pendingDurationMinutes =
+                        PenImportNotificationPolicy.durationMinutesForSliderIndex(notificationDurationIndex)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = cardShape(CardPosition.MIDDLE),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(R.string.alert_delivery_notification),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    penImportNotificationDurationLabel(pendingDurationMinutes),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Slider(
+                                value = notificationDurationIndex,
+                                onValueChange = { value ->
+                                    notificationDurationIndex = value.roundToInt().toFloat()
+                                },
+                                onValueChangeFinished = {
+                                    InsulinPenManager.setImportNotificationDurationMinutes(
+                                        PenImportNotificationPolicy.durationMinutesForSliderIndex(
+                                            notificationDurationIndex,
+                                        ),
+                                    )
+                                },
+                                valueRange = 0f..PenImportNotificationPolicy.durationOptionsMinutes.lastIndex.toFloat(),
+                                steps = PenImportNotificationPolicy.durationOptionsMinutes.size - 2,
+                            )
+                        }
+                    }
                     // What the mode cannot do is worth a paragraph, not a row: folded away
                     // behind "show more" so the switch stays the size of a switch.
                     var showBackgroundDetails by rememberSaveable { mutableStateOf(false) }
@@ -244,6 +297,14 @@ fun InsulinPenSettingsScreen(navController: NavController) {
             },
         )
     }
+}
+
+@Composable
+private fun penImportNotificationDurationLabel(minutes: Int): String = when {
+    minutes <= 0 -> stringResource(R.string.off)
+    minutes < 60 -> stringResource(R.string.stats_duration_minutes, minutes)
+    minutes % 60 == 0 -> stringResource(R.string.stats_duration_hours, minutes / 60)
+    else -> stringResource(R.string.stats_duration_hours_minutes, minutes / 60, minutes % 60)
 }
 
 @Composable
