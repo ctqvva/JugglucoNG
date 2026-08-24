@@ -367,6 +367,9 @@ internal fun ottaiSetupConnectRoute(
 internal fun ottaiSetupPublishesManagedSensor(route: OttaiSetupConnectRoute): Boolean =
     route == OttaiSetupConnectRoute.STORED_MATERIALS
 
+internal fun ottaiSetupSelectionShouldConnect(hasAuthKeys: Boolean, signedIn: Boolean): Boolean =
+    hasAuthKeys || signedIn
+
 /** Exact active cloud binding for the selected account sensor; never resolves by suffix/alias. */
 internal fun ottaiActiveCloudUnbindTarget(
     selectedSensorId: String,
@@ -873,6 +876,17 @@ fun OttaiSetupWizard(
                         busy = true; status = ""
                         materialLoading = false
                         scope.launch {
+                            // Refresh account binding state for every explicit setup attempt. Local
+                            // credentials remain the BLE source of truth, but must not suppress the
+                            // cloud query that refreshes current binding state and the unbind UI.
+                            if (signedIn) {
+                                val refreshedDevices = withContext(Dispatchers.IO) {
+                                    runCatching { OttaiCloudClient.listDevices(context) }
+                                        .onFailure { Log.w(tag, "refresh account sensors: ${it.message}") }
+                                        .getOrNull()
+                                }
+                                if (refreshedDevices != null) devices = refreshedDevices
+                            }
                             val fetched = withContext(Dispatchers.IO) {
                                 runCatching {
                                     val selected = selectedAccountDevice?.takeIf {
@@ -909,7 +923,6 @@ fun OttaiSetupWizard(
                                     explicitBle,
                                 ) { materials, failure ->
                                     credentialBootstrap = null
-                                    busy = false
                                     materialLoading = false
                                     if (materials?.authKeys != null) {
                                         currentMaterials = materials
@@ -917,8 +930,30 @@ fun OttaiSetupWizard(
                                             selectedDeviceVersion = materials.deviceVersion
                                         }
                                         savedRefresh += 1
-                                        status = context.getString(R.string.ottai_creds_loaded)
+                                        // Credential bootstrap is only phase one. Continue the
+                                        // same explicit selection into the normal managed BLE
+                                        // connection; activateIfNeeded will inspect the
+                                        // authenticated command status and activate only 0..2.
+                                        scope.launch {
+                                            val connected = withContext(Dispatchers.IO) {
+                                                connectOttaiSensor(
+                                                    context,
+                                                    canonical,
+                                                    explicitBle,
+                                                    activate = false,
+                                                    route = OttaiSetupConnectRoute.STORED_MATERIALS,
+                                                )
+                                            }
+                                            busy = false
+                                            if (connected) {
+                                                status = context.getString(R.string.ottai_creds_loaded)
+                                                step = OttaiSetupStep.CONNECTING
+                                            } else {
+                                                status = context.getString(R.string.ottai_connect_saved_fail)
+                                            }
+                                        }
                                     } else {
+                                        busy = false
                                         status = ottaiMaterialFailureMessage(context, failure)
                                     }
                                 }
@@ -1032,7 +1067,7 @@ fun OttaiSetupWizard(
                                     cloudId = id
                                     selectedDeviceVersion = ""
                                     val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null
-                                    if (signedIn && !hasLocal) {
+                                    if (ottaiSetupSelectionShouldConnect(hasLocal, signedIn)) {
                                         lastAutoFetchId = id
                                         startConnect(id, address)
                                     } else {
@@ -1306,7 +1341,7 @@ fun OttaiSetupWizard(
                                     cloudId = id
                                     selectedDeviceVersion = ""
                                     val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null
-                                    if (signedIn && !hasLocal) {
+                                    if (ottaiSetupSelectionShouldConnect(hasLocal, signedIn)) {
                                         lastAutoFetchId = id
                                         startConnect(id, OttaiConstants.macWithColons(id))
                                     } else {
@@ -1349,7 +1384,7 @@ fun OttaiSetupWizard(
                             Text(stringResource(R.string.ottai_nfc_dump))
                         }
 
-                        if (signedIn) {
+                        if (signedIn && cloudUnbindTarget != null) {
                             HorizontalDivider()
                             Text(
                                 stringResource(R.string.ottai_cloud_unbind_hint),
@@ -1357,8 +1392,8 @@ fun OttaiSetupWizard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             OutlinedButton(
-                                onClick = { cloudUnbindTarget?.let { pendingCloudUnbind = it } },
-                                enabled = !busy && !materialLoading && cloudUnbindTarget != null,
+                                onClick = { pendingCloudUnbind = cloudUnbindTarget },
+                                enabled = !busy && !materialLoading,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error,

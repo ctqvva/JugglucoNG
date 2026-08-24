@@ -45,6 +45,13 @@ class OttaiSetupFlowTests {
     }
 
     @Test
+    fun `selecting a usable sensor starts one continuous setup transaction`() {
+        assertEquals(true, ottaiSetupSelectionShouldConnect(hasAuthKeys = true, signedIn = false))
+        assertEquals(true, ottaiSetupSelectionShouldConnect(hasAuthKeys = false, signedIn = true))
+        assertEquals(false, ottaiSetupSelectionShouldConnect(hasAuthKeys = false, signedIn = false))
+    }
+
+    @Test
     fun `cloud unbind is available only for the exact selected active binding`() {
         val active = device("70D07E2552DB", unbindTime = 0L)
         val past = device("18690ADED9B3", unbindTime = 1_787_500_000_000L)
