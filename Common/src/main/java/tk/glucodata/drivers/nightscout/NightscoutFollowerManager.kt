@@ -1,9 +1,15 @@
 package tk.glucodata.drivers.nightscout
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
 import java.net.HttpURLConnection
 import java.net.URLEncoder
 import java.net.URL
@@ -35,6 +41,8 @@ class NightscoutFollowerManager(
         private const val SENSOR_GEN = 0
         private const val POLL_INTERVAL_MS = 60_000L
         private const val RETRY_INTERVAL_MS = 30_000L
+        /** A server that is down overnight must not wake the phone twice a minute until morning. */
+        private const val RETRY_BACKOFF_CEILING_MS = 15L * 60_000L
         private const val PROBE_INTERVAL_MS = 59_000L
         private const val DEVICE_STATUS_COUNT = 5
         private const val MMOL_TO_MGDL = 18.0182f
@@ -54,6 +62,7 @@ class NightscoutFollowerManager(
 
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var status: String = localizedString(R.string.nightscout_follow_status_idle, "Nightscout follower idle")
+    @Volatile private var consecutiveFailures: Int = 0
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
@@ -139,6 +148,7 @@ class NightscoutFollowerManager(
 
     override fun close() {
         handler.removeCallbacksAndMessages(null)
+        cancelPollAlarm()
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close().
             // Quit the HandlerThread so it doesn't outlive the sensor object.
@@ -156,6 +166,7 @@ class NightscoutFollowerManager(
     override fun softDisconnect() {
         stop = true
         handler.removeCallbacksAndMessages(null)
+        cancelPollAlarm()
         mainHandler.removeCallbacks(probeRunnable)
         NightscoutFollowerDeviceStatus.clear()
         setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_paused, "Nightscout follower paused"))
@@ -198,10 +209,86 @@ class NightscoutFollowerManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
+    /** What the user asked for, read fresh so a change applies from the next poll on. */
+    private fun pollIntervalMillis(): Long =
+        NightscoutFollowerPollPolicy.intervalMillis(
+            NightscoutFollowerRegistry.loadPollMinutes(Applic.app)
+        )
+
+    private fun pollIntent(): PendingIntent? {
+        val app = Applic.app ?: return null
+        val intent = Intent(app, NightscoutFollowerPollReceiver::class.java).apply {
+            action = NightscoutFollowerPollReceiver.ACTION_POLL
+            putExtra(NightscoutFollowerPollReceiver.EXTRA_SERIAL, SerialNumber)
+        }
+        return PendingIntent.getBroadcast(
+            app,
+            SerialNumber.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * The next poll is an alarm, not a delayed message. A handler measures in uptime, which
+     * stops while the phone sleeps, so on a follower phone (nothing else wakes it: no sensor,
+     * no bluetooth) the minute became however long the phone was left alone. An alarm wakes
+     * the device for it.
+     *
+     * An immediate poll stays on the handler: there is nothing to wake for, and it keeps the
+     * connect and reconnect paths as responsive as they were.
+     */
     private fun scheduleRefresh(delayMillis: Long) {
         handler.removeCallbacks(pollRunnable)
-        if (!stop) {
+        if (stop) return
+        if (delayMillis <= 0L) {
+            handler.post(pollRunnable)
+            return
+        }
+        val app = Applic.app
+        val alarms = app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        val pending = pollIntent()
+        if (alarms == null || pending == null) {
             handler.postDelayed(pollRunnable, delayMillis)
+            return
+        }
+        val at = SystemClock.elapsedRealtime() + delayMillis
+        val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
+        runCatching {
+            if (exact) {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending)
+            } else {
+                // Without the exact-alarm permission this is the strongest thing left, and it
+                // still wakes the device; only its timing is the system's to choose.
+                alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending)
+            }
+        }.onFailure {
+            Log.w(TAG, "Poll alarm refused, falling back to an in-process timer: ${it.message}")
+            handler.postDelayed(pollRunnable, delayMillis)
+        }
+    }
+
+    private fun cancelPollAlarm() {
+        val alarms = Applic.app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        pollIntent()?.let { pending -> runCatching { alarms?.cancel(pending) } }
+    }
+
+    /**
+     * Called from the alarm. The receiver's wakelock is handed over here because the fetch
+     * runs on this driver's thread and outlives onReceive; whatever happens, it is released
+     * once, after the poll has scheduled its successor.
+     */
+    internal fun onPollAlarm(wakelock: PowerManager.WakeLock?) {
+        if (stop) {
+            runCatching { if (wakelock?.isHeld == true) wakelock.release() }
+            return
+        }
+        handler.post {
+            try {
+                refresh("alarm")
+            } finally {
+                runCatching { if (wakelock?.isHeld == true) wakelock.release() }
+            }
         }
     }
 
@@ -219,7 +306,7 @@ class NightscoutFollowerManager(
             refreshRemoteDeviceStatus()
             if (readings.isEmpty()) {
                 setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_no_readings, "No Nightscout readings yet"))
-                scheduleRefresh(POLL_INTERVAL_MS)
+                scheduleRefresh(pollIntervalMillis())
                 return
             }
             if (!fetched.historyImported) {
@@ -239,11 +326,21 @@ class NightscoutFollowerManager(
                 ),
             )
             UiRefreshBus.requestDataRefresh()
-            scheduleRefresh(POLL_INTERVAL_MS)
+            consecutiveFailures = 0
+            scheduleRefresh(pollIntervalMillis())
         } catch (t: Throwable) {
             Log.stack(TAG, "refresh($reason)", t)
             setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_sync_failed, "Nightscout sync failed"))
-            scheduleRefresh(RETRY_INTERVAL_MS)
+            // The first retry stays quick, since most failures are a moment without network.
+            // One that keeps failing doubles its way up to the ceiling instead: a poll now
+            // wakes the phone rather than waiting until something else does, so an unreachable
+            // server would otherwise cost a wake-up every thirty seconds all night. The retry
+            // never waits longer than the interval the user asked for.
+            consecutiveFailures = (consecutiveFailures + 1).coerceAtMost(9)
+            val backoff = (RETRY_INTERVAL_MS shl (consecutiveFailures - 1))
+                .coerceAtMost(RETRY_BACKOFF_CEILING_MS)
+                .coerceAtMost(pollIntervalMillis().coerceAtLeast(RETRY_INTERVAL_MS))
+            scheduleRefresh(backoff)
         }
     }
 

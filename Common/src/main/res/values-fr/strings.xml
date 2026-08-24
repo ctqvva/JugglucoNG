@@ -2503,4 +2503,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Courbe + valeur</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Courbe + valeur + flèche</string>
     <string name="glucosechartfullcomplicationlabel">Courbe + valeur + flèche + heure</string>
+    <string name="nightscout_follow_interval_title">Rechercher de nouvelles valeurs</string>
+    <string name="nightscout_follow_interval_desc">À quelle fréquence le suiveur interroge le serveur. C\'est aussi l\'âge que peut avoir une valeur, et donc le retard possible d\'une alarme déclenchée sur une valeur suivie. Un suiveur n\'a pas de capteur à lui pour garder le téléphone éveillé, donc chaque interrogation est un réveil.</string>
+    <string name="nightscout_follow_interval_doze">En dessous de 9 minutes, Android peut malgré tout espacer les interrogations lorsque le téléphone est inactif. Exclure Juggluco de l\'optimisation de la batterie préserve l\'intervalle choisi.</string>
 </resources>

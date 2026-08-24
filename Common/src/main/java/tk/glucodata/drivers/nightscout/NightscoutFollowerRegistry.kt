@@ -17,6 +17,7 @@ object NightscoutFollowerRegistry {
     private const val PREF_URL = "nightscout_follower_url"
     private const val PREF_SECRET = "nightscout_follower_secret"
     private const val PREF_COMPLETE_HISTORY_PREFIX = "nightscout_follower_complete_history_v1_"
+    private const val PREF_POLL_MINUTES = "nightscout_follower_poll_minutes"
     const val SENSOR_PREFIX = "NSF-"
 
     data class Config(
@@ -70,6 +71,20 @@ object NightscoutFollowerRegistry {
             .putString(PREF_SECRET, secret?.trim()?.takeIf { it.isNotEmpty() })
             .apply()
         ManagedSensorUiSignals.markDeviceListDirty()
+    }
+
+    /** How often the follower asks, in minutes. Sanitized on the way out and on the way in. */
+    fun loadPollMinutes(context: Context?): Int =
+        context?.let {
+            NightscoutFollowerPollPolicy.sanitizeMinutes(
+                prefs(it).getInt(PREF_POLL_MINUTES, NightscoutFollowerPollPolicy.DEFAULT_MINUTES)
+            )
+        } ?: NightscoutFollowerPollPolicy.DEFAULT_MINUTES
+
+    fun savePollMinutes(context: Context, minutes: Int) {
+        prefs(context).edit()
+            .putInt(PREF_POLL_MINUTES, NightscoutFollowerPollPolicy.sanitizeMinutes(minutes))
+            .apply()
     }
 
     fun persistedSensorIds(context: Context): List<String> =

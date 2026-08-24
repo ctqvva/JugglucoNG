@@ -1572,6 +1572,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Use Nightscout v3 API</string>
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
+    <string name="nightscout_follow_interval_title">Check for new values</string>
+    <string name="nightscout_follow_interval_desc">How often the follower asks the server. This is also how late a value can be, so it is how late an alarm raised on a followed value can be. A follower has no sensor of its own to keep the phone awake, so every check is a wake-up.</string>
+    <string name="nightscout_follow_interval_doze">Below 9 minutes, Android may still space checks further apart while the phone is idle. Excluding Juggluco from battery optimisation keeps the interval you chose.</string>
     <string name="nightscout_follow_url_required">Enter a Nightscout URL first</string>
     <string name="nightscout_mode_upload">Upload</string>
     <string name="nightscout_mode_follow">Follow</string>

@@ -2564,4 +2564,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <string name="nightscout_follow_interval_title">Правяраць новыя значэнні</string>
+    <string name="nightscout_follow_interval_desc">Як часта падпісчык апытвае сервер. Гэта таксама тое, наколькі старым можа быць значэнне, а значыць і наколькі позна прыйдзе трывога па сачыльным значэнні. У падпісчыка няма свайго сэнсара, які трымаў бы тэлефон абуджаным, таму кожная праверка — гэта абуджэнне.</string>
+    <string name="nightscout_follow_interval_doze">Менш за 9 хвілін Android усё роўна можа разводзіць праверкі, пакуль тэлефон бяздзейнічае. Выключэнне Juggluco з аптымізацыі батарэі захоўвае выбраны інтэрвал.</string>
 </resources>

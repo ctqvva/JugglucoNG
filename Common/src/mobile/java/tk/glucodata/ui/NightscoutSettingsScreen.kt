@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
@@ -74,6 +76,7 @@ import tk.glucodata.Natives
 import tk.glucodata.NightPost
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalTreatmentUploader
+import tk.glucodata.drivers.nightscout.NightscoutFollowerPollPolicy
 import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -434,6 +437,56 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             modifier = Modifier.padding(horizontal = 4.dp)
                         )
                         else -> {}
+                    }
+                }
+            }
+
+            // Follow-only items
+            if (mode == NightscoutMode.FOLLOW) {
+                item("nightscout_follow_interval") {
+                    // How often it asks is the whole of what a follower does, and every poll
+                    // is a wake-up on a phone with no sensor of its own to pay for it.
+                    var pollMinutes by remember {
+                        mutableStateOf(NightscoutFollowerRegistry.loadPollMinutes(context))
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        shape = cardShape(CardPosition.SINGLE),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.nightscout_follow_interval_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.nightscout_follow_interval_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                NightscoutFollowerPollPolicy.CHOICES_MINUTES.forEach { minutes ->
+                                    FilterChip(
+                                        selected = pollMinutes == minutes,
+                                        onClick = {
+                                            pollMinutes = minutes
+                                            NightscoutFollowerRegistry.savePollMinutes(context, minutes)
+                                        },
+                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) }
+                                    )
+                                }
+                            }
+                            if (NightscoutFollowerPollPolicy.isThrottledByDoze(pollMinutes)) {
+                                Text(
+                                    text = stringResource(R.string.nightscout_follow_interval_doze),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }

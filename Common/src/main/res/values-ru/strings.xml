@@ -2540,4 +2540,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">График + значение</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + значение + стрелка</string>
     <string name="glucosechartfullcomplicationlabel">График + значение + стрелка + время</string>
+    <string name="nightscout_follow_interval_title">Проверять новые значения</string>
+    <string name="nightscout_follow_interval_desc">Как часто подписчик опрашивает сервер. Это же определяет, насколько старым может быть значение, а значит и насколько поздно придёт тревога по отслеживаемому значению. У подписчика нет своего сенсора, который держал бы телефон активным, поэтому каждая проверка — это пробуждение.</string>
+    <string name="nightscout_follow_interval_doze">Меньше 9 минут Android всё равно может разносить проверки, пока телефон простаивает. Исключение Juggluco из оптимизации батареи сохраняет выбранный интервал.</string>
 </resources>

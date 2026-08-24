@@ -2525,4 +2525,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="nightscout_follow_interval_title">Yeni değerleri kontrol et</string>
+    <string name="nightscout_follow_interval_desc">Takipçinin sunucuya ne sıklıkla sorduğu. Bu aynı zamanda bir değerin ne kadar eski olabileceği, dolayısıyla takip edilen bir değere dayanan alarmın ne kadar geç gelebileceğidir. Takipçinin telefonu uyanık tutan kendi sensörü yoktur, bu yüzden her kontrol bir uyandırmadır.</string>
+    <string name="nightscout_follow_interval_doze">9 dakikanın altında Android, telefon boştayken kontrolleri yine de aralayabilir. Juggluco\'yu pil optimizasyonundan çıkarmak seçilen aralığı korur.</string>
 </resources>

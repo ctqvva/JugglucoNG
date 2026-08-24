@@ -170,6 +170,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".drivers.nightscout.NightscoutFollowerPollReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".drivers.sibionics.SibionicsResetReminderReceiver"
             android:enabled="true"
             android:exported="false" />
