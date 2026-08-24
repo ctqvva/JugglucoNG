@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Contactless
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -270,7 +270,7 @@ private fun DoseRow(
                         modifier = Modifier.size(16.dp),
                     )
                     Icon(
-                        imageVector = Icons.Default.Contactless,
+                        imageVector = Icons.Default.Nfc,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
