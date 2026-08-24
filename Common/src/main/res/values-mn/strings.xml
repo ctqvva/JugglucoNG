@@ -2418,6 +2418,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ.</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. Ottai апп-аас салгах эсвэл эндээс тухайн мэдрэгчийг устгаж холболтыг чөлөөлөөд дахин оролдоно уу.</string>
+    <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
+    <string name="ottai_cloud_unbind_title">Энэ мэдрэгчийг бүрмөсөн салгах уу?</string>
+    <string name="ottai_cloud_unbind_message">%1$s энэ Ottai бүртгэлээс бүрмөсөн хасагдана. Бүртгэл цаашид түүний нэвтрэх мэдээллийг авч чадахгүй бөгөөд мэдрэгч албан ёсны Ottai апп-д ажиллахгүй. JugglucoNG-д хадгалсан нэвтрэх мэдээлэл болон мэдрэгчийн төлөв өөрчлөгдөхгүй. Энэ үйлдлийг буцаах боломжгүй.</string>
+    <string name="ottai_cloud_unbind_confirm">Бүрмөсөн салгах</string>
+    <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. JugglucoNG дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
+    <string name="ottai_cloud_unbind_failed">Мэдрэгчийг Ottai-аас салгаж чадсангүй.</string>
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Яаралтай SMS</string>

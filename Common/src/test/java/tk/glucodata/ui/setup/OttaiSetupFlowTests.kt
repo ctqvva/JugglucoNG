@@ -1,7 +1,9 @@
 package tk.glucodata.ui.setup
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import tk.glucodata.drivers.ottai.OttaiCloudClient
 
 class OttaiSetupFlowTests {
     @Test
@@ -41,4 +43,25 @@ class OttaiSetupFlowTests {
             assertEquals(OttaiSetupConnectRoute.BLOCKED, route)
         }
     }
+
+    @Test
+    fun `cloud unbind is available only for the exact selected active binding`() {
+        val active = device("70D07E2552DB", unbindTime = 0L)
+        val past = device("18690ADED9B3", unbindTime = 1_787_500_000_000L)
+        val devices = listOf(active, past)
+
+        assertEquals(active, ottaiActiveCloudUnbindTarget("70:D0:7E:25:52:DB", devices))
+        assertNull(ottaiActiveCloudUnbindTarget("18690ADED9B3", devices))
+        assertNull(ottaiActiveCloudUnbindTarget("6CA04230E260", devices))
+        assertNull(ottaiActiveCloudUnbindTarget("", devices))
+    }
+
+    private fun device(mac: String, unbindTime: Long) = OttaiCloudClient.DeviceSummary(
+        mac = mac,
+        serialNo = mac,
+        deviceType = "cgm",
+        deviceVersion = "E1.1.4(V1.7.S2530.1)",
+        bindTime = 1_787_400_000_000L,
+        unbindTime = unbindTime,
+    )
 }

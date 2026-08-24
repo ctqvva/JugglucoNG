@@ -2331,6 +2331,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_upload_iob_desc">Nightscout, profil üzerinden kendi hesapladığı değer yerine bu değeri gösterir. eIOB ve COB ayrıca ayrı bir alanda gönderilir.</string>
     <string name="journal_iob_source_remote">Verileri yükleyen cihazın değerleri (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai hesabına hâlâ başka bir sensör bağlı. Bağlantıyı serbest bırakmak için sensörü Ottai uygulamasından ayırın veya buradan kaldırın, ardından yeniden deneyin.</string>
+    <string name="ottai_cloud_unbind_hint">Yalnızca bulut hesabı işlemi. JugglucoNG seçili sensöre bağlanmaz; sensörü durdurmaz, kaldırmaz veya değiştirmez.</string>
+    <string name="ottai_cloud_unbind_title">Bu sensörün bağlantısı kalıcı olarak kaldırılsın mı?</string>
+    <string name="ottai_cloud_unbind_message">%1$s bu Ottai hesabından kalıcı olarak kaldırılacak. Hesap artık sensörün kimlik bilgilerini alamayacak ve sensör resmi Ottai uygulamasında çalışmayacak. JugglucoNG’de önceden kaydedilmiş kimlik bilgileri ve sensör durumu değiştirilmeyecek. Bu işlem geri alınamaz.</string>
+    <string name="ottai_cloud_unbind_confirm">Kalıcı olarak kaldır</string>
+    <string name="ottai_cloud_unbind_success">Sensörün Ottai bağlantısı kalıcı olarak kaldırıldı. JugglucoNG’deki sensör ve kayıtlı bilgiler değiştirilmedi.</string>
+    <string name="ottai_cloud_unbind_failed">Sensörün Ottai bağlantısı kaldırılamadı.</string>
     <string name="ottai_cloud_offline_routes">Bulut olmadan devam etmek için bir kimlik bilgileri dosyası içe aktarın — QR taraması yalnızca sensör kodunu doldurur, NFC ise yalnızca sensörü uyandırır.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Acil SMS</string>

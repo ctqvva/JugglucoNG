@@ -2303,6 +2303,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält.</string>
     <string name="journal_iob_source_remote">Värden från den uppladdande enheten (Nightscout)</string>
     <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Koppla bort den i Ottai-appen eller ta bort sensorn här för att frigöra kopplingen och försök sedan igen.</string>
+    <string name="ottai_cloud_unbind_hint">Endast en åtgärd för molnkontot. JugglucoNG ansluter inte till, stoppar, tar bort eller ändrar den valda sensorn.</string>
+    <string name="ottai_cloud_unbind_title">Koppla bort sensorn permanent?</string>
+    <string name="ottai_cloud_unbind_message">%1$s tas bort permanent från detta Ottai-konto. Kontot kan därefter inte längre hämta dess autentiseringsuppgifter och sensorn fungerar inte längre i den officiella Ottai-appen. Autentiseringsuppgifter och sensorstatus som redan sparats i JugglucoNG ändras inte. Detta kan inte ångras.</string>
+    <string name="ottai_cloud_unbind_confirm">Koppla bort permanent</string>
+    <string name="ottai_cloud_unbind_success">Sensorn har kopplats bort permanent från Ottai. Sensorn och sparade uppgifter i JugglucoNG ändrades inte.</string>
+    <string name="ottai_cloud_unbind_failed">Det gick inte att koppla bort sensorn från Ottai.</string>
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nöd-SMS</string>

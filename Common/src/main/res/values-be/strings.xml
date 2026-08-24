@@ -2370,6 +2370,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout будзе паказваць гэта значэнне замест уласнага разліку з профілю. eIOB і COB дадаткова перадаюцца ў асобным полі.</string>
     <string name="journal_iob_source_remote">Значэнні з прылады, якая адпраўляе даныя (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Да ўліковага запісу Ottai усё яшчэ прывязаны іншы датчык. Адвяжыце яго ў праграме Ottai або выдаліце той датчык тут, каб вызваліць прывязку, і паўтарыце спробу.</string>
+    <string name="ottai_cloud_unbind_hint">Дзеянне толькі з воблачным уліковым запісам. JugglucoNG не будзе падключацца да выбранага датчыка, спыняць, выдаляць або змяняць яго.</string>
+    <string name="ottai_cloud_unbind_title">Назаўсёды адвязаць гэты датчык?</string>
+    <string name="ottai_cloud_unbind_message">%1$s будзе назаўсёды выдалены з гэтага ўліковага запісу Ottai. Уліковы запіс больш не зможа атрымаць яго ўліковыя даныя, а датчык больш не будзе працаваць у афіцыйнай праграме Ottai. Захаваныя ў JugglucoNG даныя і стан датчыка не зменяцца. Гэта дзеянне нельга адмяніць.</string>
+    <string name="ottai_cloud_unbind_confirm">Адвязаць назаўсёды</string>
+    <string name="ottai_cloud_unbind_success">Датчык назаўсёды адвязаны ад Ottai. Датчык і захаваныя даныя ў JugglucoNG не былі зменены.</string>
+    <string name="ottai_cloud_unbind_failed">Не ўдалося адвязаць датчык ад Ottai.</string>
     <string name="ottai_cloud_offline_routes">Імпартуйце файл уліковых даных, каб працягнуць без воблака — QR-код толькі запаўняе код датчыка, а NFC толькі абуджае яго.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Экстранныя SMS</string>

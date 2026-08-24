@@ -2342,6 +2342,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_handover_multiple_text">Der Sensor ist abgelaufen, aber mehrere Nachfolge-Sensoren sind aktiv. Automatische Übergabe übersprungen; bitte manuell wechseln.</string>
     <string name="sensor_handover_successor_ready">Nachfolge-Sensor ist bereit; die automatische Übergabe übernimmt beim Ablauf</string>
     <string name="ottai_cloud_already_binding">Mit dem Ottai-Konto ist noch ein anderer Sensor verknüpft. Trennen Sie ihn in der Ottai-App oder entfernen Sie diesen Sensor hier, um die Verknüpfung freizugeben, und versuchen Sie es erneut.</string>
+    <string name="ottai_cloud_unbind_hint">Nur eine Aktion für das Cloud-Konto. JugglucoNG verbindet sich nicht mit dem ausgewählten Sensor und stoppt, entfernt oder verändert ihn nicht.</string>
+    <string name="ottai_cloud_unbind_title">Diesen Sensor dauerhaft entkoppeln?</string>
+    <string name="ottai_cloud_unbind_message">%1$s wird dauerhaft aus diesem Ottai-Konto entfernt. Das Konto kann seine Zugangsdaten danach nicht mehr abrufen, und der Sensor funktioniert nicht mehr in der offiziellen Ottai-App. In JugglucoNG gespeicherte Zugangsdaten und der Sensorstatus bleiben unverändert. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="ottai_cloud_unbind_confirm">Dauerhaft entkoppeln</string>
+    <string name="ottai_cloud_unbind_success">Sensor dauerhaft von Ottai entkoppelt. Sensor und gespeicherte Zugangsdaten in JugglucoNG wurden nicht verändert.</string>
+    <string name="ottai_cloud_unbind_failed">Der Sensor konnte nicht von Ottai entkoppelt werden.</string>
     <string name="ottai_cloud_offline_routes">Importieren Sie eine Zugangsdaten-Datei, um ohne Cloud fortzufahren — ein QR-Scan trägt nur den Sensorcode ein und NFC weckt den Sensor lediglich auf.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Notfall-SMS</string>

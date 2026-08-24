@@ -1027,6 +1027,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_fail">Sign-in failed — check phone/code</string>
     <string name="ottai_connect_saved_fail">No account or saved materials for this cloud ID</string>
     <string name="ottai_cloud_already_binding">The Ottai account still has another sensor bound. Unbind it in the Ottai app, or remove that sensor here to release it, then try again.</string>
+    <string name="ottai_cloud_unbind_hint">Cloud account action only. JugglucoNG will not connect to, stop, remove, or modify the selected sensor.</string>
+    <string name="ottai_cloud_unbind_title">Permanently unbind this sensor?</string>
+    <string name="ottai_cloud_unbind_message">%1$s will be permanently removed from this Ottai account. The account will no longer be able to fetch its credentials, and the sensor will no longer work in the official Ottai app. Credentials and sensor state already saved in JugglucoNG will not be changed. This cannot be undone.</string>
+    <string name="ottai_cloud_unbind_confirm">Unbind permanently</string>
+    <string name="ottai_cloud_unbind_success">Sensor permanently unbound from Ottai. The sensor and saved credentials in JugglucoNG were not changed.</string>
+    <string name="ottai_cloud_unbind_failed">Could not unbind the sensor from Ottai.</string>
     <string name="ottai_cloud_offline_routes">Import a credentials file to continue without the cloud — a QR scan only fills the sensor code, and NFC only wakes the sensor.</string>
     <string name="ottai_status_needs_ble_address">Needs BLE address</string>
     <string name="ottai_status_warmup_provisional">Provisional warmup • %1$dm left</string>

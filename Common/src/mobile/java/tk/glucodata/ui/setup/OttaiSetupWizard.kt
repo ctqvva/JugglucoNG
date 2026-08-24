@@ -40,9 +40,12 @@ import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -364,6 +367,18 @@ internal fun ottaiSetupConnectRoute(
 internal fun ottaiSetupPublishesManagedSensor(route: OttaiSetupConnectRoute): Boolean =
     route == OttaiSetupConnectRoute.STORED_MATERIALS
 
+/** Exact active cloud binding for the selected account sensor; never resolves by suffix/alias. */
+internal fun ottaiActiveCloudUnbindTarget(
+    selectedSensorId: String,
+    devices: List<OttaiCloudClient.DeviceSummary>?,
+): OttaiCloudClient.DeviceSummary? {
+    val selected = OttaiConstants.canonicalSensorId(selectedSensorId)
+    if (!OttaiConstants.looksLikeMac(selected)) return null
+    return devices?.firstOrNull { device ->
+        device.isActive && OttaiConstants.canonicalSensorId(device.mac) == selected
+    }
+}
+
 private fun ottaiMaterialState(
     materials: OttaiRegistry.DeviceMaterials?,
     recoveredStartMs: Long = 0L,
@@ -439,6 +454,7 @@ fun OttaiSetupWizard(
     // The account's sensors (current + past); null = not loaded yet, empty = none.
     var devices by remember { mutableStateOf<List<OttaiCloudClient.DeviceSummary>?>(null) }
     var devicesLoading by remember { mutableStateOf(false) }
+    var pendingCloudUnbind by remember { mutableStateOf<OttaiCloudClient.DeviceSummary?>(null) }
     // Locally-saved sensors (imported or fetched) that can connect with no network.
     var savedSensors by remember { mutableStateOf<List<OttaiRegistry.SensorRecord>>(emptyList()) }
     var savedRefresh by remember { mutableStateOf(0) }
@@ -642,6 +658,76 @@ fun OttaiSetupWizard(
         }
     }
 
+    pendingCloudUnbind?.let { target ->
+        val targetId = OttaiConstants.canonicalSensorId(target.mac)
+        AlertDialog(
+            onDismissRequest = { if (!busy) pendingCloudUnbind = null },
+            icon = {
+                Icon(
+                    Icons.Default.LinkOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            },
+            title = { Text(stringResource(R.string.ottai_cloud_unbind_title)) },
+            text = { Text(stringResource(R.string.ottai_cloud_unbind_message, targetId)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingCloudUnbind = null
+                        busy = true
+                        scope.launch {
+                            // Deliberately cloud-only. Do not call OttaiRegistry.removeSensor,
+                            // SensorBluetooth, or any BLE/native path from this action.
+                            val released = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    OttaiCloudClient.unbind(context.applicationContext, targetId)
+                                }.onFailure {
+                                    Log.w(tag, "cloud-only unbind $targetId: ${it.message}")
+                                }.getOrDefault(false)
+                            }
+                            busy = false
+                            if (released) {
+                                val unboundAt = System.currentTimeMillis()
+                                devices = devices?.map { device ->
+                                    if (OttaiConstants.canonicalSensorId(device.mac) == targetId) {
+                                        device.copy(unbindTime = unboundAt)
+                                    } else {
+                                        device
+                                    }
+                                }
+                                selectedAccountDevice = selectedAccountDevice?.let { selected ->
+                                    if (OttaiConstants.canonicalSensorId(selected.mac) == targetId) {
+                                        selected.copy(unbindTime = unboundAt)
+                                    } else {
+                                        selected
+                                    }
+                                }
+                                status = context.getString(R.string.ottai_cloud_unbind_success)
+                            } else {
+                                status = context.getString(R.string.ottai_cloud_unbind_failed)
+                            }
+                        }
+                    },
+                    enabled = !busy,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.ottai_cloud_unbind_confirm))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { pendingCloudUnbind = null },
+                    enabled = !busy,
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
     BackHandler {
         when (step) {
             OttaiSetupStep.SENSOR -> onDismiss()
@@ -773,6 +859,7 @@ fun OttaiSetupWizard(
                     val hasSensorCode = OttaiConstants.looksLikeMac(cloudId)
                     val hasMaterials = currentMaterials?.authKeys != null
                     val canConnect = hasSensorCode && (signedIn || hasMaterials)
+                    val cloudUnbindTarget = ottaiActiveCloudUnbindTarget(cloudId, devices)
                     val connectTitleRes = when (materialState) {
                         OttaiMaterialState.READY_TO_ACTIVATE -> R.string.ottai_connect_activate
                         OttaiMaterialState.EXPIRED -> R.string.ottai_connect_expired
@@ -1260,6 +1347,31 @@ fun OttaiSetupWizard(
                             Icon(Icons.Default.Nfc, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.ottai_nfc_dump))
+                        }
+
+                        if (signedIn) {
+                            HorizontalDivider()
+                            Text(
+                                stringResource(R.string.ottai_cloud_unbind_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(
+                                onClick = { cloudUnbindTarget?.let { pendingCloudUnbind = it } },
+                                enabled = !busy && !materialLoading && cloudUnbindTarget != null,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                            ) {
+                                Icon(
+                                    Icons.Default.LinkOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.unbind_sensor))
+                            }
                         }
                     }
                 }

@@ -2319,6 +2319,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout 将显示此值，而不是按配置自行计算。eIOB 和 COB 还会通过单独字段发送。</string>
     <string name="journal_iob_source_remote">来自上传设备的数值（Nightscout）</string>
     <string name="ottai_cloud_already_binding">Ottai 账户仍绑定着另一个传感器。请在 Ottai 应用中解除绑定，或在此删除该传感器以释放绑定，然后重试。</string>
+    <string name="ottai_cloud_unbind_hint">此操作仅更改云端账户。JugglucoNG 不会连接、停止、删除或修改所选传感器。</string>
+    <string name="ottai_cloud_unbind_title">永久解除此传感器的绑定？</string>
+    <string name="ottai_cloud_unbind_message">%1$s 将从此 Ottai 账户中永久移除。此账户将无法再获取其凭据，该传感器也将无法再用于官方 Ottai 应用。JugglucoNG 中已保存的凭据和传感器状态不会改变。此操作无法撤销。</string>
+    <string name="ottai_cloud_unbind_confirm">永久解除绑定</string>
+    <string name="ottai_cloud_unbind_success">已从 Ottai 永久解除传感器绑定。JugglucoNG 中的传感器和已保存凭据未被更改。</string>
+    <string name="ottai_cloud_unbind_failed">无法从 Ottai 解除传感器绑定。</string>
     <string name="ottai_cloud_offline_routes">请导入凭据文件以在不使用云端的情况下继续——扫描二维码只会填写传感器代码，NFC 只会唤醒传感器。</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">紧急短信</string>

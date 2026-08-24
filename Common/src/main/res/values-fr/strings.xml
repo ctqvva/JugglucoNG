@@ -2309,6 +2309,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout affiche alors cette valeur au lieu de son propre calcul basé sur le profil. L’eIOB et les glucides actifs (COB) sont également envoyés dans un champ distinct.</string>
     <string name="journal_iob_source_remote">Valeurs de l’appareil émetteur (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un autre capteur est encore associé au compte Ottai. Dissociez-le dans l’application Ottai ou supprimez ce capteur ici pour libérer l’association, puis réessayez.</string>
+    <string name="ottai_cloud_unbind_hint">Action sur le compte cloud uniquement. JugglucoNG ne se connectera pas au capteur sélectionné et ne l’arrêtera, ne le supprimera ni ne le modifiera.</string>
+    <string name="ottai_cloud_unbind_title">Dissocier définitivement ce capteur ?</string>
+    <string name="ottai_cloud_unbind_message">%1$s sera définitivement supprimé de ce compte Ottai. Le compte ne pourra plus récupérer ses identifiants et le capteur ne fonctionnera plus dans l’application Ottai officielle. Les identifiants et l’état du capteur déjà enregistrés dans JugglucoNG ne seront pas modifiés. Cette action est irréversible.</string>
+    <string name="ottai_cloud_unbind_confirm">Dissocier définitivement</string>
+    <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans JugglucoNG n’ont pas été modifiés.</string>
+    <string name="ottai_cloud_unbind_failed">Impossible de dissocier le capteur d’Ottai.</string>
     <string name="ottai_cloud_offline_routes">Importez un fichier d’identifiants pour continuer sans le cloud — le scan QR renseigne uniquement le code du capteur et le NFC ne fait que le réveiller.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS d\'urgence</string>

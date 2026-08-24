@@ -2000,6 +2000,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_fail">Вход не выполнен - проверьте телефон/код</string>
     <string name="ottai_connect_saved_fail">Нет материалов в аккаунте или сохраненных материалов для этого облачного ID</string>
     <string name="ottai_cloud_already_binding">К аккаунту Ottai всё ещё привязан другой датчик. Отвяжите его в приложении Ottai или удалите тот датчик здесь, чтобы освободить привязку, затем повторите.</string>
+    <string name="ottai_cloud_unbind_hint">Действие только с облачным аккаунтом. JugglucoNG не будет подключаться к выбранному сенсору, останавливать, удалять или изменять его.</string>
+    <string name="ottai_cloud_unbind_title">Навсегда отвязать этот сенсор?</string>
+    <string name="ottai_cloud_unbind_message">%1$s будет навсегда удалён из этого аккаунта Ottai. Аккаунт больше не сможет получить его учётные данные, а сенсор больше не будет работать в официальном приложении Ottai. Сохранённые в JugglucoNG учётные данные и состояние сенсора не изменятся. Это действие нельзя отменить.</string>
+    <string name="ottai_cloud_unbind_confirm">Отвязать навсегда</string>
+    <string name="ottai_cloud_unbind_success">Сенсор навсегда отвязан от Ottai. Сенсор и сохранённые данные в JugglucoNG не изменены.</string>
+    <string name="ottai_cloud_unbind_failed">Не удалось отвязать сенсор от Ottai.</string>
     <string name="ottai_cloud_offline_routes">Импортируйте файл учётных данных, чтобы продолжить без облака — QR только заполняет код датчика, а NFC только будит его.</string>
     <string name="ottai_status_needs_ble_address">Нужен BLE-адрес</string>
     <string name="ottai_status_warmup_provisional">Предварительный прогрев • осталось %1$d мин</string>

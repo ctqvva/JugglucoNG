@@ -2293,6 +2293,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout mostrerà questo valore al posto del proprio calcolo basato sul profilo. eIOB e COB vengono inoltre inviati in un campo separato.</string>
     <string name="journal_iob_source_remote">Valori dal dispositivo che invia i dati (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un altro sensore è ancora associato all’account Ottai. Dissocialo nell’app Ottai oppure rimuovilo qui per liberare l’associazione, quindi riprova.</string>
+    <string name="ottai_cloud_unbind_hint">Azione solo sull’account cloud. JugglucoNG non si connetterà al sensore selezionato e non lo arresterà, rimuoverà o modificherà.</string>
+    <string name="ottai_cloud_unbind_title">Dissociare definitivamente questo sensore?</string>
+    <string name="ottai_cloud_unbind_message">%1$s verrà rimosso definitivamente da questo account Ottai. L’account non potrà più recuperare le sue credenziali e il sensore non funzionerà più nell’app Ottai ufficiale. Le credenziali e lo stato del sensore già salvati in JugglucoNG non verranno modificati. Questa operazione non può essere annullata.</string>
+    <string name="ottai_cloud_unbind_confirm">Dissocia definitivamente</string>
+    <string name="ottai_cloud_unbind_success">Sensore dissociato definitivamente da Ottai. Il sensore e le credenziali salvate in JugglucoNG non sono stati modificati.</string>
+    <string name="ottai_cloud_unbind_failed">Impossibile dissociare il sensore da Ottai.</string>
     <string name="ottai_cloud_offline_routes">Importa un file di credenziali per continuare senza cloud: la scansione QR inserisce solo il codice del sensore e l’NFC si limita a riattivarlo.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS di emergenza</string>
