@@ -45,10 +45,11 @@ class OttaiSetupFlowTests {
     }
 
     @Test
-    fun `selecting a usable sensor starts one continuous setup transaction`() {
-        assertEquals(true, ottaiSetupSelectionShouldConnect(hasAuthKeys = true, signedIn = false))
-        assertEquals(true, ottaiSetupSelectionShouldConnect(hasAuthKeys = false, signedIn = true))
-        assertEquals(false, ottaiSetupSelectionShouldConnect(hasAuthKeys = false, signedIn = false))
+    fun `sensor selection fetches only missing credentials and never implies connect`() {
+        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = true, signedIn = true))
+        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = true, signedIn = false))
+        assertEquals(true, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = true))
+        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = false))
     }
 
     @Test

@@ -367,8 +367,9 @@ internal fun ottaiSetupConnectRoute(
 internal fun ottaiSetupPublishesManagedSensor(route: OttaiSetupConnectRoute): Boolean =
     route == OttaiSetupConnectRoute.STORED_MATERIALS
 
-internal fun ottaiSetupSelectionShouldConnect(hasAuthKeys: Boolean, signedIn: Boolean): Boolean =
-    hasAuthKeys || signedIn
+/** Selection may fetch missing credentials, but never starts the managed sensor connection. */
+internal fun ottaiSetupSelectionFetchesCredentials(hasAuthKeys: Boolean, signedIn: Boolean): Boolean =
+    signedIn && !hasAuthKeys
 
 /** Exact active cloud binding for the selected account sensor; never resolves by suffix/alias. */
 internal fun ottaiActiveCloudUnbindTarget(
@@ -462,6 +463,20 @@ fun OttaiSetupWizard(
     var savedSensors by remember { mutableStateOf<List<OttaiRegistry.SensorRecord>>(emptyList()) }
     var savedRefresh by remember { mutableStateOf(0) }
     var nfcScanRestartKey by remember { mutableStateOf(0) }
+
+    val refreshAccountDevices: () -> Unit = refreshAccountDevices@{
+        if (!signedIn || devicesLoading) return@refreshAccountDevices
+        devicesLoading = true
+        scope.launch {
+            val list = withContext(Dispatchers.IO) {
+                runCatching { OttaiCloudClient.listDevices(context) }
+                    .onFailure { Log.w(tag, "refresh account sensors: ${it.message}") }
+                    .getOrDefault(emptyList())
+            }
+            devices = list
+            devicesLoading = false
+        }
+    }
 
     // When signed in and the account picker is relevant, pull the account's sensor list once.
     LaunchedEffect(signedIn, step) {
@@ -869,8 +884,12 @@ fun OttaiSetupWizard(
                         else -> R.string.ottai_connect_saved
                     }
 
-                    val startConnect: (String, String?) -> Unit = startConnect@{ mac, selectedBleAddress ->
-                        if (busy || materialLoading) return@startConnect
+                    fun startConnect(
+                        mac: String,
+                        selectedBleAddress: String?,
+                        connectAfterCredentialFetch: Boolean,
+                    ) {
+                        if (busy || materialLoading) return
                         val canonical = OttaiConstants.canonicalSensorId(mac)
                         cloudId = canonical
                         busy = true; status = ""
@@ -930,27 +949,31 @@ fun OttaiSetupWizard(
                                             selectedDeviceVersion = materials.deviceVersion
                                         }
                                         savedRefresh += 1
-                                        // Credential bootstrap is only phase one. Continue the
-                                        // same explicit selection into the normal managed BLE
-                                        // connection; activateIfNeeded will inspect the
-                                        // authenticated command status and activate only 0..2.
-                                        scope.launch {
-                                            val connected = withContext(Dispatchers.IO) {
-                                                connectOttaiSensor(
-                                                    context,
-                                                    canonical,
-                                                    explicitBle,
-                                                    activate = false,
-                                                    route = OttaiSetupConnectRoute.STORED_MATERIALS,
-                                                )
+                                        if (connectAfterCredentialFetch) {
+                                            // Only the explicit Connect button reaches this path.
+                                            // Continue with normal authenticated status-gated setup;
+                                            // a row/QR selection always stops after saving JSON.
+                                            scope.launch {
+                                                val connected = withContext(Dispatchers.IO) {
+                                                    connectOttaiSensor(
+                                                        context,
+                                                        canonical,
+                                                        explicitBle,
+                                                        activate = false,
+                                                        route = OttaiSetupConnectRoute.STORED_MATERIALS,
+                                                    )
+                                                }
+                                                busy = false
+                                                if (connected) {
+                                                    status = context.getString(R.string.ottai_creds_loaded)
+                                                    step = OttaiSetupStep.CONNECTING
+                                                } else {
+                                                    status = context.getString(R.string.ottai_connect_saved_fail)
+                                                }
                                             }
+                                        } else {
                                             busy = false
-                                            if (connected) {
-                                                status = context.getString(R.string.ottai_creds_loaded)
-                                                step = OttaiSetupStep.CONNECTING
-                                            } else {
-                                                status = context.getString(R.string.ottai_connect_saved_fail)
-                                            }
+                                            status = context.getString(R.string.ottai_creds_loaded)
                                         }
                                     } else {
                                         busy = false
@@ -966,6 +989,19 @@ fun OttaiSetupWizard(
                             }
 
                             val materials = fetched?.materials
+                            if (route == OttaiSetupConnectRoute.STORED_MATERIALS &&
+                                materials != null &&
+                                !connectAfterCredentialFetch
+                            ) {
+                                busy = false
+                                currentMaterials = materials
+                                if (materials.deviceVersion.isNotBlank()) {
+                                    selectedDeviceVersion = materials.deviceVersion
+                                }
+                                savedRefresh += 1
+                                status = context.getString(R.string.ottai_creds_loaded)
+                                return@launch
+                            }
                             if (route == OttaiSetupConnectRoute.STORED_MATERIALS && materials != null) {
                                 val explicitBle = OttaiConstants.normalizeBleAddress(
                                     selectedBleAddress,
@@ -1067,10 +1103,11 @@ fun OttaiSetupWizard(
                                     cloudId = id
                                     selectedDeviceVersion = ""
                                     val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null
-                                    if (ottaiSetupSelectionShouldConnect(hasLocal, signedIn)) {
+                                    if (ottaiSetupSelectionFetchesCredentials(hasLocal, signedIn)) {
                                         lastAutoFetchId = id
-                                        startConnect(id, address)
+                                        startConnect(id, address, false)
                                     } else {
+                                        if (signedIn) refreshAccountDevices()
                                         lastAutoFetchId = ""
                                         materialRefresh += 1
                                     }
@@ -1341,10 +1378,11 @@ fun OttaiSetupWizard(
                                     cloudId = id
                                     selectedDeviceVersion = ""
                                     val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null
-                                    if (ottaiSetupSelectionShouldConnect(hasLocal, signedIn)) {
+                                    if (ottaiSetupSelectionFetchesCredentials(hasLocal, signedIn)) {
                                         lastAutoFetchId = id
-                                        startConnect(id, OttaiConstants.macWithColons(id))
+                                        startConnect(id, OttaiConstants.macWithColons(id), false)
                                     } else {
+                                        if (signedIn) refreshAccountDevices()
                                         lastAutoFetchId = ""
                                         materialRefresh += 1
                                     }
@@ -1353,7 +1391,7 @@ fun OttaiSetupWizard(
                             },
                         )
                         Button(
-                            onClick = { startConnect(cloudId, bleAddress) },
+                            onClick = { startConnect(cloudId, bleAddress, true) },
                             enabled = !busy && !materialLoading && canConnect,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -1435,6 +1473,7 @@ fun OttaiSetupWizard(
                                 enabled = !busy,
                                 onClick = {
                                     cloudId = rec.sensorId
+                                    if (signedIn) refreshAccountDevices()
                                     lastAutoFetchId = ""
                                     materialRefresh += 1
                                     bleAddress = rec.address
