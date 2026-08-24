@@ -338,11 +338,11 @@ internal fun readingDeltas(
  * sensor stored under two names stays one — and every row walks back through its
  * own sensor's bucket only. Rows the app cannot attribute ([isShared]: imported and
  * unknown serials) belong to every bucket, which is what the dashboard's per-sensor
- * history holds as well. Within one bucket the text is exactly [readingDeltaTexts]'s,
+ * history holds as well. Within one bucket the delta is exactly [readingDeltas]'s,
  * gaps included: a row with no old-enough partner is absent.
  *
  * Build one index per [history] (oldest-first, unsmoothed) and ask it per visible
- * window: [textsFor] does a binary search per bucket, not a pass over the data.
+ * window: [deltasFor] does a binary search per bucket, not a pass over the data.
  */
 internal class RowDeltaIndex(
     history: List<GlucosePoint>,
@@ -379,10 +379,14 @@ internal class RowDeltaIndex(
         }
     }
 
-    /** [rows] newest-first, the order the history draws them. */
-    fun textsFor(rows: List<GlucosePoint>, isMmol: Boolean, deltaIntervalMinutes: Int): Map<GlucosePoint, String> {
+    /**
+     * [rows] newest-first, the order the history draws them. The rate rides along with
+     * the text so a history row can point its arrow at the number it prints, the same
+     * way the dashboard's rows do.
+     */
+    fun deltasFor(rows: List<GlucosePoint>, isMmol: Boolean, deltaIntervalMinutes: Int): Map<GlucosePoint, ReadingDelta> {
         if (rows.isEmpty() || historyByKey.isEmpty()) return emptyMap()
-        val texts = HashMap<GlucosePoint, String>()
+        val deltas = HashMap<GlucosePoint, ReadingDelta>()
         rows.groupBy { keyOf(it.sensorSerial) }.forEach { (key, sensorRows) ->
             val bucket = historyByKey[key] ?: return@forEach
             // Nothing newer than the newest row takes part in its walk-back: cut the
@@ -390,17 +394,17 @@ internal class RowDeltaIndex(
             val newest = sensorRows.first().timestamp
             var cut = bucket.binarySearchBy(newest) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
             while (cut < bucket.size && bucket[cut].timestamp == newest) cut++
-            val sensorTexts = readingDeltaTexts(
+            val sensorDeltas = readingDeltas(
                 sensorRows.map { it.timestamp },
                 bucket.subList(0, cut),
                 isMmol,
                 deltaIntervalMinutes
             )
             sensorRows.forEachIndexed { index, row ->
-                sensorTexts.getOrNull(index)?.let { texts[row] = it }
+                sensorDeltas.getOrNull(index)?.let { deltas[row] = it }
             }
         }
-        return texts
+        return deltas
     }
 
     private companion object {
