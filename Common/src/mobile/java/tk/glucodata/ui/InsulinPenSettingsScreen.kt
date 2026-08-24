@@ -24,7 +24,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Contactless
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -287,7 +287,7 @@ private fun HowToScanCard() {
                 shape = RoundedCornerShape(18.dp),
             ) {
                 Icon(
-                    Icons.Default.Contactless,
+                    Icons.Default.Nfc,
                     contentDescription = null,
                     modifier = Modifier.padding(14.dp).size(28.dp),
                 )
