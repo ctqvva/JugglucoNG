@@ -17,13 +17,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -573,11 +573,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_use_v3_api),
-                            subtitle = stringResource(R.string.experimental),
                             checked = isV3,
                             onCheckedChange = { isV3 = it },
-                            icon = Icons.Default.Science,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            icon = Icons.Default.Api,
+                            iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
                             position = CardPosition.BOTTOM
                         )
