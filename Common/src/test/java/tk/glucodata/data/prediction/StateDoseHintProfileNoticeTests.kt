@@ -65,12 +65,13 @@ class StateDoseHintProfileNoticeTests {
     @Test
     fun theSuggestionIsStillComputedFromTheBuiltInProfile() {
         // The point of the notice: it says what the numbers came from, it does not withhold
-        // them. Same falling case as StateDoseHintTests, with the built-in defaults.
+        // them. A measured fall large enough to clear the unchanged 5 g display minimum,
+        // using the built-in defaults.
         val now = 1_800_000_000_000L
         val history = (6 downTo 0).map { stepsAgo ->
             val minutesAgo = stepsAgo * 5
             GlucosePoint(
-                value = 150f + 1.5f * minutesAgo,
+                value = 150f + 2f * minutesAgo,
                 time = "",
                 timestamp = now - minutesAgo * 60_000L
             )

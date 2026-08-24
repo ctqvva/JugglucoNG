@@ -3,7 +3,9 @@ package tk.glucodata.data.prediction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.GlucosePoint
 
 /**
@@ -22,6 +24,11 @@ class StateDoseHintTests {
         insulinSensitivityMgDlPerUnit = 54f
     )
 
+    private val fieldParameters = PredictionModelParameters(
+        carbRatioGramsPerUnit = 12f,
+        insulinSensitivityMgDlPerUnit = 42f
+    )
+
     /** Readings every five minutes over [spanMinutes], ending now at [endValue]. */
     private fun history(
         endValue: Float,
@@ -35,6 +42,26 @@ class StateDoseHintTests {
                 value = endValue - slopePerMinute * minutesAgo,
                 time = "",
                 timestamp = now - minutesAgo * minute
+            )
+        }
+    }
+
+    /** The reported turn: an older fall followed by the nine one-minute field readings. */
+    private fun reversalHistory(oldestValue: Float = 185f): List<GlucosePoint> {
+        val earlierFall = (30 downTo 9).map { minutesAgo ->
+            val fractionFromOldest = (30 - minutesAgo) / 21f
+            GlucosePoint(
+                value = oldestValue + (147f - oldestValue) * fractionFromOldest,
+                time = "",
+                timestamp = now - minutesAgo * minute
+            )
+        }
+        val recentValues = listOf(147f, 147f, 146f, 143f, 142f, 148f, 152f, 155f, 154f)
+        return earlierFall + recentValues.mapIndexed { index, value ->
+            GlucosePoint(
+                value = value,
+                time = "",
+                timestamp = now - (8 - index) * minute
             )
         }
     }
@@ -77,18 +104,79 @@ class StateDoseHintTests {
     @Test
     fun fallingTowardTheTargetSuggestsCarbsWithTheTimeItHappens() {
         val result = hint(
-            history = history(endValue = 150f, slopePerMinute = -1.5f),
-            iobUnits = 1.0f,
-            eiobUnits = 0.6f
+            history = history(endValue = 154f, slopePerMinute = -1.53125f),
+            iobUnits = 1.8f,
+            eiobUnits = 0.6f,
+            doseTargetMgDl = 105f,
+            parameters = fieldParameters
         )
         assertNotNull(result)
         assertEquals(StateDoseHintKind.CARBS, result!!.kind)
-        // Gap to the expected low at the 45 minute horizon is 90 - 82.5 = 7.5 mg/dL, and
-        // the 1.0 U still on board will take off another 54 — 61.5 mg/dL in total, which
-        // is 1.14 U worth, so 12 g at a carb ratio of 10 g/U, rounded up.
-        assertEquals(12f, result.amount, 0.001f)
-        assertEquals(40, result.minutesAhead)
-        assertEquals(90f, result.targetMgDl, 0.001f)
+        // The measured fall reaches 105 in 32 minutes and projects to 85.1 at 45 minutes.
+        // That 19.9 mg/dL gap is 5.7 g at this profile, rounded up to 6. Adding the 1.8 U
+        // again would double-count its observed effect and inflate the answer to 28 g.
+        assertEquals(6f, result.amount, 0.001f)
+        assertEquals(32, result.minutesAhead)
+        assertEquals(105f, result.targetMgDl, 0.001f)
+    }
+
+    @Test
+    fun theReportedFiveMinuteRiseNeverSuggestsCarbs() {
+        assertNull(
+            hint(
+                history = reversalHistory(),
+                iobUnits = 1.8f,
+                eiobUnits = 0.8f,
+                doseTargetMgDl = 105f,
+                parameters = fieldParameters
+            )
+        )
+    }
+
+    @Test
+    fun theRecentTurnCarriesMoreWeightThanTheOlderFall() {
+        val slope = TrendEngine.recencyWeightedSlope(reversalHistory().asReversed()) {
+            it.value.toDouble()
+        }
+        assertNotNull(slope)
+        // The plain 30-minute fit is -1.33 mg/dL/min. Recency weighting reads this turn as
+        // near-flat instead, above the -0.3 boundary that would enter the carb branch.
+        assertTrue(slope!! > -0.3f)
+    }
+
+    @Test
+    fun aRecentRiseVetoesCarbsEvenWhenTheOlderFallStillDominates() {
+        // The final five-minute delta is +11. The deliberately steeper older fall keeps the
+        // long fit negative, proving that the recent-rise guard is independent of that fit.
+        assertNull(
+            hint(
+                history = reversalHistory(oldestValue = 250f),
+                iobUnits = 1.8f,
+                eiobUnits = 0.8f,
+                doseTargetMgDl = 105f,
+                parameters = fieldParameters
+            )
+        )
+    }
+
+    @Test
+    fun oneNoisyReadingDoesNotEraseAClearFall() {
+        val clearFall = history(endValue = 150f, slopePerMinute = -2f)
+        val noisyNewest = clearFall.dropLast(1) + GlucosePoint(
+            value = 154f,
+            time = "",
+            timestamp = now
+        )
+        val result = hint(
+            history = noisyNewest,
+            iobUnits = 1.8f,
+            eiobUnits = 0.8f,
+            doseTargetMgDl = 105f,
+            parameters = fieldParameters
+        )
+        assertNotNull(result)
+        assertEquals(StateDoseHintKind.CARBS, result!!.kind)
+        assertTrue(result.amount >= 5f)
     }
 
     @Test
@@ -284,13 +372,16 @@ class StateDoseHintTests {
         )
         // The carb branch is untouched by that switch.
         val carbs = hint(
-            history = history(endValue = 150f, slopePerMinute = -1.5f),
-            iobUnits = 1.0f,
+            history = history(endValue = 154f, slopePerMinute = -1.53125f),
+            iobUnits = 1.8f,
             eiobUnits = 0.6f,
+            doseTargetMgDl = 105f,
+            parameters = fieldParameters,
             correctInRange = false
         )
         assertNotNull(carbs)
         assertEquals(StateDoseHintKind.CARBS, carbs!!.kind)
+        assertEquals(6f, carbs.amount, 0.001f)
     }
 
     @Test

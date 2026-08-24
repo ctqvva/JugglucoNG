@@ -1,5 +1,7 @@
 package tk.glucodata.data.prediction
 
+import tk.glucodata.GlucoseDelta
+import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
 import kotlin.math.abs
@@ -39,7 +41,7 @@ data class StateDoseHint(
  * Two questions are answerable from the state itself:
  *
  * - falling, and on the current rate below the target within the horizon → how many carbs
- *   raise it back, counting what the insulin still on board will keep taking off;
+ *   raise the measured projection back to the target;
  * - high, not coming down although insulin is already acting → how much more insulin the
  *   gap needs beyond what is already on board; and, when asked for, the same question for a
  *   value that is still inside the range but sitting well above the dose target with nothing
@@ -47,7 +49,8 @@ data class StateDoseHint(
  *
  * The **error directions are not symmetric**, and the arithmetic follows that. Too many
  * carbs show up on the curve within the hour and are corrected; too few end in a hypo, so
- * that side rounds up and counts the insulin's remaining effect in full. Too much insulin
+ * that side rounds up. Its projection already measures the fall insulin is producing, so
+ * adding the modelled IOB effect again would count the same action twice. Too much insulin
  * is noticed hours later and can only be eaten back, so that side computes on the current
  * value (a curve can turn before its peak, and insulin given for a peak that never arrives
  * cannot be taken back), subtracts **all** insulin on board rather than the acting part,
@@ -158,6 +161,9 @@ object StateDoseHintCalculator {
         val trend = trend(history, latest.timestamp, ::mgDl) ?: return null
 
         if (trend.slopeMgDlPerMinute <= -FALL_FLOOR_MGDL_PER_MINUTE) {
+            // The long fit deliberately smooths noise, but it must never overrule a measured
+            // five-minute rise and recommend carbs in the opposite direction.
+            if (risingOverFiveMinutes(history, latest)) return null
             return carbs(currentMgDl, target, sensitivity, iob, trend, parameters, horizonMinutes)
         }
         return insulin(
@@ -173,9 +179,9 @@ object StateDoseHintCalculator {
     }
 
     /**
-     * Falling toward the target. The amount covers the gap to the expected low plus the
-     * whole remaining effect of the insulin on board, and rounds up: the cost of a few
-     * grams too many is visible on the curve within the hour, the cost of too few is a hypo.
+     * Falling toward the target. The amount covers the gap from the measured projection to
+     * the target and rounds up. The projection already contains the insulin effect visible
+     * in the readings; adding IOB to it would count that effect twice.
      */
     private fun carbs(
         currentMgDl: Float,
@@ -206,7 +212,7 @@ object StateDoseHintCalculator {
         val riseNeededMgDl = target - expectedLowMgDl
         if (riseNeededMgDl <= 0f) return null
 
-        val grams = ceil(((riseNeededMgDl + iob * sensitivity) / sensitivity) * carbRatio)
+        val grams = ceil((riseNeededMgDl / sensitivity) * carbRatio)
         if (!grams.isFinite() || grams < MIN_CARBS_GRAMS) return null
         return StateDoseHint(StateDoseHintKind.CARBS, grams, target, minutesAhead.roundToInt())
     }
@@ -276,7 +282,7 @@ object StateDoseHintCalculator {
 
     private class Trend(val slopeMgDlPerMinute: Float, val spanMinutes: Float)
 
-    /** Least-squares slope over the readings inside the trend window, in mg/dL per minute. */
+    /** Recency-weighted slope over the readings inside the trend window, in mg/dL per minute. */
     private fun trend(
         history: List<GlucosePoint>,
         latestTimestamp: Long,
@@ -297,24 +303,32 @@ object StateDoseHintCalculator {
         val spanMinutes = (samples.last().timestamp - samples.first().timestamp) / 60_000f
         if (spanMinutes < TREND_MIN_SPAN_MINUTES) return null
 
-        val originMinutes = samples.first().timestamp / 60_000.0
-        var sumX = 0.0
-        var sumY = 0.0
-        var sumXy = 0.0
-        var sumXx = 0.0
-        for (sample in samples) {
-            val x = sample.timestamp / 60_000.0 - originMinutes
-            val y = mgDl(sample.value).toDouble()
-            sumX += x
-            sumY += y
-            sumXy += x * y
-            sumXx += x * x
-        }
-        val count = samples.size.toDouble()
-        val denominator = count * sumXx - sumX * sumX
-        if (denominator <= 0.0) return null
-        val slope = ((count * sumXy - sumX * sumY) / denominator).toFloat()
-        if (!slope.isFinite()) return null
+        // TrendEngine owns the weighting term so the arrow and this hint cannot drift into
+        // subtly different definitions of "recent". This caller deliberately keeps its
+        // own 30-minute window and minimum-span gate.
+        val slope = TrendEngine.recencyWeightedSlope(samples.asReversed()) {
+            mgDl(it.value).toDouble()
+        } ?: return null
         return Trend(slope, spanMinutes)
+    }
+
+    /** Same five-minute walk-back as the dashboard delta, used only as a carb veto. */
+    private fun risingOverFiveMinutes(
+        history: List<GlucosePoint>,
+        latest: GlucosePoint
+    ): Boolean {
+        val previous = history.asReversed().firstOrNull { point ->
+            point.timestamp > 0L &&
+                point.timestamp < latest.timestamp &&
+                latest.timestamp - point.timestamp >= GlucoseDelta.MIN_GAP_MILLIS &&
+                point.value.isFinite() && point.value > 0.1f
+        } ?: return false
+        val delta = GlucoseDelta.fiveMinuteDelta(
+            latest.timestamp,
+            latest.value,
+            previous.timestamp,
+            previous.value
+        )
+        return delta.isFinite() && delta > 0f
     }
 }
