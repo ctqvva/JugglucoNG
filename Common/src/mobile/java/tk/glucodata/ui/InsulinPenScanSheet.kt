@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material.icons.filled.EditNote
@@ -248,7 +248,10 @@ private fun DoseRow(
                 val at = hourFormat.format(Date(replacesEntryAtSeconds * 1000L))
                 val label = stringResource(R.string.insulin_pen_replaces, at)
                 // What becomes what, said in the two icons the journal already uses for those
-                // sources: a hand-written entry turns into this pen's dose. The icons need no
+                // sources: a hand-written entry turns into this pen's dose. The arrow between
+                // them points one way, because that is what happens: the entry is adopted by
+                // the dose, nothing is traded. It is auto-mirrored so the reading order and
+                // the arrow still agree in a right-to-left layout. The icons need no
                 // translating and no room to speak, so the words beside them only have to
                 // carry which entry it is, and that is a time.
                 Row(
@@ -256,6 +259,9 @@ private fun DoseRow(
                         .weight(1f, fill = false)
                         .semantics(mergeDescendants = true) { contentDescription = label },
                     verticalAlignment = Alignment.CenterVertically,
+                    // Enough that the three marks read as three and not as one shape. One
+                    // step is all it takes; the marker still has to fit its share of the row.
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.EditNote,
@@ -264,7 +270,7 @@ private fun DoseRow(
                         modifier = Modifier.size(18.dp),
                     )
                     Icon(
-                        imageVector = Icons.Default.SwapHoriz,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowRightAlt,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp),
@@ -275,7 +281,7 @@ private fun DoseRow(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Text(
                         at,
                         style = MaterialTheme.typography.labelMedium,
