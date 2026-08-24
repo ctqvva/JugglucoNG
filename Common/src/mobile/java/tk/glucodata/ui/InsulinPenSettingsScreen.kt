@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Contactless
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -124,7 +125,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.insulin_pen_background_desc),
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
-                        icon = Icons.Default.Contactless,
+                        icon = Icons.Default.Nfc,
                         position = CardPosition.TOP,
                     )
                     // What the mode cannot do is worth a paragraph, not a row: folded away
