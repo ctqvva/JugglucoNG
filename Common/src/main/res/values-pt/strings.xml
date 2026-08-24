@@ -2310,6 +2310,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Desassociar permanentemente</string>
     <string name="ottai_cloud_unbind_success">Sensor desassociado permanentemente do Ottai. O sensor e as credenciais guardadas no JugglucoNG não foram alterados.</string>
     <string name="ottai_cloud_unbind_failed">Não foi possível desassociar o sensor do Ottai.</string>
+    <string name="ottai_cloud_binding_checking">A verificar a associação à nuvem Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Estado da nuvem: associado a esta conta Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Estado da nuvem: não associado a esta conta Ottai</string>
+    <string name="ottai_cloud_binding_error">Não foi possível verificar a associação à nuvem Ottai</string>
     <string name="ottai_cloud_offline_routes">Importe um ficheiro de credenciais para continuar sem a nuvem — a leitura do QR apenas preenche o código do sensor e o NFC apenas o ativa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS de emergência</string>

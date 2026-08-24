@@ -2299,6 +2299,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Dissocia definitivamente</string>
     <string name="ottai_cloud_unbind_success">Sensore dissociato definitivamente da Ottai. Il sensore e le credenziali salvate in JugglucoNG non sono stati modificati.</string>
     <string name="ottai_cloud_unbind_failed">Impossibile dissociare il sensore da Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Verifica dell’associazione al cloud Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Stato cloud: associato a questo account Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Stato cloud: non associato a questo account Ottai</string>
+    <string name="ottai_cloud_binding_error">Impossibile verificare l’associazione al cloud Ottai</string>
     <string name="ottai_cloud_offline_routes">Importa un file di credenziali per continuare senza cloud: la scansione QR inserisce solo il codice del sensore e l’NFC si limita a riattivarlo.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS di emergenza</string>

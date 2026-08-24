@@ -2424,6 +2424,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_cloud_unbind_confirm">Бүрмөсөн салгах</string>
     <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. JugglucoNG дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
     <string name="ottai_cloud_unbind_failed">Мэдрэгчийг Ottai-аас салгаж чадсангүй.</string>
+    <string name="ottai_cloud_binding_checking">Ottai үүлэн холболтыг шалгаж байна…</string>
+    <string name="ottai_cloud_binding_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдсон</string>
+    <string name="ottai_cloud_binding_not_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдоогүй</string>
+    <string name="ottai_cloud_binding_error">Ottai үүлэн холболтыг шалгаж чадсангүй</string>
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Яаралтай SMS</string>

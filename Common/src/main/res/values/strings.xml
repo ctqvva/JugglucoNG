@@ -1033,6 +1033,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Unbind permanently</string>
     <string name="ottai_cloud_unbind_success">Sensor permanently unbound from Ottai. The sensor and saved credentials in JugglucoNG were not changed.</string>
     <string name="ottai_cloud_unbind_failed">Could not unbind the sensor from Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Checking Ottai cloud binding…</string>
+    <string name="ottai_cloud_binding_bound">Cloud status: bound to this Ottai account</string>
+    <string name="ottai_cloud_binding_not_bound">Cloud status: not bound to this Ottai account</string>
+    <string name="ottai_cloud_binding_error">Could not check the Ottai cloud binding</string>
     <string name="ottai_cloud_offline_routes">Import a credentials file to continue without the cloud — a QR scan only fills the sensor code, and NFC only wakes the sensor.</string>
     <string name="ottai_status_needs_ble_address">Needs BLE address</string>
     <string name="ottai_status_warmup_provisional">Provisional warmup • %1$dm left</string>

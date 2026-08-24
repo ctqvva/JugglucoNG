@@ -2376,6 +2376,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Адвязаць назаўсёды</string>
     <string name="ottai_cloud_unbind_success">Датчык назаўсёды адвязаны ад Ottai. Датчык і захаваныя даныя ў JugglucoNG не былі зменены.</string>
     <string name="ottai_cloud_unbind_failed">Не ўдалося адвязаць датчык ад Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Праверка прывязкі ў воблаку Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Статус воблака: прывязаны да гэтага ўліковага запісу Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Статус воблака: не прывязаны да гэтага ўліковага запісу Ottai</string>
+    <string name="ottai_cloud_binding_error">Не ўдалося праверыць прывязку ў воблаку Ottai</string>
     <string name="ottai_cloud_offline_routes">Імпартуйце файл уліковых даных, каб працягнуць без воблака — QR-код толькі запаўняе код датчыка, а NFC толькі абуджае яго.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Экстранныя SMS</string>

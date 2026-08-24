@@ -2315,6 +2315,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Dissocier définitivement</string>
     <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans JugglucoNG n’ont pas été modifiés.</string>
     <string name="ottai_cloud_unbind_failed">Impossible de dissocier le capteur d’Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Vérification de l’association au cloud Ottai…</string>
+    <string name="ottai_cloud_binding_bound">État du cloud : associé à ce compte Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">État du cloud : non associé à ce compte Ottai</string>
+    <string name="ottai_cloud_binding_error">Impossible de vérifier l’association au cloud Ottai</string>
     <string name="ottai_cloud_offline_routes">Importez un fichier d’identifiants pour continuer sans le cloud — le scan QR renseigne uniquement le code du capteur et le NFC ne fait que le réveiller.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS d\'urgence</string>

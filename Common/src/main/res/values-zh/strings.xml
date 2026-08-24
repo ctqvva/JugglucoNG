@@ -2325,6 +2325,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">永久解除绑定</string>
     <string name="ottai_cloud_unbind_success">已从 Ottai 永久解除传感器绑定。JugglucoNG 中的传感器和已保存凭据未被更改。</string>
     <string name="ottai_cloud_unbind_failed">无法从 Ottai 解除传感器绑定。</string>
+    <string name="ottai_cloud_binding_checking">正在检查 Ottai 云端绑定…</string>
+    <string name="ottai_cloud_binding_bound">云端状态：已绑定到此 Ottai 账户</string>
+    <string name="ottai_cloud_binding_not_bound">云端状态：未绑定到此 Ottai 账户</string>
+    <string name="ottai_cloud_binding_error">无法检查 Ottai 云端绑定</string>
     <string name="ottai_cloud_offline_routes">请导入凭据文件以在不使用云端的情况下继续——扫描二维码只会填写传感器代码，NFC 只会唤醒传感器。</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">紧急短信</string>

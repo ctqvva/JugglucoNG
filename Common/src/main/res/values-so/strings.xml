@@ -2509,6 +2509,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_cloud_unbind_confirm">Si joogto ah uga fur</string>
     <string name="ottai_cloud_unbind_success">Dareemaha si joogto ah ayaa looga furay Ottai. Dareemaha iyo aqoonsiyada ku kaydsan JugglucoNG lama beddelin.</string>
     <string name="ottai_cloud_unbind_failed">Dareemaha lagama furi karin Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Xiriirka daruurta Ottai waa la hubinayaa…</string>
+    <string name="ottai_cloud_binding_bound">Xaaladda daruurta: waxay ku xiran tahay koontadan Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Xaaladda daruurta: kuma xirna koontadan Ottai</string>
+    <string name="ottai_cloud_binding_error">Xiriirka daruurta Ottai lama hubin karin</string>
     <string name="ottai_cloud_offline_routes">Soo deji faylka aqoonsiyada si aad u sii waddo adigoon daruurta isticmaalin — iskaanka QR wuxuu keliya buuxiyaa koodhka dareemaha, NFC-na keliya ayuu kiciyaa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS degdeg ah</string>

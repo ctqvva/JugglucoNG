@@ -64,6 +64,38 @@ class OttaiSetupFlowTests {
         assertNull(ottaiActiveCloudUnbindTarget("", devices))
     }
 
+    @Test
+    fun `cloud binding feedback is scoped to the selected sensor and exact active row`() {
+        val active = device("70D07E2552DB", unbindTime = 0L)
+        val past = device("18690ADED9B3", unbindTime = 1_787_500_000_000L)
+        val devices = listOf(active, past)
+
+        assertEquals(
+            OttaiCloudBindingUiState.CHECKING,
+            ottaiCloudBindingUiState(true, active.mac, active.mac, "", "", devices),
+        )
+        assertEquals(
+            OttaiCloudBindingUiState.BOUND,
+            ottaiCloudBindingUiState(true, active.mac, "", active.mac, "", devices),
+        )
+        assertEquals(
+            OttaiCloudBindingUiState.NOT_BOUND,
+            ottaiCloudBindingUiState(true, past.mac, "", past.mac, "", devices),
+        )
+        assertEquals(
+            OttaiCloudBindingUiState.ERROR,
+            ottaiCloudBindingUiState(true, active.mac, "", "", active.mac, devices),
+        )
+        assertEquals(
+            OttaiCloudBindingUiState.HIDDEN,
+            ottaiCloudBindingUiState(true, active.mac, "", past.mac, "", devices),
+        )
+        assertEquals(
+            OttaiCloudBindingUiState.HIDDEN,
+            ottaiCloudBindingUiState(false, active.mac, "", active.mac, "", devices),
+        )
+    }
+
     private fun device(mac: String, unbindTime: Long) = OttaiCloudClient.DeviceSummary(
         mac = mac,
         serialNo = mac,

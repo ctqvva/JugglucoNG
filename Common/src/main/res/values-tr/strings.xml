@@ -2337,6 +2337,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_cloud_unbind_confirm">Kalıcı olarak kaldır</string>
     <string name="ottai_cloud_unbind_success">Sensörün Ottai bağlantısı kalıcı olarak kaldırıldı. JugglucoNG’deki sensör ve kayıtlı bilgiler değiştirilmedi.</string>
     <string name="ottai_cloud_unbind_failed">Sensörün Ottai bağlantısı kaldırılamadı.</string>
+    <string name="ottai_cloud_binding_checking">Ottai bulut bağlantısı denetleniyor…</string>
+    <string name="ottai_cloud_binding_bound">Bulut durumu: bu Ottai hesabına bağlı</string>
+    <string name="ottai_cloud_binding_not_bound">Bulut durumu: bu Ottai hesabına bağlı değil</string>
+    <string name="ottai_cloud_binding_error">Ottai bulut bağlantısı denetlenemedi</string>
     <string name="ottai_cloud_offline_routes">Bulut olmadan devam etmek için bir kimlik bilgileri dosyası içe aktarın — QR taraması yalnızca sensör kodunu doldurur, NFC ise yalnızca sensörü uyandırır.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Acil SMS</string>

@@ -2309,6 +2309,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Koppla bort permanent</string>
     <string name="ottai_cloud_unbind_success">Sensorn har kopplats bort permanent från Ottai. Sensorn och sparade uppgifter i JugglucoNG ändrades inte.</string>
     <string name="ottai_cloud_unbind_failed">Det gick inte att koppla bort sensorn från Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Kontrollerar Ottai-molnkopplingen…</string>
+    <string name="ottai_cloud_binding_bound">Molnstatus: kopplad till detta Ottai-konto</string>
+    <string name="ottai_cloud_binding_not_bound">Molnstatus: inte kopplad till detta Ottai-konto</string>
+    <string name="ottai_cloud_binding_error">Det gick inte att kontrollera Ottai-molnkopplingen</string>
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nöd-SMS</string>

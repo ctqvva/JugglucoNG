@@ -2352,6 +2352,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_cloud_unbind_confirm">Permanent ontkoppelen</string>
     <string name="ottai_cloud_unbind_success">Sensor permanent ontkoppeld van Ottai. De sensor en opgeslagen referenties in JugglucoNG zijn niet gewijzigd.</string>
     <string name="ottai_cloud_unbind_failed">De sensor kon niet van Ottai worden ontkoppeld.</string>
+    <string name="ottai_cloud_binding_checking">Ottai-cloudkoppeling controleren…</string>
+    <string name="ottai_cloud_binding_bound">Cloudstatus: gekoppeld aan dit Ottai-account</string>
+    <string name="ottai_cloud_binding_not_bound">Cloudstatus: niet gekoppeld aan dit Ottai-account</string>
+    <string name="ottai_cloud_binding_error">De Ottai-cloudkoppeling kon niet worden gecontroleerd</string>
     <string name="ottai_cloud_offline_routes">Importeer een bestand met aanmeldgegevens om zonder cloud verder te gaan — een QR-scan vult alleen de sensorcode in en NFC maakt de sensor alleen wakker.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nood-sms</string>

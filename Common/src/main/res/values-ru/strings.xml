@@ -2006,6 +2006,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Отвязать навсегда</string>
     <string name="ottai_cloud_unbind_success">Сенсор навсегда отвязан от Ottai. Сенсор и сохранённые данные в JugglucoNG не изменены.</string>
     <string name="ottai_cloud_unbind_failed">Не удалось отвязать сенсор от Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Проверка привязки в облаке Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Статус облака: привязан к этому аккаунту Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Статус облака: не привязан к этому аккаунту Ottai</string>
+    <string name="ottai_cloud_binding_error">Не удалось проверить привязку в облаке Ottai</string>
     <string name="ottai_cloud_offline_routes">Импортируйте файл учётных данных, чтобы продолжить без облака — QR только заполняет код датчика, а NFC только будит его.</string>
     <string name="ottai_status_needs_ble_address">Нужен BLE-адрес</string>
     <string name="ottai_status_warmup_provisional">Предварительный прогрев • осталось %1$d мин</string>

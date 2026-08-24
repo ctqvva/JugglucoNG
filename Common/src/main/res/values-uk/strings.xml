@@ -2381,6 +2381,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Відв’язати назавжди</string>
     <string name="ottai_cloud_unbind_success">Сенсор назавжди відв’язано від Ottai. Сенсор і збережені дані в JugglucoNG не змінено.</string>
     <string name="ottai_cloud_unbind_failed">Не вдалося відв’язати сенсор від Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Перевірка прив’язки в хмарі Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Стан хмари: прив’язано до цього облікового запису Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Стан хмари: не прив’язано до цього облікового запису Ottai</string>
+    <string name="ottai_cloud_binding_error">Не вдалося перевірити прив’язку в хмарі Ottai</string>
     <string name="ottai_cloud_offline_routes">Імпортуйте файл облікових даних, щоб продовжити без хмари — сканування QR лише заповнює код сенсора, а NFC лише пробуджує його.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Екстрені SMS</string>
