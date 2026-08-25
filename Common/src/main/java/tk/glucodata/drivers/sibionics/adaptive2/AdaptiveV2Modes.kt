@@ -67,9 +67,9 @@ internal object TelemetryArtifactPrior : AdaptiveV2ArtifactPrior {
 /**
  * Per-mode process noise and mode-transition behaviour.
  *
- * Every value below is a variance *per minute*; [processNoise] scales them by
- * the elapsed step so a gap in the data widens the posterior at the same rate
- * whether it arrives as one long step or several short ones.
+ * Every value below is a variance *per minute*. Long gaps are propagated in
+ * one-minute substeps by the estimator rather than as a single scaled jump, so
+ * a gap widens the posterior by the same amount however it is delivered.
  */
 internal object AdaptiveV2ModeModel {
     /** Swappable for a learned detector; see [AdaptiveV2ArtifactPrior]. */
@@ -130,9 +130,50 @@ internal object AdaptiveV2ModeModel {
         it[V2.ARTIFACT] = artifact
     }
 
+    /**
+     * Diagonal process noise for a step of [dtMinutes].
+     *
+     * The sensor states ([V2.LOG_S], [V2.BIAS], [V2.ARTIFACT]) are independent
+     * random walks, so scaling their variance by dt is exact. The glucose block
+     * is *not* independent — noise entering acceleration propagates into rate
+     * and position within the same step — so a diagonal `q*dt` understates the
+     * resulting covariance and produces cross-terms it cannot represent at all.
+     * [glucoseBlock] supplies the correct coupled covariance; this function
+     * fills only the diagonal that callers add directly.
+     */
     fun processNoise(mode: AdaptiveV2Mode, dtMinutes: Double, out: DoubleArray) {
         val base = PROCESS_NOISE[mode.ordinal]
         for (i in 0 until V2.N) out[i] = base[i] * dtMinutes
+    }
+
+    /**
+     * Coupled covariance for the [V2.B]/[V2.V]/[V2.ACC] block under a
+     * continuous white-noise-jerk model with spectral density taken from the
+     * mode's acceleration noise.
+     *
+     * Standard result:
+     * ```
+     *   Q = q * [ dt^5/20  dt^4/8  dt^3/6
+     *             dt^4/8   dt^3/3  dt^2/2
+     *             dt^3/6   dt^2/2  dt     ]
+     * ```
+     * Written into [out] as a 3x3 in row-major order.
+     */
+    fun glucoseBlock(mode: AdaptiveV2Mode, dtMinutes: Double, out: DoubleArray) {
+        val q = PROCESS_NOISE[mode.ordinal][V2.ACC]
+        val dt2 = dtMinutes * dtMinutes
+        val dt3 = dt2 * dtMinutes
+        val dt4 = dt3 * dtMinutes
+        val dt5 = dt4 * dtMinutes
+        out[0] = q * dt5 / 20.0
+        out[1] = q * dt4 / 8.0
+        out[2] = q * dt3 / 6.0
+        out[3] = out[1]
+        out[4] = q * dt3 / 3.0
+        out[5] = q * dt2 / 2.0
+        out[6] = out[2]
+        out[7] = out[5]
+        out[8] = q * dtMinutes
     }
 
     /**
@@ -158,14 +199,27 @@ internal object AdaptiveV2ModeModel {
      * @param impedanceDisturbance normalised |Δimpedance| in [0,1].
      * @param vendorArtifactHint front-end quality flags suggesting a bad sample.
      */
+    /**
+     * @param dtMinutes elapsed time for this step. The matrix is defined per
+     *   minute; a shorter substep is interpolated toward the identity so mode
+     *   persistence scales with real time instead of with call count.
+     */
     fun transition(
         from: AdaptiveV2Mode,
         impedanceDisturbance: Float,
         vendorArtifactHint: Float,
+        dtMinutes: Double,
         out: DoubleArray,
     ) {
         val base = TRANSITION[from.ordinal]
         base.copyInto(out)
+        if (dtMinutes < 1.0) {
+            val alpha = dtMinutes.coerceIn(0.0, 1.0)
+            for (i in out.indices) {
+                val identity = if (i == from.ordinal) 1.0 else 0.0
+                out[i] = identity + alpha * (out[i] - identity)
+            }
+        }
         val boost = artifactPrior
             .artifactEvidence(impedanceDisturbance, vendorArtifactHint)
             .coerceIn(0f, 1f)

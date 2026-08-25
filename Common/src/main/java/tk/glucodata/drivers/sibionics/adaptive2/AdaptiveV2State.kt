@@ -85,12 +85,26 @@ internal class AdaptiveV2Gaussian {
         return true
     }
 
-    /** x ← F x ; P ← F P Fᵀ + Q. [q] is the diagonal of the process noise. */
-    fun predict(f: DoubleArray, q: DoubleArray) {
-        // x ← F x
+    /**
+     * x ← F x ; P ← F P Fᵀ + Q.
+     *
+     * @param q diagonal process noise for the independent states.
+     * @param glucoseBlock coupled 3x3 covariance for B/v/a in row-major order,
+     *   which replaces their diagonal entries — see
+     *   [AdaptiveV2ModeModel.glucoseBlock].
+     */
+    fun predict(
+        f: DoubleArray,
+        q: DoubleArray,
+        glucoseBlock: DoubleArray,
+        control: DoubleArray,
+    ) {
+        // x ← F x + u. The control term carries the shrinkage targets for the
+        // slow sensor states: relaxing toward a non-zero prior is affine, not
+        // linear, so it cannot live in F.
         val newX = DoubleArray(V2.N)
         for (row in 0 until V2.N) {
-            var sum = 0.0
+            var sum = control[row]
             for (column in 0 until V2.N) sum += f[row * V2.N + column] * x[column]
             newX[row] = sum
         }
@@ -100,7 +114,15 @@ internal class AdaptiveV2Gaussian {
         multiply(f, p, scratchA)
         // P ← scratchA Fᵀ
         multiplyTransposed(scratchA, f, p)
-        for (i in 0 until V2.N) p[i * V2.N + i] += q[i]
+        for (i in 0 until V2.N) {
+            if (i != V2.B && i != V2.V && i != V2.ACC) p[i * V2.N + i] += q[i]
+        }
+        val block = intArrayOf(V2.B, V2.V, V2.ACC)
+        for (row in block.indices) {
+            for (column in block.indices) {
+                p[block[row] * V2.N + block[column]] += glucoseBlock[row * 3 + column]
+            }
+        }
         symmetrize()
     }
 

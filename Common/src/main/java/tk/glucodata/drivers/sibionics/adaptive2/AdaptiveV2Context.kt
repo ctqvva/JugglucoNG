@@ -61,22 +61,22 @@ internal class SibionicsAdaptiveV2Context {
      *   passed straight to the diagnostics row and never reaches the estimator.
      */
     fun process(
-        chemicalMmol: Float,
-        chemicalQualityFlags: Int,
+        observation: tk.glucodata.drivers.sibionics.SibionicsSensorObservation,
         temperatureC: Float,
         impedance: Float,
-        index: Int,
         eventTimeMs: Long,
         references: List<AdaptiveV2Reference> = emptyList(),
         stockComparisonMmol: Float = Float.NaN,
     ): ProbabilisticGlucoseEstimate? {
         val estimate = estimator.process(
             sample = AdaptiveV2Sample(
-                chemicalMmol = chemicalMmol,
+                calibratedMmol = observation.calibratedMmol,
+                factorySensitivity = observation.factorySensitivity,
+                activeSensitivity = observation.activeSensitivity,
                 temperatureC = temperatureC,
                 impedance = impedance,
-                qualityFlags = chemicalQualityFlags,
-                index = index,
+                qualityFlags = observation.qualityFlags,
+                index = observation.sensorAgeMinutes,
                 timestampMs = eventTimeMs,
             ),
             references = references,

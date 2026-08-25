@@ -251,14 +251,25 @@ internal class AdaptiveV2NoiseModel {
 }
 
 /**
- * Bounded estimate of the blood↔interstitial lag τ.
+ * Bounded estimate of the lag between the vendor-calibrated observation and
+ * blood-equivalent glucose.
  *
  * τ is adapted, not filtered as a state, and only from evidence that can
  * actually identify it: a persistent signed correlation between the innovation
  * and the current glucose rate means the model is systematically early or late.
- * Everything else leaves τ at its prior. The prior and bounds come from the
- * physiology of interstitial equilibration (roughly 5–20 minutes), not from
- * fitting a trace.
+ * Everything else leaves τ at its prior.
+ *
+ * **The prior is measured, not assumed.** Driving the vendor core with steady
+ * ramps and comparing its final output against the calibrated observation gives
+ * its own effective lead: about 1.7–2.6 minutes on falling trajectories and
+ * 5.8–7.3 on rising ones — deliberately asymmetric, because over-anticipating a
+ * low is the dangerous direction. An earlier version of this model assumed a
+ * physiological 8-minute blood↔interstitial lag and inverted it in full, which
+ * is a four-fold over-extrapolation on falls: at 0.1 mmol/L/min it manufactured
+ * 0.8 mmol/L of anticipatory drop where the manufacturer applies 0.2. The prior
+ * and bounds below track the measured falling-direction lead, so V2 does no
+ * more lag compensation than the vendor does, and the remaining uncertainty is
+ * carried by the interval rather than by the median.
  */
 internal class AdaptiveV2LagEstimator {
     var lagMinutes = PRIOR_LAG_MINUTES
@@ -301,10 +312,26 @@ internal class AdaptiveV2LagEstimator {
     fun isValid(): Boolean = lagMinutes.isFinite() && lagMinutes in MIN_LAG_MINUTES..MAX_LAG_MINUTES &&
         correlation.isFinite() && abs(correlation) <= CORRELATION_CLAMP * 1.001
 
+    /**
+     * Variance of the lag estimate, in minutes squared.
+     *
+     * Propagated into the reported glucose variance as v²·var(τ), so a fast
+     * trajectory under a poorly-known lag widens the interval instead of
+     * letting the median make a confident anticipatory excursion.
+     */
+    val lagVariance: Double
+        get() {
+            val span = MAX_LAG_MINUTES - MIN_LAG_MINUTES
+            return (PRIOR_LAG_UNCERTAINTY * span) * (PRIOR_LAG_UNCERTAINTY * span)
+        }
+
     companion object {
-        const val PRIOR_LAG_MINUTES = 8.0
-        const val MIN_LAG_MINUTES = 3.0
-        const val MAX_LAG_MINUTES = 20.0
+        /** Matches the vendor's measured falling-direction lead; see the class doc. */
+        const val PRIOR_LAG_MINUTES = 3.0
+        const val MIN_LAG_MINUTES = 1.5
+        const val MAX_LAG_MINUTES = 8.0
+        /** Fraction of the admissible span treated as one-sigma uncertainty on τ. */
+        private const val PRIOR_LAG_UNCERTAINTY = 0.35
 
         private const val MIN_RATE_FOR_IDENTIFIABILITY = 0.02
         private const val CORRELATION_SMOOTHING = 0.05

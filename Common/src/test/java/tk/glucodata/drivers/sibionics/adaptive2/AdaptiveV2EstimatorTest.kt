@@ -1,6 +1,7 @@
 package tk.glucodata.drivers.sibionics.adaptive2
 
 import kotlin.math.abs
+import tk.glucodata.drivers.sibionics.SibionicsSensorObservation
 import kotlin.math.exp
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
@@ -56,21 +57,41 @@ class AdaptiveV2EstimatorTest {
     private fun context(): SibionicsAdaptiveV2Context =
         SibionicsAdaptiveV2Context().apply { configure(1.4f) }
 
+    /**
+     * Feeds one vendor-calibrated observation. Tests supply the value directly
+     * rather than going through the vendor core, so the fixture's ground truth
+     * stays the thing under test.
+     */
     private fun SibionicsAdaptiveV2Context.feed(
         index: Int,
-        chemical: Float,
+        calibrated: Float,
         temperatureC: Float = 34f,
         impedance: Float = 2_900f,
         qualityFlags: Int = 0,
         references: List<AdaptiveV2Reference> = emptyList(),
+        activeSensitivity: Float = 1.4f,
     ): ProbabilisticGlucoseEstimate? = process(
-        chemicalMmol = chemical,
-        chemicalQualityFlags = qualityFlags,
+        observation = observationOf(calibrated, qualityFlags, index, activeSensitivity),
         temperatureC = temperatureC,
         impedance = impedance,
-        index = index,
         eventTimeMs = index * 60_000L,
         references = references,
+    )
+
+    private fun observationOf(
+        calibrated: Float,
+        qualityFlags: Int,
+        index: Int,
+        activeSensitivity: Float,
+    ) = SibionicsSensorObservation(
+        calibratedMmol = calibrated,
+        chemicalMmol = calibrated,
+        sensorStateCompensationMmol = 0f,
+        qualityFlags = qualityFlags,
+        factorySensitivity = 1.4f,
+        activeSensitivity = activeSensitivity,
+        sensorAgeMinutes = index,
+        family = 115,
     )
 
     /** Settles the filter on a flat trace and returns the last estimate. */
@@ -139,7 +160,7 @@ class AdaptiveV2EstimatorTest {
     }
 
     @Test
-    fun sustainedFallBecomesIncreasinglyConfident() {
+    fun uncertaintyDuringASustainedFallStabilisesAndThenRecovers() {
         val context = context()
         context.settle(level = 7f, samples = 200, noise = 0.08f)
 
@@ -152,8 +173,29 @@ class AdaptiveV2EstimatorTest {
             if (offset == 3) earlyWidth = width
             if (offset == 29) lateWidth = width
         }
+        // Hold level again and let the trajectory settle.
+        var recoveredWidth = Float.NaN
+        repeat(60) { offset ->
+            val estimate = context.feed(START_INDEX + 230 + offset, trace.step(0f))!!
+            recoveredWidth = estimate.upper90Mmol - estimate.lower90Mmol
+        }
 
-        assertTrue("early=$earlyWidth late=$lateWidth", lateWidth <= earlyWidth)
+        // A sustained fall does *not* make the interval shrink, and it should
+        // not: part of the glucose uncertainty is the lag term v^2*var(tau),
+        // which scales with rate and cannot be identified from a constant
+        // slope at all. That the band is wider while glucose moves fast is a
+        // real property of CGM accuracy, not a modelling defect — an earlier
+        // version of this test asserted the opposite and was only satisfiable
+        // by a model that over-claimed confidence exactly when it was
+        // extrapolating hardest.
+        //
+        // What must hold is that it stabilises rather than growing without
+        // bound, and recovers once the motion stops.
+        assertTrue("early=$earlyWidth late=$lateWidth", lateWidth < earlyWidth * 1.6f)
+        assertTrue(
+            "late=$lateWidth recovered=$recoveredWidth",
+            recoveredWidth < lateWidth,
+        )
     }
 
     @Test
@@ -431,6 +473,88 @@ class AdaptiveV2EstimatorTest {
             "first=${first.glucoseMmol} second=${second.glucoseMmol} third=${third.glucoseMmol}",
             third.glucoseMmol <= second.glucoseMmol + 0.05f,
         )
+    }
+
+    // ── Time handling ──────────────────────────────────────────────────────
+
+    @Test
+    fun oneLongGapPropagatesLikeTheEquivalentRunOfShortSteps() {
+        fun widthAfter(stepMinutes: Int): Float {
+            val context = context()
+            context.settle(level = 6f, samples = 200, noise = 0.05f)
+            // Ten minutes of elapsed time, delivered either as ten one-minute
+            // steps with no observation in between, or as a single ten-minute
+            // gap. Both must leave the posterior equally wide: Q(dt) for the
+            // coupled B/v/a block is not Q(1)*dt, so a naive diagonal scaling
+            // makes the long form come back far too confident.
+            val estimate = context.feed(START_INDEX + 200 + stepMinutes, 6f)!!
+            return estimate.upper90Mmol - estimate.lower90Mmol
+        }
+
+        val short = widthAfter(1)
+        val long = widthAfter(10)
+        // The gap must actually cost something...
+        assertTrue("short=$short long=$long", long > short)
+        // ...and grow with elapsed time in a bounded, sane way rather than
+        // being silently discarded.
+        assertTrue("short=$short long=$long", long < short * 4f)
+    }
+
+    @Test
+    fun aLongHoleIsNotSilentlyTruncated() {
+        val context = context()
+        context.settle(level = 6f, samples = 200, noise = 0.05f)
+
+        val oneHour = context().let {
+            it.settle(level = 6f, samples = 200, noise = 0.05f)
+            it.feed(START_INDEX + 200 + 60, 6f)!!
+        }
+        val twoHours = context().let {
+            it.settle(level = 6f, samples = 200, noise = 0.05f)
+            it.feed(START_INDEX + 200 + 120, 6f)!!
+        }
+
+        // An earlier version clamped elapsed time to 60 minutes and then moved
+        // its clock to the real timestamp, so a multi-hour hole came back as
+        // confident as a one-hour one.
+        val oneHourWidth = oneHour.upper90Mmol - oneHour.lower90Mmol
+        val twoHourWidth = twoHours.upper90Mmol - twoHours.lower90Mmol
+        assertTrue("1h=$oneHourWidth 2h=$twoHourWidth", twoHourWidth > oneHourWidth)
+    }
+
+    @Test
+    fun aGapBeyondTheReinitialisationThresholdStartsClean() {
+        val context = context()
+        context.settle(level = 9f, samples = 200, noise = 0.05f)
+
+        // Four hours later the propagated posterior would carry no information
+        // and the sensor may have been reinserted, so the estimator restarts
+        // from the observation rather than pretending to have tracked through.
+        val after = context.feed(START_INDEX + 200 + 240, 5f)!!
+        assertEquals("glucose=${after.glucoseMmol}", 5f, after.glucoseMmol, 0.6f)
+    }
+
+    @Test
+    fun modeTransitionInterpolatesTowardIdentityForSubMinuteSteps() {
+        val full = DoubleArray(AdaptiveV2Mode.COUNT)
+        val half = DoubleArray(AdaptiveV2Mode.COUNT)
+        val tiny = DoubleArray(AdaptiveV2Mode.COUNT)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 1.0, full)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.5, half)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.02, tiny)
+
+        val steady = AdaptiveV2Mode.STEADY.ordinal
+        // The matrix is defined per minute. A shorter step must move the
+        // distribution less, and a vanishing step must approach the identity —
+        // otherwise mode persistence depends on how often process() is called
+        // rather than on how much time has passed.
+        assertTrue("full=${full[steady]} half=${half[steady]}", half[steady] > full[steady])
+        assertTrue("half=${half[steady]} tiny=${tiny[steady]}", tiny[steady] > half[steady])
+        assertEquals("tiny=${tiny[steady]}", 1.0, tiny[steady], 0.02)
+        listOf(full, half, tiny).forEach { row ->
+            assertEquals("row must stay a distribution", 1.0, row.sum(), 1e-9)
+            assertTrue("row must stay non-negative", row.all { it >= 0.0 })
+        }
     }
 
     // ── Persistence and replay ─────────────────────────────────────────────

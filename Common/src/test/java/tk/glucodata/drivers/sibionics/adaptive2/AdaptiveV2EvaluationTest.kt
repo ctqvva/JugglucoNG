@@ -247,6 +247,18 @@ class AdaptiveV2EvaluationTest {
         }
     }
 
+    private fun observationOf(calibrated: Float, index: Int) =
+        tk.glucodata.drivers.sibionics.SibionicsSensorObservation(
+            calibratedMmol = calibrated,
+            chemicalMmol = calibrated,
+            sensorStateCompensationMmol = 0f,
+            qualityFlags = 0,
+            factorySensitivity = 1.4f,
+            activeSensitivity = 1.4f,
+            sensorAgeMinutes = index,
+            family = 115,
+        )
+
     private fun evaluate(seed: Int, withArtifacts: Boolean): Metrics {
         val trace = DayTrace(seed, withArtifacts).apply { generate() }
         val context = SibionicsAdaptiveV2Context().apply { configure(1.4f) }
@@ -254,11 +266,9 @@ class AdaptiveV2EvaluationTest {
         trace.observations.indices.forEach { minute ->
             val index = WARMUP_INDEX + minute
             val estimate = context.process(
-                chemicalMmol = trace.observations[minute],
-                chemicalQualityFlags = 0,
+                observation = observationOf(trace.observations[minute], index),
                 temperatureC = trace.temperature[minute],
                 impedance = trace.impedance[minute],
-                index = index,
                 eventTimeMs = index * 60_000L,
             )
             // Skip the filter's own settling window; it is initialised from one
@@ -358,11 +368,9 @@ class AdaptiveV2EvaluationTest {
         trace.observations.indices.forEach { minute ->
             val index = WARMUP_INDEX + minute
             context.process(
-                chemicalMmol = trace.observations[minute],
-                chemicalQualityFlags = 0,
+                observation = observationOf(trace.observations[minute], index),
                 temperatureC = trace.temperature[minute],
                 impedance = trace.impedance[minute],
-                index = index,
                 eventTimeMs = index * 60_000L,
             )?.let {
                 if (it.glucoseMmol < minimum) { minimum = it.glucoseMmol; minimumMinute = minute }
