@@ -2552,4 +2552,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">График + значение</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + значение + стрелка</string>
     <string name="glucosechartfullcomplicationlabel">График + значение + стрелка + время</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (экспериментально)</string>
+    <string name="sibionics_adaptive_v2_desc">Независимая оценка состояния датчика с вероятным диапазоном</string>
+    <string name="glucose_likely_range">Вероятный диапазон</string>
+    <string name="glucose_likely_range_value">вероятный диапазон %1$s–%2$s</string>
+    <string name="glucose_estimated">Оценка глюкозы</string>
+    <string name="glucose_uncertainty_elevated">Повышенная неопределённость датчика</string>
+    <string name="glucose_possible_artifact">Возможен временный артефакт датчика</string>
 </resources>

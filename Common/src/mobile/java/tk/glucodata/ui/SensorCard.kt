@@ -713,8 +713,10 @@ fun SensorCard(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Bit 0 is calibration; bits 1-3 are the model. The model mask
+                // widened from 6 to 14 when Adaptive V2 was added at base 8.
                 var algorithmFeatures by remember(sensor.customCalIndex) {
-                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 7))
+                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
                 }
 
                 fun setCalibration(enabled: Boolean) {
@@ -738,13 +740,14 @@ fun SensorCard(
                     Triple(6, R.string.sibionics_responsive_algorithm, R.string.sibionics_responsive_algorithm_desc),
                     Triple(4, R.string.sibionics_balanced_algorithm, R.string.sibionics_balanced_algorithm_desc),
                     Triple(2, R.string.sibionics_state_algorithm, R.string.sibionics_state_algorithm_desc),
+                    Triple(8, R.string.sibionics_adaptive_v2, R.string.sibionics_adaptive_v2_desc),
                 )
                 Column(
                     modifier = Modifier.selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     algorithmOptions.forEachIndexed { index, (modelBase, titleRes, subtitleRes) ->
-                        val selected = algorithmFeatures and 6 == modelBase
+                        val selected = algorithmFeatures and 14 == modelBase
                         val shape = when (index) {
                             0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
                             algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
@@ -1692,10 +1695,11 @@ fun SensorCard(
                 if (sensor.isSibionics && sensor.viewMode != 1) {
                     val calibrationEnabled = sensor.customCalIndex and 1 != 0
                     val baseAlgorithm = stringResource(
-                        when (sensor.customCalIndex and 6) {
+                        when (sensor.customCalIndex and 14) {
                             2 -> R.string.sibionics_state_algorithm
                             4 -> R.string.sibionics_balanced_algorithm
                             6 -> R.string.sibionics_responsive_algorithm
+                            8 -> R.string.sibionics_adaptive_v2
                             else -> R.string.sibionics_stock_algorithm_desc
                         }
                     )

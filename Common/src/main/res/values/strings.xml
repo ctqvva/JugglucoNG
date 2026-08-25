@@ -2734,4 +2734,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Chart + value</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Chart + value + arrow</string>
     <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
+    <string name="sibionics_adaptive_v2_desc">Independent sensor-state estimate with a likely range</string>
+    <string name="glucose_likely_range">Likely range</string>
+    <string name="glucose_likely_range_value">%1$s–%2$s likely range</string>
+    <string name="glucose_estimated">Estimated glucose</string>
+    <string name="glucose_uncertainty_elevated">Sensor uncertainty elevated</string>
+    <string name="glucose_possible_artifact">Possible transient sensor artifact</string>
 </resources>

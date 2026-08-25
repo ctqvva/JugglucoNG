@@ -38,6 +38,7 @@ class HistoryRepository(context: Context = Applic.app) {
     
     private val database = HistoryDatabase.getInstance(context)
     private val dao = database.historyDao()
+    private val uncertaintyDao = database.readingUncertaintyDao()
 
     private fun resolveQuerySensorSerials(sensorSerial: String?): List<String> =
         SensorIdentity.resolveRoomQuerySensorIds(sensorSerial)
@@ -1020,7 +1021,13 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val readings = dao.getReadingsSince(startTime)
-                mapDisplayReadings(readings, preferredSerial)
+                val uncertainty = runCatching {
+                    uncertaintyDao.getForSensors(
+                        readings.map { it.sensorSerial }.distinct(),
+                        startTime,
+                    )
+                }.getOrDefault(emptyList())
+                mapDisplayReadings(readings, preferredSerial, uncertainty.indexed())
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting display history", e)
                 emptyList()
@@ -1036,8 +1043,11 @@ class HistoryRepository(context: Context = Applic.app) {
         preferredSerial: String?,
         startTime: Long = 0L
     ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> {
-        return dao.getHistoryFlow(startTime).map { readings ->
-            mapDisplayReadings(readings, preferredSerial)
+        return kotlinx.coroutines.flow.combine(
+            dao.getHistoryFlow(startTime),
+            uncertaintyDao.getFlow(startTime),
+        ) { readings, uncertainty ->
+            mapDisplayReadings(readings, preferredSerial, uncertainty.indexed())
         }.flowOn(Dispatchers.IO)
     }
 
@@ -1071,7 +1081,10 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
-    private fun mapReadings(readings: List<HistoryReading>): List<GlucosePoint> {
+    private fun mapReadings(
+        readings: List<HistoryReading>,
+        uncertainty: Map<Long, ReadingUncertainty> = emptyMap()
+    ): List<GlucosePoint> {
         return readings.map { reading ->
             GlucosePoint(
                 value = reading.value,
@@ -1079,10 +1092,25 @@ class HistoryRepository(context: Context = Applic.app) {
                 timestamp = reading.timestamp,
                 rawValue = reading.rawValue,
                 rate = reading.rate,
-                sensorSerial = reading.sensorSerial
+                sensorSerial = reading.sensorSerial,
+                uncertainty = uncertainty[uncertaintyKey(reading)]?.toGlucoseUncertainty()
             )
         }
     }
+
+    /**
+     * Intervals are keyed by sensor and minute so a row can only ever attach to
+     * the reading it was computed for. A reading with no matching row keeps a
+     * null uncertainty, which is what every pre-existing reading has.
+     */
+    private fun uncertaintyKey(reading: HistoryReading): Long =
+        reading.timestamp * 31L + reading.sensorSerial.hashCode()
+
+    private fun uncertaintyKey(row: ReadingUncertainty): Long =
+        row.timestamp * 31L + row.sensorSerial.hashCode()
+
+    private fun List<ReadingUncertainty>.indexed(): Map<Long, ReadingUncertainty> =
+        if (isEmpty()) emptyMap() else associateBy { uncertaintyKey(it) }
 
     private fun mapReadingForStats(reading: HistoryReading): GlucosePoint {
         return GlucosePoint(
@@ -1097,9 +1125,10 @@ class HistoryRepository(context: Context = Applic.app) {
 
     private fun mapDisplayReadings(
         readings: List<HistoryReading>,
-        preferredSerial: String?
+        preferredSerial: String?,
+        uncertainty: Map<Long, ReadingUncertainty> = emptyMap()
     ): List<GlucosePoint> {
-        return mapReadings(HistoryDisplayMerge.mergeReadings(readings, preferredSerial))
+        return mapReadings(HistoryDisplayMerge.mergeReadings(readings, preferredSerial), uncertainty)
     }
 
     private fun mergeQueryReadings(

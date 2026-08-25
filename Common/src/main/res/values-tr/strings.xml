@@ -2537,4 +2537,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (deneysel)</string>
+    <string name="sibionics_adaptive_v2_desc">Olası aralık veren bağımsız sensör durumu tahmini</string>
+    <string name="glucose_likely_range">Olası aralık</string>
+    <string name="glucose_likely_range_value">olası aralık %1$s–%2$s</string>
+    <string name="glucose_estimated">Tahmini glukoz</string>
+    <string name="glucose_uncertainty_elevated">Sensör belirsizliği yüksek</string>
+    <string name="glucose_possible_artifact">Olası geçici sensör hatası</string>
 </resources>

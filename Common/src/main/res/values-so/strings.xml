@@ -2709,4 +2709,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucosechartvaluecomplicationlabel">Garaaf + qiime</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Garaaf + qiime + fallaadh</string>
     <string name="glucosechartfullcomplicationlabel">Garaaf + qiime + fallaadh + waqti</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (tijaabo)</string>
+    <string name="sibionics_adaptive_v2_desc">Qiyaas madaxbannaan oo xaaladda dareemaha leh kala duwanaansho suurtogal ah</string>
+    <string name="glucose_likely_range">Kala duwanaanshaha suurtogalka ah</string>
+    <string name="glucose_likely_range_value">kala duwanaansho suurtogal ah %1$s–%2$s</string>
+    <string name="glucose_estimated">Sonkorta la qiyaasay</string>
+    <string name="glucose_uncertainty_elevated">Hubanti la\'aanta dareemaha waa sare</string>
+    <string name="glucose_possible_artifact">Waxaa suurtogal ah cilad dareeme oo ku meel gaar ah</string>
 </resources>

@@ -2624,4 +2624,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucosechartvaluecomplicationlabel">График + утга</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + утга + сум</string>
     <string name="glucosechartfullcomplicationlabel">График + утга + сум + цаг</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (туршилтын)</string>
+    <string name="sibionics_adaptive_v2_desc">Мэдрэгчийн төлөвийн бие даасан үнэлгээ, магадлалт мужтай</string>
+    <string name="glucose_likely_range">Магадлалт муж</string>
+    <string name="glucose_likely_range_value">магадлалт муж %1$s–%2$s</string>
+    <string name="glucose_estimated">Тооцоолсон глюкоз</string>
+    <string name="glucose_uncertainty_elevated">Мэдрэгчийн тодорхойгүй байдал өндөр</string>
+    <string name="glucose_possible_artifact">Мэдрэгчийн түр зуурын гажилт байж болзошгүй</string>
 </resources>

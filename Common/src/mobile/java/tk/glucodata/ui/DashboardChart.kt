@@ -527,6 +527,16 @@ private fun PreviewWindowNavigator(
     }
 }
 
+/**
+ * Above this posterior artifact probability the tooltip mentions the
+ * possibility. Chosen so the notice appears when the artifact hypothesis is a
+ * genuine competitor, not whenever it is merely non-zero.
+ */
+private const val ARTIFACT_NOTICE_PROBABILITY = 0.25f
+
+/** Below this confidence the tooltip says so rather than leaving the wide band unexplained. */
+private const val LOW_CONFIDENCE_NOTICE = 0.45f
+
 data class ChartViewportSnapshot(
     val startMillis: Long,
     val endMillis: Long,
@@ -2493,6 +2503,36 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
+                // --- 2b. UNCERTAINTY RIBBON (behind the lines) ---
+                // Drawn only for the algorithm lane, which is the only one an
+                // estimator attaches a credible interval to; raw-only mode has
+                // no interval and renders exactly as it always did.
+                if (endIdx > startIdx && (viewMode == 0 || viewMode == 2 || viewMode == 3)) {
+                    val ribbonIsRawMode = viewMode == 1 || viewMode == 3
+                    val ribbonHasCalibration = calibratedValueResolver.hasCalibration(ribbonIsRawMode)
+                    with(GlucoseUncertaintyRibbon) {
+                        drawUncertaintyRibbon(
+                            renderData = renderData,
+                            startIndex = startIdx,
+                            endIndex = endIdx,
+                            viewportStartMs = viewportStart,
+                            timeScale = dataWidth / animDur,
+                            chartHeight = chartHeight,
+                            yMin = cYMin,
+                            yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
+                            gapThresholdMs = ChartGap.THRESHOLD_MS,
+                            color = primaryColor,
+                            centerValueAt = { index ->
+                                if (ribbonHasCalibration) {
+                                    calibratedValueResolver.valueAt(index, ribbonIsRawMode)
+                                } else {
+                                    renderData[index].value
+                                }
+                            },
+                        )
+                    }
+                }
+
                 // --- 3. DATA LINES (Unified & Optimized) ---
                 if (endIdx > startIdx) {
                     val gapThreshold = ChartGap.THRESHOLD_MS
@@ -3948,6 +3988,38 @@ fun InteractiveGlucoseChart(
                             text = styledText,
                             style = MaterialTheme.typography.titleMedium
                         )
+                        // Uncertainty, when the estimator that produced this
+                        // point actually reported it. The range is stated as a
+                        // range; the artifact line is phrased as a possibility,
+                        // because an elevated posterior probability is not the
+                        // same as an artifact having occurred.
+                        point.uncertainty?.takeIf { it.isUsable }?.let { uncertainty ->
+                            val isMmolTooltip = GlucoseFormatter.isMmol(unit)
+                            Text(
+                                text = stringResource(
+                                    R.string.glucose_likely_range_value,
+                                    GlucoseFormatter.format(uncertainty.lower, isMmolTooltip),
+                                    GlucoseFormatter.format(uncertainty.upper, isMmolTooltip),
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = statusContentColor.copy(alpha = 0.72f),
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                            val statusRes = when {
+                                (uncertainty.artifactProbability ?: 0f) >= ARTIFACT_NOTICE_PROBABILITY ->
+                                    R.string.glucose_possible_artifact
+                                (uncertainty.confidence ?: 1f) <= LOW_CONFIDENCE_NOTICE ->
+                                    R.string.glucose_uncertainty_elevated
+                                else -> null
+                            }
+                            statusRes?.let {
+                                Text(
+                                    text = stringResource(it),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = statusContentColor.copy(alpha = 0.58f),
+                                )
+                            }
+                        }
                         tooltipPeerPoints.forEach { peer ->
                             val attrs = peerDrawAttrs[peer.sensorSerial]
                             val peerColor = attrs?.first ?: SensorColors.getColor(peer.sensorSerial.orEmpty())

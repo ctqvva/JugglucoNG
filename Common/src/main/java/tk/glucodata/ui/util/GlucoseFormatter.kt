@@ -91,7 +91,11 @@ fun GlucosePoint.inDisplayUnit(isMmol: Boolean): GlucosePoint {
     if (!isMmol) return this
     return copy(
         value = GlucoseFormatter.mgToMmol(value),
-        rawValue = GlucoseFormatter.mgToMmol(rawValue)
+        rawValue = GlucoseFormatter.mgToMmol(rawValue),
+        // The credible interval is in the same unit as the value it describes,
+        // so it has to convert with it — a band left in mg/dL around an mmol/L
+        // line would draw off the top of the chart.
+        uncertainty = uncertainty?.scaled(GlucoseFormatter.mgToMmol(1f))
     )
 }
 

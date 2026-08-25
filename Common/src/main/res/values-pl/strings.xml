@@ -2543,4 +2543,11 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (eksperymentalny)</string>
+    <string name="sibionics_adaptive_v2_desc">Niezależna ocena stanu czujnika z prawdopodobnym zakresem</string>
+    <string name="glucose_likely_range">Prawdopodobny zakres</string>
+    <string name="glucose_likely_range_value">prawdopodobny zakres %1$s–%2$s</string>
+    <string name="glucose_estimated">Szacowana glikemia</string>
+    <string name="glucose_uncertainty_elevated">Podwyższona niepewność czujnika</string>
+    <string name="glucose_possible_artifact">Możliwy przejściowy artefakt czujnika</string>
 </resources>

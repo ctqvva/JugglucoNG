@@ -7,6 +7,8 @@ internal data class SibionicsRebuiltReading(
     val temperatureC: Float,
     val impedance: Float,
     val index: Int,
+    /** Credible interval in mg/dL; null for models that do not estimate one. */
+    val uncertainty: tk.glucodata.GlucoseUncertainty? = null,
 )
 
 internal data class SibionicsReplayResult(
@@ -36,6 +38,7 @@ internal object SibionicsAlgorithmRebuilder {
         shortCode: String,
         sensitivity: Float,
         unitIsMmol: Boolean,
+        referenceAnchors: List<SibionicsCalibrationAnchor> = emptyList(),
         calibrateDisplaySeries: (FloatArray, LongArray) -> FloatArray,
     ): SibionicsReplayResult {
         val stockContext = SibionicsAlgorithmContext(sensorId).also {
@@ -95,6 +98,10 @@ internal object SibionicsAlgorithmRebuilder {
                 impedance = sample.impedance,
                 eventTimeMs = sample.timestampMs,
                 chemicalSignal = chemicalSignals[index],
+                // Replayed anchors are filtered by timestamp inside the
+                // estimator, so a rebuild applies each one at the sample it
+                // actually belongs to rather than all of them at the end.
+                calibrationAnchors = referenceAnchors,
             )
             val displayMgdl = displayMmol * SibionicsConstants.MGDL_PER_MMOLL
             if (SibionicsConstants.isValidAlgorithmGlucoseMgdl(displayMgdl)) {
@@ -105,6 +112,8 @@ internal object SibionicsAlgorithmRebuilder {
                     temperatureC = sample.temperatureC,
                     impedance = sample.impedance,
                     index = sample.index,
+                    uncertainty = rebuiltContext.latestUncertaintyMmol()
+                        ?.scaled(SibionicsConstants.MGDL_PER_MMOLL),
                 )
             }
         }

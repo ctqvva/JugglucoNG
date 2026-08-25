@@ -29,23 +29,26 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
+ *   v13 — per-reading credible intervals for uncertainty-aware estimators
  */
 @Database(
     entities = [
         HistoryReading::class,
         DeletedHistoryReading::class,
+        ReadingUncertainty::class,
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
     
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
+    abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
     
     companion object {
         @Volatile
@@ -239,6 +242,35 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v12 → v13: uncertainty lives in its own table rather than as columns
+         * on `history_readings`, which native re-sync rewrites. Nothing is
+         * backfilled: readings written before this have no uncertainty, which
+         * is the truthful answer, and they render as a plain line.
+         */
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_uncertainty (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        lowerMgdl REAL NOT NULL,
+                        upperMgdl REAL NOT NULL,
+                        intervalMass REAL NOT NULL,
+                        confidence REAL,
+                        artifactProbability REAL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_uncertainty_timestamp " +
+                        "ON reading_uncertainty (timestamp)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -256,7 +288,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
-                    MIGRATION_11_12
+                    MIGRATION_11_12,
+                    MIGRATION_12_13
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
