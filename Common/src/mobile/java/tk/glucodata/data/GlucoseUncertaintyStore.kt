@@ -23,6 +23,10 @@ object GlucoseUncertaintyStore {
     private const val TAG = "GlucoseUncertainty"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** Readings outlive their intervals; 120 days comfortably covers any chart range. */
+    private const val RETENTION_MS = 120L * 24L * 60L * 60L * 1000L
+    private const val PRUNE_INTERVAL_MS = 12L * 60L * 60L * 1000L
+
     private val dao by lazy {
         runCatching { HistoryDatabase.getInstance(Applic.app).readingUncertaintyDao() }
             .onFailure { Log.w(TAG, "uncertainty dao unavailable", it) }
@@ -74,8 +78,28 @@ object GlucoseUncertaintyStore {
         scope.launch {
             runCatching { dao?.insertAll(rows) }
                 .onFailure { Log.w(TAG, "storeBatch failed for serial=$serial size=${rows.size}", it) }
+            pruneIfDue()
         }
     }
+
+    /**
+     * Keeps the table bounded without a scheduler.
+     *
+     * Intervals are only useful for as long as the chart can still show the
+     * readings they describe, and at one row a minute an unpruned table grows
+     * by ~43k rows a month. Pruning piggybacks on writes and runs at most once
+     * per [PRUNE_INTERVAL_MS], so it costs nothing on the live path.
+     */
+    private suspend fun pruneIfDue() {
+        val now = System.currentTimeMillis()
+        if (now - lastPruneMs < PRUNE_INTERVAL_MS) return
+        lastPruneMs = now
+        runCatching { dao?.deleteOlderThan(now - RETENTION_MS) }
+            .onFailure { Log.w(TAG, "prune failed", it) }
+    }
+
+    @Volatile
+    private var lastPruneMs = 0L
 
     /** Single-reading convenience for the live path. */
     @JvmStatic

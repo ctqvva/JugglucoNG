@@ -33,6 +33,17 @@ data class GlucoseUncertainty(
     fun scaled(factor: Float): GlucoseUncertainty =
         copy(lower = lower * factor, upper = upper * factor)
 
+    /**
+     * Moves the interval without changing its width.
+     *
+     * For use when the value it describes is displaced by a later stage —
+     * calibration, graph smoothing — so the band keeps surrounding the line
+     * actually drawn. The width is the estimator's claim and is preserved; only
+     * its position follows the value.
+     */
+    fun shifted(delta: Float): GlucoseUncertainty =
+        if (delta == 0f || !delta.isFinite()) this else copy(lower = lower + delta, upper = upper + delta)
+
     companion object {
         const val DEFAULT_INTERVAL_MASS = 0.9f
     }

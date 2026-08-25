@@ -107,6 +107,26 @@ class GlucoseUncertaintyTests {
     }
 
     @Test
+    fun shiftingMovesTheBandWithoutChangingItsWidth() {
+        val uncertainty = GlucoseUncertainty(lower = 4.0f, upper = 6.4f, confidence = 0.8f)
+        val shifted = uncertainty.shifted(0.6f)
+
+        assertEquals(4.6f, shifted.lower, 0.0001f)
+        assertEquals(7.0f, shifted.upper, 0.0001f)
+        // Displacing the value it describes does not make the sensor more or
+        // less certain, so the width is preserved exactly.
+        assertEquals(uncertainty.halfWidth, shifted.halfWidth, 0.0001f)
+        assertEquals(0.8f, shifted.confidence)
+    }
+
+    @Test
+    fun shiftingByZeroOrNonFiniteIsANoOp() {
+        val uncertainty = GlucoseUncertainty(lower = 4.0f, upper = 6.4f)
+        assertEquals(uncertainty, uncertainty.shifted(0f))
+        assertEquals(uncertainty, uncertainty.shifted(Float.NaN))
+    }
+
+    @Test
     fun halfWidthDescribesTheBandNotASigma() {
         val uncertainty = GlucoseUncertainty(lower = 4f, upper = 7f)
         assertEquals(1.5f, uncertainty.halfWidth, 0.0001f)

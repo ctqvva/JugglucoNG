@@ -205,7 +205,13 @@ internal fun buildSmoothedConsumerHistory(
                     timestamp = point.timestamp,
                     rawValue = point.rawValue,
                     rate = source?.rate,
-                    sensorSerial = source?.sensorSerial
+                    sensorSerial = source?.sensorSerial,
+                    // Smoothing displaces the value, so the interval follows it
+                    // rather than being dropped or left behind around the
+                    // unsmoothed one. The width is the estimator's claim and
+                    // does not change: smoothing makes the line calmer, not the
+                    // sensor more certain.
+                    uncertainty = source?.uncertainty?.shifted(point.value - (source.value))
                 )
             )
         }
