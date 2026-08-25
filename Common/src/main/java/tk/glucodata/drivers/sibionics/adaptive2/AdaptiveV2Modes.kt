@@ -76,17 +76,18 @@ internal object AdaptiveV2ModeModel {
     var artifactPrior: AdaptiveV2ArtifactPrior = TelemetryArtifactPrior
 
     /**
-     * Diagonal process noise per mode, in (unit)²/min.
+     * Per-mode driving-noise spectral densities.
      *
      * Rationale for the shape rather than the exact digits:
-     *  - STEADY suppresses rate and acceleration noise so quiet stretches
-     *    produce a narrow interval instead of tracking minute noise.
-     *  - DYNAMIC opens rate/acceleration by two orders of magnitude, which is
-     *    what lets a genuine rapid fall be followed without lag.
+     *  - STEADY keeps velocity and jerk noise low so quiet stretches produce a
+     *    narrow interval instead of tracking minute noise.
+     *  - DYNAMIC opens *velocity* by four orders of magnitude. That is both
+     *    what lets a genuine rapid excursion be followed without lag, and what
+     *    makes its predicted variance differ enough from STEADY's for the
+     *    likelihood to separate them at all — see [glucoseBlock].
      *  - ARTIFACT keeps glucose noise at STEADY levels and opens only the
      *    artifact state, so an excursion it wins is explained away from glucose.
-     *  - DRIFT opens only sensitivity and offset, an order of magnitude above
-     *    their baseline, and nothing else.
+     *  - DRIFT opens only sensitivity and offset, and nothing else.
      *
      * The sensor-state noises are chosen so that each state's stationary spread
      * under its own relaxation time constant matches its initial prior — ~7% on
@@ -97,83 +98,109 @@ internal object AdaptiveV2ModeModel {
      */
     private val PROCESS_NOISE: Array<DoubleArray> = arrayOf(
         // STEADY
-        noise(glucose = 2.0e-5, rate = 3.0e-7, acceleration = 3.0e-8,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // DYNAMIC
-        noise(glucose = 6.0e-5, rate = 1.2e-3, acceleration = 3.0e-6,
+        noise(velocity = 1.2e-3, jerk = 3.0e-6,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // ARTIFACT
-        noise(glucose = 2.0e-5, rate = 3.0e-7, acceleration = 3.0e-8,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 2.5e-2),
         // DRIFT
-        noise(glucose = 2.0e-5, rate = 5.0e-7, acceleration = 5.0e-8,
+        noise(velocity = 5.0e-7, jerk = 5.0e-8,
             logSensitivity = 3.0e-6, bias = 5.0e-5, artifact = 1.0e-6),
     )
 
+    /**
+     * @param velocity spectral density of the white noise driving [V2.V]
+     *   directly: unmodelled changes of glucose rate.
+     * @param jerk spectral density of the white noise driving [V2.ACC]:
+     *   unmodelled curvature.
+     *
+     * There is deliberately no separate entry for [V2.B]. Blood glucose has no
+     * independent driving noise — it is the integral of velocity — and an entry
+     * here would be read by nothing, which is exactly how the previous version
+     * came to have three configured values of which only one was used.
+     */
     private fun noise(
-        glucose: Double,
-        rate: Double,
-        acceleration: Double,
+        velocity: Double,
+        jerk: Double,
         logSensitivity: Double,
         bias: Double,
         artifact: Double,
     ): DoubleArray = DoubleArray(V2.N).also {
-        it[V2.B] = glucose
-        // Interstitial glucose has no independent driving noise: it is a
-        // filtered version of blood glucose. A small floor keeps the row from
-        // becoming singular.
-        it[V2.I] = glucose * 0.25
-        it[V2.V] = rate
-        it[V2.ACC] = acceleration
+        it[V2.V] = velocity
+        it[V2.ACC] = jerk
+        // Interstitial glucose is a filtered version of blood glucose and has
+        // no independent driving noise either; the floor only keeps the row
+        // non-singular. Its real uncertainty arrives through the B->I coupling
+        // in the transition matrix.
+        it[V2.I] = 2.0e-5
         it[V2.LOG_S] = logSensitivity
         it[V2.BIAS] = bias
         it[V2.ARTIFACT] = artifact
     }
 
     /**
-     * Diagonal process noise for a step of [dtMinutes].
+     * Diagonal process noise for the states *outside* the glucose block.
      *
      * The sensor states ([V2.LOG_S], [V2.BIAS], [V2.ARTIFACT]) are independent
-     * random walks, so scaling their variance by dt is exact. The glucose block
-     * is *not* independent — noise entering acceleration propagates into rate
-     * and position within the same step — so a diagonal `q*dt` understates the
-     * resulting covariance and produces cross-terms it cannot represent at all.
-     * [glucoseBlock] supplies the correct coupled covariance; this function
-     * fills only the diagonal that callers add directly.
+     * random walks, so scaling their variance by dt is exact. [V2.B], [V2.V]
+     * and [V2.ACC] are excluded and supplied by [glucoseBlock] instead: they
+     * are coupled, and a diagonal both understates the resulting covariance and
+     * cannot represent the cross terms at all.
      */
     fun processNoise(mode: AdaptiveV2Mode, dtMinutes: Double, out: DoubleArray) {
         val base = PROCESS_NOISE[mode.ordinal]
-        for (i in 0 until V2.N) out[i] = base[i] * dtMinutes
+        for (i in 0 until V2.N) {
+            out[i] = if (i == V2.B || i == V2.V || i == V2.ACC) 0.0 else base[i] * dtMinutes
+        }
     }
 
     /**
-     * Coupled covariance for the [V2.B]/[V2.V]/[V2.ACC] block under a
-     * continuous white-noise-jerk model with spectral density taken from the
-     * mode's acceleration noise.
+     * Coupled covariance for the [V2.B]/[V2.V]/[V2.ACC] block, row-major 3x3.
      *
-     * Standard result:
-     * ```
-     *   Q = q * [ dt^5/20  dt^4/8  dt^3/6
-     *             dt^4/8   dt^3/3  dt^2/2
-     *             dt^3/6   dt^2/2  dt     ]
-     * ```
-     * Written into [out] as a 3x3 in row-major order.
+     * The block is driven by two independent continuous white noises, which is
+     * the stochastic model this state actually follows:
+     *
+     *  - `q_v` entering velocity (continuous white-noise-acceleration):
+     *    `[dt³/3, dt²/2, 0; dt²/2, dt, 0; 0, 0, 0] * q_v`
+     *  - `q_a` entering acceleration (continuous white-noise-jerk):
+     *    `[dt⁵/20, dt⁴/8, dt³/6; dt⁴/8, dt³/3, dt²/2; dt³/6, dt²/2, dt] * q_a`
+     *
+     * Their contributions add because the sources are independent. That is not
+     * the same as adding a per-state diagonal on top of a block, which would
+     * double count the same noise.
+     *
+     * The velocity term is what makes DYNAMIC's rate freedom real. An earlier
+     * version derived the whole block from the jerk density alone, leaving the
+     * configured rate variance unread: DYNAMIC's predicted variance stayed
+     * orders of magnitude below the measurement noise, its likelihood never
+     * separated from STEADY's, and the mode probabilities simply tracked the
+     * transition prior. The IMM was four filters computing the same answer.
+     *
+     * The mild mean reversion [AdaptiveV2Transition] applies to acceleration is
+     * not modelled here; at one-minute substeps against a 30-minute time
+     * constant it changes the jerk term by about 3%, and omitting it slightly
+     * over-states covariance, which is the safe direction.
      */
     fun glucoseBlock(mode: AdaptiveV2Mode, dtMinutes: Double, out: DoubleArray) {
-        val q = PROCESS_NOISE[mode.ordinal][V2.ACC]
+        val qv = PROCESS_NOISE[mode.ordinal][V2.V]
+        val qa = PROCESS_NOISE[mode.ordinal][V2.ACC]
         val dt2 = dtMinutes * dtMinutes
         val dt3 = dt2 * dtMinutes
         val dt4 = dt3 * dtMinutes
         val dt5 = dt4 * dtMinutes
-        out[0] = q * dt5 / 20.0
-        out[1] = q * dt4 / 8.0
-        out[2] = q * dt3 / 6.0
+
+        out[0] = qv * dt3 / 3.0 + qa * dt5 / 20.0
+        out[1] = qv * dt2 / 2.0 + qa * dt4 / 8.0
+        out[2] = qa * dt3 / 6.0
         out[3] = out[1]
-        out[4] = q * dt3 / 3.0
-        out[5] = q * dt2 / 2.0
+        out[4] = qv * dtMinutes + qa * dt3 / 3.0
+        out[5] = qa * dt2 / 2.0
         out[6] = out[2]
         out[7] = out[5]
-        out[8] = q * dtMinutes
+        out[8] = qa * dtMinutes
     }
 
     /**

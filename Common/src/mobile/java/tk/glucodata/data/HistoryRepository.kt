@@ -717,9 +717,10 @@ class HistoryRepository(context: Context = Applic.app) {
         if (serials.isEmpty()) {
             return kotlinx.coroutines.flow.flowOf(emptyList())
         }
-        return dao.getHistoryFlowForSensors(serials, startTime).map { readings ->
-            mapReadings(mergeQueryReadings(readings, serial))
-        }.flowOn(Dispatchers.IO)
+        return withUncertainty(dao.getHistoryFlowForSensors(serials, startTime), serials, startTime) {
+            readings, uncertainty ->
+            mapReadings(mergeQueryReadings(readings, serial), uncertainty)
+        }
     }
 
     /**
@@ -735,10 +736,33 @@ class HistoryRepository(context: Context = Applic.app) {
         if (serials.isEmpty()) {
             return kotlinx.coroutines.flow.flowOf(emptyList())
         }
-        return dao.getHistoryFlowForSensors(serials, startTime).map { readings ->
-            mapReadings(mergeQueryReadings(readings, serial))
-        }.flowOn(Dispatchers.IO)
+        return withUncertainty(dao.getHistoryFlowForSensors(serials, startTime), serials, startTime) {
+            readings, uncertainty ->
+            mapReadings(mergeQueryReadings(readings, serial), uncertainty)
+        }
     }
+
+    /**
+     * Joins a readings flow with the credible intervals recorded for the same
+     * sensors, for the paths that actually draw a chart.
+     *
+     * This exists as one helper rather than an argument threaded through each
+     * query because the last two attempts to attach uncertainty each wired up a
+     * single method and missed the one the dashboard actually calls — the
+     * feature then looks completely absent with nothing failing anywhere.
+     * Anything that renders glucose should go through here; the stats and
+     * export paths deliberately do not, and say so at their call site.
+     */
+    private fun withUncertainty(
+        readings: kotlinx.coroutines.flow.Flow<List<HistoryReading>>,
+        serials: List<String>,
+        startTime: Long,
+        map: (List<HistoryReading>, Map<Long, ReadingUncertainty>) -> List<GlucosePoint>
+    ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> =
+        kotlinx.coroutines.flow.combine(
+            readings,
+            uncertaintyDao.getFlowForSensors(serials, startTime),
+        ) { rows, uncertainty -> map(rows, uncertainty.indexed()) }.flowOn(Dispatchers.IO)
 
     /**
      * Display/history UI query for a bounded set of live sensors. This keeps
@@ -755,9 +779,10 @@ class HistoryRepository(context: Context = Applic.app) {
         if (serials.isEmpty()) {
             return kotlinx.coroutines.flow.flowOf(emptyList())
         }
-        return dao.getHistoryFlowForSensors(serials, startTime).map { readings ->
-            mapReadings(readings)
-        }.flowOn(Dispatchers.IO)
+        return withUncertainty(dao.getHistoryFlowForSensors(serials, startTime), serials, startTime) {
+            readings, uncertainty ->
+            mapReadings(readings, uncertainty)
+        }
     }
 
     /**
@@ -833,7 +858,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val readings = dao.getReadingsSinceForSensors(serials, startTime)
-                mapReadings(mergeQueryReadings(readings, serial))
+                mapReadings(mergeQueryReadings(readings, serial), uncertaintyFor(serials, startTime))
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting history for sensor $serial", e)
                 emptyList()
@@ -847,7 +872,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val readings = dao.getReadingsSinceForSensors(serials, startTime)
-                mapReadings(mergeQueryReadings(readings, serial))
+                mapReadings(mergeQueryReadings(readings, serial), uncertaintyFor(serials, startTime))
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting display history for sensor $serial", e)
                 emptyList()
@@ -1081,6 +1106,12 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
+    /**
+     * @param uncertainty credible intervals keyed by [uncertaintyKey]. Callers
+     *   that render a chart must pass these — see [withUncertainty]. Stats,
+     *   export and notification paths pass nothing on purpose: they consume the
+     *   value only, and joining a second table for them would be wasted work.
+     */
     private fun mapReadings(
         readings: List<HistoryReading>,
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap()
@@ -1121,6 +1152,14 @@ class HistoryRepository(context: Context = Applic.app) {
 
     private fun List<ReadingUncertainty>.indexed(): Map<Long, ReadingUncertainty> =
         if (isEmpty()) emptyMap() else associateBy { uncertaintyKey(it) }
+
+    /** Blocking uncertainty lookup for the suspend query paths. */
+    private suspend fun uncertaintyFor(
+        serials: List<String>,
+        startTime: Long
+    ): Map<Long, ReadingUncertainty> =
+        runCatching { uncertaintyDao.getForSensors(serials, startTime).indexed() }
+            .getOrDefault(emptyMap())
 
     private fun mapReadingForStats(reading: HistoryReading): GlucosePoint {
         return GlucosePoint(
