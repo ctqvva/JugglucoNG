@@ -21,7 +21,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +37,7 @@ import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CompressionHoldRuntime
 import tk.glucodata.logic.CompressionLowDetector
+import tk.glucodata.ui.components.StyledSwitch
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -134,7 +134,7 @@ internal fun SensorPressureHoldCard(
                         .clickable { cardExpanded = !cardExpanded }
                 )
                 Spacer(Modifier.width(16.dp))
-                Switch(
+                StyledSwitch(
                     checked = optedIn && !selfDisabled,
                     onCheckedChange = { enabled ->
                         // setEnabled arms the cue too; read back what it wrote.
@@ -304,7 +304,7 @@ internal fun SensorPressureHoldCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        StyledSwitch(
                             checked = cueConfig.enabled,
                             onCheckedChange = { on -> saveCue(cueConfig.copy(enabled = on)) }
                         )
