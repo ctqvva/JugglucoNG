@@ -708,6 +708,7 @@
     <string name="libre3_nfc_command_activate_desc">Принудительно отправлять команду A0 Активировать во время сканирования</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Переключить приемник</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Принудительно отправлять команду A8 Переключить приемник во время сканирования</string>
+    <string name="libre3_activation_legacy_fallback">Не удалось проверить активацию Libre 3 с открытым исходным кодом; используется проверенный метод.</string>
     <string name="libreview_account_ready">ID аккаунта готов</string>
     <string name="libreview_account_missing">ID аккаунта отсутствует</string>
     <string name="libreview_account_missing_desc">Введите учетные данные и запросите ID аккаунта для сенсоров Libre 3</string>

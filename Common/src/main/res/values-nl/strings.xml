@@ -840,6 +840,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre3_nfc_command_activate_desc">Forceer tijdens het scannen de opdracht A0 Activeren</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Ontvanger wisselen</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Forceer tijdens het scannen de opdracht A8 Ontvanger wisselen</string>
+    <string name="libre3_activation_legacy_fallback">De opensource-activatie van Libre 3 kon niet worden geverifieerd; de beproefde methode wordt gebruikt.</string>
     <string name="libreview_account_ready">Account-ID gereed</string>
     <string name="libreview_account_missing">Account-ID ontbreekt</string>
     <string name="libreview_account_missing_desc">Voer je gegevens in en vraag de account-ID voor Libre 3-sensoren aan</string>

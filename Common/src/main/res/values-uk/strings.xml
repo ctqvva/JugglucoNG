@@ -784,6 +784,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Примусово надсилати команду A0 Активувати під час сканування</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Перемкнути приймач</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Примусово надсилати команду A8 Перемкнути приймач під час сканування</string>
+    <string name="libre3_activation_legacy_fallback">Не вдалося перевірити активацію Libre 3 з відкритим кодом; використовується перевірений метод.</string>
     <string name="libreview_account_ready">ID акаунта готовий</string>
     <string name="libreview_account_missing">ID акаунта відсутній</string>
     <string name="libreview_account_missing_desc">Введіть облікові дані та запросіть ID акаунта для сенсорів Libre 3</string>

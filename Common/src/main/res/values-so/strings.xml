@@ -697,6 +697,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre3_nfc_command_activate_desc">Xoog u yeelo amarka A0 inta lagu jiro sawirka</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Qaadaha beddelka</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Ku qas amarka qaataha Beddelka A8 inta lagu jiro sawirka</string>
+    <string name="libre3_activation_legacy_fallback">Hawlgelinta il-furan ee Libre 3 lama xaqiijin karin; habkii la tijaabiyey ayaa la isticmaalayaa.</string>
     <string name="libreview_account_ready">Aqoonsiga xisaabta oo diyaar ah</string>
     <string name="libreview_account_missing">Aqoonsiga xisaabta maqan</string>
     <string name="libreview_account_missing_desc">Geli waraaqaha aqoonsiga oo codso aqoonsiga Koontada ee dareemayaasha Libre 3</string>
