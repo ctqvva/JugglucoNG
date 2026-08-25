@@ -476,7 +476,22 @@ static public int upload(String httpurl,byte[] postdata,String secret,boolean pu
             httpurl,
             postdata,
             secret,
-            put,
+            put?"PUT":"POST",
+            UPLOAD_CONNECT_TIMEOUT_MS,
+            UPLOAD_READ_TIMEOUT_MS,
+            true,
+            "primary"
+    );
+    }
+
+/** Partial API v3 document update at a concrete identifier endpoint. */
+@Keep
+static public int uploadPatch(String httpurl,byte[] postdata,String secret) {
+    return uploadWithTimeouts(
+            httpurl,
+            postdata,
+            secret,
+            "PATCH",
             UPLOAD_CONNECT_TIMEOUT_MS,
             UPLOAD_READ_TIMEOUT_MS,
             true,
@@ -508,7 +523,7 @@ static public boolean uploadDeviceStatusAsync(
                         httpurl,
                         postdata,
                         secret,
-                        put,
+                        put?"PUT":"POST",
                         DEVICE_STATUS_CONNECT_TIMEOUT_MS,
                         DEVICE_STATUS_READ_TIMEOUT_MS,
                         false,
@@ -536,7 +551,7 @@ private static int uploadWithTimeouts(
         String httpurl,
         byte[] postdata,
         String secret,
-        boolean put,
+        String requestMethod,
         int connectTimeoutMs,
         int readTimeoutMs,
         boolean updateVisibleStatus,
@@ -548,7 +563,7 @@ private static int uploadWithTimeouts(
     if(updateVisibleStatus)
         uploadtime=requestTime;
     final int payloadLength=postdata==null ? 0 : postdata.length;
-    {if(doLog) {Log.i(LOG_ID,requestKind+" upload("+httpurl+",#"+payloadLength+","+(put?"PUT":"POST")+")");};};
+    {if(doLog) {Log.i(LOG_ID,requestKind+" upload("+httpurl+",#"+payloadLength+","+requestMethod+")");};};
     HttpURLConnection urlConnection=null;
     try {
 
@@ -573,7 +588,7 @@ private static int uploadWithTimeouts(
         urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.setConnectTimeout(connectTimeoutMs);
         urlConnection.setReadTimeout(readTimeoutMs);
-        urlConnection.setRequestMethod(put?"PUT":"POST");
+        urlConnection.setRequestMethod(requestMethod);
         urlConnection.setDoOutput(true);
         if(secret!=null)
             urlConnection.setRequestProperty("api-secret", secret);

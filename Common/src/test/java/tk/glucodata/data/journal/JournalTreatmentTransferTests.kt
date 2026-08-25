@@ -58,8 +58,8 @@ class JournalTreatmentTransferTests {
         assertFalse(json.has("created_at"))
         assertFalse(json.has("utcOffset"))
         assertFalse(json.has("_id"))
-        // The name of the document being changed has to stay, and so does what it says.
-        assertEquals("jng-j-1a7-18bd0a4b800", json.optString("identifier"))
+        // The endpoint names the document; the body only says what changes.
+        assertFalse(json.has("identifier"))
         assertEquals("Correction Bolus", json.optString("eventType"))
         assertEquals(4.0, json.optDouble("insulin"), 0.001)
         assertEquals("kept", json.optString("notes"))

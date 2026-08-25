@@ -223,4 +223,27 @@ class JournalTreatmentUploaderTests {
             JournalTreatmentUploader.oldCopyAction(identifier, identifier)
         )
     }
+
+    @Test
+    fun v3CreatesUseTheCollectionAndUpdatesUseTheDocumentEndpoint() {
+        val baseUrl = "https://ns.example.com"
+        val identifier = "jng-j-1a7-18bcfe56800"
+
+        assertEquals(
+            "$baseUrl/api/v3/treatments",
+            JournalTreatmentUploader.treatmentWriteUrl(
+                baseUrl,
+                identifier,
+                JournalTreatmentUploader.TreatmentWrite.CREATE
+            )
+        )
+        assertEquals(
+            "$baseUrl/api/v3/treatments/$identifier",
+            JournalTreatmentUploader.treatmentWriteUrl(
+                baseUrl,
+                identifier,
+                JournalTreatmentUploader.TreatmentWrite.UPDATE
+            )
+        )
+    }
 }

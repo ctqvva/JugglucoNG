@@ -257,14 +257,14 @@ object JournalTreatmentUploader {
                 )
                     ?: continue
                 val result = if (useV3) {
-                    // v3 takes a POST carrying a name it already holds as a change to that
-                    // document, and refuses the fields it will not let a client move. So a
-                    // change to what a dose says is sent without them, while a change to
-                    // when it was given is a new document under a new name.
-                    if (treatmentWrite(entry.nsRemoteId, remoteId) == TreatmentWrite.UPDATE) {
+                    // A partial update belongs at the concrete document endpoint. Collection
+                    // POST is only for a create and requires date, while PATCH deliberately
+                    // omits the immutable time and identity fields.
+                    val write = treatmentWrite(entry.nsRemoteId, remoteId)
+                    if (write == TreatmentWrite.UPDATE) {
                         JournalTreatmentTransfer.stripImmutableForUpdate(json)
                     }
-                    uploadViaNightPost(baseUrl, json, secretHashed, useV3, remoteId)
+                    uploadViaNightPost(baseUrl, json, secretHashed, useV3, remoteId, write)
                 } else {
                     json.remove("_id")
                     json.put("identifier", localIdentifier)
@@ -346,17 +346,21 @@ object JournalTreatmentUploader {
         json: JSONObject,
         secretHashed: String?,
         useV3: Boolean,
-        remoteId: String
+        remoteId: String,
+        write: TreatmentWrite = TreatmentWrite.CREATE
     ): UploadResult {
-        val code = NightPost.upload(
-            treatmentPostUrl(baseUrl, useV3),
-            json.toString().toByteArray(Charsets.UTF_8),
-            secretHashed,
-            false
-        )
+        val payload = json.toString().toByteArray(Charsets.UTF_8)
+        val code = if (useV3 && write == TreatmentWrite.UPDATE) {
+            NightPost.uploadPatch(treatmentWriteUrl(baseUrl, remoteId, write), payload, secretHashed)
+        } else {
+            NightPost.upload(treatmentWriteUrl(baseUrl, remoteId, write), payload, secretHashed, false)
+        }
         val message = if (isUploadOk(code, useV3)) "" else serverMessage(NightPost.getLastPrimaryResponseBody())
         return UploadResult(code = code, remoteId = remoteId, message = message)
     }
+
+    internal fun treatmentWriteUrl(baseUrl: String, remoteId: String, write: TreatmentWrite): String =
+        if (write == TreatmentWrite.UPDATE) "$baseUrl/api/v3/treatments/$remoteId" else treatmentPostUrl(baseUrl, true)
 
     private fun postV1Treatment(
         baseUrl: String,
