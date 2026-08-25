@@ -475,6 +475,43 @@ class AdaptiveV2EstimatorTest {
         )
     }
 
+    // ── Central-estimate continuity ────────────────────────────────────────
+
+    @Test
+    fun theReportedValueDoesNotJumpWhenModeDominanceChanges() {
+        val context = context()
+        context.settle(level = 6f, samples = 220, noise = 0.06f)
+
+        // Walk through a dip that takes the artifact and dynamic hypotheses
+        // through a crossover, which is exactly where a mixture median can hop
+        // from one component to the other.
+        val profile = listOf(
+            5.6f, 5.1f, 4.7f, 4.4f, 4.3f, 4.3f, 4.4f, 4.6f,
+            5.0f, 5.4f, 5.7f, 5.9f, 6.0f, 6.0f, 6.0f, 6.0f,
+        )
+        var previous = Float.NaN
+        var worstStep = 0f
+        var crossed = false
+        var lastDominantArtifact = false
+        profile.forEachIndexed { offset, value ->
+            val estimate = context.feed(START_INDEX + 220 + offset, value)!!
+            val dominantArtifact = estimate.artifactProbability > estimate.dynamicProbability
+            if (offset > 0 && dominantArtifact != lastDominantArtifact) crossed = true
+            lastDominantArtifact = dominantArtifact
+            if (previous.isFinite()) {
+                worstStep = maxOf(worstStep, abs(estimate.glucoseMmol - previous))
+            }
+            previous = estimate.glucoseMmol
+        }
+
+        // The mixture median is kept as the reported value because on a bimodal
+        // posterior the mean lands in the empty valley between hypotheses. The
+        // risk it carries is discontinuity when dominance flips, so that is
+        // what gets pinned: the displayed number must not teleport.
+        println("median continuity: worstStep=$worstStep crossed=$crossed")
+        assertTrue("worstStep=$worstStep", worstStep < 0.7f)
+    }
+
     // ── Time handling ──────────────────────────────────────────────────────
 
     @Test
