@@ -1,0 +1,544 @@
+package tk.glucodata.drivers.sibionics.adaptive2
+
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.random.Random
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Adaptive V2 behavioural scenarios.
+ *
+ * Fixtures are generated from a stated ground truth rather than replayed from a
+ * hand-picked trace, so the assertions are about the estimator's properties.
+ *
+ * The generator matters: V2 estimates *blood-equivalent* glucose, while the
+ * chemical signal it observes is interstitial and therefore lagged. Feeding a
+ * ramp straight in and asserting the output matches it would be asserting that
+ * the model fails to do the one thing it is for. [SyntheticTrace] instead
+ * simulates blood truth, derives the interstitial signal through the same
+ * first-order lag the body imposes, and tests recover the blood truth.
+ *
+ * No test compares V2 against stock: stock is not ground truth for this model.
+ */
+class AdaptiveV2EstimatorTest {
+
+    /**
+     * Blood truth → interstitial observation, via dI/dt = (B − I)/τ.
+     * τ = 8 min matches the estimator's prior; [lagMinutes] can differ to check
+     * the estimator is not merely inverting its own assumption.
+     */
+    private class SyntheticTrace(
+        startMmol: Float,
+        private val lagMinutes: Float = 8f,
+        seed: Int = 7,
+        private val noise: Float = 0f,
+    ) {
+        private val random = Random(seed)
+        var blood = startMmol
+            private set
+        var interstitial = startMmol
+            private set
+
+        /** Advances one minute with the given blood rate and returns the observation. */
+        fun step(bloodRatePerMin: Float): Float {
+            blood += bloodRatePerMin
+            val alpha = 1f - exp(-1f / lagMinutes)
+            interstitial += alpha * (blood - interstitial)
+            val jitter = if (noise > 0f) (random.nextFloat() - 0.5f) * 2f * noise else 0f
+            return interstitial + jitter
+        }
+    }
+
+    private fun context(): SibionicsAdaptiveV2Context =
+        SibionicsAdaptiveV2Context().apply { configure(1.4f) }
+
+    private fun SibionicsAdaptiveV2Context.feed(
+        index: Int,
+        chemical: Float,
+        temperatureC: Float = 34f,
+        impedance: Float = 2_900f,
+        qualityFlags: Int = 0,
+        references: List<AdaptiveV2Reference> = emptyList(),
+    ): ProbabilisticGlucoseEstimate? = process(
+        chemicalMmol = chemical,
+        chemicalQualityFlags = qualityFlags,
+        temperatureC = temperatureC,
+        impedance = impedance,
+        index = index,
+        eventTimeMs = index * 60_000L,
+        references = references,
+    )
+
+    /** Settles the filter on a flat trace and returns the last estimate. */
+    private fun SibionicsAdaptiveV2Context.settle(
+        level: Float = 6f,
+        samples: Int = 200,
+        noise: Float = 0f,
+        seed: Int = 7,
+    ): ProbabilisticGlucoseEstimate? {
+        val trace = SyntheticTrace(level, seed = seed, noise = noise)
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(samples) { offset ->
+            estimate = feed(START_INDEX + offset, trace.step(0f))
+        }
+        return estimate
+    }
+
+    // ── Stable glucose ─────────────────────────────────────────────────────
+
+    @Test
+    fun stableGlucoseProducesANarrowIntervalAndLowArtifactProbability() {
+        val context = context()
+        val estimate = context.settle(level = 6f, samples = 240, noise = 0.12f)
+
+        assertNotNull(estimate)
+        val result = estimate!!
+        assertEquals("glucose=${result.glucoseMmol}", 6f, result.glucoseMmol, 0.45f)
+        // ±0.9 mmol/L at 6 mmol/L is roughly a real CGM's 90% accuracy band —
+        // sharp enough to be worth drawing, honest enough not to be a lie.
+        val width = result.upper90Mmol - result.lower90Mmol
+        assertTrue("width=$width", width < 2.0f)
+        assertTrue("artifact=${result.artifactProbability}", result.artifactProbability < 0.25f)
+        assertTrue("confidence=${result.confidence}", result.confidence > 0.5f)
+    }
+
+    @Test
+    fun aQuietTraceIsSharperThanANoisyOne() {
+        val quiet = context().settle(level = 6f, samples = 240, noise = 0.05f)!!
+        val noisy = context().settle(level = 6f, samples = 240, noise = 0.45f)!!
+
+        val quietWidth = quiet.upper90Mmol - quiet.lower90Mmol
+        val noisyWidth = noisy.upper90Mmol - noisy.lower90Mmol
+        assertTrue("quiet=$quietWidth noisy=$noisyWidth", noisyWidth > quietWidth)
+    }
+
+    // ── Genuine rapid fall ─────────────────────────────────────────────────
+
+    @Test
+    fun genuineRapidFallIsFollowedAndReachesBelowThreeMmol() {
+        val context = context()
+        context.settle(level = 7f, samples = 200, noise = 0.08f)
+
+        val trace = SyntheticTrace(7f, seed = 3, noise = 0.06f)
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(45) { offset ->
+            estimate = context.feed(START_INDEX + 200 + offset, trace.step(-0.11f))
+        }
+
+        val result = estimate!!
+        // Blood truth ends near 2.05 mmol/L. No floor stands in the way.
+        assertTrue("glucose=${result.glucoseMmol} truth=${trace.blood}", result.glucoseMmol < 3f)
+        assertTrue(
+            "glucose=${result.glucoseMmol} truth=${trace.blood}",
+            abs(result.glucoseMmol - trace.blood) < 0.6f,
+        )
+    }
+
+    @Test
+    fun sustainedFallBecomesIncreasinglyConfident() {
+        val context = context()
+        context.settle(level = 7f, samples = 200, noise = 0.08f)
+
+        val trace = SyntheticTrace(7f, seed = 3, noise = 0.06f)
+        var earlyWidth = Float.NaN
+        var lateWidth = Float.NaN
+        repeat(30) { offset ->
+            val estimate = context.feed(START_INDEX + 200 + offset, trace.step(-0.11f))!!
+            val width = estimate.upper90Mmol - estimate.lower90Mmol
+            if (offset == 3) earlyWidth = width
+            if (offset == 29) lateWidth = width
+        }
+
+        assertTrue("early=$earlyWidth late=$lateWidth", lateWidth <= earlyWidth)
+    }
+
+    @Test
+    fun aRealFallIsReportedAsFallingWithHighDirectionalConfidence() {
+        val context = context()
+        context.settle(level = 7f, samples = 200, noise = 0.08f)
+        val trace = SyntheticTrace(7f, seed = 3, noise = 0.06f)
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(20) { offset ->
+            estimate = context.feed(START_INDEX + 200 + offset, trace.step(-0.11f))
+        }
+
+        val result = estimate!!
+        assertTrue("rate=${result.rateMmolPerMin}", result.rateMmolPerMin < -0.04f)
+        assertTrue("pFalling=${result.fallingProbability}", result.fallingProbability > 0.9f)
+    }
+
+    // ── Sensor artifacts ───────────────────────────────────────────────────
+
+    @Test
+    fun singleFalseLowOutlierDoesNotDragTheEstimateDown() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.08f)!!
+
+        val during = context.feed(START_INDEX + 220, 2.6f)!!
+
+        assertTrue("glucose=${during.glucoseMmol}", during.glucoseMmol > 5.2f)
+        assertTrue(
+            "before=${before.artifactProbability} during=${during.artifactProbability}",
+            during.artifactProbability > before.artifactProbability,
+        )
+        // The interval is allowed to acknowledge the possibility asymmetrically.
+        assertTrue(
+            "lower=${during.lower90Mmol} before=${before.lower90Mmol}",
+            during.lower90Mmol < before.lower90Mmol,
+        )
+    }
+
+    @Test
+    fun recoveryFromAFalseLowDoesNotOvershoot() {
+        val context = context()
+        context.settle(level = 6f, samples = 220, noise = 0.06f)
+        context.feed(START_INDEX + 220, 2.6f)
+
+        val recovery = (1..12).map { offset ->
+            context.feed(START_INDEX + 220 + offset, 6f)!!.glucoseMmol
+        }
+
+        assertTrue("recovery=$recovery", recovery.all { it in 5.2f..6.6f })
+        assertEquals("recovery=$recovery", 6f, recovery.last(), 0.4f)
+    }
+
+    @Test
+    fun sustainedCompressionDipKeepsBothHypothesesAlive() {
+        val context = context()
+        context.settle(level = 6f, samples = 220, noise = 0.06f)
+
+        // A compression-like dip: onset far faster than physiology allows,
+        // then a plateau. A real fall and a lying sensor both explain it.
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        listOf(5.2f, 4.3f, 3.8f, 3.7f, 3.7f, 3.8f).forEachIndexed { offset, chemical ->
+            estimate = context.feed(START_INDEX + 220 + offset, chemical)
+        }
+
+        val result = estimate!!
+        // Neither hypothesis is allowed to win outright on this evidence.
+        assertTrue("artifact=${result.artifactProbability}", result.artifactProbability > 0.05f)
+        val width = result.upper90Mmol - result.lower90Mmol
+        assertTrue("width=$width", width > 1.0f)
+        // The estimator must not confidently invent a severe low: the interval
+        // still has to admit the artifact explanation.
+        assertTrue("upper=${result.upper90Mmol}", result.upper90Mmol > 4.0f)
+    }
+
+    @Test
+    fun realLowWithCleanEvidenceIsNotHiddenByArtifactProtection() {
+        val context = context()
+        context.settle(level = 5.2f, samples = 200, noise = 0.05f)
+
+        val trace = SyntheticTrace(5.2f, seed = 5, noise = 0.04f)
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(40) { offset ->
+            val rate = if (trace.blood > 2.9f) -0.06f else 0f
+            estimate = context.feed(START_INDEX + 200 + offset, trace.step(rate))
+        }
+        // Then hold at the low with clean, quiet evidence.
+        repeat(40) { offset ->
+            estimate = context.feed(START_INDEX + 240 + offset, trace.step(0f))
+        }
+
+        val result = estimate!!
+        assertEquals("glucose=${result.glucoseMmol}", 2.9f, result.glucoseMmol, 0.5f)
+        assertTrue("artifact=${result.artifactProbability}", result.artifactProbability < 0.35f)
+        assertTrue("upper=${result.upper90Mmol}", result.upper90Mmol < 4.2f)
+    }
+
+    // ── Telemetry ──────────────────────────────────────────────────────────
+
+    @Test
+    fun temperatureTransientWidensUncertaintyWithoutMovingGlucose() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.05f)!!
+
+        val during = context.feed(START_INDEX + 220, 6f, temperatureC = 24f)!!
+
+        assertEquals("glucose=${during.glucoseMmol}", before.glucoseMmol, during.glucoseMmol, 0.3f)
+        val beforeWidth = before.upper90Mmol - before.lower90Mmol
+        val duringWidth = during.upper90Mmol - during.lower90Mmol
+        assertTrue("before=$beforeWidth during=$duringWidth", duringWidth > beforeWidth)
+    }
+
+    @Test
+    fun impedanceDisturbanceRaisesArtifactProbability() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.05f)!!
+
+        val during = context.feed(START_INDEX + 220, 5.3f, impedance = 5_200f)!!
+        val baseline = context().let { fresh ->
+            fresh.settle(level = 6f, samples = 220, noise = 0.05f)
+            fresh.feed(START_INDEX + 220, 5.3f)!!
+        }
+
+        assertTrue(
+            "disturbed=${during.artifactProbability} quiet=${baseline.artifactProbability}",
+            during.artifactProbability > baseline.artifactProbability,
+        )
+        assertTrue("before=${before.artifactProbability}", before.artifactProbability < 0.3f)
+    }
+
+    @Test
+    fun severeVendorQualityFlagsInflateUncertainty() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.05f)!!
+        val during = context.feed(START_INDEX + 220, 6f, qualityFlags = 0x30)!!
+
+        val beforeWidth = before.upper90Mmol - before.lower90Mmol
+        val duringWidth = during.upper90Mmol - during.lower90Mmol
+        assertTrue("before=$beforeWidth during=$duringWidth", duringWidth > beforeWidth)
+    }
+
+    // ── Missing samples ────────────────────────────────────────────────────
+
+    @Test
+    fun missingSamplesWidenUncertaintyWithoutFabricatingReadings() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.05f)!!
+
+        // A 30-minute hole, then one real sample.
+        val after = context.feed(START_INDEX + 250, 6f)!!
+
+        val beforeWidth = before.upper90Mmol - before.lower90Mmol
+        val afterWidth = after.upper90Mmol - after.lower90Mmol
+        assertTrue("before=$beforeWidth after=$afterWidth", afterWidth > beforeWidth)
+    }
+
+    @Test
+    fun anInvalidSampleProducesNoEstimateAndDoesNotAdvanceState() {
+        val context = context()
+        context.settle(level = 6f, samples = 200, noise = 0.05f)
+        val continuation = context.continuationIndex()
+
+        assertEquals(null, context.feed(START_INDEX + 200, Float.NaN))
+        assertEquals(null, context.feed(START_INDEX + 200, -1f))
+        assertEquals(continuation, context.continuationIndex())
+    }
+
+    // ── Slow sensor drift ──────────────────────────────────────────────────
+
+    @Test
+    fun slowSensorDriftIsNotReadAsGlucoseDynamics() {
+        val context = context()
+        context.settle(level = 6f, samples = 300, noise = 0.05f)
+
+        // 0.35 mmol/L of drift over eight hours.
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(480) { offset ->
+            val drifted = 6f + 0.35f * (offset + 1) / 480f
+            estimate = context.feed(START_INDEX + 300 + offset, drifted)
+        }
+
+        val result = estimate!!
+        // Without a reference, "glucose rose slowly" and "the sensor drifted
+        // slowly" fit this data equally well and no filter can separate them —
+        // see slowDriftIsAttributedToTheSensorOnceReferencesIdentifyIt for the
+        // case where it becomes identifiable. What the estimator must not do is
+        // mistake it for movement: the rate stays near zero and neither the
+        // dynamic nor the artifact hypothesis gains ground.
+        assertTrue("rate=${result.rateMmolPerMin}", abs(result.rateMmolPerMin) < 0.01f)
+        assertTrue("dynamic=${result.dynamicProbability}", result.dynamicProbability < 0.2f)
+        assertTrue("artifact=${result.artifactProbability}", result.artifactProbability < 0.1f)
+    }
+
+    @Test
+    fun slowDriftIsAttributedToTheSensorOnceReferencesIdentifyIt() {
+        val context = context()
+        context.settle(level = 6f, samples = 300, noise = 0.03f)
+
+        // The sensor keeps reading 6.0 while three fingersticks say 6.9.
+        var estimate: ProbabilisticGlucoseEstimate? = null
+        repeat(90) { offset ->
+            val index = START_INDEX + 300 + offset
+            val references = if (offset % 30 == 10) {
+                listOf(AdaptiveV2Reference(6.9f, index * 60_000L))
+            } else {
+                emptyList()
+            }
+            estimate = context.feed(index, 6f, references = references)
+        }
+
+        val result = estimate!!
+        // Glucose moves toward the references without ever jumping onto them,
+        // and the offset is carried by the sensor states rather than being
+        // re-absorbed by glucose between anchors.
+        assertTrue("glucose=${result.glucoseMmol}", result.glucoseMmol > 6.4f)
+        assertTrue("glucose=${result.glucoseMmol}", result.glucoseMmol < 6.9f)
+        assertTrue("rate=${result.rateMmolPerMin}", abs(result.rateMmolPerMin) < 0.03f)
+    }
+
+    // ── Calibration anchors ────────────────────────────────────────────────
+
+    @Test
+    fun calibrationAnchorMovesThePosteriorAndContractsUncertainty() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.06f)!!
+
+        val timestamp = (START_INDEX + 220) * 60_000L
+        val after = context.feed(
+            START_INDEX + 220,
+            6f,
+            references = listOf(AdaptiveV2Reference(6.8f, timestamp)),
+        )!!
+
+        assertTrue(
+            "before=${before.glucoseMmol} after=${after.glucoseMmol}",
+            after.glucoseMmol > before.glucoseMmol,
+        )
+        // Moves toward the anchor, but is not teleported onto it.
+        assertTrue("after=${after.glucoseMmol}", after.glucoseMmol < 6.8f)
+        val beforeWidth = before.upper90Mmol - before.lower90Mmol
+        val afterWidth = after.upper90Mmol - after.lower90Mmol
+        assertTrue("before=$beforeWidth after=$afterWidth", afterWidth < beforeWidth)
+    }
+
+    @Test
+    fun anAbsurdCalibrationAnchorIsRobustlyDownWeighted() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 220, noise = 0.06f)!!
+
+        val timestamp = (START_INDEX + 220) * 60_000L
+        val after = context.feed(
+            START_INDEX + 220,
+            6f,
+            references = listOf(AdaptiveV2Reference(19f, timestamp)),
+        )!!
+
+        assertTrue(
+            "before=${before.glucoseMmol} after=${after.glucoseMmol}",
+            after.glucoseMmol - before.glucoseMmol < 1.5f,
+        )
+    }
+
+    @Test
+    fun eachCalibrationAnchorIsConsumedOnlyOnce() {
+        val context = context()
+        context.settle(level = 6f, samples = 220, noise = 0.06f)
+        val timestamp = (START_INDEX + 220) * 60_000L
+        val anchor = listOf(AdaptiveV2Reference(6.8f, timestamp))
+
+        val first = context.feed(START_INDEX + 220, 6f, references = anchor)!!
+        val second = context.feed(START_INDEX + 221, 6f, references = anchor)!!
+        val third = context.feed(START_INDEX + 222, 6f, references = anchor)!!
+
+        // Repeated presentation of one anchor must not compound into a jump.
+        assertTrue(
+            "first=${first.glucoseMmol} second=${second.glucoseMmol} third=${third.glucoseMmol}",
+            third.glucoseMmol <= second.glucoseMmol + 0.05f,
+        )
+    }
+
+    // ── Persistence and replay ─────────────────────────────────────────────
+
+    @Test
+    fun snapshotRestoreContinuesDeterministically() {
+        val original = context()
+        original.settle(level = 6f, samples = 220, noise = 0.09f)
+        listOf(6.2f, 6.5f, 6.1f).forEachIndexed { offset, chemical ->
+            original.feed(START_INDEX + 220 + offset, chemical)
+        }
+
+        val restored = context()
+        assertTrue(restored.restore(original.snapshot()))
+        assertEquals(original.continuationIndex(), restored.continuationIndex())
+
+        val index = START_INDEX + 223
+        val expected = original.feed(index, 6.4f)!!
+        val actual = restored.feed(index, 6.4f)!!
+
+        assertEquals(expected.glucoseMmol, actual.glucoseMmol, 0f)
+        assertEquals(expected.lower90Mmol, actual.lower90Mmol, 0f)
+        assertEquals(expected.upper90Mmol, actual.upper90Mmol, 0f)
+        assertEquals(expected.rateMmolPerMin, actual.rateMmolPerMin, 0f)
+        assertEquals(expected.artifactProbability, actual.artifactProbability, 0f)
+    }
+
+    @Test
+    fun replayOfIdenticalInputProducesIdenticalOutput() {
+        fun run(): List<ProbabilisticGlucoseEstimate> {
+            val context = context()
+            val random = Random(11)
+            return (0 until 260).mapNotNull { offset ->
+                val chemical = 6f + (random.nextFloat() - 0.5f) * 0.4f +
+                    if (offset > 200) -(offset - 200) * 0.05f else 0f
+                context.feed(START_INDEX + offset, chemical)
+            }
+        }
+
+        val first = run()
+        val second = run()
+        assertEquals(first.size, second.size)
+        first.indices.forEach { index ->
+            assertEquals("index=$index", first[index], second[index])
+        }
+    }
+
+    @Test
+    fun corruptOrForeignSnapshotsFailSafe() {
+        val context = context()
+        context.settle(level = 6f, samples = 220)
+        val valid = context.snapshot()
+
+        val truncated = valid.copyOf(valid.size / 2)
+        val wrongMagic = valid.copyOf().also { java.nio.ByteBuffer.wrap(it).putInt(0x0BAD_F00D) }
+        val wrongVersion = valid.copyOf().also {
+            java.nio.ByteBuffer.wrap(it, Int.SIZE_BYTES, Int.SIZE_BYTES).putInt(99)
+        }
+
+        listOf(null, ByteArray(0), truncated, wrongMagic, wrongVersion).forEach { snapshot ->
+            val target = context()
+            assertFalse("snapshot=${snapshot?.size}", target.restore(snapshot))
+            assertEquals(null, target.continuationIndex())
+        }
+    }
+
+    @Test
+    fun snapshotTakenUnderADifferentFactorySensitivityIsRejected() {
+        val original = context()
+        original.settle(level = 6f, samples = 220)
+
+        val other = SibionicsAdaptiveV2Context().apply { configure(2.1f) }
+        assertFalse(other.restore(original.snapshot()))
+    }
+
+    // ── Probability surface ────────────────────────────────────────────────
+
+    @Test
+    fun lowThresholdProbabilityTracksTheposterior() {
+        val high = context().apply { settle(level = 8f, samples = 220, noise = 0.05f) }
+        val low = context().apply { settle(level = 3.2f, samples = 220, noise = 0.05f) }
+
+        val highProbability = high.probabilityBelow(3.9f)
+        val lowProbability = low.probabilityBelow(3.9f)
+
+        assertTrue("high=$highProbability", highProbability < 0.05f)
+        assertTrue("low=$lowProbability", lowProbability > 0.7f)
+    }
+
+    // ── Diagnostics ────────────────────────────────────────────────────────
+
+    @Test
+    fun diagnosticsTraceIsOffByDefaultAndBoundedWhenEnabled() {
+        val quiet = context()
+        quiet.settle(level = 6f, samples = 50)
+        assertTrue(quiet.diagnostics().isEmpty())
+
+        val traced = context()
+        traced.enableDiagnostics(16)
+        traced.settle(level = 6f, samples = 50)
+        val rows = traced.diagnostics()
+        assertEquals(16, rows.size)
+        assertTrue(traced.diagnosticsCsv().startsWith(AdaptiveV2Diagnostics.CSV_HEADER))
+        assertTrue(rows.all { it.glucoseMmol.isFinite() && it.lagMinutes > 0f })
+    }
+
+    private companion object {
+        /** Well past the vendor warm-up, matching where the driver enables custom models. */
+        private const val START_INDEX = 130
+    }
+}

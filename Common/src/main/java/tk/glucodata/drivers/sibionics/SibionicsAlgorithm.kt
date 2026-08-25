@@ -6,6 +6,11 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.math.abs
 import kotlin.math.max
+import tk.glucodata.GlucoseUncertainty
+import tk.glucodata.drivers.sibionics.adaptive2.AdaptiveV2Diagnostics
+import tk.glucodata.drivers.sibionics.adaptive2.AdaptiveV2Reference
+import tk.glucodata.drivers.sibionics.adaptive2.ProbabilisticGlucoseEstimate
+import tk.glucodata.drivers.sibionics.adaptive2.SibionicsAdaptiveV2Context
 import tk.glucodata.drivers.sibionics.v116a.SibionicsExactV116ACore
 
 enum class SibionicsAlgorithmMode {
@@ -26,7 +31,9 @@ enum class SibionicsAlgorithmSelection(val storageId: Int) {
     BALANCED_TRACKER(4),
     BALANCED_TRACKER_CALIBRATED(5),
     RESPONSIVE_ESTIMATOR(6),
-    RESPONSIVE_ESTIMATOR_CALIBRATED(7);
+    RESPONSIVE_ESTIMATOR_CALIBRATED(7),
+    ADAPTIVE_V2(8),
+    ADAPTIVE_V2_CALIBRATED(9);
 
     val calibrationEnabled: Boolean get() = storageId and 1 != 0
     val model: SibionicsCustomAlgorithmModel
@@ -41,7 +48,14 @@ enum class SibionicsAlgorithmSelection(val storageId: Int) {
 
     companion object {
         private const val CALIBRATION_BIT = 1
-        private const val MODEL_MASK = 6
+
+        /**
+         * Model bits of [storageId]. Widened from 6 to 14 when Adaptive V2 was
+         * added at base 8; the four legacy ids keep their exact values, so a
+         * stored selection made before V2 existed still decodes to the same
+         * model.
+         */
+        const val MODEL_MASK = 14
         val DEFAULT = STOCK_CALIBRATED
 
         fun fromStorage(value: Int): SibionicsAlgorithmSelection =
@@ -53,7 +67,16 @@ enum class SibionicsCustomAlgorithmModel(val storageBase: Int) {
     STOCK(0),
     STATE_MODEL(2),
     BALANCED_TRACKER(4),
-    RESPONSIVE_ESTIMATOR(6);
+    RESPONSIVE_ESTIMATOR(6),
+
+    /**
+     * Independent probabilistic estimator. Experimental, and deliberately not
+     * the default: stock behaviour is unchanged for every existing selection.
+     */
+    ADAPTIVE_V2(8);
+
+    /** True when the model reports a credible interval alongside its value. */
+    val providesUncertainty: Boolean get() = this == ADAPTIVE_V2
 
     companion object {
         fun fromStorage(value: Int): SibionicsCustomAlgorithmModel =
@@ -78,6 +101,8 @@ class SibionicsAlgorithmContext(
     private val adaptiveCore = SibionicsAdaptiveAlgorithmContext()
     private val balancedCore = SibionicsBalancedAlgorithmContext()
     private val responsiveCore = SibionicsResponsiveAlgorithmContext()
+    private val adaptiveV2Core = SibionicsAdaptiveV2Context()
+    private var latestV2Estimate: ProbabilisticGlucoseEstimate? = null
     private var liveDeltaMmol = Float.NaN
     private var replayDeltaMmol = Float.NaN
     private var selection = SibionicsAlgorithmSelection.STOCK
@@ -104,6 +129,7 @@ class SibionicsAlgorithmContext(
         adaptiveCore.configure(sensitivity)
         balancedCore.configure(sensitivity)
         responsiveCore.configure(sensitivity)
+        adaptiveV2Core.configure(sensitivity)
         this.selection = selection
     }
 
@@ -119,8 +145,45 @@ class SibionicsAlgorithmContext(
         adaptiveCore.reset()
         balancedCore.reset()
         responsiveCore.reset()
+        adaptiveV2Core.reset()
+        latestV2Estimate = null
         resetWrapperState()
     }
+
+    /**
+     * Posterior of the most recent Adaptive V2 sample, or null for every other
+     * model. Callers use this for uncertainty display and probability queries;
+     * it is never required to produce a glucose value.
+     */
+    fun latestProbabilisticEstimate(): ProbabilisticGlucoseEstimate? =
+        latestV2Estimate.takeIf { selection.model == SibionicsCustomAlgorithmModel.ADAPTIVE_V2 }
+
+    /** Generic uncertainty for the most recent sample, in mmol/L. */
+    fun latestUncertaintyMmol(): GlucoseUncertainty? =
+        latestProbabilisticEstimate()?.takeIf { it.isUsable }?.let {
+            GlucoseUncertainty(
+                lower = it.lower90Mmol,
+                upper = it.upper90Mmol,
+                intervalMass = GlucoseUncertainty.DEFAULT_INTERVAL_MASS,
+                confidence = it.confidence,
+                artifactProbability = it.artifactProbability,
+            )
+        }
+
+    /** Posterior P(glucose < threshold) for the most recent Adaptive V2 sample. */
+    fun probabilityBelowMmol(thresholdMmol: Float): Float =
+        if (selection.model == SibionicsCustomAlgorithmModel.ADAPTIVE_V2) {
+            adaptiveV2Core.probabilityBelow(thresholdMmol)
+        } else {
+            Float.NaN
+        }
+
+    /** Enables the Adaptive V2 developer trace, retaining at most [capacity] rows. */
+    fun enableV2Diagnostics(capacity: Int) = adaptiveV2Core.enableDiagnostics(capacity)
+
+    fun v2Diagnostics(): List<AdaptiveV2Diagnostics> = adaptiveV2Core.diagnostics()
+
+    fun v2DiagnosticsCsv(): String = adaptiveV2Core.diagnosticsCsv()
 
     fun process(
         rawMmol: Float,
@@ -146,6 +209,10 @@ class SibionicsAlgorithmContext(
             index = index,
             impedance = impedance,
             eventTimeMs = eventTimeMs,
+            // Adaptive V2 consumes anchors as direct observations of its own
+            // glucose state, so it needs them unmapped — the stock-calibrated
+            // `measurement` above is not a calibration path it can use.
+            calibrationAnchors = calibrationAnchors,
         )
     }
 
@@ -189,9 +256,11 @@ class SibionicsAlgorithmContext(
         impedance: Float = Float.NaN,
         eventTimeMs: Long = 0L,
         chemicalSignal: SibionicsChemicalSignal? = latestChemicalSignal(),
+        calibrationAnchors: List<SibionicsCalibrationAnchor> = emptyList(),
     ): Float {
         if (!stockMmol.isFinite() || stockMmol <= 0f) return Float.NaN
         val measurement = measurementMmol.takeIf { it.isFinite() && it > 0f } ?: stockMmol
+        if (selection.model != SibionicsCustomAlgorithmModel.ADAPTIVE_V2) latestV2Estimate = null
         return when (selection.model) {
             SibionicsCustomAlgorithmModel.STOCK -> nativeRound(measurement)
             SibionicsCustomAlgorithmModel.STATE_MODEL -> adaptiveCore.process(
@@ -224,7 +293,65 @@ class SibionicsAlgorithmContext(
                 eventTimeMs = eventTimeMs,
                 anchors = emptyList(),
             )
+            SibionicsCustomAlgorithmModel.ADAPTIVE_V2 -> processAdaptiveV2(
+                measurement = measurement,
+                stockMmol = stockMmol,
+                chemicalSignal = chemicalSignal,
+                temperatureC = temperatureC,
+                impedance = impedance,
+                index = index,
+                eventTimeMs = eventTimeMs,
+                calibrationAnchors = calibrationAnchors,
+            )
         }
+    }
+
+    /**
+     * Adaptive V2 path.
+     *
+     * The vendor chemical signal is the only glucose observation. [stockMmol]
+     * is forwarded solely as a diagnostics comparison column, and [measurement]
+     * is used only as a catastrophic fallback when the estimator has no usable
+     * sample at all — a fallback that is emitted to the app and deliberately
+     * never fed back into the estimator's state.
+     */
+    private fun processAdaptiveV2(
+        measurement: Float,
+        stockMmol: Float,
+        chemicalSignal: SibionicsChemicalSignal?,
+        temperatureC: Float,
+        impedance: Float,
+        index: Int,
+        eventTimeMs: Long,
+        calibrationAnchors: List<SibionicsCalibrationAnchor>,
+    ): Float {
+        val chemical = chemicalSignal?.mmol
+        if (chemical == null || !chemical.isFinite() || chemical <= 0f) {
+            latestV2Estimate = null
+            return nativeRound(measurement)
+        }
+        val references = if (selection.calibrationEnabled) {
+            calibrationAnchors.mapNotNull { anchor ->
+                anchor.referenceMmol
+                    .takeIf { it.isFinite() && it in 1f..35f }
+                    ?.let { AdaptiveV2Reference(it, anchor.timestampMs) }
+            }
+        } else {
+            emptyList()
+        }
+        val estimate = adaptiveV2Core.process(
+            chemicalMmol = chemical,
+            chemicalQualityFlags = chemicalSignal.qualityFlags,
+            temperatureC = temperatureC,
+            impedance = impedance,
+            index = index,
+            eventTimeMs = eventTimeMs,
+            references = references,
+            stockComparisonMmol = stockMmol,
+        )
+        latestV2Estimate = estimate
+        if (estimate == null || !estimate.isUsable) return nativeRound(measurement)
+        return nativeRound(estimate.glucoseMmol)
     }
 
     internal fun latestChemicalSignal(): SibionicsChemicalSignal? = when (family) {
@@ -238,6 +365,7 @@ class SibionicsAlgorithmContext(
         SibionicsCustomAlgorithmModel.STATE_MODEL -> adaptiveCore.continuationIndex()
         SibionicsCustomAlgorithmModel.BALANCED_TRACKER -> balancedCore.continuationIndex()
         SibionicsCustomAlgorithmModel.RESPONSIVE_ESTIMATOR -> responsiveCore.continuationIndex()
+        SibionicsCustomAlgorithmModel.ADAPTIVE_V2 -> adaptiveV2Core.continuationIndex()
     }
 
     internal fun hasExactContinuation(nextIndex: Int): Boolean =
@@ -365,9 +493,7 @@ class SibionicsAlgorithmContext(
 
     private fun restoreLegacyCoreSnapshot(snapshot: ByteArray): Boolean {
         if (!restoreCore(snapshot)) return false
-        adaptiveCore.reset()
-        balancedCore.reset()
-        responsiveCore.reset()
+        resetCustomModels()
         resetWrapperState()
         return true
     }
@@ -376,6 +502,8 @@ class SibionicsAlgorithmContext(
         adaptiveCore.reset()
         balancedCore.reset()
         responsiveCore.reset()
+        adaptiveV2Core.reset()
+        latestV2Estimate = null
     }
 
     private fun activeCustomSnapshot(): ByteArray = when (selection.model) {
@@ -383,6 +511,7 @@ class SibionicsAlgorithmContext(
         SibionicsCustomAlgorithmModel.STATE_MODEL -> adaptiveCore.snapshot()
         SibionicsCustomAlgorithmModel.BALANCED_TRACKER -> balancedCore.snapshot()
         SibionicsCustomAlgorithmModel.RESPONSIVE_ESTIMATOR -> responsiveCore.snapshot()
+        SibionicsCustomAlgorithmModel.ADAPTIVE_V2 -> adaptiveV2Core.snapshot()
     }
 
     private fun restoreActiveCustomSnapshot(snapshot: ByteArray): Boolean = when (selection.model) {
@@ -390,6 +519,7 @@ class SibionicsAlgorithmContext(
         SibionicsCustomAlgorithmModel.STATE_MODEL -> adaptiveCore.restore(snapshot)
         SibionicsCustomAlgorithmModel.BALANCED_TRACKER -> balancedCore.restore(snapshot)
         SibionicsCustomAlgorithmModel.RESPONSIVE_ESTIMATOR -> responsiveCore.restore(snapshot)
+        SibionicsCustomAlgorithmModel.ADAPTIVE_V2 -> adaptiveV2Core.restore(snapshot)
     }
 
     private fun restoreCore(snapshot: ByteArray): Boolean = when (family) {
@@ -430,7 +560,7 @@ class SibionicsAlgorithmContext(
         private const val EXACT_ONLY_SNAPSHOT_VERSION = 3
         private const val LEGACY_WRAPPER_SNAPSHOT_VERSION = 2
         private const val MAX_CORE_SNAPSHOT_BYTES = 64 * 1024
-        private const val MAX_ADAPTIVE_SNAPSHOT_BYTES = 4 * 1024
+        private const val MAX_ADAPTIVE_SNAPSHOT_BYTES = 16 * 1024
         private const val MIN_ALGORITHM_MMOL = 1f
         private const val MAX_VALID_MMOL = SibionicsConstants.MAX_ALGORITHM_GLUCOSE_MMOL
         private const val MAX_DELTA_MMOL = 40f
