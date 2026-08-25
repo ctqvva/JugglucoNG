@@ -31,6 +31,9 @@ class JournalInsulinCurveCatalogueTests {
                     assertEquals(0f, variant.points.first().activity, 0.0001f)
                     assertEquals(0f, variant.points.last().activity, 0.0001f)
                 }
+                variant.onsetMinutes?.let { onset ->
+                    assertTrue("${profile.name} onset is outside its curve", onset in 0..variant.points.last().minute)
+                }
             }
         }
     }
@@ -144,7 +147,50 @@ class JournalInsulinCurveCatalogueTests {
         assertEquals(140f, afterWeightChange.usedBodyWeightKg!!, 0.0001f)
         // The first immutable value still describes the original 0.2 U/kg dose.
         assertEquals(122, original.points.maxByOrNull { it.activity }?.minute)
-        assertEquals(90, afterWeightChange.points.maxByOrNull { it.activity }?.minute)
+        assertEquals(91, afterWeightChange.points.maxByOrNull { it.activity }?.minute)
+    }
+
+    @Test
+    fun sourceTimingAnchorsMatchTheOfficialPharmacodynamicLabels() {
+        assertEquals(20, JournalInsulinCurveCatalogue.referenceOnsetMinutes(JournalBuiltInCurveProfile.FIASP))
+        assertEquals(
+            91,
+            JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.FIASP)
+                .maxByOrNull { it.activity }
+                ?.minute
+        )
+        assertEquals(
+            162,
+            JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.ASPART_MIX_70_30)
+                .maxByOrNull { it.activity }
+                ?.minute
+        )
+        assertEquals(
+            120,
+            JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.LISPRO_MIX_50_50)
+                .maxByOrNull { it.activity }
+                ?.minute
+        )
+        assertEquals(
+            120,
+            JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.LISPRO_MIX_75_25)
+                .maxByOrNull { it.activity }
+                ?.minute
+        )
+        assertEquals(50, JournalInsulinCurveCatalogue.referenceOnsetMinutes(JournalBuiltInCurveProfile.HUMAN_MIX_70_30))
+        assertEquals(
+            210,
+            JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.HUMAN_MIX_70_30)
+                .maxByOrNull { it.activity }
+                ?.minute
+        )
+    }
+
+    @Test
+    fun commercialAndScientificNamesAreSeparateMetadata() {
+        assertEquals("aspart", JournalInsulinCurveCatalogue.scientificName(JournalBuiltInCurveProfile.FIASP))
+        assertEquals("degludec", JournalInsulinCurveCatalogue.scientificName(JournalBuiltInCurveProfile.DEGLUDEC))
+        assertNull(JournalInsulinCurveCatalogue.scientificName(JournalBuiltInCurveProfile.RAPID_GENERIC))
     }
 
     @Test

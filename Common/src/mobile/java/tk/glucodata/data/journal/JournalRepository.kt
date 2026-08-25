@@ -11,7 +11,7 @@ import tk.glucodata.data.HistoryDatabase
 class JournalRepository {
     private companion object {
         const val PREFS_NAME = "tk.glucodata_preferences"
-        const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v5"
+        const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v6"
         const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v2"
     }
 
@@ -306,7 +306,7 @@ class JournalRepository {
             val curve = definition.variants.minByOrNull { kotlin.math.abs(it.dose - definition.referenceDose) }
                 ?.points
                 ?: emptyList()
-            val onset = curve.firstOrNull { it.activity > 0.01f }?.minute ?: 0
+            val onset = JournalInsulinCurveCatalogue.referenceOnsetMinutes(profile)
             val duration = curve.lastOrNull()?.minute ?: 0
             return JournalInsulinPresetEntity(
                 displayName = app.getString(nameRes),
@@ -358,11 +358,25 @@ class JournalRepository {
     ): List<JournalInsulinPresetEntity> {
         return defaultPresets().map { preset ->
             val existingMatch = matchExistingBuiltInPreset(preset, existing)
-            existingMatch?.copy(
+            val merged = existingMatch?.copy(
                 displayName = preset.displayName,
                 accentColor = preset.accentColor,
                 sortOrder = preset.sortOrder
             ) ?: preset
+            val shouldUpgradeSourceCurve = existingMatch != null &&
+                existingMatch.curveProfileId == preset.curveProfileId &&
+                existingMatch.curveModelVersion in 1 until JournalInsulinCurveCatalogue.MODEL_VERSION
+            if (shouldUpgradeSourceCurve) {
+                merged.copy(
+                    onsetMinutes = preset.onsetMinutes,
+                    durationMinutes = preset.durationMinutes,
+                    curveJson = preset.curveJson,
+                    curveModelVersion = preset.curveModelVersion,
+                    curveEvidence = preset.curveEvidence
+                )
+            } else {
+                merged
+            }
         }
     }
 
@@ -413,6 +427,9 @@ internal fun matchExistingBuiltInPreset(
     existing: List<JournalInsulinPresetEntity>
 ): JournalInsulinPresetEntity? {
     val builtIns = existing.filter { it.isBuiltIn }
+    newPreset.curveProfileId?.let { profileId ->
+        builtIns.firstOrNull { it.curveProfileId == profileId }?.let { return it }
+    }
     builtIns.firstOrNull { it.displayName == newPreset.displayName }?.let { return it }
     val bySortOrder = builtIns.associateBy { it.sortOrder }
     if ((0..10).all(bySortOrder::containsKey) && newPreset.sortOrder <= 10) {
@@ -483,7 +500,10 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
         useForCalculation = useForCalculation,
         curveProfileId = curveProfileId,
         curveModelVersion = curveModelVersion,
-        curveEvidence = JournalCurveEvidence.fromStorage(curveEvidence)
+        curveEvidence = JournalCurveEvidence.fromStorage(curveEvidence),
+        scientificName = curveProfileId
+            ?.let(JournalBuiltInCurveProfile::fromStorage)
+            ?.let(JournalInsulinCurveCatalogue::scientificName)
     )
 }
 

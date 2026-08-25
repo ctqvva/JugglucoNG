@@ -240,7 +240,11 @@ fun buildJournalChartMarkers(
             entryId = entry.id,
             timestamp = entry.timestamp,
             type = entry.type,
-            title = entry.title,
+            title = if (entry.type == JournalEntryType.INSULIN) {
+                preset?.displayName ?: entry.title
+            } else {
+                entry.title
+            },
             accentColor = preset?.accentColor ?: food?.accentColor ?: journalTypeColor(entry.type).toArgb(),
             badgeText = journalMarkerBadge(entry.type),
             detailText = journalMarkerDetail(entry, preset, unit),
@@ -257,7 +261,7 @@ fun buildJournalChartMarkers(
             activeStartMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
                 val snapshot = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
                 val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
-                val startMinute = points.firstOrNull { it.activity > 0.01f }?.minute ?: 0
+                val startMinute = preset.onsetMinutes
                 entry.timestamp + (startMinute.coerceAtLeast(0) * 60_000L)
             } else {
                 null
@@ -2861,7 +2865,11 @@ private fun JournalEntryChip(
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = entry.title,
+                    text = if (entry.type == JournalEntryType.INSULIN) {
+                        insulinPreset?.displayName ?: entry.title
+                    } else {
+                        entry.title
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

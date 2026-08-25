@@ -2543,6 +2543,9 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <string name="journal_curve_activity">Względna aktywność</string>
+    <string name="journal_curve_activity_desc">Działanie obniżające glikemię względem szczytu tej krzywej (100%).</string>
+    <string name="journal_scientific_name">Nazwa naukowa</string>
     <string name="journal_curve_unverified">Niezweryfikowana krzywa</string>
     <string name="journal_curve_unverified_desc">Ten kształt aktywności jest oszacowaniem lub krzywą użytkownika i nie ma pełnego źródła farmakodynamicznego.</string>
     <string name="journal_curve_source_backed">Krzywa pojedynczej dawki oparta na źródle</string>

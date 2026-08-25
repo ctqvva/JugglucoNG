@@ -2537,6 +2537,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="journal_curve_activity">Göreli etkinlik</string>
+    <string name="journal_curve_activity_desc">Bu eğrinin tepe noktasına göre glukoz düşürücü etkinlik (%100).</string>
+    <string name="journal_scientific_name">Bilimsel ad</string>
     <string name="journal_curve_unverified">Doğrulanmamış eğri</string>
     <string name="journal_curve_unverified_desc">Bu aktivite şekli bir tahmin veya özel eğridir ve eksiksiz bir farmakodinamik kaynağa dayanmamaktadır.</string>
     <string name="journal_curve_source_backed">Kaynak destekli tek doz eğrisi</string>

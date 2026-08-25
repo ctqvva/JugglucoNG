@@ -151,7 +151,8 @@ private data class JournalPresetDraft(
     val useForCalculation: Boolean = true,
     val curveProfileId: String? = null,
     val curveModelVersion: Int = 0,
-    val curveEvidence: JournalCurveEvidence = JournalCurveEvidence.UNVERIFIED
+    val curveEvidence: JournalCurveEvidence = JournalCurveEvidence.UNVERIFIED,
+    val scientificName: String? = null
 )
 
 private data class JournalFoodDraft(
@@ -1073,6 +1074,15 @@ private fun JournalPresetRow(
                         )
                     }
                 }
+                preset.scientificName?.let { scientificName ->
+                    Text(
+                        text = scientificName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
                     text = buildString {
                         append(
@@ -1903,6 +1913,18 @@ private fun JournalInsulinPresetSheet(
                             ) {}
                         }
                     }
+                    draft.scientificName?.let { scientificName ->
+                        OutlinedTextField(
+                            value = scientificName,
+                            onValueChange = {},
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = cardSidePadding),
+                            label = { Text(stringResource(R.string.journal_scientific_name)) },
+                            singleLine = true,
+                            readOnly = true
+                        )
+                    }
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         modifier = Modifier.padding(horizontal = cardSidePadding)
@@ -2081,13 +2103,18 @@ private fun JournalInsulinPresetSheet(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
-                            text = curveWindowSummary(draft.curvePoints),
+                            text = curveWindowSummary(draft.curvePoints, draft.curveProfileId),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.journal_curve_activity_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     InteractiveJournalCurveEditor(
                         points = draft.curvePoints,
                         selectedPointIndex = selectedPointIndex,
@@ -2664,7 +2691,8 @@ private fun buildPresetDraft(preset: JournalInsulinPreset?): JournalPresetDraft 
         useForCalculation = preset?.useForCalculation ?: false,
         curveProfileId = preset?.curveProfileId,
         curveModelVersion = preset?.curveModelVersion ?: 0,
-        curveEvidence = preset?.curveEvidence ?: JournalCurveEvidence.UNVERIFIED
+        curveEvidence = preset?.curveEvidence ?: JournalCurveEvidence.UNVERIFIED,
+        scientificName = preset?.scientificName
     )
 }
 
@@ -2678,7 +2706,11 @@ private fun buildPresetInput(
         forceZeroEndpoints = forceZeroEndpoints
     )
     if (draft.displayName.trim().isBlank() || normalizedCurve.size < 3) return null
-    val onset = normalizedCurve.firstOrNull { it.activity > 0.01f }?.minute ?: 0
+    val onset = draft.curveProfileId
+        ?.let(JournalBuiltInCurveProfile::fromStorage)
+        ?.let(JournalInsulinCurveCatalogue::referenceOnsetMinutes)
+        ?: normalizedCurve.firstOrNull { it.activity > 0.01f }?.minute
+        ?: 0
     val duration = normalizedCurve.lastOrNull()?.minute ?: 0
     return JournalInsulinPresetInput(
         id = draft.id,
@@ -2876,8 +2908,12 @@ private fun cardPosition(index: Int, size: Int): CardPosition {
     }
 }
 
-private fun curveWindowSummary(points: List<JournalCurvePoint>): String {
-    val onset = points.firstOrNull { it.activity > 0.01f }?.minute ?: 0
+private fun curveWindowSummary(points: List<JournalCurvePoint>, curveProfileId: String?): String {
+    val onset = curveProfileId
+        ?.let(JournalBuiltInCurveProfile::fromStorage)
+        ?.let(JournalInsulinCurveCatalogue::referenceOnsetMinutes)
+        ?: points.firstOrNull { it.activity > 0.01f }?.minute
+        ?: 0
     val duration = points.lastOrNull()?.minute ?: 0
     return "${onset}m -> ${duration}m"
 }

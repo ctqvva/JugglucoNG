@@ -2548,6 +2548,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <string name="journal_curve_activity">Relative Aktivität</string>
+    <string name="journal_curve_activity_desc">Blutzuckersenkende Wirkung relativ zum Maximum dieser Kurve (100 %).</string>
+    <string name="journal_scientific_name">Wissenschaftlicher Name</string>
     <string name="journal_curve_unverified">Nicht verifizierte Kurve</string>
     <string name="journal_curve_unverified_desc">Diese Aktivitätskurve ist eine Schätzung oder eine benutzerdefinierte Kurve und lässt sich nicht auf eine vollständige pharmakodynamische Quelle zurückführen.</string>
     <string name="journal_curve_source_backed">Quellenbasierte Einzeldosiskurve</string>

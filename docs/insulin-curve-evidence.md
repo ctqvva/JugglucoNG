@@ -4,7 +4,9 @@
 
 JugglucoNG uses an insulin curve as relative glucose-lowering activity over time. The IOB calculation integrates the remaining area under that curve, and prediction integrates delivered activity. Plasma insulin concentration is therefore the wrong input: concentration and glucose-lowering effect do not have the same timing or shape.
 
-Model version 1 uses pharmacodynamic glucose infusion rate (GIR) profiles from euglycaemic clamp studies where a usable source exists. Each curve is normalized to its own maximum because NG needs relative activity; absolute GIR cannot be transferred between people as a personalized effect size. Insulin sensitivity remains a separate prediction parameter.
+Model version 2 uses pharmacodynamic glucose infusion rate (GIR) profiles from euglycaemic clamp studies where a usable source exists. Each curve is normalized to its own maximum because NG needs relative activity; absolute GIR cannot be transferred between people as a personalized effect size. Insulin sensitivity remains a separate prediction parameter.
+
+The 100% point is the maximum of the selected mean GIR profile. It is the modelled peak, not the onset of action and not 100% of an injected dose. Where a label reports first measurable effect, NG stores that timing separately instead of inventing a non-zero activity magnitude at the onset anchor.
 
 These are population-average reference models, not clinical validation for an individual. Injection site, dose, exercise, temperature, illness, renal or hepatic function, and within-person variation can change insulin action substantially.
 
@@ -19,34 +21,66 @@ These are population-average reference models, not clinical validation for an in
 
 ## Catalogue
 
-| Preset | Evidence | Source dose/state | Model decision |
-| --- | --- | --- | --- |
-| Rapid acting (generic) | Unverified | None | Legacy polynomial retained for compatibility. |
-| Long acting (generic) | Unverified | None | Legacy polynomial; calculation off by default. |
-| Humulin R / Novolin R (regular human) | Single dose | 0.3 U/kg | GIR figure digitized; label onset, peak and termination used as anchors. |
-| NovoRapid / NovoLog (aspart) | Unverified | None suitable for a complete GIR curve | Existing approximation retained and labelled. |
-| Humalog (lispro) | Unverified | No complete standalone GIR curve in the selected label | Existing approximation retained and labelled. |
-| Apidra (glulisine) | Unverified | Comparative/meal and subgroup data do not provide a complete general curve | Existing approximation retained and labelled. |
-| Fiasp (aspart) | Single dose | 0.1, 0.2 and 0.4 U/kg | Three GIR profiles and label timing anchors; interpolate only inside the observed dose range. |
-| Lyumjev (lispro-aabc) | Single dose | 7, 15 and 30 U | Three GIR profiles and label timing anchors; interpolate only inside the observed dose range. |
-| Afrezza (human) | Single dose | 4, 12 and 48 U | Three baseline-corrected GIR profiles and label timing anchors. |
-| Humulin N / Novolin N (NPH human) | Reference | 0.4 U/kg | Clamp ends at about 22 h with substantial GIR remaining; no per-dose calculation. |
-| Ultra-long basal (generic) | Unverified | None | Legacy polynomial; calculation off by default. |
-| Lantus / Basaglar / Semglee (glargine U-100) | Reference | 0.3 U/kg | Observation ends at 24 h with GIR remaining; no invented tail. |
-| Toujeo (glargine U-300) | Steady state | 0.4 U/kg after 8 daily doses | The published GIR is accumulated steady-state activity, not one injection. |
-| Levemir (detemir) | Reference | 0.2 and 0.4 U/kg | Dose-dependent GIR profiles retained for reference; conservative calculation-off classification. |
-| Tresiba (degludec) | Steady state | 0.4 U/kg after 8 daily doses | The published 42 h profile contains overlapping daily doses. |
-| Awiqli (icodec) | Steady state | Full-week model-derived steady-state profile | Partial clamp observations plus PK/PD interpolation; not a single weekly dose curve. |
-| Humulin R U-500 (concentrated regular human) | Single dose | 50 and 100 U timing; 100 U plotted profile | Label reports mean duration 21 h (range 13–24 h); non-reference doses are marked approximate. |
-| Ryzodeg (70% degludec / 30% aspart) | Reference | 0.8 U/kg single dose | Published 24 h plot ends before the stated beyond-24 h duration. |
-| NovoLog Mix 70/30 / NovoMix 30 (70% protamine aspart / 30% aspart) | Single dose | 0.3 U/kg | Full 24 h GIR figure digitized. |
-| Humalog Mix 50/50 (50% protamine lispro / 50% lispro) | Reference | 0.3 U/kg | Clamp ends with activity still present. |
-| Humalog Mix 75/25 (75% protamine lispro / 25% lispro) | Reference | 0.3 U/kg | Clamp ends with activity still present. |
-| Humulin 70/30 / Novolin 70/30 (70% NPH human / 30% regular human) | Reference | 0.3 U/kg | Comparative plot ends with activity still present; label duration reaches about 23 h. |
+| Commercial name | Scientific name | Evidence | Source dose/state | Model decision |
+| --- | --- | --- | --- | --- |
+| Rapid acting (generic) | - | Unverified | None | Legacy polynomial retained for compatibility. |
+| Long acting (generic) | - | Unverified | None | Legacy polynomial; calculation off by default. |
+| Humulin R / Novolin R | regular human | Single dose | 0.3 U/kg | Mean GIR trace is retained through the plotted 14 h window; label onset and peak are explicit timing anchors. |
+| NovoRapid / NovoLog | aspart | Unverified | No complete standalone general GIR curve in the selected label | Existing approximation retained and labelled. |
+| Humalog | lispro | Unverified | Meal-response data, not a complete standalone GIR curve | Existing approximation retained and labelled. |
+| Apidra | glulisine | Unverified | Comparative meal data and an obese subgroup GIR plot | Existing approximation retained rather than generalising a subgroup curve. |
+| Fiasp | aspart | Single dose | 0.1, 0.2 and 0.4 U/kg | Three GIR profiles and exact label timing anchors; interpolate only inside the observed dose range. |
+| Lyumjev | lispro-aabc | Single dose | 7, 15 and 30 U | Three GIR profiles and exact label timing anchors; interpolate only inside the observed dose range. |
+| Afrezza | human | Single dose | 4, 12 and 48 U | Three baseline-corrected GIR profiles and exact label timing anchors. |
+| Humulin N / Novolin N | NPH human | Reference | 0.4 U/kg | Median maximum effect is 6.5 h; the clamp ends near 22 h with GIR remaining, so calculation stays off. |
+| Ultra-long basal (generic) | - | Unverified | None | Legacy approximation; calculation off by default. |
+| Lantus / Basaglar / Semglee | glargine U-100 | Reference | 0.3 U/kg | Observation ends at 24 h with GIR remaining; no invented tail. |
+| Toujeo | glargine U-300 | Steady state | 0.4 U/kg after 8 daily doses | The published GIR is accumulated steady-state activity, not one injection. |
+| Levemir | detemir | Reference | 0.2 and 0.4 U/kg | Dose-dependent GIR profiles retained for reference; conservative calculation-off classification. |
+| Tresiba | degludec | Steady state | 0.4 U/kg after 8 daily doses | The 12 h median maximum is anchored, but the 42 h profile contains overlapping daily doses. |
+| Awiqli | icodec | Steady state | Full-week model-derived steady-state profile | Only 3.5 days were clamped; the full week combines partial clamps and model prediction. |
+| Humulin R U-500 | concentrated regular human | Single dose | 50 and 100 U timing; 100 U plotted profile | Label onset is under 15 min and mean duration is 21 h (range 13–24 h); other doses are approximate. |
+| Ryzodeg | 70% degludec / 30% aspart | Reference | 0.8 U/kg single dose | Published 24 h plot ends before the stated beyond-24 h duration. |
+| NovoLog Mix 70/30 / NovoMix 30 | 70% protamine aspart / 30% aspart | Single dose | 0.3 U/kg | Full 24 h GIR figure with 10–20 min onset and 2.7 h mean peak. |
+| Humalog Mix 50/50 | 50% protamine lispro / 50% lispro | Reference | 0.3 U/kg | Median maximum is 2 h; clamp ends at 22 h with activity still present. |
+| Humalog Mix 75/25 | 75% protamine lispro / 25% lispro | Reference | 0.3 U/kg | Median maximum is 2 h; clamp ends at 22 h with activity still present. |
+| Humulin 70/30 / Novolin 70/30 | 70% NPH human / 30% regular human | Reference | 0.3 U/kg | Label onset is 50 min, peak is 3.5 h and mean duration is 23 h; the plotted trace ends at 12 h, so no tail is invented. |
+
+## Before and after
+
+This table compares the original NG catalogue with model version 2. “Observed end” is the end of the stored source trace, not necessarily a clinically complete duration of action.
+
+| Insulin | Before | Model version 2 |
+| --- | --- | --- |
+| Rapid acting (generic) | Undocumented polynomial, peak 40 min, 6 h span | Same compatibility curve, explicitly unverified |
+| Long acting (generic) | Approximation, onset 90 min, peak 10 h, 24 h span | Same compatibility curve, unverified and excluded from calculation by default |
+| Humulin R / Novolin R | Polynomial, peak 140 min, 8.5 h span | 0.3 U/kg mean GIR trace, onset 30 min, peak 180 min, observed to 14 h |
+| NovoRapid / NovoLog | Generic rapid polynomial | Retained but explicitly unverified because the label graph is a meal glucose response, not GIR |
+| Humalog | Undocumented polynomial, peak 60 min | Retained but explicitly unverified because the label graph is a meal glucose response, not GIR |
+| Apidra | Undocumented polynomial, peak 65 min | Retained but explicitly unverified; available GIR is from an obese subgroup |
+| Fiasp | Undocumented polynomial, peak 55 min, 6 h span | 0.1/0.2/0.4 U/kg GIR profiles; reference onset 20 min, peak 91 min, observed end 5 h |
+| Lyumjev | Approximation, onset 15 min, peak 95 min, 370 min span | 7/15/30 U GIR profiles; reference onset 17 min, peak 120 min, end 276 min |
+| Afrezza | Approximation, onset 12 min, peak 45 min, 210 min span | 4/12/48 U GIR profiles; 12 U reference onset 12 min, peak 45 min, end 180 min |
+| Humulin N / Novolin N | Approximation, onset 90 min, peak 6 h, 12 h span | 0.4 U/kg mean GIR, median maximum 6.5 h, observed to 22 h with incomplete tail |
+| Ultra-long basal (generic) | Approximation, onset 3 h, peak 16 h, 36 h span | Same compatibility curve, explicitly unverified and excluded from calculation |
+| Lantus / Basaglar / Semglee | Not available | 0.3 U/kg reference GIR observed to the 24 h clamp limit |
+| Toujeo | Not available | 0.4 U/kg steady-state GIR observed to 36 h; never treated as one-dose action |
+| Levemir | Not available | Separate 0.2 and 0.4 U/kg reference GIR profiles observed to 24 h |
+| Tresiba | Not available | 0.4 U/kg steady-state GIR with the official 12 h median maximum and 42 h observation |
+| Awiqli | Not available | Full-week steady-state reference, visibly classified as partly model-derived |
+| Humulin R U-500 | Not available | 100 U mean GIR trace, under-15-min onset, 6 h plotted peak and 24 h observation |
+| Ryzodeg | Not available | 0.8 U/kg single-dose reference trace to the incomplete 24 h endpoint |
+| NovoLog Mix 70/30 / NovoMix 30 | Not available | 0.3 U/kg GIR, 10–20 min onset, 2.7 h mean peak, observed to 24 h |
+| Humalog Mix 50/50 | Not available | 0.3 U/kg GIR, 2 h median peak, incomplete 22 h endpoint |
+| Humalog Mix 75/25 | Not available | 0.3 U/kg GIR, 2 h median peak, incomplete 22 h endpoint |
+| Humulin 70/30 / Novolin 70/30 | Not available | 0.3 U/kg GIR, 50 min onset, 3.5 h peak; only the observed 12 h trace is stored |
 
 ## Primary sources
 
 - Major insulin categories: [ADA Standards of Care in Diabetes—2026, section 9](https://diabetesjournals.org/care/article/49/Supplement_1/S183/163934/9-Pharmacologic-Approaches-to-Glycemic-Treatment)
+- [NovoLog prescribing information](https://dailymed.nlm.nih.gov/dailymed/getFile.cfm?setid=13891e5a-e57a-46e8-911c-2f680352b52b&type=pdf), section 12.2
+- [Humalog prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=c5f75765-86b8-4926-b8c3-b42133ca7ac8), section 12.2
+- [Apidra prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e7af6a7a-8046-4fb4-9979-4ec4230b23aa), section 12.2
 - [Fiasp prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=834e7efc-393f-4c55-9125-628562a8a5cf), section 12.2
 - [Lyumjev prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=616daea1-0b79-4970-a141-6f99f2072f02), section 12.2
 - [Afrezza prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=29f4637b-e204-425b-b89c-7238008d8c10), section 12.2
@@ -66,7 +100,7 @@ These are population-average reference models, not clinical validation for an in
 
 ## Digitization and dose resolution
 
-The catalogue stores explicit minute/activity points rather than opaque fitted polynomials. Points were read from the cited GIR figures at documented time anchors, divided by the maximum of the same source curve, and connected linearly. Label tables supply onset, peak, and return-to-baseline anchors where available. This is intentionally auditable and replaceable in a later model version.
+The catalogue stores explicit minute/activity points rather than opaque fitted polynomials. Points were read from the cited GIR figures at documented time anchors, divided by the maximum of the same source curve, and connected linearly. Label tables supply onset and peak timing separately where available. A plotted trace may extend beyond a label's mean duration, or a clamp may stop before activity ends; the evidence state and table above preserve that distinction instead of forcing every final point to zero. This is intentionally auditable and replaceable in a later model version.
 
 For sources with multiple studied doses, NG resolves the curve when the dose is recorded:
 

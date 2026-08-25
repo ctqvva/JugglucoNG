@@ -2576,6 +2576,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <string name="journal_curve_activity">Адносная актыўнасць</string>
+    <string name="journal_curve_activity_desc">Глюкозазніжальная актыўнасць адносна піка гэтай крывой (100%).</string>
+    <string name="journal_scientific_name">Навуковая назва</string>
     <string name="journal_curve_unverified">Неправераная крывая</string>
     <string name="journal_curve_unverified_desc">Гэтая форма актыўнасці з’яўляецца ацэнкай або карыстальніцкай крывой і не звязана з поўнай фармакадынамічнай крыніцай.</string>
     <string name="journal_curve_source_backed">Крывая адной дозы з крыніцай</string>

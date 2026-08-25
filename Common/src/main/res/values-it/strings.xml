@@ -2499,6 +2499,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Grafico + valore</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafico + valore + freccia</string>
     <string name="glucosechartfullcomplicationlabel">Grafico + valore + freccia + ora</string>
+    <string name="journal_curve_activity">Attività relativa</string>
+    <string name="journal_curve_activity_desc">Attività ipoglicemizzante rispetto al picco di questa curva (100%).</string>
+    <string name="journal_scientific_name">Nome scientifico</string>
     <string name="journal_curve_unverified">Curva non verificata</string>
     <string name="journal_curve_unverified_desc">Questa curva di attività è una stima o una curva personalizzata e non è riconducibile a una fonte farmacodinamica completa.</string>
     <string name="journal_curve_source_backed">Curva a dose singola basata su una fonte</string>

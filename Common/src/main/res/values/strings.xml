@@ -2201,7 +2201,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_curve_add_point">Add curve point</string>
     <string name="journal_curve_point">Point %1$d</string>
     <string name="journal_curve_minutes">Minute</string>
-    <string name="journal_curve_activity">Activity</string>
+    <string name="journal_curve_activity">Relative activity</string>
+    <string name="journal_curve_activity_desc">Glucose-lowering activity relative to the peak of this curve (100%).</string>
+    <string name="journal_scientific_name">Scientific name</string>
     <string name="journal_curve_reset">Reset curve</string>
     <string name="journal_enable_preset">Restore</string>
     <string name="journal_disable_preset">Disable</string>
@@ -2736,26 +2738,26 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
     <string name="journal_preset_rapid_generic" translatable="false">Rapid acting (generic)</string>
     <string name="journal_preset_long_generic" translatable="false">Long acting (generic)</string>
-    <string name="journal_preset_regular_u100" translatable="false">Humulin R / Novolin R (regular human)</string>
-    <string name="journal_preset_aspart" translatable="false">NovoRapid / NovoLog (aspart)</string>
-    <string name="journal_preset_lispro" translatable="false">Humalog (lispro)</string>
-    <string name="journal_preset_glulisine" translatable="false">Apidra (glulisine)</string>
-    <string name="journal_preset_fiasp" translatable="false">Fiasp (aspart)</string>
-    <string name="journal_preset_lyumjev" translatable="false">Lyumjev (lispro-aabc)</string>
-    <string name="journal_preset_afrezza" translatable="false">Afrezza (human)</string>
-    <string name="journal_preset_nph_named" translatable="false">Humulin N / Novolin N (NPH human)</string>
+    <string name="journal_preset_regular_u100" translatable="false">Humulin R / Novolin R</string>
+    <string name="journal_preset_aspart" translatable="false">NovoRapid / NovoLog</string>
+    <string name="journal_preset_lispro" translatable="false">Humalog</string>
+    <string name="journal_preset_glulisine" translatable="false">Apidra</string>
+    <string name="journal_preset_fiasp" translatable="false">Fiasp</string>
+    <string name="journal_preset_lyumjev" translatable="false">Lyumjev</string>
+    <string name="journal_preset_afrezza" translatable="false">Afrezza</string>
+    <string name="journal_preset_nph_named" translatable="false">Humulin N / Novolin N</string>
     <string name="journal_preset_ultra_long_generic" translatable="false">Ultra-long basal (generic)</string>
-    <string name="journal_preset_lantus" translatable="false">Lantus / Basaglar / Semglee (glargine U-100)</string>
-    <string name="journal_preset_toujeo" translatable="false">Toujeo (glargine U-300)</string>
-    <string name="journal_preset_levemir" translatable="false">Levemir (detemir)</string>
-    <string name="journal_preset_tresiba" translatable="false">Tresiba (degludec)</string>
-    <string name="journal_preset_awiqli" translatable="false">Awiqli (icodec)</string>
-    <string name="journal_preset_regular_u500" translatable="false">Humulin R U-500 (concentrated regular human)</string>
-    <string name="journal_preset_ryzodeg" translatable="false">Ryzodeg (70% degludec / 30% aspart)</string>
-    <string name="journal_preset_aspart_mix_7030" translatable="false">NovoLog Mix 70/30 / NovoMix 30 (70% protamine aspart / 30% aspart)</string>
-    <string name="journal_preset_lispro_mix_5050" translatable="false">Humalog Mix 50/50 (50% protamine lispro / 50% lispro)</string>
-    <string name="journal_preset_lispro_mix_7525" translatable="false">Humalog Mix 75/25 (75% protamine lispro / 25% lispro)</string>
-    <string name="journal_preset_human_mix_7030" translatable="false">Humulin 70/30 / Novolin 70/30 (70% NPH human / 30% regular human)</string>
+    <string name="journal_preset_lantus" translatable="false">Lantus / Basaglar / Semglee</string>
+    <string name="journal_preset_toujeo" translatable="false">Toujeo</string>
+    <string name="journal_preset_levemir" translatable="false">Levemir</string>
+    <string name="journal_preset_tresiba" translatable="false">Tresiba</string>
+    <string name="journal_preset_awiqli" translatable="false">Awiqli</string>
+    <string name="journal_preset_regular_u500" translatable="false">Humulin R U-500</string>
+    <string name="journal_preset_ryzodeg" translatable="false">Ryzodeg</string>
+    <string name="journal_preset_aspart_mix_7030" translatable="false">NovoLog Mix 70/30 / NovoMix 30</string>
+    <string name="journal_preset_lispro_mix_5050" translatable="false">Humalog Mix 50/50</string>
+    <string name="journal_preset_lispro_mix_7525" translatable="false">Humalog Mix 75/25</string>
+    <string name="journal_preset_human_mix_7030" translatable="false">Humulin 70/30 / Novolin 70/30</string>
     <string name="journal_curve_unverified">Unverified curve</string>
     <string name="journal_curve_unverified_desc">This activity shape is an estimate or a custom curve and is not traced to a complete pharmacodynamic source.</string>
     <string name="journal_curve_source_backed">Source-backed single-dose curve</string>

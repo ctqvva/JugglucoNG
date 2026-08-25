@@ -1950,7 +1950,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_curve_add_point">Ku dar barta qalooca</string>
     <string name="journal_curve_point">Dhibicda %1$d</string>
     <string name="journal_curve_minutes">Daqiiqado</string>
-    <string name="journal_curve_activity">Hawsha</string>
+    <string name="journal_curve_activity">Waxqabad qaraabo</string>
+    <string name="journal_curve_activity_desc">Waxqabadka hoos u dhiga gulukoosta marka loo eego meesha ugu sarreysa qaloocan (100%).</string>
+    <string name="journal_scientific_name">Magaca sayniska</string>
     <string name="journal_curve_reset">Dib u deji qalooca</string>
     <string name="journal_enable_preset">Soo celi</string>
     <string name="journal_disable_preset">Dami</string>

@@ -1661,7 +1661,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_curve_add_point">Add curve point</string>
     <string name="journal_curve_point">Point %1$d</string>
     <string name="journal_curve_minutes">Minute</string>
-    <string name="journal_curve_activity">Activity</string>
+    <string name="journal_curve_activity">Харьцангуй үйлчлэл</string>
+    <string name="journal_curve_activity_desc">Энэ муруйн оргилтой харьцуулсан глюкоз бууруулах үйлчлэл (100%).</string>
+    <string name="journal_scientific_name">Шинжлэх ухааны нэр</string>
     <string name="journal_curve_reset">Reset curve</string>
     <string name="journal_enable_preset">Restore</string>
     <string name="journal_disable_preset">Disable</string>

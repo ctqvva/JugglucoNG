@@ -2552,6 +2552,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucosechartvaluecomplicationlabel">Grafiek + waarde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafiek + waarde + pijl</string>
     <string name="glucosechartfullcomplicationlabel">Grafiek + waarde + pijl + tijd</string>
+    <string name="journal_curve_activity">Relatieve activiteit</string>
+    <string name="journal_curve_activity_desc">Glucoseverlagende activiteit ten opzichte van de piek van deze curve (100%).</string>
+    <string name="journal_scientific_name">Wetenschappelijke naam</string>
     <string name="journal_curve_unverified">Niet-geverifieerde curve</string>
     <string name="journal_curve_unverified_desc">Deze activiteitscurve is een schatting of aangepaste curve en is niet terug te voeren op een volledige farmacodynamische bron.</string>
     <string name="journal_curve_source_backed">Brongebaseerde curve voor één dosis</string>

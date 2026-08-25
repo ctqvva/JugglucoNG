@@ -375,7 +375,10 @@ object OutboundApiJournalSnapshot {
             useForCalculation = entity.useForCalculation,
             curveProfileId = entity.curveProfileId,
             curveModelVersion = entity.curveModelVersion,
-            curveEvidence = tk.glucodata.data.journal.JournalCurveEvidence.fromStorage(entity.curveEvidence)
+            curveEvidence = tk.glucodata.data.journal.JournalCurveEvidence.fromStorage(entity.curveEvidence),
+            scientificName = entity.curveProfileId
+                ?.let(tk.glucodata.data.journal.JournalBuiltInCurveProfile::fromStorage)
+                ?.let(tk.glucodata.data.journal.JournalInsulinCurveCatalogue::scientificName)
         )
 
     private fun defaultEventType(type: JournalEntryType): String =

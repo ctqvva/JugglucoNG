@@ -2552,6 +2552,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">График + значение</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + значение + стрелка</string>
     <string name="glucosechartfullcomplicationlabel">График + значение + стрелка + время</string>
+    <string name="journal_curve_activity">Относительная активность</string>
+    <string name="journal_curve_activity_desc">Глюкозоснижающая активность относительно пика этой кривой (100%).</string>
+    <string name="journal_scientific_name">Научное название</string>
     <string name="journal_curve_unverified">Непроверенная кривая</string>
     <string name="journal_curve_unverified_desc">Эта форма активности является оценкой или пользовательской кривой и не связана с полным фармакодинамическим источником.</string>
     <string name="journal_curve_source_backed">Кривая одной дозы на основе источника</string>

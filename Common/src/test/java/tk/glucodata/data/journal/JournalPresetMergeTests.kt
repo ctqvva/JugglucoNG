@@ -43,12 +43,26 @@ class JournalPresetMergeTests {
 
     @Test
     fun exactNameWinsEvenWhenSortOrdersDiffer() {
-        val expected = preset(42, "Fiasp (aspart)", 99)
+        val expected = preset(42, "Fiasp", 99)
         val existing = listOf(expected)
 
         assertEquals(
             expected,
-            matchExistingBuiltInPreset(preset(0, "Fiasp (aspart)", 6), existing)
+            matchExistingBuiltInPreset(preset(0, "Fiasp", 6), existing)
         )
+    }
+
+    @Test
+    fun stableProfileWinsWhenCommercialLabelChanges() {
+        val expected = preset(42, "Fiasp (aspart)", 99).copy(
+            curveProfileId = JournalBuiltInCurveProfile.FIASP.storageValue,
+            curveModelVersion = 1
+        )
+        val renamed = preset(0, "Fiasp", 6).copy(
+            curveProfileId = JournalBuiltInCurveProfile.FIASP.storageValue,
+            curveModelVersion = JournalInsulinCurveCatalogue.MODEL_VERSION
+        )
+
+        assertEquals(expected, matchExistingBuiltInPreset(renamed, listOf(expected)))
     }
 }

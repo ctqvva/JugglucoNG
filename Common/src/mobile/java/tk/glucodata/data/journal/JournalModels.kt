@@ -137,7 +137,8 @@ data class JournalInsulinPreset(
     val useForCalculation: Boolean = true,
     val curveProfileId: String? = null,
     val curveModelVersion: Int = 0,
-    val curveEvidence: JournalCurveEvidence = JournalCurveEvidence.UNVERIFIED
+    val curveEvidence: JournalCurveEvidence = JournalCurveEvidence.UNVERIFIED,
+    val scientificName: String? = null
 ) {
     val curvePoints: List<JournalCurvePoint> = resolveJournalCurve(
         curveJson,
@@ -147,8 +148,7 @@ data class JournalInsulinPreset(
     )
 
     fun activeStartAt(timestamp: Long): Long {
-        val startMinute = curvePoints.firstOrNull { it.activity > 0.01f }?.minute ?: onsetMinutes
-        return timestamp + (startMinute.coerceAtLeast(0) * 60_000L)
+        return timestamp + (onsetMinutes.coerceAtLeast(0) * 60_000L)
     }
 
     fun activeEndAt(timestamp: Long): Long {

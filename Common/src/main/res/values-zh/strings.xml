@@ -2525,6 +2525,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">图表 + 数值</string>
     <string name="glucosechartvaluearrowcomplicationlabel">图表 + 数值 + 箭头</string>
     <string name="glucosechartfullcomplicationlabel">图表 + 数值 + 箭头 + 时间</string>
+    <string name="journal_curve_activity">相对活性</string>
+    <string name="journal_curve_activity_desc">相对于该曲线峰值（100%）的降糖活性。</string>
+    <string name="journal_scientific_name">科学名称</string>
     <string name="journal_curve_unverified">未经验证的曲线</string>
     <string name="journal_curve_unverified_desc">此活性形状为估算值或自定义曲线，无法追溯到完整的药效学来源。</string>
     <string name="journal_curve_source_backed">有来源依据的单剂量曲线</string>
