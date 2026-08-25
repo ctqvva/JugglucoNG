@@ -67,12 +67,14 @@ internal class SibionicsAdaptiveV2Context {
         eventTimeMs: Long,
         references: List<AdaptiveV2Reference> = emptyList(),
         stockComparisonMmol: Float = Float.NaN,
+        adaptiveV1ComparisonMmol: Float = Float.NaN,
     ): ProbabilisticGlucoseEstimate? {
         val estimate = estimator.process(
             sample = AdaptiveV2Sample(
                 calibratedMmol = observation.calibratedMmol,
                 factorySensitivity = observation.factorySensitivity,
                 activeSensitivity = observation.activeSensitivity,
+                sensorStateCompensationMmol = observation.sensorStateCompensationMmol,
                 temperatureC = temperatureC,
                 impedance = impedance,
                 qualityFlags = observation.qualityFlags,
@@ -81,6 +83,7 @@ internal class SibionicsAdaptiveV2Context {
             ),
             references = references,
             stockComparisonMmol = stockComparisonMmol,
+            adaptiveV1ComparisonMmol = adaptiveV1ComparisonMmol,
         )
         if (diagnosticsCapacity > 0) {
             estimator.latestDiagnostics?.let { row ->

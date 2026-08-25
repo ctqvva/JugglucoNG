@@ -27,8 +27,18 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
  */
 internal object GlucoseUncertaintyRibbon {
 
-    /** Alpha for the 90% band. Restrained on purpose — this is context, not an alarm. */
-    private const val BAND_ALPHA = 0.16f
+    /**
+     * Alpha for the band, plus a faint edge so its boundary reads on a dark
+     * theme.
+     *
+     * The first version used 0.16 with no edge and was effectively invisible on
+     * a real phone: the target-range fill is drawn over the top of it, and a
+     * 16% tint under another translucent layer disappears. Restrained is the
+     * goal; imperceptible is a bug.
+     */
+    private const val BAND_ALPHA = 0.26f
+    private const val EDGE_ALPHA = 0.42f
+    private const val EDGE_WIDTH_PX = 1.5f
 
     /** Bands thinner than this add visual noise without telling the reader anything. */
     private const val MIN_VISIBLE_HEIGHT_PX = 1.2f
@@ -144,6 +154,20 @@ internal object GlucoseUncertaintyRibbon {
             close()
         }
         drawPath(path, color.copy(alpha = BAND_ALPHA))
+        drawEdge(upperPoints, color)
+        drawEdge(lowerPoints, color)
+    }
+
+    private fun DrawScope.drawEdge(points: List<Offset>, color: Color) {
+        val edge = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (index in 1 until points.size) lineTo(points[index].x, points[index].y)
+        }
+        drawPath(
+            edge,
+            color.copy(alpha = EDGE_ALPHA),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = EDGE_WIDTH_PX),
+        )
     }
 
     private const val CLIP_MARGIN_PX = 2000f

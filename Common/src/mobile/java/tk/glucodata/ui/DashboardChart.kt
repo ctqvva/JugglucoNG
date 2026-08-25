@@ -261,7 +261,15 @@ private fun buildSmoothedChartData(
     value = { it.value },
     rawValue = { it.rawValue },
     sensorSerial = { it.sensorSerial },
-    withValues = { point, auto, raw -> point.copy(value = auto, rawValue = raw) }
+    // The band follows the value it describes; smoothing displaces the line but
+    // does not make the sensor more certain, so the width is preserved.
+    withValues = { point, auto, raw ->
+        point.copy(
+            value = auto,
+            rawValue = raw,
+            uncertainty = point.uncertainty?.shifted(auto - point.value),
+        )
+    }
 )
 
 private class CalibratedValueResolver(private val points: List<GlucosePoint>) {

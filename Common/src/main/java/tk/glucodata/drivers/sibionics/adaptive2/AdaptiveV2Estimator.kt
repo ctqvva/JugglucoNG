@@ -19,6 +19,8 @@ internal data class AdaptiveV2Sample(
     val factorySensitivity: Float,
     /** The vendor's running sensitivity estimate, which tracks drift. */
     val activeSensitivity: Float,
+    /** Absolute sensor-state compensation the vendor applied, for diagnostics. */
+    val sensorStateCompensationMmol: Float,
     val temperatureC: Float,
     val impedance: Float,
     val qualityFlags: Int,
@@ -183,6 +185,7 @@ internal class AdaptiveV2Estimator {
         sample: AdaptiveV2Sample,
         references: List<AdaptiveV2Reference> = emptyList(),
         stockComparisonMmol: Float = Float.NaN,
+        adaptiveV1ComparisonMmol: Float = Float.NaN,
     ): ProbabilisticGlucoseEstimate? {
         val observation = sample.calibratedMmol
         if (!observation.isFinite() || observation <= 0f) return null
@@ -242,7 +245,9 @@ internal class AdaptiveV2Estimator {
         telemetryModel.advance(sample.temperatureC, sample.impedance)
         lastIndex = sample.index
         lastTimestampMs = sample.timestampMs
-        latestDiagnostics = buildDiagnostics(sample, estimate, telemetry, stockComparisonMmol)
+        latestDiagnostics = buildDiagnostics(
+            sample, estimate, telemetry, stockComparisonMmol, adaptiveV1ComparisonMmol,
+        )
         return estimate
     }
 
@@ -495,13 +500,20 @@ internal class AdaptiveV2Estimator {
         val central = glucoseMixture.median()
         val width = (upper - lower).coerceAtLeast(0f)
 
+        // The posterior is a Gaussian mixture and its tails are unbounded, so a
+        // wide component can place the 5% quantile at or below zero. Glucose
+        // cannot be negative, so the *reported* bounds are clipped to the same
+        // physiological range the state itself is confined to. The internal
+        // posterior is unchanged; this is a display-domain truncation and the
+        // two are deliberately allowed to differ, because rendering a negative
+        // lower bound would be worse than either.
+        val floor = AdaptiveV2ObservationModel.MIN_GLUCOSE.toFloat()
+        val ceiling = AdaptiveV2ObservationModel.MAX_GLUCOSE.toFloat()
+        val boundedCentral = central.coerceIn(floor, ceiling)
         val estimate = ProbabilisticGlucoseEstimate(
-            glucoseMmol = central.coerceIn(
-                AdaptiveV2ObservationModel.MIN_GLUCOSE.toFloat(),
-                AdaptiveV2ObservationModel.MAX_GLUCOSE.toFloat(),
-            ),
-            lower90Mmol = min(lower, central),
-            upper90Mmol = max(upper, central),
+            glucoseMmol = boundedCentral,
+            lower90Mmol = min(lower, boundedCentral).coerceIn(floor, ceiling),
+            upper90Mmol = max(upper, boundedCentral).coerceIn(floor, ceiling),
             rateMmolPerMin = rateMixture.mean,
             rateUncertainty = rateMixture.standardDeviation,
             fallingProbability = rateMixture.cdf(0.0).toFloat(),
@@ -590,6 +602,7 @@ internal class AdaptiveV2Estimator {
         estimate: ProbabilisticGlucoseEstimate,
         telemetry: AdaptiveV2Telemetry,
         stockComparisonMmol: Float,
+        adaptiveV1ComparisonMmol: Float,
     ): AdaptiveV2Diagnostics {
         var interstitial = 0.0
         var artifact = 0.0
@@ -624,7 +637,10 @@ internal class AdaptiveV2Estimator {
             impedanceQuality = telemetry.impedanceQuality,
             interstitialMmol = interstitial.toFloat(),
             artifactMmol = artifact.toFloat(),
+            sensorStateCompensationMmol = sample.sensorStateCompensationMmol,
+            activeSensitivity = sample.activeSensitivity,
             stockMmol = stockComparisonMmol,
+            adaptiveV1Mmol = adaptiveV1ComparisonMmol,
         )
     }
 

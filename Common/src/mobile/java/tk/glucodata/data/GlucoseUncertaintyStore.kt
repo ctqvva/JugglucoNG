@@ -65,7 +65,7 @@ object GlucoseUncertaintyStore {
         for (index in 0 until size) {
             val row = ReadingUncertainty(
                 sensorSerial = serial,
-                timestamp = timestamps[index],
+                timestamp = minuteBucket(timestamps[index]),
                 lowerMgdl = lowerMgdl[index],
                 upperMgdl = upperMgdl[index],
                 intervalMass = intervalMass,
@@ -81,6 +81,20 @@ object GlucoseUncertaintyStore {
             pruneIfDue()
         }
     }
+
+    /**
+     * Floors a sample time to its minute.
+     *
+     * Intervals must be keyed the same way on both sides of the join, and a
+     * reading's exact millisecond does not survive the round trip: the driver
+     * writes `sampleMs / 1000` into the native stream and the sync reads it
+     * back as `sec * 1000`, so any reading whose time was not already
+     * second-aligned comes back with a different timestamp than it was stored
+     * under. Keying by minute is immune to that and to small drift, and at one
+     * reading a minute it is still unambiguous. It also makes the table
+     * idempotent across history rebuilds.
+     */
+    private fun minuteBucket(timestampMs: Long): Long = timestampMs / 60_000L * 60_000L
 
     /**
      * Keeps the table bounded without a scheduler.

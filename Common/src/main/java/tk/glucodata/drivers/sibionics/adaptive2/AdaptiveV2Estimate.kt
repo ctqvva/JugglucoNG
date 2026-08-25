@@ -213,15 +213,21 @@ data class AdaptiveV2Diagnostics(
     val impedanceQuality: Float,
     val interstitialMmol: Float,
     val artifactMmol: Float,
-    /** Comparison trace only. Never fed back into the estimator. */
+    /** Vendor absolute sensor-state compensation applied to this observation. */
+    val sensorStateCompensationMmol: Float,
+    /** Vendor active sensitivity, which tracks drift. */
+    val activeSensitivity: Float,
+    /** Comparison traces only. Never fed back into the estimator. */
     val stockMmol: Float,
+    val adaptiveV1Mmol: Float,
 ) {
     fun toCsvRow(): String = listOf(
         index, timestampMs, chemicalMmol, glucoseMmol, lower90Mmol, upper90Mmol,
         rateMmolPerMin, rateUncertainty, steadyProbability, dynamicProbability,
         artifactProbability, driftProbability, sensitivity, biasMmol, lagMinutes,
         measurementNoise, innovation, temperatureQuality, impedanceQuality,
-        interstitialMmol, artifactMmol, stockMmol,
+        interstitialMmol, artifactMmol, sensorStateCompensationMmol, activeSensitivity,
+        stockMmol, adaptiveV1Mmol,
     ).joinToString(",")
 
     companion object {
@@ -229,6 +235,7 @@ data class AdaptiveV2Diagnostics(
             "index,timestampMs,chemical,glucose,lower90,upper90,rate,rateSd," +
                 "pSteady,pDynamic,pArtifact,pDrift,sensitivity,bias,lagMinutes," +
                 "measurementNoise,innovation,tempQuality,impedanceQuality," +
-                "interstitial,artifact,stockComparison"
+                "interstitial,artifact,sensorStateCompensation,activeSensitivity," +
+                "stockComparison,adaptiveV1Comparison"
     }
 }

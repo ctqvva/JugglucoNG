@@ -1099,15 +1099,25 @@ class HistoryRepository(context: Context = Applic.app) {
     }
 
     /**
-     * Intervals are keyed by sensor and minute so a row can only ever attach to
-     * the reading it was computed for. A reading with no matching row keeps a
-     * null uncertainty, which is what every pre-existing reading has.
+     * Intervals are keyed by sensor and **minute**, not by exact timestamp.
+     *
+     * A reading's millisecond does not survive the native round trip — the
+     * driver writes `sampleMs / 1000` and the sync reads back `sec * 1000` — so
+     * matching on equality silently dropped the interval for every reading
+     * whose time was not already second-aligned, which is most of them. At one
+     * reading a minute the bucket is still unambiguous.
+     *
+     * A reading with no matching row keeps a null uncertainty, which is what
+     * every pre-existing reading has.
      */
+    private fun uncertaintyKey(timestamp: Long, sensorSerial: String): Long =
+        (timestamp / 60_000L) * 31L + sensorSerial.hashCode()
+
     private fun uncertaintyKey(reading: HistoryReading): Long =
-        reading.timestamp * 31L + reading.sensorSerial.hashCode()
+        uncertaintyKey(reading.timestamp, reading.sensorSerial)
 
     private fun uncertaintyKey(row: ReadingUncertainty): Long =
-        row.timestamp * 31L + row.sensorSerial.hashCode()
+        uncertaintyKey(row.timestamp, row.sensorSerial)
 
     private fun List<ReadingUncertainty>.indexed(): Map<Long, ReadingUncertainty> =
         if (isEmpty()) emptyMap() else associateBy { uncertaintyKey(it) }

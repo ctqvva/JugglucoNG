@@ -17,7 +17,16 @@ data class GlucoseUncertainty(
     val lower: Float,
     /** Upper bound of the credible interval. */
     val upper: Float,
-    /** Interval mass, e.g. 0.9 for a 90% credible interval. */
+    /**
+     * Posterior mass the interval carries, e.g. 0.9.
+     *
+     * This is the estimator's *model* probability, not a validated empirical
+     * coverage rate — a mathematically computed 90% posterior interval only
+     * contains the truth 90% of the time if the model is well specified, which
+     * has not been established against paired reference data on device. User-
+     * facing copy says "likely range" rather than "90% confidence" for exactly
+     * this reason, and should keep doing so until validation exists.
+     */
     val intervalMass: Float = DEFAULT_INTERVAL_MASS,
     /** Overall estimator confidence in [0,1], or null when not modelled. */
     val confidence: Float? = null,
