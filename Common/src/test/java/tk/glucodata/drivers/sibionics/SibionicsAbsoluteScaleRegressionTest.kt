@@ -130,6 +130,52 @@ class SibionicsAbsoluteScaleRegressionTest {
     }
 
     @Test
+    fun aHistoryRebuildActuallyRunsV2AndProducesIntervals() {
+        val samples = sourceSamples(3_000)
+        val result = SibionicsAlgorithmRebuilder.rebuild(
+            sensorId = "rebuild-v2",
+            sourceSamples = samples,
+            selection = SibionicsAlgorithmSelection.ADAPTIVE_V2,
+            variant = SibionicsConstants.Variant.CHINESE,
+            shortCode = "46HU804EBJ4",
+            sensitivity = 1.4f,
+            unitIsMmol = true,
+        ) { displayStock, _ -> displayStock }
+
+        val settled = result.readings.filter { it.index > SETTLE }
+        assertTrue("readings=${result.readings.size}", settled.size > 500)
+
+        // The rebuilt context's exact core is restored from a snapshot and then
+        // never advanced, so its own sensor observation is stale — the rebuild
+        // has to carry each sample's observation across from the context that
+        // produced it. When that plumbing broke, every rebuilt sample fell back
+        // to the stock value and wrote no interval at all: the chart looked
+        // completely normal and the ribbon simply never appeared, which is a
+        // failure with no error message anywhere.
+        val withInterval = settled.count { it.uncertainty?.isUsable == true }
+        val coverage = withInterval.toDouble() / settled.size
+        println("rebuild  samples=${settled.size} withInterval=$withInterval coverage=%.3f".format(coverage))
+        assertTrue("coverage=$coverage", coverage > 0.95)
+
+        // And the rebuilt values must be V2's, not a silent stock fallback.
+        val stockRebuild = SibionicsAlgorithmRebuilder.rebuild(
+            sensorId = "rebuild-stock",
+            sourceSamples = samples,
+            selection = SibionicsAlgorithmSelection.STOCK,
+            variant = SibionicsConstants.Variant.CHINESE,
+            shortCode = "46HU804EBJ4",
+            sensitivity = 1.4f,
+            unitIsMmol = true,
+        ) { displayStock, _ -> displayStock }
+        val stockByIndex = stockRebuild.readings.associateBy { it.index }
+        val differing = settled.count { reading ->
+            val stock = stockByIndex[reading.index] ?: return@count false
+            abs(reading.glucoseMgdl - stock.glucoseMgdl) > 0.5f
+        }
+        assertTrue("differing=$differing of ${settled.size}", differing > settled.size / 10)
+    }
+
+    @Test
     fun theHarnessEmitsAnAlignedThreeWayCsv() {
         val rows = SibionicsReplayHarness.replay(
             samples = sourceSamples(400),
