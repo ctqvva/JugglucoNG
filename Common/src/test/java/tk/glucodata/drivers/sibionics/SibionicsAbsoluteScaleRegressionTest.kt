@@ -194,57 +194,72 @@ class SibionicsAbsoluteScaleRegressionTest {
     }
 
     @Test
-    fun v2DeclinesToRunRatherThanGuessOnAFamilyWithNoCalibratedObservation() {
-        val context = SibionicsAlgorithmContext("v116-guard").apply {
-            configure(
-                "46HU804EBJ4", 1.4f,
-                SibionicsConstants.Variant.SIBIONICS2,
-                SibionicsAlgorithmSelection.ADAPTIVE_V2,
-            )
-        }
-        var output = Float.NaN
-        repeat(300) { offset ->
-            val index = offset + 1
-            output = context.process(
-                rawMmol = 6f,
-                temperatureC = 34f,
-                index = index,
-                mode = SibionicsAlgorithmMode.REPLAY,
-                impedance = 2_900f,
-                eventTimeMs = index * 60_000L,
-            )
-        }
+    fun adaptiveV2RunsOnBothAlgorithmFamilies() {
+        // Three of the five variants use V1.1.6A, so a V2 that only works on
+        // V1.1.5G is switched off for most sensors — and switched off silently,
+        // because the no-observation path falls back to the vendor value and
+        // publishes no interval. That is indistinguishable on screen from
+        // "Adaptive V2 is selected and simply looks like stock".
+        listOf(
+            SibionicsConstants.Variant.CHINESE to "V115G",
+            SibionicsConstants.Variant.SIBIONICS2 to "V116A",
+        ).forEach { (variant, family) ->
+            val context = SibionicsAlgorithmContext("family-$family").apply {
+                configure(
+                    "46HU804EBJ4", 1.4f, variant,
+                    SibionicsAlgorithmSelection.ADAPTIVE_V2,
+                )
+            }
+            var output = Float.NaN
+            sourceSamples(3_000).forEach { sample ->
+                output = context.process(
+                    rawMmol = sample.rawMmol,
+                    temperatureC = sample.temperatureC,
+                    index = sample.index,
+                    mode = SibionicsAlgorithmMode.REPLAY,
+                    impedance = sample.impedance,
+                    eventTimeMs = sample.timestampMs,
+                )
+            }
 
-        // The V1.1.6A core's equivalent compensation term has not been located,
-        // so V2 falls back to the vendor value and publishes no interval rather
-        // than reproducing the systematic low this whole file is about.
-        assertTrue("output=$output", output.isFinite() && output > 0f)
-        assertEquals(null, context.latestProbabilisticEstimate())
-        assertEquals(null, context.latestUncertaintyMmol())
+            assertTrue("$family output=$output", output.isFinite() && output > 0f)
+            val estimate = context.latestProbabilisticEstimate()
+            assertTrue("$family produced no estimate", estimate != null && estimate.isUsable)
+            val uncertainty = context.latestUncertaintyMmol()
+            assertTrue("$family produced no interval", uncertainty != null && uncertainty.isUsable)
+        }
     }
 
     @Test
-    fun validationExcerptShowsTheAlignedThreeWayComparison() {
-        val rows = SibionicsReplayHarness.replay(
-            samples = sourceSamples(TRACE_MINUTES),
-            sensitivity = 1.4f,
-        )
-        println(
-            "EXCERPT  idx | raw   chem  cal   | stock  V1    V2    | v2 range      | pDyn  pArt | sens   bias   lag"
-        )
-        rows.takeLast(16).forEach { row ->
-            val d = row.diagnostics
-            println(
-                "EXCERPT %5d | %5.2f %5.2f %5.2f | %5.2f %5.2f %5.2f | %5.2f-%5.2f | %.2f %.2f | %.4f %+.3f %.2f".format(
-                    row.index, row.rawMmol, row.chemicalMmol, row.calibratedMmol,
-                    row.stockMmol, row.adaptiveV1Mmol, row.adaptiveV2Mmol,
-                    d?.lower90Mmol ?: Float.NaN, d?.upper90Mmol ?: Float.NaN,
-                    d?.dynamicProbability ?: Float.NaN, d?.artifactProbability ?: Float.NaN,
-                    d?.sensitivity ?: Float.NaN, d?.biasMmol ?: Float.NaN, d?.lagMinutes ?: Float.NaN,
-                )
-            )
+    fun bothFamiliesExposeACalibratedObservationCloseToTheirOwnOutput() {
+        // The V1.1.6A core is a transliterated state machine, so its calibrated
+        // observation is recovered from the value the deconvolution stage
+        // recorded as its input rather than read from a structured stage. This
+        // pins that the recovered quantity is the right one: like V1.1.5G, it
+        // must sit far closer to the vendor's own output than the raw chemical
+        // signal does.
+        val core = tk.glucodata.drivers.sibionics.v116a.SibionicsExactV116ACore(1.4f)
+        var chemicalGap = 0.0
+        var calibratedGap = 0.0
+        var n = 0
+        sourceSamples(TRACE_MINUTES).forEach { sample ->
+            val output = core.process(sample.rawMmol, sample.temperatureC, sample.index)
+            val chemical = core.latestChemicalSignal?.mmol
+            val observation = core.latestSensorObservation
+            if (output != null && chemical != null && observation != null && sample.index > SETTLE) {
+                chemicalGap += (output - chemical)
+                calibratedGap += (output - observation.calibratedMmol)
+                n++
+            }
         }
-        assertTrue(rows.isNotEmpty())
+        val meanChemical = chemicalGap / n
+        val meanCalibrated = calibratedGap / n
+        println("v116 scale  chemical mean=%+.3f | calibrated mean=%+.3f (n=%d)".format(
+            meanChemical, meanCalibrated, n))
+
+        assertTrue("meanChemical=$meanChemical", meanChemical > 0.25)
+        assertTrue("meanCalibrated=$meanCalibrated", abs(meanCalibrated) < 0.25)
+        assertTrue("calibrated must beat chemical", abs(meanCalibrated) < abs(meanChemical))
     }
 
     private companion object {

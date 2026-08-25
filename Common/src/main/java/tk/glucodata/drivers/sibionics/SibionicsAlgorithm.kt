@@ -411,15 +411,15 @@ class SibionicsAlgorithmContext(
     /**
      * Vendor sensor-state observation on the absolute glucose scale.
      *
-     * Only the V1.1.5G family exposes one. The V1.1.6A core is a transliterated
-     * binary state machine whose equivalent compensation term has not been
-     * located in its context blob, and publishing an uncalibrated signal there
-     * would reproduce exactly the systematic low that this type exists to fix —
-     * so it reports nothing and Adaptive V2 declines to run on that family.
+     * Both families expose one. They arrive at it differently — V1.1.5G is a
+     * structured port whose ESA stage can be read directly, while V1.1.6A is a
+     * transliterated state machine where the same value is recovered from the
+     * input the deconvolution stage recorded — but the quantity is identical:
+     * sensor-state compensation applied, deconvolution not yet.
      */
     internal fun latestSensorObservation(): SibionicsSensorObservation? = when (family) {
         AlgorithmFamily.V115G -> v115Core.latestSensorObservation
-        AlgorithmFamily.V116A -> null
+        AlgorithmFamily.V116A -> v116Core.latestSensorObservation
     }
 
     /** Last one-minute input represented by the active custom-model snapshot. */
