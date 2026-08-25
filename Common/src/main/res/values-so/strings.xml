@@ -2709,4 +2709,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucosechartvaluecomplicationlabel">Garaaf + qiime</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Garaaf + qiime + fallaadh</string>
     <string name="glucosechartfullcomplicationlabel">Garaaf + qiime + fallaadh + waqti</string>
+    <string name="journal_curve_unverified">Qalooc aan la xaqiijin</string>
+    <string name="journal_curve_unverified_desc">Qaabkan firfircoonidu waa qiyaas ama qalooc gaar ah, mana laha il farmakodinamig oo dhammaystiran.</string>
+    <string name="journal_curve_source_backed">Qalooca hal qiyaas oo il leh</string>
+    <string name="journal_curve_source_backed_desc">Waxaa laga soo saaray muuqaal farmakodinamig oo la daabacay oo ah heerka faleebada gulukoosta. Waa celcelis dadweyne, ma aha saadaal qofeed.</string>
+    <string name="journal_curve_steady_state">Muuqaal xaalad deggan oo il leh</string>
+    <string name="journal_curve_steady_state_desc">Waxaa la cabbiray kadib qiyaaso soo noqnoqda. Tixraac keliya ayaa loo muujiyaa, loomana adeegsan karo ficilka hal qiyaas.</string>
+    <string name="journal_curve_reference_only">Muuqaal tixraac oo il leh</string>
+    <string name="journal_curve_reference_only_desc">Kormeerka la daabacay ma laha dhammaadka buuxa ee hal qiyaas, sidaas darteed xisaabintu waa dansan tahay.</string>
+    <string name="journal_curve_use_source">Isticmaal isha</string>
+    <string name="journal_body_weight_title">Miisaanka jirka ee qaloocyada insuliinta</string>
+    <string name="journal_body_weight_desc">Waxaa keliya loo adeegsadaa doorashada muuqaalada rasmiga ah ee firfircoonida halkii kiilo. Qiyaasaha cusub waxay gudaha ku kaydiyaan miisaankii la isticmaalay.</string>
+    <string name="journal_body_weight_kg">Miisaan (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Lama dejin. Qaloocyada miisaanka ku xiran waxay adeegsadaan qiyaasta tixraaca.</string>
 </resources>

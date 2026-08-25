@@ -22,5 +22,10 @@ data class JournalInsulinPresetEntity(
     val countsTowardIob: Boolean,
     val sortOrder: Int,
     @ColumnInfo(defaultValue = "1")
-    val useForCalculation: Boolean = true
+    val useForCalculation: Boolean = true,
+    val curveProfileId: String? = null,
+    @ColumnInfo(defaultValue = "0")
+    val curveModelVersion: Int = 0,
+    @ColumnInfo(defaultValue = "'unverified'")
+    val curveEvidence: String = JournalCurveEvidence.UNVERIFIED.storageValue
 )

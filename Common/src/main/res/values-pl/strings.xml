@@ -2543,4 +2543,18 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <string name="journal_curve_unverified">Niezweryfikowana krzywa</string>
+    <string name="journal_curve_unverified_desc">Ten kształt aktywności jest oszacowaniem lub krzywą użytkownika i nie ma pełnego źródła farmakodynamicznego.</string>
+    <string name="journal_curve_source_backed">Krzywa pojedynczej dawki oparta na źródle</string>
+    <string name="journal_curve_source_backed_desc">Oparta na opublikowanym farmakodynamicznym profilu szybkości wlewu glukozy. Jest to średnia populacyjna, a nie spersonalizowana prognoza.</string>
+    <string name="journal_curve_steady_state">Profil stanu stacjonarnego oparty na źródle</string>
+    <string name="journal_curve_steady_state_desc">Zmierzony po wielokrotnym dawkowaniu. Jest wyświetlany informacyjnie i nie może przedstawiać działania pojedynczej dawki.</string>
+    <string name="journal_curve_reference_only">Profil referencyjny oparty na źródle</string>
+    <string name="journal_curve_reference_only_desc">Opublikowana obserwacja nie obejmuje pełnego zaniku działania pojedynczej dawki, dlatego obliczenia są wyłączone.</string>
+    <string name="journal_curve_use_source">Użyj źródła</string>
+    <string name="journal_body_weight_title">Masa ciała dla krzywych insuliny</string>
+    <string name="journal_body_weight_desc">Służy wyłącznie do wyboru oficjalnych profili aktywności dawki na kilogram. Nowe dawki zachowują lokalną migawkę użytej masy.</string>
+    <string name="journal_body_weight_kg">Masa (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Nie ustawiono. Krzywe zależne od masy używają dawki referencyjnej.</string>
 </resources>

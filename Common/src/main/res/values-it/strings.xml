@@ -2499,4 +2499,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Grafico + valore</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafico + valore + freccia</string>
     <string name="glucosechartfullcomplicationlabel">Grafico + valore + freccia + ora</string>
+    <string name="journal_curve_unverified">Curva non verificata</string>
+    <string name="journal_curve_unverified_desc">Questa curva di attività è una stima o una curva personalizzata e non è riconducibile a una fonte farmacodinamica completa.</string>
+    <string name="journal_curve_source_backed">Curva a dose singola basata su una fonte</string>
+    <string name="journal_curve_source_backed_desc">Derivata da un profilo farmacodinamico pubblicato della velocità di infusione del glucosio. È una media della popolazione, non una previsione personalizzata.</string>
+    <string name="journal_curve_steady_state">Profilo allo stato stazionario basato su una fonte</string>
+    <string name="journal_curve_steady_state_desc">Misurato dopo dosi ripetute. È mostrato come riferimento e non può rappresentare l’azione di una singola dose.</string>
+    <string name="journal_curve_reference_only">Profilo di riferimento basato su una fonte</string>
+    <string name="journal_curve_reference_only_desc">L’osservazione pubblicata non contiene la coda completa di una singola dose, quindi il calcolo è disattivato.</string>
+    <string name="journal_curve_use_source">Usa la fonte</string>
+    <string name="journal_body_weight_title">Peso corporeo per le curve insuliniche</string>
+    <string name="journal_body_weight_desc">Usato solo per selezionare i profili di attività ufficiali espressi in dose per chilogrammo. Le nuove dosi conservano localmente il peso usato.</string>
+    <string name="journal_body_weight_kg">Peso (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Non impostato. Le curve basate sul peso usano la dose di riferimento.</string>
 </resources>

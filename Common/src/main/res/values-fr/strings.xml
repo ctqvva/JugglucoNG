@@ -2515,4 +2515,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Courbe + valeur</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Courbe + valeur + flèche</string>
     <string name="glucosechartfullcomplicationlabel">Courbe + valeur + flèche + heure</string>
+    <string name="journal_curve_unverified">Courbe non vérifiée</string>
+    <string name="journal_curve_unverified_desc">Cette courbe d’activité est une estimation ou une courbe personnalisée et ne provient pas d’une source pharmacodynamique complète.</string>
+    <string name="journal_curve_source_backed">Courbe de dose unique fondée sur une source</string>
+    <string name="journal_curve_source_backed_desc">Dérivée d’un profil pharmacodynamique publié du débit de perfusion de glucose. Il s’agit d’une moyenne de population, pas d’une prédiction personnalisée.</string>
+    <string name="journal_curve_steady_state">Profil à l’état d’équilibre fondé sur une source</string>
+    <string name="journal_curve_steady_state_desc">Mesuré après des doses répétées. Il est affiché à titre de référence et ne peut pas représenter l’action d’une seule dose.</string>
+    <string name="journal_curve_reference_only">Profil de référence fondé sur une source</string>
+    <string name="journal_curve_reference_only_desc">L’observation publiée ne contient pas la fin complète d’une dose unique, le calcul est donc désactivé.</string>
+    <string name="journal_curve_use_source">Utiliser la source</string>
+    <string name="journal_body_weight_title">Poids pour les courbes d’insuline</string>
+    <string name="journal_body_weight_desc">Utilisé uniquement pour sélectionner les profils d’activité officiels en dose par kilogramme. Les nouvelles doses conservent localement le poids utilisé.</string>
+    <string name="journal_body_weight_kg">Poids (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Non défini. Les courbes indexées sur le poids utilisent leur dose de référence.</string>
 </resources>

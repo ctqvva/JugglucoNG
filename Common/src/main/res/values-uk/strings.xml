@@ -2581,4 +2581,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значення</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значення + стрілка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значення + стрілка + час</string>
+    <string name="journal_curve_unverified">Неперевірена крива</string>
+    <string name="journal_curve_unverified_desc">Ця форма активності є оцінкою або користувацькою кривою і не пов’язана з повним фармакодинамічним джерелом.</string>
+    <string name="journal_curve_source_backed">Крива однієї дози на основі джерела</string>
+    <string name="journal_curve_source_backed_desc">Отримана з опублікованого фармакодинамічного профілю швидкості інфузії глюкози. Це середнє для популяції, а не персональний прогноз.</string>
+    <string name="journal_curve_steady_state">Профіль рівноважного стану на основі джерела</string>
+    <string name="journal_curve_steady_state_desc">Виміряний після повторного введення. Показаний для довідки й не може використовуватися як дія однієї дози.</string>
+    <string name="journal_curve_reference_only">Довідковий профіль на основі джерела</string>
+    <string name="journal_curve_reference_only_desc">Опубліковане спостереження не містить повного хвоста однієї дози, тому розрахунок вимкнено.</string>
+    <string name="journal_curve_use_source">Використати джерело</string>
+    <string name="journal_body_weight_title">Маса тіла для кривих інсуліну</string>
+    <string name="journal_body_weight_desc">Використовується лише для вибору офіційних профілів активності дози на кілограм. Нові дози зберігають локальний знімок використаної маси.</string>
+    <string name="journal_body_weight_kg">Маса (кг)</string>
+    <string name="journal_body_weight_value">%1$.1f кг</string>
+    <string name="journal_body_weight_not_set">Не задано. Криві, залежні від маси, використовують еталонну дозу.</string>
 </resources>

@@ -185,7 +185,7 @@ object OutboundApiJournalSnapshot {
             .takeLast(64)
             .forEach { entry -> events.put(entry.toTransferJson(presetEntitiesById, foodsById)) }
         return JSONObject()
-            .put("schema", "tk.glucodata.journal.snapshot.v2")
+            .put("schema", "tk.glucodata.journal.snapshot.v3")
             .put("timestamp", atMillis)
             .put("iob", finiteOrNull(insulin.iobUnits))
             .put("journal_iob", finiteOrNull(insulin.iobUnits))
@@ -332,6 +332,12 @@ object OutboundApiJournalSnapshot {
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt)
             .put("nsRemoteId", nsRemoteId)
+            .put("insulinCurveJsonSnapshot", insulinCurveJsonSnapshot)
+            .put("insulinCurveProfileId", insulinCurveProfileId)
+            .put("insulinCurveModelVersion", insulinCurveModelVersion)
+            .put("insulinCurveEvidence", insulinCurveEvidence)
+            .put("insulinBodyWeightKg", finiteOrNull(insulinBodyWeightKg))
+            .put("insulinCurveWasApproximated", insulinCurveWasApproximated)
     }
 
     private fun activeCarbsGrams(entries: List<JournalEntryEntity>, atMillis: Long): Float {
@@ -366,7 +372,10 @@ object OutboundApiJournalSnapshot {
             isArchived = entity.isArchived,
             countsTowardIob = entity.countsTowardIob,
             sortOrder = entity.sortOrder,
-            useForCalculation = entity.useForCalculation
+            useForCalculation = entity.useForCalculation,
+            curveProfileId = entity.curveProfileId,
+            curveModelVersion = entity.curveModelVersion,
+            curveEvidence = tk.glucodata.data.journal.JournalCurveEvidence.fromStorage(entity.curveEvidence)
         )
 
     private fun defaultEventType(type: JournalEntryType): String =

@@ -47,7 +47,8 @@ class JournalIobCalculatorTests {
         amount: Float?,
         presetId: Long? = 1L,
         entryType: String = "insulin",
-        timestamp: Long = doseTime
+        timestamp: Long = doseTime,
+        curveSnapshot: String? = null
     ) = JournalEntryEntity(
         id = 0,
         timestamp = timestamp,
@@ -63,14 +64,16 @@ class JournalIobCalculatorTests {
         source = "manual",
         sourceRecordId = null,
         createdAt = timestamp,
-        updatedAt = timestamp
+        updatedAt = timestamp,
+        insulinCurveJsonSnapshot = curveSnapshot
     )
 
     private fun model(
         amount: Float?,
         presetId: Long? = 1L,
         type: JournalEntryType = JournalEntryType.INSULIN,
-        timestamp: Long = doseTime
+        timestamp: Long = doseTime,
+        curveSnapshot: String? = null
     ) = JournalEntry(
         id = 0,
         timestamp = timestamp,
@@ -89,7 +92,8 @@ class JournalIobCalculatorTests {
         source = JournalEntrySource.MANUAL,
         sourceRecordId = null,
         createdAt = timestamp,
-        updatedAt = timestamp
+        updatedAt = timestamp,
+        insulinCurveJsonSnapshot = curveSnapshot
     )
 
     private fun minutes(min: Long) = min * 60_000L
@@ -198,6 +202,25 @@ class JournalIobCalculatorTests {
         val doses = JournalIobCalculator.dosesFromEntities(listOf(entity(10f)), presets)
         val result = JournalIobCalculator.compute(doses, doseTime)
         assertEquals(10f, result.iobUnits, 0.01f)
+    }
+
+    @Test
+    fun perDoseSnapshotWinsAfterPresetCurveChanges() {
+        val presets = mapOf(1L to trianglePreset())
+        val dose = entity(
+            amount = 10f,
+            curveSnapshot = "0:0;60:1;120:0"
+        )
+
+        val result = JournalIobCalculator.compute(
+            JournalIobCalculator.dosesFromEntities(listOf(dose), presets),
+            doseTime + minutes(60)
+        )
+
+        // The mutable preset ended at 60 minutes. The stored 120-minute dose
+        // curve is halfway through its area and must remain authoritative.
+        assertEquals(5f, result.iobUnits, 0.05f)
+        assertEquals(5f, result.eiobUnits, 0.05f)
     }
 
     @Test

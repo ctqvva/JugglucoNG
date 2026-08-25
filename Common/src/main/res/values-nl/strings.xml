@@ -2552,4 +2552,18 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucosechartvaluecomplicationlabel">Grafiek + waarde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafiek + waarde + pijl</string>
     <string name="glucosechartfullcomplicationlabel">Grafiek + waarde + pijl + tijd</string>
+    <string name="journal_curve_unverified">Niet-geverifieerde curve</string>
+    <string name="journal_curve_unverified_desc">Deze activiteitscurve is een schatting of aangepaste curve en is niet terug te voeren op een volledige farmacodynamische bron.</string>
+    <string name="journal_curve_source_backed">Brongebaseerde curve voor één dosis</string>
+    <string name="journal_curve_source_backed_desc">Afgeleid van een gepubliceerd farmacodynamisch glucose-infusiesnelheidsprofiel. Het is een populatiegemiddelde, geen persoonlijke voorspelling.</string>
+    <string name="journal_curve_steady_state">Brongebaseerd steady-stateprofiel</string>
+    <string name="journal_curve_steady_state_desc">Gemeten na herhaalde dosering. Het wordt als referentie getoond en kan niet als de werking van één dosis worden gebruikt.</string>
+    <string name="journal_curve_reference_only">Brongebaseerd referentieprofiel</string>
+    <string name="journal_curve_reference_only_desc">De gepubliceerde waarneming bevat geen volledige uitloop van één dosis, daarom is berekening uitgeschakeld.</string>
+    <string name="journal_curve_use_source">Bron gebruiken</string>
+    <string name="journal_body_weight_title">Lichaamsgewicht voor insulinecurven</string>
+    <string name="journal_body_weight_desc">Alleen gebruikt om officiële activiteitsprofielen per kilogram te selecteren. Nieuwe doses bewaren lokaal het gebruikte gewicht.</string>
+    <string name="journal_body_weight_kg">Gewicht (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Niet ingesteld. Gewichtsafhankelijke curven gebruiken hun referentiedosis.</string>
 </resources>

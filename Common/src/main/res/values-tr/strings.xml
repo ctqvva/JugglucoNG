@@ -2537,4 +2537,18 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="journal_curve_unverified">Doğrulanmamış eğri</string>
+    <string name="journal_curve_unverified_desc">Bu aktivite şekli bir tahmin veya özel eğridir ve eksiksiz bir farmakodinamik kaynağa dayanmamaktadır.</string>
+    <string name="journal_curve_source_backed">Kaynak destekli tek doz eğrisi</string>
+    <string name="journal_curve_source_backed_desc">Yayımlanmış bir farmakodinamik glikoz infüzyon hızı profilinden türetilmiştir. Kişiselleştirilmiş bir tahmin değil, popülasyon ortalamasıdır.</string>
+    <string name="journal_curve_steady_state">Kaynak destekli kararlı durum profili</string>
+    <string name="journal_curve_steady_state_desc">Tekrarlanan dozlardan sonra ölçülmüştür. Yalnızca referans için gösterilir ve tek dozun etkisi olarak kullanılamaz.</string>
+    <string name="journal_curve_reference_only">Kaynak destekli referans profili</string>
+    <string name="journal_curve_reference_only_desc">Yayımlanan gözlem tek dozun tam kuyruğunu içermediğinden hesaplama devre dışıdır.</string>
+    <string name="journal_curve_use_source">Kaynağı kullan</string>
+    <string name="journal_body_weight_title">İnsülin eğrileri için vücut ağırlığı</string>
+    <string name="journal_body_weight_desc">Yalnızca kilogram başına resmî aktivite profillerini seçmek için kullanılır. Yeni dozlar kullanılan ağırlığın yerel anlık görüntüsünü saklar.</string>
+    <string name="journal_body_weight_kg">Ağırlık (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Ayarlanmadı. Ağırlığa bağlı eğriler referans dozu kullanır.</string>
 </resources>

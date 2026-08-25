@@ -249,17 +249,23 @@ fun buildJournalChartMarkers(
             chartYFraction = chartYFraction,
             durationMinutes = entry.durationMinutes,
             curvePoints = if (entry.type == JournalEntryType.INSULIN && preset != null) {
-                preset.curvePoints
+                val snapshot = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
+                if (snapshot.size >= 2) snapshot else preset.curvePoints
             } else {
                 emptyList()
             },
             activeStartMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
-                preset.activeStartAt(entry.timestamp)
+                val snapshot = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
+                val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
+                val startMinute = points.firstOrNull { it.activity > 0.01f }?.minute ?: 0
+                entry.timestamp + (startMinute.coerceAtLeast(0) * 60_000L)
             } else {
                 null
             },
             activeEndMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
-                preset.activeEndAt(entry.timestamp)
+                val snapshot = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
+                val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
+                entry.timestamp + ((points.lastOrNull()?.minute ?: 0).coerceAtLeast(0) * 60_000L)
             } else if (entry.type == JournalEntryType.ACTIVITY && entry.durationMinutes != null) {
                 entry.timestamp + (entry.durationMinutes.coerceAtLeast(1) * 60_000L)
             } else if (entry.type == JournalEntryType.CARBS && entry.durationMinutes != null) {

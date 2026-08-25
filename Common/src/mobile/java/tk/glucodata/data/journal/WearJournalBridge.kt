@@ -152,22 +152,33 @@ object WearJournalBridge {
         entries: List<JournalEntry>,
         presets: List<JournalInsulinPreset>,
     ): ByteArray {
+        val presetsById = presets.associateBy { it.id }
         val encodedEntries = entries.map { entry ->
             val title = entry.title.toByteArray(StandardCharsets.UTF_8).let {
                 if (it.size <= MAX_TITLE_BYTES) it else it.copyOf(MAX_TITLE_BYTES)
             }
-            Triple(entry, title, wireTypeOf(entry.type))
+            val snapshot = parseJournalCurve(entry.insulinCurveJsonSnapshot)
+                .take(MAX_CURVE_POINTS)
+            val fallback = entry.insulinPresetId
+                ?.let(presetsById::get)
+                ?.let(::curvePointsOf)
+                .orEmpty()
+            EncodedEntry(
+                entry = entry,
+                title = title,
+                wireType = wireTypeOf(entry.type),
+                curve = if (snapshot.size >= 2) snapshot else fallback
+            )
         }
         val encodedPresets = presets.map { preset ->
             preset to preset.displayName.toByteArray(StandardCharsets.UTF_8).let {
                 if (it.size <= MAX_TITLE_BYTES) it else it.copyOf(MAX_TITLE_BYTES)
             }
         }
-        // v2 adds the preset id per entry and each preset's activity curve, so
-        // the watch can model insulin on board instead of predicting as though
-        // a dose never happened.
+        // v3 adds the immutable resolved curve per entry. The preset curve is
+        // retained for v2 fallback and for watch entries awaiting phone sync.
         val size = 1 + 1 + 2 +
-            encodedEntries.sumOf { 8 + 8 + 1 + 4 + 1 + it.second.size + 8 } +
+            encodedEntries.sumOf { 8 + 8 + 1 + 4 + 1 + it.title.size + 8 + 1 + it.curve.size * 6 } +
             2 + encodedPresets.sumOf {
                 8 + 4 + 1 + it.second.size + 1 + curvePointsOf(it.first).size * 6
             }
@@ -175,14 +186,20 @@ object WearJournalBridge {
         buffer.put(WearJournalSync.VERSION.toByte())
         buffer.put(1)
         buffer.putShort(encodedEntries.size.toShort())
-        encodedEntries.forEach { (entry, title, wireType) ->
+        encodedEntries.forEach { encoded ->
+            val entry = encoded.entry
             buffer.putLong(entry.timestamp)
             buffer.putLong(entry.id)
-            buffer.put(wireType.toByte())
+            buffer.put(encoded.wireType.toByte())
             buffer.putFloat(entry.amount ?: Float.NaN)
-            buffer.put(title.size.toByte())
-            buffer.put(title)
+            buffer.put(encoded.title.size.toByte())
+            buffer.put(encoded.title)
             buffer.putLong(entry.insulinPresetId ?: 0L)
+            buffer.put(encoded.curve.size.toByte())
+            encoded.curve.forEach { point ->
+                buffer.putShort(point.minute.coerceIn(0, 0xFFFF).toShort())
+                buffer.putFloat(point.activity)
+            }
         }
         buffer.putShort(encodedPresets.size.toShort())
         encodedPresets.forEach { (preset, name) ->
@@ -199,4 +216,11 @@ object WearJournalBridge {
         }
         return buffer.array()
     }
+
+    private data class EncodedEntry(
+        val entry: JournalEntry,
+        val title: ByteArray,
+        val wireType: Int,
+        val curve: List<JournalCurvePoint>
+    )
 }

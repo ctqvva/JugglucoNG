@@ -2576,4 +2576,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <string name="journal_curve_unverified">Неправераная крывая</string>
+    <string name="journal_curve_unverified_desc">Гэтая форма актыўнасці з’яўляецца ацэнкай або карыстальніцкай крывой і не звязана з поўнай фармакадынамічнай крыніцай.</string>
+    <string name="journal_curve_source_backed">Крывая адной дозы з крыніцай</string>
+    <string name="journal_curve_source_backed_desc">Атрымана з апублікаванага фармакадынамічнага профілю хуткасці інфузіі глюкозы. Гэта сярэдняе для папуляцыі, а не персанальны прагноз.</string>
+    <string name="journal_curve_steady_state">Профіль раўнаважнага стану з крыніцай</string>
+    <string name="journal_curve_steady_state_desc">Вымераны пасля паўторнага дазавання. Паказваецца толькі для даведкі і не можа выкарыстоўвацца як дзеянне адной дозы.</string>
+    <string name="journal_curve_reference_only">Даведачны профіль з крыніцай</string>
+    <string name="journal_curve_reference_only_desc">Апублікаванае назіранне не змяшчае поўнага хваста адной дозы, таму разлік адключаны.</string>
+    <string name="journal_curve_use_source">Выкарыстаць крыніцу</string>
+    <string name="journal_body_weight_title">Маса цела для крывых інсуліну</string>
+    <string name="journal_body_weight_desc">Выкарыстоўваецца толькі для выбару афіцыйных профіляў актыўнасці на кілаграм. Новыя дозы захоўваюць лакальны здымак выкарыстанай масы.</string>
+    <string name="journal_body_weight_kg">Маса (кг)</string>
+    <string name="journal_body_weight_value">%1$.1f кг</string>
+    <string name="journal_body_weight_not_set">Не зададзена. Крывыя, залежныя ад масы, выкарыстоўваюць эталонную дозу.</string>
 </resources>
