@@ -156,6 +156,9 @@ import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.StateDoseHint
 import tk.glucodata.data.prediction.StateDoseHintCalculator
+import tk.glucodata.data.prediction.StateDoseHintContinuity
+import tk.glucodata.data.prediction.StateDoseHintDisplaySnapshot
+import tk.glucodata.data.prediction.StateDoseHintEvaluation
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
@@ -486,7 +489,7 @@ fun DashboardScreen(
     // Read off the current state, not off the far end of the forecast: the hint answers
     // "what does the value need right now", which is a question the last point of a curve
     // several hours out cannot answer.
-    val stateDoseHint: StateDoseHint? = remember(
+    val stateDoseHintEvaluation = remember(
         stateDoseHintEnabled,
         stateDoseHintHorizonMinutes,
         stateDoseHintCorrectInRange,
@@ -501,9 +504,9 @@ fun DashboardScreen(
     ) {
         val summary = activeInsulinSummary
         if (!stateDoseHintEnabled || !journalEnabled || summary == null) {
-            null
+            StateDoseHintEvaluation.Complete(null, 0L, null)
         } else {
-            StateDoseHintCalculator.calculate(
+            StateDoseHintCalculator.evaluate(
                 history = consumerHistory,
                 unit = unit,
                 targetHighDisplay = targetHigh,
@@ -516,6 +519,43 @@ fun DashboardScreen(
                 nowMillis = journalNow,
                 maxReadingAgeMillis = Notify.glucosetimeout
             )
+        }
+    }
+    var retainedDoseHint by remember { mutableStateOf<StateDoseHintDisplaySnapshot?>(null) }
+    val canRetainDoseHint = stateDoseHintEvaluation is StateDoseHintEvaluation.Incomplete &&
+        StateDoseHintContinuity.canRetain(
+            previous = retainedDoseHint,
+            incomplete = stateDoseHintEvaluation,
+            nowMillis = journalNow,
+            maxReadingAgeMillis = Notify.glucosetimeout
+        )
+    val stateDoseHint: StateDoseHint? = when (val evaluation = stateDoseHintEvaluation) {
+        is StateDoseHintEvaluation.Complete -> evaluation.hint
+        is StateDoseHintEvaluation.Incomplete -> retainedDoseHint?.hint.takeIf { canRetainDoseHint }
+    }
+    LaunchedEffect(stateDoseHintEvaluation, canRetainDoseHint) {
+        when (val evaluation = stateDoseHintEvaluation) {
+            is StateDoseHintEvaluation.Complete -> {
+                retainedDoseHint = evaluation.hint?.let { hint ->
+                    StateDoseHintDisplaySnapshot(
+                        hint = hint,
+                        latestTimestamp = evaluation.latestTimestamp,
+                        sensorSerial = evaluation.sensorSerial
+                    )
+                }
+            }
+            is StateDoseHintEvaluation.Incomplete -> {
+                if (!canRetainDoseHint) {
+                    retainedDoseHint = null
+                } else {
+                    android.util.Log.d(
+                        "StateDoseHint",
+                        "Holding previous hint during incomplete history snapshot"
+                    )
+                    delay(StateDoseHintContinuity.INCOMPLETE_HOLD_MILLIS)
+                    retainedDoseHint = null
+                }
+            }
         }
     }
     val predictionSeries = remember(

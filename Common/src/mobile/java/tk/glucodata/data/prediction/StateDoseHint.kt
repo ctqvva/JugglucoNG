@@ -29,6 +29,50 @@ data class StateDoseHint(
 )
 
 /**
+ * A complete evaluation can legitimately contain no hint. [Incomplete] is narrower: a
+ * fresh reading exists, but the current history snapshot cannot yet form the trend needed
+ * to decide. Keeping those states distinct prevents a transient Room refresh from looking
+ * like a treatment decision changed.
+ */
+sealed interface StateDoseHintEvaluation {
+    data class Complete(
+        val hint: StateDoseHint?,
+        val latestTimestamp: Long,
+        val sensorSerial: String?
+    ) : StateDoseHintEvaluation
+
+    data class Incomplete(
+        val latestTimestamp: Long?,
+        val sensorSerial: String?
+    ) : StateDoseHintEvaluation
+}
+
+/** The last complete hint and the reading identity that produced it. */
+data class StateDoseHintDisplaySnapshot(
+    val hint: StateDoseHint,
+    val latestTimestamp: Long,
+    val sensorSerial: String?
+)
+
+object StateDoseHintContinuity {
+    /** Long enough to bridge a Room update burst, short enough not to mask missing data. */
+    const val INCOMPLETE_HOLD_MILLIS = 5_000L
+
+    fun canRetain(
+        previous: StateDoseHintDisplaySnapshot?,
+        incomplete: StateDoseHintEvaluation.Incomplete,
+        nowMillis: Long,
+        maxReadingAgeMillis: Long
+    ): Boolean {
+        val retained = previous ?: return false
+        val latestTimestamp = incomplete.latestTimestamp ?: return false
+        if (retained.sensorSerial != incomplete.sensorSerial) return false
+        if (latestTimestamp < retained.latestTimestamp) return false
+        return nowMillis - latestTimestamp in 0..maxReadingAgeMillis
+    }
+}
+
+/**
  * A dose hint read off the **current** state rather than off the far end of the forecast
  * curve.
  *
@@ -136,37 +180,72 @@ object StateDoseHintCalculator {
         correctInRange: Boolean,
         nowMillis: Long,
         maxReadingAgeMillis: Long
-    ): StateDoseHint? {
+    ): StateDoseHint? = when (val evaluation = evaluate(
+        history = history,
+        unit = unit,
+        targetHighDisplay = targetHighDisplay,
+        doseTargetMgDl = doseTargetMgDl,
+        iobUnits = iobUnits,
+        eiobUnits = eiobUnits,
+        parameters = parameters,
+        horizonMinutes = horizonMinutes,
+        correctInRange = correctInRange,
+        nowMillis = nowMillis,
+        maxReadingAgeMillis = maxReadingAgeMillis
+    )) {
+        is StateDoseHintEvaluation.Complete -> evaluation.hint
+        is StateDoseHintEvaluation.Incomplete -> null
+    }
+
+    fun evaluate(
+        history: List<GlucosePoint>,
+        unit: String,
+        targetHighDisplay: Float,
+        doseTargetMgDl: Float,
+        iobUnits: Float,
+        eiobUnits: Float,
+        parameters: PredictionModelParameters,
+        horizonMinutes: Int,
+        correctInRange: Boolean,
+        nowMillis: Long,
+        maxReadingAgeMillis: Long
+    ): StateDoseHintEvaluation {
         val latest = history.lastOrNull { it.timestamp > 0L && it.value.isFinite() && it.value > 0.1f }
-            ?: return null
-        if (nowMillis - latest.timestamp !in 0..maxReadingAgeMillis) return null
+            ?: return StateDoseHintEvaluation.Incomplete(null, null)
+        fun complete(hint: StateDoseHint?) = StateDoseHintEvaluation.Complete(
+            hint = hint,
+            latestTimestamp = latest.timestamp,
+            sensorSerial = latest.sensorSerial
+        )
+        if (nowMillis - latest.timestamp !in 0..maxReadingAgeMillis) return complete(null)
 
         val isMmol = GlucoseFormatter.isMmol(unit)
         fun mgDl(value: Float) = if (isMmol) GlucoseFormatter.mmolToMg(value) else value
 
-        val target = doseTargetMgDl.takeIf { it.isFinite() && it > 0f } ?: return null
+        val target = doseTargetMgDl.takeIf { it.isFinite() && it > 0f } ?: return complete(null)
         val sensitivity = parameters.insulinSensitivityMgDlPerUnit
             .takeIf { it.isFinite() && it > 0f }
-            ?: return null
+            ?: return complete(null)
         val currentMgDl = mgDl(latest.value)
 
         // Hysteresis: around the target the state has no direction worth acting on, and
         // this is where the old suggestion flipped its sign between two readings.
-        if (abs(currentMgDl - target) <= HYSTERESIS_MGDL) return null
+        if (abs(currentMgDl - target) <= HYSTERESIS_MGDL) return complete(null)
 
         // Nonsense in, nothing out. How much insulin on board each case needs is the
         // case's own question, and they do not answer it the same way.
-        val iob = iobUnits.takeIf { it.isFinite() && it >= 0f } ?: return null
+        val iob = iobUnits.takeIf { it.isFinite() && it >= 0f } ?: return complete(null)
 
-        val trend = trend(history, latest.timestamp, ::mgDl) ?: return null
+        val trend = trend(history, latest.timestamp, ::mgDl)
+            ?: return StateDoseHintEvaluation.Incomplete(latest.timestamp, latest.sensorSerial)
 
         if (trend.slopeMgDlPerMinute <= -FALL_FLOOR_MGDL_PER_MINUTE) {
             // The long fit deliberately smooths noise, but it must never overrule a measured
             // five-minute rise and recommend carbs in the opposite direction.
-            if (risingOverFiveMinutes(history, latest)) return null
-            return carbs(currentMgDl, target, sensitivity, iob, trend, parameters, horizonMinutes)
+            if (risingOverFiveMinutes(history, latest)) return complete(null)
+            return complete(carbs(currentMgDl, target, sensitivity, iob, trend, parameters, horizonMinutes))
         }
-        return insulin(
+        return complete(insulin(
             currentMgDl = currentMgDl,
             highMgDl = mgDl(targetHighDisplay),
             target = target,
@@ -175,7 +254,7 @@ object StateDoseHintCalculator {
             eiobUnits = eiobUnits,
             trend = trend,
             correctInRange = correctInRange
-        )
+        ))
     }
 
     /**

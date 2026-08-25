@@ -1,6 +1,7 @@
 package tk.glucodata.data.prediction
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -91,6 +92,24 @@ class StateDoseHintTests {
         maxReadingAgeMillis = maxAge
     )
 
+    private fun evaluation(
+        history: List<GlucosePoint>,
+        iobUnits: Float = 1.8f,
+        nowMillis: Long = now
+    ) = StateDoseHintCalculator.evaluate(
+        history = history,
+        unit = "mg/dL",
+        targetHighDisplay = 180f,
+        doseTargetMgDl = 105f,
+        iobUnits = iobUnits,
+        eiobUnits = 0.6f,
+        parameters = fieldParameters,
+        horizonMinutes = 45,
+        correctInRange = true,
+        nowMillis = nowMillis,
+        maxReadingAgeMillis = maxAge
+    )
+
     @Test
     fun theFieldCaseSaysNothingAndNeverChangesSign() {
         // 22:51 — 211 mg/dL rising, IoB 4.6 U at eIoB 2.5 U. The gap to the target is
@@ -118,6 +137,75 @@ class StateDoseHintTests {
         assertEquals(6f, result.amount, 0.001f)
         assertEquals(32, result.minutesAhead)
         assertEquals(105f, result.targetMgDl, 0.001f)
+    }
+
+    @Test
+    fun freshIncompleteRefreshCanKeepTheLastCompatibleHint() {
+        val stableHistory = history(endValue = 154f, slopePerMinute = -1.53125f)
+        val first = evaluation(stableHistory)
+        assertTrue(first is StateDoseHintEvaluation.Complete)
+        val complete = first as StateDoseHintEvaluation.Complete
+        assertNotNull(complete.hint)
+        val retained = StateDoseHintDisplaySnapshot(
+            hint = complete.hint!!,
+            latestTimestamp = complete.latestTimestamp,
+            sensorSerial = complete.sensorSerial
+        )
+
+        val middle = evaluation(stableHistory.takeLast(2))
+        assertTrue(middle is StateDoseHintEvaluation.Incomplete)
+        assertTrue(
+            StateDoseHintContinuity.canRetain(
+                previous = retained,
+                incomplete = middle as StateDoseHintEvaluation.Incomplete,
+                nowMillis = now,
+                maxReadingAgeMillis = maxAge
+            )
+        )
+
+        val restored = evaluation(stableHistory)
+        assertTrue(restored is StateDoseHintEvaluation.Complete)
+        assertEquals(complete.hint, (restored as StateDoseHintEvaluation.Complete).hint)
+    }
+
+    @Test
+    fun completeNoHintClearsInsteadOfUsingContinuity() {
+        val result = evaluation(history(endValue = 105f, slopePerMinute = 0f))
+        assertTrue(result is StateDoseHintEvaluation.Complete)
+        assertNull((result as StateDoseHintEvaluation.Complete).hint)
+    }
+
+    @Test
+    fun incompleteRefreshCannotCarryAHintAcrossSensorsOrStaleData() {
+        val retained = StateDoseHintDisplaySnapshot(
+            hint = StateDoseHint(StateDoseHintKind.CARBS, 10f, 105f, 20),
+            latestTimestamp = now - minute,
+            sensorSerial = "sensor-a"
+        )
+        assertFalse(
+            StateDoseHintContinuity.canRetain(
+                previous = retained,
+                incomplete = StateDoseHintEvaluation.Incomplete(now, "sensor-b"),
+                nowMillis = now,
+                maxReadingAgeMillis = maxAge
+            )
+        )
+        assertFalse(
+            StateDoseHintContinuity.canRetain(
+                previous = retained,
+                incomplete = StateDoseHintEvaluation.Incomplete(now - maxAge - minute, "sensor-a"),
+                nowMillis = now,
+                maxReadingAgeMillis = maxAge
+            )
+        )
+        assertFalse(
+            StateDoseHintContinuity.canRetain(
+                previous = retained,
+                incomplete = StateDoseHintEvaluation.Incomplete(now - (2 * minute), "sensor-a"),
+                nowMillis = now,
+                maxReadingAgeMillis = maxAge
+            )
+        )
     }
 
     @Test
