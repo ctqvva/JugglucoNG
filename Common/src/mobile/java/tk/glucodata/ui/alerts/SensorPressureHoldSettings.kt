@@ -94,31 +94,27 @@ internal fun SensorPressureHoldCard(
                 Column(
                     Modifier
                         .weight(1f)
-                        .clickable { cardExpanded = !cardExpanded }
+                        .clickable { cardExpanded = !cardExpanded },
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // The title is the flexible one and the badge keeps its intrinsic
-                    // width: a long translation has to push the title onto a second
-                    // line, never squeeze "Experimentell" into a column of letters.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Give translated titles the full text column. The badge sits on
+                    // its own line so neither label has to compete for horizontal room.
+                    Text(
+                        stringResource(R.string.sensor_pressure_hold_section_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2
+                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = MaterialTheme.shapes.small
+                    ) {
                         Text(
-                            stringResource(R.string.sensor_pressure_hold_section_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 2,
-                            modifier = Modifier.weight(1f, fill = false)
+                            stringResource(R.string.experimental_badge),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                stringResource(R.string.experimental_badge),
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
                     }
                     Text(
                         stringResource(R.string.sensor_pressure_hold_optin_title),
@@ -127,6 +123,17 @@ internal fun SensorPressureHoldCard(
                         maxLines = 2
                     )
                 }
+                Icon(
+                    if (cardExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = stringResource(
+                        if (cardExpanded) R.string.sensor_pressure_hold_collapse
+                        else R.string.sensor_pressure_hold_expand
+                    ),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { cardExpanded = !cardExpanded }
+                )
+                Spacer(Modifier.width(16.dp))
                 Switch(
                     checked = optedIn && !selfDisabled,
                     onCheckedChange = { enabled ->
@@ -137,17 +144,6 @@ internal fun SensorPressureHoldCard(
                         selfDisabled = false
                         if (enabled) cardExpanded = true
                     }
-                )
-                Icon(
-                    if (cardExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = stringResource(
-                        if (cardExpanded) R.string.sensor_pressure_hold_collapse
-                        else R.string.sensor_pressure_hold_expand
-                    ),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .size(24.dp)
-                        .clickable { cardExpanded = !cardExpanded }
                 )
             }
             if (selfDisabled) {
