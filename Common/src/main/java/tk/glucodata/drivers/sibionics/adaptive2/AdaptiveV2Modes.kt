@@ -26,6 +26,45 @@ internal enum class AdaptiveV2Mode {
 }
 
 /**
+ * Evidence that the current sample is more likely to be a sensor artifact than
+ * a glucose movement, expressed as a shift in the mode prior.
+ *
+ * This is the seam for a future learned artifact detector. Everything the IMM
+ * needs from such a model is a single number in [0,1] per sample; nothing in
+ * the filter knows or cares how it was produced. A learned implementation would
+ * replace [TelemetryArtifactPrior] and change nothing else — no state, no
+ * observation model, no serialisation.
+ *
+ * Deliberately not added here: any learned model at all. There is no training
+ * dataset with labelled compression events for this sensor, and a detector
+ * fitted to a handful of hand-picked traces would be worse than the telemetry
+ * rule it replaced while looking far more authoritative.
+ */
+internal fun interface AdaptiveV2ArtifactPrior {
+    /**
+     * @return additional prior mass to move into the artifact mode, in [0,1].
+     *   Zero leaves the base transition matrix untouched.
+     */
+    fun artifactEvidence(impedanceDisturbance: Float, vendorArtifactHint: Float): Float
+}
+
+/**
+ * The shipped prior: front-end telemetry only.
+ *
+ * A resistance step and a vendor quality flag are the two signals that
+ * genuinely carry information about the sensor rather than about glucose.
+ */
+internal object TelemetryArtifactPrior : AdaptiveV2ArtifactPrior {
+    override fun artifactEvidence(impedanceDisturbance: Float, vendorArtifactHint: Float): Float =
+        (impedanceDisturbance * IMPEDANCE_WEIGHT + vendorArtifactHint * VENDOR_WEIGHT)
+            .coerceIn(0f, MAX_EVIDENCE)
+
+    private const val IMPEDANCE_WEIGHT = 0.22f
+    private const val VENDOR_WEIGHT = 0.30f
+    private const val MAX_EVIDENCE = 0.40f
+}
+
+/**
  * Per-mode process noise and mode-transition behaviour.
  *
  * Every value below is a variance *per minute*; [processNoise] scales them by
@@ -33,6 +72,9 @@ internal enum class AdaptiveV2Mode {
  * whether it arrives as one long step or several short ones.
  */
 internal object AdaptiveV2ModeModel {
+    /** Swappable for a learned detector; see [AdaptiveV2ArtifactPrior]. */
+    var artifactPrior: AdaptiveV2ArtifactPrior = TelemetryArtifactPrior
+
     /**
      * Diagonal process noise per mode, in (unit)²/min.
      *
@@ -124,8 +166,10 @@ internal object AdaptiveV2ModeModel {
     ) {
         val base = TRANSITION[from.ordinal]
         base.copyInto(out)
-        val boost = (impedanceDisturbance * IMPEDANCE_ARTIFACT_BOOST +
-            vendorArtifactHint * VENDOR_ARTIFACT_BOOST).coerceIn(0.0f, MAX_ARTIFACT_BOOST).toDouble()
+        val boost = artifactPrior
+            .artifactEvidence(impedanceDisturbance, vendorArtifactHint)
+            .coerceIn(0f, 1f)
+            .toDouble()
         if (boost <= 0.0) return
         // Move mass into the artifact column, taken proportionally from the
         // others so the row stays a distribution.
@@ -140,8 +184,5 @@ internal object AdaptiveV2ModeModel {
         out[artifactIndex] += transferred
     }
 
-    private const val IMPEDANCE_ARTIFACT_BOOST = 0.22f
-    private const val VENDOR_ARTIFACT_BOOST = 0.30f
-    private const val MAX_ARTIFACT_BOOST = 0.40f
     private const val MAX_TRANSFER_FRACTION = 0.85
 }
