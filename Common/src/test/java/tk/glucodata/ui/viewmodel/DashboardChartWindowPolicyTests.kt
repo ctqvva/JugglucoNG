@@ -1,6 +1,7 @@
 package tk.glucodata.ui.viewmodel
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -83,5 +84,70 @@ class DashboardChartWindowPolicyTests {
         )
 
         assertTrue("start was ${query.startMs}", query.startMs >= 0L)
+    }
+}
+
+/**
+ * The escape hatch for the failure bounding the query introduced: a store whose
+ * newest reading predates the visible window would otherwise render nothing, and
+ * stay that way, because an empty chart never scrolls to the data.
+ */
+class DashboardHistoryWindowFallbackTests {
+    private companion object {
+        const val HOUR_MS = 60L * 60L * 1000L
+        const val NOW = 1_700_000_000_000L
+    }
+
+    @Test
+    fun dataInsideTheWindowDoesNotTriggerTheFallback() {
+        assertFalse(
+            tk.glucodata.data.DashboardHistoryWindowPolicy.shouldUseOldTailFallback(
+                latestTimestamp = NOW - HOUR_MS,
+                windowStartMs = NOW - 3 * HOUR_MS
+            )
+        )
+    }
+
+    @Test
+    fun anExpiredSensorsOlderTailTriggersTheFallback() {
+        assertTrue(
+            tk.glucodata.data.DashboardHistoryWindowPolicy.shouldUseOldTailFallback(
+                latestTimestamp = NOW - 10L * 24L * HOUR_MS,
+                windowStartMs = NOW - 3 * HOUR_MS
+            )
+        )
+    }
+
+    @Test
+    fun anEmptyStoreDoesNotTriggerTheFallback() {
+        // Nothing stored at all is the "waiting for data" state, not an old tail.
+        assertFalse(
+            tk.glucodata.data.DashboardHistoryWindowPolicy.shouldUseOldTailFallback(
+                latestTimestamp = 0L,
+                windowStartMs = NOW - 3 * HOUR_MS
+            )
+        )
+    }
+
+    @Test
+    fun theFallbackWindowEndsAtTheNewestStoredReadingAndKeepsTheSpan() {
+        val latest = NOW - 10L * 24L * HOUR_MS
+        val (start, end) = tk.glucodata.data.DashboardHistoryWindowPolicy.fallbackWindow(
+            latestTimestamp = latest,
+            windowSpanMs = 3 * HOUR_MS
+        )
+
+        assertEquals(latest, end)
+        assertEquals(latest - 3 * HOUR_MS, start)
+    }
+
+    @Test
+    fun theFallbackWindowStaysBoundedEvenForADegenerateSpan() {
+        val (start, end) = tk.glucodata.data.DashboardHistoryWindowPolicy.fallbackWindow(
+            latestTimestamp = NOW,
+            windowSpanMs = 0L
+        )
+
+        assertTrue("span was ${end - start}", (end - start) >= HOUR_MS)
     }
 }

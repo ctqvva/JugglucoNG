@@ -27,6 +27,26 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  * queries use that same sensor's Room history directly so the dashboard never switches to a
  * broad merged timeline just because older data is visible.
  */
+/**
+ * What the dashboard shows when the visible window turns out to be empty.
+ *
+ * The unbounded query could not have this problem: it always returned whatever
+ * existed. A bounded one can, and the failure is self-sustaining — no data means
+ * the chart never scrolls to the data, which means the window never moves to
+ * where the data is. This is the escape hatch, and it only ever fires when the
+ * store's newest reading is genuinely older than the window being asked for.
+ */
+internal object DashboardHistoryWindowPolicy {
+    fun shouldUseOldTailFallback(latestTimestamp: Long, windowStartMs: Long): Boolean =
+        latestTimestamp > 0L && latestTimestamp < windowStartMs
+
+    /** A window of the same span, ending just after the newest stored reading. */
+    fun fallbackWindow(latestTimestamp: Long, windowSpanMs: Long): Pair<Long, Long> {
+        val span = windowSpanMs.coerceAtLeast(60L * 60L * 1000L)
+        return (latestTimestamp - span).coerceAtLeast(0L) to latestTimestamp
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class GlucoseRepository {
     
@@ -343,7 +363,45 @@ class GlucoseRepository {
                 }
                 historyRepository
                     .getDisplayHistoryFlowInWindow(preferredSerial, startTime, endTime)
-                    .collect { points -> send(points) }
+                    .collectLatest { points ->
+                        if (points.isNotEmpty()) {
+                            send(points)
+                            return@collectLatest
+                        }
+
+                        // Bounding the query introduced a way to render nothing:
+                        // if every stored reading predates the window — an expired
+                        // sensor, a store being reviewed offline — the chart has no
+                        // data, so it never auto-scrolls to the data, so the window
+                        // never moves. Anchor to the newest thing actually stored
+                        // and let the chart take it from there.
+                        val latestTimestamp = historyRepository.getLatestTimestamp()
+                        if (!DashboardHistoryWindowPolicy.shouldUseOldTailFallback(
+                                latestTimestamp = latestTimestamp,
+                                windowStartMs = startTime
+                            )
+                        ) {
+                            send(points)
+                            return@collectLatest
+                        }
+
+                        val fallback = DashboardHistoryWindowPolicy.fallbackWindow(
+                            latestTimestamp = latestTimestamp,
+                            windowSpanMs = endTime - startTime
+                        )
+                        BatteryTrace.bump(
+                            key = "dashboard.history.old_tail",
+                            logEvery = 20L,
+                            detail = "serial=$preferredSerial latest=$latestTimestamp start=${fallback.first}"
+                        )
+                        historyRepository
+                            .getDisplayHistoryFlowInWindow(
+                                preferredSerial,
+                                fallback.first,
+                                fallback.second
+                            )
+                            .collect { fallbackPoints -> send(fallbackPoints) }
+                    }
             }
         }
     }
