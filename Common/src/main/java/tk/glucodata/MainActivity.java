@@ -1065,10 +1065,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if (doLog) {
             Log.i(LOG_ID, "onPause");
         }
-        // Diagnostic: backgrounding is a natural boundary to dump the accumulated
-        // per-reading timers, so a captured trace ends with the totals in it.
-        BatteryTrace.reportTimings();
-        MainThreadWatchdog.report();
         ;
         if (mNfcAdapter != null) {
             try {

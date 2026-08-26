@@ -1007,20 +1007,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
     @Override
     public void onCreate() {
         super.onCreate();
-        // Diagnostic: names the message behind a multi-second main-thread stall,
-        // which Choreographer/Davey report but never attribute.
-        MainThreadWatchdog.install();
-        // Diagnostic: multi-second main-thread dispatches with no composition look
-        // like blocking I/O. penaltyLog gives a stack trace per violation, which is
-        // the part a timer cannot supply. Log only, never penaltyDeath.
-        android.os.StrictMode.setThreadPolicy(
-                new android.os.StrictMode.ThreadPolicy.Builder()
-                        .detectDiskReads()
-                        .detectDiskWrites()
-                        .detectCustomSlowCalls()
-                        .detectNetwork()
-                        .penaltyLog()
-                        .build());
         enlargeCursorWindow();
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {

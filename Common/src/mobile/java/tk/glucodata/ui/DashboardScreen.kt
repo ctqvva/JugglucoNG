@@ -284,7 +284,6 @@ fun DashboardScreen(
     onNavigateToAppUpdates: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
-    tk.glucodata.BatteryTrace.bump("compose.DashboardScreen", logEvery = 100L)
     // Read once here: the LazyColumns below use Arrangement.spacedBy, which reserves its gap
     // around an item even when that item renders nothing. An always-emitted banner item would
     // push the whole dashboard down by one gap whenever there is no update to announce.

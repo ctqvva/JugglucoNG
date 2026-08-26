@@ -321,7 +321,6 @@ object CalibrationManager {
             integratedContextCache.clear()
         }
         Log.d(TAG, "Calibration cache invalidated: $reason")
-        tk.glucodata.BatteryTrace.bump("calib.invalidate", logEvery = 1L, detail = reason)
         runCatching {
             tk.glucodata.drivers.ManagedSensorRuntime.notifyUserCalibrationRevisionChanged(calibrationRevision)
         }
@@ -1615,13 +1614,8 @@ object CalibrationManager {
         val resolvedSensor = resolveSensorId(sensorIdOverride)
         val cacheKey = IntegratedContextCacheKey(resolvedSensor, isRawMode, calibrationRevision, Applic.unit)
         val baselineKey = IntegratedBaselineCacheKey(resolvedSensor, isRawMode, Applic.unit)
-        val contextStartNs = System.nanoTime()
         val storedContext = resolveCalibrationContext(isRawMode, resolvedSensor)
-        tk.glucodata.BatteryTrace.record(
-            "calib.resolveContext.$resolvedSensor",
-            System.nanoTime() - contextStartNs,
-        )
-        if (storedContext == null) return values.copyOf()
+            ?: return values.copyOf()
         val context = if (samples.size > 1) {
             val baseline = integratedBaselineSamples(storedContext, samples)
             if (baseline.isNotEmpty()) synchronized(integratedBaselineCache) {
