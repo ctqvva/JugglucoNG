@@ -730,6 +730,14 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="system_default_sound">System-Standardton</string>
     <string name="tap_to_change">Zum Ändern tippen</string>
     <string name="threshold_label">Schwelle</string>
+    <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
+    <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
+    <string name="pre_high_iob_coverage_label">Insulindeckung</string>
+    <string name="alert_feature_off">Aus</string>
+    <string name="fall_rate_slanting_down">leicht fallend</string>
+    <string name="fall_rate_falling">fallend</string>
+    <string name="fall_rate_falling_fast">stark fallend</string>
+    <string name="persistent_high_fall_suppress_label">Stumm bei Abfall</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Lautstärke-/Vibrationsprofil</string>
     <string name="ICE">ICE</string>

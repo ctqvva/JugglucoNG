@@ -714,6 +714,14 @@
     <string name="system_default_sound">Domyslny dzwiek systemu</string>
     <string name="tap_to_change">Dotknij, aby zmienic</string>
     <string name="threshold_label">Prog</string>
+    <string name="rearm_margin_label">Margines ponownego alarmu</string>
+    <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
+    <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
+    <string name="alert_feature_off">Wył.</string>
+    <string name="fall_rate_slanting_down">lekko opada</string>
+    <string name="fall_rate_falling">opada</string>
+    <string name="fall_rate_falling_fast">szybko opada</string>
+    <string name="persistent_high_fall_suppress_label">Wycisz przy spadku</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil glosnosci/wibracji</string>
     <string name="ICE">ICE</string>

@@ -758,6 +758,14 @@
     <string name="system_default_sound">Системный звук по умолчанию</string>
     <string name="tap_to_change">Нажмите, чтобы изменить</string>
     <string name="threshold_label">Порог</string>
+    <string name="rearm_margin_label">Запас до повторного срабатывания</string>
+    <string name="rearm_min_interval_label">Минимальный интервал между тревогами</string>
+    <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
+    <string name="alert_feature_off">Выкл.</string>
+    <string name="fall_rate_slanting_down">немного снижается</string>
+    <string name="fall_rate_falling">снижается</string>
+    <string name="fall_rate_falling_fast">быстро снижается</string>
+    <string name="persistent_high_fall_suppress_label">Тихо при падении</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профиль громкости/вибрации</string>
     <string name="ICE">ICE</string>

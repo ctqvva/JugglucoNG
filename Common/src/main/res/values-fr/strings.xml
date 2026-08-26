@@ -586,6 +586,14 @@
     <string name="system_default_sound">Son systeme par defaut</string>
     <string name="tap_to_change">Touchez pour changer</string>
     <string name="threshold_label">Seuil</string>
+    <string name="rearm_margin_label">Marge de réarmement</string>
+    <string name="rearm_min_interval_label">Délai minimal entre alarmes</string>
+    <string name="pre_high_iob_coverage_label">Couverture insuline</string>
+    <string name="alert_feature_off">Désactivé</string>
+    <string name="fall_rate_slanting_down">en légère baisse</string>
+    <string name="fall_rate_falling">en baisse</string>
+    <string name="fall_rate_falling_fast">en forte baisse</string>
+    <string name="persistent_high_fall_suppress_label">Silence en baisse</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil volume/vibration</string>
     <string name="ICE">ICE</string>

@@ -651,6 +651,14 @@
     <string name="system_default_sound">系统默认铃声</string>
     <string name="tap_to_change">点按以更改</string>
     <string name="threshold_label">阈值</string>
+    <string name="rearm_margin_label">重新触发余量</string>
+    <string name="rearm_min_interval_label">警报最小间隔</string>
+    <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
+    <string name="alert_feature_off">关闭</string>
+    <string name="fall_rate_slanting_down">缓慢下降</string>
+    <string name="fall_rate_falling">正在下降</string>
+    <string name="fall_rate_falling_fast">快速下降</string>
+    <string name="persistent_high_fall_suppress_label">下降时静音</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">音量/振动配置</string>
     <string name="ICE">ICE</string>

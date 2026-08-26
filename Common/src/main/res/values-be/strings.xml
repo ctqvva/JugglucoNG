@@ -629,6 +629,14 @@
     <string name="system_default_sound">Сістэмны гук па змаўчанні</string>
     <string name="tap_to_change">Націсніце, каб змяніць</string>
     <string name="threshold_label">Парог</string>
+    <string name="rearm_margin_label">Запас да паўторнага спрацоўвання</string>
+    <string name="rearm_min_interval_label">Мінімальны інтэрвал паміж трывогамі</string>
+    <string name="pre_high_iob_coverage_label">Пакрыццё інсулінам</string>
+    <string name="alert_feature_off">Выкл.</string>
+    <string name="fall_rate_slanting_down">нахілена ўніз</string>
+    <string name="fall_rate_falling">падае</string>
+    <string name="fall_rate_falling_fast">хутка падае</string>
+    <string name="persistent_high_fall_suppress_label">Ціха пры падзенні</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профіль гучнасці/вібрацыі</string>
     <string name="ICE">ICE</string>

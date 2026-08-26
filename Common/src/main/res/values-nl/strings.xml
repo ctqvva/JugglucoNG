@@ -727,6 +727,14 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="system_default_sound">Standaard systeemgeluid</string>
     <string name="tap_to_change">Tik om te wijzigen</string>
     <string name="threshold_label">Drempel</string>
+    <string name="rearm_margin_label">Herstelmarge voor nieuw alarm</string>
+    <string name="rearm_min_interval_label">Minimale tijd tussen alarmen</string>
+    <string name="pre_high_iob_coverage_label">Insulinedekking</string>
+    <string name="alert_feature_off">Uit</string>
+    <string name="fall_rate_slanting_down">licht dalend</string>
+    <string name="fall_rate_falling">dalend</string>
+    <string name="fall_rate_falling_fast">snel dalend</string>
+    <string name="persistent_high_fall_suppress_label">Stil bij daling</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume-/trilprofiel</string>
     <string name="ICE">ICE</string>
