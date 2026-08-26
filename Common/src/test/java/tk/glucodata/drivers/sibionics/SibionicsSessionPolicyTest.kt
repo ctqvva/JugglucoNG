@@ -172,4 +172,72 @@ class SibionicsSessionPolicyTest {
             ),
         )
     }
+    // --- rebuild deferral during a history transfer (2026-08-24 GC/BLE stall) ---
+
+    @Test
+    fun backlogTransferDefersTheRebuild() {
+        assertTrue(
+            SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = true,
+                isRehydrating = false,
+                deferredForMs = 3_000L,
+                maxDeferralMs = 120_000L,
+            ),
+        )
+    }
+
+    /**
+     * The regression this exists for. A committed rebuild sets the live index and
+     * clears the rehydration flag, so a guard keyed on those alone stops deferring
+     * after the first commit — which is how one transfer produced rebuilds of 128,
+     * then 1504, then 4867 samples. Only the transfer flag survives that.
+     */
+    @Test
+    fun stillDefersAfterAnEarlierRebuildAlreadyCommitted() {
+        assertTrue(
+            SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = true,
+                isRehydrating = false,
+                deferredForMs = 30_000L,
+                maxDeferralMs = 120_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun rehydrationAloneAlsoDefers() {
+        assertTrue(
+            SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = false,
+                isRehydrating = true,
+                deferredForMs = 0L,
+                maxDeferralMs = 120_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun settledSessionRebuildsImmediately() {
+        assertFalse(
+            SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = false,
+                isRehydrating = false,
+                deferredForMs = 0L,
+                maxDeferralMs = 120_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun deferralCapEventuallyLetsTheRebuildThrough() {
+        assertFalse(
+            SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = true,
+                isRehydrating = true,
+                deferredForMs = 120_001L,
+                maxDeferralMs = 120_000L,
+            ),
+        )
+    }
+
 }
