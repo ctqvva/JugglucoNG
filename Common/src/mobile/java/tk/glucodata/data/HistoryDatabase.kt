@@ -29,8 +29,9 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
- *   v13 — per-reading credible intervals for uncertainty-aware estimators
- *   v14 — per-reading record of the value actually displayed, so calibration
+ *   v13 — retry accounting on journal delete tombstones
+ *   v14 — per-reading credible intervals for uncertainty-aware estimators
+ *   v15 — per-reading record of the value actually displayed, so calibration
  *         changes stop rewriting the sensor's own stored numbers
  */
 @Database(
@@ -44,7 +45,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -53,7 +54,7 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
     abstract fun readingDisplayDao(): ReadingDisplayDao
-    
+
     companion object {
         @Volatile
         private var INSTANCE: HistoryDatabase? = null
@@ -246,13 +247,24 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN lastAttemptAt INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
         /**
-         * v12 → v13: uncertainty lives in its own table rather than as columns
+         * v13 → v14: uncertainty lives in its own table rather than as columns
          * on `history_readings`, which native re-sync rewrites. Nothing is
          * backfilled: readings written before this have no uncertainty, which
          * is the truthful answer, and they render as a plain line.
          */
-        private val MIGRATION_12_13 = object : Migration(12, 13) {
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -284,7 +296,7 @@ abstract class HistoryDatabase : RoomDatabase() {
          * [HistoryRepository.seedDisplayRecordsFromOverwrittenHistory] instead,
          * where that state is readable.
          */
-        private val MIGRATION_13_14 = object : Migration(13, 14) {
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -325,7 +337,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
-                    MIGRATION_13_14
+                    MIGRATION_13_14,
+                    MIGRATION_14_15
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

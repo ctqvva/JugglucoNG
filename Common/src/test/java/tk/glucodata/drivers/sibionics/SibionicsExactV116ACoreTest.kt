@@ -54,6 +54,15 @@ class SibionicsExactV116ACoreTest {
                 restored.process(row.rawMmol, row.temperatureC, row.index),
             )
             assertEquals("V116A state continuation at ${row.index}", uninterrupted.stateHash(), restored.stateHash())
+            // The held sensor-state terms live outside the vendor context, so
+            // stateHash alone would not notice them being lost across a
+            // restore — and losing them costs Adaptive V2 a whole stage of
+            // observations rather than failing loudly.
+            assertEquals(
+                "V116A observation continuation at ${row.index}",
+                uninterrupted.latestSensorObservation,
+                restored.latestSensorObservation,
+            )
         }
     }
 
