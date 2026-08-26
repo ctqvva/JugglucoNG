@@ -39,6 +39,7 @@ import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelSmallPrim
 import tk.glucodata.ui.theme.labelLargeExpressive
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
@@ -2153,7 +2154,7 @@ private fun DashboardClearOptionsBottomSheet(
 ) {
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
     
-    androidx.compose.material3.ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() }

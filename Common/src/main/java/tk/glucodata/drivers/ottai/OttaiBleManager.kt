@@ -25,6 +25,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.util.UUID
@@ -65,6 +66,7 @@ class OttaiBleManager(
         private const val MTU_SETTLE_BEFORE_DISCOVERY_MS = 1_250L
         private const val MTU_CALLBACK_FALLBACK_MS = 2_500L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 10_000L
+        private const val V3_CREDENTIAL_BOOTSTRAP_TIMEOUT_MS = 90_000L
 
         /**
          * Set (by the setup wizard) to a canonical sensorId to request a one-time
@@ -632,6 +634,99 @@ class OttaiBleManager(
     @Volatile private var deviceTimeBytes: ByteArray = ByteArray(0)
     @Volatile private var deviceParamIndex: Int = 0
     @Volatile private var deviceParamTime: ByteArray = ByteArray(0)
+    @Volatile private var lastAuthDevHex: String = ""
+    // Fire /cgmAuth/verify at most once at a time; the V2 reconnect loop would otherwise pile up
+    // several concurrent verify requests and time them all out.
+    @Volatile private var verifyInFlight: Boolean = false
+    private val verifyLock = Any()
+    private val verifyWaiters = ArrayList<(OttaiCloudClient.V3AuthMaterial?) -> Unit>()
+    @Volatile private var lastVerifyMaterial: OttaiCloudClient.V3AuthMaterial? = null
+    @Volatile private var lastVerifyAuthFlagHex: String? = null
+    // Server write-back material from a successful /cgmAuth/verify (hex decoded). When present,
+    // the auth writes carry these instead of the locally computed V2 appParam/sign.
+    @Volatile private var serverAuthHostBytes: ByteArray? = null
+    @Volatile private var serverAuthFlagBytes: ByteArray? = null
+    // One bindV3 attempt per connection episode, after the server material was written back.
+    private var v3BindAttemptedThisEpisode = false
+    private val v3CredentialBootstrapLock = Any()
+    @Volatile private var v3CredentialBootstrapCompletion:
+        ((OttaiRegistry.DeviceMaterials?, OttaiCloudClient.CloudFailure?) -> Unit)? = null
+    private val v3CredentialBootstrapTimeoutRunnable = Runnable {
+        finishV3CredentialBootstrap(
+            null,
+            OttaiCloudClient.CloudFailure("Timed out while fetching sensor credentials"),
+        )
+    }
+    /** True while a CN cloud session exists — the only profile that serves /cgmAuth/verify. */
+    private fun cnActiveAuthSessionAvailable(): Boolean {
+        val ctx = Applic.app ?: return false
+        return OttaiRegistry.loadSessionProfile(ctx) == OttaiRegistry.SessionProfile.CN_PHONE &&
+            OttaiRegistry.loadAccessToken(ctx).isNotBlank()
+    }
+
+    private fun v3CredentialBootstrapActive(): Boolean {
+        val ctx = Applic.app ?: return false
+        val id = SerialNumber ?: return false
+        return ottaiAuthEntryMode(
+            hasAuthKeys = authKeys != null,
+            bootstrapPending = OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
+            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            validatedDeviceVersion = OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id),
+        ) == OttaiAuthEntryMode.V3_CREDENTIAL_BOOTSTRAP
+    }
+
+    /**
+     * Own this manager as a wizard-local credential transaction. It is deliberately absent from
+     * [SensorBluetooth.gattcallbacks], so a fresh V3 transmitter cannot appear in the Sensors list
+     * until bindV3 has returned and persisted usable keyA material.
+     */
+    internal fun beginV3CredentialBootstrap(
+        onComplete: (OttaiRegistry.DeviceMaterials?, OttaiCloudClient.CloudFailure?) -> Unit,
+    ): Boolean {
+        synchronized(v3CredentialBootstrapLock) {
+            if (v3CredentialBootstrapCompletion != null) return false
+            v3CredentialBootstrapCompletion = onComplete
+        }
+        handler.postDelayed(v3CredentialBootstrapTimeoutRunnable, V3_CREDENTIAL_BOOTSTRAP_TIMEOUT_MS)
+        if (connectDevice(0L)) return true
+        finishV3CredentialBootstrap(
+            null,
+            OttaiCloudClient.CloudFailure("Could not start the sensor credential connection"),
+        )
+        return false
+    }
+
+    internal fun cancelV3CredentialBootstrap() {
+        synchronized(v3CredentialBootstrapLock) {
+            v3CredentialBootstrapCompletion = null
+        }
+        handler.removeCallbacks(v3CredentialBootstrapTimeoutRunnable)
+        SerialNumber?.let { id ->
+            Applic.app?.let { OttaiRegistry.setV3CredentialBootstrapPending(it, id, false) }
+        }
+        stop = true
+        clearGattTransport("V3 credential bootstrap cancelled", markSignalLoss = false)
+        close()
+    }
+
+    private fun finishV3CredentialBootstrap(
+        fetched: OttaiRegistry.DeviceMaterials?,
+        failure: OttaiCloudClient.CloudFailure?,
+    ) {
+        val completion = synchronized(v3CredentialBootstrapLock) {
+            val current = v3CredentialBootstrapCompletion ?: return
+            v3CredentialBootstrapCompletion = null
+            current
+        }
+        handler.removeCallbacks(v3CredentialBootstrapTimeoutRunnable)
+        SerialNumber?.let { id ->
+            Applic.app?.let { OttaiRegistry.setV3CredentialBootstrapPending(it, id, false) }
+        }
+        stop = true
+        clearGattTransport("V3 credential bootstrap complete", markSignalLoss = false)
+        close()
+        Handler(Looper.getMainLooper()).post { completion(fetched, failure) }
+    }
     @Volatile private var devicePubX: ByteArray = ByteArray(0)
     @Volatile private var devicePubY: ByteArray = ByteArray(0)
 
@@ -928,6 +1023,7 @@ class OttaiBleManager(
     fun restoreFromPersistence(context: Context) {
         val id = SerialNumber ?: return
         materials = OttaiRegistry.loadMaterials(context, id)
+        repairSecondsUnitNativeStart(id)
         provisionalActiveTimeMs = if (materials.activeTimeMs > 0L) {
             OttaiRegistry.saveProvisionalActiveTime(context, id, 0L)
             0L
@@ -961,6 +1057,29 @@ class OttaiBleManager(
         // Auth V2 signs the cloud id bytes, not necessarily the Android BLE address.
         macBytes = runCatching { OttaiCrypto.hexToBytes(OttaiConstants.canonicalSensorId(id)) }.getOrDefault(ByteArray(0))
         ensureNativePresenceShell("restore")
+    }
+
+    /**
+     * Builds between 39745902 and this fix passed a V3 epoch-seconds value through the ms field,
+     * creating a native shell near January 1970. That start makes every real sample fall outside
+     * the stream mapping. Rebase only that impossible signature; no plausible sensor can predate
+     * 2000, and rebase deliberately clears the unusable zero-era stream window.
+     */
+    private fun repairSecondsUnitNativeStart(id: String) {
+        val correctedStartSec = materials.activeTimeMs / 1_000L
+        if (correctedStartSec < 946_684_800L) return
+        runCatching {
+            val minimumRecords = OttaiConstants.EXTENDED_LIFETIME_DAYS * 24 * 60
+            val sensorPtr = Natives.ensureSensorShellWithCapacity(id, correctedStartSec, minimumRecords)
+                .takeIf { it != 0L }
+                ?: Natives.ensureSensorShell(id, correctedStartSec)
+            if (sensorPtr == 0L) return@runCatching
+            val nativeStartSec = Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1_000L
+            if (nativeStartSec in 1L until 946_684_800L) {
+                Log.w(TAG, "repairing seconds-unit native start for $id")
+                Natives.rebaseDirectStreamWindow(id, correctedStartSec)
+            }
+        }.onFailure { Log.stack(TAG, "repair seconds-unit native start", it) }
     }
 
     private val reconnectRunnable = Runnable {
@@ -1218,6 +1337,7 @@ class OttaiBleManager(
 
     override fun close() {
         advertisementProbe.stop()
+        resetServerActiveAuthState()
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close(), so
             // quit the HandlerThread here — otherwise it outlives the sensor object.
@@ -1226,6 +1346,18 @@ class OttaiBleManager(
             runCatching { handlerThread.quitSafely() }
         }
         super.close()
+    }
+
+    /**
+     * Server verify material is bound to one specific challenge and connection episode; never
+     * let it leak into a reconnect against a fresh challenge or a different sensor.
+     */
+    private fun resetServerActiveAuthState() {
+        serverAuthHostBytes = null
+        serverAuthFlagBytes = null
+        lastVerifyMaterial = null
+        lastVerifyAuthFlagHex = null
+        v3BindAttemptedThisEpisode = false
     }
 
     override fun onBluetoothAdapterUnavailable() {
@@ -1779,15 +1911,33 @@ class OttaiBleManager(
             return
         }
         authKeys = materials.authKeys
-        if (authKeys == null) {
-            Log.w(TAG, "no auth keys (cloud materials missing) — cannot authenticate")
-            // Stay connected but idle; the driver needs cloud bind first.
-            phase = Phase.IDLE
-            return
+        val ctx = Applic.app
+        val id = SerialNumber
+        when (ottaiAuthEntryMode(
+            hasAuthKeys = authKeys != null,
+            bootstrapPending = ctx != null && id != null &&
+                OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
+            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            validatedDeviceVersion = if (ctx != null && id != null) {
+                OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id)
+            } else {
+                null
+            },
+        )) {
+            OttaiAuthEntryMode.STORED_MATERIAL_AUTH -> {
+                phase = Phase.ENABLING_NOTIFY
+                notifyEnableIndex = 0
+                enableNextNotification(gatt)
+            }
+            OttaiAuthEntryMode.V3_CREDENTIAL_BOOTSTRAP -> {
+                Log.i(TAG, "AUTHWIRE starting V3 credential bootstrap")
+                startAuth(gatt)
+            }
+            OttaiAuthEntryMode.BLOCKED -> {
+                Log.w(TAG, "no auth keys and no authorized V3 bootstrap — disconnecting")
+                clearGattTransport("missing Ottai credentials", markSignalLoss = false)
+            }
         }
-        phase = Phase.ENABLING_NOTIFY
-        notifyEnableIndex = 0
-        enableNextNotification(gatt)
     }
 
     private fun enableNextNotification(gatt: BluetoothGatt) {
@@ -1823,8 +1973,73 @@ class OttaiBleManager(
 
     // ---- Auth V2 ----
 
+    /**
+     * Server-mediated V3 Active_Auth: POST the sensor-read authDev/authFlag to /cgmAuth/verify
+     * and hand [onResult] the returned write-back material on the main handler. The caller gates
+     * its auth writes on this — the official client writes the SERVER's authHost/authFlag to
+     * 1756ef6e / 785022c6, not locally computed values. Single-flight; concurrent callers queue,
+     * and a duplicate request for the same challenge can reuse its accepted result.
+     */
+    private fun requestCgmAuthVerify(
+        authDevHex: String,
+        authFlagHex: String,
+        onResult: (OttaiCloudClient.V3AuthMaterial?) -> Unit,
+    ) {
+        fun finish(r: OttaiCloudClient.V3AuthMaterial?) = handler.post { onResult(r) }
+        if (authDevHex.isBlank() || authFlagHex.isBlank()) { finish(null); return }
+        // A zero authFlag is the broken/unactivated case; the server rejects it as "shaInfo empty".
+        if (authFlagHex.all { it == '0' }) { Log.i(TAG, "AUTHWIRE verify skipped: authFlag all-zero"); finish(null); return }
+        val app = Applic.app ?: run { finish(null); return }
+        val mac = OttaiCrypto.bytesToHex(macBytes)
+        if (mac.isBlank()) { finish(null); return }
+        lastVerifyMaterial?.takeIf { lastVerifyAuthFlagHex == authFlagHex }?.let {
+            Log.i(TAG, "AUTHWIRE verify reused cached material for this challenge")
+            finish(it); return
+        }
+        synchronized(verifyLock) {
+            if (verifyInFlight) {
+                Log.i(TAG, "AUTHWIRE verify queued behind in-flight request")
+                verifyWaiters.add(onResult)
+                return
+            }
+            verifyInFlight = true
+        }
+        Thread {
+            var delivered = false
+            fun deliver(r: OttaiCloudClient.V3AuthMaterial?) {
+                if (delivered) return
+                delivered = true
+                handler.post { onResult(r) }
+                val waiters: List<(OttaiCloudClient.V3AuthMaterial?) -> Unit>
+                synchronized(verifyLock) {
+                    waiters = ArrayList(verifyWaiters)
+                    verifyWaiters.clear()
+                    verifyInFlight = false
+                }
+                waiters.forEach { w -> handler.post { w(r) } }
+            }
+            try {
+                val result = runCatching {
+                    OttaiCloudClient.cgmAuthVerify(app, mac, authDevHex, authFlagHex)
+                }.onFailure {
+                    Log.w(TAG, "cgmAuth/verify failed: ${it.message}")
+                }.getOrNull()
+                if (result != null && result.ok) {
+                    lastVerifyMaterial = result
+                    lastVerifyAuthFlagHex = authFlagHex
+                }
+                deliver(result)
+            } finally {
+                synchronized(verifyLock) { verifyInFlight = false }
+                deliver(null)
+            }
+        }.also { it.isDaemon = true }.start()
+    }
+
     private fun startAuth(gatt: BluetoothGatt) {
         phase = Phase.AUTH
+        // Every connection presents a fresh challenge: stale verify material must not survive.
+        resetServerActiveAuthState()
         authStep = AuthStep.READ_DEVICE_TIME
         readChar(gatt, OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME)
     }
@@ -1862,15 +2077,21 @@ class OttaiBleManager(
         when (ch.uuid) {
             OttaiConstants.CHAR_CURRENT_TIME -> {
                 deviceTimeBytes = value.copyOf()
+                Log.i(TAG, "AUTHWIRE read currentTime(2a2b) len=${value.size}")
                 authStep = AuthStep.READ_DEVICE_PARAM
                 readChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_DEVICE_PARAM)
             }
             OttaiConstants.CHAR_AUTH_DEVICE_PARAM -> {
+                // authDev in the current CN V3 flow: the value posted to /cgmAuth/verify.
+                Log.i(TAG, "AUTHWIRE read authDev(86805092) len=${value.size}")
+                lastAuthDevHex = OttaiCrypto.bytesToHex(value)
                 parseDeviceAuthParam(value)
                 authStep = AuthStep.READ_DEVICE_SIGN
                 readChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN)
             }
             OttaiConstants.CHAR_AUTH_SIGN -> {
+                Log.i(TAG, "AUTHWIRE read authSign(785022c6) len=${value.size}")
+                val authFlagHex = OttaiCrypto.bytesToHex(value)
                 if (!verifyDeviceSign(value) && activationCandidateProbeActive) {
                     if (isKnownActivationAddress(
                             candidateAddress = gatt.device?.address,
@@ -1884,6 +2105,32 @@ class OttaiBleManager(
                         return
                     }
                 }
+                // Fresh V3 credential bootstrap: the writes must carry the SERVER's answer, so
+                // hold them until /cgmAuth/verify returns. Once bindV3 has persisted keyA, normal
+                // reconnects use the existing locally-computed auth path.
+                if (v3CredentialBootstrapActive()) {
+                    Log.i(TAG, "AUTHWIRE holding auth writes for /cgmAuth/verify")
+                    requestCgmAuthVerify(lastAuthDevHex, authFlagHex) { material ->
+                        if (phase != Phase.AUTH) return@requestCgmAuthVerify
+                        val host = material?.authHost?.let { runCatching { OttaiCrypto.hexToBytes(it) }.getOrNull() }
+                        val flag = material?.authFlag?.let { runCatching { OttaiCrypto.hexToBytes(it) }.getOrNull() }
+                        if (host != null && flag != null && host.isNotEmpty() && flag.isNotEmpty()) {
+                            serverAuthHostBytes = host
+                            serverAuthFlagBytes = flag
+                            Log.i(TAG, "AUTHWIRE server material ready; writing server authHost/authFlag")
+                        } else {
+                            Log.w(TAG, "AUTHWIRE V3 credential bootstrap failed: no server material")
+                            finishV3CredentialBootstrap(
+                                null,
+                                OttaiCloudClient.lastFailure
+                                    ?: OttaiCloudClient.CloudFailure("Server returned no active-auth material"),
+                            )
+                            return@requestCgmAuthVerify
+                        }
+                        writeAppParam(gatt)
+                    }
+                    return
+                }
                 writeAppParam(gatt)
             }
             OttaiConstants.CHAR_MAX_ACTIVE_TIME -> handleMaxActiveRead(value)
@@ -1891,7 +2138,7 @@ class OttaiBleManager(
             OttaiConstants.CHAR_GLUCOSE_LIVE -> handleGlucosePayload(value, live = true, source = "read")
             OttaiConstants.CHAR_COMMAND -> {
                 val status = if (value.isNotEmpty()) value[0].toInt() and 0xFF else -1
-                Log.i(TAG, "cmd/activation status=$status (official: 3=activated, <3=needs activation) raw=${OttaiCrypto.bytesToHex(value)}")
+                Log.i(TAG, "cmd/activation status=$status (official: 3=activated, <3=needs activation) len=${value.size}")
                 handleCommandStatus(gatt, status)
             }
         }
@@ -2115,16 +2362,87 @@ class OttaiBleManager(
         handler.post { runCatching { gatt.disconnect() } }
     }
 
+    /**
+     * Once the server's authHost/authFlag were written back and accepted, the server-side Active
+     * Auth state for this MAC is complete and bindV3 can return the real materials. Runs once per
+     * connection episode; the wizard watches persistence and exposes the normal JSON export once
+     * this finishes.
+     */
+    private fun scheduleV3BindAfterActiveAuth() {
+        if (v3BindAttemptedThisEpisode) return
+        v3BindAttemptedThisEpisode = true
+        handler.postDelayed({
+            val ctx = Applic.app ?: return@postDelayed
+            val id = SerialNumber ?: return@postDelayed
+            if (OttaiRegistry.loadMaterials(ctx, id).authKeys != null) {
+                Log.i(TAG, "bindV3 skipped: materials already saved")
+                return@postDelayed
+            }
+            val version = OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id)
+            if (version.isNullOrBlank()) {
+                Log.w(TAG, "bindV3 skipped: no validated deviceVersion yet")
+                return@postDelayed
+            }
+            Thread {
+                try {
+                    val resp = runCatching {
+                        OttaiCloudClient.bindV3(ctx, id, version)
+                    }.onFailure { Log.w(TAG, "bindV3 failed: ${it.message}") }.getOrNull()
+                    if (resp != null && resp.keyA.isNotBlank()) {
+                        val mats = OttaiCloudClient.toMaterials(ctx, id, resp)
+                        if (mats?.authKeys != null && OttaiRegistry.saveMaterials(ctx, id, mats)) {
+                            Log.i(TAG, "bindV3 ok; persisted materials for $id")
+                            handler.post {
+                                materials = mats
+                                authKeys = mats.authKeys
+                                finishV3CredentialBootstrap(mats, null)
+                            }
+                        } else {
+                            Log.w(TAG, "bindV3 returned keyA but material decrypt/persist failed")
+                            finishV3CredentialBootstrap(
+                                null,
+                                OttaiCloudClient.CloudFailure(
+                                    "bindV3 returned credentials but they could not be saved",
+                                ),
+                            )
+                        }
+                    } else {
+                        Log.w(TAG, "bindV3 not accepted: ${OttaiCloudClient.lastError}")
+                        finishV3CredentialBootstrap(
+                            null,
+                            OttaiCloudClient.lastFailure
+                                ?: OttaiCloudClient.CloudFailure("bindV3 did not return credentials"),
+                        )
+                    }
+                } finally {
+                    UiRefreshBus.requestStatusRefresh()
+                }
+            }.also { it.isDaemon = true }.start()
+        }, 2_500L)
+    }
+
     private fun writeAppParam(gatt: BluetoothGatt) {
-        val keys = authKeys ?: return
+        // A fresh V3 sensor has no keyA yet. Its bootstrap writes the server response directly;
+        // local ECDH is only possible after bindV3 has returned and persisted the auth keys.
+        val host = serverAuthHostBytes
+        if (host != null && host.isNotEmpty()) {
+            Log.i(TAG, "AUTHWIRE write authHost-server(1756ef6e) len=${host.size}")
+            authStep = AuthStep.WRITE_APP_PARAM
+            writeChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_APP_PARAM, host)
+            return
+        }
+        val keys = authKeys ?: run {
+            Log.w(TAG, "cannot write local auth parameter without stored auth keys")
+            return
+        }
         val kp = OttaiBleAuth.generateKeyPair()
         appPrivate = kp.private as ECPrivateKey
         val (x, y) = OttaiBleAuth.publicCoords(kp.public as ECPublicKey)
         appPubX = x; appPubY = y
         appTime3 = OttaiBleAuth.appTime3(deviceTimeBytes)
-        // The official client independently selects a random key for the app half.
         appIndex = (0 until keys.size).random()
         val param = OttaiBleAuth.appAuthParameter(appIndex, appTime3, appPubX, appPubY)
+        Log.i(TAG, "AUTHWIRE write appParam(1756ef6e) idx=$appIndex time3Len=${appTime3.size} len=${param.size}")
         authStep = AuthStep.WRITE_APP_PARAM
         writeChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_APP_PARAM, param)
     }
@@ -2153,13 +2471,39 @@ class OttaiBleManager(
                 Log.i(TAG, "history request write accepted")
             }
             authStep == AuthStep.WRITE_APP_PARAM && ch.uuid == OttaiConstants.CHAR_AUTH_APP_PARAM -> {
+                val serverFlag = serverAuthFlagBytes
+                if (serverFlag != null && serverFlag.isNotEmpty()) {
+                    // V3: the sensor expects the SERVER's shaInfo here. A locally computed V2
+                    // signature is rejected by current CN firmware with write status 1.
+                    Log.i(TAG, "AUTHWIRE write authFlag-server(785022c6) len=${serverFlag.size}")
+                    authStep = AuthStep.WRITE_APP_SIGN
+                    writeChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN, serverFlag)
+                    return
+                }
                 val keys = authKeys ?: return
                 val authKeyHex = OttaiCrypto.bytesToHex(keys[appIndex])
                 val sign = OttaiBleAuth.authSignHex(authKeyHex, OttaiCrypto.bytesToHex(macBytes), appPubX, appPubY, appTime3)
+                // Locally-computed V2 signature for pre-V3 sensors.
+                Log.i(TAG, "AUTHWIRE write authSign(785022c6) idx=$appIndex len=${sign.size}")
                 authStep = AuthStep.WRITE_APP_SIGN
                 writeChar(gatt, OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN, sign)
             }
             authStep == AuthStep.WRITE_APP_SIGN && ch.uuid == OttaiConstants.CHAR_AUTH_SIGN -> {
+                lastBleActivityAtMs = System.currentTimeMillis()
+                if (serverAuthFlagBytes != null) {
+                    // Server-mediated V3 path: both server values were accepted by the sensor.
+                    // There is no local ECDH to derive a session from — clear the material,
+                    // report state, and let the cloud bind + streaming probe take over.
+                    serverAuthHostBytes = null
+                    serverAuthFlagBytes = null
+                    authStep = AuthStep.DONE
+                    phase = Phase.STREAMING
+                    sessionKeyHex = ""
+                    Log.i(TAG, "AUTHWIRE server active-auth write-back complete; fetching credentials")
+                    UiRefreshBus.requestStatusRefresh()
+                    scheduleV3BindAfterActiveAuth()
+                    return
+                }
                 deriveSession()
                 authStep = AuthStep.DONE
                 lastBleActivityAtMs = System.currentTimeMillis()

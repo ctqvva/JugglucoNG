@@ -32,6 +32,7 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.components.StableModalBottomSheet
 // import tk.glucodata.ui.components.StyledSwitch // Unused now
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +62,7 @@ fun FloatingSettingsSheet(
         hasPermission = Settings.canDrawOverlays(context)
     }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), // 1. Allow partial expansion
         dragHandle = { CompactSheetDragHandle() },

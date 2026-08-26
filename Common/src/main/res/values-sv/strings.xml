@@ -1204,7 +1204,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Skicka långverkande insulin</string>
     <string name="nightscout_send_long_insulin_desc">Inkludera basinsulin och ultralångverkande insulin i Nightscout-uppladdningar</string>
     <string name="nightscout_receive_amounts">Ta emot mängder</string>
-    <string name="nightscout_receive_amounts_desc">Importera Nightscout-insulin/kolhydrater till journalen</string>
+    <string name="nightscout_receive_amounts_desc">Importera Nightscout-insulin/kolhydrater till journalen. Åtkomsttoken behöver behörigheten api:treatments:read.</string>
     <string name="nightscout_settings_title">Nightscout-inställningar</string>
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1414,6 +1414,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_upload_failing">Behandlingar: sändning misslyckas sedan %1$s, senaste försök %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Behandlingar: raderingar nekas sedan %1$s, senaste försök %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">inget svar</string>
+    <string name="nightscout_status_iob_no_token">IOB-uppladdning: överhoppad - ingen Nightscout-token ännu</string>
+    <string name="nightscout_status_iob_rejected">IOB-uppladdning: avvisad (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synkåtgärder</string>
     <string name="expand_action">Expandera</string>
     <string name="collapse_action">Fäll ihop</string>
@@ -1627,6 +1629,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Aktivitet</string>
     <string name="journal_type_note">Anteckning</string>
+    <string name="journal_source_pen">Läst från pennan</string>
+    <string name="journal_source_nightscout">Mottaget från Nightscout</string>
+    <string name="journal_source_aaps">Mottaget från AAPS</string>
+    <string name="journal_source_api">Mottaget via API</string>
+    <string name="journal_source_health_connect">Från Health Connect</string>
+    <string name="journal_source_meter">Från mätaren</string>
     <string name="journal_note_label">Anteckning</string>
     <string name="journal_onset_label">Verkan startar</string>
     <string name="journal_add_preset">Lägg till insulintyp</string>
@@ -1692,6 +1700,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Öppna Plats</string>
     <string name="cgm_readiness_open_notifications_action">Öppna Aviseringar</string>
     <string name="cgm_readiness_open_alarm_action">Öppna larmåtkomst</string>
+    <string name="cgm_readiness_open_full_screen_action">Tillåt helskärmslarm</string>
     <string name="cgm_readiness_open_battery_action">Öppna batteriinställningar</string>
     <string name="cgm_readiness_open_dnd_action">Öppna Stör ej-åtkomst</string>
     <string name="cgm_readiness_open_overlay_action">Öppna överläggsåtkomst</string>
@@ -1719,6 +1728,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Exakta larm</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Schemaläggning av exakta larm är tillåten.</string>
     <string name="cgm_readiness_exact_alarm_detail">Tillåt exakta larm för pålitliga påminnelser, återanslutningskontroller och tidskritiska larm.</string>
+    <string name="cgm_readiness_full_screen_title">Helskärmslarm</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Larm får väcka den låsta skärmen.</string>
+    <string name="cgm_readiness_full_screen_detail">Utan denna behörighet väcker larm inte längre en låst skärm utan visas bara som en avisering. Android kan ta bort den vid varje appuppdatering – kontrollera efter uppdateringar.</string>
     <string name="cgm_readiness_battery_title">Obegränsat batteri</string>
     <string name="cgm_readiness_battery_ready_detail">Androids batterioptimering är avstängd för appen.</string>
     <string name="cgm_readiness_battery_detail">Stäng av batterioptimering så att BLE i bakgrunden, larm och nätverkssynk inte stoppas.</string>
@@ -1952,6 +1964,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Inga konto- eller sparade material för detta moln-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-adress behövs</string>
     <string name="ottai_status_warmup_provisional">Provisorisk uppvärmning • %1$d min kvar</string>
+    <string name="anytime_status_warming_up">Uppvärmning</string>
+    <string name="anytime_status_warming_up_remaining">Uppvärmning • %1$d min kvar</string>
     <string name="ottai_status_loading_history">Läser in historik • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-sensorer i närheten</string>
     <string name="ottai_ble_scan_hint">Håll telefonen nära sensorn. Stabila CGM-sändare visas här.</string>
@@ -2114,7 +2128,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Visa journalens COB i statusraden</string>
     <string name="notification_show_delta_minutes_desc">Visa förändringen över %1$d min bredvid pilen</string>
     <string name="dashboard_rows_show_delta_title">Delta i avläsningslistan</string>
-    <string name="dashboard_rows_show_delta_desc">Visa förändringen bredvid varje avläsning</string>
+    <string name="dashboard_rows_show_delta_desc">Visa förändringen bredvid varje avläsning, på instrumentpanelen och i historiken</string>
     <string name="glucose_range_colors_title">Färga värden efter intervall</string>
     <string name="glucose_range_colors_desc">Använd intervallfärger på översikten och i aviseringen</string>
     <string name="very_range_title">Mycket låg / mycket hög</string>
@@ -2296,6 +2310,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält.</string>
     <string name="journal_iob_source_remote">Värden från den uppladdande enheten (Nightscout)</string>
     <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Koppla bort den i Ottai-appen eller ta bort sensorn här för att frigöra kopplingen och försök sedan igen.</string>
+    <string name="ottai_cloud_unbind_hint">Endast en åtgärd för molnkontot. JugglucoNG ansluter inte till, stoppar, tar bort eller ändrar den valda sensorn.</string>
+    <string name="ottai_cloud_unbind_title">Koppla bort sensorn permanent?</string>
+    <string name="ottai_cloud_unbind_message">%1$s tas bort permanent från detta Ottai-konto. Kontot kan därefter inte längre hämta dess autentiseringsuppgifter och sensorn fungerar inte längre i den officiella Ottai-appen. Autentiseringsuppgifter och sensorstatus som redan sparats i JugglucoNG ändras inte. Detta kan inte ångras.</string>
+    <string name="ottai_cloud_unbind_confirm">Koppla bort permanent</string>
+    <string name="ottai_cloud_unbind_success">Sensorn har kopplats bort permanent från Ottai. Sensorn och sparade uppgifter i JugglucoNG ändrades inte.</string>
+    <string name="ottai_cloud_unbind_failed">Det gick inte att koppla bort sensorn från Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Kontrollerar Ottai-molnkopplingen…</string>
+    <string name="ottai_cloud_binding_bound">Molnstatus: kopplad till detta Ottai-konto</string>
+    <string name="ottai_cloud_binding_not_bound">Molnstatus: inte kopplad till detta Ottai-konto</string>
+    <string name="ottai_cloud_binding_error">Det gick inte att kontrollera Ottai-molnkopplingen</string>
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nöd-SMS</string>

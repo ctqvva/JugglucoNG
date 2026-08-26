@@ -1247,7 +1247,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_send_long_insulin">Langwerkende insuline verzenden</string>
     <string name="nightscout_send_long_insulin_desc">Basale en ultralangwerkende insuline naar Nightscout uploaden</string>
     <string name="nightscout_receive_amounts">Hoeveelheden ontvangen</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout-insuline/koolhydraten in het dagboek importeren</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-insuline/koolhydraten in het dagboek importeren. Het toegangstoken heeft de machtiging api:treatments:read nodig.</string>
     <string name="nightscout_settings_title">Nightscout-instellingen</string>
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1457,6 +1457,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_treatments_upload_failing">Behandelingen: verzenden mislukt sinds %1$s, laatst geprobeerd %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Behandelingen: verwijderingen geweigerd sinds %1$s, laatst geprobeerd %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">geen antwoord</string>
+    <string name="nightscout_status_iob_no_token">IOB-upload: overgeslagen - nog geen Nightscout-token</string>
+    <string name="nightscout_status_iob_rejected">IOB-upload: geweigerd (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisatieacties</string>
     <string name="expand_action">Uitklappen</string>
     <string name="collapse_action">Inklappen</string>
@@ -1670,6 +1672,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_fingerstick">Vingerprik</string>
     <string name="journal_type_activity">Activiteit</string>
     <string name="journal_type_note">Notitie</string>
+    <string name="journal_source_pen">Uit pen gelezen</string>
+    <string name="journal_source_nightscout">Ontvangen van Nightscout</string>
+    <string name="journal_source_aaps">Ontvangen van AAPS</string>
+    <string name="journal_source_api">Ontvangen via API</string>
+    <string name="journal_source_health_connect">Uit Health Connect</string>
+    <string name="journal_source_meter">Van meter</string>
     <string name="journal_note_label">Notitie</string>
     <string name="journal_onset_label">Werking start</string>
     <string name="journal_add_preset">Insulinetype toevoegen</string>
@@ -1735,6 +1743,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="cgm_readiness_open_location_action">Locatie openen</string>
     <string name="cgm_readiness_open_notifications_action">Meldingen openen</string>
     <string name="cgm_readiness_open_alarm_action">Alarmtoegang openen</string>
+    <string name="cgm_readiness_open_full_screen_action">Schermvullende alarmen toestaan</string>
     <string name="cgm_readiness_open_battery_action">Batterij-instellingen openen</string>
     <string name="cgm_readiness_open_dnd_action">Niet storen-toegang openen</string>
     <string name="cgm_readiness_open_overlay_action">Overlay-toegang openen</string>
@@ -1762,6 +1771,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="cgm_readiness_exact_alarm_title">Exacte alarmen</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Exacte alarmplanning is toegestaan.</string>
     <string name="cgm_readiness_exact_alarm_detail">Sta exacte alarmen toe voor betrouwbare herinneringen, reconnect-controles en tijdkritieke alarmen.</string>
+    <string name="cgm_readiness_full_screen_title">Schermvullende alarmen</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarmen mogen het vergrendelde scherm wekken.</string>
+    <string name="cgm_readiness_full_screen_detail">Zonder deze toestemming wekken alarmen het vergrendelde scherm niet meer en verschijnen ze alleen als melding. Android kan haar bij elke app-update weer intrekken; controleer dit na een update.</string>
     <string name="cgm_readiness_battery_title">Batterij onbeperkt</string>
     <string name="cgm_readiness_battery_ready_detail">Android-batterijoptimalisatie is uitgeschakeld voor deze app.</string>
     <string name="cgm_readiness_battery_detail">Schakel batterijoptimalisatie uit zodat achtergrond-BLE, alarmen en netwerksync niet worden gestopt.</string>
@@ -1995,6 +2007,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_connect_saved_fail">Geen account- of opgeslagen materialen voor deze cloud-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-adres nodig</string>
     <string name="ottai_status_warmup_provisional">Voorlopige opwarming • nog %1$d min</string>
+    <string name="anytime_status_warming_up">Opwarmen</string>
+    <string name="anytime_status_warming_up_remaining">Opwarmen • nog %1$d min</string>
     <string name="ottai_status_loading_history">Geschiedenis laden • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-sensoren in de buurt</string>
     <string name="ottai_ble_scan_hint">Houd de telefoon dicht bij de sensor. Stabiele CGM-zenders verschijnen hier.</string>
@@ -2157,7 +2171,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_show_cob_desc">Toon COB uit het journaal in de statusregel</string>
     <string name="notification_show_delta_minutes_desc">Toon de verandering over %1$d min naast de pijl</string>
     <string name="dashboard_rows_show_delta_title">Delta in meetwaardenlijst</string>
-    <string name="dashboard_rows_show_delta_desc">Toon de verandering naast elke meetwaarde</string>
+    <string name="dashboard_rows_show_delta_desc">Toon de verandering naast elke meetwaarde, op het dashboard en in de geschiedenis</string>
     <string name="glucose_range_colors_title">Waarden kleuren per bereik</string>
     <string name="glucose_range_colors_desc">Gebruik bereikkleuren op het dashboard en in meldingen</string>
     <string name="very_range_title">Zeer laag / zeer hoog</string>
@@ -2339,6 +2353,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_upload_iob_desc">Nightscout toont dan deze waarde in plaats van de eigen berekening op basis van het profiel. eIOB en COB worden daarnaast in een apart veld verstuurd.</string>
     <string name="journal_iob_source_remote">Waarden van het uploadende apparaat (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Er is nog een andere sensor aan het Ottai-account gekoppeld. Ontkoppel deze in de Ottai-app of verwijder die sensor hier om de koppeling vrij te geven en probeer het opnieuw.</string>
+    <string name="ottai_cloud_unbind_hint">Alleen een actie voor het cloudaccount. JugglucoNG maakt geen verbinding met de geselecteerde sensor en stopt, verwijdert of wijzigt deze niet.</string>
+    <string name="ottai_cloud_unbind_title">Deze sensor permanent ontkoppelen?</string>
+    <string name="ottai_cloud_unbind_message">%1$s wordt permanent uit dit Ottai-account verwijderd. Het account kan de referenties daarna niet meer ophalen en de sensor werkt niet meer in de officiële Ottai-app. Reeds in JugglucoNG opgeslagen referenties en sensorstatus blijven ongewijzigd. Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="ottai_cloud_unbind_confirm">Permanent ontkoppelen</string>
+    <string name="ottai_cloud_unbind_success">Sensor permanent ontkoppeld van Ottai. De sensor en opgeslagen referenties in JugglucoNG zijn niet gewijzigd.</string>
+    <string name="ottai_cloud_unbind_failed">De sensor kon niet van Ottai worden ontkoppeld.</string>
+    <string name="ottai_cloud_binding_checking">Ottai-cloudkoppeling controleren…</string>
+    <string name="ottai_cloud_binding_bound">Cloudstatus: gekoppeld aan dit Ottai-account</string>
+    <string name="ottai_cloud_binding_not_bound">Cloudstatus: niet gekoppeld aan dit Ottai-account</string>
+    <string name="ottai_cloud_binding_error">De Ottai-cloudkoppeling kon niet worden gecontroleerd</string>
     <string name="ottai_cloud_offline_routes">Importeer een bestand met aanmeldgegevens om zonder cloud verder te gaan — een QR-scan vult alleen de sensorcode in en NFC maakt de sensor alleen wakker.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nood-sms</string>

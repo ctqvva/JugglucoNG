@@ -70,6 +70,7 @@ import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.StyledSwitch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -1645,7 +1646,7 @@ private fun CalibrationImportExportBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
@@ -1789,7 +1790,7 @@ private fun ClearOptionsBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
     
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() }

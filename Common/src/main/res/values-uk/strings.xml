@@ -1218,7 +1218,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Надсилати інсулін тривалої дії</string>
     <string name="nightscout_send_long_insulin_desc">Додавати базальний та ультратривалий інсулін до завантажень Nightscout</string>
     <string name="nightscout_receive_amounts">Отримувати суми</string>
-    <string name="nightscout_receive_amounts_desc">Імпортувати інсулін/вуглеводи з Nightscout до журналу</string>
+    <string name="nightscout_receive_amounts_desc">Імпортувати інсулін/вуглеводи з Nightscout до журналу. Токен доступу потребує дозволу api:treatments:read.</string>
     <string name="nightscout_settings_title">Налаштування Nightscout</string>
     <string name="nightscout_url_label">URL-адреса нічного розвідки</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1428,6 +1428,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_upload_failing">Лікування: надсилання не вдається з %1$s, остання спроба %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Лікування: видалення відхиляються з %1$s, остання спроба %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">немає відповіді</string>
+    <string name="nightscout_status_iob_no_token">Надсилання IOB: пропущено - поки немає токена Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Надсилання IOB: відхилено (%1$s)</string>
     <string name="nightscout_sync_actions_title">Дії синхронізації</string>
     <string name="expand_action">Розгорнути</string>
     <string name="collapse_action">Згорнути</string>
@@ -1702,6 +1704,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Пальцевий замір</string>
     <string name="journal_type_activity">Активність</string>
     <string name="journal_type_note">Нотатка</string>
+    <string name="journal_source_pen">Зчитано з ручки</string>
+    <string name="journal_source_nightscout">Отримано з Nightscout</string>
+    <string name="journal_source_aaps">Отримано з AAPS</string>
+    <string name="journal_source_api">Отримано через API</string>
+    <string name="journal_source_health_connect">З Health Connect</string>
+    <string name="journal_source_meter">З глюкометра</string>
     <string name="journal_note_label">Нотатка</string>
     <string name="journal_onset_label">Початок дії</string>
     <string name="journal_add_preset">Додати тип інсуліну</string>
@@ -1771,6 +1779,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Відкрити геолокацію</string>
     <string name="cgm_readiness_open_notifications_action">Відкрити сповіщення</string>
     <string name="cgm_readiness_open_alarm_action">Відкрити доступ будильників</string>
+    <string name="cgm_readiness_open_full_screen_action">Дозволити повноекранні тривоги</string>
     <string name="cgm_readiness_open_battery_action">Відкрити налаштування батареї</string>
     <string name="cgm_readiness_open_dnd_action">Відкрити доступ DND</string>
     <string name="cgm_readiness_open_overlay_action">Відкрити доступ накладання</string>
@@ -1798,6 +1807,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Точні будильники</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Планування точних будильників дозволено.</string>
     <string name="cgm_readiness_exact_alarm_detail">Дозвольте точні будильники для надійних нагадувань, перевірок перепідключення та термінових тривог.</string>
+    <string name="cgm_readiness_full_screen_title">Повноекранні тривоги</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Тривоги можуть будити заблокований екран.</string>
+    <string name="cgm_readiness_full_screen_detail">Без цього дозволу тривоги більше не будять заблокований екран і показуються лише як сповіщення. Android може відкликати його під час кожного оновлення застосунку — перевіряйте після оновлень.</string>
     <string name="cgm_readiness_battery_title">Батарея без обмежень</string>
     <string name="cgm_readiness_battery_ready_detail">Оптимізацію батареї Android вимкнено для цього застосунку.</string>
     <string name="cgm_readiness_battery_detail">Вимкніть оптимізацію батареї, щоб фонові BLE, тривоги та мережева синхронізація не зупинялися.</string>
@@ -2025,6 +2037,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Немає матеріалів в акаунті або збережених матеріалів для цього хмарного ID</string>
     <string name="ottai_status_needs_ble_address">Потрібна BLE-адреса</string>
     <string name="ottai_status_warmup_provisional">Попередній прогрів • залишилось %1$d хв</string>
+    <string name="anytime_status_warming_up">Прогрів</string>
+    <string name="anytime_status_warming_up_remaining">Прогрів • залишилось %1$d хв</string>
     <string name="ottai_status_loading_history">Завантаження історії • %1$d%%</string>
     <string name="ottai_ble_scan_title">Датчики Ottai поруч</string>
     <string name="ottai_ble_scan_hint">Піднесіть телефон ближче до датчика. Тут з’являться стабільні CGM-пристрої.</string>
@@ -2186,7 +2200,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Показувати COB Журналу в рядку стану</string>
     <string name="notification_show_delta_minutes_desc">Показувати зміну за %1$d хв біля стрілки</string>
     <string name="dashboard_rows_show_delta_title">Дельта у списку значень</string>
-    <string name="dashboard_rows_show_delta_desc">Показувати зміну біля кожного значення</string>
+    <string name="dashboard_rows_show_delta_desc">Показувати зміну біля кожного значення на панелі та в історії</string>
     <string name="glucose_range_colors_title">Колір значень за діапазоном</string>
     <string name="glucose_range_colors_desc">Використовувати кольори діапазонів на головній і в сповіщенні</string>
     <string name="very_range_title">Дуже низький / дуже високий</string>
@@ -2368,6 +2382,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout показуватиме це значення замість власного розрахунку за профілем. eIOB і COB додатково передаються в окремому полі.</string>
     <string name="journal_iob_source_remote">Значення з пристрою, що надсилає дані (Nightscout)</string>
     <string name="ottai_cloud_already_binding">До облікового запису Ottai досі прив’язаний інший сенсор. Відв’яжіть його в застосунку Ottai або видаліть той сенсор тут, щоб звільнити прив’язку, а потім повторіть спробу.</string>
+    <string name="ottai_cloud_unbind_hint">Дія лише з хмарним обліковим записом. JugglucoNG не підключатиметься до вибраного сенсора, не зупинятиме, не видалятиме й не змінюватиме його.</string>
+    <string name="ottai_cloud_unbind_title">Назавжди відв’язати цей сенсор?</string>
+    <string name="ottai_cloud_unbind_message">%1$s буде назавжди видалено з цього облікового запису Ottai. Обліковий запис більше не зможе отримати його облікові дані, а сенсор більше не працюватиме в офіційному застосунку Ottai. Збережені в JugglucoNG облікові дані та стан сенсора не зміняться. Цю дію неможливо скасувати.</string>
+    <string name="ottai_cloud_unbind_confirm">Відв’язати назавжди</string>
+    <string name="ottai_cloud_unbind_success">Сенсор назавжди відв’язано від Ottai. Сенсор і збережені дані в JugglucoNG не змінено.</string>
+    <string name="ottai_cloud_unbind_failed">Не вдалося відв’язати сенсор від Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Перевірка прив’язки в хмарі Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Стан хмари: прив’язано до цього облікового запису Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Стан хмари: не прив’язано до цього облікового запису Ottai</string>
+    <string name="ottai_cloud_binding_error">Не вдалося перевірити прив’язку в хмарі Ottai</string>
     <string name="ottai_cloud_offline_routes">Імпортуйте файл облікових даних, щоб продовжити без хмари — сканування QR лише заповнює код сенсора, а NFC лише пробуджує його.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Екстрені SMS</string>

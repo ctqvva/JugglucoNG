@@ -973,6 +973,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_connect_saved_fail">Ma jiro akoon ama walxo kaydsan oo loogu talagalay aqoonsiga daruuriga ah</string>
     <string name="ottai_status_needs_ble_address">Wuxuu u baahan yahay ciwaanka BLE</string>
     <string name="ottai_status_warmup_provisional">Kuleyl ku meel gaar ah • %1$dm bidix</string>
+    <string name="anytime_status_warming_up">Kuleylinta</string>
+    <string name="anytime_status_warming_up_remaining">Kuleylinta • %1$dm bidix</string>
     <string name="ottai_status_loading_history">Taariikhda waa la soo dejinayaa • %1$d%%</string>
     <string name="ottai_ble_scan_title">Dareemayaasha Ottai ee dhow</string>
     <string name="ottai_ble_scan_hint">Taleefanka u dhowee dareemaha Xayeysiiyayaasha CGM deggan ayaa halkan ka muuqda.</string>
@@ -1503,11 +1505,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_treatments_upload_failing">Daaweynta: dirista way fashilmaysaa tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Daaweynta: tirtiridda waa la diiday tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">jawaab ma jirto</string>
+    <string name="nightscout_status_iob_no_token">Dirista IOB: waa la booday - weli token Nightscout ma jiro</string>
+    <string name="nightscout_status_iob_rejected">Dirista IOB: waa la diiday (%1$s)</string>
     <string name="nightscout_send_amounts_desc">Soo rar Insulin/Carbs (Daawaynta)</string>
     <string name="nightscout_send_long_insulin">Dir insuliinta muddada dheer</string>
     <string name="nightscout_send_long_insulin_desc">Ku dar insuliinta basal iyo tan aadka u dheer gelinta Nightscout</string>
     <string name="nightscout_receive_amounts">Hesho qaddaro</string>
-    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka</string>
+    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka. Token-ka gelitaanka wuxuu u baahan yahay oggolaanshaha api:treatments:read.</string>
     <string name="nightscout_settings_title">Goobaha Nightscoout</string>
     <string name="nightscout_sync_actions_title">Isku xidh falalka</string>
     <string name="nightscout_url_label">Nightscout URL</string>
@@ -1931,6 +1935,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_fingerstick">Farta gacanta</string>
     <string name="journal_type_activity">Hawsha</string>
     <string name="journal_type_note">Ogow</string>
+    <string name="journal_source_pen">Laga akhriyay qalinka</string>
+    <string name="journal_source_nightscout">Laga helay Nightscout</string>
+    <string name="journal_source_aaps">Laga helay AAPS</string>
+    <string name="journal_source_api">Lagu helay API</string>
+    <string name="journal_source_health_connect">Ka yimid Health Connect</string>
+    <string name="journal_source_meter">Ka yimid qalabka cabbirka</string>
     <string name="journal_note_label">Ogow</string>
     <string name="journal_onset_label">Bilawga</string>
     <string name="journal_add_preset">Ku dar nooca insulin</string>
@@ -2014,6 +2024,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="cgm_readiness_open_location_action">Goobta Furan</string>
     <string name="cgm_readiness_open_notifications_action">Ogeysiisyada Furan</string>
     <string name="cgm_readiness_open_alarm_action">Fur gelida alaarmiga</string>
+    <string name="cgm_readiness_open_full_screen_action">Ogolow digniinaha shaashadda buuxda</string>
     <string name="cgm_readiness_open_battery_action">Fur goobaha baytariyada</string>
     <string name="cgm_readiness_open_dnd_action">Furo gelitaanka DND</string>
     <string name="cgm_readiness_open_overlay_action">Furan gelitaanka dulsaar</string>
@@ -2041,6 +2052,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="cgm_readiness_exact_alarm_title">Alaarmiga saxda ah</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Jadwalka digniinta saxda ah waa la oggol yahay.</string>
     <string name="cgm_readiness_exact_alarm_detail">Oggolow digniinaha saxda ah ee xasuusinta la isku halayn karo, jeegaga dib ugu xidhka, iyo digniinaha wakhtiga muhiimka ah.</string>
+    <string name="cgm_readiness_full_screen_title">Digniinaha shaashadda buuxda</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Digniinuhu waxay toosin karaan shaashadda xiran.</string>
+    <string name="cgm_readiness_full_screen_detail">Ogolaansho la’aanteed digniinuhu ma toosiyaan shaashadda xiran, waxayna u muuqdaan oo keliya sida ogeysiis. Android wuu dib u qaadi karaa cusboonaysiin kasta oo appka ah – ka dib cusboonaysiinta hubi.</string>
     <string name="cgm_readiness_battery_title">Batarigu ma xadidna</string>
     <string name="cgm_readiness_battery_ready_detail">Hagaajinta batteriga Android waa la damiyay abkan.</string>
     <string name="cgm_readiness_battery_detail">Dami hagaajinta baytariga si BLE-gii hore, alaarmiga, iyo isku xidhka shabakada aan loo joojin.</string>
@@ -2326,7 +2340,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_large_arrow_desc">Falaarta ku dheeree ogeysiisyada, widgets-ka iyo AOD</string>
     <string name="notification_show_delta_minutes_desc">Muuji isbeddelka %1$d daqiiqo agta falaarta</string>
     <string name="dashboard_rows_show_delta_title">Delta liiska akhrisyada</string>
-    <string name="dashboard_rows_show_delta_desc">Muuji isbeddelka agta akhris kasta</string>
+    <string name="dashboard_rows_show_delta_desc">Muuji isbeddelka agta akhris kasta, shaashadda hore iyo taariikhda</string>
     <string name="glucose_palette_sheet_desc">Dooro palette ama habee xad kasta oo gulukoos ah</string>
     <string name="glucose_palette_saturation">Dheregsanaanta</string>
     <string name="glucose_palette_brightness">Iftiinka</string>
@@ -2496,6 +2510,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_upload_iob_desc">Nightscout wuxuu markaas muujinayaa qiimahan halkii uu ka isticmaali lahaa xisaabtiisa ku salaysan borofaylka. eIOB iyo COB sidoo kale waxaa lagu diraa meel gaar ah.</string>
     <string name="journal_iob_source_remote">Qiimayaasha qalabka xogta diraya (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Ka fur app-ka Ottai ama halkan ka saar dareemahaas si xiriirka loo sii daayo, dabadeed mar kale isku day.</string>
+    <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. JugglucoNG kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
+    <string name="ottai_cloud_unbind_title">Dareemahan si joogto ah ma looga furaa?</string>
+    <string name="ottai_cloud_unbind_message">%1$s si joogto ah ayaa looga saari doonaa koontadan Ottai. Koontadu mar dambe ma heli karto aqoonsiyadiisa, dareemuhuna kama shaqayn doono app-ka rasmiga ah ee Ottai. Aqoonsiyada iyo xaaladda dareemaha ee hore loogu kaydiyay JugglucoNG lama beddeli doono. Tallaabadan dib looma celin karo.</string>
+    <string name="ottai_cloud_unbind_confirm">Si joogto ah uga fur</string>
+    <string name="ottai_cloud_unbind_success">Dareemaha si joogto ah ayaa looga furay Ottai. Dareemaha iyo aqoonsiyada ku kaydsan JugglucoNG lama beddelin.</string>
+    <string name="ottai_cloud_unbind_failed">Dareemaha lagama furi karin Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Xiriirka daruurta Ottai waa la hubinayaa…</string>
+    <string name="ottai_cloud_binding_bound">Xaaladda daruurta: waxay ku xiran tahay koontadan Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Xaaladda daruurta: kuma xirna koontadan Ottai</string>
+    <string name="ottai_cloud_binding_error">Xiriirka daruurta Ottai lama hubin karin</string>
     <string name="ottai_cloud_offline_routes">Soo deji faylka aqoonsiyada si aad u sii waddo adigoon daruurta isticmaalin — iskaanka QR wuxuu keliya buuxiyaa koodhka dareemaha, NFC-na keliya ayuu kiciyaa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS degdeg ah</string>

@@ -301,3 +301,86 @@ internal fun readingDeltaTexts(
         tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
     }
 }
+
+/**
+ * The same "Δ" column for the history screen's reading rows, keyed by the reading
+ * itself: the history renders its rows per day section, so a positional list would
+ * have to be re-indexed at every section boundary; a map lets each row look its own
+ * text up.
+ *
+ * The history also reaches across sensors, and a difference between two sensors'
+ * readings is not a measured change. So the history is bucketed once per sensor —
+ * by [sameSensor], which is [tk.glucodata.SensorIdentity.matches] in the app, so a
+ * sensor stored under two names stays one — and every row walks back through its
+ * own sensor's bucket only. Rows the app cannot attribute ([isShared]: imported and
+ * unknown serials) belong to every bucket, which is what the dashboard's per-sensor
+ * history holds as well. Within one bucket the text is exactly [readingDeltaTexts]'s,
+ * gaps included: a row with no old-enough partner is absent.
+ *
+ * Build one index per [history] (oldest-first, unsmoothed) and ask it per visible
+ * window: [textsFor] does a binary search per bucket, not a pass over the data.
+ */
+internal class RowDeltaIndex(
+    history: List<GlucosePoint>,
+    private val sameSensor: (String, String) -> Boolean,
+    private val isShared: (String) -> Boolean = { false }
+) {
+    private val logicalSerials = ArrayList<String>()
+    private val keyBySerial = HashMap<String, String>()
+    private val historyByKey: Map<String?, List<GlucosePoint>>
+
+    init {
+        val shared = ArrayList<GlucosePoint>()
+        val own = LinkedHashMap<String?, ArrayList<GlucosePoint>>()
+        history.forEach { point ->
+            val key = keyOf(point.sensorSerial)
+            if (key === SHARED) shared.add(point) else own.getOrPut(key) { ArrayList() }.add(point)
+        }
+        historyByKey = if (shared.isEmpty()) {
+            own
+        } else {
+            own.mapValues { (_, points) -> (points + shared).sortedBy { it.timestamp } } + (SHARED to shared)
+        }
+    }
+
+    /** Blank and missing serials are one bucket, as in [GlucosePointSegments]. */
+    private fun keyOf(serial: String?): String? {
+        val raw = serial?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return keyBySerial.getOrPut(raw) {
+            if (isShared(raw)) {
+                SHARED
+            } else {
+                logicalSerials.firstOrNull { sameSensor(it, raw) } ?: raw.also(logicalSerials::add)
+            }
+        }
+    }
+
+    /** [rows] newest-first, the order the history draws them. */
+    fun textsFor(rows: List<GlucosePoint>, isMmol: Boolean, deltaIntervalMinutes: Int): Map<GlucosePoint, String> {
+        if (rows.isEmpty() || historyByKey.isEmpty()) return emptyMap()
+        val texts = HashMap<GlucosePoint, String>()
+        rows.groupBy { keyOf(it.sensorSerial) }.forEach { (key, sensorRows) ->
+            val bucket = historyByKey[key] ?: return@forEach
+            // Nothing newer than the newest row takes part in its walk-back: cut the
+            // bucket there, so a window months back does not start at today.
+            val newest = sensorRows.first().timestamp
+            var cut = bucket.binarySearchBy(newest) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
+            while (cut < bucket.size && bucket[cut].timestamp == newest) cut++
+            val sensorTexts = readingDeltaTexts(
+                sensorRows.map { it.timestamp },
+                bucket.subList(0, cut),
+                isMmol,
+                deltaIntervalMinutes
+            )
+            sensorRows.forEachIndexed { index, row ->
+                sensorTexts.getOrNull(index)?.let { texts[row] = it }
+            }
+        }
+        return texts
+    }
+
+    private companion object {
+        /** The bucket of the rows no sensor owns; a string no serial can be. */
+        const val SHARED = "\u0000shared"
+    }
+}
