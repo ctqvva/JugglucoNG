@@ -31,6 +31,9 @@ object MainThreadWatchdog {
     private const val SLOW_DISPATCH_MS = 50L
     private const val PING_INTERVAL_MS = 500L
     private const val PING_REPORT_MS = 2_000L
+    /** Wait this long for the ping before dumping the main thread's stack. */
+    private const val PING_STACK_DUMP_MS = 1_500L
+    private const val STACK_FRAMES = 45
     private const val DISPATCH_REPORT_INTERVAL = 2_000L
 
     @Volatile private var installed = false
@@ -133,7 +136,13 @@ object MainThreadWatchdog {
                     val postedAtMs = SystemClock.uptimeMillis()
                     val ran = java.util.concurrent.CountDownLatch(1)
                     if (!mainHandler.post { ran.countDown() }) return@Thread
-                    ran.await()
+                    // Dump the stack while the main thread is *still* stuck. Waiting
+                    // for the stall to end and reporting a duration says how bad it
+                    // is but never what it was doing; this names the frames.
+                    if (!ran.await(PING_STACK_DUMP_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                        dumpMainThreadStack(SystemClock.uptimeMillis() - postedAtMs)
+                        ran.await()
+                    }
                     val waitedMs = SystemClock.uptimeMillis() - postedAtMs
                     if (waitedMs >= PING_REPORT_MS) {
                         Log.w(TAG, "main thread unresponsive for ${waitedMs}ms (ping probe)")
@@ -151,6 +160,30 @@ object MainThreadWatchdog {
         thread.isDaemon = true
         thread.priority = Thread.MIN_PRIORITY + 1
         thread.start()
+    }
+
+    private var lastStackSignature: String? = null
+    private var repeatedStackCount = 0
+
+    private fun dumpMainThreadStack(blockedForMs: Long) {
+        val frames = runCatching { Looper.getMainLooper().thread.stackTrace }.getOrNull()
+        if (frames == null || frames.isEmpty()) return
+        // Collapse identical consecutive dumps: one long stall produces a dump every
+        // ping, and repeating 45 frames each time buries everything else.
+        val signature = frames.take(6).joinToString("|") { "${it.className}.${it.methodName}" }
+        if (signature == lastStackSignature) {
+            repeatedStackCount++
+            if (repeatedStackCount % 8 != 0) return
+            Log.w(TAG, "main thread STILL stuck ${blockedForMs}ms, same stack (x$repeatedStackCount)")
+            return
+        }
+        lastStackSignature = signature
+        repeatedStackCount = 0
+        val builder = StringBuilder("main thread stuck ${blockedForMs}ms, stack:")
+        for (frame in frames.take(STACK_FRAMES)) {
+            builder.append("\n    at ").append(frame)
+        }
+        Log.w(TAG, builder.toString())
     }
 
     /** Dump the dispatch totals on demand, e.g. alongside the BatteryTrace timers. */
