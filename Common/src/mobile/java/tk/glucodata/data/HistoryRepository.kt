@@ -64,6 +64,90 @@ class HistoryRepository(context: Context = Applic.app) {
         private const val DELETED_TIMESTAMP_QUERY_CHUNK = 900
 
         /**
+         * How far ahead of the clock a reading may be before it is worth saying so.
+         *
+         * A sensor's sample can legitimately be dated a few seconds ahead — clocks
+         * drift, the driver rounds to the second, the write lands after the sample
+         * time it names. A whole minute ahead is not that; it means whatever
+         * produced the row is working from a different clock than the phone, and
+         * the reading will render under a minute label the user has not reached
+         * yet.
+         *
+         * Kept out of the write path's decisions on purpose: the reading is still
+         * stored exactly as given. Inventing or shifting a glucose timestamp to
+         * make a label look right would be far worse than a wrong label.
+         */
+        private const val FUTURE_TIMESTAMP_REPORT_MS = 45_000L
+        private val futureTimestampLastReportMs = HashMap<String, Long>()
+
+        private var lastCompositionReportMs = 0L
+
+        /**
+         * Reports which sensor each of the newest points came from, once a minute.
+         *
+         * The dashboard line is merged across sensors, and the chart starts a new
+         * segment whenever the sensor changes — so a line that alternates between
+         * two sensors minute by minute draws as a row of disconnected fragments,
+         * which looks exactly like missing data and is not. This says which of the
+         * two is happening without needing a guess: if the tail is one serial, the
+         * gaps are real dropouts; if it alternates, they are seams.
+         */
+        @JvmStatic
+        fun reportRecentSensorComposition(points: List<GlucosePoint>) {
+            if (points.isEmpty()) return
+            val nowMs = System.currentTimeMillis()
+            synchronized(futureTimestampLastReportMs) {
+                if ((nowMs - lastCompositionReportMs) < 60_000L) return
+                lastCompositionReportMs = nowMs
+            }
+            val tail = points.takeLast(12)
+            val runs = StringBuilder()
+            var currentSerial: String? = null
+            var runLength = 0
+            fun flush() {
+                if (runLength > 0) runs.append(currentSerial ?: "null").append('x').append(runLength).append(' ')
+            }
+            tail.forEach { point ->
+                if (point.sensorSerial != currentSerial) {
+                    flush()
+                    currentSerial = point.sensorSerial
+                    runLength = 0
+                }
+                runLength++
+            }
+            flush()
+            val newest = tail.last()
+            Log.i(
+                TAG,
+                "dashboard tail: total=${points.size} newest=${formatMinute(newest.timestamp)} " +
+                    "(${newest.timestamp}, serial=${newest.sensorSerial}) clock=${formatMinute(nowMs)} " +
+                    "runs=[${runs.toString().trim()}]"
+            )
+        }
+
+        /**
+         * Reports a reading dated meaningfully ahead of the phone's clock, at most
+         * once a minute per sensor, naming who wrote it.
+         */
+        @JvmStatic
+        fun reportIfFutureTimestamp(sensorSerial: String, timestamp: Long, writer: String) {
+            val nowMs = System.currentTimeMillis()
+            val aheadMs = timestamp - nowMs
+            if (aheadMs < FUTURE_TIMESTAMP_REPORT_MS) return
+            synchronized(futureTimestampLastReportMs) {
+                val last = futureTimestampLastReportMs[sensorSerial] ?: 0L
+                if ((nowMs - last) < 60_000L) return
+                futureTimestampLastReportMs[sensorSerial] = nowMs
+            }
+            Log.w(
+                TAG,
+                "future reading: sensor=$sensorSerial writer=$writer " +
+                    "stamped=$timestamp now=$nowMs ahead=${aheadMs}ms " +
+                    "(row will show as ${formatMinute(timestamp)} while the clock reads ${formatMinute(nowMs)})"
+            )
+        }
+
+        /**
          * How much history the dashboard paints before the full timeline lands.
          *
          * Wide enough to fill the chart at its default range without a visible
@@ -519,6 +603,7 @@ class HistoryRepository(context: Context = Applic.app) {
             rawValue = rawValue,
             rate = rate
         )
+        reportIfFutureTimestamp(serial, timestamp, writer = "storeReading")
         withContext(Dispatchers.IO) {
             try {
                 if (dao.isReadingDeleted(serial, timestamp) > 0) {
@@ -619,6 +704,9 @@ class HistoryRepository(context: Context = Applic.app) {
                     Log.d(TAG, "Skipped ${readings.size} tombstoned readings")
                     return@withContext
                 }
+                filteredReadings.maxByOrNull { it.timestamp }?.let { newest ->
+                    reportIfFutureTimestamp(newest.sensorSerial, newest.timestamp, writer = "storeReadings")
+                }
                 dao.insertAll(filteredReadings)
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
                 // Only log small batches (likely genuine new data, not re-syncs)
@@ -655,6 +743,13 @@ class HistoryRepository(context: Context = Applic.app) {
                     bucketDurationMs = bucketDurationMs,
                 )
                 if (collapsedReadings.isEmpty()) return@withContext false
+                collapsedReadings.maxByOrNull { it.timestamp }?.let { newest ->
+                    reportIfFutureTimestamp(
+                        newest.sensorSerial,
+                        newest.timestamp,
+                        writer = "storeReadingsReplacingSensorBuckets"
+                    )
+                }
                 val plan = HistoryBucketReplacement.planForCollapsedReadings(
                     collapsedReadings = collapsedReadings,
                     bucketDurationMs = bucketDurationMs,

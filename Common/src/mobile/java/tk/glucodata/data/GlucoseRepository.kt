@@ -365,7 +365,10 @@ class GlucoseRepository {
                         send(firstPaint)
                     }
                 historyRepository.getDisplayHistoryFlow(preferredSerial, startTime)
-                    .collect { points -> send(points) }
+                    .collect { points ->
+                        HistoryRepository.reportRecentSensorComposition(points)
+                        send(points)
+                    }
             }
         }
     }
