@@ -1216,7 +1216,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">新标签帮助</string>
     <string name="nightnumhelp">Nightnum 帮助</string>
     <string name="nightscout_enable_upload">启用 Nightscout 上传</string>
-    <string name="nightscout_send_amounts_desc">上传胰岛素/碳水化合物（治疗）</string>
+    <string name="nightscout_send_amounts_desc">上传胰岛素/碳水化合物（治疗）。访问令牌需要 api:treatments:create、api:treatments:update 和 api:treatments:delete 权限。</string>
     <string name="nightscout_send_long_insulin">发送长效胰岛素</string>
     <string name="nightscout_send_long_insulin_desc">在 Nightscout 上传中包含基础和超长效胰岛素治疗</string>
     <string name="nightscout_receive_amounts">接收用量</string>
@@ -1228,6 +1228,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">从此 Nightscout URL 创建只读虚拟传感器。</string>
     <string name="nightscout_follow_url_required">请先输入 Nightscout URL</string>
     <string name="nightscout_test_testing">正在测试...</string>
+    <string name="nightscout_refresh_token">刷新令牌</string>
+    <string name="nightscout_token_refreshing">正在刷新令牌…</string>
+    <string name="nightscout_token_ok">令牌有效期至 %1$s - 权限：%2$s</string>
+    <string name="nightscout_token_error">刷新令牌失败 - %1$s</string>
     <string name="nightscout_test_error">失败 - %1$s</string>
     <string name="nightscout_test_ok">已连接 - HTTP %1$d</string>
     <string name="nightscout_test_connection">测试连接</string>
@@ -2323,7 +2327,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">传感器已到期,但有多个后续传感器处于活动状态。已跳过自动交接;请手动切换。</string>
     <string name="sensor_handover_successor_ready">后续传感器已就绪;到期时自动交接将接管</string>
     <string name="nightscout_upload_iob">将 IOB 发送到 Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout 将显示此值，而不是按配置自行计算。eIOB 和 COB 还会通过单独字段发送。</string>
+    <string name="nightscout_upload_iob_desc">Nightscout 将显示此值，而不是按配置自行计算。eIOB 和 COB 还会通过单独字段发送。访问令牌需要 api:devicestatus:create 权限。</string>
     <string name="journal_iob_source_remote">来自上传设备的数值（Nightscout）</string>
     <string name="ottai_cloud_already_binding">Ottai 账户仍绑定着另一个传感器。请在 Ottai 应用中解除绑定，或在此删除该传感器以释放绑定，然后重试。</string>
     <string name="ottai_cloud_unbind_hint">此操作仅更改云端账户。JugglucoNG 不会连接、停止、删除或修改所选传感器。</string>

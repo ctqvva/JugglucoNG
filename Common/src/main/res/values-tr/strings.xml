@@ -1228,7 +1228,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="newlabelhelp">Yeni Etiket Yardımı</string>
     <string name="nightnumhelp">Nightnum Yardımı</string>
     <string name="nightscout_enable_upload">Nightscout yüklemesini etkinleştir</string>
-    <string name="nightscout_send_amounts_desc">İnsülin/Karbonhidrat Yükle (Tedaviler)</string>
+    <string name="nightscout_send_amounts_desc">İnsülin/Karbonhidrat Yükle (Tedaviler). Erişim belirtecinin api:treatments:create, api:treatments:update ve api:treatments:delete izinleri gerekir.</string>
     <string name="nightscout_send_long_insulin">Uzun etkili insülini gönder</string>
     <string name="nightscout_send_long_insulin_desc">Nightscout yüklemelerine bazal ve ultra uzun etkili insülini dahil et</string>
     <string name="nightscout_receive_amounts">Miktarları al</string>
@@ -1240,6 +1240,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_follow_desc">Bu Nightscout URL\'sinden salt okunur sanal sensör oluşturur.</string>
     <string name="nightscout_follow_url_required">Önce bir Nightscout URL\'si girin</string>
     <string name="nightscout_test_testing">Test ediliyor...</string>
+    <string name="nightscout_refresh_token">Belirteci yenile</string>
+    <string name="nightscout_token_refreshing">Belirteç yenileniyor...</string>
+    <string name="nightscout_token_ok">Belirteç %1$s tarihine kadar geçerli - izinler: %2$s</string>
+    <string name="nightscout_token_error">Belirteç yenilenemedi - %1$s</string>
     <string name="nightscout_test_error">Başarısız - %1$s</string>
     <string name="nightscout_test_ok">Bağlandı - HTTP %1$d</string>
     <string name="nightscout_test_connection">Bağlantıyı test et</string>
@@ -2335,7 +2339,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_handover_multiple_text">Sensörün süresi doldu, ancak birden fazla halef sensör etkin. Otomatik devir atlandı; lütfen elle geçiş yapın.</string>
     <string name="sensor_handover_successor_ready">Halef sensör hazır; süre dolunca otomatik devir devreye girer</string>
     <string name="nightscout_upload_iob">IOB’yi Nightscout’a gönder</string>
-    <string name="nightscout_upload_iob_desc">Nightscout, profil üzerinden kendi hesapladığı değer yerine bu değeri gösterir. eIOB ve COB ayrıca ayrı bir alanda gönderilir.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout, profil üzerinden kendi hesapladığı değer yerine bu değeri gösterir. eIOB ve COB ayrıca ayrı bir alanda gönderilir. Erişim belirtecinin api:devicestatus:create izni gerekir.</string>
     <string name="journal_iob_source_remote">Verileri yükleyen cihazın değerleri (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai hesabına hâlâ başka bir sensör bağlı. Bağlantıyı serbest bırakmak için sensörü Ottai uygulamasından ayırın veya buradan kaldırın, ardından yeniden deneyin.</string>
     <string name="ottai_cloud_unbind_hint">Yalnızca bulut hesabı işlemi. JugglucoNG seçili sensöre bağlanmaz; sensörü durdurmaz, kaldırmaz veya değiştirmez.</string>

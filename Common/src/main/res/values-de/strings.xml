@@ -1270,13 +1270,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="newlabelhelp">Newlabel-Hilfe</string>
     <string name="nightnumhelp">Nightnum-Hilfe</string>
     <string name="nightscout_enable_upload">Nightscout-Upload aktivieren</string>
-    <string name="nightscout_send_amounts_desc">Insulin/Kohlenhydrate hochladen (Behandlungen)</string>
+    <string name="nightscout_send_amounts_desc">Insulin/Kohlenhydrate hochladen (Behandlungen). Der Zugriffstoken benötigt api:treatments:create, api:treatments:update und api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Langzeitinsulin senden</string>
     <string name="nightscout_send_long_insulin_desc">Basal- und ultralang wirkendes Insulin zu Nightscout hochladen</string>
     <string name="nightscout_receive_amounts">Mengen empfangen</string>
     <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren. Der Zugriffstoken benötigt die Berechtigung api:treatments:read.</string>
     <string name="nightscout_upload_iob">IOB an Nightscout senden</string>
-    <string name="nightscout_upload_iob_desc">Nightscout zeigt dann diesen Wert statt seiner eigenen Berechnung aus dem Profil. eIOB und COB werden zusätzlich in einem eigenen Feld übertragen.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout zeigt dann diesen Wert statt seiner eigenen Berechnung aus dem Profil. eIOB und COB werden zusätzlich in einem eigenen Feld übertragen. Der Zugriffstoken benötigt api:devicestatus:create.</string>
     <string name="nightscout_settings_title">Nightscout-Einstellungen</string>
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1284,6 +1284,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_desc">Erstellt einen schreibgeschützten virtuellen Sensor aus dieser Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Zuerst eine Nightscout-URL eingeben</string>
     <string name="nightscout_test_testing">Test läuft...</string>
+    <string name="nightscout_refresh_token">Token erneuern</string>
+    <string name="nightscout_token_refreshing">Token wird erneuert...</string>
+    <string name="nightscout_token_ok">Token gültig bis %1$s - Berechtigungen: %2$s</string>
+    <string name="nightscout_token_error">Token erneuern fehlgeschlagen - %1$s</string>
     <string name="nightscout_test_error">Fehlgeschlagen - %1$s</string>
     <string name="nightscout_test_ok">Verbunden - HTTP %1$d</string>
     <string name="nightscout_test_connection">Verbindung testen</string>

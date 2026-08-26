@@ -1201,7 +1201,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Ajuda do novo rótulo</string>
     <string name="nightnumhelp">Ajuda do Nightnum</string>
     <string name="nightscout_enable_upload">Ativar upload do Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Carregar insulina/carboidratos (tratamentos)</string>
+    <string name="nightscout_send_amounts_desc">Carregar insulina/carboidratos (tratamentos). O token de acesso precisa de api:treatments:create, api:treatments:update e api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Enviar insulina de ação prolongada</string>
     <string name="nightscout_send_long_insulin_desc">Incluir insulina basal e de ação ultralonga nos envios para o Nightscout</string>
     <string name="nightscout_receive_amounts">Receber valores</string>
@@ -1213,6 +1213,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Cria um sensor virtual apenas de leitura a partir deste URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Introduza primeiro um URL Nightscout</string>
     <string name="nightscout_test_testing">A testar...</string>
+    <string name="nightscout_refresh_token">Renovar token</string>
+    <string name="nightscout_token_refreshing">A renovar o token...</string>
+    <string name="nightscout_token_ok">Token válido até %1$s - permissões: %2$s</string>
+    <string name="nightscout_token_error">Falha ao renovar o token - %1$s</string>
     <string name="nightscout_test_error">Falhou - %1$s</string>
     <string name="nightscout_test_ok">Ligado - HTTP %1$d</string>
     <string name="nightscout_test_connection">Testar ligação</string>
@@ -2308,7 +2312,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">O sensor expirou, mas há vários sensores sucessores ativos. Transferência automática ignorada; mude manualmente.</string>
     <string name="sensor_handover_successor_ready">O sensor sucessor está pronto; a transferência automática assume na expiração</string>
     <string name="nightscout_upload_iob">Enviar IOB para o Nightscout</string>
-    <string name="nightscout_upload_iob_desc">O Nightscout passa a mostrar este valor em vez do cálculo próprio baseado no perfil. eIOB e COB também são enviados num campo separado.</string>
+    <string name="nightscout_upload_iob_desc">O Nightscout passa a mostrar este valor em vez do cálculo próprio baseado no perfil. eIOB e COB também são enviados num campo separado. O token de acesso precisa de api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valores do dispositivo que envia os dados (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ainda existe outro sensor associado à conta Ottai. Desassocie-o na aplicação Ottai ou remova esse sensor aqui para libertar a associação e tente novamente.</string>
     <string name="ottai_cloud_unbind_hint">Ação apenas na conta da nuvem. O JugglucoNG não se ligará ao sensor selecionado nem o parará, removerá ou modificará.</string>

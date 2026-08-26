@@ -1229,6 +1229,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
+    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments). Хандалтын токенд api:treatments:create, api:treatments:update, api:treatments:delete шаардлагатай.</string>
     <string name="nightscout_status_treatments_never">Эмчилгээ: одоогоор юу ч илгээгээгүй</string>
     <string name="nightscout_status_treatments_ok">Эмчилгээ: сүүлд илгээсэн %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй, сүүлд оролдсон %3$s (%2$s)</string>
@@ -2170,6 +2171,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
     <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох. Хандалтын токенд api:treatments:read зөвшөөрөл шаардлагатай.</string>
     <string name="nightscout_test_testing">Шалгаж байна...</string>
+    <string name="nightscout_refresh_token">Токен шинэчлэх</string>
+    <string name="nightscout_token_refreshing">Токен шинэчилж байна...</string>
+    <string name="nightscout_token_ok">Токен %1$s хүртэл хүчинтэй - эрхүүд: %2$s</string>
+    <string name="nightscout_token_error">Токен шинэчлэх амжилтгүй боллоо - %1$s</string>
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
     <string name="nightscout_test_ok">Холбогдсон - HTTP %1$d</string>
     <string name="nightscout_test_connection">Холболтыг шалгах</string>
@@ -2422,7 +2427,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_handover_multiple_text">Мэдрэгчийн хугацаа дууссан ч хэд хэдэн залгамжлагч мэдрэгч идэвхтэй байна. Автомат шилжүүлгийг алгаслаа; гараар шилжүүлнэ үү.</string>
     <string name="sensor_handover_successor_ready">Залгамжлагч мэдрэгч бэлэн; хугацаа дуусахад автомат шилжүүлэг ажиллана</string>
     <string name="nightscout_upload_iob">IOB-г Nightscout руу илгээх</string>
-    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ. Хандалтын токенд api:devicestatus:create шаардлагатай.</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. Ottai апп-аас салгах эсвэл эндээс тухайн мэдрэгчийг устгаж холболтыг чөлөөлөөд дахин оролдоно уу.</string>
     <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>

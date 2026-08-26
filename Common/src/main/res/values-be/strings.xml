@@ -1199,7 +1199,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Даведка Newlabel</string>
     <string name="nightnumhelp">Даведка Nightnum</string>
     <string name="nightscout_enable_upload">Уключыць загрузку Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Загрузіць інсулін/вугляводы (лячэнне)</string>
+    <string name="nightscout_send_amounts_desc">Загрузіць інсулін/вугляводы (лячэнне). Токену доступу патрэбныя api:treatments:create, api:treatments:update і api:treatments:delete.</string>
     <string name="nightscout_send_long_insulin">Адпраўляць інсулін працяглага дзеяння</string>
     <string name="nightscout_send_long_insulin_desc">Уключаць базальны і звышдоўгі інсулін у загрузкі Nightscout</string>
     <string name="nightscout_receive_amounts">Атрымліваць сумы</string>
@@ -1211,6 +1211,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Стварыць віртуальны датчык толькі для чытання з гэтага URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Спачатку ўвядзіце URL Nightscout</string>
     <string name="nightscout_test_testing">Праверка...</string>
+    <string name="nightscout_refresh_token">Абнавіць токен</string>
+    <string name="nightscout_token_refreshing">Абнаўленне токена...</string>
+    <string name="nightscout_token_ok">Токен сапраўдны да %1$s - дазволы: %2$s</string>
+    <string name="nightscout_token_error">Не ўдалося абнавіць токен - %1$s</string>
     <string name="nightscout_test_error">Памылка - %1$s</string>
     <string name="nightscout_test_ok">Падключана - HTTP %1$d</string>
     <string name="nightscout_test_connection">Праверыць злучэнне</string>
@@ -2374,7 +2378,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Сенсар скончыўся, але актыўныя некалькі сенсараў-пераемнікаў. Аўтаматычная перадача прапушчана; пераключыцеся ўручную.</string>
     <string name="sensor_handover_successor_ready">Сенсар-пераемнік гатовы; аўтаматычная перадача спрацуе пры заканчэнні</string>
     <string name="nightscout_upload_iob">Адпраўляць IOB у Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout будзе паказваць гэта значэнне замест уласнага разліку з профілю. eIOB і COB дадаткова перадаюцца ў асобным полі.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout будзе паказваць гэта значэнне замест уласнага разліку з профілю. eIOB і COB дадаткова перадаюцца ў асобным полі. Токену доступу патрэбна api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Значэнні з прылады, якая адпраўляе даныя (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Да ўліковага запісу Ottai усё яшчэ прывязаны іншы датчык. Адвяжыце яго ў праграме Ottai або выдаліце той датчык тут, каб вызваліць прывязку, і паўтарыце спробу.</string>
     <string name="ottai_cloud_unbind_hint">Дзеянне толькі з воблачным уліковым запісам. JugglucoNG не будзе падключацца да выбранага датчыка, спыняць, выдаляць або змяняць яго.</string>
