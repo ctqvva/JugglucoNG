@@ -2714,6 +2714,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Doses already in the journal stay there.</string>
     <string name="insulin_pen_new_doses">%1$d new doses</string>
     <string name="insulin_pen_no_new_doses">Pen read. No new doses.</string>
+    <string name="insulin_pen_duplicates_removed">Removed %1$d duplicate dose(s) left by earlier scans</string>
+    <string name="insulin_pen_duplicates_found">%1$d duplicate doses from earlier scans. Remove them in the pen\'s settings.</string>
+    <string name="insulin_pen_cleanup">Remove duplicate doses</string>
+    <string name="insulin_pen_cleanup_count">Remove %1$d duplicate doses</string>
+    <string name="insulin_pen_cleanup_desc">Earlier versions wrote a dose again on every scan. The pen\'s own log says these were single injections.</string>
+    <string name="insulin_pen_cleanup_none">Nothing to remove. Read the pen once if it has not been read since the update.</string>
+    <string name="insulin_pen_cleanup_confirm">Remove %1$d duplicate doses?</string>
     <string name="insulin_pen_doses_label">Doses</string>
     <string name="insulin_pen_select_all">Select all</string>
     <string name="insulin_pen_select_none">Clear</string>

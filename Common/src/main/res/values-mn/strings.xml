@@ -2604,6 +2604,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_forget_desc">Тэмдэглэлд аль хэдийн байгаа тунгууд хэвээр үлдэнэ.</string>
     <string name="insulin_pen_new_doses">%1$d шинэ тун</string>
     <string name="insulin_pen_no_new_doses">Үзгийг уншлаа. Шинэ тун алга.</string>
+    <string name="insulin_pen_duplicates_removed">Өмнөх уншилтаас үлдсэн давхардсан %1$d тунг устгалаа</string>
+    <string name="insulin_pen_duplicates_found">Өмнөх уншилтаас үлдсэн давхардсан %1$d тун байна. Үзгийн тохиргооноос устгана уу.</string>
+    <string name="insulin_pen_cleanup">Давхардсан тунг устгах</string>
+    <string name="insulin_pen_cleanup_count">Давхардсан %1$d тунг устгах</string>
+    <string name="insulin_pen_cleanup_desc">Өмнөх хувилбарууд уншилт бүрт тунг дахин бичдэг байсан. Үзгийн өөрийн бүртгэл эдгээр нь ганц тарилга байсныг харуулж байна.</string>
+    <string name="insulin_pen_cleanup_none">Устгах зүйл алга. Шинэчилсний дараа уншаагүй бол үзгийг нэг уншуулна уу.</string>
+    <string name="insulin_pen_cleanup_confirm">Давхардсан %1$d тунг устгах уу?</string>
     <string name="insulin_pen_doses_label">Тунгууд</string>
     <string name="insulin_pen_select_all">Бүгдийг сонгох</string>
     <string name="insulin_pen_select_none">Цэвэрлэх</string>

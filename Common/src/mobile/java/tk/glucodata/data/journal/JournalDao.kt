@@ -25,6 +25,16 @@ interface JournalDao {
     suspend fun getEntriesBetween(startMillis: Long, endMillis: Long): List<JournalEntryEntity>
 
     @Query(
+        "SELECT * FROM journal_entries WHERE source = :source AND timestamp BETWEEN :startMillis AND :endMillis " +
+            "ORDER BY timestamp ASC, id ASC"
+    )
+    suspend fun getEntriesBySourceBetween(
+        source: String,
+        startMillis: Long,
+        endMillis: Long
+    ): List<JournalEntryEntity>
+
+    @Query(
         "SELECT * FROM journal_entries WHERE glucoseValueMgDl IS NOT NULL AND timestamp >= :startMillis " +
             "ORDER BY timestamp ASC, id ASC"
     )
