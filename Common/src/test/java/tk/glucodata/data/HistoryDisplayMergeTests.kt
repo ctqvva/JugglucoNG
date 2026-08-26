@@ -290,4 +290,69 @@ class HistoryDisplayMergeTests {
         // And the live edge — what the chart calls "latest" — is the same point.
         assertEquals(fullThenSliced.last().timestamp, slicedThenMerged.last().timestamp)
     }
+
+    /**
+     * The reported gaps, from a trace with three sensors:
+     * `liveMain=70D07E2552DB, selectedMain=BB368A3`.
+     *
+     * The preferred sensor is the user's selected main, which had gone quiet
+     * while two others streamed. With only two ranks — preferred, then everyone
+     * else — it suppressed nothing, so both live sensors' readings passed through
+     * and interleaved minute by minute. The chart starts a segment on every
+     * sensor change, so a complete stream drew as disconnected fragments.
+     *
+     * At most one sensor may contribute to a stretch, and it should be the one
+     * still reading.
+     */
+    @Test
+    fun twoLiveSensorsDoNotInterleaveWhenThePreferredOneHasGoneQuiet() {
+        val readings = ArrayList<HistoryReading>()
+        var id = 0L
+        // The selected main stopped an hour ago.
+        for (minute in 0 until 10) {
+            readings.add(reading(++id, minute * MINUTE_MS, "selected-main", 100f, 100f))
+        }
+        // Two other sensors have been streaming since, alternating in the list.
+        for (minute in 60 until 90) {
+            readings.add(reading(++id, minute * MINUTE_MS, "live-a", 110f, 110f))
+            readings.add(reading(++id, minute * MINUTE_MS + 20_000L, "live-b", 60f, 60f))
+        }
+
+        val merged = HistoryDisplayMerge.mergeReadings(
+            readings.sortedBy { it.timestamp },
+            preferredSerial = "selected-main"
+        )
+
+        val recent = merged.filter { it.timestamp >= 60 * MINUTE_MS }
+        assertEquals(
+            "one sensor must own the recent stretch, not two alternating",
+            1,
+            recent.map { it.sensorSerial }.distinct().size
+        )
+        // live-b reads last, so it outranks live-a for that stretch.
+        assertEquals("live-b", recent.first().sensorSerial)
+        // And the quiet selected main keeps its own earlier stretch.
+        assertEquals(10, merged.count { it.sensorSerial == "selected-main" })
+    }
+
+    /**
+     * The rank must not reorder history: a retired sensor still owns the stretch
+     * that predates the one which replaced it, however long ago it stopped.
+     */
+    @Test
+    fun aRetiredSensorStillOwnsTheStretchBeforeTheOneThatReplacedIt() {
+        val readings = ArrayList<HistoryReading>()
+        var id = 0L
+        for (minute in 0 until 60) {
+            readings.add(reading(++id, minute * MINUTE_MS, "sensor-old", 90f, 90f))
+        }
+        for (minute in 90 until 150) {
+            readings.add(reading(++id, minute * MINUTE_MS, "sensor-new", 100f, 100f))
+        }
+
+        val merged = HistoryDisplayMerge.mergeReadings(readings, preferredSerial = "sensor-new")
+
+        assertEquals(60, merged.count { it.sensorSerial == "sensor-old" })
+        assertEquals(60, merged.count { it.sensorSerial == "sensor-new" })
+    }
 }
