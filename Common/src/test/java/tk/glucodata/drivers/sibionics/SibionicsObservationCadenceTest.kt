@@ -109,6 +109,66 @@ class SibionicsObservationCadenceTest {
         }
     }
 
+    /** Flat baseline, then the on-device spike shape: up 8 minutes, down 10. */
+    private fun spike(spikeAt: Int, total: Int): List<SibionicsSourceSample> =
+        (1..total).map { i ->
+            val d = i - spikeAt
+            val raw = 4.6f + when {
+                d < -8 -> 0f
+                d < 0 -> (8 + d) * 0.2125f
+                d == 0 -> 1.7f
+                d < 10 -> 1.7f - d * 0.17f
+                else -> 0f
+            }
+            SibionicsSourceSample(i, i * 60_000L, raw, 34f, 2_900f, 0)
+        }
+
+    /**
+     * The screenshot, as a test.
+     *
+     * A single sharp excursion — 4.6 to 6.3 and back inside twenty minutes,
+     * the shape a meal spike draws on the chart. Stock and Raw peak on the
+     * same minute; V2 must too. Held observations put V2's peak 3 to 6
+     * minutes late and flattened it from 6.3 to 5.1, and *how* late depended
+     * on where the spike happened to fall against the vendor's five-sample
+     * stage — which is why the delay looked erratic rather than like honest
+     * filtering. The spike is therefore run at every phase of that stage.
+     */
+    @Test
+    fun v2PeaksOnTheSameMinuteAsStockAtEveryStagePhase() {
+        listOf(
+            SibionicsConstants.Variant.SIBIONICS2 to "V116A",
+            SibionicsConstants.Variant.CHINESE to "V115G",
+        ).forEach { (variant, family) ->
+            (1000..1004).forEach { spikeAt ->
+                val rows = SibionicsReplayHarness.replay(
+                    samples = spike(spikeAt, 1100),
+                    variant = variant,
+                    shortCode = "46HU804EBJ4",
+                    sensitivity = 1.4f,
+                ).filter { it.index in (spikeAt - 30)..(spikeAt + 30) }
+
+                fun peakMinute(pick: (SibionicsReplayHarness.Row) -> Float): Int =
+                    (rows.filter { pick(it).isFinite() }.maxByOrNull(pick)?.index ?: spikeAt) - spikeAt
+
+                val v2Peak = peakMinute { it.adaptiveV2Mmol }
+                val stockPeak = peakMinute { it.stockMmol }
+                val calPeak = peakMinute { it.calibratedMmol }
+                println("SPIKE %s phase=%d peakMinute cal=%+d stock=%+d v2=%+d".format(
+                    family, spikeAt % 5, calPeak, stockPeak, v2Peak))
+
+                assertTrue(
+                    "$family phase=${spikeAt % 5}: observation peaks $calPeak min after raw",
+                    calPeak <= 1,
+                )
+                assertTrue(
+                    "$family phase=${spikeAt % 5}: v2 peaks $v2Peak min after raw, stock $stockPeak",
+                    v2Peak <= stockPeak + 1,
+                )
+            }
+        }
+    }
+
     private companion object {
         private const val TRACE_MINUTES = 900
         private const val SETTLE = 400
