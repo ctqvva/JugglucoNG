@@ -69,6 +69,12 @@ public final class BroadcastTrendRate {
                 if (Log.doLog)
                     Log.i("BroadcastTrendRate", "resolveCurrent failed: " + th);
             }
+            if (current != null) {
+                final Float vendorRate = VendorTrendRate.resolve(current.getSensorId(), current.getTimeMillis());
+                if (vendorRate != null) {
+                    return vendorRate;
+                }
+            }
             points = DisplayTrendSource.resolveTrendPoints(points, current, sensorId);
             final int viewMode = Notify.resolveSensorViewMode(sensorId);
             // current is deliberately not handed to resolveArrowRate: when the history is too thin

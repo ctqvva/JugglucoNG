@@ -645,7 +645,7 @@ object AnytimeFrames {
         val temperature = (tPlus40 - AnytimeConstants.TEMP_INT_OFFSET) + tFrac / 100f
         if (ibRaw >= 0xFFF0 || iwRaw >= 0xFFF0 || temperature !in -20f..80f) return null
         val trendAndHigh = decoded[offset + 6].toInt() and 0xFF
-        val trend = (trendAndHigh ushr 4) and 0x0F
+        val trend = AnytimeTrend.fromCt5PackedCode((trendAndHigh ushr 4) and 0x0F)
         val glucoseMgdl = ((trendAndHigh and 0x0F) shl 8) or (decoded[offset + 7].toInt() and 0xFF)
         val error = decoded[offset + 8].toInt() and 0xFF
         // glucoseMgdl == 0 is a valid warm-up/status record, not a malformed frame.
@@ -875,7 +875,9 @@ object AnytimeFrames {
         val bgInt = bytes[AnytimeConstants.COMPUTED_OFFSET_BG_INT].toInt() and 0xFF
         val bgFrac = bytes[AnytimeConstants.COMPUTED_OFFSET_BG_FRAC].toInt() and 0xFF
         val err = bytes[AnytimeConstants.COMPUTED_OFFSET_ERROR].toInt() and 0xFF
-        val trend = bytes[AnytimeConstants.COMPUTED_OFFSET_TREND].toInt() and 0xFF
+        val trend = AnytimeTrend.fromCt3ComputedCode(
+            bytes[AnytimeConstants.COMPUTED_OFFSET_TREND].toInt() and 0xFF
+        )
         val warn = bytes[AnytimeConstants.COMPUTED_OFFSET_WARN].toInt() and 0xFF
         return AnytimeComputedRecord(
             glucoseId = idLo or (idHi shl 8),

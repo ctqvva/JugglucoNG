@@ -56,6 +56,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.VendorTrendRate
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
@@ -3643,9 +3644,18 @@ class AnytimeBleManager(
             val fallbackDisplayValue = displayFallbackValue(result)
             if (!fallbackDisplayValue.isFinite() || fallbackDisplayValue <= 0f) return
             if (!allowDirectFallback && !hasStoredDisplayPoint(sampleMs)) return
+            val vendorRate = AnytimeTrend.rateFor(result.trend)
+            if (vendorRate.isFinite()) {
+                VendorTrendRate.publish(
+                    SerialNumber,
+                    sampleMs,
+                    vendorRate,
+                    AnytimeTrend.exchangeIndexFor(result.trend),
+                )
+            }
             val displayValue = CurrentDisplaySource.resolveIncomingReading(
                 liveNumericValue = fallbackDisplayValue,
-                rate = 0f,
+                rate = vendorRate,
                 targetTimeMillis = sampleMs,
                 preferredSensorId = SerialNumber,
                 sensorGen = SENSOR_GEN,
@@ -3658,7 +3668,7 @@ class AnytimeBleManager(
             SuperGattCallback.processExternalCurrentReading(
                 SerialNumber,
                 displayValue,
-                0f,
+                vendorRate,
                 sampleMs,
                 SENSOR_GEN,
             )
@@ -4020,7 +4030,7 @@ class AnytimeBleManager(
             } else {
                 lastRawMgdl
             },
-            rate = Float.NaN,
+            rate = AnytimeTrend.rateFor(lastAlgorithmResult?.trend ?: AnytimeTrend.NONE),
             sensorGen = SENSOR_GEN,
         )
     }

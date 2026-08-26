@@ -271,11 +271,41 @@ fun DashboardCombinedHeader(
              // The canonical trend list (live-augmented, newest-anchored window) —
              // the same points the notification and broadcast arrows regress over.
              val trendPoints = tk.glucodata.DisplayTrendSource.resolveTrendPoints(nativeList, currentSnapshot, null)
-             tk.glucodata.logic.TrendEngine.calculateTrend(trendPoints, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
+             val calculated = tk.glucodata.logic.TrendEngine.calculateTrend(
+                 trendPoints,
+                 useRaw = (viewMode == 1 || viewMode == 3),
+                 isMmol = isMmol,
+             )
+             val displayVelocity = tk.glucodata.DisplayTrendSource.resolveArrowRate(
+                 trendPoints,
+                 currentSnapshot,
+                 viewMode,
+                 isMmol,
+                 calculated.velocity,
+             )
+             calculated.copy(
+                 state = tk.glucodata.logic.TrendEngine.stateForVelocity(displayVelocity),
+                 velocity = displayVelocity,
+             )
         } else if (latestPoint != null) {
             // Fallback
              val nativeList = listOf(tk.glucodata.GlucosePoint(latestPoint.timestamp, latestPoint.value, latestPoint.rawValue))
-             tk.glucodata.logic.TrendEngine.calculateTrend(nativeList, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
+             val calculated = tk.glucodata.logic.TrendEngine.calculateTrend(
+                 nativeList,
+                 useRaw = (viewMode == 1 || viewMode == 3),
+                 isMmol = isMmol,
+             )
+             val displayVelocity = tk.glucodata.DisplayTrendSource.resolveArrowRate(
+                 nativeList,
+                 currentSnapshot,
+                 viewMode,
+                 isMmol,
+                 calculated.velocity,
+             )
+             calculated.copy(
+                 state = tk.glucodata.logic.TrendEngine.stateForVelocity(displayVelocity),
+                 velocity = displayVelocity,
+             )
         } else {
             tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
         }

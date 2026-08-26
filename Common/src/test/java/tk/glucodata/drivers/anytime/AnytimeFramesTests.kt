@@ -296,7 +296,7 @@ class AnytimeFramesTests {
         assertEquals(13.74f, rec.iwNa, 0.001f)
         assertEquals(33.10f, rec.temperatureC, 0.001f)
         assertEquals(123, rec.gluMgdl)
-        assertEquals(5, rec.trend)
+        assertEquals(AnytimeTrend.RISE_SLOW, rec.trend)
         assertEquals(0, rec.errorCode)
     }
 
@@ -330,7 +330,7 @@ class AnytimeFramesTests {
         assertEquals(7.87f, candidate.record.iwNa, 0.001f)
         assertEquals(34.48f, candidate.record.temperatureC, 0.001f)
         assertEquals(85, candidate.record.gluMgdl)
-        assertEquals(4, candidate.record.trend)
+        assertEquals(AnytimeTrend.STEADY, candidate.record.trend)
         assertEquals(0, candidate.record.errorCode)
     }
 

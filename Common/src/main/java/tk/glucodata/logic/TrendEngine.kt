@@ -43,6 +43,17 @@ object TrendEngine {
         val noiseLevel: Float = 0f // 0.0 - 1.0 (normalized CV, higher = noisier)
     )
 
+    fun stateForVelocity(velocity: Float): TrendState = when {
+        !velocity.isFinite() -> TrendState.Unknown
+        velocity > 2.0 -> TrendState.DoubleUp
+        velocity > 1.0 -> TrendState.SingleUp
+        velocity > 0.5 -> TrendState.FortyFiveUp
+        velocity > -0.5 -> TrendState.Flat
+        velocity > -1.0 -> TrendState.FortyFiveDown
+        velocity > -2.0 -> TrendState.SingleDown
+        else -> TrendState.DoubleDown
+    }
+
     /** Cadence the fixed 20 minute window was chosen for: Dexcom/Libre, one reading per 5 min. */
     private const val REFERENCE_CADENCE_MIN = 5.0
     private const val REFERENCE_WINDOW_MIN = 20.0
@@ -351,17 +362,8 @@ object TrendEngine {
         val noiseLevel = noiseLevel2
 
         // Map to State
-        val state = when {
-            velocity > 2.0 -> TrendState.DoubleUp
-            velocity > 1.0 -> TrendState.SingleUp
-            velocity > 0.5 -> TrendState.FortyFiveUp
-            velocity > -0.5 -> TrendState.Flat
-            velocity > -1.0 -> TrendState.FortyFiveDown
-            velocity > -2.0 -> TrendState.SingleDown
-            else -> TrendState.DoubleDown
-        }
+        val state = stateForVelocity(velocity)
 
         return TrendResult(state, velocity, acceleration, 1.0f, noiseLevel)
     }
 }
-
