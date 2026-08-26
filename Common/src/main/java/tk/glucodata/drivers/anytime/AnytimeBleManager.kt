@@ -3406,6 +3406,61 @@ class AnytimeBleManager(
         }.onFailure { Log.stack(TAG, "mirrorReadingIntoNative", it) }
     }
 
+    /**
+     * Batch form of [mirrorValuesIntoNative] for history imports.
+     *
+     * Mirroring history one reading at a time made the native side re-resolve the
+     * shell, re-seed direct-stream state (stat + read + alloc), log a line and rewind
+     * the stream cursor per reading. The batch entry point does each of those once and
+     * rewinds from the lowest index touched, which is what the ascending-order comment
+     * on the caller was reaching for.
+     *
+     * The Nightscout wake still fires, but once for the batch's newest sample rather
+     * than once per reading — the native writes already rewind info->nightiter behind
+     * the uploader cursor when they fill a gap, so one wake covers the whole batch.
+     */
+    private fun mirrorHistoryBatchIntoNative(items: List<AnytimePendingHistoryRoomImport>) {
+        val name = SerialNumber ?: return
+        val valid = items.filter {
+            it.reading.timestampMs / 1000L > 0L &&
+                    it.reading.storageGlucoseMgdl.isFinite() &&
+                    it.reading.storageGlucoseMgdl > 0f
+        }
+        if (valid.isEmpty()) return
+        runCatching {
+            val firstSampleSec = valid.first().reading.timestampMs / 1000L
+            val startSec = when {
+                sensorStartAtMs > 0L -> sensorStartAtMs / 1000L
+                firstSampleSec > 3600L -> firstSampleSec - 3600L
+                else -> 1L
+            }.coerceAtLeast(1L)
+            declareNativeLifetime(name, startSec)
+            Natives.ensureSensorShell(name, startSec)
+            val timestamps = LongArray(valid.size) { valid[it].reading.timestampMs / 1000L }
+            val values = FloatArray(valid.size) { valid[it].reading.storageGlucoseMgdl / 10f }
+            val raws = FloatArray(valid.size) {
+                val raw = valid[it].rawMgdl
+                if (raw.isFinite() && raw > 0f) raw else valid[it].reading.storageGlucoseMgdl
+            }
+            val temperatures = FloatArray(valid.size) {
+                valid[it].temperatureC
+                    .takeIf { temp -> temp.isFinite() && temp > -20f && temp < 80f }
+                    ?: 0f
+            }
+            val stored =
+                Natives.addGlucoseStreamBatchWithRawTemp(timestamps, values, raws, temperatures, name)
+            if (stored > 0) {
+                NightscoutUploadWake.afterLiveNativeWrite(
+                    "anytime-history",
+                    valid.maxOf { it.reading.timestampMs },
+                )
+            }
+            if (dataptr == 0L) {
+                dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
+            }
+        }.onFailure { Log.stack(TAG, "mirrorHistoryBatchIntoNative", it) }
+    }
+
     // Guards declareNativeLifetime against repeating on every mirrored reading. Keyed by
     // "$name:$days" so a profile re-resolve that changes the rating declares again.
     @Volatile private var nativeLifetimeDeclaredFor: String? = null
@@ -3556,19 +3611,12 @@ class AnytimeBleManager(
                     )
                     historyRoomImportBuffer.markImported(imports)
                     // Mirror the accepted batch into native storage so history
-                    // reaches the watch mirror and phone↔phone followers.
-                    // Ascending order keeps the mirror-cursor rewind to a single
-                    // pass (backstream/backhistory only ever move backward), so
-                    // this stays linear — the reconnect-recovery cost that used
-                    // to justify skipping native for history entirely.
-                    imports.sortedBy { it.reading.timestampMs }.forEach { item ->
-                        mirrorValuesIntoNative(
-                            item.reading.timestampMs,
-                            item.reading.storageGlucoseMgdl,
-                            item.rawMgdl,
-                            item.temperatureC,
-                        )
-                    }
+                    // reaches the watch mirror and phone↔phone followers. Ascending
+                    // order lets the batch rewind the mirror cursor once, from the
+                    // lowest index it touched (backstream/backhistory only ever move
+                    // backward) — the reconnect-recovery cost that used to justify
+                    // skipping native for history entirely.
+                    mirrorHistoryBatchIntoNative(imports.sortedBy { it.reading.timestampMs })
                 }
             }.onFailure { Log.stack(TAG, "flushPendingHistoryRoomImports", it) }
         }

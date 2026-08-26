@@ -470,6 +470,8 @@ object WearSync2 {
                 val stamps = LongArray(count)
                 val values = FloatArray(count)
                 val raws = FloatArray(count)
+                val nativeSecs = LongArray(count)
+                val nativeValues = FloatArray(count)
                 for (i in 0 until count) {
                     val t = buf.long
                     val auto10 = buf.int
@@ -483,11 +485,26 @@ object WearSync2 {
                         Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
                     }
                     val rawMgdl = if (raw10 > 0) raw10 / 10f else 0f
-                    Natives.addGlucoseStreamWithRawTemp(t, auto10 / 100f, rawMgdl, 0f, serial)
+                    nativeSecs[written] = t
+                    nativeValues[written] = auto10 / 100f
                     stamps[written] = t * 1000L
                     values[written] = auto10 / 10f
                     raws[written] = rawMgdl
                     written++
+                }
+                if (written > 0) {
+                    // One JNI call for the chunk. Per reading, the native side
+                    // re-seeded direct-stream state (stat + read + alloc), logged a
+                    // line and rewound the stream cursor every time; a large chunk
+                    // was enough to GC-stall the app. Same reason the Sibionics and
+                    // Anytime history mirrors are batched.
+                    Natives.addGlucoseStreamBatchWithRawTemp(
+                        nativeSecs.copyOf(written),
+                        nativeValues.copyOf(written),
+                        raws.copyOf(written),
+                        FloatArray(written),
+                        serial,
+                    )
                 }
                 // The phone reads its history from Room and never looks at native,
                 // so readings taken over by the watch landed somewhere the phone
