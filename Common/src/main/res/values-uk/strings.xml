@@ -640,6 +640,8 @@
     <string name="notification_dismiss_action_summary">Змахування або закриття сповіщень</string>
     <string name="notification_dismiss_action_dismiss">Закрити</string>
     <string name="notification_dismiss_action_snooze">Відкласти</string>
+    <string name="alarm_return_to_previous_app_title">Повертатися до попереднього застосунку після сигналу</string>
+    <string name="alarm_return_to_previous_app_summary">Після повноекранного сигналу повертатися до застосунку, яким ви користувалися, замість відкриття JugglucoNG</string>
     <string name="realert_if_not_dismissed">Повторювати, якщо не відхилено</string>
     <string name="retry_every">Повторювати кожні</string>
     <string name="retry_if_no_reaction">Повторювати, якщо немає реакції</string>

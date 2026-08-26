@@ -528,6 +528,8 @@
     <string name="notification_dismiss_action_summary">Deslizar ou fechar notificações</string>
     <string name="notification_dismiss_action_dismiss">Dispensar</string>
     <string name="notification_dismiss_action_snooze">Adiar</string>
+    <string name="alarm_return_to_previous_app_title">Voltar à app anterior após o alarme</string>
+    <string name="alarm_return_to_previous_app_summary">Após um alarme em ecrã inteiro, voltar à app que estava a usar em vez de abrir o JugglucoNG</string>
     <string name="realert_if_not_dismissed">Alertar novamente se nao descartado</string>
     <string name="retry_every">Repetir a cada</string>
     <string name="retry_if_no_reaction">Repetir se nao houver reacao</string>

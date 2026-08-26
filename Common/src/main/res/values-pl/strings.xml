@@ -703,6 +703,8 @@
     <string name="notification_dismiss_action_summary">Przesuniecie lub zamkniecie powiadomien</string>
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
+    <string name="alarm_return_to_previous_app_title">Po alarmie wróć do poprzedniej aplikacji</string>
+    <string name="alarm_return_to_previous_app_summary">Po alarmie pełnoekranowym wróć do używanej aplikacji zamiast otwierać JugglucoNG</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
     <string name="retry_every">Ponow co</string>
     <string name="retry_if_no_reaction">Ponow przy braku reakcji</string>

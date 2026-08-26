@@ -501,6 +501,8 @@
     <string name="notification_dismiss_action_summary">Scorri o chiudi le notifiche</string>
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
+    <string name="alarm_return_to_previous_app_title">Torna all\'app precedente dopo l\'allarme</string>
+    <string name="alarm_return_to_previous_app_summary">Dopo un allarme a schermo intero, torna all\'app che stavi usando invece di aprire JugglucoNG</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
     <string name="retry_every">Ripeti ogni</string>
     <string name="retry_if_no_reaction">Ripeti se nessuna reazione</string>
