@@ -1,0 +1,7 @@
+<!-- The insulin-pen receiver's filter: pens speak ISO-DEP. Kept apart from
+     nfc_tech_filter.xml (NfcV, the sensors) so sensor routing is untouched. -->
+<resources>
+    <tech-list>
+        <tech>android.nfc.tech.IsoDep</tech>
+    </tech-list>
+</resources>

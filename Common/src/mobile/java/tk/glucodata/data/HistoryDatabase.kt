@@ -29,7 +29,8 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
- *   v13 — per-reading credible intervals for uncertainty-aware estimators
+ *   v13 — retry accounting on journal delete tombstones
+ *   v14 — per-reading credible intervals for uncertainty-aware estimators
  */
 @Database(
     entities = [
@@ -41,7 +42,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -49,7 +50,7 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
-    
+
     companion object {
         @Volatile
         private var INSTANCE: HistoryDatabase? = null
@@ -242,13 +243,24 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN lastAttemptAt INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
         /**
-         * v12 → v13: uncertainty lives in its own table rather than as columns
+         * v13 → v14: uncertainty lives in its own table rather than as columns
          * on `history_readings`, which native re-sync rewrites. Nothing is
          * backfilled: readings written before this have no uncertainty, which
          * is the truthful answer, and they render as a plain line.
          */
-        private val MIGRATION_12_13 = object : Migration(12, 13) {
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -271,6 +283,7 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -289,7 +302,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
-                    MIGRATION_12_13
+                    MIGRATION_12_13,
+                    MIGRATION_13_14
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
