@@ -162,17 +162,17 @@ internal fun buildPredictionSeriesForChart(
 }
 
 /**
- * Single source of truth for the history that downstream non-chart consumers see
- * (hero trend arrow, recent readings, predictive simulation).
+ * Single source of truth for the history every non-chart consumer sees: the trend arrow,
+ * the recent readings and their Δ, the predictive simulation.
  *
- * When data smoothing is on and not restricted to the graph, the recent dashboard
- * consumer tail is smoothed segment-by-segment so the trend, prediction, and
- * reading list reflect the same recent line without reprocessing all stored history.
+ * Takes the window already resolved by [DataSmoothing.localSmoothingMinutes] rather than
+ * the raw switches. Working them out here is what let this series and the one behind the
+ * notification drift apart, and a caller that only has "how many minutes" cannot get the
+ * answer wrong. 0 means the reading is used as measured.
  */
 internal fun buildSmoothedConsumerHistory(
     points: List<GlucosePoint>,
-    smoothingMinutes: Int,
-    smoothOnlyGraph: Boolean,
+    evaluationSmoothingMinutes: Int,
     collapseChunks: Boolean
 ): List<GlucosePoint> {
     if (points.isEmpty()) {
@@ -183,7 +183,7 @@ internal fun buildSmoothedConsumerHistory(
     } else {
         points
     }
-    if (smoothOnlyGraph || smoothingMinutes <= 0) {
+    if (evaluationSmoothingMinutes <= 0) {
         return source
     }
 
@@ -192,7 +192,7 @@ internal fun buildSmoothedConsumerHistory(
         val sourceByTimestamp = segment.associateBy { it.timestamp }
         val smoothed = DataSmoothing.smoothNativePoints(
             segment.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) },
-            smoothingMinutes,
+            evaluationSmoothingMinutes,
             collapseChunks
         )
 

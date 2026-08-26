@@ -335,7 +335,18 @@ fun DashboardScreen(
     val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
     val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    // The chart's window and the reading's window, resolved once from the same switches.
+    // The chart is presentation; everything else on this screen is what the app is going
+    // to reason with, so it gets the window the notification and the alarms use.
+    val visualSmoothingMinutes = tk.glucodata.DataSmoothing.graphSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
+    val evaluationSmoothingMinutes = tk.glucodata.DataSmoothing.localSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        graphOnly = dataSmoothingGraphOnly,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
@@ -467,14 +478,12 @@ fun DashboardScreen(
     }
     val consumerHistory = remember(
         glucoseHistory,
-        visualSmoothingMinutes,
-        dataSmoothingGraphOnly,
+        evaluationSmoothingMinutes,
         dataSmoothingCollapseChunks
     ) {
         buildSmoothedConsumerHistory(
             points = glucoseHistory,
-            smoothingMinutes = visualSmoothingMinutes,
-            smoothOnlyGraph = dataSmoothingGraphOnly,
+            evaluationSmoothingMinutes = evaluationSmoothingMinutes,
             collapseChunks = dataSmoothingCollapseChunks
         )
     }
@@ -1191,13 +1200,18 @@ fun DashboardScreen(
             // row's arrow turns by. Only where the number is actually shown, though: with the
             // column off there is nothing for the arrow to contradict, and rebasing it anyway
             // would let a display setting quietly decide what an arrow means.
+            //
+            // Over [consumerHistory], which is the reading as the app reasons with it. Read
+            // from the stored series instead, this Δ was the one number on the screen that
+            // ignored the smoothing setting, so the row could state a fall the notification
+            // and the delta alarms — computed from the smoothed reading — did not agree with.
             val recentReadingDeltas = remember(
-                dashboardRowsShowDelta, recentReadings, glucoseHistory, unit, deltaIntervalMinutes
+                dashboardRowsShowDelta, recentReadings, consumerHistory, unit, deltaIntervalMinutes
             ) {
                 if (dashboardRowsShowDelta) {
                     readingDeltas(
                         recentReadings.map { it.timestamp },
-                        glucoseHistory,
+                        consumerHistory,
                         tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
                         deltaIntervalMinutes
                     )
