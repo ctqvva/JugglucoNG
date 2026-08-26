@@ -40,12 +40,19 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 
 import androidx.compose.material.icons.filled.AccessTime
@@ -885,30 +892,56 @@ fun SensorCard(
                     icon = Icons.Default.Science,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
+                    // Its bottom edge has to travel from a lone card to the head
+                    // of a pair while the ribbon row is still opening below it.
+                    animatePosition = true,
                 )
 
-                if (showsUncertainty) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    var ribbonEnabled by remember {
-                        mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context))
+                var ribbonEnabled by remember {
+                    mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context))
+                }
+                AnimatedVisibility(
+                    visible = showsUncertainty,
+                    enter = expandVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = IntSize.VisibilityThreshold,
+                        ),
+                        expandFrom = Alignment.Top,
+                    ) + fadeIn(animationSpec = tween(durationMillis = 150, delayMillis = 50)),
+                    exit = shrinkVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = IntSize.VisibilityThreshold,
+                        ),
+                        shrinkTowards = Alignment.Top,
+                    ) + fadeOut(animationSpec = tween(durationMillis = 100)),
+                ) {
+                    // The 2dp group gap lives inside the transition so it
+                    // collapses with the row instead of leaving a stray sliver
+                    // under the calibration card.
+                    Column {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.sibionics_uncertainty_ribbon),
+                            subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
+                            subtitleStyle = MaterialTheme.typography.bodySmall,
+                            checked = ribbonEnabled,
+                            onCheckedChange = { enabled ->
+                                ribbonEnabled = enabled
+                                // Display only: the estimate and its interval are
+                                // still computed and stored, so the value details
+                                // keep working and turning it back on needs no
+                                // rebuild.
+                                GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
+                            },
+                            icon = Icons.Default.Insights,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            position = CardPosition.BOTTOM,
+                        )
                     }
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.sibionics_uncertainty_ribbon),
-                        subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
-                        subtitleStyle = MaterialTheme.typography.bodySmall,
-                        checked = ribbonEnabled,
-                        onCheckedChange = { enabled ->
-                            ribbonEnabled = enabled
-                            // Display only: the estimate and its interval are
-                            // still computed and stored, so the value details
-                            // keep working and turning it back on needs no
-                            // rebuild.
-                            GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
-                        },
-                        icon = Icons.Default.Insights,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.BOTTOM,
-                    )
                 }
 //
 //                Spacer(modifier = Modifier.height(24.dp))
