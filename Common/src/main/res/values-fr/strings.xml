@@ -2522,4 +2522,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_estimated">Glycémie estimée</string>
     <string name="glucose_uncertainty_elevated">Incertitude du capteur élevée</string>
     <string name="glucose_possible_artifact">Possible artefact transitoire du capteur</string>
+    <string name="debug_v2_trace_title">Diagnostic Adaptive V2</string>
+    <string name="debug_v2_trace_desc">Enregistrer une ligne détaillée par mesure pendant la journalisation. Utile uniquement pour signaler un problème de capteur.</string>
 </resources>

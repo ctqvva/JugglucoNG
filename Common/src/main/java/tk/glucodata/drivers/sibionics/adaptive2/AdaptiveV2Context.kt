@@ -50,6 +50,9 @@ internal class SibionicsAdaptiveV2Context {
 
     fun latestEstimate(): ProbabilisticGlucoseEstimate? = estimator.latestEstimate
 
+    /** Most recent per-sample diagnostics row, independent of the ring buffer. */
+    fun latestDiagnostics(): AdaptiveV2Diagnostics? = estimator.latestDiagnostics
+
     fun probabilityBelow(thresholdMmol: Float): Float = estimator.probabilityBelow(thresholdMmol)
 
     fun continuationIndex(): Int? = estimator.continuationIndex()

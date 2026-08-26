@@ -2559,4 +2559,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_estimated">Geschatte glucose</string>
     <string name="glucose_uncertainty_elevated">Verhoogde sensoronzekerheid</string>
     <string name="glucose_possible_artifact">Mogelijk tijdelijk sensorartefact</string>
+    <string name="debug_v2_trace_title">Adaptive V2-diagnostiek</string>
+    <string name="debug_v2_trace_desc">Tijdens loggen een gedetailleerde regel per meting vastleggen. Alleen nuttig om sensorproblemen te melden.</string>
 </resources>

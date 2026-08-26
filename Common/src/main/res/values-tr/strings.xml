@@ -2544,4 +2544,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucose_estimated">Tahmini glukoz</string>
     <string name="glucose_uncertainty_elevated">Sensör belirsizliği yüksek</string>
     <string name="glucose_possible_artifact">Olası geçici sensör hatası</string>
+    <string name="debug_v2_trace_title">Adaptive V2 tanılama</string>
+    <string name="debug_v2_trace_desc">Günlük kaydı sırasında her ölçüm için ayrıntılı bir satır kaydet. Yalnızca sensör sorunlarını bildirmek için yararlıdır.</string>
 </resources>
