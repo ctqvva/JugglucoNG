@@ -167,6 +167,8 @@ private const val PREVIEW_WINDOW_DURATION_MS = 24L * 60L * 60L * 1000L
 private const val ACTIVE_INSULIN_MAX_WIDTH_FRACTION = 0.46f
 private const val ACTIVE_INSULIN_EXPANDED_MAX_WIDTH_FRACTION = 0.58f
 private val PreviewWindowHeight = 58.dp
+// Band edges soften over this fraction of the preview strip's height.
+private const val PREVIEW_BAND_FADE_FRACTION = 0.025f
 private val PreviewWindowOuterPadding = 12.dp
 
 private data class ChartRangeThresholds(
@@ -213,17 +215,26 @@ private fun chartRangeThresholds(
     )
 }
 
-// The dashboard trace and the preview navigator resolve their five band colors
-// here so both surfaces answer the range-color setting the same way.
+// The five band colors a glucose trace is stroked with. The dashboard resolves
+// this once and hands it to the preview navigator, so the strip cannot drift
+// from the trace above it.
+//
+// [lowTintBase] / [highTintBase] are the out-of-range tones used when the
+// app-range-color setting is off. They are parameters rather than
+// GlucoseRangeColors lookups because the caller owns them: today the dashboard
+// happens to define them as exactly that, but retuning them there must move
+// both surfaces, not silently split them.
 private fun chartRangePalette(
     isDark: Boolean,
     appChartRangeColors: Boolean,
-    primaryColor: Color
+    primaryColor: Color,
+    lowTintBase: Color,
+    highTintBase: Color
 ): ChartRangePalette = ChartRangePalette(
     veryLow = Color(GlucoseRangeColors.veryLow(isDark)),
-    low = Color(GlucoseRangeColors.low(isDark)),
+    low = if (appChartRangeColors) Color(GlucoseRangeColors.low(isDark)) else lowTintBase,
     inRange = if (appChartRangeColors) Color(GlucoseRangeColors.inRange(isDark)) else primaryColor,
-    high = Color(GlucoseRangeColors.high(isDark)),
+    high = if (appChartRangeColors) Color(GlucoseRangeColors.high(isDark)) else highTintBase,
     veryHigh = Color(GlucoseRangeColors.veryHigh(isDark))
 )
 
@@ -361,10 +372,8 @@ private fun PreviewWindowNavigator(
     calibratedValueResolver: CalibratedValueResolver,
     previewCenterTime: Long,
     viewMode: Int,
-    targetLow: Float,
-    targetHigh: Float,
     rangeThresholds: ChartRangeThresholds,
-    appChartRangeColors: Boolean,
+    rangePalette: ChartRangePalette,
     isMmol: Boolean,
     currentCenterTime: Long,
     currentVisibleDuration: Long
@@ -373,7 +382,6 @@ private fun PreviewWindowNavigator(
     val previewHalfDuration = previewDuration / 2
     val previewStart = previewCenterTime - previewHalfDuration
     val previewEnd = previewCenterTime + previewHalfDuration
-    val primaryLineColor = MaterialTheme.colorScheme.primary
     val secondaryLineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
     val isDark = isSystemInDarkTheme()
     val paletteRevision = GlucosePaletteState.revision
@@ -386,9 +394,6 @@ private fun PreviewWindowNavigator(
     val minimumWindowWidthPx = with(LocalDensity.current) { 12.dp.toPx() }
     val isRawMode = viewMode == 1 || viewMode == 3
     val hasCalibration = calibratedValueResolver.hasCalibration(isRawMode)
-    val previewRangeColors = remember(isDark, appChartRangeColors, primaryLineColor, paletteRevision) {
-        chartRangePalette(isDark, appChartRangeColors, primaryLineColor)
-    }
 
     fun activeValue(index: Int): Float {
         return if (hasCalibration) {
@@ -434,8 +439,8 @@ private fun PreviewWindowNavigator(
                     .let { if (it < 0) -it else it + 1 }
                     .coerceIn(startIdx + 1, renderData.size)
 
-                var minValue = targetLow
-                var maxValue = targetHigh
+                var minValue = rangeThresholds.low
+                var maxValue = rangeThresholds.high
                 for (index in startIdx until endExclusive) {
                     val value = activeValue(index)
                     if (value.isFinite() && value > 0.1f) {
@@ -463,17 +468,26 @@ private fun PreviewWindowNavigator(
 
                 // Same band geometry as the main chart, so the preview reads as a
                 // miniature of the trace above it instead of a flat primary line.
+                // GlucoseChartBands fades a band into the in-range tone over a
+                // fixed pixel distance, tuned for the full-height chart. This
+                // strip squeezes the same value span into ~42.dp, where 18px is
+                // most of a mmol/L: the low tone would start bleeding in around
+                // 4.5 on a 3.5 target, which reads as the preview ignoring the
+                // target range. Fade over a slice of the strip instead.
+                val previewFadePx = (heightPx * PREVIEW_BAND_FADE_FRACTION)
+                    .coerceIn(1f, GlucoseChartBands.DEFAULT_FADE_PX)
                 val rangeStops = GlucoseChartBands.verticalStops(
-                    veryHigh = previewRangeColors.veryHigh,
-                    high = previewRangeColors.high,
-                    inRange = previewRangeColors.inRange,
-                    low = previewRangeColors.low,
-                    veryLow = previewRangeColors.veryLow,
+                    veryHigh = rangePalette.veryHigh,
+                    high = rangePalette.high,
+                    inRange = rangePalette.inRange,
+                    low = rangePalette.low,
+                    veryLow = rangePalette.veryLow,
                     yVeryHigh = valueToY(rangeThresholds.veryHigh),
                     yHigh = valueToY(rangeThresholds.high),
                     yLow = valueToY(rangeThresholds.low),
                     yVeryLow = valueToY(rangeThresholds.veryLow),
-                    chartHeightPx = heightPx
+                    chartHeightPx = heightPx,
+                    fadePx = previewFadePx
                 )
                 val rangeBrush = Brush.verticalGradient(
                     *rangeStops.toTypedArray(),
@@ -481,8 +495,8 @@ private fun PreviewWindowNavigator(
                     endY = heightPx
                 )
 
-                val bandTop = valueToY(targetHigh).coerceIn(0f, heightPx)
-                val bandBottom = valueToY(targetLow).coerceIn(0f, heightPx)
+                val bandTop = valueToY(rangeThresholds.high).coerceIn(0f, heightPx)
+                val bandBottom = valueToY(rangeThresholds.low).coerceIn(0f, heightPx)
                 drawRoundRect(
                     color = targetBandColor,
                     topLeft = Offset(0f, minOf(bandTop, bandBottom)),
@@ -809,6 +823,23 @@ fun InteractiveGlucoseChart(
     // Adjusting alpha for visibility on graph background
     val lowOutOfRangeTintBase = TirLowColor
     val highOutOfRangeTintBase = TirHighColor
+    // Resolved once for the trace and the preview strip below it.
+    val chartBandPalette = remember(
+        isDark,
+        appChartRangeColors,
+        primaryColor,
+        lowOutOfRangeTintBase,
+        highOutOfRangeTintBase,
+        glucosePaletteRevision
+    ) {
+        chartRangePalette(
+            isDark,
+            appChartRangeColors,
+            primaryColor,
+            lowOutOfRangeTintBase,
+            highOutOfRangeTintBase
+        )
+    }
     // Neutral target for desaturating peer (secondary sensor) traces — theme
     // token so it adapts to light/dark and dynamic color.
     val peerNeutralBase = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2160,21 +2191,15 @@ fun InteractiveGlucoseChart(
             // Multi-sensor: the primary trace carries a subtle identity tint so
             // it pairs with its (tinted) values, like the peer traces do.
             val primaryLineTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f
-            val appRangeDark = isSystemInDarkTheme()
             val gradientBrush = remember(
                 limitYVeryHigh,
                 limitYHigh,
                 limitYLow,
                 limitYVeryLow,
                 chartHeightPx,
-                primaryColor,
-                highOutOfRangeTintBase,
-                lowOutOfRangeTintBase,
+                chartBandPalette,
                 primaryLineTintFraction,
-                primaryIdentityColor,
-                appChartRangeColors,
-                appRangeDark,
-                glucosePaletteRevision
+                primaryIdentityColor
             ) {
                 if (chartHeightPx <= 0f) {
                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
@@ -2188,12 +2213,11 @@ fun InteractiveGlucoseChart(
 
                     // Range-color mode uses the same five effective colors shown
                     // in settings, including every per-band override.
-                    val rangePalette = chartRangePalette(appRangeDark, appChartRangeColors, primaryColor)
-                    val veryHighTint = identityTinted(rangePalette.veryHigh)
-                    val highTint = identityTinted(rangePalette.high)
-                    val lowTint = identityTinted(rangePalette.low)
-                    val veryLowTint = identityTinted(rangePalette.veryLow)
-                    val inRangeTint = identityTinted(rangePalette.inRange)
+                    val veryHighTint = identityTinted(chartBandPalette.veryHigh)
+                    val highTint = identityTinted(chartBandPalette.high)
+                    val lowTint = identityTinted(chartBandPalette.low)
+                    val veryLowTint = identityTinted(chartBandPalette.veryLow)
+                    val inRangeTint = identityTinted(chartBandPalette.inRange)
                     // Stop geometry lives in GlucoseChartBands so the watch's
                     // curve bands on the same lines this one does.
                     val stops = GlucoseChartBands.verticalStops(
@@ -4321,10 +4345,8 @@ fun InteractiveGlucoseChart(
                     calibratedValueResolver = calibratedValueResolver,
                     previewCenterTime = previewCenterTime,
                     viewMode = viewMode,
-                    targetLow = targetLow,
-                    targetHigh = targetHigh,
                     rangeThresholds = rangeThresholds,
-                    appChartRangeColors = appChartRangeColors,
+                    rangePalette = chartBandPalette,
                     isMmol = isMmol,
                     currentCenterTime = centerTime,
                     currentVisibleDuration = visibleDuration
