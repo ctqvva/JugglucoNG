@@ -308,12 +308,6 @@ fun DashboardScreen(
     val sensorName by viewModel.sensorName.collectAsState()
     val daysRemaining by viewModel.daysRemaining.collectAsState()
     val glucoseHistory by viewModel.glucoseHistory.collectAsState()
-    // Two lists, deliberately. glucoseHistory is what the chart draws — every
-    // sensor covering the visible window, so a swap does not erase the sensor
-    // that came before. currentSensorTail is the live sensor alone, and it is
-    // what anything making a claim *about that sensor* must read: the hero, the
-    // trend arrow, the Δ column and the prediction.
-    val currentSensorTail by viewModel.currentSensorTail.collectAsState()
     val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsState()
     val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsState()
     val selectedSensorIds by viewModel.selectedSensorIds.collectAsState()
@@ -479,13 +473,13 @@ fun DashboardScreen(
         )
     }
     val consumerHistory = remember(
-        currentSensorTail,
+        glucoseHistory,
         visualSmoothingMinutes,
         dataSmoothingGraphOnly,
         dataSmoothingCollapseChunks
     ) {
         buildSmoothedConsumerHistory(
-            points = currentSensorTail,
+            points = glucoseHistory,
             smoothingMinutes = visualSmoothingMinutes,
             smoothOnlyGraph = dataSmoothingGraphOnly,
             collapseChunks = dataSmoothingCollapseChunks
@@ -860,13 +854,13 @@ fun DashboardScreen(
         // FAB removed - empty state now has inline cards
     ) { padding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val latestPoint = remember(currentSensorTail) {
-                val tail = currentSensorTail.lastOrNull()
-                if (tail == null || currentSensorTail.size < 2) {
+            val latestPoint = remember(glucoseHistory) {
+                val tail = glucoseHistory.lastOrNull()
+                if (tail == null || glucoseHistory.size < 2) {
                     tail
                 } else {
-                    val previous = currentSensorTail[currentSensorTail.lastIndex - 1]
-                    if (tail.timestamp >= previous.timestamp) tail else currentSensorTail.maxByOrNull { it.timestamp }
+                    val previous = glucoseHistory[glucoseHistory.lastIndex - 1]
+                    if (tail.timestamp >= previous.timestamp) tail else glucoseHistory.maxByOrNull { it.timestamp }
                 }
             }
             val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
@@ -1201,12 +1195,12 @@ fun DashboardScreen(
             // timestamp — over the same unsmoothed history the hero reads, so the
             // newest row and the hero can never disagree.
             val recentReadingDeltaTexts = remember(
-                dashboardRowsShowDelta, recentReadings, currentSensorTail, unit, deltaIntervalMinutes
+                dashboardRowsShowDelta, recentReadings, glucoseHistory, unit, deltaIntervalMinutes
             ) {
                 if (dashboardRowsShowDelta) {
                     readingDeltaTexts(
                         recentReadings.map { it.timestamp },
-                        currentSensorTail,
+                        glucoseHistory,
                         tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
                         deltaIntervalMinutes
                     )
@@ -1332,7 +1326,7 @@ fun DashboardScreen(
                             sensorProgress = sensorProgress,
                             sensorHoursRemaining = sensorHoursRemaining,
                             currentDay = currentDay,
-                            history = currentSensorTail, // Trend must see measured data: visual smoothing
+                            history = glucoseHistory, // Trend must see measured data: visual smoothing
                             // reshapes the recent slope, and the notification/broadcast
                             // arrow computes from unsmoothed history
                             calibratedValue = calibratedValue,
@@ -1602,7 +1596,7 @@ fun DashboardScreen(
                             sensorProgress = sensorProgress,
                             sensorHoursRemaining = sensorHoursRemaining,
                             currentDay = currentDay,
-                            history = currentSensorTail, // Trend must see measured data: visual smoothing
+                            history = glucoseHistory, // Trend must see measured data: visual smoothing
                             // reshapes the recent slope, and the notification/broadcast
                             // arrow computes from unsmoothed history
                             calibratedValue = calibratedValue,

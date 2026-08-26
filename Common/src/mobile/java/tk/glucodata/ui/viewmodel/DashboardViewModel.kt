@@ -284,15 +284,19 @@ class DashboardViewModel(
     /**
      * The current sensor's own recent readings, never merged with any other.
      *
-     * The hero value, the trend arrow, the Δ column, the prediction and the
-     * native history-recovery check all read this rather than [glucoseHistory].
-     * They are statements about *this* sensor, and a neighbouring or retired
-     * sensor's reading is not evidence about it — feeding them the merged list
-     * would let a retired sensor's tail stand in for a live one that has gone
-     * quiet, which is exactly the state recovery exists to detect.
+     * Deliberately not a UI input. The one thing that needs it is the native
+     * history-recovery check: it asks "is this sensor behind?", and the merged
+     * list the dashboard draws can answer with a *different* sensor's newer
+     * reading, so a live sensor that has gone quiet looks up to date and no
+     * re-sync is requested.
+     *
+     * Everything the user sees — rows, hero, trend, Δ, prediction — reads
+     * [glucoseHistory], as it always has. Repointing those at this list changed
+     * which reading each row showed and how often the list identity churned, and
+     * regressed both. If you are about to wire a visible surface to this, that is
+     * the reason not to.
      */
     private val _currentSensorTail = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
-    val currentSensorTail = _currentSensorTail.asStateFlow()
 
     private val _multiSensorDisplay =
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
@@ -1060,16 +1064,12 @@ class DashboardViewModel(
             var lastRecoveryRequestSerial: String? = null
             val tailStartMs =
                 (System.currentTimeMillis() - CURRENT_SENSOR_TAIL_WINDOW_MS).coerceAtLeast(0L)
-            combine(
-                _unit,
-                glucoseRepository.getCurrentSensorTailFlowRaw(tailStartMs)
-                    .distinctUntilChangedBy(::historyEdgeSignature)
-            ) { unitStr, tail ->
-                unitStr to tail
-            }.collectLatest { (unitStr, tail) ->
-                _currentSensorTail.value = withContext(Dispatchers.Default) {
-                    tail.inDisplayUnit(unitStr)
-                }
+            glucoseRepository.getCurrentSensorTailFlowRaw(tailStartMs)
+                .distinctUntilChangedBy(::historyEdgeSignature)
+                .collectLatest { tail ->
+                // Stored mg/dL, unconverted: the recovery check reads timestamps
+                // only, and converting would be work no one looks at.
+                _currentSensorTail.value = tail
 
                 val preferredSerial = preferredDashboardSensorId()?.takeIf { it.isNotBlank() }
                 val current = resolveCurrentForHistoryRecovery(preferredSerial)
