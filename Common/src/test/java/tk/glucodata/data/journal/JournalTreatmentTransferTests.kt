@@ -63,6 +63,9 @@ class JournalTreatmentTransferTests {
         assertEquals("Correction Bolus", json.optString("eventType"))
         assertEquals(4.0, json.optDouble("insulin"), 0.001)
         assertEquals("kept", json.optString("notes"))
+    }
+
+    /**
      * Shape taken from a live v3 /api/v3/treatments response. v3 answers with `identifier`
      * and the server-side srvCreated/srvModified; there is no `_id` at all, so nothing in the
      * import may depend on one being present.

@@ -361,6 +361,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
             formatStatusMillis(treatmentSync.lastSuccessAt)
         )
         else -> context.getString(R.string.nightscout_status_treatments_never)
+    }
+
     // The lines above report the native entries uploader only; the devicestatus channel
     // (IOB) fails on its own, and a "no token" skip must not read like a server rejection.
     val deviceStatusSummary: String? = when {
@@ -617,6 +619,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                             if (deviceStatusSummary != null) {
                                 Text(
                                     text = deviceStatusSummary,

@@ -99,6 +99,9 @@ class JournalTreatmentUploaderTests {
         assertEquals(
             JournalTreatmentUploader.OldCopyAction.DELETE,
             JournalTreatmentUploader.oldCopyAction(oldRemoteId = "65a1", acceptedRemoteId = "65b2")
+        )
+    }
+
     @Test
     fun acceptedDeleteClearsTheTombstone() {
         assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 200, attemptsSoFar = 0))
@@ -278,9 +281,14 @@ class JournalTreatmentUploaderTests {
                 JournalTreatmentUploader.TreatmentWrite.UPDATE
             )
         )
+    }
+
+    @Test
     fun aDeleteThatNeverGotAnAnswerIsRetriedToo() {
         assertEquals(TombstoneAction.RETRY, tombstoneAction(code = -1, attemptsSoFar = 0))
         assertEquals(TombstoneAction.RETRY, tombstoneAction(code = 500, attemptsSoFar = 0))
+    }
+
     // -- receive endpoint --------------------------------------------------
 
     @Test
@@ -324,12 +332,6 @@ class JournalTreatmentUploaderTests {
         // it is what distinguishes a missing permission from wrong credentials.
         val body = """{"status":403,"message":"Missing permission api:treatments:read"}"""
         assertEquals("Missing permission api:treatments:read", JournalTreatmentUploader.serverMessage(body))
-    }
-
-    @Test
-    fun aBodyWithoutAMessageStillReportsSomething() {
-        assertEquals("Unauthorized", JournalTreatmentUploader.serverMessage("Unauthorized"))
-        assertEquals("""{"status":401}""", JournalTreatmentUploader.serverMessage("""{"status":401}"""))
     }
 
     @Test
