@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -201,6 +202,13 @@ fun AlertSettingsScreen(
     fun persistAcknowledgedHighCoverageEnabled(enabled: Boolean) {
         acknowledgedHighCoverageEnabled = enabled
         AlertRepository.saveAcknowledgedHighCoverageEnabled(enabled)
+    }
+    var returnToPreviousAppAfterAlarm by remember {
+        mutableStateOf(AlertRepository.loadReturnToPreviousAppAfterAlarm())
+    }
+    fun persistReturnToPreviousAppAfterAlarm(enabled: Boolean) {
+        returnToPreviousAppAfterAlarm = enabled
+        AlertRepository.saveReturnToPreviousAppAfterAlarm(enabled)
     }
 
     Scaffold(
@@ -532,6 +540,14 @@ fun AlertSettingsScreen(
                     onMinutesChange = { persistSameDirectionSuppressionMinutes(it) },
                     acknowledgedHighCoverageEnabled = acknowledgedHighCoverageEnabled,
                     onAcknowledgedHighCoverageChange = { persistAcknowledgedHighCoverageEnabled(it) }
+                )
+            }
+
+            item(key = "alarm-return-to-previous-app") {
+                Spacer(Modifier.height(8.dp))
+                ReturnToPreviousAppPreference(
+                    enabled = returnToPreviousAppAfterAlarm,
+                    onEnabledChange = { persistReturnToPreviousAppAfterAlarm(it) }
                 )
             }
 
@@ -1127,6 +1143,81 @@ private fun AlertSettingsExpanded(
                     }
                 }
 
+                // === Rearm hysteresis ===
+                // The margin is how far the MEASURED value must recover before the
+                // episode ends and the alert can fire again; the interval (forecast
+                // only) is a hard floor between firings, whatever value and
+                // projection do.
+                val rearmMarginTypes = setOf(
+                    AlertType.PRE_LOW, AlertType.PRE_HIGH,
+                    AlertType.LOW, AlertType.HIGH,
+                    AlertType.VERY_LOW, AlertType.VERY_HIGH
+                )
+                if (config.type in rearmMarginTypes) {
+                    ThresholdSlider(
+                        label = stringResource(R.string.rearm_margin_label),
+                        value = config.rearmMargin ?: 0f,
+                        isMmol = isMmol,
+                        range = if (isMmol) 0f..3f else 0f..50f,
+                        onValueChange = { onConfigChange(config.copy(rearmMargin = it)) }
+                    )
+                }
+                if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.rearm_min_interval_label),
+                        value = config.rearmMinIntervalMinutes ?: 0,
+                        range = 0..60,
+                        stepSize = 5,
+                        onValueChange = { v -> onConfigChange(config.copy(rearmMinIntervalMinutes = v)) }
+                    )
+                }
+
+                // === IOB coverage (PRE_HIGH only; insulin makes a predicted LOW
+                // more likely, so PRE_LOW must never get this control) ===
+                if (config.type == AlertType.PRE_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.pre_high_iob_coverage_label),
+                        value = ((config.iobCoverageFactor ?: 0f) * 100f).toInt(),
+                        range = 0..200,
+                        stepSize = 10,
+                        onValueChange = { v -> onConfigChange(config.copy(iobCoverageFactor = v / 100f)) },
+                        valueText = { if (it == 0) stringResource(R.string.alert_feature_off) else "$it%" }
+                    )
+                }
+
+                // === Falling-value suppression ===
+                // These alerts say the value is not coming down; a steep fall proves it is.
+                // Slider in tenths of mg/dl per minute; 0 = off. VERY_HIGH is not among them:
+                // there the number itself is the problem.
+                if (config.type == AlertType.PERSISTENT_HIGH || config.type == AlertType.HIGH) {
+                    // One scale for both, in whole arrows: that is all the precision the
+                    // number behind it has, and it is the app's own vocabulary for what an
+                    // arrow means. Each step names itself, so the setting can be read
+                    // without knowing what a rate in mg/dL per minute looks like.
+                    DurationSlider(
+                        label = stringResource(R.string.persistent_high_fall_suppress_label),
+                        value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
+                        range = 0..(AlertDefaults.FALL_RATE_MAX_MGDL_PER_MIN * 10f).toInt(),
+                        stepSize = (AlertDefaults.FALL_RATE_STEP_MGDL_PER_MIN * 10f).toInt(),
+                        onValueChange = { v -> onConfigChange(config.copy(fallRateSuppress = v / 10f)) },
+                        valueText = {
+                            if (it == 0) {
+                                stringResource(R.string.alert_feature_off)
+                            } else {
+                                val arrow = when {
+                                    it >= 30 -> stringResource(R.string.fall_rate_falling_fast)
+                                    it >= 20 -> stringResource(R.string.fall_rate_falling)
+                                    else -> stringResource(R.string.fall_rate_slanting_down)
+                                }
+                                String.format(
+                                    java.util.Locale.getDefault(),
+                                    "-%.1f mg/dL/min (%s)", it / 10f, arrow
+                                )
+                            }
+                        }
+                    )
+                }
+
                 // === Sensor-expiry pre-warnings (multi-select, this type only) ===
                 if (config.type == AlertType.SENSOR_EXPIRY) {
                     SensorExpiryThresholdSelector(
@@ -1349,7 +1440,12 @@ private fun ThresholdSlider(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                // A long (localised) label must wrap, not push the value out
+                // of the row.
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             )
             Text(
                 // Use LOCAL sliderValue for real-time updates
@@ -1413,7 +1509,15 @@ internal fun DurationSlider(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                // A long (localised) label must wrap, not push the value out
+                // of the row.
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            )
             Text(
                 valueText(displayValue),
                 style = MaterialTheme.typography.bodyMedium,
@@ -1734,6 +1838,62 @@ private fun NotificationDismissActionPreference(
                 selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.56f),
                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReturnToPreviousAppPreference(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable { onEnabledChange(!enabled) }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.alarm_return_to_previous_app_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.alarm_return_to_previous_app_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            StyledSwitch(
+                checked = enabled,
+                onCheckedChange = onEnabledChange
             )
         }
     }

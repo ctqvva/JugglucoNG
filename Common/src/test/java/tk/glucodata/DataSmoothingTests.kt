@@ -6,6 +6,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DataSmoothingTests {
+    private val minute = 60_000L
+
+    @Test
+    fun nativePointsUseTheSharedBoundaryRegressionForBothLanes() {
+        val points = (0..12).map { index ->
+            GlucosePoint(
+                index * minute,
+                160f - 2f * index,
+                120f - index,
+            )
+        }
+
+        for (window in listOf(5, 10, 13)) {
+            val smoothed = DataSmoothing.smoothNativePoints(points, window, collapseChunks = false)
+            points.indices.forEach { index ->
+                assertEquals(points[index].value, smoothed[index].value, 1e-3f)
+                assertEquals(points[index].rawValue, smoothed[index].rawValue, 1e-3f)
+            }
+        }
+    }
+
     @Test
     fun collapsePointsForDisplaySkipsOpenBucket() {
         val points = (0..7).map { minute ->

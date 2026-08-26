@@ -81,16 +81,27 @@ object AlertStateTracker {
      * Call this when the alert ACTUALLY fires (sound/notification played).
      * Updates timestamps and counters.
      */
+    @JvmOverloads
     @Synchronized
-    fun onAlertTriggered(type: AlertType): Boolean {
+    fun onAlertTriggered(type: AlertType, config: AlertConfig? = null): Boolean {
         if (manualTests.isActive(type)) {
             return false
         }
         dismissedAlerts.remove(type)
         lastTriggerTime[type] = System.currentTimeMillis()
-        cooldownUntilTime[type] = lastTriggerTime.getValue(type) + DEFAULT_REARM_COOLDOWN_MS
+        cooldownUntilTime[type] = lastTriggerTime.getValue(type) + effectiveRearmCooldownMs(config)
         SmsWatchdog.onAlertFired(type.id)
         return true
+    }
+
+    /**
+     * The rearm cooldown after a firing. The configured minimum re-arm
+     * interval (forecast alerts) extends the built-in short cooldown, never
+     * shortens it; unset/0 keeps today's behaviour.
+     */
+    internal fun effectiveRearmCooldownMs(config: AlertConfig?): Long {
+        val configuredMs = (config?.rearmMinIntervalMinutes ?: 0).coerceAtLeast(0) * 60_000L
+        return maxOf(DEFAULT_REARM_COOLDOWN_MS, configuredMs)
     }
 
     @Synchronized

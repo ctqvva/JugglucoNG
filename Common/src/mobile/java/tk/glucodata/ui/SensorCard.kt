@@ -66,6 +66,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.components.StableModalBottomSheet
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import java.util.Locale
@@ -560,7 +561,7 @@ fun SensorCard(
     // Matches the destructive-action-sheet pattern from DashboardClearOptionsBottomSheet.
     if (showAiDexClearDialog) {
         @OptIn(ExperimentalMaterial3Api::class)
-        ModalBottomSheet(
+        StableModalBottomSheet(
             onDismissRequest = { showAiDexClearDialog = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = { BottomSheetDefaults.DragHandle() }
@@ -693,7 +694,7 @@ fun SensorCard(
     // Independent, immediately applied sensor-algorithm features.
     if (showSibionicsCalSheet && sensor.isSibionics && sensor.viewMode != 1) {
         @OptIn(ExperimentalMaterial3Api::class)
-        ModalBottomSheet(
+        StableModalBottomSheet(
             onDismissRequest = { showSibionicsCalSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = { CompactSheetDragHandle() }
@@ -976,7 +977,7 @@ fun SensorCard(
 
     if (showMqRestoreSheet) {
         @OptIn(ExperimentalMaterial3Api::class)
-        ModalBottomSheet(
+        StableModalBottomSheet(
             onDismissRequest = { showMqRestoreSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = { BottomSheetDefaults.DragHandle() }
@@ -1056,7 +1057,7 @@ fun SensorCard(
 
     if (showMqCalibrationSheet) {
         @OptIn(ExperimentalMaterial3Api::class)
-        ModalBottomSheet(
+        StableModalBottomSheet(
             onDismissRequest = {
                 showMqCalibrationSheet = false
                 mqCalibrationInputText = ""

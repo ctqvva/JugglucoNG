@@ -1022,6 +1022,13 @@ public class Natives {
 
         public static native void wakeuploader();
 
+        /**
+         * A journal entry was written, changed or deleted. Wakes the treatments branch of
+         * the uploader on its own reason, so a dose no longer waits for a calibration or a
+         * backup to come along and wake it by accident.
+         */
+        public static native void waketreatments();
+
         public static native boolean wakeNightscoutForLiveReading(String source, long timestampMillis);
 
         public static native void resetuploader();

@@ -70,6 +70,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import tk.glucodata.InsulinPenManager
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
@@ -159,6 +160,8 @@ private fun HistoryRoute(
     val journalFoods by dashboardViewModel.journalFoods.collectAsStateWithLifecycle()
     val journalQuickAddAlwaysNow by dashboardViewModel.journalQuickAddAlwaysNow.collectAsStateWithLifecycle()
     val appChartRangeColorsEnabled by dashboardViewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
+    val rowsShowDelta by dashboardViewModel.dashboardRowsShowDelta.collectAsStateWithLifecycle()
+    val deltaIntervalMinutes by dashboardViewModel.deltaIntervalMinutes.collectAsStateWithLifecycle()
     val predictionCarbRatioGramsPerUnit by dashboardViewModel.predictionCarbRatioGramsPerUnit.collectAsStateWithLifecycle()
     val predictionInsulinSensitivityMgDlPerUnit by dashboardViewModel.predictionInsulinSensitivityMgDlPerUnit.collectAsStateWithLifecycle()
     val predictionModelProfile by dashboardViewModel.predictionModelProfile.collectAsStateWithLifecycle()
@@ -195,6 +198,8 @@ private fun HistoryRoute(
         journalInsulinPresets = journalInsulinPresets,
         journalFoods = journalFoods,
         quickAddAlwaysNow = journalQuickAddAlwaysNow,
+        showRowDelta = rowsShowDelta,
+        deltaIntervalMinutes = deltaIntervalMinutes,
         onBack = onBack,
         onPointClick = { point ->
             onTriggerCalibration(
@@ -685,6 +690,31 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     LaunchedEffect(currentRoute) {
         dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
+    }
+
+    // A screen asked for from outside Compose — a notification's tap — is parked in
+    // PendingNavigation by MainActivity and taken here, so it works from a cold start.
+    // It is placed directly above the dashboard, as a tab tap would place it, so the
+    // bar keeps working: whatever was open is popped (state saved), Back returns to
+    // the dashboard, and the dashboard tab is one tap away.
+    LaunchedEffect(navController) {
+        PendingNavigation.route.collect { route ->
+            if (route != null) {
+                runCatching {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                    }
+                }
+                PendingNavigation.consume()
+            }
+        }
+    }
+
+    // The pen receiver is a manifest component switched by a setting; line it up with
+    // the settings once per start, for an upgrade or a restored backup.
+    LaunchedEffect(Unit) {
+        InsulinPenManager.syncBackgroundReceiver(context)
     }
 
     BackHandler(enabled = currentRoute == "dashboard") {
