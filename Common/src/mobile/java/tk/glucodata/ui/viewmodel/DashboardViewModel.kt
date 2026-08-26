@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import tk.glucodata.Natives
 import tk.glucodata.UiRefreshBus
@@ -57,6 +59,42 @@ internal object DashboardHistoryCollectionPolicy {
         mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
 }
 
+/** The span of time the dashboard chart is showing, in epoch millis. */
+internal data class ChartWindow(val startMs: Long, val endMs: Long)
+
+/**
+ * Turns the window the chart is *showing* into the window it *queries*.
+ *
+ * The dashboard used to query from 0 — every emission read and converted the
+ * whole store, which on a 90-day database is seconds of main-thread work and the
+ * ANR behind `Skipped 789 frames`. Bounding the query to what can be drawn is
+ * most of that cost gone.
+ *
+ * Two things keep the bound from turning into a re-query storm while the user
+ * drags the chart. The window is padded, so a small pan stays inside rows that
+ * were already fetched. And the padded edges are snapped to a coarse grid, so
+ * scrolling emits the *same* window until it crosses a grid line — Room only
+ * re-runs when the visible range genuinely moved somewhere new.
+ */
+internal object DashboardChartWindowPolicy {
+    /** Padding on each side, so ordinary panning does not immediately re-query. */
+    private const val MIN_PADDING_MS = 2L * 60L * 60L * 1000L
+    private const val PADDING_FRACTION = 0.25
+    /** Grid the padded edges snap to, so a drag re-queries at most twice an hour of travel. */
+    private const val QUANTUM_MS = 30L * 60L * 1000L
+
+    fun queryWindow(visible: ChartWindow): ChartWindow {
+        val span = (visible.endMs - visible.startMs).coerceAtLeast(0L)
+        val padding = maxOf(MIN_PADDING_MS, (span * PADDING_FRACTION).toLong())
+        val start = (visible.startMs - padding).coerceAtLeast(0L) / QUANTUM_MS * QUANTUM_MS
+        // Round the end up, and never below the visible end: a window that stopped
+        // short of "now" would clip the live edge off the chart.
+        val end = ((visible.endMs + padding) + QUANTUM_MS - 1L) / QUANTUM_MS * QUANTUM_MS
+        return ChartWindow(startMs = start, endMs = maxOf(end, visible.endMs))
+    }
+}
+
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     private val glucoseRepository: GlucoseRepository = GlucoseRepository(),
     private val journalRepository: JournalRepository = JournalRepository(),
@@ -120,6 +158,18 @@ class DashboardViewModel(
     private companion object {
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
         const val UI_RECOVERY_SYNC_MIN_INTERVAL_MS = 30_000L
+
+        /** Chart span assumed until the screen reports its own. */
+        const val DEFAULT_CHART_WINDOW_MS = 24L * 60L * 60L * 1000L
+
+        /**
+         * How far back [currentSensorTail] reaches.
+         *
+         * Long enough for the trend regression, the Δ interval and the recovery
+         * check to have their inputs even after a gap, and short enough that it
+         * stays a handful of rows rather than a second scan of the store.
+         */
+        const val CURRENT_SENSOR_TAIL_WINDOW_MS = 6L * 60L * 60L * 1000L
         const val DASHBOARD_HISTORY_COALESCE_MS = 300L
         // Drivers request a data refresh per delivered batch, and dowithglucose
         // requests one per non-main-sensor reading, so with three sensors these
@@ -219,8 +269,48 @@ class DashboardViewModel(
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
 
+    /**
+     * The chart's line: every sensor that covers the visible window, merged.
+     *
+     * Not the same list as [currentSensorTail], and the difference is the whole
+     * point — see that property.
+     */
     private val _glucoseHistory = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
     val glucoseHistory = _glucoseHistory.asStateFlow()
+
+    /**
+     * The current sensor's own recent readings, never merged with any other.
+     *
+     * The hero value, the trend arrow, the Δ column, the prediction and the
+     * native history-recovery check all read this rather than [glucoseHistory].
+     * They are statements about *this* sensor, and a neighbouring or retired
+     * sensor's reading is not evidence about it — feeding them the merged list
+     * would let a retired sensor's tail stand in for a live one that has gone
+     * quiet, which is exactly the state recovery exists to detect.
+     */
+    private val _currentSensorTail = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
+    val currentSensorTail = _currentSensorTail.asStateFlow()
+
+    /**
+     * The span the chart is showing, reported by the UI (range chips, pan, date
+     * picker). Seeded with a day so the first frame has something to draw before
+     * the screen has measured itself.
+     */
+    private val _chartWindow = MutableStateFlow(
+        System.currentTimeMillis().let { now ->
+            ChartWindow(startMs = now - DEFAULT_CHART_WINDOW_MS, endMs = now)
+        }
+    )
+
+    /**
+     * Tells the view model which slice of history the chart can currently draw.
+     * Cheap to call on every pan: the padded window is quantised, so most calls
+     * do not change the query at all.
+     */
+    fun setChartWindow(startMs: Long, endMs: Long) {
+        if (endMs <= startMs) return
+        _chartWindow.value = ChartWindow(startMs = startMs, endMs = endMs)
+    }
 
     private val _multiSensorDisplay =
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
@@ -426,6 +516,7 @@ class DashboardViewModel(
     private var journalEntriesJob: Job? = null
     private var journalPresetsJob: Job? = null
     private var journalFoodsJob: Job? = null
+    private var currentSensorTailJob: Job? = null
     private var activeHistoryMode: CollectionMode? = null
     private var activeHistoryStartTimeMs: Long? = null
 
@@ -535,7 +626,7 @@ class DashboardViewModel(
         val current = resolveCurrentForHistoryRecovery(serial)
         val shouldPreferHistoryRecovery = serial != null &&
             historyStartTimeMs != null &&
-            shouldRequestHistoryRecovery(historyStartTimeMs, _glucoseHistory.value, serial, current)
+            shouldRequestHistoryRecovery(historyStartTimeMs, _currentSensorTail.value, serial, current)
 
         if (!shouldPreferHistoryRecovery) {
             glucoseRepository.syncLatestNativeReadingOnce()
@@ -930,11 +1021,23 @@ class DashboardViewModel(
             _historyScreenGlucoseHistory.value = emptyList()
         }
 
+        startCurrentSensorTailCollection(mode)
+
         historyJob = viewModelScope.launch {
-            var lastRecoveryRequestSerial: String? = null
             var hasSeenHistoryEmission = false
             val rawHistoryFlow = when (mode) {
-                CollectionMode.DASHBOARD -> glucoseRepository.getDashboardHistoryFlowRaw(startTime = queryStartTimeMs)
+                // The chart follows the visible window: changing range or panning
+                // swaps the query rather than filtering a list that already cost a
+                // full-store read to build.
+                CollectionMode.DASHBOARD -> _chartWindow
+                    .map(DashboardChartWindowPolicy::queryWindow)
+                    .distinctUntilChanged()
+                    .flatMapLatest { window ->
+                        glucoseRepository.getDashboardHistoryFlowRaw(
+                            startTime = window.startMs,
+                            endTime = window.endMs
+                        )
+                    }
                 CollectionMode.FULL_HISTORY -> glucoseRepository.getHistoryFlowRaw(queryStartTimeMs)
                 CollectionMode.INACTIVE -> return@launch
             }
@@ -953,19 +1056,6 @@ class DashboardViewModel(
                     delay(DASHBOARD_HISTORY_COALESCE_MS)
                 }
                 val signature = historyEdgeSignature(rawHistory)
-                val preferredSerial = preferredDashboardSensorId()?.takeIf { it.isNotBlank() }
-                val current = resolveCurrentForHistoryRecovery(preferredSerial)
-                val currentRecoveryStartTimeMs = activeHistoryStartTimeMs ?: recoveryStartTimeMs
-                if (preferredSerial != null &&
-                    shouldRequestHistoryRecovery(currentRecoveryStartTimeMs, rawHistory, preferredSerial, current) &&
-                    lastRecoveryRequestSerial != preferredSerial
-                ) {
-                    lastRecoveryRequestSerial = preferredSerial
-                    requestHistoryRecoverySync(
-                        serial = preferredSerial,
-                        reason = "history_flow_${mode.name.lowercase()}_${rawHistory.size}"
-                    )
-                }
                 BatteryTrace.bump(
                     key = "dashboard.history.emission",
                     logEvery = 20L,
@@ -973,6 +1063,59 @@ class DashboardViewModel(
                 )
                 _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, mode, signature)
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Collects the current sensor's own tail, and owns the history-recovery
+     * decision that used to ride on the chart's emissions.
+     *
+     * Recovery moved here with the data it reasons about. Now that the chart
+     * shows every sensor covering the window, "the newest point in the drawn
+     * list" can belong to a sensor that is not the current one — and asking that
+     * list whether the current sensor is behind would answer no while it sits
+     * silent. This flow is that sensor and only that sensor.
+     */
+    private fun startCurrentSensorTailCollection(mode: CollectionMode) {
+        currentSensorTailJob?.cancel()
+        if (mode == CollectionMode.INACTIVE) {
+            currentSensorTailJob = null
+            _currentSensorTail.value = emptyList()
+            return
+        }
+
+        currentSensorTailJob = viewModelScope.launch {
+            var lastRecoveryRequestSerial: String? = null
+            val tailStartMs =
+                (System.currentTimeMillis() - CURRENT_SENSOR_TAIL_WINDOW_MS).coerceAtLeast(0L)
+            combine(
+                _unit,
+                glucoseRepository.getCurrentSensorTailFlowRaw(tailStartMs)
+                    .distinctUntilChangedBy(::historyEdgeSignature)
+            ) { unitStr, tail ->
+                unitStr to tail
+            }.collectLatest { (unitStr, tail) ->
+                _currentSensorTail.value = withContext(Dispatchers.Default) {
+                    tail.inDisplayUnit(unitStr)
+                }
+
+                val preferredSerial = preferredDashboardSensorId()?.takeIf { it.isNotBlank() }
+                val current = resolveCurrentForHistoryRecovery(preferredSerial)
+                // Deliberately still 0: shouldRequestHistoryRecovery treats a
+                // non-zero start as "history must reach back this far", and the
+                // tail window is a display bound, not a coverage requirement.
+                val currentRecoveryStartTimeMs = activeHistoryStartTimeMs ?: 0L
+                if (preferredSerial != null &&
+                    shouldRequestHistoryRecovery(currentRecoveryStartTimeMs, tail, preferredSerial, current) &&
+                    lastRecoveryRequestSerial != preferredSerial
+                ) {
+                    lastRecoveryRequestSerial = preferredSerial
+                    requestHistoryRecoverySync(
+                        serial = preferredSerial,
+                        reason = "current_sensor_tail_${mode.name.lowercase()}_${tail.size}"
+                    )
+                }
             }
         }
     }
@@ -1194,6 +1337,8 @@ class DashboardViewModel(
         multiSensorHistoryJob = null
         historyScreenJob?.cancel()
         historyScreenJob = null
+        currentSensorTailJob?.cancel()
+        currentSensorTailJob = null
         uiRefreshJob?.cancel()
         uiRefreshJob = null
         activeHistoryMode = null
