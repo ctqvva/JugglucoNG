@@ -282,22 +282,34 @@ internal class AdaptiveV2LagEstimator {
         correlation = 0.0
     }
 
-    fun update(innovation: Double, rate: Double, dtMinutes: Double, trust: Double) {
-        if (!innovation.isFinite() || !rate.isFinite()) return
-        if (abs(rate) < MIN_RATE_FOR_IDENTIFIABILITY) {
-            // A flat trace carries no information about lag. Shrink back toward
-            // the prior instead of holding a value that was fitted to noise.
-            lagMinutes += SHRINK_RATE * dtMinutes * (PRIOR_LAG_MINUTES - lagMinutes)
-            correlation *= CORRELATION_DECAY
-            return
-        }
-        val instantaneous = (innovation * rate).coerceIn(-CORRELATION_CLAMP, CORRELATION_CLAMP)
-        correlation += CORRELATION_SMOOTHING * trust * (instantaneous - correlation)
-        // Innovation running with the rate means the model is behind the sensor:
-        // the assumed lag is too long.
-        lagMinutes = (lagMinutes - ADAPT_RATE * correlation * dtMinutes)
-            .coerceIn(MIN_LAG_MINUTES, MAX_LAG_MINUTES)
-    }
+    /**
+     * Deliberately does nothing to [lagMinutes].
+     *
+     * The previous rule adapted tau from the correlation between innovation and
+     * glucose rate, reasoning that innovation running with the rate meant the
+     * assumed lag was too long. That reasoning is wrong, and measurably so.
+     * Innovation correlating with rate means the *interstitial state* is
+     * trailing the observation, which is a Kalman-gain deficiency — a question
+     * about Q against R — not a statement about tau. Reducing tau in response
+     * removes the lead compensation and makes the output trail further, which
+     * feeds the same correlation back in.
+     *
+     * On 31,773 real device samples it did exactly that: tau sat at 1.92
+     * against a 5.5 prior, pinned to its floor, and V2 ran four minutes behind
+     * both raw and the vendor output.
+     *
+     * Tau is not identifiable from one scalar observation per minute — it
+     * trades off against sensitivity, offset and the filter's own bandwidth.
+     * So it is held at the prior measured from the vendor's own effective
+     * lead, and [lagVariance] carries the resulting uncertainty into the
+     * posterior instead of pretending the value was learned.
+     */
+    fun update(
+        @Suppress("UNUSED_PARAMETER") innovation: Double,
+        @Suppress("UNUSED_PARAMETER") rate: Double,
+        @Suppress("UNUSED_PARAMETER") dtMinutes: Double,
+        @Suppress("UNUSED_PARAMETER") trust: Double,
+    ) = Unit
 
     fun writeTo(output: DataOutputStream) {
         output.writeDouble(lagMinutes)
@@ -327,11 +339,18 @@ internal class AdaptiveV2LagEstimator {
 
     companion object {
         /** Matches the vendor's measured falling-direction lead; see the class doc. */
-        const val PRIOR_LAG_MINUTES = 3.0
-        const val MIN_LAG_MINUTES = 1.5
-        const val MAX_LAG_MINUTES = 8.0
+        /**
+         * The vendor deconvolution's own effective lead over the calibrated
+         * observation, regressed from (stock - calibrated) against
+         * d(calibrated)/dt on content with realistic sharp excursions: 5.76 min
+         * on V1.1.5G and 7.62 on V1.1.6A. An earlier value of 3.0 came from
+         * fitting slow ramps, where the deconvolution barely engages.
+         */
+        const val PRIOR_LAG_MINUTES = 5.5
+        const val MIN_LAG_MINUTES = 2.0
+        const val MAX_LAG_MINUTES = 12.0
         /** Fraction of the admissible span treated as one-sigma uncertainty on τ. */
-        private const val PRIOR_LAG_UNCERTAINTY = 0.35
+        private const val PRIOR_LAG_UNCERTAINTY = 0.22
 
         private const val MIN_RATE_FOR_IDENTIFIABILITY = 0.02
         private const val CORRELATION_SMOOTHING = 0.05

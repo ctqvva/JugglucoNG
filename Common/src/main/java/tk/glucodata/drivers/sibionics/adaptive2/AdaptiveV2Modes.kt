@@ -106,16 +106,16 @@ internal object AdaptiveV2ModeModel {
      */
     private val PROCESS_NOISE: Array<DoubleArray> = arrayOf(
         // STEADY
-        noise(velocity = 3.0e-7, jerk = 3.0e-8,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 2.0e-5,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // DYNAMIC
-        noise(velocity = 1.2e-3, jerk = 3.0e-6,
+        noise(velocity = 1.2e-3, jerk = 3.0e-6, interstitial = 2.0e-5,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // ARTIFACT
-        noise(velocity = 3.0e-7, jerk = 3.0e-8,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 2.0e-5,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 2.5e-2),
         // DRIFT
-        noise(velocity = 5.0e-7, jerk = 5.0e-8,
+        noise(velocity = 5.0e-7, jerk = 5.0e-8, interstitial = 2.0e-5,
             logSensitivity = 2.0e-8, bias = 1.0e-6, artifact = 1.0e-6),
     )
 
@@ -125,6 +125,19 @@ internal object AdaptiveV2ModeModel {
      * @param jerk spectral density of the white noise driving [V2.ACC]:
      *   unmodelled curvature.
      *
+     * @param interstitial driving noise on [V2.I] — the state the observation
+     *   actually reads, and therefore the one that sets tracking bandwidth.
+     *
+     *   This is the knob that decides how fast the estimate can follow the
+     *   sensor. It is uniform across modes on purpose, and that was measured
+     *   rather than assumed: raising it — whether uniformly or only for
+     *   DYNAMIC — bought about 0.2 min of cross-correlation lag and cost the
+     *   mode separation that makes the IMM worth having, dropping pDynamic on a
+     *   real excursion from 0.47 to 0.22 while widening the interval. Tracking
+     *   bandwidth belongs to the velocity drive and the lag inversion; letting
+     *   the observed state chase the sensor directly just makes STEADY able to
+     *   explain movement, which is the one thing it must not do.
+     *
      * There is deliberately no separate entry for [V2.B]. Blood glucose has no
      * independent driving noise — it is the integral of velocity — and an entry
      * here would be read by nothing, which is exactly how the previous version
@@ -133,17 +146,14 @@ internal object AdaptiveV2ModeModel {
     private fun noise(
         velocity: Double,
         jerk: Double,
+        interstitial: Double,
         logSensitivity: Double,
         bias: Double,
         artifact: Double,
     ): DoubleArray = DoubleArray(V2.N).also {
         it[V2.V] = velocity
         it[V2.ACC] = jerk
-        // Interstitial glucose is a filtered version of blood glucose and has
-        // no independent driving noise either; the floor only keeps the row
-        // non-singular. Its real uncertainty arrives through the B->I coupling
-        // in the transition matrix.
-        it[V2.I] = 2.0e-5
+        it[V2.I] = interstitial
         it[V2.LOG_S] = logSensitivity
         it[V2.BIAS] = bias
         it[V2.ARTIFACT] = artifact

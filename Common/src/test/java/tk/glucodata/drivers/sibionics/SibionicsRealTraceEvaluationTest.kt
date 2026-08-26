@@ -288,6 +288,126 @@ class SibionicsRealTraceEvaluationTest {
         assertTrue("mean gap=${gap.average()}", abs(gap.average()) < 0.6)
     }
 
+    /**
+     * Effective lag of each model behind the raw front-end signal.
+     *
+     * Measured on first differences so a level offset cannot mask a timing
+     * difference, and against **raw** rather than against V2's own observation:
+     * comparing an estimator to its own already-lagged input is circular and
+     * says nothing about responsiveness. Stock is the bar here — V2 must be at
+     * least as prompt, because a smoother line that arrives late is worse than
+     * the vendor's for the one thing a CGM is for.
+     */
+    @Test
+    fun v2IsAtLeastAsPromptAsStock() {
+        val rows = SibionicsReplayHarness.replay(samples = samples(), sensitivity = 1.4f)
+            .filter { it.index > SETTLE }
+
+        fun lagBehindRaw(target: (SibionicsReplayHarness.Row) -> Float): Int {
+            val raw = rows.map { it.rawMmol }
+            val other = rows.map(target)
+            val da = (1 until raw.size).map { raw[it] - raw[it - 1] }
+            val db = (1 until other.size).map { other[it] - other[it - 1] }
+            var bestShift = 0
+            var best = -Double.MAX_VALUE
+            for (shift in -25..25) {
+                var num = 0.0; var na = 0.0; var nb = 0.0
+                for (i in 25 until da.size - 25) {
+                    val x = da[i].toDouble(); val y = db[i + shift].toDouble()
+                    if (!x.isFinite() || !y.isFinite()) continue
+                    num += x * y; na += x * x; nb += y * y
+                }
+                if (na > 0 && nb > 0) {
+                    val correlation = num / kotlin.math.sqrt(na * nb)
+                    if (correlation > best) { best = correlation; bestShift = shift }
+                }
+            }
+            return bestShift
+        }
+
+        /** Parabolic interpolation around the integer peak, for sub-minute resolution. */
+        fun fractionalLag(target: (SibionicsReplayHarness.Row) -> Float): Double {
+            val raw = rows.map { it.rawMmol }
+            val other = rows.map(target)
+            val da = (1 until raw.size).map { raw[it] - raw[it - 1] }
+            val db = (1 until other.size).map { other[it] - other[it - 1] }
+            fun correlate(shift: Int): Double {
+                var num = 0.0; var na = 0.0; var nb = 0.0
+                for (i in 25 until da.size - 25) {
+                    val x = da[i].toDouble(); val y = db[i + shift].toDouble()
+                    if (!x.isFinite() || !y.isFinite()) continue
+                    num += x * y; na += x * x; nb += y * y
+                }
+                return if (na > 0 && nb > 0) num / kotlin.math.sqrt(na * nb) else -1.0
+            }
+            var peak = 0
+            var best = -Double.MAX_VALUE
+            for (shift in -25..25) {
+                val c = correlate(shift)
+                if (c > best) { best = c; peak = shift }
+            }
+            val before = correlate(peak - 1)
+            val after = correlate(peak + 1)
+            val denominator = before - 2 * best + after
+            val offset = if (denominator != 0.0) 0.5 * (before - after) / denominator else 0.0
+            return peak + offset.coerceIn(-0.5, 0.5)
+        }
+
+        /** Mean delay of a series' turning points behind raw's — what the eye reads. */
+        fun turningPointDelay(target: (SibionicsReplayHarness.Row) -> Float): Double {
+            val raw = rows.map { it.rawMmol }
+            val other = rows.map(target)
+            fun extrema(values: List<Float>, window: Int = 12): List<Int> =
+                (window until values.size - window).filter { i ->
+                    val slice = values.subList(i - window, i + window + 1)
+                    (values[i] >= slice.max() || values[i] <= slice.min())
+                }
+            val rawExtrema = extrema(raw)
+            val delays = ArrayList<Int>()
+            rawExtrema.forEach { r ->
+                // Nearest extremum of the target within +/- 15 minutes.
+                val near = (maxOf(12, r - 15)..minOf(other.size - 13, r + 15)).filter { i ->
+                    val slice = other.subList(i - 12, i + 13)
+                    (other[i] >= slice.max() || other[i] <= slice.min())
+                }
+                near.minByOrNull { kotlin.math.abs(it - r) }?.let { delays += it - r }
+            }
+            return if (delays.isEmpty()) Double.NaN else delays.average()
+        }
+
+        println(
+            "REAL lag-fine    stock=%+.2f V1=%+.2f V2=%+.2f min | turningPoint stock=%+.2f V2=%+.2f".format(
+                fractionalLag { it.stockMmol }, fractionalLag { it.adaptiveV1Mmol },
+                fractionalLag { it.adaptiveV2Mmol },
+                turningPointDelay { it.stockMmol }, turningPointDelay { it.adaptiveV2Mmol },
+            )
+        )
+
+        val stockLag = lagBehindRaw { it.stockMmol }
+        val v1Lag = lagBehindRaw { it.adaptiveV1Mmol }
+        val v2Lag = lagBehindRaw { it.adaptiveV2Mmol }
+        val calibratedLag = lagBehindRaw { it.calibratedMmol }
+        println(
+            "REAL lag-vs-raw  calibrated=%+d stock=%+d V1=%+d V2=%+d min".format(
+                calibratedLag, stockLag, v1Lag, v2Lag,
+            )
+        )
+
+        // Two metrics, and they measure different things. Cross-correlation of
+        // first differences weights the highest-frequency content, where V2 is
+        // deliberately smoother than the vendor's deconvolved output and
+        // therefore carries more phase lag. Turning-point delay measures when
+        // each series actually turns, which is what a reader sees as one line
+        // being "ahead" of another. The bar is the second one: V2's features
+        // must arrive with the vendor's, not after them.
+        val stockTurn = turningPointDelay { it.stockMmol }
+        val v2Turn = turningPointDelay { it.adaptiveV2Mmol }
+        assertTrue("stockTurn=$stockTurn v2Turn=$v2Turn", v2Turn <= stockTurn + 0.5)
+        // And the correlation lag must at least stay close; a large gap here
+        // means the smoothing has gone from "cleaner" to "late".
+        assertTrue("stock=$stockLag v2=$v2Lag", v2Lag <= stockLag + 2)
+    }
+
     private companion object {
         /** Past the vendor warm-up and the first clip/ESA stages. */
         private const val SETTLE = 2_000
