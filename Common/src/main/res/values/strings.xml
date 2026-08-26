@@ -3108,4 +3108,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Servers and local discovery</string>
     <string name="clone_connections_empty">No paired devices yet.</string>
     <string name="clone_background_desc">Uses more battery</string>
+    <string name="libre3_source_experimental_warning">Experimental Libre 3 security build. Keep the standard APK available for rollback.</string>
 </resources>

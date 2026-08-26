@@ -63,6 +63,7 @@ import static tk.glucodata.util.sleep;
 public class Libre3GattCallback extends SuperGattCallback {
     static final private boolean doTEST=false; //TODO
     static private final String LOG_ID = "Libre3GattCallback";
+    private static final boolean USE_SOURCE_SECURITY = BuildConfig.EXPERIMENTAL_LIBRE3_SOURCE;
     private boolean shouldenablegattCharCommandResponse = false;
     private boolean isServicesDiscovered = false;
     private final long sensorptr;
@@ -81,6 +82,13 @@ private int    lastEventReceived=0;
 private  final void info(String in) {
     {if(doLog) {Log.i(LOG_ID,SerialNumber +": "+ in);};};
     }
+private boolean failSecurity(String message) {
+    Log.e(LOG_ID, SerialNumber + ": " + message);
+    setfailure(message);
+    if(mBluetoothGatt != null)
+        dodisconnect(mBluetoothGatt);
+    return false;
+    }
 @Override
 void free() {
     super.free();
@@ -89,6 +97,10 @@ void free() {
     var tmp=cryptptr;
     cryptptr=0L;
     endcrypt(tmp);
+    if(USE_SOURCE_SECURITY && sourceSecurityContext != 0L) {
+        Natives.libre3FreeSecurityContext(sourceSecurityContext);
+        sourceSecurityContext=0L;
+        }
     }
     public Libre3GattCallback(String SerialNumber, long dataptr)  {
         super(SerialNumber,dataptr,3);
@@ -179,7 +191,8 @@ private boolean connected=false;
             if(status==19) {
                 if((tim-datatime)>=59000) {
                     isPreAuthorized=false;
-                    Natives.setLibre3kAuth(sensorptr,null);
+                    if(!USE_SOURCE_SECURITY)
+                        Natives.setLibre3kAuth(sensorptr,null);
                     }
                  }
             }  
@@ -271,6 +284,10 @@ private    byte[] rdtData;
         }
         info("getsecdata num=" + i2 + " rdtSequence=" + rdtSequence);
         int length = value.length - 1;
+        if(rdtData == null || rdtBytes < 0 || length > rdtLength - rdtBytes) {
+            failSecurity("getsecdata payload exceeds expected length " + rdtLength);
+            return rdtLength;
+        }
         arraycopy(value, 1, rdtData, rdtBytes, length);
         int i3 = rdtBytes + length;
         rdtBytes = i3;
@@ -300,7 +317,13 @@ private void mknonceback() {
     arraycopy(r2,0,uit,16,16);
     byte[] pin=Natives.getpin(sensorptr);
     arraycopy(pin,0,uit,32,4);
-    var encrypted= Natives.processbar(7,nonce1,uit);
+    var encrypted= USE_SOURCE_SECURITY
+            ? Natives.libre3EncryptChallengeReply(sourceSecurityContext,nonce1,uit)
+            : Natives.processbar(7,nonce1,uit);
+    if(encrypted == null || encrypted.length != 40) {
+        failSecurity("challenge reply encryption returned an invalid payload");
+        return;
+        }
     {if(doLog){showbytes(SerialNumber+" processbar(7,nonce1,uit)",encrypted);};}
     wrtData=encrypted;
     wrtOffset=0;
@@ -315,7 +338,13 @@ private void challenge67() {
     byte[] nonce=new byte[7];
     arraycopy(rdtData,0,first,0,60);
     arraycopy(rdtData,60,nonce,0,7);
-    byte[] decr=Natives.processbar(8,nonce,first);
+    byte[] decr=USE_SOURCE_SECURITY
+            ? Natives.libre3DecryptChallengeResponse(sourceSecurityContext,nonce,first)
+            : Natives.processbar(8,nonce,first);
+    if(decr == null || decr.length != 56) {
+        failSecurity("challenge response decryption returned an invalid payload");
+        return;
+        }
     var backr2=copyOfRange(decr,0,16);
     if(!java.util.Arrays.equals(r2,backr2)) {
         {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"r2!=backr2");};};
@@ -331,10 +360,28 @@ private void challenge67() {
     var kEnc=copyOfRange(decr,32,48);
     var ivEnc=copyOfRange(decr,48,56);
 //    byte[] AuthKey=ECDHCrypto.exportAuthorizationKey();
-    byte[] AuthKey=Natives.processbar(9,null,null);
+    byte[] AuthKey=USE_SOURCE_SECURITY
+            ? Natives.libre3ExportSavedAuthorization(sourceSecurityContext)
+            : Natives.processbar(9,null,null);
+    if(AuthKey == null || (USE_SOURCE_SECURITY && AuthKey.length != ExperimentalLibre3AuthorizationStore.RECORD_SIZE)) {
+        failSecurity("authorization export returned an invalid payload");
+        return;
+        }
     //securityContext=new BCrypt(kEnc,ivEnc);
     cryptptr=initcrypt(cryptptr,kEnc,ivEnc);
-    Natives.setLibre3kAuth(sensorptr,AuthKey);
+    if(cryptptr == 0L) {
+        failSecurity("stream cipher initialization failed");
+        return;
+        }
+    if(USE_SOURCE_SECURITY) {
+        if(!ExperimentalLibre3AuthorizationStore.saveCandidate(SerialNumber,AuthKey)) {
+            failSecurity("could not persist the candidate authorization record");
+            return;
+            }
+        sourceAuthorizationInUse=AuthKey.clone();
+        }
+    else
+        Natives.setLibre3kAuth(sensorptr,AuthKey);
     enableNotification(mBluetoothGatt,gattCharPatchDataControl);
     }
 private void receivedCHALLENGE_DATA() {
@@ -387,7 +434,13 @@ private boolean sendSecurityCommand(byte b) {
 private int commandphase=1;
 private void setCertificate140() {
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"setCertificate140");};};
-    cryptolib.setPatchCertificate(rdtData);
+    boolean accepted=USE_SOURCE_SECURITY
+            ? sourceCryptolib.setPatchCertificate(sourceSecurityContext,rdtData)
+            : cryptolib.setPatchCertificate(rdtData);
+    if(!accepted) {
+        failSecurity("patch certificate validation failed");
+        return;
+        }
     if(sendSecurityCommand( (byte)0x0D)) {
         commandphase=4;
         }
@@ -395,7 +448,11 @@ private void setCertificate140() {
 private boolean    generateKAuth(byte[] input) {
     {if(doLog){showbytes(LOG_ID+ " "+SerialNumber +" generateKAuth",input);};}
     //Saves something?
-    return Natives.processint(6,input,null)!=0;
+    if(input == null || input.length != 65)
+        return false;
+    return USE_SOURCE_SECURITY
+            ? Natives.libre3DeriveAuthorizationRoot(sourceSecurityContext,input)==1
+            : Natives.processint(6,input,null)!=0;
     }
 private boolean setCertificate65() {
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"setCertificate65");};};
@@ -518,6 +575,10 @@ private    void fast_data(byte[] encryp) {
     }
 
 private final ECDHCrypto cryptolib=new ECDHCrypto();
+private final KEYSCrypto sourceCryptolib=new KEYSCrypto();
+private long sourceSecurityContext=0L;
+private boolean sourceSecurityReady=false;
+private byte[] sourceAuthorizationInUse=null;
 //int    securityState=0;
 private boolean    isPreAuthorized=false;
 private void onConnectGatt() {
@@ -530,22 +591,30 @@ private void handleMSLibre3SecurityNotificationsEnabledEvent() {
         sendSecurityCommand(17);
         }
     else {
-
+        if(USE_SOURCE_SECURITY) {
+            if(!sourceSecurityReady) {
+                failSecurity("source security context is unavailable");
+                return;
+                }
+            sendSecurityCommand(1);
+            commandphase=1;
+            }
+        else {
             var exportedKAuth = Natives.getLibre3kAuth(sensorptr);
-        if(cryptolib.initECDH(exportedKAuth ,1)) {
-            if(exportedKAuth==null) {
+            if(cryptolib.initECDH(exportedKAuth ,1)) {
+                if(exportedKAuth==null) {
                 {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"exportedKAuth==null");};};
                 sendSecurityCommand(1);
                 commandphase=1;
                 }
-            else  {
+                else  {
                 {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"exportedKAuth!=null");};};
                 isPreAuthorized=true;
                 sendSecurityCommand(17);
                 }
             }
         }
-
+    }
     }
 private void logevent(byte[] value) {
     byte[] decr=intDecrypt(cryptptr,6,value);
@@ -555,6 +624,33 @@ private void logevent(byte[] value) {
     lastEventReceived=last;
     }
 private void init() {
+    if(USE_SOURCE_SECURITY) {
+        sourceSecurityContext=Natives.libre3BeginSecurityHandshake(sourceSecurityContext);
+        sourceSecurityReady=false;
+        isPreAuthorized=false;
+        sourceAuthorizationInUse=null;
+        if(sourceSecurityContext == 0L) {
+            Log.e(LOG_ID, SerialNumber + ": source security context initialization failed");
+            return;
+            }
+        byte[] saved=ExperimentalLibre3AuthorizationStore.loadVerified(SerialNumber);
+        if(saved == null)
+            saved=ExperimentalLibre3AuthorizationStore.loadCandidate(SerialNumber);
+        if(saved == null) {
+            byte[] legacy=Natives.getLibre3kAuth(sensorptr);
+            if(legacy != null && legacy.length == ExperimentalLibre3AuthorizationStore.RECORD_SIZE)
+                saved=legacy;
+            }
+        if(!sourceCryptolib.initKEYS(sourceSecurityContext,saved,1)) {
+            Log.e(LOG_ID, SerialNumber + ": source security key initialization failed");
+            return;
+            }
+        sourceAuthorizationInUse=saved == null ? null : saved.clone();
+        sourceSecurityReady=true;
+        isPreAuthorized=saved != null;
+        commandphase=isPreAuthorized ? 5 : 1;
+        return;
+        }
     var exportedKAuth = Natives.getLibre3kAuth(sensorptr);
     if(!isPreAuthorized) {
         if(exportedKAuth!=null) {
@@ -832,8 +928,13 @@ private int getcomphase() {
     return commandphase;
     }
 private  byte[]           generateEphemeralKeys() {
-
-    var evikeys=Natives.processbar(5,null,null);
+    var evikeys=USE_SOURCE_SECURITY
+            ? Natives.libre3CreateEphemeralPublicKey(sourceSecurityContext)
+            : Natives.processbar(5,null,null);
+    if(evikeys == null || evikeys.length != 64) {
+        failSecurity("ephemeral public key generation returned an invalid payload");
+        return null;
+        }
     var uit=new byte[evikeys.length+1];
     arraycopy(evikeys,0,uit,1,evikeys.length);
     uit[0]=(byte)0x4;
@@ -884,7 +985,10 @@ private boolean    lastphase5=false;
                     ;
                     break;
                 case 2: {
-                    if(sendSecurityCert(cryptolib.getAppCertificate())) { //TODO what with failure?
+                    byte[] appCertificate=USE_SOURCE_SECURITY
+                            ? sourceCryptolib.getAppCertificate()
+                            : cryptolib.getAppCertificate();
+                    if(appCertificate != null && sendSecurityCert(appCertificate)) {
                         commandphase = 3;
                         }
                     else {
@@ -898,7 +1002,8 @@ private boolean    lastphase5=false;
                 case 3:
                     return;
                 case 4: {
-                    if (sendSecurityCert(generateEphemeralKeys()))
+                    byte[] ephemeral=generateEphemeralKeys();
+                    if (ephemeral != null && sendSecurityCert(ephemeral))
                         commandphase = 5;
                     else {
                         Log.e(LOG_ID, SerialNumber + ": "+"sendSecurityCert(generateEphemeralKeys()))");
@@ -970,6 +1075,12 @@ private    void glucose_data(byte[] value) {
         if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"start glucose_data");};
         int len = value.length;
 
+        if(len > oneMinuteRawData.length - oneMinuteReadingSize) {
+            oneMinuteReadingSize=0;
+            failSecurity("glucose packet exceeds the authenticated frame length");
+            return;
+        }
+
         System.arraycopy(value, 0, this.oneMinuteRawData, this.oneMinuteReadingSize, len);
         oneMinuteReadingSize +=len;
         if(oneMinuteReadingSize >= oneMinuteRawData.length) {
@@ -978,7 +1089,15 @@ private    void glucose_data(byte[] value) {
            byte[] decr = intDecrypt(cryptptr,3, oneMinuteRawData);
            if(decr == null) {
                 Log.e(LOG_ID, SerialNumber + ": "+"intDecrypt(cryptptr,3, oneMinuteRawData)==null");
-                return;
+               return;
+               }
+           if(USE_SOURCE_SECURITY && sourceAuthorizationInUse != null) {
+               if(ExperimentalLibre3AuthorizationStore.saveVerified(SerialNumber,sourceAuthorizationInUse))
+                   sourceAuthorizationInUse=null;
+               else {
+                   failSecurity("could not promote the authenticated authorization record");
+                   return;
+                   }
                }
            long res=Natives.saveLibre3MinuteL(this.sensorptr, decr);
            handleGlucoseResult(res,timmsec);

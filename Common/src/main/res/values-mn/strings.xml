@@ -2978,4 +2978,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_network_summary">Серверүүд ба дотоод хайлт</string>
     <string name="clone_connections_empty">Хосолсон төхөөрөмж одоогоор алга.</string>
     <string name="clone_background_desc">Батарейн зарцуулалт нэмэгдэнэ</string>
+    <string name="libre3_source_experimental_warning">Libre 3-ын туршилтын хамгаалалтын хувилбар. Буцаахад зориулж стандарт APK-г хадгална уу.</string>
 </resources>

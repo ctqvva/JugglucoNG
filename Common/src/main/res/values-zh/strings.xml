@@ -2887,4 +2887,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">服务器与本地发现</string>
     <string name="clone_connections_empty">尚无已配对设备。</string>
     <string name="clone_background_desc">会增加耗电量</string>
+    <string name="libre3_source_experimental_warning">实验性 Libre 3 安全版本。请保留标准 APK，以便回退。</string>
 </resources>

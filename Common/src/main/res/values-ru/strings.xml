@@ -2921,4 +2921,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Серверы и локальный поиск</string>
     <string name="clone_connections_empty">Подключённых устройств пока нет.</string>
     <string name="clone_background_desc">Повышает расход батареи</string>
+    <string name="libre3_source_experimental_warning">Экспериментальная сборка безопасности Libre 3. Сохраните стандартный APK для отката.</string>
 </resources>
