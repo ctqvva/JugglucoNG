@@ -18,6 +18,7 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import tk.glucodata.Applic
+import tk.glucodata.BatteryTrace
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.Natives
@@ -1373,6 +1374,7 @@ class SibionicsBleManager(
             }
         }
         var uncertaintyMmol: tk.glucodata.GlucoseUncertainty? = null
+        val algorithmStepStartNs = System.nanoTime()
         val displayMmol = synchronized(algorithmLock) {
             if (index <= 1) algorithm.reset()
             val stockMmol = algorithm.processStock(
@@ -1397,6 +1399,7 @@ class SibionicsBleManager(
             uncertaintyMmol = algorithm.latestUncertaintyMmol()
             value
         }
+        BatteryTrace.record("algo.step.$SerialNumber", System.nanoTime() - algorithmStepStartNs)
         if (live) lastLiveAlgorithmIndexSeen = index
         algorithmStateDirty = true
         advanceLastIndex(index)
@@ -1472,12 +1475,14 @@ class SibionicsBleManager(
         // the stock value behind it was; a calibration taken against it needs
         // that number and cannot recover it later.
         tk.glucodata.IntegratedStockBaseline.record(SerialNumber, eventMs, input)
+        val calibrationStartNs = System.nanoTime()
         val calibrated = tk.glucodata.CalibrationAccess.getIntegratedCalibratedSeries(
             values = floatArrayOf(input),
             timestamps = longArrayOf(eventMs),
             isRawMode = false,
             sensorIdOverride = SerialNumber,
         ).firstOrNull() ?: input
+        BatteryTrace.record("calib.per_reading.$SerialNumber", System.nanoTime() - calibrationStartNs)
         if (!calibrated.isFinite() || calibrated <= 0f) return stockMmol
         return if (Applic.unit == 1) calibrated else calibrated / SibionicsConstants.MGDL_PER_MMOLL
     }
@@ -1594,6 +1599,7 @@ class SibionicsBleManager(
             return
         }
 
+        val rebuildStartNs = System.nanoTime()
         val result = runCatching {
             buildAlgorithmRebuild(
                 sourceSamples = sourceSamples,
@@ -1604,6 +1610,13 @@ class SibionicsBleManager(
             )
         }.onFailure {
             Log.stack(SibionicsConstants.TAG, "local algorithm rebuild", it)
+        }.also {
+            BatteryTrace.record(
+                "algo.rebuild.$SerialNumber",
+                System.nanoTime() - rebuildStartNs,
+                logEvery = 1L,
+                warnAboveMs = 0L,
+            )
         }.getOrNull() ?: return
         if (result.readings.isEmpty() || generation != rebuildGeneration || selection != algorithmSelection ||
             variantSnapshot != variant || shortCodeSnapshot != shortCode || sensitivitySnapshot != sensitivity
@@ -1676,7 +1689,14 @@ class SibionicsBleManager(
                 )
             }
         }
+        val mirrorStartNs = System.nanoTime()
         mirrorReadingsIntoNative(result.readings)
+        BatteryTrace.record(
+            "algo.rebuild.mirror.$SerialNumber",
+            System.nanoTime() - mirrorStartNs,
+            logEvery = 1L,
+            warnAboveMs = 0L,
+        )
         // A rebuild replaces the values these intervals described, so the old
         // rows go before the new ones land; a stale band outliving its value
         // would be worse than no band at all.

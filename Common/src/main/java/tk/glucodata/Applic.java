@@ -1007,6 +1007,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
     @Override
     public void onCreate() {
         super.onCreate();
+        // Diagnostic: names the message behind a multi-second main-thread stall,
+        // which Choreographer/Davey report but never attribute.
+        MainThreadWatchdog.install();
         enlargeCursorWindow();
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {
