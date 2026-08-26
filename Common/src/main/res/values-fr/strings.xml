@@ -576,7 +576,9 @@
     <string name="notification_dismiss_action_dismiss">Ignorer</string>
     <string name="notification_dismiss_action_snooze">Répéter</string>
     <string name="same_direction_suppression_title">Période de silence après une alerte de même direction</string>
-    <string name="same_direction_suppression_summary">Après une alerte de baisse ou de hausse, les autres alertes de même direction restent muettes pendant cette durée. Bas, très bas, haut et très haut se déclenchent toujours.</string>
+    <string name="same_direction_suppression_summary">Après une alerte de baisse ou de hausse, les autres alertes de même direction restent muettes pendant cette durée. Bas, très bas et très haut se déclenchent toujours.</string>
+    <string name="acknowledged_high_coverage_title">Les alertes de hausse acquittées couvrent « Haut »</string>
+    <string name="acknowledged_high_coverage_summary">Après avoir ignoré ou reporté une alerte « Hausse rapide », « Haut prévu » ou « Haut », les autres restent silencieuses pendant la durée ci-dessus. « Très haut » se déclenche toujours.</string>
     <string name="realert_if_not_dismissed">Realerter si non ignoree</string>
     <string name="retry_every">Reessayer toutes les</string>
     <string name="retry_if_no_reaction">Reessayer si aucune reaction</string>

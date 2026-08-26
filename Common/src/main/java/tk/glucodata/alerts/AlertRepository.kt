@@ -20,6 +20,7 @@ object AlertRepository {
     private const val DEFAULT_THRESHOLD_MIGRATION_KEY = "alert_threshold_defaults_v3"
     private const val KEY_NOTIFICATION_DISMISS_ACTION = "notification_dismiss_action"
     private const val KEY_SAME_DIRECTION_SUPPRESSION_MINUTES = "same_direction_suppression_min"
+    private const val KEY_ACKNOWLEDGED_HIGH_COVERAGE = "acknowledged_high_coverage"
     @Volatile
     private var hiddenLegacyAlertCleanupDone = false
     @Volatile
@@ -184,6 +185,20 @@ object AlertRepository {
     fun saveSameDirectionSuppressionMinutes(minutes: Int) {
         prefs.edit {
             putInt(KEY_SAME_DIRECTION_SUPPRESSION_MINUTES, sanitizeSameDirectionSuppressionMinutes(minutes))
+        }
+    }
+
+    /** Whether acknowledged rising-side alerts may cover HIGH during the quiet period. */
+    fun loadAcknowledgedHighCoverageEnabled(): Boolean {
+        return prefs.getBoolean(
+            KEY_ACKNOWLEDGED_HIGH_COVERAGE,
+            AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED
+        )
+    }
+
+    fun saveAcknowledgedHighCoverageEnabled(enabled: Boolean) {
+        prefs.edit {
+            putBoolean(KEY_ACKNOWLEDGED_HIGH_COVERAGE, enabled)
         }
     }
 

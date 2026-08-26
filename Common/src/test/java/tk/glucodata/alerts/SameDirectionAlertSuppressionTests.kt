@@ -51,16 +51,122 @@ class SameDirectionAlertSuppressionTests {
     }
 
     @Test
-    fun thresholdAlertsAreNeverSuppressed() {
-        // The most important rule: arriving low or high is always announced,
-        // even half a minute after the warning about it.
+    fun safetyThresholdAlertsAreNeverSuppressed() {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
+        state.onFired(AlertType.RISING_FAST, t0, acknowledgedHighCoverage = true)
+
+        for (type in listOf(AlertType.LOW, AlertType.VERY_LOW, AlertType.VERY_HIGH)) {
+            assertNull(
+                type.name,
+                state.blockedBy(
+                    type,
+                    t0 + 30_000L,
+                    window,
+                    acknowledgedHighCoverage = true,
+                    isAcknowledged = { true }
+                )
+            )
+        }
+    }
+
+    @Test
+    fun highCoverageIsOffByDefault() {
+        assertFalse(AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED)
+        val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.RISING_FAST, t0)
 
-        for (type in listOf(AlertType.LOW, AlertType.VERY_LOW, AlertType.HIGH, AlertType.VERY_HIGH)) {
-            assertNull(type.name, state.blockedBy(type, t0 + 30_000L, window))
-        }
+        assertNull(
+            state.blockedBy(
+                AlertType.HIGH,
+                t0 + 30_000L,
+                window,
+                acknowledgedHighCoverage = false,
+                isAcknowledged = { true }
+            )
+        )
+    }
+
+    @Test
+    fun unacknowledgedRisingAlertNeverCoversHigh() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.RISING_FAST, t0, acknowledgedHighCoverage = true)
+
+        assertNull(
+            state.blockedBy(
+                AlertType.HIGH,
+                t0 + 2 * 60_000L,
+                window,
+                acknowledgedHighCoverage = true,
+                isAcknowledged = { false }
+            )
+        )
+    }
+
+    @Test
+    fun acknowledgedRisingAt235CoversHighAt243TwoMinutesLater() {
+        val state = SameDirectionAlertSuppression()
+        // The policy is time-based, so the glucose values belong to the scenario:
+        // RISING_FAST at 235, acknowledged, then HIGH at 243 two minutes later.
+        state.onFired(AlertType.RISING_FAST, t0, acknowledgedHighCoverage = true)
+
+        val blocker = state.blockedBy(
+            AlertType.HIGH,
+            t0 + 2 * 60_000L,
+            window,
+            acknowledgedHighCoverage = true,
+            isAcknowledged = { it == AlertType.RISING_FAST }
+        )
+
+        assertEquals(AlertType.RISING_FAST, blocker?.type)
+    }
+
+    @Test
+    fun acknowledgedForecastHighAlsoCoversHigh() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.PRE_HIGH, t0, acknowledgedHighCoverage = true)
+
+        val blocker = state.blockedBy(
+            AlertType.HIGH,
+            t0 + 2 * 60_000L,
+            window,
+            acknowledgedHighCoverage = true,
+            isAcknowledged = { it == AlertType.PRE_HIGH }
+        )
+
+        assertEquals(AlertType.PRE_HIGH, blocker?.type)
+    }
+
+    @Test
+    fun acknowledgedHighCoversLaterRisingAlert() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.HIGH, t0, acknowledgedHighCoverage = true)
+
+        val blocker = state.blockedBy(
+            AlertType.RISING_FAST,
+            t0 + 30_000L,
+            window,
+            acknowledgedHighCoverage = true,
+            isAcknowledged = { it == AlertType.HIGH }
+        )
+
+        assertEquals(AlertType.HIGH, blocker?.type)
+    }
+
+    @Test
+    fun acknowledgedHighCoverageExpiresWithQuietPeriod() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.RISING_FAST, t0, acknowledgedHighCoverage = true)
+
+        assertNull(
+            state.blockedBy(
+                AlertType.HIGH,
+                t0 + window,
+                window,
+                acknowledgedHighCoverage = true,
+                isAcknowledged = { true }
+            )
+        )
     }
 
     @Test

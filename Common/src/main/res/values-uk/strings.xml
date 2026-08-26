@@ -641,7 +641,9 @@
     <string name="notification_dismiss_action_dismiss">Закрити</string>
     <string name="notification_dismiss_action_snooze">Відкласти</string>
     <string name="same_direction_suppression_title">Тихий період після сигналу того ж напряму</string>
-    <string name="same_direction_suppression_summary">Після сигналу про падіння або зростання інші сигнали того ж напряму мовчать протягом цього часу. Низький, дуже низький, високий і дуже високий спрацьовують завжди.</string>
+    <string name="same_direction_suppression_summary">Після сигналу про падіння або зростання інші сигнали того ж напряму мовчать протягом цього часу. Низький, дуже низький і дуже високий спрацьовують завжди.</string>
+    <string name="acknowledged_high_coverage_title">Підтверджені сигнали зростання замінюють «Високий»</string>
+    <string name="acknowledged_high_coverage_summary">Після відхилення або відкладення сигналу «Швидке зростання», «Прогноз високого» чи «Високий» решта з них мовчать протягом указаного вище часу. «Дуже високий» спрацьовує завжди.</string>
     <string name="realert_if_not_dismissed">Повторювати, якщо не відхилено</string>
     <string name="retry_every">Повторювати кожні</string>
     <string name="retry_if_no_reaction">Повторювати, якщо немає реакції</string>

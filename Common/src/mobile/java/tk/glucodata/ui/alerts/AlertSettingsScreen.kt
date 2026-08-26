@@ -195,6 +195,13 @@ fun AlertSettingsScreen(
         sameDirectionSuppressionMinutes = minutes
         AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
     }
+    var acknowledgedHighCoverageEnabled by remember {
+        mutableStateOf(AlertRepository.loadAcknowledgedHighCoverageEnabled())
+    }
+    fun persistAcknowledgedHighCoverageEnabled(enabled: Boolean) {
+        acknowledgedHighCoverageEnabled = enabled
+        AlertRepository.saveAcknowledgedHighCoverageEnabled(enabled)
+    }
 
     Scaffold(
         topBar = {
@@ -522,7 +529,9 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 SameDirectionSuppressionPreference(
                     minutes = sameDirectionSuppressionMinutes,
-                    onMinutesChange = { persistSameDirectionSuppressionMinutes(it) }
+                    onMinutesChange = { persistSameDirectionSuppressionMinutes(it) },
+                    acknowledgedHighCoverageEnabled = acknowledgedHighCoverageEnabled,
+                    onAcknowledgedHighCoverageChange = { persistAcknowledgedHighCoverageEnabled(it) }
                 )
             }
 
@@ -1556,12 +1565,15 @@ private fun PreemptiveSnoozeCard() {
 /**
  * Quiet period across alert families: after a falling or rising alert, other
  * alerts of the same direction stay quiet for the chosen minutes. 0 is off.
- * Threshold alerts are exempt by design; the summary says so.
+ * LOW, VERY_LOW and VERY_HIGH are exempt. HIGH can opt into acknowledgment-gated
+ * coverage using the same duration.
  */
 @Composable
 private fun SameDirectionSuppressionPreference(
     minutes: Int,
-    onMinutesChange: (Int) -> Unit
+    onMinutesChange: (Int) -> Unit,
+    acknowledgedHighCoverageEnabled: Boolean,
+    onAcknowledgedHighCoverageChange: (Boolean) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1619,6 +1631,32 @@ private fun SameDirectionSuppressionPreference(
                     if (v == 0) stringResource(R.string.off) else stringResource(R.string.minutes_short_format, v)
                 }
             )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.acknowledged_high_coverage_title),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.acknowledged_high_coverage_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                StyledSwitch(
+                    checked = acknowledgedHighCoverageEnabled,
+                    onCheckedChange = onAcknowledgedHighCoverageChange
+                )
+            }
         }
     }
 }

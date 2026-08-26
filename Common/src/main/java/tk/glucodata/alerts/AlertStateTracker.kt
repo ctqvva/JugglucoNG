@@ -109,6 +109,10 @@ object AlertStateTracker {
         return manualTests.consumeAction(type)
     }
 
+    /** True after the user dismissed this alert, until its condition clears. */
+    @Synchronized
+    fun isDismissed(type: AlertType): Boolean = type in dismissedAlerts
+
     @Synchronized
     fun isWaitingForRearmCooldown(type: AlertType): Boolean {
         return type !in dismissedAlerts &&

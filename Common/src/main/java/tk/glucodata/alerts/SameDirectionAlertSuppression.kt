@@ -1,10 +1,6 @@
 package tk.glucodata.alerts
 
-/**
- * The direction a trend alert speaks about. Threshold alerts (LOW, VERY_LOW,
- * HIGH, VERY_HIGH) deliberately have none: they report an arrival, not a
- * movement, and are never suppressed here.
- */
+/** The direction an alert speaks about for cross-family suppression. */
 internal enum class AlertDirection { FALLING, RISING }
 
 /** The alert that fired first and the moment it did, for the suppression log line. */
@@ -25,9 +21,10 @@ internal data class SameDirectionSuppressor(val type: AlertType, val firedAtMs: 
  * nothing, so a suppressed alert is never queued for later delivery. If the
  * situation persists, its own family fires it again once the window is over.
  *
- * Threshold alerts are exempt by construction ([directionOf] returns null for
- * them): actually arriving low or high must always be announced, even half a
- * minute after a warning about it. A window of zero disables the mechanism.
+ * LOW, VERY_LOW and VERY_HIGH are exempt by construction. HIGH can optionally
+ * join the rising group, but only an acknowledged first alert may cover the
+ * second one. This preserves the stronger HIGH alarm when the earlier alert may
+ * not have been seen. A window of zero disables the mechanism.
  */
 internal class SameDirectionAlertSuppression {
     private val lastFired = mutableMapOf<AlertDirection, SameDirectionSuppressor>()
@@ -37,17 +34,26 @@ internal class SameDirectionAlertSuppression {
      * fire. An alert is never blocked by its own earlier firing - re-firing of
      * the same type is its own family's business.
      */
-    fun blockedBy(type: AlertType, nowMs: Long, windowMs: Long): SameDirectionSuppressor? {
+    fun blockedBy(
+        type: AlertType,
+        nowMs: Long,
+        windowMs: Long,
+        acknowledgedHighCoverage: Boolean = false,
+        isAcknowledged: (AlertType) -> Boolean = { false }
+    ): SameDirectionSuppressor? {
         if (windowMs <= 0L) return null
-        val direction = directionOf(type) ?: return null
+        val direction = directionOf(type, acknowledgedHighCoverage) ?: return null
         val last = lastFired[direction] ?: return null
         if (last.type == type) return null
+        if ((type == AlertType.HIGH || last.type == AlertType.HIGH) && !isAcknowledged(last.type)) {
+            return null
+        }
         return if (nowMs - last.firedAtMs < windowMs) last else null
     }
 
-    /** Records an actual delivery; alerts without a direction are ignored. */
-    fun onFired(type: AlertType, nowMs: Long) {
-        val direction = directionOf(type) ?: return
+    /** Records an actual delivery; alerts outside the enabled groups are ignored. */
+    fun onFired(type: AlertType, nowMs: Long, acknowledgedHighCoverage: Boolean = false) {
+        val direction = directionOf(type, acknowledgedHighCoverage) ?: return
         lastFired[direction] = SameDirectionSuppressor(type, nowMs)
     }
 
@@ -56,11 +62,12 @@ internal class SameDirectionAlertSuppression {
     }
 
     companion object {
-        fun directionOf(type: AlertType): AlertDirection? = when (type) {
+        fun directionOf(type: AlertType, acknowledgedHighCoverage: Boolean = false): AlertDirection? = when (type) {
             AlertType.FALLING_FAST, AlertType.PRE_LOW -> AlertDirection.FALLING
             AlertType.RISING_FAST, AlertType.PRE_HIGH -> AlertDirection.RISING
-            // LOW, VERY_LOW, HIGH, VERY_HIGH and every non-glucose alert: no
-            // direction, never suppressed, never suppressing.
+            AlertType.HIGH -> if (acknowledgedHighCoverage) AlertDirection.RISING else null
+            // LOW, VERY_LOW, VERY_HIGH and every non-glucose alert: no direction,
+            // never suppressed, never suppressing.
             else -> null
         }
     }

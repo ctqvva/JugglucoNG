@@ -720,7 +720,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_dismiss_action_dismiss">Verwerfen</string>
     <string name="notification_dismiss_action_snooze">Schlummern</string>
     <string name="same_direction_suppression_title">Ruhezeit nach Alarm gleicher Richtung</string>
-    <string name="same_direction_suppression_summary">Nach einem fallenden oder steigenden Alarm bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig, hoch und sehr hoch melden sich immer.</string>
+    <string name="same_direction_suppression_summary">Nach einem fallenden oder steigenden Alarm bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
+    <string name="acknowledged_high_coverage_title">Bestätigte Anstiegsalarme decken „Hoch“ ab</string>
+    <string name="acknowledged_high_coverage_summary">Nachdem du „Schnell steigend“, „Hoch vorhergesagt“ oder „Hoch“ verworfen oder pausiert hast, bleiben die anderen für die oben eingestellte Zeit stumm. „Sehr hoch“ meldet sich immer.</string>
     <string name="realert_if_not_dismissed">Erneut alarmieren, wenn nicht verworfen</string>
     <string name="retry_every">Wiederholen alle</string>
     <string name="retry_if_no_reaction">Wiederholen bei keiner Reaktion</string>

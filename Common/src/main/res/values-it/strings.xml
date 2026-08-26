@@ -502,7 +502,9 @@
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
     <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso della stessa direzione</string>
-    <string name="same_direction_suppression_summary">Dopo un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso, alto e molto alto suonano sempre.</string>
+    <string name="same_direction_suppression_summary">Dopo un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso e molto alto suonano sempre.</string>
+    <string name="acknowledged_high_coverage_title">Gli avvisi di salita confermati coprono « Alto »</string>
+    <string name="acknowledged_high_coverage_summary">Dopo aver ignorato o posticipato « Salita rapida », « Alto previsto » o « Alto », gli altri avvisi restano silenziosi per il periodo indicato sopra. « Molto alto » suona sempre.</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
     <string name="retry_every">Ripeti ogni</string>
     <string name="retry_if_no_reaction">Ripeti se nessuna reazione</string>
