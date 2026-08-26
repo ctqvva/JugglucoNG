@@ -2720,4 +2720,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="debug_v2_trace_desc">Duub saf faahfaahsan akhris kasta inta la duubayo. Waxay kaliya u faa\'iido leedahay soo sheegista dhibaatooyinka dareemaha.</string>
     <string name="sibionics_uncertainty_ribbon">Xarigga hubanti-la\'aanta</string>
     <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
+    <string name="freeze_displayed_values">Hay qiimaha la tusay</string>
+    <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
+    <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
+    <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
 </resources>

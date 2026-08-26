@@ -2536,4 +2536,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="debug_v2_trace_desc">记录期间为每个读数写入一行详细数据。仅在反馈传感器问题时有用。</string>
     <string name="sibionics_uncertainty_ribbon">不确定性色带</string>
     <string name="sibionics_uncertainty_ribbon_desc">在血糖曲线周围显示可能范围色带</string>
+    <string name="freeze_displayed_values">保留已显示的数值</string>
+    <string name="freeze_displayed_values_desc">读数保留当时显示的数值。校准更改仅影响最近的读数。</string>
+    <string name="freeze_displayed_values_on">正在保留已显示的数值</string>
+    <string name="freeze_displayed_values_off">每次更改后重新计算</string>
 </resources>

@@ -36,24 +36,27 @@ object ExportCalibration {
     /**
      * Calibrated value (in the user's display unit) for a stored reading already
      * expressed in display units, or null when no non-destructive calibration
-     * applies. Null is returned when:
-     *  - no active software calibration exists for this sensor's primary lane,
-     *  - the base value is missing/unusable, or
-     *  - "overwrite sensor values" is on — there the stored value is already
-     *    calibrated at rest, so the raw column already carries the calibrated
-     *    number and a projection would double-apply.
+     * applies. Null is returned when no active software calibration exists for
+     * this sensor's primary lane, or the base value is missing/unusable.
+     *
+     * [sealedDisplayValue] wins outright when present: an export that recomputed
+     * a value the user was shown a different number for would contradict both
+     * the chart and Nightscout, which is the disagreement this file exists to
+     * prevent.
      *
      * @param autoDisplayValue the stored auto value in display units
      * @param rawDisplayValue   the stored raw value in display units
+     * @param sealedDisplayValue the recorded displayed value, in display units
      */
     fun calibratedDisplayValue(
         autoDisplayValue: Float,
         rawDisplayValue: Float,
         timestamp: Long,
         sensorId: String?,
-        viewMode: Int
+        viewMode: Int,
+        sealedDisplayValue: Float? = null
     ): Float? {
-        if (CalibrationManager.shouldOverwriteSensorValues()) return null
+        sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         val raw = isRawMode(viewMode)
         val base = if (raw) rawDisplayValue else autoDisplayValue
         if (!base.isFinite() || base <= 0.1f) return null
@@ -81,7 +84,8 @@ object ExportCalibration {
         timestamp: Long,
         sensorId: String?,
         viewMode: Int,
-        isMmol: Boolean
+        isMmol: Boolean,
+        sealedMgDl: Float? = null
     ): Float? {
         val autoDisplay = GlucoseFormatter.displayFromMgDl(autoMgDl, isMmol)
         val rawDisplay = GlucoseFormatter.displayFromMgDl(rawMgDl, isMmol)
@@ -90,7 +94,8 @@ object ExportCalibration {
             rawDisplayValue = rawDisplay,
             timestamp = timestamp,
             sensorId = sensorId,
-            viewMode = viewMode
+            viewMode = viewMode,
+            sealedDisplayValue = sealedMgDl?.let { GlucoseFormatter.displayFromMgDl(it, isMmol) }
         ) ?: return null
         return if (isMmol) GlucoseFormatter.mmolToMg(calibratedDisplay) else calibratedDisplay
     }

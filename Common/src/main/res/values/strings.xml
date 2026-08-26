@@ -2745,4 +2745,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="debug_v2_trace_desc">Record a detailed row per reading while logging. Only useful for reporting sensor issues.</string>
     <string name="sibionics_uncertainty_ribbon">Uncertainty ribbon</string>
     <string name="sibionics_uncertainty_ribbon_desc">Show the likely-range band around the glucose line</string>
+    <string name="freeze_displayed_values">Keep displayed values</string>
+    <string name="freeze_displayed_values_desc">A reading keeps the value it was shown as. Calibration changes affect recent readings only.</string>
+    <string name="freeze_displayed_values_on">Keeping displayed values</string>
+    <string name="freeze_displayed_values_off">Recalculating on every change</string>
 </resources>

@@ -2635,4 +2635,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="debug_v2_trace_desc">Бүртгэл хийх үед хэмжилт бүрд дэлгэрэнгүй мөр бичнэ. Зөвхөн мэдрэгчийн асуудал мэдээлэхэд хэрэгтэй.</string>
     <string name="sibionics_uncertainty_ribbon">Тодорхойгүйн зурвас</string>
     <string name="sibionics_uncertainty_ribbon_desc">Глюкозын шугамын эргэн тойронд магадлалт мужийн зурвасыг харуулах</string>
+    <string name="freeze_displayed_values">Харуулсан утгыг хадгалах</string>
+    <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
+    <string name="freeze_displayed_values_on">Харуулсан утгыг хадгалж байна</string>
+    <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
 </resources>

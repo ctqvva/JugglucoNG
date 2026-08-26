@@ -281,9 +281,6 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
     private val autoCalibrationActive = HashMap<String?, Boolean>()
 
     fun hasCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
-        if (tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues()) {
-            return false
-        }
         val cache = if (isRawMode) rawCalibrationActive else autoCalibrationActive
         return cache.getOrPut(sensorId) {
             tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawMode, sensorId)
@@ -299,30 +296,10 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
         }
         val point = points[index]
         val baseValue = if (isRawMode) point.rawValue else point.value
-        val resolved = if (
-            baseValue.isFinite() &&
-            baseValue > 0.1f &&
-            hasCalibration(isRawMode, point.sensorSerial)
-        ) {
-            tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                baseValue,
-                point.timestamp,
-                isRawMode,
-                sensorIdOverride = point.sensorSerial
-            )
-        } else {
-            baseValue
-        }
-        values[index] = resolved
-        computed[index] = true
-        return resolved
-    }
-
-    fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
-        val pointIndex = points.indexOf(point)
-        return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
-            val baseValue = if (isRawMode) point.rawValue else point.value
-            if (
+        // A reading whose displayed value was recorded draws at that value, so
+        // the line does not move under a calibration edit — see ReadingDisplay.
+        val resolved = point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+            ?: if (
                 baseValue.isFinite() &&
                 baseValue > 0.1f &&
                 hasCalibration(isRawMode, point.sensorSerial)
@@ -336,6 +313,30 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
             } else {
                 baseValue
             }
+        values[index] = resolved
+        computed[index] = true
+        return resolved
+    }
+
+    fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
+        val pointIndex = points.indexOf(point)
+        return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
+            val baseValue = if (isRawMode) point.rawValue else point.value
+            point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+                ?: if (
+                    baseValue.isFinite() &&
+                    baseValue > 0.1f &&
+                    hasCalibration(isRawMode, point.sensorSerial)
+                ) {
+                    tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
+                        baseValue,
+                        point.timestamp,
+                        isRawMode,
+                        sensorIdOverride = point.sensorSerial
+                    )
+                } else {
+                    baseValue
+                }
         }
     }
 }

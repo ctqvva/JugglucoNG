@@ -30,18 +30,21 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
  *   v13 — per-reading credible intervals for uncertainty-aware estimators
+ *   v14 — per-reading record of the value actually displayed, so calibration
+ *         changes stop rewriting the sensor's own stored numbers
  */
 @Database(
     entities = [
         HistoryReading::class,
         DeletedHistoryReading::class,
         ReadingUncertainty::class,
+        ReadingDisplay::class,
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
+    abstract fun readingDisplayDao(): ReadingDisplayDao
     
     companion object {
         @Volatile
@@ -271,6 +275,37 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Additive: the reading's displayed value moves to its own table.
+         *
+         * Nothing is backfilled here. Room migrations run on the database alone,
+         * and deciding which existing rows carry a calibrated value needs the
+         * calibration preferences — so the seeding is done once from
+         * [HistoryRepository.seedDisplayRecordsFromOverwrittenHistory] instead,
+         * where that state is readable.
+         */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_timestamp " +
+                        "ON reading_display (timestamp)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -289,7 +324,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
-                    MIGRATION_12_13
+                    MIGRATION_12_13,
+                    MIGRATION_13_14
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

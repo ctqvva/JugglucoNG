@@ -2592,4 +2592,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="debug_v2_trace_desc">Записувати докладний рядок для кожного вимірювання під час журналювання. Потрібно лише для звітів про проблеми з сенсором.</string>
     <string name="sibionics_uncertainty_ribbon">Смуга невизначеності</string>
     <string name="sibionics_uncertainty_ribbon_desc">Показувати смугу ймовірного діапазону навколо лінії глюкози</string>
+    <string name="freeze_displayed_values">Зберігати показані значення</string>
+    <string name="freeze_displayed_values_desc">Вимірювання зберігає значення, яке було показано. Зміни калібрування впливають лише на свіжі вимірювання.</string>
+    <string name="freeze_displayed_values_on">Показані значення зберігаються</string>
+    <string name="freeze_displayed_values_off">Перерахунок за кожної зміни</string>
 </resources>

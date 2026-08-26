@@ -2521,4 +2521,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="debug_v2_trace_desc">Registar uma linha detalhada por leitura durante o registo. Útil apenas para comunicar problemas do sensor.</string>
     <string name="sibionics_uncertainty_ribbon">Faixa de incerteza</string>
     <string name="sibionics_uncertainty_ribbon_desc">Mostrar a faixa do intervalo provável em torno da linha de glicose</string>
+    <string name="freeze_displayed_values">Manter os valores exibidos</string>
+    <string name="freeze_displayed_values_desc">Uma leitura mantém o valor exibido. Alterações de calibração afetam apenas leituras recentes.</string>
+    <string name="freeze_displayed_values_on">Valores exibidos mantidos</string>
+    <string name="freeze_displayed_values_off">Recalculado a cada alteração</string>
 </resources>
