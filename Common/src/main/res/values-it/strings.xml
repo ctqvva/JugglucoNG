@@ -2480,6 +2480,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Penna letta. Nessuna nuova dose.</string>
     <string name="insulin_pen_duplicates_removed">Rimosse %1$d dosi duplicate da scansioni precedenti</string>
     <string name="insulin_pen_duplicates_found">%1$d dosi duplicate da scansioni precedenti. Rimuovile nelle impostazioni della penna.</string>
+    <string name="insulin_pen_merged_manual">%1$d dose corrispondono a quanto avevi già inserito a mano.</string>
     <string name="insulin_pen_cleanup">Rimuovi le dosi duplicate</string>
     <string name="insulin_pen_cleanup_count">Rimuovi %1$d dosi duplicate</string>
     <string name="insulin_pen_cleanup_desc">Le versioni precedenti riscrivevano una dose a ogni scansione. Il registro della penna dice che erano iniezioni singole.</string>
@@ -2489,7 +2490,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Seleziona tutto</string>
     <string name="insulin_pen_select_none">Deseleziona</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Spurgo</string>
+    <string name="insulin_pen_replaces">sostituisce le %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d spurgo saltato</string>
     <string name="insulin_pen_add_doses">Aggiungi %1$d dosi</string>
     <string name="insulin_pen_doses_added">%1$d dosi aggiunte al diario</string>
     <string name="insulin_pens_journal_off">Il diario è disattivato, quindi le dosi importate non verrebbero mostrate.</string>

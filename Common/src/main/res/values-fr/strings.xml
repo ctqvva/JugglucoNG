@@ -2496,6 +2496,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Stylo lu. Aucune nouvelle dose.</string>
     <string name="insulin_pen_duplicates_removed">%1$d doses en double issues de scans précédents supprimées</string>
     <string name="insulin_pen_duplicates_found">%1$d doses en double issues de scans précédents. Supprimez-les dans les réglages du stylo.</string>
+    <string name="insulin_pen_merged_manual">%1$d dose(s) correspondaient à ce que vous aviez déjà saisi à la main.</string>
     <string name="insulin_pen_cleanup">Supprimer les doses en double</string>
     <string name="insulin_pen_cleanup_count">Supprimer %1$d doses en double</string>
     <string name="insulin_pen_cleanup_desc">Les versions précédentes réécrivaient une dose à chaque scan. Le journal du stylo indique qu’il s’agissait d’injections uniques.</string>
@@ -2505,7 +2506,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Tout sélectionner</string>
     <string name="insulin_pen_select_none">Effacer</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Purge</string>
+    <string name="insulin_pen_replaces">remplace %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d purge ignorée</string>
     <string name="insulin_pen_add_doses">Ajouter %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses ajoutées au journal</string>
     <string name="insulin_pens_journal_off">Le journal est désactivé : les doses importées ne seraient affichées nulle part.</string>

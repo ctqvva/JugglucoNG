@@ -2490,6 +2490,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Pennan avläst. Inga nya doser.</string>
     <string name="insulin_pen_duplicates_removed">Tog bort %1$d dubblerade doser från tidigare avläsningar</string>
     <string name="insulin_pen_duplicates_found">%1$d dubblerade doser från tidigare avläsningar. Ta bort dem i pennans inställningar.</string>
+    <string name="insulin_pen_merged_manual">%1$d dos(er) stämde med det du redan matat in för hand.</string>
     <string name="insulin_pen_cleanup">Ta bort dubblerade doser</string>
     <string name="insulin_pen_cleanup_count">Ta bort %1$d dubblerade doser</string>
     <string name="insulin_pen_cleanup_desc">Tidigare versioner skrev en dos på nytt vid varje avläsning. Pennans egen logg säger att det var enstaka injektioner.</string>
@@ -2499,7 +2500,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Markera alla</string>
     <string name="insulin_pen_select_none">Rensa</string>
     <string name="insulin_pen_units">%1$s E</string>
-    <string name="insulin_pen_priming">Luftskott</string>
+    <string name="insulin_pen_replaces">ersätter %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d luftning överhoppad</string>
     <string name="insulin_pen_add_doses">Lägg till %1$d doser</string>
     <string name="insulin_pen_doses_added">%1$d doser tillagda i dagboken</string>
     <string name="insulin_pens_journal_off">Dagboken är avstängd, så inlästa doser skulle inte visas någonstans.</string>

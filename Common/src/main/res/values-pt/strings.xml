@@ -2491,6 +2491,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Caneta lida. Sem doses novas.</string>
     <string name="insulin_pen_duplicates_removed">%1$d doses duplicadas de leituras anteriores removidas</string>
     <string name="insulin_pen_duplicates_found">%1$d doses duplicadas de leituras anteriores. Remova-as nas definições da caneta.</string>
+    <string name="insulin_pen_merged_manual">%1$d dose(s) correspondiam ao que já tinha introduzido à mão.</string>
     <string name="insulin_pen_cleanup">Remover doses duplicadas</string>
     <string name="insulin_pen_cleanup_count">Remover %1$d doses duplicadas</string>
     <string name="insulin_pen_cleanup_desc">As versões anteriores gravavam uma dose de novo em cada leitura. O registo da caneta diz que foram injeções únicas.</string>
@@ -2500,7 +2501,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Selecionar tudo</string>
     <string name="insulin_pen_select_none">Limpar</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Purga</string>
+    <string name="insulin_pen_replaces">substitui %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d purga ignorada</string>
     <string name="insulin_pen_add_doses">Adicionar %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses adicionadas ao diário</string>
     <string name="insulin_pens_journal_off">O diário está desligado, por isso as doses importadas não apareceriam em lado nenhum.</string>

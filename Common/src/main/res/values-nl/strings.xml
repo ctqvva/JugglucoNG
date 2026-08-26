@@ -2533,6 +2533,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_no_new_doses">Pen gelezen. Geen nieuwe doses.</string>
     <string name="insulin_pen_duplicates_removed">%1$d dubbele doses uit eerdere scans verwijderd</string>
     <string name="insulin_pen_duplicates_found">%1$d dubbele doses uit eerdere scans. Verwijder ze in de instellingen van de pen.</string>
+    <string name="insulin_pen_merged_manual">%1$d dosis(sen) kwamen overeen met wat u al met de hand had ingevoerd.</string>
     <string name="insulin_pen_cleanup">Dubbele doses verwijderen</string>
     <string name="insulin_pen_cleanup_count">%1$d dubbele doses verwijderen</string>
     <string name="insulin_pen_cleanup_desc">Eerdere versies schreven een dosis bij elke scan opnieuw weg. Het logboek van de pen zegt dat dit losse injecties waren.</string>
@@ -2542,7 +2543,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_select_all">Alles selecteren</string>
     <string name="insulin_pen_select_none">Wissen</string>
     <string name="insulin_pen_units">%1$s E</string>
-    <string name="insulin_pen_priming">Ontluchting</string>
+    <string name="insulin_pen_replaces">vervangt %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d ontluchting overgeslagen</string>
     <string name="insulin_pen_add_doses">%1$d doses toevoegen</string>
     <string name="insulin_pen_doses_added">%1$d doses toegevoegd aan het dagboek</string>
     <string name="insulin_pens_journal_off">Het dagboek staat uit, dus ingelezen doses worden nergens getoond.</string>

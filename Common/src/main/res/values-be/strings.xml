@@ -2557,6 +2557,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_no_new_doses">Ручка счытана. Новых доз няма.</string>
     <string name="insulin_pen_duplicates_removed">Выдалена дубляваных доз ад ранейшых счытванняў: %1$d</string>
     <string name="insulin_pen_duplicates_found">Дубляваных доз ад ранейшых счытванняў: %1$d. Выдаліце іх у наладах ручкі.</string>
+    <string name="insulin_pen_merged_manual">%1$d доза(ы) супалі з тым, што вы ўжо ўвялі ўручную.</string>
     <string name="insulin_pen_cleanup">Выдаліць дубляваныя дозы</string>
     <string name="insulin_pen_cleanup_count">Выдаліць дубляваныя дозы: %1$d</string>
     <string name="insulin_pen_cleanup_desc">Ранейшыя версіі запісвалі дозу зноў пры кожным счытванні. Уласны журнал ручкі кажа, што гэта былі адзінкавыя ін’екцыі.</string>
@@ -2566,7 +2567,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_select_all">Выбраць усе</string>
     <string name="insulin_pen_select_none">Зняць выбар</string>
     <string name="insulin_pen_units">%1$s ад.</string>
-    <string name="insulin_pen_priming">Пракачка</string>
+    <string name="insulin_pen_replaces">замяняе %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d прапуск паветра прапушчаны</string>
     <string name="insulin_pen_add_doses">Дадаць доз: %1$d</string>
     <string name="insulin_pen_doses_added">Дададзена доз у дзённік: %1$d</string>
     <string name="insulin_pens_journal_off">Дзённік выключаны, таму імпартаваныя дозы нідзе не з\'явяцца.</string>

@@ -2690,6 +2690,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_no_new_doses">Qalinka waa la akhriyay. Qiyaas cusub ma jiro.</string>
     <string name="insulin_pen_duplicates_removed">Waa la tirtiray %1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore</string>
     <string name="insulin_pen_duplicates_found">%1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore. Kaga saar goobaha qalinka.</string>
+    <string name="insulin_pen_merged_manual">%1$d qiyaas ayaa la mid ah wixii aad horey gacanta u gelisay.</string>
     <string name="insulin_pen_cleanup">Ka saar qiyaasaha laba jibbaaran</string>
     <string name="insulin_pen_cleanup_count">Ka saar %1$d qiyaasood oo laba jibbaaran</string>
     <string name="insulin_pen_cleanup_desc">Noocyadii hore mar kasta oo la akhriyo ayay qiyaas dib u qoraan. Diiwaanka qalanka wuxuu sheegayaa in kuwani ay ahaayeen irbado kali ah.</string>
@@ -2699,7 +2700,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_select_all">Dhammaan dooro</string>
     <string name="insulin_pen_select_none">Nadiifi</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Hawo-bixin</string>
+    <string name="insulin_pen_replaces">beddelaya %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d hawo-bixin ayaa la booday</string>
     <string name="insulin_pen_add_doses">Ku dar %1$d qiyaas</string>
     <string name="insulin_pen_doses_added">%1$d qiyaas ayaa xusuus-qorka lagu daray</string>
     <string name="insulin_pens_journal_off">Xusuus-qorka waa la damiyay, sidaas darteed qiyaasaha la soo geliyo meelna kama muuqan doonaan.</string>
