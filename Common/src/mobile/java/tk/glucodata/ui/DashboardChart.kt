@@ -733,6 +733,10 @@ fun InteractiveGlucoseChart(
     resetToLatestOnResume: Boolean = true,
     onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null
 ) {
+    // Diagnostic: a Choreographer frame callback held the main thread 24s.
+    // Counting compositions separates a runaway recomposition loop from work
+    // that is simply expensive once.
+    tk.glucodata.BatteryTrace.bump("compose.InteractiveGlucoseChart", logEvery = 100L)
     // --- THEME & PAINTS ---
     val isDark = isSystemInDarkTheme()
     // Observe the glucose palette so target band / band tints recompute live
@@ -2267,6 +2271,7 @@ fun InteractiveGlucoseChart(
                             androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
                     }
             ) {
+                tk.glucodata.BatteryTrace.bump("compose.chartCanvasDraw", logEvery = 100L)
                 val width = size.width
                 val rightPaddingPx = if (hasPredictionOverlay) 0f else (16.dp.toPx() * safeExpandedProgress)
                 val dataWidth = (width - rightPaddingPx).coerceAtLeast(1f)

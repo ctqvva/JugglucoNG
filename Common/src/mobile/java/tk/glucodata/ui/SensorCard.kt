@@ -235,6 +235,7 @@ fun SensorCard(
     sensorCount: Int = 1,
     onNavigateToMqAccount: () -> Unit = {},
 ) {
+    tk.glucodata.BatteryTrace.bump("compose.SensorCard", logEvery = 100L)
     val context = LocalContext.current
     var showTerminateDialog by remember { mutableStateOf(false) }
     var unbindAiDexChecked by remember(sensor.serial, sensor.isVendorPaired) {

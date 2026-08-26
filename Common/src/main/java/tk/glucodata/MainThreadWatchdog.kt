@@ -44,6 +44,20 @@ object MainThreadWatchdog {
     private var slowestDispatchMs = 0L
     private var slowestDispatch: String? = null
 
+    /**
+     * Composition counters sampled across each dispatch. A frame callback that
+     * held the main thread for seconds is either one expensive composition or a
+     * recomposition loop; only the count taken *across that dispatch* separates
+     * them, which a session total cannot.
+     */
+    private val compositionKeys = arrayOf(
+        "compose.DashboardScreen",
+        "compose.InteractiveGlucoseChart",
+        "compose.chartCanvasDraw",
+        "compose.SensorCard",
+    )
+    private val compositionsAtStart = LongArray(compositionKeys.size)
+
     @JvmStatic
     fun install() {
         if (installed) return
@@ -64,6 +78,9 @@ object MainThreadWatchdog {
             if (line.startsWith(">>>>>")) {
                 dispatchStartMs = SystemClock.uptimeMillis()
                 currentMessage = line
+                for (index in compositionKeys.indices) {
+                    compositionsAtStart[index] = BatteryTrace.count(compositionKeys[index])
+                }
                 return@setMessageLogging
             }
             if (!line.startsWith("<<<<<")) return@setMessageLogging
@@ -82,7 +99,17 @@ object MainThreadWatchdog {
             }
             if (elapsed >= SLOW_DISPATCH_MS) {
                 slowDispatchCount++
-                Log.w(TAG, "slow dispatch ${elapsed}ms: $message")
+                val compositions = StringBuilder()
+                for (index in compositionKeys.indices) {
+                    val delta = BatteryTrace.count(compositionKeys[index]) - compositionsAtStart[index]
+                    if (delta > 0L) {
+                        if (compositions.isNotEmpty()) compositions.append(' ')
+                        compositions.append(compositionKeys[index].removePrefix("compose."))
+                            .append('=').append(delta)
+                    }
+                }
+                val composed = if (compositions.isEmpty()) "none" else compositions.toString()
+                Log.w(TAG, "slow dispatch ${elapsed}ms compositions[$composed]: $message")
             }
             // Unconditional periodic report: proves the probe is live, and shows
             // whether the main thread is busy in one long message or many short

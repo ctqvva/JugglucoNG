@@ -93,6 +93,10 @@ object BatteryTrace {
         }
     }
 
+    /** Current value of a [bump] counter, or 0. Lets a caller measure a delta. */
+    @JvmStatic
+    fun count(key: String): Long = counters[key]?.get() ?: 0L
+
     @JvmStatic
     fun bump(key: String, logEvery: Long = 50L, detail: String? = null): Long {
         val count = counters.getOrPut(key) { AtomicLong(0L) }.incrementAndGet()
