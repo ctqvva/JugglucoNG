@@ -63,22 +63,40 @@ object DataSmoothing {
         return prefs.getBoolean(EXCHANGE_OUTPUTS_ONLY_KEY, false)
     }
 
+    /**
+     * The three places a reading is used, and the one question each of them asks.
+     *
+     * The settings are three independent switches, so every caller used to recombine them
+     * for itself and they drifted: the same reading could be smoothed on its way to the
+     * notification and measured on its way to the row beside it. Ask here instead. Each
+     * destination has a `...SmoothingMinutes` accessor returning 0 when that destination
+     * takes the reading as measured, so "how much smoothing" and "any at all" are one
+     * question with one answer.
+     */
     @JvmStatic
-    fun shouldSmoothGraph(context: Context): Boolean {
-        return getMinutes(context) > 0 && !smoothOnlyExchangeOutputs(context)
-    }
+    fun shouldSmoothGraph(context: Context): Boolean = graphSmoothingMinutes(context) > 0
 
     @JvmStatic
-    fun graphSmoothingMinutes(context: Context): Int {
-        return if (shouldSmoothGraph(context)) getMinutes(context) else 0
-    }
+    fun graphSmoothingMinutes(context: Context): Int = graphSmoothingMinutes(
+        smoothingMinutes = getMinutes(context),
+        exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
+    )
+
+    /**
+     * The window the app's own reading carries: the trend arrow, the Δ readout, the delta
+     * alarms and every threshold evaluated against a value. Smoothing here is deliberate —
+     * it is what keeps a single wild sample from deciding an arrow — and "smooth only
+     * graph" is the way to opt out of it.
+     */
+    @JvmStatic
+    fun localSmoothingMinutes(context: Context): Int = localSmoothingMinutes(
+        smoothingMinutes = getMinutes(context),
+        graphOnly = isGraphOnly(context),
+        exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
+    )
 
     @JvmStatic
-    fun shouldSmoothLocalData(context: Context): Boolean {
-        return getMinutes(context) > 0 &&
-            !isGraphOnly(context) &&
-            !smoothOnlyExchangeOutputs(context)
-    }
+    fun shouldSmoothLocalData(context: Context): Boolean = localSmoothingMinutes(context) > 0
 
     @JvmStatic
     fun shouldSmoothExchangeOutputs(context: Context): Boolean {
@@ -256,6 +274,22 @@ object DataSmoothing {
             points.isNotEmpty() -> listOf(points.last())
             else -> points
         }
+    }
+
+    /** Presentation. Untouched by "smooth only graph": that switch is about everything else. */
+    internal fun graphSmoothingMinutes(smoothingMinutes: Int, exchangeOutputsOnly: Boolean): Int {
+        val sanitized = sanitizeMinutes(smoothingMinutes)
+        return if (sanitized > 0 && !exchangeOutputsOnly) sanitized else 0
+    }
+
+    /** Evaluation: off when either "only the graph" or "only what leaves the phone" is set. */
+    internal fun localSmoothingMinutes(
+        smoothingMinutes: Int,
+        graphOnly: Boolean,
+        exchangeOutputsOnly: Boolean
+    ): Int {
+        val sanitized = sanitizeMinutes(smoothingMinutes)
+        return if (sanitized > 0 && !graphOnly && !exchangeOutputsOnly) sanitized else 0
     }
 
     internal fun shouldSmoothExchangeOutputs(

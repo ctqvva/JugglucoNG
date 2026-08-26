@@ -365,6 +365,8 @@ fun HistoryBrowseScreen(
     targetLow: Float,
     targetHigh: Float,
     graphSmoothingMinutes: Int,
+    /** The window the reading itself carries here; see DataSmoothing.localSmoothingMinutes. */
+    evaluationSmoothingMinutes: Int,
     collapseSmoothedData: Boolean,
     previewWindowMode: Int,
     calibrations: List<tk.glucodata.data.calibration.CalibrationEntity>,
@@ -473,10 +475,20 @@ fun HistoryBrowseScreen(
     // The reading rows' "Δ", the dashboard's setting and function: null while the
     // setting is off, so the row's slot stays hidden exactly as it does today. The
     // index is built once per history; the visible window only asks it.
-    val rowDeltaIndex = remember(showRowDelta, sortedHistory) {
+    // The Δ states a movement, so it reads the reading as the app reasons with it rather
+    // than as it was stored — the same series the dashboard, the notification and the delta
+    // alarms use. Built once per history alongside the index it feeds.
+    val evaluationHistory = remember(sortedHistory, evaluationSmoothingMinutes, collapseSmoothedData) {
+        buildSmoothedConsumerHistory(
+            points = sortedHistory,
+            evaluationSmoothingMinutes = evaluationSmoothingMinutes,
+            collapseChunks = collapseSmoothedData
+        )
+    }
+    val rowDeltaIndex = remember(showRowDelta, evaluationHistory) {
         if (showRowDelta) {
             RowDeltaIndex(
-                sortedHistory,
+                evaluationHistory,
                 sameSensor = SensorIdentity::matches,
                 isShared = { HistoryRepository.isImportedHistorySerial(it) }
             )
