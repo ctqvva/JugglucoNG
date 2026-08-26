@@ -408,6 +408,69 @@ class SibionicsRealTraceEvaluationTest {
         assertTrue("stock=$stockLag v2=$v2Lag", v2Lag <= stockLag + 2)
     }
 
+    /**
+     * Amplitude retention on the sharpest excursions the recorded trace
+     * contains, measured per event rather than averaged over a day.
+     *
+     * Reported against **raw**, because that is the only column here that is
+     * the sensor rather than somebody's reconstruction of it. Stock is shown
+     * alongside and is not a target: on this trace its excursions run well
+     * past what the front end actually did, which is what an inverse filter
+     * with high-frequency gain does.
+     */
+    @Test
+    fun amplitudeRetentionOnTheSharpestRealExcursions() {
+        val rows = SibionicsReplayHarness.replay(samples = samples(), sensitivity = 1.4f)
+            .filter { it.index > SETTLE }
+        val window = 20
+
+        // Amplitude over a shared window, not a forward difference from a
+        // fixed point. A forward delta punishes whichever series moved first:
+        // it flagged V2 as "attenuated" at exactly the indices where V2 had
+        // already led the fall — over one episode cal went 6.94 -> 5.08 while
+        // V2 went 6.90 -> 3.50, moving further and sooner, and the metric
+        // scored that as V2 failing to move.
+        data class Event(val at: Int, val raw: Float, val stock: Float, val cal: Float, val v2: Float)
+        val events = (window until rows.size - window step window).mapNotNull { i ->
+            val slice = rows.subList(i - window, i + window)
+            fun span(pick: (SibionicsReplayHarness.Row) -> Float): Float {
+                val values = slice.map(pick).filter { it.isFinite() && it > 0f }
+                return if (values.isEmpty()) Float.NaN else values.max() - values.min()
+            }
+            val rawSpan = span { it.rawMmol }
+            if (!rawSpan.isFinite() || rawSpan < 1.5f) return@mapNotNull null
+            Event(rows[i].index, rawSpan, span { it.stockMmol }, span { it.calibratedMmol },
+                span { it.adaptiveV2Mmol })
+        }
+
+        if (events.isEmpty()) return
+        val v2OverRaw = events.map { (it.v2 / it.raw).toDouble() }.filter { it.isFinite() }
+        val stockOverRaw = events.map { (it.stock / it.raw).toDouble() }.filter { it.isFinite() }
+        val v2OverCal = events.mapNotNull {
+            if (abs(it.cal) > 0.5f) (it.v2 / it.cal).toDouble() else null
+        }.filter { it.isFinite() }
+
+        fun median(values: List<Double>) = values.sorted()[values.size / 2]
+        println(
+            "REAL amplitude n=%d | v2/raw median=%.2f | stock/raw median=%.2f | v2/calibrated median=%.2f".format(
+                events.size, median(v2OverRaw), median(stockOverRaw), median(v2OverCal),
+            )
+        )
+        events.filter { it.cal > 1.0f }
+            .sortedBy { it.v2 / it.cal }
+            .take(4)
+            .forEach {
+                println(
+                    "REAL weakest    idx=%d rawSpan=%.2f stockSpan=%.2f calSpan=%.2f v2Span=%.2f (v2/cal=%.2f)".format(
+                        it.at, it.raw, it.stock, it.cal, it.v2, it.v2 / it.cal,
+                    )
+                )
+            }
+
+        // V2 must keep most of the movement present in the signal it observes.
+        assertTrue("v2/cal median=${median(v2OverCal)}", median(v2OverCal) > 0.80)
+    }
+
     private companion object {
         /** Past the vendor warm-up and the first clip/ESA stages. */
         private const val SETTLE = 2_000
