@@ -78,6 +78,12 @@ class JournalRepository {
         if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
+        // Every kind of entry, not only the ones that move IOB: a fingerstick or a note is
+        // sent to Nightscout too, and nothing else will wake the uploader for it. What came
+        // from another system is never sent back, so importing from one does not wake it.
+        if (!isMirroredSource(input.source)) {
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        }
         return id
     }
 
@@ -96,6 +102,7 @@ class JournalRepository {
             dao.deleteEntriesBySourceRecordIds(ids)
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
     }
 
@@ -124,6 +131,8 @@ class JournalRepository {
         if (deletedGlucose != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
+        // A deletion queues a tombstone, which is the uploader's to carry out.
+        tk.glucodata.NightscoutUploadWake.afterJournalChange()
     }
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
@@ -154,6 +163,12 @@ class JournalRepository {
         dao.deleteInsulinPresetById(presetId)
         tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
     }
+
+    /** Rows this app mirrors from elsewhere; the uploader skips them, so a wake is wasted. */
+    private fun isMirroredSource(source: JournalEntrySource): Boolean =
+        source == JournalEntrySource.AAPS ||
+            source == JournalEntrySource.NIGHTSCOUT ||
+            source == JournalEntrySource.API
 
     private fun affectsIob(entryType: String?): Boolean {
         return entryType == JournalEntryType.INSULIN.storageValue ||
