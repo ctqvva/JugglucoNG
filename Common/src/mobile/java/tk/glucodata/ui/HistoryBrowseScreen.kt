@@ -482,8 +482,8 @@ fun HistoryBrowseScreen(
             )
         } else null
     }
-    val rowDeltaTexts = remember(rowDeltaIndex, visibleTimelineRows, unit, deltaIntervalMinutes) {
-        rowDeltaIndex?.textsFor(
+    val rowDeltas = remember(rowDeltaIndex, visibleTimelineRows, unit, deltaIntervalMinutes) {
+        rowDeltaIndex?.deltasFor(
             visibleTimelineRows.mapNotNull(TimelineRowItem::point),
             tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
             deltaIntervalMinutes
@@ -782,7 +782,8 @@ fun HistoryBrowseScreen(
                                 index = index,
                                 totalCount = section.items.size,
                                 history = section.items.mapNotNull(TimelineRowItem::point),
-                                deltaText = rowDeltaTexts[readingPoint],
+                                deltaText = rowDeltas[readingPoint]?.text,
+                                deltaRateMgdlPerMinute = rowDeltas[readingPoint]?.rateMgdlPerMinute,
                                 sensorId = sensorId,
                                 calibrations = calibrations,
                                 highlightLeadRow = false,

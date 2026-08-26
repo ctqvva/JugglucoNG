@@ -48,6 +48,14 @@ class HistoryRowDeltaTests {
     private fun dashboardTexts(rows: List<GlucosePoint>, history: List<GlucosePoint>): List<String?> =
         readingDeltaTexts(rows.map { it.timestamp }, history, false, 5)
 
+    /** Most tests here are about which reading gets which text; the rate is checked on its own. */
+    private fun RowDeltaIndex.textsFor(
+        rows: List<GlucosePoint>,
+        isMmol: Boolean,
+        deltaIntervalMinutes: Int
+    ): Map<GlucosePoint, String> =
+        deltasFor(rows, isMmol, deltaIntervalMinutes).mapValues { (_, delta) -> delta.text }
+
     @Test
     fun everyRowShowsWhatTheDashboardShowsForTheSameReading() {
         val history = oneMinuteCadence(count = 30) { minutesAgo -> 100f + minutesAgo * 2f }
@@ -194,6 +202,25 @@ class HistoryRowDeltaTests {
 
         rows.forEachIndexed { i, row -> assertEquals(dashboardTexts(rows, history)[i], texts[row]) }
         assertEquals(7, texts.size)
+    }
+
+    /**
+     * The history's rows print a Δ, so their arrows are drawn from it. The dashboard
+     * already works this way; a rate that stopped at the text would leave the two
+     * lists disagreeing about the same reading.
+     */
+    @Test
+    fun everyRowCarriesTheRateBehindItsText() {
+        val history = oneMinuteCadence(count = 30) { minutesAgo -> 100f + minutesAgo * 2f }
+        val rows = rowsOf(history)
+
+        val deltas = index(history).deltasFor(rows, false, 5)
+
+        val newest = deltas.getValue(rows.first())
+        assertEquals("−10", newest.text)
+        // 10 mg/dL over the five-minute window, falling.
+        assertEquals(-2f, newest.rateMgdlPerMinute, 0.001f)
+        assertTrue("every text carries a rate", deltas.values.all { it.rateMgdlPerMinute.isFinite() })
     }
 
     @Test

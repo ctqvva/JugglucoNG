@@ -1187,11 +1187,15 @@ fun DashboardScreen(
             // Per-row Δ: the hero's delta computation anchored at each row's
             // timestamp — over the same unsmoothed history the hero reads, so the
             // newest row and the hero can never disagree.
-            val recentReadingDeltaTexts = remember(
+            // The rows' movement is read once and used twice: the Δ text, and the rate the
+            // row's arrow turns by. Only where the number is actually shown, though: with the
+            // column off there is nothing for the arrow to contradict, and rebasing it anyway
+            // would let a display setting quietly decide what an arrow means.
+            val recentReadingDeltas = remember(
                 dashboardRowsShowDelta, recentReadings, glucoseHistory, unit, deltaIntervalMinutes
             ) {
                 if (dashboardRowsShowDelta) {
-                    readingDeltaTexts(
+                    readingDeltas(
                         recentReadings.map { it.timestamp },
                         glucoseHistory,
                         tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
@@ -1200,6 +1204,9 @@ fun DashboardScreen(
                 } else {
                     emptyList()
                 }
+            }
+            val recentReadingDeltaTexts = remember(recentReadingDeltas) {
+                recentReadingDeltas.map { it?.text }
             }
             val peerSeriesById = remember(multiSensorDisplay) {
                 multiSensorDisplay.series.associateBy { it.sensorId }
@@ -1398,6 +1405,7 @@ fun DashboardScreen(
                                 totalCount = recentReadings.size,
                                 history = recentReadingsTrendHistory,
                                 deltaText = recentReadingDeltaTexts.getOrNull(index),
+                                deltaRateMgdlPerMinute = recentReadingDeltas.getOrNull(index)?.rateMgdlPerMinute,
                                 peerReadings = recentReadingPeers.getOrNull(index).orEmpty(),
                                 peerSeries = peerSeriesById,
                                 multiSensorActive = multiSensorActive,
@@ -1826,6 +1834,7 @@ fun DashboardScreen(
                                 totalCount = recentReadings.size,
                                 history = recentReadingsTrendHistory,
                                 deltaText = recentReadingDeltaTexts.getOrNull(index),
+                                deltaRateMgdlPerMinute = recentReadingDeltas.getOrNull(index)?.rateMgdlPerMinute,
                                 peerReadings = recentReadingPeers.getOrNull(index).orEmpty(),
                                 peerSeries = peerSeriesById,
                                 multiSensorActive = multiSensorActive,
