@@ -754,15 +754,42 @@ class HistoryRepository(context: Context = Applic.app) {
      * export paths deliberately do not, and say so at their call site.
      */
     private fun withUncertainty(
-        readings: kotlinx.coroutines.flow.Flow<List<HistoryReading>>,
+        @Suppress("UNUSED_PARAMETER") readings: kotlinx.coroutines.flow.Flow<List<HistoryReading>>,
         serials: List<String>,
         startTime: Long,
         map: (List<HistoryReading>, Map<Long, ReadingUncertainty>) -> List<GlucosePoint>
     ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> =
-        kotlinx.coroutines.flow.combine(
-            readings,
-            uncertaintyDao.getFlowForSensors(serials, startTime),
-        ) { rows, uncertainty -> map(rows, uncertainty.indexed()) }.flowOn(Dispatchers.IO)
+        uncertaintyDao.getReadingsWithUncertaintyFlow(serials, startTime)
+            .map { joined -> map(joined.map { it.toReading() }, joined.indexedUncertainty()) }
+            .flowOn(Dispatchers.IO)
+
+    private fun HistoryReadingWithUncertainty.toReading(): HistoryReading = HistoryReading(
+        id = id,
+        timestamp = timestamp,
+        sensorSerial = sensorSerial,
+        value = value,
+        rawValue = rawValue,
+        rate = rate,
+    )
+
+    private fun List<HistoryReadingWithUncertainty>.indexedUncertainty(): Map<Long, ReadingUncertainty> {
+        val rows = HashMap<Long, ReadingUncertainty>()
+        forEach { joined ->
+            val lower = joined.lowerMgdl ?: return@forEach
+            val upper = joined.upperMgdl ?: return@forEach
+            val row = ReadingUncertainty(
+                sensorSerial = joined.sensorSerial,
+                timestamp = joined.timestamp,
+                lowerMgdl = lower,
+                upperMgdl = upper,
+                intervalMass = joined.intervalMass ?: tk.glucodata.GlucoseUncertainty.DEFAULT_INTERVAL_MASS,
+                confidence = joined.confidence,
+                artifactProbability = joined.artifactProbability,
+            )
+            if (row.isUsable) rows[uncertaintyKey(row)] = row
+        }
+        return rows
+    }
 
     /**
      * Display/history UI query for a bounded set of live sensors. This keeps
@@ -1160,6 +1187,20 @@ class HistoryRepository(context: Context = Applic.app) {
     ): Map<Long, ReadingUncertainty> =
         runCatching { uncertaintyDao.getForSensors(serials, startTime).indexed() }
             .getOrDefault(emptyMap())
+
+    /**
+     * Drops every stored interval for a sensor.
+     *
+     * Called when the algorithm changes away from one that estimates
+     * uncertainty: the stored bands describe values that are about to be
+     * replaced, and leaving them would draw a V2 ribbon around a stock line
+     * until the rebuild happens to overwrite them.
+     */
+    suspend fun clearUncertaintyForSensor(serial: String) {
+        val serials = resolveQuerySensorSerials(serial).ifEmpty { listOf(serial) }
+        runCatching { uncertaintyDao.deleteForSensors(serials) }
+            .onFailure { Log.w(TAG, "clearUncertaintyForSensor failed for $serial", it) }
+    }
 
     private fun mapReadingForStats(reading: HistoryReading): GlucosePoint {
         return GlucosePoint(

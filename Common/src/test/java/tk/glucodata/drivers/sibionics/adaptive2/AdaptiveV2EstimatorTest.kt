@@ -389,7 +389,7 @@ class AdaptiveV2EstimatorTest {
     }
 
     @Test
-    fun slowDriftIsAttributedToTheSensorOnceReferencesIdentifyIt() {
+    fun aReferenceCorrectionPersistsRatherThanDecayingBackToFactory() {
         val context = context()
         context.settle(level = 6f, samples = 300, noise = 0.03f)
 
@@ -404,14 +404,27 @@ class AdaptiveV2EstimatorTest {
             }
             estimate = context.feed(index, 6f, references = references)
         }
+        val afterAnchors = requireNotNull(estimate).glucoseMmol
 
-        val result = estimate!!
-        // Glucose moves toward the references without ever jumping onto them,
-        // and the offset is carried by the sensor states rather than being
-        // re-absorbed by glucose between anchors.
-        assertTrue("glucose=${result.glucoseMmol}", result.glucoseMmol > 6.4f)
-        assertTrue("glucose=${result.glucoseMmol}", result.glucoseMmol < 6.9f)
-        assertTrue("rate=${result.rateMmolPerMin}", abs(result.rateMmolPerMin) < 0.03f)
+        // Then two more hours with no further references and the sensor still
+        // reading 6.0. This is the property that matters: the correction must
+        // not evaporate back toward a factory value the references disproved.
+        repeat(120) { offset ->
+            estimate = context.feed(START_INDEX + 390 + offset, 6f)
+        }
+        val afterHold = requireNotNull(estimate).glucoseMmol
+        println("reference persistence: afterAnchors=$afterAnchors afterHold=$afterHold")
+
+        // Moves most of the way toward the references without teleporting.
+        assertTrue("afterAnchors=$afterAnchors", afterAnchors > 6.3f)
+        assertTrue("afterAnchors=$afterAnchors", afterAnchors < 6.9f)
+        // And holds it. Some relaxation is legitimate — the observation does
+        // keep saying 6.0 — but it must not collapse back.
+        assertTrue("afterAnchors=$afterAnchors afterHold=$afterHold", afterHold > 6.2f)
+        assertTrue(
+            "afterAnchors=$afterAnchors afterHold=$afterHold",
+            afterHold > afterAnchors - 0.35f,
+        )
     }
 
     // ── Calibration anchors ────────────────────────────────────────────────

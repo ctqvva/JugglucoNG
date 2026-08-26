@@ -2120,6 +2120,13 @@ class SibionicsBleManager(
             algorithm.setSelection(selection)
         }
         algorithmStateDirty = true
+        // Stored intervals describe values the rebuild is about to replace. If
+        // the new model does not estimate uncertainty they describe nothing at
+        // all, so they go now rather than lingering on the chart until a
+        // rebuild happens to overwrite them.
+        if (!selection.model.providesUncertainty) {
+            tk.glucodata.GlucoseUncertaintyAccess.clearForSensor(SerialNumber)
+        }
         Applic.app?.let { SibionicsRegistry.saveAlgorithmSelection(it, SerialNumber, selection) }
         // The selection flips integratesUserCalibration(); drop the memoized value so manual
         // calibration isn't double-applied (or silently skipped) until the next record write.

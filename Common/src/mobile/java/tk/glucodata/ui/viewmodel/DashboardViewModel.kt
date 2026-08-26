@@ -69,7 +69,20 @@ class DashboardViewModel(
         val sampleHash: Int,
         val lastValueBits: Int,
         val lastRawBits: Int,
-        val lastSerial: String?
+        val lastSerial: String?,
+        /**
+         * How many points carry a credible interval, plus the newest one's
+         * bounds.
+         *
+         * Without this the cache is blind to uncertainty: a reading and its
+         * interval arrive in separate emissions, the second differs only in
+         * the band, the signature is unchanged, and the cached band-less list
+         * is returned — so the ribbon permanently stopped short of the live
+         * edge. Cheap to compute and it makes the cache key describe
+         * everything the chart actually draws.
+         */
+        val uncertaintyCount: Int,
+        val lastUncertaintyBits: Long
     )
 
     private data class DashboardHistoryCacheKey(
@@ -1122,7 +1135,12 @@ class DashboardViewModel(
             sampleHash = sparseHistorySampleHash(points),
             lastValueBits = java.lang.Float.floatToRawIntBits(last?.value ?: 0f),
             lastRawBits = java.lang.Float.floatToRawIntBits(last?.rawValue ?: 0f),
-            lastSerial = last?.sensorSerial
+            lastSerial = last?.sensorSerial,
+            uncertaintyCount = points.count { it.uncertainty != null },
+            lastUncertaintyBits = last?.uncertainty?.let { uncertainty ->
+                (java.lang.Float.floatToRawIntBits(uncertainty.lower).toLong() shl 32) or
+                    (java.lang.Float.floatToRawIntBits(uncertainty.upper).toLong() and 0xffffffffL)
+            } ?: 0L
         )
     }
 

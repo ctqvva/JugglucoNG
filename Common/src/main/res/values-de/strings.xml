@@ -2557,4 +2557,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucose_possible_artifact">Möglicherweise vorübergehendes Sensorartefakt</string>
     <string name="debug_v2_trace_title">Adaptive-V2-Diagnose</string>
     <string name="debug_v2_trace_desc">Beim Protokollieren eine ausführliche Zeile je Messwert aufzeichnen. Nur zum Melden von Sensorproblemen sinnvoll.</string>
+    <string name="sibionics_uncertainty_ribbon">Unsicherheitsband</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Das Band des wahrscheinlichen Bereichs um die Glukosekurve anzeigen</string>
 </resources>

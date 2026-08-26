@@ -2519,4 +2519,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_possible_artifact">Possível artefacto transitório do sensor</string>
     <string name="debug_v2_trace_title">Diagnóstico Adaptive V2</string>
     <string name="debug_v2_trace_desc">Registar uma linha detalhada por leitura durante o registo. Útil apenas para comunicar problemas do sensor.</string>
+    <string name="sibionics_uncertainty_ribbon">Faixa de incerteza</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Mostrar a faixa do intervalo provável em torno da linha de glicose</string>
 </resources>

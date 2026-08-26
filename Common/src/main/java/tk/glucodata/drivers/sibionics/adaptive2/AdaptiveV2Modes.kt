@@ -89,12 +89,20 @@ internal object AdaptiveV2ModeModel {
      *    artifact state, so an excursion it wins is explained away from glucose.
      *  - DRIFT opens only sensitivity and offset, and nothing else.
      *
-     * The sensor-state noises are chosen so that each state's stationary spread
-     * under its own relaxation time constant matches its initial prior — ~7% on
-     * sensitivity, ~0.25 mmol/L on offset. Picking them independently is what
-     * makes a drift model quietly collapse toward zero over a few days, or
-     * conversely wander off; matching them keeps the prior meaningful for the
-     * whole wear.
+     * The sensor-state noises are deliberately tiny, and that is the whole
+     * point. Without an external reference, residual sensitivity and glucose
+     * level are not separable from one scalar observation per minute: any
+     * constant fraction can be attributed to either. Measured on an eleven-day
+     * recorded trace, an earlier setting (3e-6 on log-sensitivity) let the
+     * residual wander to 1.11 — the model had decided the manufacturer's
+     * sensitivity was 11% wrong — which biased every reported value about 10%
+     * low and showed up on device as "V2 reads low". Nothing in the data
+     * supported that; it was the slow state quietly absorbing level.
+     *
+     * So free-running drift is priced out of reach, and external references are
+     * what unlock it: a fingerstick moves these states through the Kalman
+     * update and then moves their shrinkage targets, which is the only evidence
+     * that can actually identify them.
      */
     private val PROCESS_NOISE: Array<DoubleArray> = arrayOf(
         // STEADY
@@ -108,7 +116,7 @@ internal object AdaptiveV2ModeModel {
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 2.5e-2),
         // DRIFT
         noise(velocity = 5.0e-7, jerk = 5.0e-8,
-            logSensitivity = 3.0e-6, bias = 5.0e-5, artifact = 1.0e-6),
+            logSensitivity = 2.0e-8, bias = 1.0e-6, artifact = 1.0e-6),
     )
 
     /**

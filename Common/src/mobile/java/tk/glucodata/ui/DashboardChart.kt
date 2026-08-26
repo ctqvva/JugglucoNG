@@ -907,6 +907,13 @@ fun InteractiveGlucoseChart(
     val formatDate = remember { java.text.SimpleDateFormat("EEE dd", java.util.Locale.getDefault()) }
 
     // Reusable objects to avoid allocation on every frame
+    // The ribbon is a display preference, and it is also gated on the data
+    // actually carrying intervals: after switching away from Adaptive V2 the
+    // stored bands are cleared, so a chart holding a stale list must not keep
+    // drawing them. Re-read on every refresh rather than remembered once,
+    // because the setting lives in the sensor sheet, not here.
+    val uncertaintyRibbonEnabled = GlucoseUncertaintyDisplay.isRibbonEnabled()
+
     val reusablePath = remember { Path() }
     val reusablePeerPath = remember { Path() }
     val reusableRawPath = remember { Path() }
@@ -2515,7 +2522,9 @@ fun InteractiveGlucoseChart(
                 // Drawn only for the algorithm lane, which is the only one an
                 // estimator attaches a credible interval to; raw-only mode has
                 // no interval and renders exactly as it always did.
-                if (endIdx > startIdx && (viewMode == 0 || viewMode == 2 || viewMode == 3)) {
+                if (endIdx > startIdx && uncertaintyRibbonEnabled &&
+                    (viewMode == 0 || viewMode == 2 || viewMode == 3)
+                ) {
                     val ribbonIsRawMode = viewMode == 1 || viewMode == 3
                     val ribbonHasCalibration = calibratedValueResolver.hasCalibration(ribbonIsRawMode)
                     with(GlucoseUncertaintyRibbon) {

@@ -2718,4 +2718,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucose_possible_artifact">Waxaa suurtogal ah cilad dareeme oo ku meel gaar ah</string>
     <string name="debug_v2_trace_title">Baaritaanka Adaptive V2</string>
     <string name="debug_v2_trace_desc">Duub saf faahfaahsan akhris kasta inta la duubayo. Waxay kaliya u faa\'iido leedahay soo sheegista dhibaatooyinka dareemaha.</string>
+    <string name="sibionics_uncertainty_ribbon">Xarigga hubanti-la\'aanta</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
 </resources>

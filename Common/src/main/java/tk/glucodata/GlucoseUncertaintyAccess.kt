@@ -53,6 +53,11 @@ object GlucoseUncertaintyAccess {
             )
         }.getOrNull()
     }
+    private val clearForSensorMethod by lazy {
+        runCatching {
+            storeHolder?.getMethod("clearForSensor", String::class.java)
+        }.getOrNull()
+    }
     private val deleteAfterMethod by lazy {
         runCatching {
             storeHolder?.getMethod(
@@ -125,6 +130,22 @@ object GlucoseUncertaintyAccess {
         }.onFailure {
             Log.w(TAG, "storeReading failed for serial=$sensorSerial timestamp=$timestamp", it)
         }
+    }
+
+    /**
+     * Drops every stored interval for a sensor.
+     *
+     * Used when the algorithm changes away from one that estimates
+     * uncertainty: the bands describe values that are about to be replaced,
+     * and leaving them draws a V2 ribbon around a stock line until a rebuild
+     * happens to overwrite them.
+     */
+    @JvmStatic
+    fun clearForSensor(sensorSerial: String?) {
+        if (sensorSerial.isNullOrBlank()) return
+        val method = clearForSensorMethod ?: return
+        runCatching { method.invoke(storeInstance, sensorSerial) }
+            .onFailure { Log.w(TAG, "clearForSensor failed for serial=$sensorSerial", it) }
     }
 
     @JvmStatic

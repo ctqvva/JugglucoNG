@@ -150,6 +150,17 @@ object GlucoseUncertaintyStore {
         }
     }
 
+    /** Drops every interval for a sensor; see [GlucoseUncertaintyAccess.clearForSensor]. */
+    @JvmStatic
+    @Keep
+    fun clearForSensor(sensorSerial: String?) {
+        val serial = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        scope.launch {
+            runCatching { HistoryRepository().clearUncertaintyForSensor(serial) }
+                .onFailure { Log.w(TAG, "clearForSensor failed for serial=$serial", it) }
+        }
+    }
+
     /** Prunes rows older than the retention window; readings outlive their bands. */
     @JvmStatic
     @Keep

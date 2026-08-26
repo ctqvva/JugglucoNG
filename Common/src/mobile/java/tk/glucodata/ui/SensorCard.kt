@@ -872,6 +872,10 @@ fun SensorCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Adaptive V2 is the only model that reports a credible
+                // interval, so the ribbon control only exists when it is
+                // selected. The two switches then form one visual group.
+                val showsUncertainty = algorithmFeatures and 14 == 8
                 SettingsSwitchItem(
                     title = stringResource(R.string.calibration),
                     subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
@@ -880,10 +884,32 @@ fun SensorCard(
                     onCheckedChange = ::setCalibration,
                     icon = Icons.Default.Science,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    position = CardPosition.SINGLE,
-//                    shape = RoundedCornerShape(16.dp),
-
+                    position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
                 )
+
+                if (showsUncertainty) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    var ribbonEnabled by remember {
+                        mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context))
+                    }
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.sibionics_uncertainty_ribbon),
+                        subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
+                        subtitleStyle = MaterialTheme.typography.bodySmall,
+                        checked = ribbonEnabled,
+                        onCheckedChange = { enabled ->
+                            ribbonEnabled = enabled
+                            // Display only: the estimate and its interval are
+                            // still computed and stored, so the value details
+                            // keep working and turning it back on needs no
+                            // rebuild.
+                            GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
+                        },
+                        icon = Icons.Default.Insights,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.BOTTOM,
+                    )
+                }
 //
 //                Spacer(modifier = Modifier.height(24.dp))
 //                Text(

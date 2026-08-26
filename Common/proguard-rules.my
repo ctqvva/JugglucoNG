@@ -76,6 +76,7 @@
     public static final tk.glucodata.data.GlucoseUncertaintyStore INSTANCE;
     public static void storeBatch(java.lang.String,long[],float[],float[],float,float[],float[]);
     public static void storeReading(java.lang.String,long,float,float,float,float,float);
+    public static void clearForSensor(java.lang.String);
     public static void deleteForSensorAfter(java.lang.String,long);
     public static void pruneOlderThan(long);
 }
