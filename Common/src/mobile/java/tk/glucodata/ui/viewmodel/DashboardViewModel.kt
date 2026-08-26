@@ -52,11 +52,52 @@ import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
 internal object DashboardHistoryCollectionPolicy {
-    fun usesMergedCrossSensorHistory(mode: DashboardViewModel.CollectionMode): Boolean =
+    /**
+     * Whether to also run the unbounded stream that backs the History browse
+     * screen.
+     *
+     * This used to be called `usesMergedCrossSensorHistory`, which stopped being
+     * what it means: the dashboard chart is merged across sensors too now. What
+     * still separates the two is the bound — the dashboard queries the visible
+     * window, the History route queries everything.
+     */
+    fun runsUnboundedHistoryStream(mode: DashboardViewModel.CollectionMode): Boolean =
         mode == DashboardViewModel.CollectionMode.FULL_HISTORY
 
     fun shouldCoalesceEmission(mode: DashboardViewModel.CollectionMode, hasSeenHistoryEmission: Boolean): Boolean =
         mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
+
+    /**
+     * Whether the current sensor's stored history is behind enough to ask native
+     * for a re-sync — the pure core of `shouldRequestHistoryRecovery`.
+     *
+     * Every argument describes **the current sensor**. That is not a detail: the
+     * caller used to pass the dashboard's drawn history, which is now merged
+     * across sensors, and a retired sensor's newer rows would answer this
+     * question on the live sensor's behalf — reporting it up to date while it sat
+     * silent, so no re-sync was ever requested.
+     *
+     * @param requiredStartMs history must reach back at least this far; 0 means
+     *   no coverage requirement (a new sensor legitimately has no old rows).
+     * @param currentSnapshotTimeMs the live reading's time, or 0 when there is
+     *   none to compare against.
+     * @param snapshotIsSameSensor whether that live reading is this sensor's. A
+     *   reading from another sensor says nothing about this one's staleness.
+     */
+    fun shouldRequestHistoryRecovery(
+        requiredStartMs: Long,
+        oldestStoredMs: Long?,
+        latestStoredMs: Long?,
+        currentSnapshotTimeMs: Long,
+        snapshotIsSameSensor: Boolean,
+        coverageToleranceMs: Long,
+        tailToleranceMs: Long
+    ): Boolean {
+        if (oldestStoredMs == null || latestStoredMs == null) return true
+        if (requiredStartMs > 0L && oldestStoredMs > (requiredStartMs + coverageToleranceMs)) return true
+        if (currentSnapshotTimeMs <= 0L || !snapshotIsSameSensor) return false
+        return currentSnapshotTimeMs > (latestStoredMs + tailToleranceMs)
+    }
 }
 
 /** The span of time the dashboard chart is showing, in epoch millis. */
@@ -1000,7 +1041,7 @@ class DashboardViewModel(
         activeHistoryMode = mode
         _isLoading.value = _glucoseHistory.value.isEmpty()
 
-        if (DashboardHistoryCollectionPolicy.usesMergedCrossSensorHistory(mode)) {
+        if (DashboardHistoryCollectionPolicy.runsUnboundedHistoryStream(mode)) {
             // Parallel cross-sensor merged stream that backs the History browse
             // screen. Keep it off the dashboard path so dashboard startup does
             // not scan and convert the full multi-sensor Room timeline.
@@ -1967,27 +2008,29 @@ class DashboardViewModel(
         HistorySync.syncSensorFromNative(serial, forceFull = false)
     }
 
+    /**
+     * [history] must be the **current sensor's own** readings — see
+     * [DashboardHistoryCollectionPolicy.shouldRequestHistoryRecovery], which
+     * holds the logic and the reason.
+     */
     private fun shouldRequestHistoryRecovery(
         startTimeMs: Long,
         history: List<tk.glucodata.ui.GlucosePoint>,
         serial: String?,
         current: CurrentDisplaySource.Snapshot?
     ): Boolean {
-        if (history.isEmpty()) {
-            return true
-        }
-        val oldestTimestamp = history.firstOrNull()?.timestamp ?: return true
-        if (startTimeMs > 0L && oldestTimestamp > (startTimeMs + HISTORY_RECOVERY_TOLERANCE_MS)) {
-            return true
-        }
-        val latestTimestamp = history.lastOrNull()?.timestamp ?: return true
-        if (current == null || current.timeMillis <= 0L || serial.isNullOrBlank()) {
-            return false
-        }
-        if (!current.sensorId.isNullOrBlank() && !SensorIdentity.matches(current.sensorId, serial)) {
-            return false
-        }
-        return current.timeMillis > (latestTimestamp + HISTORY_RECOVERY_TAIL_TOLERANCE_MS)
+        val snapshotIsSameSensor = current != null &&
+            !serial.isNullOrBlank() &&
+            (current.sensorId.isNullOrBlank() || SensorIdentity.matches(current.sensorId, serial))
+        return DashboardHistoryCollectionPolicy.shouldRequestHistoryRecovery(
+            requiredStartMs = startTimeMs,
+            oldestStoredMs = history.firstOrNull()?.timestamp,
+            latestStoredMs = history.lastOrNull()?.timestamp,
+            currentSnapshotTimeMs = current?.timeMillis ?: 0L,
+            snapshotIsSameSensor = snapshotIsSameSensor,
+            coverageToleranceMs = HISTORY_RECOVERY_TOLERANCE_MS,
+            tailToleranceMs = HISTORY_RECOVERY_TAIL_TOLERANCE_MS
+        )
     }
 
     private fun resolveCurrentForHistoryRecovery(serial: String?): CurrentDisplaySource.Snapshot? {
