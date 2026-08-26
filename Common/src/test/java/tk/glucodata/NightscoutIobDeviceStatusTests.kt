@@ -144,4 +144,23 @@ class NightscoutIobDeviceStatusTests {
         assertFalse(NightscoutIobDeviceStatus.fastIntervalElapsed(now + fast - 1, now))
         assertTrue(NightscoutIobDeviceStatus.fastIntervalElapsed(now + fast, now))
     }
+
+    // -- ancillary token retry ---------------------------------------------
+
+    @Test
+    fun `an empty cache with no prior attempt fetches a token immediately`() {
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now, 0L))
+    }
+
+    @Test
+    fun `a refused token request is not repeated within the interval`() {
+        val retry = NightscoutIobDeviceStatus.TOKEN_RETRY_MILLIS
+        assertFalse(NightscoutIobDeviceStatus.tokenRetryDue(now + retry - 1, now))
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now + retry, now))
+    }
+
+    @Test
+    fun `a clock that moved backwards does not block token requests forever`() {
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now - 1, now))
+    }
 }

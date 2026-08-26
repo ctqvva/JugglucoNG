@@ -62,6 +62,67 @@ class GlucoseSmoothingTests {
     }
 
     @Test
+    fun constantAndLinearBoundariesStayOnTheTraceAtSupportedCadences() {
+        val windows = listOf(5, 10, 13)
+        val cadences = listOf(minute, 5 * minute)
+
+        for (cadence in cadences) {
+            val constant = (0..12).map { P(it * cadence, 123f, 77f) }
+            val rising = (0..12).map { index ->
+                val at = index * cadence
+                val minutes = at / minute
+                P(at, 90f + 2f * minutes, 60f + minutes)
+            }
+            for (window in windows) {
+                val constantSmoothed = smooth(constant, minutes = window)
+                constantSmoothed.forEach {
+                    assertEquals(123f, it.value, 1e-3f)
+                    assertEquals(77f, it.rawValue, 1e-3f)
+                }
+
+                val risingSmoothed = smooth(rising, minutes = window)
+                assertEquals(rising.first().value, risingSmoothed.first().value, 1e-3f)
+                assertEquals(rising.last().value, risingSmoothed.last().value, 1e-3f)
+                assertEquals(rising.first().rawValue, risingSmoothed.first().rawValue, 1e-3f)
+                assertEquals(rising.last().rawValue, risingSmoothed.last().rawValue, 1e-3f)
+            }
+        }
+    }
+
+    @Test
+    fun irregularCadenceBoundariesStayOnAnExactLine() {
+        val timestamps = listOf(0L, 70_000L, 190_000L, 310_000L, 590_000L, 760_000L)
+        val points = timestamps.map { at ->
+            val minutes = at / 60_000.0
+            P(at, (100.0 + 1.5 * minutes).toFloat(), (80.0 - 0.5 * minutes).toFloat())
+        }
+
+        for (window in listOf(5, 10, 13)) {
+            val smoothed = smooth(points, minutes = window)
+            assertEquals(points.first().value, smoothed.first().value, 1e-3f)
+            assertEquals(points.last().value, smoothed.last().value, 1e-3f)
+            assertEquals(points.first().rawValue, smoothed.first().rawValue, 1e-3f)
+            assertEquals(points.last().rawValue, smoothed.last().rawValue, 1e-3f)
+        }
+    }
+
+    @Test
+    fun noisyEndpointIsReducedAndBoundaryFitCannotExceedMeasuredRange() {
+        val spike = smooth(series(100f, 100f, 100f, 100f, 200f), minutes = 5).last().value
+        assertTrue("endpoint spike $spike should be reduced", spike >= 100f && spike < 200f)
+
+        val wouldOvershoot = smooth(series(100f, 200f, 200f), minutes = 5).last().value
+        assertEquals(200f, wouldOvershoot, 1e-3f)
+    }
+
+    @Test
+    fun duplicateTimestampsUseTheMeanFallback() {
+        val points = listOf(P(0L, 100f), P(0L, 110f), P(0L, 120f))
+        val smoothed = smooth(points, minutes = 5)
+        smoothed.forEach { assertEquals(110f, it.value, 1e-3f) }
+    }
+
+    @Test
     fun bothLanesSmoothIndependently() {
         val points = listOf(
             P(0, 100f, 50f),

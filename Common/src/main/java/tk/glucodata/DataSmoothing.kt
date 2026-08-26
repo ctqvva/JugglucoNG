@@ -215,51 +215,12 @@ object DataSmoothing {
         points: List<GlucosePoint>,
         halfWindowMs: Long,
         useRawValue: Boolean
-    ): FloatArray {
-        val size = points.size
-        val prefixSums = DoubleArray(size + 1)
-        val prefixCounts = IntArray(size + 1)
-
-        for (index in 0 until size) {
-            val point = points[index]
-            val value = if (useRawValue) point.rawValue else point.value
-            val valid = value.isFinite() && value >= 0.1f
-            prefixSums[index + 1] = prefixSums[index] + if (valid) value.toDouble() else 0.0
-            prefixCounts[index + 1] = prefixCounts[index] + if (valid) 1 else 0
-        }
-
-        val result = FloatArray(size)
-        var windowStart = 0
-        var windowEndExclusive = 0
-
-        for (index in 0 until size) {
-            val point = points[index]
-            val original = if (useRawValue) point.rawValue else point.value
-            if (!original.isFinite() || original < 0.1f) {
-                result[index] = original
-                continue
-            }
-
-            val minTime = point.timestamp - halfWindowMs
-            val maxTime = point.timestamp + halfWindowMs
-
-            while (windowStart < size && points[windowStart].timestamp < minTime) {
-                windowStart++
-            }
-            while (windowEndExclusive < size && points[windowEndExclusive].timestamp <= maxTime) {
-                windowEndExclusive++
-            }
-
-            val count = prefixCounts[windowEndExclusive] - prefixCounts[windowStart]
-            result[index] = if (count > 0) {
-                ((prefixSums[windowEndExclusive] - prefixSums[windowStart]) / count).toFloat()
-            } else {
-                original
-            }
-        }
-
-        return result
-    }
+    ): FloatArray = GlucoseSmoothing.smoothLane(
+        points = points,
+        halfWindowMs = halfWindowMs,
+        timestamp = { it.timestamp },
+        selector = { if (useRawValue) it.rawValue else it.value },
+    )
 
     internal fun collapsePointsForDisplay(
         points: List<GlucosePoint>,

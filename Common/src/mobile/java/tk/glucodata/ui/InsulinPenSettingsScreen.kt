@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Contactless
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +65,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.StableModalBottomSheet
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -326,7 +326,7 @@ private fun PenDetailSheet(
     var duplicates by remember(pen.serial) { mutableStateOf<List<PenDuplicateEntry>?>(null) }
     LaunchedEffect(pen.serial) { duplicates = InsulinPenManager.findDuplicates(pen.serial) }
     val found = duplicates.orEmpty()
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    StableModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             Text(
                 stringResource(R.string.insulin_pen_name, pen.serial),

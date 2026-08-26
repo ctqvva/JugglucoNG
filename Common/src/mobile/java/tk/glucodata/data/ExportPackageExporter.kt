@@ -419,6 +419,10 @@ object ExportPackageExporter {
         }
         if (entries.isNotEmpty()) {
             database.journalDao().upsertEntries(entries)
+            // Written straight to the table rather than through the repository, so the wake
+            // it raises has to be raised here: a restored journal is a backlog like any
+            // other and would otherwise sit until something unrelated woke the uploader.
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
 
         // Serial to key the dashboard on: the newest reading's serial (already
