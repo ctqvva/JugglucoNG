@@ -108,6 +108,11 @@ class DashboardViewModel(
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
         const val UI_RECOVERY_SYNC_MIN_INTERVAL_MS = 30_000L
         const val DASHBOARD_HISTORY_COALESCE_MS = 300L
+        // Drivers request a data refresh per delivered batch, and dowithglucose
+        // requests one per non-main-sensor reading, so with three sensors these
+        // arrive far faster than the dashboard can usefully redraw. Matches the
+        // 1 s gate GlucoseUpdateBroadcaster already applies to the same signal.
+        private const val DASHBOARD_DATA_REFRESH_COALESCE_MS = 1_000L
         const val HISTORY_RECOVERY_TOLERANCE_MS = 5L * 60L * 1000L
         const val HISTORY_RECOVERY_TAIL_TOLERANCE_MS = 2L * 60L * 1000L
         const val DASHBOARD_PEER_HISTORY_WINDOW_MS = 72L * 60L * 60L * 1000L
@@ -531,9 +536,30 @@ class DashboardViewModel(
     private fun ensureUiRefreshCollection() {
         if (uiRefreshJob?.isActive == true) return
         uiRefreshJob = viewModelScope.launch {
+            // Leading edge fires immediately so a single reading still feels live;
+            // a burst collapses into one trailing refresh instead of running
+            // refreshDashboardSettings + refreshSensorSnapshot +
+            // refreshCurrentDisplaySnapshot once per event.
+            var lastDataRefreshMs = 0L
+            var trailingRefresh: Job? = null
             UiRefreshBus.events.collect { event ->
                 when (event) {
-                    UiRefreshBus.Event.DataChanged -> refreshData()
+                    UiRefreshBus.Event.DataChanged -> {
+                        val now = SystemClock.elapsedRealtime()
+                        val sinceLast = now - lastDataRefreshMs
+                        if (sinceLast >= DASHBOARD_DATA_REFRESH_COALESCE_MS) {
+                            trailingRefresh?.cancel()
+                            trailingRefresh = null
+                            lastDataRefreshMs = now
+                            refreshData()
+                        } else if (trailingRefresh?.isActive != true) {
+                            trailingRefresh = launch {
+                                delay(DASHBOARD_DATA_REFRESH_COALESCE_MS - sinceLast)
+                                lastDataRefreshMs = SystemClock.elapsedRealtime()
+                                refreshData()
+                            }
+                        }
+                    }
                     UiRefreshBus.Event.StatusOnly -> refreshStatusOnly()
                 }
             }
