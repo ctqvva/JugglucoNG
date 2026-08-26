@@ -420,11 +420,14 @@ fun DashboardScreen(
     val scopedJournalEntries = remember(journalEnabled, journalEntries) {
         if (!journalEnabled) emptyList() else journalEntries
     }
-    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit, glucoseHistory) {
+    // Deliberately not keyed on glucoseHistory: the markers do not depend on it,
+    // and keying on it rebuilt the list — and so recomposed the chart — on every
+    // new reading, once a minute, for an identical result.
+    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit) {
         if (!journalEnabled || scopedJournalEntries.isEmpty()) {
             emptyList()
         } else {
-            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, glucoseHistory, journalFoodsById)
+            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, journalFoodsById)
         }
     }
     val localInsulinSummary = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalNow) {

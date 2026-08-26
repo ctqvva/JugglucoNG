@@ -280,6 +280,25 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
     private val rawCalibrationActive = HashMap<String?, Boolean>()
     private val autoCalibrationActive = HashMap<String?, Boolean>()
 
+    /**
+     * Timestamp to index, built once.
+     *
+     * [valueForPoint] used to find its index with `points.indexOf(point)` — a
+     * linear scan comparing every field of a data class — from inside the
+     * per-dot draw loop. That is visible-dots times total-history equality
+     * checks per frame, so it degraded as the database grew rather than as the
+     * chart got busier, which is the shape of the jank that showed up on a
+     * long-lived store. Timestamps are unique per rendered series here (the
+     * merge collapses minute buckets before this sees them); a collision would
+     * only pick the other point with the same timestamp, which is what the scan
+     * did too.
+     */
+    private val indexByTimestamp: Map<Long, Int> by lazy(LazyThreadSafetyMode.NONE) {
+        HashMap<Long, Int>(points.size * 2).apply {
+            points.forEachIndexed { index, point -> putIfAbsent(point.timestamp, index) }
+        }
+    }
+
     fun hasCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
         val cache = if (isRawMode) rawCalibrationActive else autoCalibrationActive
         return cache.getOrPut(sensorId) {
@@ -319,7 +338,7 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
     }
 
     fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
-        val pointIndex = points.indexOf(point)
+        val pointIndex = indexByTimestamp[point.timestamp] ?: -1
         return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
             val baseValue = if (isRawMode) point.rawValue else point.value
             point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
