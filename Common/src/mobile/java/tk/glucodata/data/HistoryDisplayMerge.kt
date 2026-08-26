@@ -7,6 +7,7 @@ internal object HistoryDisplayMerge {
     private const val OVERLAP_PADDING_MS = 5L * 60L * 1000L
     private const val COVERAGE_SEGMENT_GAP_MS = 15L * 60L * 1000L
 
+
     private data class LogicalSensorBucket(
         val sensorId: String,
         val bucket: Long
