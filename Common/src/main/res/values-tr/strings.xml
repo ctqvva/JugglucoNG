@@ -2538,4 +2538,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="libre3_source_experimental_warning">Deneysel Libre 3 güvenlik sürümü. Geri dönmek için standart APK’yı saklayın.</string>
 </resources>

@@ -2544,4 +2544,5 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <string name="libre3_source_experimental_warning">Eksperymentalna kompilacja zabezpieczeń Libre 3. Zachowaj standardowy plik APK, aby móc wrócić.</string>
 </resources>

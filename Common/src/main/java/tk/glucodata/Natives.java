@@ -909,6 +909,16 @@ public class Natives {
 
         public static native byte[] processbar(int i2, byte[] bArr, byte[] bArr2);
 
+        public static native long libre3BeginSecurityHandshake(long context);
+        public static native void libre3FreeSecurityContext(long context);
+        public static native int libre3LoadAppKeyAndSavedAuthorization(long context, byte[] appPrivateKey, byte[] savedAuthorization);
+        public static native int libre3AcceptPatchCertificate(long context, byte[] patchCertificate);
+        public static native byte[] libre3CreateEphemeralPublicKey(long context);
+        public static native int libre3DeriveAuthorizationRoot(long context, byte[] patchEphemeralPublicKey);
+        public static native byte[] libre3EncryptChallengeReply(long context, byte[] nonce, byte[] plaintext);
+        public static native byte[] libre3DecryptChallengeResponse(long context, byte[] nonce, byte[] ciphertext);
+        public static native byte[] libre3ExportSavedAuthorization(long context);
+
         public static native boolean getShownintro();
 
         public static native void setShownintro(boolean val);

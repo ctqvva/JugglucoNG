@@ -477,6 +477,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         super.onCreate(savedInstanceState);
         thisone = this;
+        if(BuildConfig.EXPERIMENTAL_LIBRE3_SOURCE)
+            Applic.argToaster(this, R.string.libre3_source_experimental_warning, android.widget.Toast.LENGTH_LONG);
 
         if (android.os.Build.VERSION.SDK_INT >= 21) {
             Log.i(LOG_ID, "sdk 21 or larger");

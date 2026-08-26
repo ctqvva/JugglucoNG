@@ -2553,4 +2553,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucosechartvaluecomplicationlabel">Grafiek + waarde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafiek + waarde + pijl</string>
     <string name="glucosechartfullcomplicationlabel">Grafiek + waarde + pijl + tijd</string>
+    <string name="libre3_source_experimental_warning">Experimentele Libre 3-beveiligingsbuild. Bewaar de standaard-APK om terug te kunnen gaan.</string>
 </resources>

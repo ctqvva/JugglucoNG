@@ -2510,4 +2510,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Diagram + värde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagram + värde + pil</string>
     <string name="glucosechartfullcomplicationlabel">Diagram + värde + pil + tid</string>
+    <string name="libre3_source_experimental_warning">Experimentell Libre 3-säkerhetsversion. Behåll standard-APK:n för återställning.</string>
 </resources>

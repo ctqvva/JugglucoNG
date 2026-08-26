@@ -2526,4 +2526,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">图表 + 数值</string>
     <string name="glucosechartvaluearrowcomplicationlabel">图表 + 数值 + 箭头</string>
     <string name="glucosechartfullcomplicationlabel">图表 + 数值 + 箭头 + 时间</string>
+    <string name="libre3_source_experimental_warning">实验性 Libre 3 安全版本。请保留标准 APK，以便回退。</string>
 </resources>

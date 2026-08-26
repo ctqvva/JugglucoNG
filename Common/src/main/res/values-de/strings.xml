@@ -2549,4 +2549,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <string name="libre3_source_experimental_warning">Experimenteller Libre-3-Sicherheitsbuild. Bewahren Sie die Standard-APK für eine Rückkehr auf.</string>
 </resources>

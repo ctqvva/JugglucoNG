@@ -2582,4 +2582,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значення</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значення + стрілка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значення + стрілка + час</string>
+    <string name="libre3_source_experimental_warning">Експериментальна збірка безпеки Libre 3. Збережіть стандартний APK для повернення.</string>
 </resources>

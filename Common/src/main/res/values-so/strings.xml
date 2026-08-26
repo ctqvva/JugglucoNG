@@ -2710,4 +2710,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucosechartvaluecomplicationlabel">Garaaf + qiime</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Garaaf + qiime + fallaadh</string>
     <string name="glucosechartfullcomplicationlabel">Garaaf + qiime + fallaadh + waqti</string>
+    <string name="libre3_source_experimental_warning">Nooca amniga Libre 3 ee tijaabada ah. Hayso APK-ga caadiga ah si aad ugu noqoto.</string>
 </resources>

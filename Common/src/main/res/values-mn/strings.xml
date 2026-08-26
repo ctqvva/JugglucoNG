@@ -2625,4 +2625,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucosechartvaluecomplicationlabel">График + утга</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + утга + сум</string>
     <string name="glucosechartfullcomplicationlabel">График + утга + сум + цаг</string>
+    <string name="libre3_source_experimental_warning">Libre 3-ын туршилтын хамгаалалтын хувилбар. Буцаахад зориулж стандарт APK-г хадгална уу.</string>
 </resources>
