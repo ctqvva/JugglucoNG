@@ -1210,7 +1210,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Envoyer l’insuline à action prolongée</string>
     <string name="nightscout_send_long_insulin_desc">Inclure l’insuline basale et à action ultra-longue dans les envois Nightscout</string>
     <string name="nightscout_receive_amounts">Recevoir les quantités</string>
-    <string name="nightscout_receive_amounts_desc">Importer l\'insuline/les glucides Nightscout dans le journal</string>
+    <string name="nightscout_receive_amounts_desc">Importer l\'insuline/les glucides Nightscout dans le journal. Le jeton d\'accès requiert l\'autorisation api:treatments:read.</string>
     <string name="nightscout_settings_title">Paramètres de Nightscout</string>
     <string name="nightscout_url_label">URL de Nightscout</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1419,6 +1419,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Dernière réponse : HTTP 413, charge utile trop volumineuse</string>
     <string name="nightscout_status_last_attempt">Dernière tentative : %1$s</string>
     <string name="nightscout_status_last_success">Dernier succès : %1$s</string>
+    <string name="nightscout_status_treatments_never">Traitements : rien envoyé pour le moment</string>
+    <string name="nightscout_status_treatments_ok">Traitements : dernier envoi %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Traitements : l’envoi échoue depuis %1$s, dernier essai %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Traitements : suppressions refusées depuis %1$s, dernier essai %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">pas de réponse</string>
+    <string name="nightscout_status_iob_no_token">Envoi IOB : ignoré - pas encore de jeton Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Envoi IOB : refusé (%1$s)</string>
     <string name="nightscout_sync_actions_title">Actions de synchronisation</string>
     <string name="expand_action">Développer</string>
     <string name="collapse_action">Réduire</string>
@@ -1632,6 +1639,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_fingerstick">Mesure capillaire</string>
     <string name="journal_type_activity">Activité</string>
     <string name="journal_type_note">Note</string>
+    <string name="journal_source_pen">Lu depuis le stylo</string>
+    <string name="journal_source_nightscout">Reçu de Nightscout</string>
+    <string name="journal_source_aaps">Reçu d\'AAPS</string>
+    <string name="journal_source_api">Reçu via l\'API</string>
+    <string name="journal_source_health_connect">Depuis Health Connect</string>
+    <string name="journal_source_meter">Depuis le lecteur</string>
     <string name="journal_note_label">Note</string>
     <string name="journal_onset_label">Début d\'action</string>
     <string name="journal_add_preset">Ajouter un type d\'insuline</string>
@@ -1697,6 +1710,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_open_location_action">Ouvrir Localisation</string>
     <string name="cgm_readiness_open_notifications_action">Ouvrir Notifications</string>
     <string name="cgm_readiness_open_alarm_action">Ouvrir accès alarmes</string>
+    <string name="cgm_readiness_open_full_screen_action">Autoriser les alarmes plein écran</string>
     <string name="cgm_readiness_open_battery_action">Ouvrir paramètres batterie</string>
     <string name="cgm_readiness_open_dnd_action">Ouvrir accès NPD</string>
     <string name="cgm_readiness_open_overlay_action">Ouvrir accès superposition</string>
@@ -1724,6 +1738,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_exact_alarm_title">Alarmes exactes</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Planification des alarmes exactes autorisée.</string>
     <string name="cgm_readiness_exact_alarm_detail">Autorisez les alarmes exactes pour rappels fiables, contrôles de reconnexion et alertes urgentes.</string>
+    <string name="cgm_readiness_full_screen_title">Alarmes plein écran</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Les alarmes peuvent réveiller l’écran verrouillé.</string>
+    <string name="cgm_readiness_full_screen_detail">Sans cette autorisation, les alarmes ne réveillent plus l’écran verrouillé et n’apparaissent que comme notification. Android peut la retirer à chaque mise à jour de l’app : vérifiez-la après une mise à jour.</string>
     <string name="cgm_readiness_battery_title">Batterie sans restriction</string>
     <string name="cgm_readiness_battery_ready_detail">Optimisation batterie Android désactivée pour cette app.</string>
     <string name="cgm_readiness_battery_detail">Désactivez l’optimisation batterie pour éviter l’arrêt du BLE arrière-plan, des alarmes et de la synchro réseau.</string>
@@ -1957,6 +1974,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved_fail">Aucune donnée de compte ou enregistrée pour cet ID cloud</string>
     <string name="ottai_status_needs_ble_address">Adresse BLE requise</string>
     <string name="ottai_status_warmup_provisional">Préchauffage provisoire • %1$d min restantes</string>
+    <string name="anytime_status_warming_up">Préchauffage</string>
+    <string name="anytime_status_warming_up_remaining">Préchauffage • %1$d min restantes</string>
     <string name="ottai_status_loading_history">Chargement de l’historique • %1$d%%</string>
     <string name="ottai_ble_scan_title">Capteurs Ottai à proximité</string>
     <string name="ottai_ble_scan_hint">Rapprochez le téléphone du capteur. Les émetteurs CGM stables apparaissent ici.</string>
@@ -2119,7 +2138,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_desc">Afficher le COB du journal dans la ligne d’état</string>
     <string name="notification_show_delta_minutes_desc">Afficher la variation sur %1$d min près de la flèche</string>
     <string name="dashboard_rows_show_delta_title">Delta dans la liste</string>
-    <string name="dashboard_rows_show_delta_desc">Afficher la variation près de chaque valeur</string>
+    <string name="dashboard_rows_show_delta_desc">Afficher la variation près de chaque valeur, sur le tableau de bord et dans l’historique</string>
     <string name="glucose_range_colors_title">Colorer les valeurs par plage</string>
     <string name="glucose_range_colors_desc">Utiliser les couleurs de plage sur le tableau de bord et la notification</string>
     <string name="very_range_title">Très basse / très haute</string>
@@ -2301,6 +2320,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout affiche alors cette valeur au lieu de son propre calcul basé sur le profil. L’eIOB et les glucides actifs (COB) sont également envoyés dans un champ distinct. Le jeton d\'accès a besoin de api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valeurs de l’appareil émetteur (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un autre capteur est encore associé au compte Ottai. Dissociez-le dans l’application Ottai ou supprimez ce capteur ici pour libérer l’association, puis réessayez.</string>
+    <string name="ottai_cloud_unbind_hint">Action sur le compte cloud uniquement. JugglucoNG ne se connectera pas au capteur sélectionné et ne l’arrêtera, ne le supprimera ni ne le modifiera.</string>
+    <string name="ottai_cloud_unbind_title">Dissocier définitivement ce capteur ?</string>
+    <string name="ottai_cloud_unbind_message">%1$s sera définitivement supprimé de ce compte Ottai. Le compte ne pourra plus récupérer ses identifiants et le capteur ne fonctionnera plus dans l’application Ottai officielle. Les identifiants et l’état du capteur déjà enregistrés dans JugglucoNG ne seront pas modifiés. Cette action est irréversible.</string>
+    <string name="ottai_cloud_unbind_confirm">Dissocier définitivement</string>
+    <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans JugglucoNG n’ont pas été modifiés.</string>
+    <string name="ottai_cloud_unbind_failed">Impossible de dissocier le capteur d’Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Vérification de l’association au cloud Ottai…</string>
+    <string name="ottai_cloud_binding_bound">État du cloud : associé à ce compte Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">État du cloud : non associé à ce compte Ottai</string>
+    <string name="ottai_cloud_binding_error">Impossible de vérifier l’association au cloud Ottai</string>
     <string name="ottai_cloud_offline_routes">Importez un fichier d’identifiants pour continuer sans le cloud — le scan QR renseigne uniquement le code du capteur et le NFC ne fait que le réveiller.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS d\'urgence</string>

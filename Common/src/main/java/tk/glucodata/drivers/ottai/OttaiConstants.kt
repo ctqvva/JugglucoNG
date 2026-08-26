@@ -194,13 +194,24 @@ object OttaiConstants {
     const val DEFAULT_RETAIN_TIME_MS = 172_800_000L
     const val DEFAULT_ACTIVE_EXPIRE_MS = DEFAULT_RATED_LIFETIME_DAYS * 24L * 3600L * 1000L
 
+    // Cloud and sensor values are durations. Reject epoch timestamps, unit mistakes, and corrupt
+    // preferences before they can turn into a decades-long age/end date in the sensor UI.
+    private const val MIN_ACTIVE_EXPIRE_MS = 10L * 24L * 3600L * 1000L
+    private const val MAX_ACTIVE_EXPIRE_MS = 45L * 24L * 3600L * 1000L
+
     /** Longest managed lifetime requested during explicit activation. */
     const val EXTENDED_LIFETIME_DAYS = 30
     const val EXTENDED_LIFETIME_MS = EXTENDED_LIFETIME_DAYS * 24L * 3600L * 1000L
 
     @JvmStatic
+    fun sanitizeActiveExpireMs(value: Long): Long =
+        value.takeIf { it in MIN_ACTIVE_EXPIRE_MS..MAX_ACTIVE_EXPIRE_MS } ?: 0L
+
+    @JvmStatic
     fun activationMaxActiveCandidatesMs(cloudActiveExpireMs: Long): List<Long> {
-        val cloudMs = cloudActiveExpireMs.takeIf { it > 0L } ?: DEFAULT_ACTIVE_EXPIRE_MS
+        val cloudMs = sanitizeActiveExpireMs(cloudActiveExpireMs)
+            .takeIf { it > 0L }
+            ?: DEFAULT_ACTIVE_EXPIRE_MS
         val candidates = mutableListOf<Long>()
         if (cloudMs > EXTENDED_LIFETIME_MS) candidates += cloudMs
         (EXTENDED_LIFETIME_DAYS downTo 15).forEach { days ->
@@ -212,8 +223,8 @@ object OttaiConstants {
 
     @JvmStatic
     fun expectedLifetimeMs(cloudActiveExpireMs: Long, acceptedMaxActiveMs: Long): Long =
-        acceptedMaxActiveMs.takeIf { it > 0L }
-            ?: cloudActiveExpireMs.takeIf { it > 0L }
+        sanitizeActiveExpireMs(acceptedMaxActiveMs).takeIf { it > 0L }
+            ?: sanitizeActiveExpireMs(cloudActiveExpireMs).takeIf { it > 0L }
             ?: DEFAULT_ACTIVE_EXPIRE_MS
 
     @JvmStatic
@@ -366,4 +377,6 @@ object OttaiConstants {
     // "dataNo,sampleMs,tempC*10;" per accepted reading — feeds the stats temperature card.
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "ottai_temp_history_"
     const val PREF_SELF_DEVICE_ID = "ottai_self_device_id"
+    // CN phone SDK common-header identity. This is separate from the legacy watch/global id.
+    const val PREF_CN_COMMON_DEVICE_ID = "ottai_cn_common_device_id"
 }

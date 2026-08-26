@@ -1239,7 +1239,7 @@
     <string name="nightscout_send_long_insulin">Wysyłaj insulinę długodziałającą</string>
     <string name="nightscout_send_long_insulin_desc">Uwzględniaj insulinę bazową i ultradługodziałającą w wysyłaniu do Nightscout</string>
     <string name="nightscout_receive_amounts">Odbieraj wartości</string>
-    <string name="nightscout_receive_amounts_desc">Importuj insulinę/węglowodany z Nightscout do dziennika</string>
+    <string name="nightscout_receive_amounts_desc">Importuj insulinę/węglowodany z Nightscout do dziennika. Token dostępu wymaga uprawnienia api:treatments:read.</string>
     <string name="nightscout_settings_title">Ustawienia Nightscouta</string>
     <string name="nightscout_url_label">Adres URL Nightscouta</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1448,6 +1448,13 @@
     <string name="nightscout_status_response_413">Ostatnia odpowiedź: HTTP 413, zbyt duży ładunek</string>
     <string name="nightscout_status_last_attempt">Ostatnia próba: %1$s</string>
     <string name="nightscout_status_last_success">Ostatni sukces: %1$s</string>
+    <string name="nightscout_status_treatments_never">Leczenia: nic jeszcze nie wysłano</string>
+    <string name="nightscout_status_treatments_ok">Leczenia: ostatnio wysłano %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Leczenie: wysyłanie nie działa od %1$s, ostatnia próba %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Leczenie: usunięcia odrzucane od %1$s, ostatnia próba %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">brak odpowiedzi</string>
+    <string name="nightscout_status_iob_no_token">Wysyłka IOB: pominięta - brak jeszcze tokenu Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Wysyłka IOB: odrzucona (%1$s)</string>
     <string name="nightscout_sync_actions_title">Akcje synchronizacji</string>
     <string name="expand_action">Rozwiń</string>
     <string name="collapse_action">Zwiń</string>
@@ -1661,6 +1668,12 @@
     <string name="journal_type_fingerstick">Pomiar z palca</string>
     <string name="journal_type_activity">Aktywność</string>
     <string name="journal_type_note">Notatka</string>
+    <string name="journal_source_pen">Odczytano ze wstrzykiwacza</string>
+    <string name="journal_source_nightscout">Odebrano z Nightscout</string>
+    <string name="journal_source_aaps">Odebrano z AAPS</string>
+    <string name="journal_source_api">Odebrano przez API</string>
+    <string name="journal_source_health_connect">Z Health Connect</string>
+    <string name="journal_source_meter">Z glukometru</string>
     <string name="journal_note_label">Notatka</string>
     <string name="journal_onset_label">Początek działania</string>
     <string name="journal_add_preset">Dodaj typ insuliny</string>
@@ -1726,6 +1739,7 @@
     <string name="cgm_readiness_open_location_action">Otwórz lokalizację</string>
     <string name="cgm_readiness_open_notifications_action">Otwórz powiadomienia</string>
     <string name="cgm_readiness_open_alarm_action">Otwórz dostęp alarmów</string>
+    <string name="cgm_readiness_open_full_screen_action">Zezwól na alarmy pełnoekranowe</string>
     <string name="cgm_readiness_open_battery_action">Otwórz ustawienia baterii</string>
     <string name="cgm_readiness_open_dnd_action">Otwórz dostęp DND</string>
     <string name="cgm_readiness_open_overlay_action">Otwórz dostęp nakładki</string>
@@ -1753,6 +1767,9 @@
     <string name="cgm_readiness_exact_alarm_title">Dokładne alarmy</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Planowanie dokładnych alarmów jest dozwolone.</string>
     <string name="cgm_readiness_exact_alarm_detail">Zezwól na dokładne alarmy dla niezawodnych przypomnień, kontroli ponownego połączenia i pilnych alertów.</string>
+    <string name="cgm_readiness_full_screen_title">Alarmy pełnoekranowe</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarmy mogą wybudzać zablokowany ekran.</string>
+    <string name="cgm_readiness_full_screen_detail">Bez tego uprawnienia alarmy nie wybudzają już zablokowanego ekranu i pojawiają się tylko jako powiadomienie. Android może je odbierać przy każdej aktualizacji aplikacji – sprawdź je po aktualizacji.</string>
     <string name="cgm_readiness_battery_title">Bateria bez ograniczeń</string>
     <string name="cgm_readiness_battery_ready_detail">Optymalizacja baterii Androida jest wyłączona dla tej aplikacji.</string>
     <string name="cgm_readiness_battery_detail">Wyłącz optymalizację baterii, aby BLE w tle, alarmy i synchronizacja sieci nie były zatrzymywane.</string>
@@ -1986,6 +2003,8 @@
     <string name="ottai_connect_saved_fail">Brak materiałów z konta lub zapisanych dla tego ID w chmurze</string>
     <string name="ottai_status_needs_ble_address">Wymagany adres BLE</string>
     <string name="ottai_status_warmup_provisional">Tymczasowe rozgrzewanie • pozostało %1$d min</string>
+    <string name="anytime_status_warming_up">Rozgrzewanie</string>
+    <string name="anytime_status_warming_up_remaining">Rozgrzewanie • pozostało %1$d min</string>
     <string name="ottai_status_loading_history">Wczytywanie historii • %1$d%%</string>
     <string name="ottai_ble_scan_title">Pobliskie sensory Ottai</string>
     <string name="ottai_ble_scan_hint">Przysuń telefon do sensora. Stabilne nadajniki CGM pojawią się tutaj.</string>
@@ -2147,7 +2166,7 @@
     <string name="notification_show_cob_desc">Pokaż COB z Dziennika w wierszu stanu</string>
     <string name="notification_show_delta_minutes_desc">Pokaż zmianę z %1$d min obok strzałki</string>
     <string name="dashboard_rows_show_delta_title">Delta na liście odczytów</string>
-    <string name="dashboard_rows_show_delta_desc">Pokaż zmianę obok każdego odczytu</string>
+    <string name="dashboard_rows_show_delta_desc">Pokaż zmianę obok każdego odczytu, na pulpicie i w historii</string>
     <string name="glucose_range_colors_title">Koloruj wartości według zakresu</string>
     <string name="glucose_range_colors_desc">Użyj kolorów zakresu na pulpicie i w powiadomieniu</string>
     <string name="very_range_title">Bardzo niski / bardzo wysoki</string>
@@ -2329,6 +2348,16 @@
     <string name="nightscout_upload_iob_desc">Nightscout wyświetli tę wartość zamiast własnego obliczenia na podstawie profilu. eIOB i COB są dodatkowo wysyłane w osobnym polu. Token dostępu wymaga uprawnienia api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Wartości z urządzenia wysyłającego dane (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Z kontem Ottai nadal jest powiązany inny sensor. Odłącz go w aplikacji Ottai albo usuń ten sensor tutaj, aby zwolnić powiązanie, a następnie spróbuj ponownie.</string>
+    <string name="ottai_cloud_unbind_hint">Ta czynność dotyczy tylko konta w chmurze. JugglucoNG nie połączy się z wybranym sensorem ani go nie zatrzyma, nie usunie i nie zmodyfikuje.</string>
+    <string name="ottai_cloud_unbind_title">Trwale odłączyć ten sensor?</string>
+    <string name="ottai_cloud_unbind_message">%1$s zostanie trwale usunięty z tego konta Ottai. Konto nie będzie już mogło pobrać jego danych uwierzytelniających, a sensor przestanie działać w oficjalnej aplikacji Ottai. Dane i stan sensora zapisane w JugglucoNG nie zostaną zmienione. Tej czynności nie można cofnąć.</string>
+    <string name="ottai_cloud_unbind_confirm">Odłącz trwale</string>
+    <string name="ottai_cloud_unbind_success">Sensor został trwale odłączony od Ottai. Sensor i zapisane dane w JugglucoNG nie zostały zmienione.</string>
+    <string name="ottai_cloud_unbind_failed">Nie udało się odłączyć sensora od Ottai.</string>
+    <string name="ottai_cloud_binding_checking">Sprawdzanie powiązania z chmurą Ottai…</string>
+    <string name="ottai_cloud_binding_bound">Stan chmury: powiązany z tym kontem Ottai</string>
+    <string name="ottai_cloud_binding_not_bound">Stan chmury: niepowiązany z tym kontem Ottai</string>
+    <string name="ottai_cloud_binding_error">Nie udało się sprawdzić powiązania z chmurą Ottai</string>
     <string name="ottai_cloud_offline_routes">Zaimportuj plik danych logowania, aby kontynuować bez chmury — skan QR tylko uzupełnia kod sensora, a NFC jedynie go wybudza.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS alarmowy</string>

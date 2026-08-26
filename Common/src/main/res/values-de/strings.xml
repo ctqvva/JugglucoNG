@@ -1274,7 +1274,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_send_long_insulin">Langzeitinsulin senden</string>
     <string name="nightscout_send_long_insulin_desc">Basal- und ultralang wirkendes Insulin zu Nightscout hochladen</string>
     <string name="nightscout_receive_amounts">Mengen empfangen</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren. Der Zugriffstoken benötigt die Berechtigung api:treatments:read.</string>
     <string name="nightscout_upload_iob">IOB an Nightscout senden</string>
     <string name="nightscout_upload_iob_desc">Nightscout zeigt dann diesen Wert statt seiner eigenen Berechnung aus dem Profil. eIOB und COB werden zusätzlich in einem eigenen Feld übertragen. Der Zugriffstoken benötigt api:devicestatus:create.</string>
     <string name="nightscout_settings_title">Nightscout-Einstellungen</string>
@@ -1487,6 +1487,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_response_413">Letzte Antwort: HTTP 413, Nutzlast zu groß</string>
     <string name="nightscout_status_last_attempt">Letzter Versuch: %1$s</string>
     <string name="nightscout_status_last_success">Letzter Erfolg: %1$s</string>
+    <string name="nightscout_status_treatments_never">Behandlungen: noch nichts gesendet</string>
+    <string name="nightscout_status_treatments_ok">Behandlungen: zuletzt gesendet %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Behandlungen: Senden schlägt seit %1$s fehl, zuletzt versucht %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Behandlungen: Löschungen seit %1$s abgelehnt, zuletzt versucht %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">keine Antwort</string>
+    <string name="nightscout_status_iob_no_token">IOB-Upload: übersprungen - noch kein Nightscout-Token</string>
+    <string name="nightscout_status_iob_rejected">IOB-Upload: abgelehnt (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisierungsaktionen</string>
     <string name="expand_action">Erweitern</string>
     <string name="collapse_action">Einklappen</string>
@@ -1700,7 +1707,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dashboard_show_delta_title">Delta (Δ) auf dem Dashboard</string>
     <string name="dashboard_show_delta_desc">Gemessene Änderung über das Delta-Intervall, unter dem Trendpfeil</string>
     <string name="dashboard_rows_show_delta_title">Delta in der Messwertliste</string>
-    <string name="dashboard_rows_show_delta_desc">Änderung neben jedem Messwert anzeigen</string>
+    <string name="dashboard_rows_show_delta_desc">Änderung neben jedem Messwert anzeigen, im Dashboard und in der Historie</string>
     <string name="delta_interval_title">Delta-Intervall (Δ)</string>
     <string name="delta_interval_desc">Zeitfenster für die Δ-Anzeige; die Schnell-fallend/steigend-Alarme folgen ihm, solange kein eigenes Fenster gesetzt ist</string>
     <string name="delta_interval_1min">1 Min</string>
@@ -1751,6 +1758,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Aktivität</string>
     <string name="journal_type_note">Notiz</string>
+    <string name="journal_source_pen">Aus Pen gelesen</string>
+    <string name="journal_source_nightscout">Von Nightscout empfangen</string>
+    <string name="journal_source_aaps">Von AAPS empfangen</string>
+    <string name="journal_source_api">Über API empfangen</string>
+    <string name="journal_source_health_connect">Aus Health Connect</string>
+    <string name="journal_source_meter">Vom Messgerät</string>
     <string name="journal_note_label">Notiz</string>
     <string name="journal_onset_label">Wirkbeginn</string>
     <string name="journal_add_preset">Insulintyp hinzufügen</string>
@@ -1816,6 +1829,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="cgm_readiness_open_location_action">Standort öffnen</string>
     <string name="cgm_readiness_open_notifications_action">Benachrichtigungen öffnen</string>
     <string name="cgm_readiness_open_alarm_action">Alarmzugriff öffnen</string>
+    <string name="cgm_readiness_open_full_screen_action">Vollbild-Alarme erlauben</string>
     <string name="cgm_readiness_open_battery_action">Akku-Einstellungen öffnen</string>
     <string name="cgm_readiness_open_dnd_action">DND-Zugriff öffnen</string>
     <string name="cgm_readiness_open_overlay_action">Overlay-Zugriff öffnen</string>
@@ -1843,6 +1857,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="cgm_readiness_exact_alarm_title">Exakte Alarme</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Exakte Alarmplanung ist erlaubt.</string>
     <string name="cgm_readiness_exact_alarm_detail">Exakte Alarme für zuverlässige Erinnerungen, Wiederverbindungsprüfungen und zeitkritische Alarme erlauben.</string>
+    <string name="cgm_readiness_full_screen_title">Vollbild-Alarme</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarme dürfen den gesperrten Bildschirm aufwecken.</string>
+    <string name="cgm_readiness_full_screen_detail">Ohne diese Berechtigung wecken Alarme den gesperrten Bildschirm nicht mehr auf und erscheinen nur als Benachrichtigung. Android kann sie bei jedem App-Update wieder entziehen – nach Updates prüfen.</string>
     <string name="cgm_readiness_battery_title">Akku uneingeschränkt</string>
     <string name="cgm_readiness_battery_ready_detail">Android-Akkuoptimierung ist für diese App deaktiviert.</string>
     <string name="cgm_readiness_battery_detail">Akkuoptimierung deaktivieren, damit Hintergrund-BLE, Alarme und Netzwerksync nicht gestoppt werden.</string>
@@ -2076,6 +2093,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_saved_fail">Keine Konto- oder gespeicherten Materialien für diese Cloud-ID</string>
     <string name="ottai_status_needs_ble_address">BLE-Adresse erforderlich</string>
     <string name="ottai_status_warmup_provisional">Vorläufiges Aufwärmen • noch %1$d Min.</string>
+    <string name="anytime_status_warming_up">Aufwärmen</string>
+    <string name="anytime_status_warming_up_remaining">Aufwärmen • noch %1$d Min.</string>
     <string name="ottai_status_loading_history">Verlauf wird geladen • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ottai-Sensoren in der Nähe</string>
     <string name="ottai_ble_scan_hint">Telefon nahe an den Sensor halten. Stabile CGM-Sender erscheinen hier.</string>
@@ -2334,6 +2353,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_handover_multiple_text">Der Sensor ist abgelaufen, aber mehrere Nachfolge-Sensoren sind aktiv. Automatische Übergabe übersprungen; bitte manuell wechseln.</string>
     <string name="sensor_handover_successor_ready">Nachfolge-Sensor ist bereit; die automatische Übergabe übernimmt beim Ablauf</string>
     <string name="ottai_cloud_already_binding">Mit dem Ottai-Konto ist noch ein anderer Sensor verknüpft. Trennen Sie ihn in der Ottai-App oder entfernen Sie diesen Sensor hier, um die Verknüpfung freizugeben, und versuchen Sie es erneut.</string>
+    <string name="ottai_cloud_unbind_hint">Nur eine Aktion für das Cloud-Konto. JugglucoNG verbindet sich nicht mit dem ausgewählten Sensor und stoppt, entfernt oder verändert ihn nicht.</string>
+    <string name="ottai_cloud_unbind_title">Diesen Sensor dauerhaft entkoppeln?</string>
+    <string name="ottai_cloud_unbind_message">%1$s wird dauerhaft aus diesem Ottai-Konto entfernt. Das Konto kann seine Zugangsdaten danach nicht mehr abrufen, und der Sensor funktioniert nicht mehr in der offiziellen Ottai-App. In JugglucoNG gespeicherte Zugangsdaten und der Sensorstatus bleiben unverändert. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="ottai_cloud_unbind_confirm">Dauerhaft entkoppeln</string>
+    <string name="ottai_cloud_unbind_success">Sensor dauerhaft von Ottai entkoppelt. Sensor und gespeicherte Zugangsdaten in JugglucoNG wurden nicht verändert.</string>
+    <string name="ottai_cloud_unbind_failed">Der Sensor konnte nicht von Ottai entkoppelt werden.</string>
+    <string name="ottai_cloud_binding_checking">Ottai-Cloud-Bindung wird geprüft…</string>
+    <string name="ottai_cloud_binding_bound">Cloud-Status: mit diesem Ottai-Konto verbunden</string>
+    <string name="ottai_cloud_binding_not_bound">Cloud-Status: nicht mit diesem Ottai-Konto verbunden</string>
+    <string name="ottai_cloud_binding_error">Ottai-Cloud-Bindung konnte nicht geprüft werden</string>
     <string name="ottai_cloud_offline_routes">Importieren Sie eine Zugangsdaten-Datei, um ohne Cloud fortzufahren — ein QR-Scan trägt nur den Sensorcode ein und NFC weckt den Sensor lediglich auf.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Notfall-SMS</string>

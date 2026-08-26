@@ -143,6 +143,27 @@ class StatsAnalyticsTests {
         assertTrue(defaultGri.value > 40f)
     }
 
+    // -------------------------------------------------------------------- GMI
+
+    @Test
+    fun gmiBandsSplitOnTheTherapyTargetTheTilePrints() {
+        // 7.0 is the target itself, so it still counts as meeting it.
+        assertEquals(GmiBand.AT_TARGET, GmiBand.of(6.6f))
+        assertEquals(GmiBand.AT_TARGET, GmiBand.of(GmiBand.TARGET_PERCENT))
+        assertEquals(GmiBand.ABOVE_TARGET, GmiBand.of(7.1f))
+        assertEquals(GmiBand.WELL_ABOVE_TARGET, GmiBand.of(GmiBand.WELL_ABOVE_TARGET_PERCENT))
+        assertEquals(GmiBand.WELL_ABOVE_TARGET, GmiBand.of(9f))
+    }
+
+    @Test
+    fun gmiDoesNotJudgeTherapyByTheDiagnosticThresholds() {
+        // 5.7 and 6.5 screen an undiagnosed population; on this screen they are not a
+        // scale at all, so nothing below the target may land in a warning band.
+        listOf(5.6f, 5.7f, 6.4f, 6.5f, 6.9f).forEach { gmi ->
+            assertEquals("GMI $gmi is within target", GmiBand.AT_TARGET, GmiBand.of(gmi))
+        }
+    }
+
     // ---------------------------------------------------------------- cadence
 
     @Test

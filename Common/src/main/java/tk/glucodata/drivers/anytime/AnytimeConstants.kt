@@ -246,6 +246,14 @@ object AnytimeConstants {
     /** Warmup window before reliable readings. */
     const val DEFAULT_WARMUP_MINUTES = 60
 
+    /**
+     * CT5 warm-up. Hardware evidence (fresh activation trace 2026-08-17): live
+     * records start at glucoseId=0 and carry valid telemetry but no glucose;
+     * the first non-zero glucose arrived at id=14, i.e. 14 x 3 min = 42 min.
+     * 45 minutes is the vendor-rounded window that covers it.
+     */
+    const val CT5_WARMUP_MINUTES = 40
+
     /** Watchdog — official app's pullDataDelay is 190 s. */
     const val PULL_WATCHDOG_SECONDS = 190L
 
@@ -468,4 +476,16 @@ object AnytimeConstants {
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
+
+    /**
+     * Highest CT5 glucose id whose computed record we have actually imported.
+     * Distinct from PREF_LAST_GLUCOSE_ID_PREFIX, which also advances on
+     * warm-up/no-glucose frames that carry no point to store.
+     */
+    const val PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX = "anytime_ct5_imported_id_"
+
+    /** Pending CT5 gap repair (inclusive start / exclusive end), so an interrupted
+     *  repair survives a process restart instead of being replayed from zero. */
+    const val PREF_CT5_GAP_FROM_PREFIX = "anytime_ct5_gap_from_"
+    const val PREF_CT5_GAP_STOP_BEFORE_PREFIX = "anytime_ct5_gap_stop_"
 }

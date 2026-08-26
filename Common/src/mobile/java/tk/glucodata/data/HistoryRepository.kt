@@ -66,6 +66,9 @@ class HistoryRepository(context: Context = Applic.app) {
             "imported",
             "unknown"
         )
+
+        /** A row no sensor owns: imported, or stored before the serial was known. */
+        fun isImportedHistorySerial(serial: String): Boolean = serial in IMPORTED_HISTORY_SENSOR_SERIALS
         private val TIME_FORMATTER = object : ThreadLocal<SimpleDateFormat>() {
             override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         }

@@ -1666,6 +1666,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(rebaseDirectStreamWindow)(
     seedDirectStreamStateIfMissing(hist, static_cast<time_t>(startTimeSec));
     if (!hist->error()) {
       hist->rebaseDirectStreamWindow(static_cast<uint32_t>(startTimeSec));
+      syncListStarttime(hist, static_cast<uint32_t>(startTimeSec));
     }
   }
 

@@ -37,6 +37,10 @@ public class NightscoutIobDeviceStatus {
     // back to the same slow cadence as the battery devicestatus.
     static final long FAST_INTERVAL_MILLIS = 5L * 60L * 1000L;
     static final long SLOW_INTERVAL_MILLIS = 15L * 60L * 1000L;
+    // The ancillary upload path fetches its own token when the cache is empty,
+    // but at most this often, so a refusing server is asked once per interval
+    // instead of on every devicestatus attempt.
+    static final long TOKEN_RETRY_MILLIS = FAST_INTERVAL_MILLIS;
     // Below half of the 0.01-unit display quantum IOB counts as zero.
     private static final float VALUE_QUANTUM = 0.01f;
 
@@ -47,6 +51,14 @@ public class NightscoutIobDeviceStatus {
     // callers use this as a cheap gate before computing the journal snapshot.
     static boolean fastIntervalElapsed(long nowMillis, long lastUploadMillis) {
         return lastUploadMillis <= 0L || nowMillis - lastUploadMillis >= FAST_INTERVAL_MILLIS;
+    }
+
+    // True when the ancillary path may spend a network round trip on a token
+    // request. A clock that moved backwards must not block requests forever.
+    static boolean tokenRetryDue(long nowMillis, long lastAttemptMillis) {
+        return lastAttemptMillis <= 0L
+                || nowMillis < lastAttemptMillis
+                || nowMillis - lastAttemptMillis >= TOKEN_RETRY_MILLIS;
     }
 
     // Decides whether a devicestatus is due. Fast cadence while insulin is on
