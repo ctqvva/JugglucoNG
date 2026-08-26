@@ -1202,51 +1202,6 @@ class HistoryRepository(context: Context = Applic.app) {
         }.flowOn(Dispatchers.IO)
     }
 
-    /**
-     * The dashboard chart's history: the same merged cross-sensor timeline as
-     * [getDisplayHistoryFlow], bounded to the window the chart can actually draw.
-     *
-     * Two things were wrong with pinning this to the current sensor's serial
-     * (which is what `getHistoryFlowForDisplaySensor` does, and what the
-     * dashboard used to call). A sensor that has been swapped out is no longer in
-     * `activeSensors()`, so its serial resolves to nothing and its rows — still
-     * sitting in Room, still shown by History, stats and export — silently left
-     * the dashboard. And the query was unbounded, so every emission mapped the
-     * entire store; on a 90-day, 18k-reading database that is the multi-second
-     * main-thread stall that shows up as `Skipped N frames` and an ANR.
-     *
-     * [HistoryDisplayMerge] is what makes the cross-sensor form safe: the
-     * preferred sensor wins outright inside its own coverage segments, and older
-     * sensors contribute only where it has a genuine gap. So a retired sensor
-     * fills the hours before the swap and nothing else.
-     *
-     * The *displayed* line is all this widens. Recovery, hero, trend and Δ read
-     * the current sensor's own tail — see `DashboardViewModel`'s
-     * `currentSensorTail` — because a value from a sensor that is not this one is
-     * not evidence about this one.
-     */
-    fun getDisplayHistoryFlowInWindow(
-        preferredSerial: String?,
-        startTime: Long,
-        endTime: Long
-    ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> {
-        if (endTime < startTime) {
-            return kotlinx.coroutines.flow.flowOf(emptyList())
-        }
-        return kotlinx.coroutines.flow.combine(
-            dao.getHistoryFlowBetween(startTime, endTime),
-            uncertaintyDao.getFlowBetween(startTime, endTime),
-            displayDao.getFlowBetween(startTime, endTime),
-        ) { readings, uncertainty, display ->
-            mapDisplayReadings(
-                readings,
-                preferredSerial,
-                uncertainty.indexed(),
-                display.indexedDisplay()
-            )
-        }.flowOn(Dispatchers.IO)
-    }
-
     
     /**
      * Get the count of stored readings (all sensors).

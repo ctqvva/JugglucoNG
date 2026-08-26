@@ -1,6 +1,7 @@
 package tk.glucodata.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -209,4 +210,44 @@ class HistoryDisplayMergeTests {
         rawValue = rawValue,
         rate = null
     )
+
+    /**
+     * Why the dashboard query cannot be bounded to the visible window.
+     *
+     * Merging a slice is not merging the timeline restricted to that slice. Over
+     * the whole timeline the old sensor is suppressed where the current one
+     * covers it; over a window holding none of the current sensor's rows,
+     * nothing is suppressed and the old sensor draws raw. Shipped once as a
+     * bounded chart query, seen as a foreign sensor's line across the chart.
+     */
+    @Test
+    fun mergingASliceIsNotMergingTheTimelineRestrictedToThatSlice() {
+        val whole = listOf(
+            reading(id = 1, timestamp = 1 * HOUR_MS, sensorSerial = "sensor-old", value = 40f, rawValue = 40f),
+            reading(id = 2, timestamp = 2 * HOUR_MS, sensorSerial = "sensor-old", value = 41f, rawValue = 41f),
+            reading(id = 3, timestamp = 2 * HOUR_MS, sensorSerial = "sensor-new", value = 110f, rawValue = 105f),
+            reading(id = 4, timestamp = 3 * HOUR_MS, sensorSerial = "sensor-new", value = 120f, rawValue = 114f)
+        )
+
+        val mergedWhole = HistoryDisplayMerge.mergeReadings(whole, preferredSerial = "sensor-new")
+        // At 2h the current sensor wins outright; the old sensor's 41 is dropped.
+        assertEquals(
+            listOf("sensor-old", "sensor-new", "sensor-new"),
+            mergedWhole.map { it.sensorSerial }
+        )
+
+        // The same merge over a window holding only the old sensor's rows keeps
+        // both of them — there is no current sensor in scope to lose to.
+        val windowOnly = whole.filter { it.timestamp <= 2 * HOUR_MS && it.sensorSerial == "sensor-old" }
+        val mergedWindow = HistoryDisplayMerge.mergeReadings(windowOnly, preferredSerial = "sensor-new")
+        assertEquals(listOf("sensor-old", "sensor-old"), mergedWindow.map { it.sensorSerial })
+
+        // So slicing the merged whole and merging the slice disagree: the rule
+        // is a property of the timeline, and the merge has to see all of it.
+        val slicedAfterMerge = mergedWhole.filter { it.timestamp <= 2 * HOUR_MS }
+        assertNotEquals(
+            slicedAfterMerge.map { it.sensorSerial },
+            mergedWindow.map { it.sensorSerial }
+        )
+    }
 }

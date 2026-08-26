@@ -89,24 +89,6 @@ interface HistoryDao {
         ORDER BY timestamp ASC
     """)
     suspend fun getReadingsBetween(startTime: Long, endTime: Long): List<HistoryReading>
-
-    /**
-     * Every sensor's rows inside a bounded window, as a Flow.
-     *
-     * The dashboard chart's query. Unlike [getHistoryFlow] it is bounded at both
-     * ends, so opening the dashboard over a 90-day store reads the visible window
-     * rather than the whole timeline — and unlike [getHistoryFlowForSensors] it is
-     * not restricted to a serial list, so a sensor that has since been retired
-     * (and is therefore no longer in `activeSensors()`) still contributes its
-     * rows. Ordering by timestamp is what [HistoryDisplayMerge] expects.
-     */
-    @Query("""
-        SELECT * FROM history_readings
-        WHERE timestamp >= :startTime
-          AND timestamp <= :endTime
-        ORDER BY timestamp ASC
-    """)
-    fun getHistoryFlowBetween(startTime: Long, endTime: Long): Flow<List<HistoryReading>>
     
     @Query("SELECT * FROM history_readings ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestReading(): HistoryReading?

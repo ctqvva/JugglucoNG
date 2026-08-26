@@ -27,26 +27,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  * queries use that same sensor's Room history directly so the dashboard never switches to a
  * broad merged timeline just because older data is visible.
  */
-/**
- * What the dashboard shows when the visible window turns out to be empty.
- *
- * The unbounded query could not have this problem: it always returned whatever
- * existed. A bounded one can, and the failure is self-sustaining — no data means
- * the chart never scrolls to the data, which means the window never moves to
- * where the data is. This is the escape hatch, and it only ever fires when the
- * store's newest reading is genuinely older than the window being asked for.
- */
-internal object DashboardHistoryWindowPolicy {
-    fun shouldUseOldTailFallback(latestTimestamp: Long, windowStartMs: Long): Boolean =
-        latestTimestamp > 0L && latestTimestamp < windowStartMs
-
-    /** A window of the same span, ending just after the newest stored reading. */
-    fun fallbackWindow(latestTimestamp: Long, windowSpanMs: Long): Pair<Long, Long> {
-        val span = windowSpanMs.coerceAtLeast(60L * 60L * 1000L)
-        return (latestTimestamp - span).coerceAtLeast(0L) to latestTimestamp
-    }
-}
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class GlucoseRepository {
     
@@ -337,71 +317,39 @@ class GlucoseRepository {
     }
 
     /**
-     * The dashboard chart's line: the merged cross-sensor timeline over the
-     * window the chart is actually showing.
+     * The dashboard chart's line: the same merged cross-sensor timeline the
+     * History screen draws, over the same unbounded range.
      *
-     * This used to follow the current sensor's serial alone, which meant a
-     * sensor swap erased the previous sensor from the dashboard while History,
-     * stats and export all still showed it — the rows were never lost, only
-     * un-queried. The merge in [HistoryRepository.getDisplayHistoryFlowInWindow]
-     * keeps the current sensor authoritative wherever it has data, so widening
-     * the query does not let a stale sensor overwrite a live one.
+     * It used to follow the current sensor's serial alone, so a swapped-out
+     * sensor — no longer in `activeSensors()`, so its serial resolved to nothing
+     * — silently left the dashboard while History, stats and export all still
+     * showed it. This is deliberately the identical call History makes, because
+     * the two disagreeing about the same readings is the bug.
      *
-     * [startTime]/[endTime] bound the query to the visible window plus a margin.
-     * Callers re-collect when the user changes range or pans; nothing reads the
-     * whole store to draw three hours of it.
+     * Bounding this to the visible window is not available, and the reason is
+     * worth writing down because it looks like an obvious optimisation:
      *
-     * Backfill stays scoped to the current sensor: pulling native history is
-     * about the sensor we are connected to, not about what the chart draws.
+     *  - [HistoryDisplayMerge] decides which sensor wins by building the
+     *    preferred sensor's coverage segments *from the rows it is given*. Hand
+     *    it a window containing none of that sensor's rows — any span older than
+     *    the current sensor — and it suppresses nothing, so every other sensor's
+     *    rows draw raw. The merge is only correct over the whole timeline.
+     *  - The chart takes "latest reading" to mean the last point in this list.
+     *    Bounded, that is the newest point *in the window*, which breaks
+     *    back-to-now, the auto-scroll and the prediction anchor.
+     *
+     * Both are properties of the whole list, so the list has to be the whole
+     * timeline. Cost belongs in how points are mapped, not in how few are read.
      */
-    fun getDashboardHistoryFlowRaw(startTime: Long, endTime: Long): Flow<List<GlucosePoint>> {
+    fun getDashboardHistoryFlowRaw(startTime: Long): Flow<List<GlucosePoint>> {
         return _currentSerial.flatMapLatest { serial ->
             val preferredSerial = resolveDisplayPreferredSerial(serial)
             channelFlow {
                 launch {
                     historyRepository.ensureBackfilled(preferredSerial, startTime)
                 }
-                historyRepository
-                    .getDisplayHistoryFlowInWindow(preferredSerial, startTime, endTime)
-                    .collectLatest { points ->
-                        if (points.isNotEmpty()) {
-                            send(points)
-                            return@collectLatest
-                        }
-
-                        // Bounding the query introduced a way to render nothing:
-                        // if every stored reading predates the window — an expired
-                        // sensor, a store being reviewed offline — the chart has no
-                        // data, so it never auto-scrolls to the data, so the window
-                        // never moves. Anchor to the newest thing actually stored
-                        // and let the chart take it from there.
-                        val latestTimestamp = historyRepository.getLatestTimestamp()
-                        if (!DashboardHistoryWindowPolicy.shouldUseOldTailFallback(
-                                latestTimestamp = latestTimestamp,
-                                windowStartMs = startTime
-                            )
-                        ) {
-                            send(points)
-                            return@collectLatest
-                        }
-
-                        val fallback = DashboardHistoryWindowPolicy.fallbackWindow(
-                            latestTimestamp = latestTimestamp,
-                            windowSpanMs = endTime - startTime
-                        )
-                        BatteryTrace.bump(
-                            key = "dashboard.history.old_tail",
-                            logEvery = 20L,
-                            detail = "serial=$preferredSerial latest=$latestTimestamp start=${fallback.first}"
-                        )
-                        historyRepository
-                            .getDisplayHistoryFlowInWindow(
-                                preferredSerial,
-                                fallback.first,
-                                fallback.second
-                            )
-                            .collect { fallbackPoints -> send(fallbackPoints) }
-                    }
+                historyRepository.getDisplayHistoryFlow(preferredSerial, startTime)
+                    .collect { points -> send(points) }
             }
         }
     }

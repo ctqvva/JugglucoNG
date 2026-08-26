@@ -38,6 +38,20 @@ internal object HistoryDisplayMerge {
         }
     }
 
+    /**
+     * [readings] must be the **whole** stored timeline, not a slice of it.
+     *
+     * [applyPreferredOverlapDominance] decides which sensor wins by building the
+     * preferred sensor's coverage segments out of the rows it is handed. Given a
+     * window that contains none of that sensor's rows — any span older than the
+     * current sensor — it suppresses nothing and every other sensor draws raw;
+     * given a window that clips those rows, the segments are truncated and rows
+     * are dropped at the seam. Both were shipped once, as a bounded dashboard
+     * query, and showed up as a foreign sensor's line on the chart and a hole in
+     * the middle of it.
+     *
+     * Slice after merging, never before.
+     */
     fun mergeReadings(
         readings: List<HistoryReading>,
         preferredSerial: String?

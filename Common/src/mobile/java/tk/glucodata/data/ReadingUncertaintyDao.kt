@@ -50,13 +50,6 @@ interface ReadingUncertaintyDao {
     @Query("SELECT * FROM reading_uncertainty WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     fun getFlow(startTime: Long): Flow<List<ReadingUncertainty>>
 
-    /** Bounded companion to [getFlow], for the dashboard's windowed chart query. */
-    @Query(
-        "SELECT * FROM reading_uncertainty WHERE timestamp >= :startTime " +
-            "AND timestamp <= :endTime ORDER BY timestamp ASC"
-    )
-    fun getFlowBetween(startTime: Long, endTime: Long): Flow<List<ReadingUncertainty>>
-
     @Query("DELETE FROM reading_uncertainty WHERE sensorSerial = :serial AND timestamp > :timestamp")
     suspend fun deleteForSensorAfter(serial: String, timestamp: Long)
 

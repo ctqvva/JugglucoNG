@@ -408,14 +408,6 @@ fun DashboardScreen(
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
     var journalNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var dashboardChartViewport by remember { mutableStateOf<ChartViewportSnapshot?>(null) }
-    // Bound the history query to what is actually on screen. Left unbounded, the
-    // dashboard read and converted the whole store on every emission — seconds of
-    // main-thread work on a large database.
-    LaunchedEffect(dashboardChartViewport) {
-        dashboardChartViewport?.let { viewport ->
-            viewModel.setChartWindow(viewport.startMillis, viewport.endMillis)
-        }
-    }
     var dashboardFabExpanded by rememberSaveable { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()

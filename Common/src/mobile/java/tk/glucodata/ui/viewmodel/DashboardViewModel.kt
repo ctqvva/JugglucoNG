@@ -100,41 +100,6 @@ internal object DashboardHistoryCollectionPolicy {
     }
 }
 
-/** The span of time the dashboard chart is showing, in epoch millis. */
-internal data class ChartWindow(val startMs: Long, val endMs: Long)
-
-/**
- * Turns the window the chart is *showing* into the window it *queries*.
- *
- * The dashboard used to query from 0 — every emission read and converted the
- * whole store, which on a 90-day database is seconds of main-thread work and the
- * ANR behind `Skipped 789 frames`. Bounding the query to what can be drawn is
- * most of that cost gone.
- *
- * Two things keep the bound from turning into a re-query storm while the user
- * drags the chart. The window is padded, so a small pan stays inside rows that
- * were already fetched. And the padded edges are snapped to a coarse grid, so
- * scrolling emits the *same* window until it crosses a grid line — Room only
- * re-runs when the visible range genuinely moved somewhere new.
- */
-internal object DashboardChartWindowPolicy {
-    /** Padding on each side, so ordinary panning does not immediately re-query. */
-    private const val MIN_PADDING_MS = 2L * 60L * 60L * 1000L
-    private const val PADDING_FRACTION = 0.25
-    /** Grid the padded edges snap to, so a drag re-queries at most twice an hour of travel. */
-    private const val QUANTUM_MS = 30L * 60L * 1000L
-
-    fun queryWindow(visible: ChartWindow): ChartWindow {
-        val span = (visible.endMs - visible.startMs).coerceAtLeast(0L)
-        val padding = maxOf(MIN_PADDING_MS, (span * PADDING_FRACTION).toLong())
-        val start = (visible.startMs - padding).coerceAtLeast(0L) / QUANTUM_MS * QUANTUM_MS
-        // Round the end up, and never below the visible end: a window that stopped
-        // short of "now" would clip the live edge off the chart.
-        val end = ((visible.endMs + padding) + QUANTUM_MS - 1L) / QUANTUM_MS * QUANTUM_MS
-        return ChartWindow(startMs = start, endMs = maxOf(end, visible.endMs))
-    }
-}
-
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     private val glucoseRepository: GlucoseRepository = GlucoseRepository(),
@@ -199,9 +164,6 @@ class DashboardViewModel(
     private companion object {
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
         const val UI_RECOVERY_SYNC_MIN_INTERVAL_MS = 30_000L
-
-        /** Chart span assumed until the screen reports its own. */
-        const val DEFAULT_CHART_WINDOW_MS = 24L * 60L * 60L * 1000L
 
         /**
          * How far back [currentSensorTail] reaches.
@@ -331,27 +293,6 @@ class DashboardViewModel(
      */
     private val _currentSensorTail = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
     val currentSensorTail = _currentSensorTail.asStateFlow()
-
-    /**
-     * The span the chart is showing, reported by the UI (range chips, pan, date
-     * picker). Seeded with a day so the first frame has something to draw before
-     * the screen has measured itself.
-     */
-    private val _chartWindow = MutableStateFlow(
-        System.currentTimeMillis().let { now ->
-            ChartWindow(startMs = now - DEFAULT_CHART_WINDOW_MS, endMs = now)
-        }
-    )
-
-    /**
-     * Tells the view model which slice of history the chart can currently draw.
-     * Cheap to call on every pan: the padded window is quantised, so most calls
-     * do not change the query at all.
-     */
-    fun setChartWindow(startMs: Long, endMs: Long) {
-        if (endMs <= startMs) return
-        _chartWindow.value = ChartWindow(startMs = startMs, endMs = endMs)
-    }
 
     private val _multiSensorDisplay =
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
@@ -1067,18 +1008,7 @@ class DashboardViewModel(
         historyJob = viewModelScope.launch {
             var hasSeenHistoryEmission = false
             val rawHistoryFlow = when (mode) {
-                // The chart follows the visible window: changing range or panning
-                // swaps the query rather than filtering a list that already cost a
-                // full-store read to build.
-                CollectionMode.DASHBOARD -> _chartWindow
-                    .map(DashboardChartWindowPolicy::queryWindow)
-                    .distinctUntilChanged()
-                    .flatMapLatest { window ->
-                        glucoseRepository.getDashboardHistoryFlowRaw(
-                            startTime = window.startMs,
-                            endTime = window.endMs
-                        )
-                    }
+                CollectionMode.DASHBOARD -> glucoseRepository.getDashboardHistoryFlowRaw(queryStartTimeMs)
                 CollectionMode.FULL_HISTORY -> glucoseRepository.getHistoryFlowRaw(queryStartTimeMs)
                 CollectionMode.INACTIVE -> return@launch
             }
