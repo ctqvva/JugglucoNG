@@ -1579,7 +1579,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_no_response">no response</string>
     <string name="nightscout_status_iob_no_token">IOB upload: skipped - no Nightscout token yet</string>
     <string name="nightscout_status_iob_rejected">IOB upload: rejected (%1$s)</string>
-    <string name="nightscout_send_amounts_desc">Upload Insulin/Carbs (Treatments)</string>
     <string name="nightscout_send_long_insulin">Send long-acting insulin</string>
     <string name="nightscout_send_long_insulin_desc">Include basal and ultra-long insulin treatments in Nightscout uploads</string>
     <string name="nightscout_receive_amounts">Receive amounts</string>

@@ -1508,7 +1508,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_treatments_no_response">jawaab ma jirto</string>
     <string name="nightscout_status_iob_no_token">Dirista IOB: waa la booday - weli token Nightscout ma jiro</string>
     <string name="nightscout_status_iob_rejected">Dirista IOB: waa la diiday (%1$s)</string>
-    <string name="nightscout_send_amounts_desc">Soo rar Insulin/Carbs (Daawaynta)</string>
     <string name="nightscout_send_long_insulin">Dir insuliinta muddada dheer</string>
     <string name="nightscout_send_long_insulin_desc">Ku dar insuliinta basal iyo tan aadka u dheer gelinta Nightscout</string>
     <string name="nightscout_receive_amounts">Hesho qaddaro</string>
