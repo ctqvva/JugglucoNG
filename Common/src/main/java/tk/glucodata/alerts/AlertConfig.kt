@@ -240,7 +240,7 @@ object AlertDefaults {
     // (FALLING_FAST/PRE_LOW, RISING_FAST/PRE_HIGH). 0 = every family fires on its own.
     const val SAME_DIRECTION_SUPPRESSION_MINUTES = 5
     const val SAME_DIRECTION_SUPPRESSION_MAX_MINUTES = 30
-    const val ACKNOWLEDGED_HIGH_COVERAGE_ENABLED = false
+    const val ACKNOWLEDGED_HIGH_COVERAGE_ENABLED = true
 
     // Default thresholds (mmol/L - converted to mg/dL at runtime if needed)
     const val LOW_THRESHOLD_MMOL = 3.6f

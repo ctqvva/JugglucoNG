@@ -71,8 +71,8 @@ class SameDirectionAlertSuppressionTests {
     }
 
     @Test
-    fun highCoverageIsOffByDefault() {
-        assertFalse(AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED)
+    fun highCoverageIsOnByDefaultAndCanBeDisabled() {
+        assertTrue(AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED)
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.RISING_FAST, t0)
 
