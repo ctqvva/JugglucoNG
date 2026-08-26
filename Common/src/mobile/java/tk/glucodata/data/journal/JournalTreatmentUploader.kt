@@ -55,10 +55,10 @@ object JournalTreatmentUploader {
     )
 
     /**
-     * The server's own words when it has any. A refused write says which permission is missing
-     * ("Missing permission api:treatments:update", typical of a role that may create but not
-     * change), and that sentence is the whole difference between an actionable failure and a
-     * bare status code.
+     * The server's own words when it has any. A refusal says which permission is missing
+     * ("Missing permission api:treatments:update" on a role that may create but not change,
+     * "...:read" on an upload-only token), and that sentence is the whole difference between
+     * an actionable failure and a bare status code.
      */
     internal fun serverMessage(body: String): String {
         val trimmed = body.trim()
@@ -209,23 +209,6 @@ object JournalTreatmentUploader {
     }
 
     private val receiveErrorLog = RepeatedErrorLog(RECEIVE_ERROR_LOG_INTERVAL_MILLIS)
-
-    /**
-     * The server's own words when it has any. A refused read says which permission is missing
-     * ("Missing permission api:treatments:read", typical of an upload-only token), and that
-     * sentence is the whole difference between an actionable failure and a bare status code.
-     */
-    internal fun serverMessage(body: String): String {
-        val trimmed = body.trim()
-        if (!trimmed.startsWith("{")) return trimmed.take(160)
-        val message = runCatching {
-            JSONObject(trimmed).let { it.optNonBlank("message") ?: it.optNonBlank("description") }
-        }.getOrNull()
-        return message ?: trimmed.take(160)
-    }
-
-    private fun JSONObject.optNonBlank(key: String): String? =
-        optString(key).trim().takeIf { it.isNotEmpty() }
 
     /** Path only: the host is already known and repeating it just crowds the line. */
     internal fun endpointPath(endpoint: String): String =
@@ -391,12 +374,14 @@ object JournalTreatmentUploader {
                 if (!isUploadOk(result.code, useV3)) {
                     Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${failureText(result.code, result.message)}")
                     sendBackoff.recordFailure(entry.id, now)
+                    uploadFailureCode = result.code
                     uploadOk = false
                     break
                 }
                 sendBackoff.reset()
                 val acceptedRemoteId = result.remoteId ?: remoteId
                 dao.markEntryUploadedToNightscout(entry.id, acceptedRemoteId, now)
+                acceptedDocument = true
                 if (oldCopyAction(entry.nsRemoteId, acceptedRemoteId) == OldCopyAction.DELETE) {
                     val oldRemoteId = entry.nsRemoteId!!
                     if (!NightPost.deleteUrl(treatmentDeleteUrl(baseUrl, oldRemoteId, useV3), secretHashed)) {
@@ -412,17 +397,6 @@ object JournalTreatmentUploader {
                         )
                     }
                 }
-                    Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${result.code}")
-                    uploadFailureCode = result.code
-                    uploadOk = false
-                    break
-                }
-                dao.markEntryUploadedToNightscout(
-                    entry.id,
-                    result.remoteId ?: remoteId,
-                    System.currentTimeMillis()
-                )
-                acceptedDocument = true
             }
         }
 

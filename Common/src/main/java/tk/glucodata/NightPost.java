@@ -203,6 +203,9 @@ private static volatile String lastPrimaryResponseBody="";
 static public String getLastPrimaryResponseBody() {
     return lastPrimaryResponseBody;
     }
+
+/**
+ * Deletes a Nightscout document; true when the server confirms it is gone.
  * Called from native (uploadtreatment.cpp) via JNI, so the signature stays boolean.
  * New callers should prefer {@link #deleteUrlCode}, which keeps the status apart
  * from "already gone" and from a network failure worth retrying.
@@ -382,6 +385,8 @@ static public synchronized TokenExchange refreshToken() {
     else
         Log.e(LOG_ID,"token refresh failed "+exchange.error());
     return exchange;
+    }
+
 /**
  * Authorization header for v3 requests made outside this class, reusing the token the v3
  * upload path already fetches and caches. Empty when none could be had, so the caller can
