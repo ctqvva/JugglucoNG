@@ -1253,6 +1253,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">预览</string>
     <string name="previous_calibrations">之前的校准</string>
     <string name="show_less">显示较少</string>
+    <string name="show_more">显示更多</string>
     <string name="show_all_count">显示全部 %1$d</string>
     <string name="anytime_calibration_target_reading">读数 #%1$d</string>
     <string name="anytime_calibration_applied_reading">已应用 #%1$d</string>
@@ -2527,6 +2528,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">已就绪 — 把笔贴近手机</string>
     <string name="insulin_pen_full_read_desc">胰岛素笔会保存数月的剂量，完整读取需要数秒的稳定贴合。用这个可以取回上次导入之前的记录。</string>
     <string name="insulin_pen_read_cut_short">笔移开得太早了。请贴住手机直到它振动。</string>
+    <string name="insulin_pen_background_title">在后台导入</string>
+    <string name="insulin_pen_background_desc">应用未打开时，贴近手机的胰岛素笔会将新剂量直接添加到日志，不再询问。</string>
+    <string name="insulin_pen_background_desc_more">排气剂量会被跳过。屏幕必须亮起且手机已解锁——熄屏时 Android 不读取 NFC。任何贴近手机的非接触卡都会短暂唤醒读取器，其他卡片应用可能会询问使用哪个应用。</string>
+    <string name="insulin_pen_import_channel">胰岛素笔导入</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">已将 %d 个剂量添加到日志</item>
+        <item quantity="other">已将 %d 个剂量添加到日志</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">已读取 %d 个剂量——打开应用选择胰岛素</item>
+        <item quantity="other">已读取 %d 个剂量——打开应用选择胰岛素</item>
+    </plurals>
     <string name="status_watch_reading">手表正在读取此传感器</string>
     <string name="return_sensor_to_phone">将传感器切回手机</string>
     <string name="wear_prediction_title">预测</string>

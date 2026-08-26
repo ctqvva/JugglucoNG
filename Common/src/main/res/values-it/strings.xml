@@ -1227,6 +1227,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Anteprima</string>
     <string name="previous_calibrations">Calibrazioni precedenti</string>
     <string name="show_less">Mostra meno</string>
+    <string name="show_more">Mostra altro</string>
     <string name="show_all_count">Mostra tutti %1$d</string>
     <string name="anytime_calibration_target_reading">Lettura #%1$d</string>
     <string name="anytime_calibration_applied_reading">Applicata #%1$d</string>
@@ -2501,6 +2502,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Pronto — avvicina la penna al telefono</string>
     <string name="insulin_pen_full_read_desc">Una penna conserva mesi di dosi e richiede alcuni secondi di contatto stabile. Serve per andare più indietro dell\'ultima importazione.</string>
     <string name="insulin_pen_read_cut_short">La penna si è allontanata troppo presto. Tienila sul telefono finché non vibra.</string>
+    <string name="insulin_pen_background_title">Importa in background</string>
+    <string name="insulin_pen_background_desc">Quando l’app non è aperta, le nuove dosi di una penna avvicinata al telefono vengono aggiunte al diario senza chiedere.</string>
+    <string name="insulin_pen_background_desc_more">Gli spurghi vengono saltati. Lo schermo deve essere acceso e il telefono sbloccato — Android non legge l’NFC a schermo spento. Qualsiasi carta contactless avvicinata al telefono risveglia per un attimo il lettore, e altre app per carte potrebbero chiedere quale app usare.</string>
+    <string name="insulin_pen_import_channel">Importazioni penna</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d dose aggiunta al diario</item>
+        <item quantity="other">%d dosi aggiunte al diario</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d dose letta — apri l’app per scegliere l’insulina</item>
+        <item quantity="other">%d dosi lette — apri l’app per scegliere l’insulina</item>
+    </plurals>
     <string name="status_watch_reading">L\'orologio sta leggendo questo sensore</string>
     <string name="return_sensor_to_phone">Riporta il sensore al telefono</string>
     <string name="wear_prediction_title">Previsione</string>

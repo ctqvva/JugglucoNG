@@ -1274,6 +1274,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Предварительный просмотр</string>
     <string name="previous_calibrations">Предыдущие калибровки</string>
     <string name="show_less">Скрыть</string>
+    <string name="show_more">Показать больше</string>
     <string name="show_all_count">Показать все %1$d</string>
     <string name="anytime_calibration_target_reading">Измерение #%1$d</string>
     <string name="anytime_calibration_applied_reading">Применено #%1$d</string>
@@ -2554,6 +2555,22 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Готово — поднесите ручку к телефону</string>
     <string name="insulin_pen_full_read_desc">Ручка хранит дозы за несколько месяцев, и на полное считывание нужно несколько секунд без отрыва. Так можно взять данные старше последнего импорта.</string>
     <string name="insulin_pen_read_cut_short">Ручку убрали слишком рано. Держите её у телефона, пока он не завибрирует.</string>
+    <string name="insulin_pen_background_title">Импорт в фоне</string>
+    <string name="insulin_pen_background_desc">Когда приложение не открыто, новые дозы ручки, приложенной к телефону, добавляются в журнал без вопросов.</string>
+    <string name="insulin_pen_background_desc_more">Продувки пропускаются. Экран должен быть включён, а телефон разблокирован — Android не читает NFC при выключенном экране. Любая бесконтактная карта, приложенная к телефону, на мгновение будит считыватель, а другие приложения для карт могут спросить, какое приложение использовать.</string>
+    <string name="insulin_pen_import_channel">Импорт с ручки</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d доза добавлена в журнал</item>
+        <item quantity="few">%d дозы добавлены в журнал</item>
+        <item quantity="many">%d доз добавлено в журнал</item>
+        <item quantity="other">%d дозы добавлено в журнал</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">Считана %d доза — откройте приложение, чтобы выбрать инсулин</item>
+        <item quantity="few">Считаны %d дозы — откройте приложение, чтобы выбрать инсулин</item>
+        <item quantity="many">Считано %d доз — откройте приложение, чтобы выбрать инсулин</item>
+        <item quantity="other">Считано %d дозы — откройте приложение, чтобы выбрать инсулин</item>
+    </plurals>
     <string name="status_watch_reading">Часы читают этот датчик</string>
     <string name="return_sensor_to_phone">Вернуть датчик на телефон</string>
     <string name="wear_prediction_title">Прогноз</string>

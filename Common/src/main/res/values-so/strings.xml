@@ -1545,6 +1545,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="preview">Horudhac</string>
     <string name="previous_calibrations">Qalabkii hore</string>
     <string name="show_less">Muuji wax yar</string>
+    <string name="show_more">Muuji wax badan</string>
     <string name="show_all_count">Tus dhammaan %1$d</string>
     <string name="anytime_calibration_target_reading">Akhriska #%1$d</string>
     <string name="anytime_calibration_applied_reading">Codsaday #%1$d</string>
@@ -2711,6 +2712,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_full_read_armed">Diyaar — qalinka taabsii taleefanka</string>
     <string name="insulin_pen_full_read_desc">Qalinku wuxuu hayaa qiyaaso bilo ah, akhrintooda dhammaystiran waxay u baahan tahay dhowr ilbiriqsi oo taabasho degan ah. Isticmaal si aad uga gudubto wixii ugu dambeeyay ee la soo geliyay.</string>
     <string name="insulin_pen_read_cut_short">Qalinka ayaa goor hore laga fogeeyay. Ku hay taleefanka ilaa uu gariiro.</string>
+    <string name="insulin_pen_background_title">Gudaha ka soo dejiso</string>
+    <string name="insulin_pen_background_desc">Marka appku furnayn, qalinka la dhigo taleefanka qiyaasihiisa cusub ayaa lagu daraa joornaalka iyada oo aan la weydiin.</string>
+    <string name="insulin_pen_background_desc_more">Hawo-bixinta waa la boodaa. Shaashaddu waa inay shidan tahay, taleefankuna furan yahay — Android ma akhriyo NFC marka shaashaddu damsan tahay. Kaar kasta oo aan taabasho lahayn oo la dhigo taleefanka wuxuu in yar toosiyaa akhristaha, appyada kale ee kaararkuna waxay weydiin karaan appka la isticmaalayo.</string>
+    <string name="insulin_pen_import_channel">Soo dejinta qalinka</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d qiyaas ayaa lagu daray xusuus-qorka</item>
+        <item quantity="other">%d qiyaasood ayaa lagu daray xusuus-qorka</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d qiyaas ayaa la akhriyay — fur app-ka si aad u doorato insulinta</item>
+        <item quantity="other">%d qiyaasood ayaa la akhriyay — fur app-ka si aad u doorato insulinta</item>
+    </plurals>
     <string name="status_watch_reading">Saacaddu waxay akhrinaysaa dareemahan</string>
     <string name="return_sensor_to_phone">Dareemaha ku celi telefoonka</string>
     <string name="wear_prediction_title">Saadaal</string>
