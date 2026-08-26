@@ -1220,7 +1220,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">发送长效胰岛素</string>
     <string name="nightscout_send_long_insulin_desc">在 Nightscout 上传中包含基础和超长效胰岛素治疗</string>
     <string name="nightscout_receive_amounts">接收用量</string>
-    <string name="nightscout_receive_amounts_desc">将 Nightscout 胰岛素/碳水导入日志</string>
+    <string name="nightscout_receive_amounts_desc">将 Nightscout 胰岛素/碳水导入日志. 访问令牌需要 api:treatments:read 权限。</string>
     <string name="nightscout_settings_title">夜巡设置</string>
     <string name="nightscout_url_label">夜巡网址</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1425,6 +1425,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">上次响应：HTTP 413，负载过大</string>
     <string name="nightscout_status_last_attempt">上次尝试：%1$s</string>
     <string name="nightscout_status_last_success">上次成功：%1$s</string>
+    <string name="nightscout_status_iob_no_token">IOB 上传：已跳过 - 尚无 Nightscout 令牌</string>
+    <string name="nightscout_status_iob_rejected">IOB 上传：被拒绝（%1$s）</string>
     <string name="nightscout_sync_actions_title">同步操作</string>
     <string name="expand_action">展开</string>
     <string name="collapse_action">收起</string>

@@ -1194,7 +1194,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Invia insulina a lunga durata</string>
     <string name="nightscout_send_long_insulin_desc">Includi l’insulina basale e ultralenta nei caricamenti Nightscout</string>
     <string name="nightscout_receive_amounts">Ricevi quantità</string>
-    <string name="nightscout_receive_amounts_desc">Importa insulina/carboidrati di Nightscout nel diario</string>
+    <string name="nightscout_receive_amounts_desc">Importa insulina/carboidrati di Nightscout nel diario. Il token di accesso richiede l\'autorizzazione api:treatments:read.</string>
     <string name="nightscout_settings_title">Impostazioni Nightscout</string>
     <string name="nightscout_url_label">URL dell\'esploratore notturno</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1399,6 +1399,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Ultima risposta: HTTP 413, payload troppo grande</string>
     <string name="nightscout_status_last_attempt">Ultimo tentativo: %1$s</string>
     <string name="nightscout_status_last_success">Ultimo successo: %1$s</string>
+    <string name="nightscout_status_iob_no_token">Invio IOB: saltato - ancora nessun token Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Invio IOB: rifiutato (%1$s)</string>
     <string name="nightscout_sync_actions_title">Azioni di sincronizzazione</string>
     <string name="expand_action">Espandi</string>
     <string name="collapse_action">Comprimi</string>

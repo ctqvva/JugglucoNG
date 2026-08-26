@@ -1218,7 +1218,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Надсилати інсулін тривалої дії</string>
     <string name="nightscout_send_long_insulin_desc">Додавати базальний та ультратривалий інсулін до завантажень Nightscout</string>
     <string name="nightscout_receive_amounts">Отримувати суми</string>
-    <string name="nightscout_receive_amounts_desc">Імпортувати інсулін/вуглеводи з Nightscout до журналу</string>
+    <string name="nightscout_receive_amounts_desc">Імпортувати інсулін/вуглеводи з Nightscout до журналу. Токен доступу потребує дозволу api:treatments:read.</string>
     <string name="nightscout_settings_title">Налаштування Nightscout</string>
     <string name="nightscout_url_label">URL-адреса нічного розвідки</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1423,6 +1423,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Остання відповідь: HTTP 413, завеликий payload</string>
     <string name="nightscout_status_last_attempt">Остання спроба: %1$s</string>
     <string name="nightscout_status_last_success">Останній успіх: %1$s</string>
+    <string name="nightscout_status_iob_no_token">Надсилання IOB: пропущено - поки немає токена Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Надсилання IOB: відхилено (%1$s)</string>
     <string name="nightscout_sync_actions_title">Дії синхронізації</string>
     <string name="expand_action">Розгорнути</string>
     <string name="collapse_action">Згорнути</string>

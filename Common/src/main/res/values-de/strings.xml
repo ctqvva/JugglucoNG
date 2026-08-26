@@ -1274,7 +1274,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_send_long_insulin">Langzeitinsulin senden</string>
     <string name="nightscout_send_long_insulin_desc">Basal- und ultralang wirkendes Insulin zu Nightscout hochladen</string>
     <string name="nightscout_receive_amounts">Mengen empfangen</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-Insulin/Kohlenhydrate ins Journal importieren. Der Zugriffstoken benötigt die Berechtigung api:treatments:read.</string>
     <string name="nightscout_upload_iob">IOB an Nightscout senden</string>
     <string name="nightscout_upload_iob_desc">Nightscout zeigt dann diesen Wert statt seiner eigenen Berechnung aus dem Profil. eIOB und COB werden zusätzlich in einem eigenen Feld übertragen.</string>
     <string name="nightscout_settings_title">Nightscout-Einstellungen</string>
@@ -1483,6 +1483,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_response_413">Letzte Antwort: HTTP 413, Nutzlast zu groß</string>
     <string name="nightscout_status_last_attempt">Letzter Versuch: %1$s</string>
     <string name="nightscout_status_last_success">Letzter Erfolg: %1$s</string>
+    <string name="nightscout_status_iob_no_token">IOB-Upload: übersprungen - noch kein Nightscout-Token</string>
+    <string name="nightscout_status_iob_rejected">IOB-Upload: abgelehnt (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisierungsaktionen</string>
     <string name="expand_action">Erweitern</string>
     <string name="collapse_action">Einklappen</string>

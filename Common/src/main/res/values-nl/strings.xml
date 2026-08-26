@@ -1247,7 +1247,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_send_long_insulin">Langwerkende insuline verzenden</string>
     <string name="nightscout_send_long_insulin_desc">Basale en ultralangwerkende insuline naar Nightscout uploaden</string>
     <string name="nightscout_receive_amounts">Hoeveelheden ontvangen</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout-insuline/koolhydraten in het dagboek importeren</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-insuline/koolhydraten in het dagboek importeren. Het toegangstoken heeft de machtiging api:treatments:read nodig.</string>
     <string name="nightscout_settings_title">Nightscout-instellingen</string>
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1452,6 +1452,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_response_413">Laatste reactie: HTTP 413, payload te groot</string>
     <string name="nightscout_status_last_attempt">Laatste poging: %1$s</string>
     <string name="nightscout_status_last_success">Laatste succes: %1$s</string>
+    <string name="nightscout_status_iob_no_token">IOB-upload: overgeslagen - nog geen Nightscout-token</string>
+    <string name="nightscout_status_iob_rejected">IOB-upload: geweigerd (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisatieacties</string>
     <string name="expand_action">Uitklappen</string>
     <string name="collapse_action">Inklappen</string>

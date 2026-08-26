@@ -17,13 +17,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -93,6 +93,14 @@ private sealed class TestState {
 
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
+/**
+ * The test must probe the same API family the uploader is configured for: servers that
+ * keep the two auth schemes apart refuse a v3 Bearer token on a v1 endpoint, which makes
+ * a correctly working v3 setup look broken.
+ */
+internal fun nightscoutTestEndpointPath(useV3: Boolean): String =
+    if (useV3) "api/v3/status" else "api/v1/status.json"
+
 private fun applyNightscoutTestAuth(
     connection: java.net.HttpURLConnection,
     baseUrl: String,
@@ -151,6 +159,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var lastSuccessTime by rememberSaveable { mutableStateOf(0L) }
     var retryMinutes by rememberSaveable { mutableStateOf(0) }
     var uploaderRunning by rememberSaveable { mutableStateOf(false) }
+    var deviceStatusOutcome by rememberSaveable { mutableStateOf(NightPost.DEVICE_STATUS_NONE) }
+    var deviceStatusCode by rememberSaveable { mutableStateOf(0) }
     var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
 
     var mode by rememberSaveable {
@@ -169,6 +179,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
         val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
 
         Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, isV3)
+        // The old device-status failure describes the old settings; keep it off the screen
+        // until the next attempt has run under the new ones.
+        NightPost.clearDeviceStatusOutcome()
+        deviceStatusOutcome = NightPost.DEVICE_STATUS_NONE
         Natives.setpostTreatments(sendTreatments)
         JournalTreatmentUploader.setSendLongInsulin(sendLongInsulin)
         JournalTreatmentUploader.setReceiveTreatments(receiveTreatments)
@@ -194,6 +208,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastSuccessTime = Natives.getnightscoutlastsuccesstime()
         retryMinutes = Natives.getnightscoutretryminutes()
         uploaderRunning = Natives.getnightscoutuploaderrunning()
+        deviceStatusOutcome = NightPost.getDeviceStatusOutcome()
+        deviceStatusCode = NightPost.getDeviceStatusLastCode()
     }
 
     fun requireUrl(): Boolean {
@@ -211,8 +227,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
             testState = withContext(Dispatchers.IO) {
                 try {
                     val baseUrl = NightscoutFollowerRegistry.normalizeUrl(url)
-                    val endpoint = "$baseUrl/api/v1/status.json"
-                    val conn = (java.net.URL(endpoint).openConnection() as java.net.HttpURLConnection).apply {
+                    val path = nightscoutTestEndpointPath(isV3)
+                    val conn = (java.net.URL("$baseUrl/$path").openConnection() as java.net.HttpURLConnection).apply {
                         connectTimeout = 10_000
                         readTimeout = 10_000
                         requestMethod = "GET"
@@ -221,7 +237,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     applyNightscoutTestAuth(conn, baseUrl, secret, isV3)
                     val code = conn.responseCode
                     conn.disconnect()
-                    if (code in 200..299) TestState.Ok(code) else TestState.Err("HTTP $code")
+                    // A bare status code sends people debugging the server; the endpoint says
+                    // which API family answered.
+                    if (code in 200..299) TestState.Ok(code) else TestState.Err("HTTP $code ($path)")
                 } catch (e: Exception) {
                     TestState.Err(e.localizedMessage?.take(80) ?: context.getString(R.string.status_connection_failed))
                 }
@@ -270,6 +288,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastResponseCode == 413 -> context.getString(R.string.nightscout_status_response_413)
         lastResponseCode > 0 -> context.getString(R.string.nightscout_status_response_error, lastResponseCode)
         else -> context.getString(R.string.nightscout_status_waiting)
+    }
+
+    // The lines above report the native entries uploader only; the devicestatus channel
+    // (IOB) fails on its own, and a "no token" skip must not read like a server rejection.
+    val deviceStatusSummary: String? = when {
+        !isActive || mode != NightscoutMode.UPLOAD || !uploadIob -> null
+        deviceStatusOutcome == NightPost.DEVICE_STATUS_NO_TOKEN ->
+            context.getString(R.string.nightscout_status_iob_no_token)
+        deviceStatusOutcome == NightPost.DEVICE_STATUS_REJECTED -> context.getString(
+            R.string.nightscout_status_iob_rejected,
+            if (deviceStatusCode > 0) "HTTP $deviceStatusCode" else context.getString(R.string.status_connection_failed)
+        )
+        else -> null
     }
 
     val masterSubtitle = when (mode) {
@@ -468,6 +499,15 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (deviceStatusSummary != null) {
+                                Text(
+                                    text = deviceStatusSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -533,11 +573,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_use_v3_api),
-                            subtitle = stringResource(R.string.experimental),
                             checked = isV3,
                             onCheckedChange = { isV3 = it },
-                            icon = Icons.Default.Science,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            icon = Icons.Default.Api,
+                            iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
                             position = CardPosition.BOTTOM
                         )

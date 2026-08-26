@@ -1210,7 +1210,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Envoyer l’insuline à action prolongée</string>
     <string name="nightscout_send_long_insulin_desc">Inclure l’insuline basale et à action ultra-longue dans les envois Nightscout</string>
     <string name="nightscout_receive_amounts">Recevoir les quantités</string>
-    <string name="nightscout_receive_amounts_desc">Importer l\'insuline/les glucides Nightscout dans le journal</string>
+    <string name="nightscout_receive_amounts_desc">Importer l\'insuline/les glucides Nightscout dans le journal. Le jeton d\'accès requiert l\'autorisation api:treatments:read.</string>
     <string name="nightscout_settings_title">Paramètres de Nightscout</string>
     <string name="nightscout_url_label">URL de Nightscout</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1415,6 +1415,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Dernière réponse : HTTP 413, charge utile trop volumineuse</string>
     <string name="nightscout_status_last_attempt">Dernière tentative : %1$s</string>
     <string name="nightscout_status_last_success">Dernier succès : %1$s</string>
+    <string name="nightscout_status_iob_no_token">Envoi IOB : ignoré - pas encore de jeton Nightscout</string>
+    <string name="nightscout_status_iob_rejected">Envoi IOB : refusé (%1$s)</string>
     <string name="nightscout_sync_actions_title">Actions de synchronisation</string>
     <string name="expand_action">Développer</string>
     <string name="collapse_action">Réduire</string>
