@@ -62,6 +62,15 @@ class HistoryRepository(context: Context = Applic.app) {
         private const val BACKFILL_RETRY_COOLDOWN_MS = 2L * 60L * 1000L
         private const val NATIVE_BACKFILL_INSERT_CHUNK = 1_000
         private const val DELETED_TIMESTAMP_QUERY_CHUNK = 900
+
+        /**
+         * How much history the dashboard paints before the full timeline lands.
+         *
+         * Wide enough to fill the chart at its default range without a visible
+         * second step, narrow enough that it is a few hundred rows rather than
+         * tens of thousands.
+         */
+        private const val FIRST_PAINT_TAIL_MS = 12L * 60L * 60L * 1000L
         const val IMPORTED_SENSOR_SERIAL = "__imported_csv__"
         private val IMPORTED_HISTORY_SENSOR_SERIALS = listOf(
             IMPORTED_SENSOR_SERIAL,
@@ -71,8 +80,60 @@ class HistoryRepository(context: Context = Applic.app) {
 
         /** A row no sensor owns: imported, or stored before the serial was known. */
         fun isImportedHistorySerial(serial: String): Boolean = serial in IMPORTED_HISTORY_SENSOR_SERIALS
-        private val TIME_FORMATTER = object : ThreadLocal<SimpleDateFormat>() {
-            override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        /**
+         * Formatted "HH:mm" per minute, reused across emissions.
+         *
+         * Every reading carries a preformatted time string and exactly one place
+         * reads it — the chart tooltip. Room re-emits the whole table on each
+         * insert, so a store with 18k readings ran 18k SimpleDateFormat calls,
+         * each allocating a Date, once a minute forever, to display one of them.
+         *
+         * A cache rather than a hand-rolled formatter on purpose: the output is
+         * byte-identical to what SimpleDateFormat produces for the current
+         * locale, including non-ASCII digit shaping, so nothing on screen
+         * changes. Timestamps repeat exactly across emissions, so after the
+         * first pass this is essentially all hits.
+         *
+         * Cleared when the locale or time zone changes, since both change what
+         * the same millisecond formats to.
+         */
+        private const val TIME_CACHE_CAPACITY = 8_192
+        private val timeCacheLock = Any()
+        private var timeCacheLocale: Locale? = null
+        private var timeCacheZoneId: String? = null
+        private var timeFormatter: SimpleDateFormat? = null
+        private val timeCache = object : LinkedHashMap<Long, String>(1_024, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, String>?): Boolean =
+                size > TIME_CACHE_CAPACITY
+        }
+
+        /**
+         * "HH:mm" for [timestamp], cached by minute.
+         *
+         * The formatter moved in here from a ThreadLocal because it is now
+         * consulted only on a miss. The ThreadLocal also captured the locale at
+         * first use per thread and never rebuilt, so a locale change left some
+         * threads formatting in the old one; rebuilding it alongside the cache
+         * fixes that as a side effect.
+         */
+        private fun formatMinute(timestamp: Long): String {
+            val minute = Math.floorDiv(timestamp, 60_000L)
+            val locale = Locale.getDefault()
+            val zoneId = java.util.TimeZone.getDefault().id
+            synchronized(timeCacheLock) {
+                if (timeCacheLocale != locale || timeCacheZoneId != zoneId) {
+                    timeCache.clear()
+                    timeCacheLocale = locale
+                    timeCacheZoneId = zoneId
+                    timeFormatter = SimpleDateFormat("HH:mm", locale)
+                } else {
+                    timeCache[minute]?.let { return it }
+                }
+                val formatter = timeFormatter
+                    ?: SimpleDateFormat("HH:mm", locale).also { timeFormatter = it }
+                return formatter.format(Date(timestamp)).also { timeCache[minute] = it }
+            }
         }
         private val backfillLock = ReentrantLock()
         private val backfillFinished = backfillLock.newCondition()
@@ -1184,6 +1245,54 @@ class HistoryRepository(context: Context = Applic.app) {
      * Reactive display-history flow using the same merged multi-sensor timeline
      * as the dashboard and chart.
      */
+    /**
+     * A first paint for the dashboard: the recent tail, merged, fetched once.
+     *
+     * The chart's real input is the whole timeline, and it has to be — the merge
+     * needs every sensor's rows to know which one wins, and the chart reads
+     * "latest" off the end of the list it is handed. Querying a window instead
+     * broke both. So this does not replace the full query; it lands before it,
+     * and the full one overwrites it a moment later.
+     *
+     * That ordering is what makes a partial list safe here. The two properties
+     * that a window breaks both hold for a *recent* one: the current sensor is
+     * the one producing readings now, so its rows are present and the merge
+     * suppresses correctly; and the newest reading in the store is by definition
+     * inside it, so "latest" is the same value the full list would give. Neither
+     * survives being generalised to an arbitrary window, which is the mistake
+     * this is written to avoid repeating.
+     *
+     * Returns null when the store's newest reading is older than the tail — an
+     * expired sensor, an offline review. Then the window holds no current-sensor
+     * rows, the merge has nothing to suppress with, and the only correct first
+     * paint is the full one.
+     */
+    suspend fun getDisplayHistoryFirstPaint(
+        preferredSerial: String?,
+        startTime: Long,
+        tailMs: Long = FIRST_PAINT_TAIL_MS
+    ): List<GlucosePoint>? = withContext(Dispatchers.IO) {
+        try {
+            val latest = dao.getLatestReading()?.timestamp ?: return@withContext null
+            val tailStart = (latest - tailMs).coerceAtLeast(startTime)
+            if (tailStart <= startTime) return@withContext null
+
+            val readings = dao.getReadingsBetween(tailStart, Long.MAX_VALUE)
+            if (readings.isEmpty()) return@withContext null
+
+            val serials = readings.mapTo(LinkedHashSet()) { it.sensorSerial }.toList()
+            mapDisplayReadings(
+                readings,
+                preferredSerial,
+                uncertaintyFor(serials, tailStart),
+                displayRecordsFor(serials, tailStart)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "First-paint history query failed", e)
+            null
+        }
+    }
+
     fun getDisplayHistoryFlow(
         preferredSerial: String?,
         startTime: Long = 0L
@@ -1368,8 +1477,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return HistoryDisplayMerge.mergeReadings(readings, preferredSerial)
     }
 
-    private fun formatTime(timestamp: Long): String =
-        requireNotNull(TIME_FORMATTER.get()).format(Date(timestamp))
+    private fun formatTime(timestamp: Long): String = formatMinute(timestamp)
     
     /**
      * Backfill native history for any sensor that the current UI/session needs and

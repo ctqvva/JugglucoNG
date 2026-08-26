@@ -250,4 +250,44 @@ class HistoryDisplayMergeTests {
             mergedWindow.map { it.sensorSerial }
         )
     }
+
+    /**
+     * Why the dashboard's *first paint* may use a recent window when the chart's
+     * real input may not.
+     *
+     * The two properties an arbitrary window breaks both hold for a recent one,
+     * as long as the current sensor is still producing: its rows are in the
+     * window, so the merge has something to suppress with, and the newest
+     * reading in the store is in there too, so "latest" agrees with the full
+     * list and the viewport does not jump when the full list replaces it.
+     *
+     * Stated as: merging the recent tail gives the same answer as merging
+     * everything and then taking that tail.
+     */
+    @Test
+    fun mergingTheRecentTailAgreesWithTheTailOfTheFullMerge() {
+        val whole = listOf(
+            reading(id = 1, timestamp = 1 * HOUR_MS, sensorSerial = "sensor-old", value = 40f, rawValue = 40f),
+            reading(id = 2, timestamp = 2 * HOUR_MS, sensorSerial = "sensor-old", value = 41f, rawValue = 41f),
+            reading(id = 3, timestamp = 3 * HOUR_MS, sensorSerial = "sensor-new", value = 110f, rawValue = 105f),
+            reading(id = 4, timestamp = 3 * HOUR_MS, sensorSerial = "sensor-old", value = 42f, rawValue = 42f),
+            reading(id = 5, timestamp = 4 * HOUR_MS, sensorSerial = "sensor-new", value = 120f, rawValue = 114f)
+        )
+        val tailStart = 3 * HOUR_MS
+
+        val fullThenSliced = HistoryDisplayMerge
+            .mergeReadings(whole, preferredSerial = "sensor-new")
+            .filter { it.timestamp >= tailStart }
+        val slicedThenMerged = HistoryDisplayMerge.mergeReadings(
+            whole.filter { it.timestamp >= tailStart },
+            preferredSerial = "sensor-new"
+        )
+
+        assertEquals(
+            fullThenSliced.map { it.timestamp to it.sensorSerial },
+            slicedThenMerged.map { it.timestamp to it.sensorSerial }
+        )
+        // And the live edge — what the chart calls "latest" — is the same point.
+        assertEquals(fullThenSliced.last().timestamp, slicedThenMerged.last().timestamp)
+    }
 }

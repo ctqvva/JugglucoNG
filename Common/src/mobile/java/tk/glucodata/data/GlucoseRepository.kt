@@ -348,6 +348,22 @@ class GlucoseRepository {
                 launch {
                     historyRepository.ensureBackfilled(preferredSerial, startTime)
                 }
+                // Coarse to fine over one authoritative query, rather than a
+                // narrower query: paint the recent tail as soon as it is ready,
+                // then replace it with the full timeline. The tail is a superset
+                // of what the default range draws and contains the newest
+                // reading, so the first frame is already correct at the live
+                // edge; the full list follows and is what panning reads, so
+                // scrolling back never waits on Room.
+                historyRepository.getDisplayHistoryFirstPaint(preferredSerial, startTime)
+                    ?.let { firstPaint ->
+                        BatteryTrace.bump(
+                            key = "dashboard.history.first_paint",
+                            logEvery = 20L,
+                            detail = "size=${firstPaint.size}"
+                        )
+                        send(firstPaint)
+                    }
                 historyRepository.getDisplayHistoryFlow(preferredSerial, startTime)
                     .collect { points -> send(points) }
             }
