@@ -2784,8 +2784,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_estimated">Estimated glucose</string>
     <string name="glucose_uncertainty_elevated">Sensor uncertainty elevated</string>
     <string name="glucose_possible_artifact">Possible transient sensor artifact</string>
-    <string name="debug_v2_trace_title">Adaptive V2 diagnostics</string>
-    <string name="debug_v2_trace_desc">Record a detailed row per reading while logging. Only useful for reporting sensor issues.</string>
     <string name="sibionics_uncertainty_ribbon">Uncertainty ribbon</string>
     <string name="sibionics_uncertainty_ribbon_desc">Show the likely-range band around the glucose line</string>
 </resources>

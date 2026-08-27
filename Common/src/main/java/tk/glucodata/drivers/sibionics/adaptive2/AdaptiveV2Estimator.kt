@@ -185,7 +185,6 @@ internal class AdaptiveV2Estimator {
         sample: AdaptiveV2Sample,
         references: List<AdaptiveV2Reference> = emptyList(),
         stockComparisonMmol: Float = Float.NaN,
-        adaptiveV1ComparisonMmol: Float = Float.NaN,
     ): ProbabilisticGlucoseEstimate? {
         val observation = sample.calibratedMmol
         if (!observation.isFinite() || observation <= 0f) return null
@@ -246,7 +245,7 @@ internal class AdaptiveV2Estimator {
         lastIndex = sample.index
         lastTimestampMs = sample.timestampMs
         latestDiagnostics = buildDiagnostics(
-            sample, estimate, telemetry, stockComparisonMmol, adaptiveV1ComparisonMmol,
+            sample, estimate, telemetry, stockComparisonMmol,
         )
         return estimate
     }
@@ -602,7 +601,6 @@ internal class AdaptiveV2Estimator {
         estimate: ProbabilisticGlucoseEstimate,
         telemetry: AdaptiveV2Telemetry,
         stockComparisonMmol: Float,
-        adaptiveV1ComparisonMmol: Float,
     ): AdaptiveV2Diagnostics {
         var interstitial = 0.0
         var artifact = 0.0
@@ -640,7 +638,6 @@ internal class AdaptiveV2Estimator {
             sensorStateCompensationMmol = sample.sensorStateCompensationMmol,
             activeSensitivity = sample.activeSensitivity,
             stockMmol = stockComparisonMmol,
-            adaptiveV1Mmol = adaptiveV1ComparisonMmol,
         )
     }
 

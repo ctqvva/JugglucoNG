@@ -2559,8 +2559,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_estimated">Uppskattat glukos</string>
     <string name="glucose_uncertainty_elevated">Förhöjd sensorosäkerhet</string>
     <string name="glucose_possible_artifact">Möjlig tillfällig sensorartefakt</string>
-    <string name="debug_v2_trace_title">Adaptive V2-diagnostik</string>
-    <string name="debug_v2_trace_desc">Spela in en detaljerad rad per mätvärde vid loggning. Endast användbart för att rapportera sensorproblem.</string>
     <string name="sibionics_uncertainty_ribbon">Osäkerhetsband</string>
     <string name="sibionics_uncertainty_ribbon_desc">Visa bandet för sannolikt intervall runt glukoskurvan</string>
 </resources>

@@ -2597,8 +2597,6 @@
     <string name="glucose_estimated">Szacowana glikemia</string>
     <string name="glucose_uncertainty_elevated">Podwyższona niepewność czujnika</string>
     <string name="glucose_possible_artifact">Możliwy przejściowy artefakt czujnika</string>
-    <string name="debug_v2_trace_title">Diagnostyka Adaptive V2</string>
-    <string name="debug_v2_trace_desc">Zapisuj szczegółowy wiersz dla każdego odczytu podczas rejestrowania. Przydatne tylko do zgłaszania problemów z czujnikiem.</string>
     <string name="sibionics_uncertainty_ribbon">Pasmo niepewności</string>
     <string name="sibionics_uncertainty_ribbon_desc">Pokaż pasmo prawdopodobnego zakresu wokół linii glikemii</string>
 </resources>

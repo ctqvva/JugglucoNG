@@ -154,13 +154,6 @@ class SibionicsAlgorithmContext(
     private val adaptiveV2Core = SibionicsAdaptiveV2Context()
     private var latestV2Estimate: ProbabilisticGlucoseEstimate? = null
 
-    /**
-     * Adaptive V1 run in parallel purely to give the diagnostics trace a
-     * comparison column. Created only while tracing is enabled, advanced with
-     * the same prepared measurement, and never consulted for the emitted value.
-     */
-    private var shadowV1: SibionicsAdaptiveAlgorithmContext? = null
-    private var latestShadowV1Mmol = Float.NaN
     private var liveDeltaMmol = Float.NaN
     private var replayDeltaMmol = Float.NaN
     private var selection = SibionicsAlgorithmSelection.STOCK
@@ -189,7 +182,6 @@ class SibionicsAlgorithmContext(
         responsiveCore.configure(sensitivity)
         adaptiveV2Core.configure(sensitivity)
         configuredSensitivity = sensitivity
-        shadowV1 = null
         this.selection = selection
     }
 
@@ -207,8 +199,6 @@ class SibionicsAlgorithmContext(
         responsiveCore.reset()
         adaptiveV2Core.reset()
         latestV2Estimate = null
-        shadowV1 = null
-        latestShadowV1Mmol = Float.NaN
         resetWrapperState()
     }
 
@@ -410,56 +400,10 @@ class SibionicsAlgorithmContext(
             eventTimeMs = eventTimeMs,
             references = references,
             stockComparisonMmol = stockMmol,
-            adaptiveV1ComparisonMmol = latestShadowV1Mmol,
         )
         latestV2Estimate = estimate
-        traceAdaptiveV2(observation, measurement, stockMmol, temperatureC, impedance, index, eventTimeMs)
         if (estimate == null || !estimate.isUsable) return nativeRound(measurement)
         return nativeRound(estimate.glucoseMmol)
-    }
-
-    /**
-     * Emits one diagnostics row, and advances the shadow V1 that supplies its
-     * comparison column.
-     *
-     * Both are gated on the trace flag: the shadow context is not even created
-     * until someone is capturing, so normal operation pays nothing.
-     */
-    private fun traceAdaptiveV2(
-        observation: SibionicsSensorObservation,
-        measurement: Float,
-        stockMmol: Float,
-        temperatureC: Float,
-        impedance: Float,
-        index: Int,
-        eventTimeMs: Long,
-    ) {
-        if (!SibionicsAdaptiveV2Trace.enabled) {
-            shadowV1 = null
-            latestShadowV1Mmol = Float.NaN
-            return
-        }
-        val shadow = shadowV1 ?: SibionicsAdaptiveAlgorithmContext()
-            .also { it.configure(configuredSensitivity); shadowV1 = it }
-        latestShadowV1Mmol = shadow.process(
-            stockMmol = measurement,
-            vendorStockMmol = stockMmol,
-            rawMmol = Float.NaN,
-            chemicalMmol = latestChemicalSignal()?.mmol ?: Float.NaN,
-            chemicalQualityFlags = observation.qualityFlags,
-            temperatureC = temperatureC,
-            impedance = impedance,
-            index = index,
-            eventTimeMs = eventTimeMs,
-            anchors = emptyList(),
-        )
-        SibionicsAdaptiveV2Trace.log(
-            sensorSerial = sensorId,
-            observation = observation,
-            diagnostics = adaptiveV2Core.latestDiagnostics(),
-            stockMmol = stockMmol,
-            adaptiveV1Mmol = latestShadowV1Mmol,
-        )
     }
 
     internal fun latestChemicalSignal(): SibionicsChemicalSignal? = when (family) {
