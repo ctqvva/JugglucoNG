@@ -62,6 +62,9 @@ class AdaptiveV2DeviceLagTest {
     private val width = ArrayList<Float>()
     private val leadGap = ArrayList<Float>()
     private val expectedLead = ArrayList<Float>()
+    private val mapSeries = ArrayList<Float>()
+    private val motionSeries = ArrayList<Double>()
+    private val normInnov = ArrayList<Double>()
     private val obsSeries = ArrayList<Float>()
     private val estSeries = ArrayList<Float>()
     private val dynSeries = ArrayList<Float>()
@@ -71,6 +74,7 @@ class AdaptiveV2DeviceLagTest {
         val estimator = AdaptiveV2Estimator()
         pDynamic.clear(); width.clear(); leadGap.clear(); expectedLead.clear()
         obsSeries.clear(); estSeries.clear(); dynSeries.clear(); widthSeries.clear()
+        motionSeries.clear(); normInnov.clear(); mapSeries.clear()
         val observed = ArrayList<Float>()
         val produced = ArrayList<Float>()
         val vendor = ArrayList<Float>()
@@ -94,6 +98,9 @@ class AdaptiveV2DeviceLagTest {
                 leadGap += abs(it.glucoseMmol - it.interstitialMmol)
                 expectedLead += abs(it.lagMinutes * it.rateMmolPerMin)
             }
+            mapSeries += estimator.mapGlucoseMmol
+            motionSeries += estimator.motionEvidenceLevel
+            normInnov += kotlin.math.abs(estimator.lastNormalisedInnovation)
             obsSeries += row.calibrated
             estSeries += estimate.glucoseMmol
             dynSeries += estimate.dynamicProbability
@@ -221,6 +228,25 @@ class AdaptiveV2DeviceLagTest {
         val delays = turningPointDelays(obsSeries, estSeries)
         val (dynMotion, dynFlat) = dynamicOnMotionAndFlat(obsSeries, dynSeries)
         val quietWidth = flatWidth(obsSeries, widthSeries)
+        val mapDelays = turningPointDelays(obsSeries, mapSeries)
+        val mapJump = mapSeries.zipWithNext { a, b -> abs(b - a).toDouble() }.max()
+        println(
+            "MAP-OFFLINE turnDelay median=%+.1f mean=%+.2f late>=2min=%.0f%% | lag=%+.2f | worstJump=%.2f"
+                .format(
+                    if (mapDelays.isEmpty()) Double.NaN else mapDelays.sorted()[mapDelays.size / 2].toDouble(),
+                    if (mapDelays.isEmpty()) Double.NaN else mapDelays.map { it.toDouble() }.average(),
+                    if (mapDelays.isEmpty()) Double.NaN else 100.0 * mapDelays.count { it >= 2 } / mapDelays.size,
+                    lagMinutes(obsSeries, mapSeries), mapJump,
+                )
+        )
+        println(
+            "SIGNAL |normInnov| mean=%.3f p50=%.3f p90=%.3f max=%.3f | motion mean=%.3f p90=%.3f max=%.3f".format(
+                normInnov.average(), normInnov.sorted()[normInnov.size / 2],
+                normInnov.sorted()[(normInnov.size * 0.9).toInt()], normInnov.max(),
+                motionSeries.average(), motionSeries.sorted()[(motionSeries.size * 0.9).toInt()],
+                motionSeries.max(),
+            )
+        )
         println(
             "RUBRIC events=%d turnDelay median=%+.1f mean=%+.2f late>=2min=%.0f%% max=%+d | pDynamic motion=%.3f flat=%.3f (ratio %.2f) | flatWidth=%.2f"
                 .format(

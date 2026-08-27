@@ -589,9 +589,9 @@ class AdaptiveV2EstimatorTest {
         val full = DoubleArray(AdaptiveV2Mode.COUNT)
         val half = DoubleArray(AdaptiveV2Mode.COUNT)
         val tiny = DoubleArray(AdaptiveV2Mode.COUNT)
-        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 1.0, full)
-        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.5, half)
-        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.02, tiny)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 1.0, 0.0, full)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.5, 0.0, half)
+        AdaptiveV2ModeModel.transition(AdaptiveV2Mode.STEADY, 0f, 0f, 0.02, 0.0, tiny)
 
         val steady = AdaptiveV2Mode.STEADY.ordinal
         // The matrix is defined per minute. A shorter step must move the

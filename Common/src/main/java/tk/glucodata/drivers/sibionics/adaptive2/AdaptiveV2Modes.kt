@@ -1,5 +1,9 @@
 package tk.glucodata.drivers.sibionics.adaptive2
 
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 
@@ -254,6 +258,7 @@ internal object AdaptiveV2ModeModel {
         impedanceDisturbance: Float,
         vendorArtifactHint: Float,
         dtMinutes: Double,
+        motionEvidence: Double,
         out: DoubleArray,
     ) {
         val base = TRANSITION[from.ordinal]
@@ -265,6 +270,39 @@ internal object AdaptiveV2ModeModel {
                 out[i] = identity + alpha * (out[i] - identity)
             }
         }
+        // Coherent motion opens the door to DYNAMIC and holds it open.
+        //
+        // This is the lever the likelihood never had. With a fixed
+        // P(STEADY→DYNAMIC) of 0.015 and STEADY holding ~0.76 of the mass,
+        // DYNAMIC's predicted prior is pinned near 0.13 whatever the evidence
+        // says, so it cannot become dominant no matter how well it explains the
+        // data. Moving the prior is the only place that ceiling can be lifted.
+        val motion = motionEvidence.coerceIn(0.0, 1.0)
+        if (motion > 0.0) {
+            val dynamicIndex = AdaptiveV2Mode.DYNAMIC.ordinal
+            when (from) {
+                AdaptiveV2Mode.STEADY -> {
+                    val opened = MOTION_ENTRY * motion
+                    val available = 1.0 - out[dynamicIndex]
+                    val moved = min(opened, available * MAX_TRANSFER_FRACTION)
+                    if (moved > 0.0) {
+                        val scale = (available - moved) / max(available, 1e-9)
+                        for (i in out.indices) if (i != dynamicIndex) out[i] *= scale
+                        out[dynamicIndex] += moved
+                    }
+                }
+                AdaptiveV2Mode.DYNAMIC -> {
+                    // Hysteresis: while the move is still coherent, leaving is
+                    // made harder rather than entering made easier again.
+                    val steadyIndex = AdaptiveV2Mode.STEADY.ordinal
+                    val held = out[steadyIndex] * MOTION_HOLD * motion
+                    out[steadyIndex] -= held
+                    out[dynamicIndex] += held
+                }
+                else -> Unit
+            }
+        }
+
         val boost = artifactPrior
             .artifactEvidence(impedanceDisturbance, vendorArtifactHint)
             .coerceIn(0f, 1f)
@@ -284,4 +322,77 @@ internal object AdaptiveV2ModeModel {
     }
 
     private const val MAX_TRANSFER_FRACTION = 0.85
+
+    /** Mass moved into DYNAMIC from STEADY at full motion evidence. */
+    private const val MOTION_ENTRY = 0.45
+
+    /** Fraction of the DYNAMIC→STEADY leak held back at full motion evidence. */
+    private const val MOTION_HOLD = 0.80
+}
+
+/**
+ * Causal evidence that the filter is behind a *coherent* move, used to open the
+ * STEADY→DYNAMIC transition rather than to observe anything.
+ *
+ * The statistic is the persistence of the level-channel innovation's sign. If
+ * the estimate is merely noisy the innovation alternates sign and this stays
+ * near zero; if glucose is genuinely moving the estimate is behind in the same
+ * direction minute after minute and it climbs. Everything it uses happened
+ * strictly in the past, and it is consumed by the next minute's transition, so
+ * unlike a windowed slope there is no question about which instant it describes.
+ *
+ * Three properties are deliberate:
+ *
+ *  - **A dead zone.** Innovations inside measurement noise are not evidence of
+ *    anything. Without this the statistic saturates on a flat trace and DYNAMIC
+ *    opens permanently.
+ *  - **Artifact-aware.** Telemetry that already looks like a disturbance is
+ *    discounted, so a spike cannot buy DYNAMIC the mass that belongs to
+ *    ARTIFACT. An isolated excursion also fails on its own terms: one sample
+ *    cannot establish sign persistence.
+ *  - **Hysteretic.** It rises quickly and decays slowly, so entering DYNAMIC
+ *    needs several coherent minutes while leaving it takes longer than a single
+ *    quiet one. Mode identity that flips every minute is noise, not a hypothesis.
+ */
+internal class AdaptiveV2MotionEvidence {
+
+    /** Signed persistence in [-1, 1]; sign is the direction of the move. */
+    var coherence: Double = 0.0
+        private set
+
+    /** Unsigned motion evidence in [0, 1]. */
+    val motion: Double get() = abs(coherence)
+
+    fun reset() {
+        coherence = 0.0
+    }
+
+    fun observe(normalisedInnovation: Double, artifactEvidence: Double, dtMinutes: Double) {
+        if (!normalisedInnovation.isFinite() || dtMinutes <= 0.0) return
+        val magnitude = abs(normalisedInnovation)
+        val significance = ((magnitude - DEAD_ZONE) / SIGNIFICANCE_SCALE).coerceIn(0.0, 1.0)
+        val credible = significance * (1.0 - artifactEvidence.coerceIn(0.0, 1.0))
+        val target = if (normalisedInnovation >= 0.0) credible else -credible
+        // Asymmetric: coherent evidence is admitted quickly, withdrawn slowly.
+        val rate = if (credible >= abs(coherence)) RISE_PER_MINUTE else DECAY_PER_MINUTE
+        val alpha = 1.0 - exp(-dtMinutes * rate)
+        coherence += alpha * (target - coherence)
+        if (!coherence.isFinite()) coherence = 0.0
+    }
+
+    fun writeTo(output: DataOutputStream) = output.writeDouble(coherence)
+
+    fun readFrom(input: DataInputStream) {
+        coherence = input.readDouble()
+    }
+
+    fun isValid(): Boolean = coherence.isFinite() && abs(coherence) <= 1.0001
+
+    internal companion object {
+        /** Normalised innovation below this is measurement noise, not movement. */
+        const val DEAD_ZONE = 1.2
+        const val SIGNIFICANCE_SCALE = 1.3
+        const val RISE_PER_MINUTE = 0.30
+        const val DECAY_PER_MINUTE = 0.10
+    }
 }

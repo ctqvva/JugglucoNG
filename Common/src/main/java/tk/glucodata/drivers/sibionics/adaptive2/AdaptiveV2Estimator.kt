@@ -95,6 +95,28 @@ internal class AdaptiveV2Estimator {
     private val telemetryModel = AdaptiveV2TelemetryModel()
     private val noiseModel = AdaptiveV2NoiseModel()
     private val lagEstimator = AdaptiveV2LagEstimator()
+    private val motionEvidence = AdaptiveV2MotionEvidence()
+
+    /** Motion evidence currently opening the STEADY→DYNAMIC transition. Diagnostics. */
+    internal val motionEvidenceLevel: Double get() = motionEvidence.motion
+
+    /**
+     * Blood-glucose state of the single most probable mode, offline comparison
+     * only. This is what a MAP-output prototype would display instead of the
+     * mixture median; nothing in production reads it.
+     */
+    internal val mapGlucoseMmol: Float
+        get() {
+            var best = 0
+            for (index in 1 until AdaptiveV2Mode.COUNT) {
+                if (modeProbability[index] > modeProbability[best]) best = index
+            }
+            return modes[best].x[V2.B].toFloat()
+        }
+
+    /** Normalised level-channel innovation last seen. Diagnostics. */
+    internal var lastNormalisedInnovation: Double = 0.0
+        private set
     private val rateObserver = AdaptiveV2RateObserver()
     private val rateJacobian = DoubleArray(V2.N)
 
@@ -160,6 +182,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.reset()
         noiseModel.reset()
         lagEstimator.reset()
+        motionEvidence.reset()
         rateObserver.reset()
         initialized = false
         lastIndex = -1
@@ -243,6 +266,14 @@ internal class AdaptiveV2Estimator {
             dtMinutes = elapsed.minutes,
             trust = (1.0 - estimate.artifactProbability.toDouble()).coerceIn(0.0, 1.0),
         )
+        // Evidence for the *next* minute's transition. Strictly causal: it is
+        // this minute's innovation, and nothing reads it until the next mix().
+        lastNormalisedInnovation = lastInnovation / sqrt(max(lastMeasurementVariance, MIN_VARIANCE))
+        motionEvidence.observe(
+            normalisedInnovation = lastNormalisedInnovation,
+            artifactEvidence = estimate.artifactProbability.toDouble(),
+            dtMinutes = elapsed.minutes,
+        )
         noiseModel.adapt(
             innovation = lastInnovation,
             priorVariance = lastMeasurementVariance,
@@ -270,6 +301,7 @@ internal class AdaptiveV2Estimator {
                 telemetry.impedanceDisturbance,
                 telemetry.vendorArtifactHint,
                 dtMinutes,
+                motionEvidence.motion,
                 transitionRow,
             )
             for (to in 0 until AdaptiveV2Mode.COUNT) {
@@ -594,6 +626,7 @@ internal class AdaptiveV2Estimator {
         )
         noiseModel.reset()
         lagEstimator.reset()
+        motionEvidence.reset()
         rateObserver.reset()
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
@@ -719,6 +752,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.writeTo(output)
         noiseModel.writeTo(output)
         lagEstimator.writeTo(output)
+        motionEvidence.writeTo(output)
         rateObserver.writeTo(output)
     }
 
@@ -740,6 +774,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.readFrom(input)
         noiseModel.readFrom(input)
         lagEstimator.readFrom(input)
+        motionEvidence.readFrom(input)
         rateObserver.readFrom(input)
         if (!isStateValid()) return false
         if (initialized) combine()
@@ -762,6 +797,7 @@ internal class AdaptiveV2Estimator {
             for (i in 0 until V2.N) if (mode.at(i, i) < 0.0) return false
         }
         return telemetryModel.isValid() && noiseModel.isValid() && lagEstimator.isValid() &&
+            motionEvidence.isValid() &&
             rateObserver.isValid()
     }
 
