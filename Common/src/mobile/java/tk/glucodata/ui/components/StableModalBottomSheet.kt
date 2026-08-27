@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 /**
  * App-wide modal sheet entry point.
@@ -74,27 +75,48 @@ internal class StableSheetHeightPolicy {
     var isViewportHeightLocked: Boolean = false
         private set
 
+    /** Intrinsic height the current decision was taken for. */
+    private var decidedForIntrinsic: Int = UNDECIDED
+
     /**
-     * Decides the floor from what the content *wants*, not from what it last
-     * measured at.
+     * Re-decides only when the *content* changes shape, never when the viewport
+     * does.
      *
-     * The distinction is the whole point. While a viewport-height sheet is
-     * dragged, the framework consumes its top inset, which shrinks the space
-     * offered to it — the content still wants more than fits, so the sheet must
-     * stay at viewport height or its own expanded anchor moves under the
-     * gesture. When content is genuinely removed the intrinsic height drops
-     * below the viewport instead, and then the sheet has to be allowed to
-     * shrink. Latching on measured height cannot tell those apart: it treated
-     * a removed row as a shrinking viewport and pinned the sheet tall, leaving
-     * dead space under the last control.
+     * That split is the whole design. During a drag the framework consumes the
+     * sheet's top inset, so `maxHeight` shrinks while the content is untouched;
+     * re-running the comparison against the smaller viewport there flips the pin
+     * mid-gesture, which moves the expanded anchor under the finger and makes the
+     * sheet resist, jitter, and miss its dismiss target. Intrinsic height does not
+     * move during a drag, so keying the decision to it leaves gestures alone.
+     *
+     * When a row is genuinely added or removed the intrinsic height jumps, the
+     * decision is retaken, and a sheet that no longer fills the viewport is
+     * allowed to shrink instead of leaving the removed row's space behind.
+     *
+     * The hysteresis band keeps sub-pixel and animation-frame wobble from
+     * counting as a change; a control row clears it comfortably.
      */
     fun resolveMinimumHeight(intrinsicHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean): Int {
         if (!hasBoundedHeight) {
             isViewportHeightLocked = false
+            decidedForIntrinsic = UNDECIDED
             return 0
         }
-        isViewportHeightLocked = intrinsicHeight >= maxHeight
+        val undecided = decidedForIntrinsic == UNDECIDED
+        val contentChanged = !undecided &&
+            abs(intrinsicHeight - decidedForIntrinsic) > maxHeight / HYSTERESIS_DIVISOR
+        if (undecided || contentChanged) {
+            isViewportHeightLocked = intrinsicHeight >= maxHeight
+            decidedForIntrinsic = intrinsicHeight
+        }
         return if (isViewportHeightLocked) maxHeight else 0
+    }
+
+    private companion object {
+        const val UNDECIDED = -1
+
+        /** A twentieth of the viewport: far below one control row, far above frame noise. */
+        const val HYSTERESIS_DIVISOR = 20
     }
 }
 

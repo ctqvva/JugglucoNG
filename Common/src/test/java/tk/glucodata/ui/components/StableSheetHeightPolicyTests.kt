@@ -71,6 +71,36 @@ class StableSheetHeightPolicyTests {
     }
 
     /**
+     * The dismiss regression. A swipe shrinks the viewport a long way while the
+     * content is untouched; the pin must not be re-decided against the smaller
+     * viewport, or it releases mid-gesture and the sheet fights the finger.
+     */
+    @Test
+    fun aDragDoesNotReleaseThePinEvenAsTheViewportCollapses() {
+        val policy = StableSheetHeightPolicy()
+        policy.resolveMinimumHeight(1400, maxHeight = 1000, hasBoundedHeight = true)
+
+        listOf(900, 700, 500, 300, 140).forEach { viewport ->
+            val floor = policy.resolveMinimumHeight(
+                intrinsicHeight = 1400, maxHeight = viewport, hasBoundedHeight = true,
+            )
+            assertTrue("released at viewport $viewport", policy.isViewportHeightLocked)
+            assertEquals(viewport, floor)
+        }
+    }
+
+    /** Frame-to-frame wobble is not a content change. */
+    @Test
+    fun subPixelWobbleDoesNotRedecide() {
+        val policy = StableSheetHeightPolicy()
+        policy.resolveMinimumHeight(1400, maxHeight = 1000, hasBoundedHeight = true)
+
+        policy.resolveMinimumHeight(1397, maxHeight = 1000, hasBoundedHeight = true)
+
+        assertTrue(policy.isViewportHeightLocked)
+    }
+
+    /**
      * The regression this rewrite exists for. Leaving Adaptive V2 removes the
      * ribbon row, so the content stops wanting the whole viewport. The previous
      * policy latched on measured height and never released, and the row's space
