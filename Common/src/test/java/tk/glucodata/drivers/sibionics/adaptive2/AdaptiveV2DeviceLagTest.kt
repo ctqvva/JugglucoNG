@@ -62,10 +62,15 @@ class AdaptiveV2DeviceLagTest {
     private val width = ArrayList<Float>()
     private val leadGap = ArrayList<Float>()
     private val expectedLead = ArrayList<Float>()
+    private val obsSeries = ArrayList<Float>()
+    private val estSeries = ArrayList<Float>()
+    private val dynSeries = ArrayList<Float>()
+    private val widthSeries = ArrayList<Float>()
 
     private fun run(): Triple<List<Float>, List<Float>, List<Float>> {
         val estimator = AdaptiveV2Estimator()
         pDynamic.clear(); width.clear(); leadGap.clear(); expectedLead.clear()
+        obsSeries.clear(); estSeries.clear(); dynSeries.clear(); widthSeries.clear()
         val observed = ArrayList<Float>()
         val produced = ArrayList<Float>()
         val vendor = ArrayList<Float>()
@@ -89,6 +94,10 @@ class AdaptiveV2DeviceLagTest {
                 leadGap += abs(it.glucoseMmol - it.interstitialMmol)
                 expectedLead += abs(it.lagMinutes * it.rateMmolPerMin)
             }
+            obsSeries += row.calibrated
+            estSeries += estimate.glucoseMmol
+            dynSeries += estimate.dynamicProbability
+            widthSeries += estimate.upper90Mmol - estimate.lower90Mmol
             observed += row.calibrated
             produced += estimate.glucoseMmol
             vendor += row.stock
@@ -123,6 +132,69 @@ class AdaptiveV2DeviceLagTest {
         return peak + offset.coerceIn(-0.5, 0.5)
     }
 
+    /**
+     * Event-level turning-point delay: for each sharp excursion in the
+     * observation, how many minutes later does the estimate turn?
+     *
+     * This is the number that corresponds to what is visible on the chart.
+     * Whole-trace cross-correlation weights the highest-frequency content,
+     * which on a mostly-flat capture is noise, and it can look healthy while
+     * every actual peak arrives minutes late.
+     */
+    private fun turningPointDelays(
+        observation: List<Float>, estimate: List<Float>, window: Int = 12, minSpan: Float = 0.8f,
+    ): List<Int> {
+        val delays = ArrayList<Int>()
+        var i = window
+        while (i < observation.size - window) {
+            val slice = observation.subList(i - window, i + window + 1)
+            val span = slice.max() - slice.min()
+            val peak = slice.indexOf(slice.max())
+            val trough = slice.indexOf(slice.min())
+            val interior = listOf(peak, trough).firstOrNull { it in 4..(2 * window - 4) }
+            if (span >= minSpan && interior != null) {
+                val isPeak = interior == peak
+                // Nearest matching extremum of the estimate, not the window
+                // argmax: the argmax lands on an edge whenever the estimate is
+                // still rising out of the window, which reads as a spurious lead.
+                val est = estimate.subList(i - window, i + window + 1)
+                val candidates = (2 until est.size - 2).filter { k ->
+                    if (isPeak) est[k] >= est[k - 1] && est[k] >= est[k + 1]
+                    else est[k] <= est[k - 1] && est[k] <= est[k + 1]
+                }
+                val estTurn = candidates.minByOrNull { kotlin.math.abs(it - interior) }
+                if (estTurn != null) delays += estTurn - interior
+                i += window
+            } else {
+                i += 2
+            }
+        }
+        return delays
+    }
+
+    /** Mean pDynamic inside sustained directional moves, and on flat stretches. */
+    private fun dynamicOnMotionAndFlat(
+        observation: List<Float>, dynamic: List<Float>, span: Int = 10,
+    ): Pair<Double, Double> {
+        val motion = ArrayList<Double>()
+        val flat = ArrayList<Double>()
+        for (i in span until observation.size) {
+            val move = kotlin.math.abs(observation[i] - observation[i - span])
+            if (move >= 0.8f) motion += dynamic[i].toDouble()
+            if (move <= 0.15f) flat += dynamic[i].toDouble()
+        }
+        return (if (motion.isEmpty()) Double.NaN else motion.average()) to
+            (if (flat.isEmpty()) Double.NaN else flat.average())
+    }
+
+    /** Mean interval width on flat stretches only. */
+    private fun flatWidth(observation: List<Float>, width: List<Float>, span: Int = 10): Double {
+        val quiet = (span until observation.size)
+            .filter { kotlin.math.abs(observation[it] - observation[it - span]) <= 0.15f }
+            .map { width[it].toDouble() }
+        return if (quiet.isEmpty()) Double.NaN else quiet.average()
+    }
+
     @Test
     fun characteriseHowFarV2TrailsTheObservationItIsGiven() {
         val (observed, produced, vendor) = run()
@@ -146,6 +218,21 @@ class AdaptiveV2DeviceLagTest {
         // IMM separating a real excursion from a sensor artifact, which is the
         // one thing it must not give up. Fixing it needs a decisive IMM, not a
         // bigger Q. Bounded here only so a regression is visible.
+        val delays = turningPointDelays(obsSeries, estSeries)
+        val (dynMotion, dynFlat) = dynamicOnMotionAndFlat(obsSeries, dynSeries)
+        val quietWidth = flatWidth(obsSeries, widthSeries)
+        println(
+            "RUBRIC events=%d turnDelay median=%+.1f mean=%+.2f late>=2min=%.0f%% max=%+d | pDynamic motion=%.3f flat=%.3f (ratio %.2f) | flatWidth=%.2f"
+                .format(
+                    delays.size,
+                    if (delays.isEmpty()) Double.NaN else delays.sorted()[delays.size / 2].toDouble(),
+                    if (delays.isEmpty()) Double.NaN else delays.map { it.toDouble() }.average(),
+                    if (delays.isEmpty()) Double.NaN else 100.0 * delays.count { it >= 2 } / delays.size,
+                    delays.maxOrNull() ?: 0,
+                    dynMotion, dynFlat, dynMotion / dynFlat, quietWidth,
+                )
+        )
+
         assertTrue("lag behind its own observation grew: $ownInput min", ownInput <= 0.85)
         assertTrue("lag behind stock grew: $againstStock min", againstStock <= 1.30)
         // Responsiveness must not be bought with a value that teleports.
