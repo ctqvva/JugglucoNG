@@ -20,7 +20,7 @@ import java.util.Locale
 
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
-    private const val SCHEMA = "tk.glucodata.settings-export"
+    internal const val SCHEMA = "tk.glucodata.settings-export"
     private const val SCHEMA_VERSION = 3
 
     private val nativeSettingsFiles = listOf(
@@ -545,7 +545,7 @@ object SettingsExporter {
     private fun readPayload(context: Context, uri: Uri): JSONObject {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Could not open import source")
-        val text = inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+        val text = ExportPackageCodec.readUtf8(inputStream)
         return JSONObject(text)
     }
 

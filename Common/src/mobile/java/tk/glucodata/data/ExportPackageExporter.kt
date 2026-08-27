@@ -14,21 +14,20 @@ import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
-import java.io.OutputStreamWriter
-import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 object ExportPackageExporter {
-    private const val SCHEMA = "tk.glucodata.export-package"
+    internal const val SCHEMA = "tk.glucodata.export-package"
     private const val SCHEMA_VERSION = 1
 
     data class ExportRequest(
         val includeSettings: Boolean,
         val includeHistory: Boolean,
         val includeCalibrations: Boolean,
-        val historyDays: Long?
+        val historyDays: Long?,
+        val compression: ExportCompression = ExportCompression.GZIP
     ) {
         val hasSelection: Boolean
             get() = includeSettings || includeHistory || includeCalibrations
@@ -65,6 +64,12 @@ object ExportPackageExporter {
         val historyDisplaySerial: String? = null
     )
 
+    enum class ImportFileType {
+        SETTINGS,
+        EXPORT_PACKAGE,
+        OTHER
+    }
+
     // Result of importing only the glucose/history section.
     data class HistoryOnlyImport(
         val readings: Int,
@@ -91,10 +96,11 @@ object ExportPackageExporter {
                 val (payload, summary) = buildPayload(appContext, request)
                 val outputStream = appContext.contentResolver.openOutputStream(uri)
                     ?: error("Could not open export destination")
-                OutputStreamWriter(outputStream, StandardCharsets.UTF_8).use { writer ->
-                    writer.write(payload.toString(2))
-                    writer.write("\n")
-                }
+                ExportPackageCodec.writeJson(
+                    output = outputStream,
+                    payload = payload,
+                    compression = request.compression
+                )
                 summary
             }
         }
@@ -106,6 +112,23 @@ object ExportPackageExporter {
             runCatching {
                 readPayload(appContext, uri).optString("schema") == SCHEMA
             }.getOrDefault(false)
+        }
+    }
+
+    suspend fun detectImportFileType(context: Context, uri: Uri): ImportFileType {
+        val appContext = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                classifyPayload(readPayload(appContext, uri))
+            }.getOrDefault(ImportFileType.OTHER)
+        }
+    }
+
+    internal fun classifyPayload(payload: JSONObject): ImportFileType {
+        return when (payload.optString("schema")) {
+            SettingsExporter.SCHEMA -> ImportFileType.SETTINGS
+            SCHEMA -> ImportFileType.EXPORT_PACKAGE
+            else -> ImportFileType.OTHER
         }
     }
 
@@ -182,10 +205,11 @@ object ExportPackageExporter {
 
                 val fileName = suggestedFileName(request)
                 val file = File(exportDir, fileName)
-                OutputStreamWriter(file.outputStream(), StandardCharsets.UTF_8).use { writer ->
-                    writer.write(payload.toString(2))
-                    writer.write("\n")
-                }
+                ExportPackageCodec.writeJson(
+                    output = file.outputStream(),
+                    payload = payload,
+                    compression = request.compression
+                )
                 CachedExport(
                     file = file,
                     fileName = fileName,
@@ -195,7 +219,7 @@ object ExportPackageExporter {
         }
     }
 
-    fun mimeTypeFor(request: ExportRequest): String = "application/json"
+    fun mimeTypeFor(request: ExportRequest): String = request.compression.mimeType
 
     fun suggestedFileName(request: ExportRequest): String {
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(System.currentTimeMillis())
@@ -206,7 +230,7 @@ object ExportPackageExporter {
             request.includeCalibrations && !request.includeSettings && !request.includeHistory -> "Calibrations"
             else -> "Package"
         }
-        return "Juggluco_${label}_$date.json"
+        return "Juggluco_${label}_$date${request.compression.fileSuffix}"
     }
 
     fun suggestedReadableReportFileName(): String {
@@ -768,7 +792,7 @@ object ExportPackageExporter {
     private fun readPayload(context: Context, uri: Uri): JSONObject {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Could not open import source")
-        val text = inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+        val text = ExportPackageCodec.readUtf8(inputStream)
         return JSONObject(text)
     }
 }

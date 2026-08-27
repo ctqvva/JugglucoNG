@@ -60,6 +60,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.data.ExportCompression
 import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistoryExporter
@@ -238,6 +239,7 @@ fun ExportDataSettingsSheet(
     var includeHistory by rememberSaveable { mutableStateOf(true) }
     var includeCalibrations by rememberSaveable { mutableStateOf(true) }
     var historyDays by rememberSaveable { mutableStateOf<Long?>(90L) }
+    var compression by rememberSaveable { mutableStateOf(ExportCompression.GZIP) }
     var isExporting by remember { mutableStateOf(false) }
     var pendingRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
     var pendingCsvRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
@@ -248,7 +250,8 @@ fun ExportDataSettingsSheet(
             includeSettings = includeSettings,
             includeHistory = includeHistory,
             includeCalibrations = includeCalibrations,
-            historyDays = if (includeHistory) historyDays else null
+            historyDays = if (includeHistory) historyDays else null,
+            compression = compression
         )
     }
 
@@ -342,9 +345,7 @@ fun ExportDataSettingsSheet(
         }
     }
 
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
+    fun exportPackageToUri(uri: Uri?) {
         val request = pendingRequest
         pendingRequest = null
         if (uri != null && request != null) {
@@ -358,6 +359,18 @@ fun ExportDataSettingsSheet(
                 }
             }
         }
+    }
+
+    val gzipSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.GZIP.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
+    val zstdSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.ZSTD.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
     }
 
     val csvLauncher = rememberLauncherForActivityResult(
@@ -402,10 +415,13 @@ fun ExportDataSettingsSheet(
             Toast.makeText(context, context.getString(R.string.export_nothing_selected), Toast.LENGTH_SHORT).show()
             return
         }
-        // Always save a single JSON package containing every selected section. The
+        // Always save one compressed JSON package containing every selected section. The
         // human-readable report stays available via its own button and via Share.
         pendingRequest = request
-        saveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        when (request.compression) {
+            ExportCompression.GZIP -> gzipSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+            ExportCompression.ZSTD -> zstdSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        }
     }
 
     fun shareExport() {
@@ -634,6 +650,29 @@ fun ExportDataSettingsSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.export_readable_report))
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = stringResource(R.string.export_compression),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ExportRangeChip(
+                        selected = compression == ExportCompression.GZIP,
+                        label = stringResource(R.string.export_compression_gzip),
+                        onClick = { compression = ExportCompression.GZIP }
+                    )
+                    ExportRangeChip(
+                        selected = compression == ExportCompression.ZSTD,
+                        label = stringResource(R.string.export_compression_zstd),
+                        onClick = { compression = ExportCompression.ZSTD }
+                    )
                 }
             }
 

@@ -545,7 +545,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_history_title">Geschiedenis importeren</string>
     <string name="import_history_sub">Herstel glucosemetingen uit een JugglucoNG-export of CSV-bestand</string>
     <string name="import_no_glucose">Dit bestand bevat geen glucosegegevens</string>
-    <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export (JSON) of een CSV-bestand met glucosegeschiedenis.</string>
+    <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export of een CSV-bestand met glucosegeschiedenis.</string>
     
     <string name="clear_history_title">Geschiedenis wissen?</string>
     <string name="clear_history_confirmation">Hiermee worden alle glucosemetingen uit de database verwijderd. Dit kan niet ongedaan worden gemaakt.</string>
@@ -607,6 +607,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="export_settings_desc">Sla alle appinstellingen, inloggegevens en apparaatsleutels op</string>
     <string name="export_data_settings">Gegevens/instellingen exporteren</string>
     <string name="export_data_settings_desc">Kies instellingen, geschiedenis, kalibraties of een volledig pakket</string>
+    <string name="export_compression">Compressie</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Alles</string>
     <string name="export_history_data_desc">Glucosegeschiedenis, journaalitems en insulinepresets</string>
     <string name="export_calibrations_desc">Handmatige kalibratiepunten en kalibratiegedrag</string>
@@ -621,7 +624,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_data">Geschiedenis importeren</string>
     <string name="import_data_desc">Herstel glucosemetingen uit CSV-bestand</string>
     <string name="import_data_settings">Gegevens/instellingen importeren</string>
-    <string name="import_data_settings_desc">Herstel geschiedenis-CSV of instellingen-JSON</string>
+    <string name="import_data_settings_desc">Herstel geschiedenis-CSV of JugglucoNG-export</string>
     <string name="settings_import_confirm_title">Instellingen importeren?</string>
     <string name="settings_import_confirm_message">Dit vervangt appinstellingen, inloggegevens, apparaatsleutels en spiegelconfiguratie en start de app opnieuw.</string>
     <string name="settings_import_successful">Instellingen geïmporteerd. Opnieuw starten...</string>

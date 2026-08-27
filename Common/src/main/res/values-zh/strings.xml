@@ -468,7 +468,7 @@
     <string name="import_history_title">导入历史记录</string>
     <string name="import_history_sub">从 JugglucoNG 导出文件或 CSV 文件恢复血糖读数</string>
     <string name="import_no_glucose">此文件中没有血糖数据</string>
-    <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件（JSON）或血糖历史 CSV 文件。</string>
+    <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件或血糖历史 CSV 文件。</string>
     <string name="clear_history_title">清除历史记录？</string>
     <string name="clear_history_confirmation">这将从数据库中删除所有血糖读数。此操作无法撤销。</string>
     <string name="delete_reading_title">删除读数？</string>
@@ -526,6 +526,9 @@
     <string name="export_settings_desc">保存所有应用设置、凭据和设备密钥</string>
     <string name="export_data_settings">导出数据/设置</string>
     <string name="export_data_settings_desc">选择设置、历史记录、校准或完整包</string>
+    <string name="export_compression">压缩</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">全部</string>
     <string name="export_history_data_desc">葡萄糖历史记录、日志条目和胰岛素预设</string>
     <string name="export_calibrations_desc">手动校准点和校准行为</string>
@@ -540,7 +543,7 @@
     <string name="import_data">导入历史记录</string>
     <string name="import_data_desc">加载备份或 Libreview 文件</string>
     <string name="import_data_settings">导入数据/设置</string>
-    <string name="import_data_settings_desc">恢复历史 CSV 或设置 JSON</string>
+    <string name="import_data_settings_desc">恢复历史 CSV 或 JugglucoNG 导出文件</string>
     <string name="settings_import_confirm_title">导入设置？</string>
     <string name="settings_import_confirm_message">这会替换应用设置、凭据、设备密钥和镜像配置，然后重启应用。</string>
     <string name="settings_import_successful">设置已导入。正在重启...</string>

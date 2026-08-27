@@ -547,7 +547,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_history_title">Verlauf importieren</string>
     <string name="import_history_sub">Glukosewerte aus einem JugglucoNG-Export oder einer CSV-Datei wiederherstellen</string>
     <string name="import_no_glucose">Diese Datei enthält keine Glukosedaten</string>
-    <string name="import_unsupported_file">Nicht unterstützte Datei. Wählen Sie einen JugglucoNG-Export (JSON) oder eine CSV-Datei mit Glukoseverlauf.</string>
+    <string name="import_unsupported_file">Nicht unterstützte Datei. Wählen Sie einen JugglucoNG-Export oder eine CSV-Datei mit Glukoseverlauf.</string>
     <string name="clear_history_title">Verlauf löschen?</string>
     <string name="clear_history_confirmation">Dies löscht alle Glukosewerte aus der Datenbank. Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="delete_reading_title">Messwert löschen?</string>
@@ -605,6 +605,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="export_settings_desc">Alle App-Einstellungen, Zugangsdaten und Geräteschlüssel speichern</string>
     <string name="export_data_settings">Daten/Einstellungen exportieren</string>
     <string name="export_data_settings_desc">Einstellungen, Verlauf, Kalibrierungen oder ein vollständiges Paket auswählen</string>
+    <string name="export_compression">Komprimierung</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Alles</string>
     <string name="export_history_data_desc">Glukoseverlauf, Journaleinträge und Insulinprofile</string>
     <string name="export_calibrations_desc">Manuelle Kalibrierpunkte und Kalibrierverhalten</string>
@@ -619,7 +622,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_data">Verlauf importieren</string>
     <string name="import_data_desc">Backup oder Libreview-Datei laden</string>
     <string name="import_data_settings">Daten/Einstellungen importieren</string>
-    <string name="import_data_settings_desc">Verlauf-CSV oder Einstellungs-JSON wiederherstellen</string>
+    <string name="import_data_settings_desc">Verlauf-CSV oder JugglucoNG-Export wiederherstellen</string>
     <string name="settings_import_confirm_title">Einstellungen importieren?</string>
     <string name="settings_import_confirm_message">Dies ersetzt App-Einstellungen, Zugangsdaten, Geräteschlüssel und Spiegelkonfiguration und startet die App neu.</string>
     <string name="settings_import_successful">Einstellungen importiert. Neustart...</string>

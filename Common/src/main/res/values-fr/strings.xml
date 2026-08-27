@@ -412,7 +412,7 @@
     <string name="export_history_sub">Sauvegarder les lectures en fichier CSV ou texte</string>
     <string name="import_history_sub">Restaurer les mesures de glucose depuis une exportation JugglucoNG ou un fichier CSV</string>
     <string name="import_no_glucose">Ce fichier ne contient aucune donnée de glucose</string>
-    <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation JugglucoNG (JSON) ou un historique de glucose CSV.</string>
+    <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation JugglucoNG ou un historique de glucose CSV.</string>
     <string name="clear_history_confirmation">Ceci supprimera toutes les lectures de glucose de la base de données. Cette action est irréversible.</string>
     <string name="delete_reading_title">Supprimer la lecture ?</string>
     <string name="delete_reading_confirmation">Supprimer cette lecture de glucose de l’historique local. Cette action est irréversible.</string>
@@ -466,6 +466,9 @@
     <string name="export_settings_desc">Enregistrer tous les paramètres, identifiants et clés d’appareil</string>
     <string name="export_data_settings">Exporter données/réglages</string>
     <string name="export_data_settings_desc">Choisir paramètres, historique, calibrations ou un paquet complet</string>
+    <string name="export_compression">Compression</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Tout</string>
     <string name="export_history_data_desc">Historique glycémique, entrées du journal et préréglages d’insuline</string>
     <string name="export_calibrations_desc">Points de calibration manuels et comportement de calibration</string>
@@ -480,7 +483,7 @@
     <string name="import_data">Importer Historique</string>
     <string name="import_data_desc">Charger sauvegarde ou fichier Libreview</string>
     <string name="import_data_settings">Importer données/réglages</string>
-    <string name="import_data_settings_desc">Restaurer un CSV d’historique ou un JSON de paramètres</string>
+    <string name="import_data_settings_desc">Restaurer un CSV d’historique ou une exportation JugglucoNG</string>
     <string name="settings_import_confirm_title">Importer les paramètres ?</string>
     <string name="settings_import_confirm_message">Cela remplace les paramètres de l’application, les identifiants, les clés d’appareil et la configuration miroir, puis redémarre l’application.</string>
     <string name="settings_import_successful">Paramètres importés. Redémarrage...</string>

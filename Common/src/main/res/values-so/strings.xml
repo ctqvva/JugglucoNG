@@ -734,6 +734,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="export_settings_desc">Keydi dhammaan dejinta abka, aqoonsiga, iyo furayaasha qalabka</string>
     <string name="export_data_settings">Dhoofinta xogta/goobaha</string>
     <string name="export_data_settings_desc">Dooro dejinta, taariikhda, jaangooyada, ama xirmo dhamaystiran</string>
+    <string name="export_compression">Cadaadis</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Wax walba</string>
     <string name="export_history_data_desc">Taariikhda gulukooska, gelida joornaalka, iyo horudhaca insulinta</string>
     <string name="export_calibrations_desc">Qodobbada hagaajinta gacanta iyo habdhaqanka habaynta</string>
@@ -748,7 +751,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="import_data">Soo dejinta Xogta</string>
     <string name="import_data_desc">Soo deji kaydinta ama faylka Libreview</string>
     <string name="import_data_settings">Soo dejinta Xogta/Dejinta</string>
-    <string name="import_data_settings_desc">Soo celi taariikhda CSV ama dejinta JSON</string>
+    <string name="import_data_settings_desc">Soo celi taariikhda CSV ama dhoofinta JugglucoNG</string>
     <string name="settings_import_confirm_title">Dejinta soo dejinta?</string>
     <string name="settings_import_confirm_message">Tani waxay beddeshaa habaynta abka, aqoonsiga, furayaasha aaladaha, iyo qaabaynta muraayadda, ka dib waxay dib u bilaabataa abka.</string>
     <string name="settings_import_successful">Dejinta waa la soo dejiyay Dib u bilaabaya...</string>
@@ -1454,7 +1457,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="hours_remaining">%1$d saacadood ayaa hadhay</string>
     <string name="import_failed_with_error">Soo dejintu waa fashilantay: %1$s</string>
     <string name="import_no_glucose">Faylkan kuma jiro xog gulukoos</string>
-    <string name="import_unsupported_file">Faylkan lama taageero. Dooro dhoofinta JugglucoNG (JSON) ama CSV taariikhda gulukooska.</string>
+    <string name="import_unsupported_file">Faylkan lama taageero. Dooro dhoofinta JugglucoNG ama CSV taariikhda gulukooska.</string>
     <string name="import_profile_merge">Soo dejinta profile (ku biir)</string>
     <string name="import_profile_replace">Soo rar astaanta guud (bedel)</string>
     <string name="import_summary">La soo dejiyay: %1$d, la booday: %2$d, beddelay: %3$d</string>

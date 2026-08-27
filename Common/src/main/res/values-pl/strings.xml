@@ -536,7 +536,7 @@
     <string name="import_history_title">Importuj Historię</string>
     <string name="import_history_sub">Przywróć odczyty glukozy z eksportu JugglucoNG lub pliku CSV</string>
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
-    <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG (JSON) lub plik CSV z historią glukozy.</string>
+    <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG lub plik CSV z historią glukozy.</string>
     <string name="clear_history_title">Wyczyścić Historię?</string>
     <string name="clear_history_confirmation">To usunie wszystkie odczyty glukozy z bazy danych. Tej operacji nie można cofnąć.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
@@ -594,6 +594,9 @@
     <string name="export_settings_desc">Zapisz wszystkie ustawienia aplikacji, dane logowania i klucze urządzeń</string>
     <string name="export_data_settings">Eksport danych/ustawień</string>
     <string name="export_data_settings_desc">Wybierz ustawienia, historię, kalibracje albo pełny pakiet</string>
+    <string name="export_compression">Kompresja</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Wszystko</string>
     <string name="export_history_data_desc">Historia glikemii, wpisy dziennika i profile insuliny</string>
     <string name="export_calibrations_desc">Ręczne punkty kalibracji i zachowanie kalibracji</string>
@@ -608,7 +611,7 @@
     <string name="import_data">Importuj Historię</string>
     <string name="import_data_desc">Załaduj kopię zapasową lub plik Libreview</string>
     <string name="import_data_settings">Importuj dane/ustawienia</string>
-    <string name="import_data_settings_desc">Przywróć CSV historii lub JSON ustawień</string>
+    <string name="import_data_settings_desc">Przywróć CSV historii lub eksport JugglucoNG</string>
     <string name="settings_import_confirm_title">Zaimportować ustawienia?</string>
     <string name="settings_import_confirm_message">Zastąpi to ustawienia aplikacji, dane logowania, klucze urządzeń i konfigurację mirror, a następnie uruchomi aplikację ponownie.</string>
     <string name="settings_import_successful">Ustawienia zaimportowane. Ponowne uruchamianie...</string>

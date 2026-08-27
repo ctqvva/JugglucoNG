@@ -756,6 +756,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="export_settings_desc">Save all app settings, credentials, and device keys</string>
     <string name="export_data_settings">Export data/settings</string>
     <string name="export_data_settings_desc">Choose settings, history, calibrations, or a complete package</string>
+    <string name="export_compression">Compression</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Everything</string>
     <string name="export_history_data_desc">Glucose history, journal entries, and insulin presets</string>
     <string name="export_calibrations_desc">Manual calibration points and calibration behavior</string>
@@ -770,7 +773,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="import_data">Import Data</string>
     <string name="import_data_desc">Load backup or Libreview file</string>
     <string name="import_data_settings">Import Data/Settings</string>
-    <string name="import_data_settings_desc">Restore history CSV or settings JSON</string>
+    <string name="import_data_settings_desc">Restore a history CSV or JugglucoNG export</string>
     <string name="settings_import_confirm_title">Import settings?</string>
     <string name="settings_import_confirm_message">This replaces app settings, credentials, device keys, and mirror configuration, then restarts the app.</string>
     <string name="settings_import_successful">Settings imported. Restarting...</string>
@@ -1525,7 +1528,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hours_remaining">%1$d hours remaining</string>
     <string name="import_failed_with_error">Import failed: %1$s</string>
     <string name="import_no_glucose">No glucose data in this file</string>
-    <string name="import_unsupported_file">Unsupported file. Choose a JugglucoNG export (JSON) or glucose history CSV.</string>
+    <string name="import_unsupported_file">Unsupported file. Choose a JugglucoNG export or glucose history CSV.</string>
     <string name="import_profile_merge">Import profile (merge)</string>
     <string name="import_profile_replace">Import profile (replace)</string>
     <string name="import_summary">Imported: %1$d, skipped: %2$d, replaced: %3$d</string>

@@ -611,6 +611,9 @@
     <string name="export_settings_desc">Сохранить все настройки приложения, учетные данные и ключи устройств</string>
     <string name="export_data_settings">Экспорт данных/настроек</string>
     <string name="export_data_settings_desc">Выберите настройки, историю, калибровки или полный пакет</string>
+    <string name="export_compression">Сжатие</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Всё</string>
     <string name="export_history_data_desc">История глюкозы, записи журнала и профили инсулина</string>
     <string name="export_calibrations_desc">Точки ручной калибровки и поведение калибровки</string>
@@ -625,7 +628,7 @@
     <string name="import_data">Импорт истории</string>
     <string name="import_data_desc">Загрузить бэкап или файл Libreview</string>
     <string name="import_data_settings">Импорт данных/настроек</string>
-    <string name="import_data_settings_desc">Восстановить CSV истории или JSON настроек</string>
+    <string name="import_data_settings_desc">Восстановить CSV истории или экспорт JugglucoNG</string>
     <string name="settings_import_confirm_title">Импортировать настройки?</string>
     <string name="settings_import_confirm_message">Это заменит настройки приложения, учетные данные, ключи устройств и конфигурацию mirror, затем перезапустит приложение.</string>
     <string name="settings_import_successful">Настройки импортированы. Перезапуск...</string>
@@ -1030,7 +1033,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Не удалось импортировать: %1$s.</string>
     <string name="import_no_glucose">В файле нет данных глюкозы</string>
-    <string name="import_unsupported_file">Неподдерживаемый файл. Выберите экспорт JugglucoNG (JSON) или CSV-файл истории глюкозы.</string>
+    <string name="import_unsupported_file">Неподдерживаемый файл. Выберите экспорт JugglucoNG или CSV-файл истории глюкозы.</string>
     <string name="import_summary">Импортировано: %1$d, пропущено: %2$d, заменено: %3$d.</string>
     <string name="imported_readings_count">Импортированные показания %1$d</string>
     <string name="mirror_error_with_code">Ошибка зеркала (%1$d)</string>

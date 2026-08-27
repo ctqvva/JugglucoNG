@@ -361,7 +361,7 @@
     <string name="import_history_title">Importar Histórico</string>
     <string name="import_history_sub">Restaurar leituras de glicose de uma exportação do JugglucoNG ou arquivo CSV</string>
     <string name="import_no_glucose">Este arquivo não contém dados de glicose</string>
-    <string name="import_unsupported_file">Arquivo não compatível. Selecione uma exportação do JugglucoNG (JSON) ou um CSV de histórico de glicose.</string>
+    <string name="import_unsupported_file">Arquivo não compatível. Selecione uma exportação do JugglucoNG ou um CSV de histórico de glicose.</string>
     <string name="clear_history_title">Limpar Histórico?</string>
     <string name="clear_history_confirmation">Isso removerá todas as leituras de glicose do banco de dados. Esta ação não pode ser desfeita.</string>
     <string name="delete_reading_title">Excluir leitura?</string>
@@ -419,6 +419,9 @@
     <string name="export_settings_desc">Salvar todas as configurações, credenciais e chaves do dispositivo</string>
     <string name="export_data_settings">Exportar dados/configurações</string>
     <string name="export_data_settings_desc">Escolha configurações, histórico, calibrações ou pacote completo</string>
+    <string name="export_compression">Compressão</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Tudo</string>
     <string name="export_history_data_desc">Histórico de glicose, entradas do diário e predefinições de insulina</string>
     <string name="export_calibrations_desc">Pontos de calibração manuais e comportamento da calibração</string>
@@ -433,7 +436,7 @@
     <string name="import_data">Importar Histórico</string>
     <string name="import_data_desc">Carregar backup ou arquivo Libreview</string>
     <string name="import_data_settings">Importar dados/configurações</string>
-    <string name="import_data_settings_desc">Restaurar CSV do histórico ou JSON de configurações</string>
+    <string name="import_data_settings_desc">Restaurar CSV do histórico ou exportação do JugglucoNG</string>
     <string name="settings_import_confirm_title">Importar configurações?</string>
     <string name="settings_import_confirm_message">Isso substituirá configurações do app, credenciais, chaves do dispositivo e configuração de espelhamento, depois reiniciará o app.</string>
     <string name="settings_import_successful">Configurações importadas. Reiniciando...</string>

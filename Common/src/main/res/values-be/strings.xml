@@ -404,7 +404,7 @@
     <string name="import_history_title">Імпарт Гісторыі</string>
     <string name="import_history_sub">Аднавіць паказанні глюкозы з экспарту JugglucoNG або CSV-файла</string>
     <string name="import_no_glucose">У гэтым файле няма даных глюкозы</string>
-    <string name="import_unsupported_file">Файл не падтрымліваецца. Выберыце экспарт JugglucoNG (JSON) або CSV-файл гісторыі глюкозы.</string>
+    <string name="import_unsupported_file">Файл не падтрымліваецца. Выберыце экспарт JugglucoNG або CSV-файл гісторыі глюкозы.</string>
     <string name="clear_history_title">Ачысціць Гісторыю?</string>
     <string name="clear_history_confirmation">Гэта выдаліць усе паказанні глюкозы з базы дадзеных. Гэта дзеянне незваротнае.</string>
     <string name="delete_reading_title">Выдаліць паказанне?</string>
@@ -462,6 +462,9 @@
     <string name="export_settings_desc">Захаваць усе налады праграмы, уліковыя даныя і ключы прылад</string>
     <string name="export_data_settings">Экспарт даных/налад</string>
     <string name="export_data_settings_desc">Выберыце налады, гісторыю, каліброўкі або поўны пакет</string>
+    <string name="export_compression">Сцісканне</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Усё</string>
     <string name="export_history_data_desc">Гісторыя глюкозы, запісы журнала і профілі інсуліну</string>
     <string name="export_calibrations_desc">Ручныя пункты каліброўкі і паводзіны каліброўкі</string>
@@ -476,7 +479,7 @@
     <string name="import_data">Імпарт Гісторыі</string>
     <string name="import_data_desc">Загрузіць бэкап ці файл Libreview</string>
     <string name="import_data_settings">Імпартаваць даныя/налады</string>
-    <string name="import_data_settings_desc">Аднавіць CSV гісторыі або JSON налад</string>
+    <string name="import_data_settings_desc">Аднавіць CSV гісторыі або экспарт JugglucoNG</string>
     <string name="settings_import_confirm_title">Імпартаваць налады?</string>
     <string name="settings_import_confirm_message">Гэта заменіць налады праграмы, уліковыя даныя, ключы прылад і канфігурацыю mirror, пасля чаго праграма перазапусціцца.</string>
     <string name="settings_import_successful">Налады імпартаваны. Перазапуск...</string>

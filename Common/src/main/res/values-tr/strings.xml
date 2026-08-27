@@ -513,7 +513,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_history_title">Geçmişi İçe Aktar</string>
     <string name="import_history_sub">JugglucoNG dışa aktarımından veya CSV dosyasından glikoz ölçümlerini geri yükle</string>
     <string name="import_no_glucose">Bu dosyada glikoz verisi yok</string>
-    <string name="import_unsupported_file">Desteklenmeyen dosya. Bir JugglucoNG dışa aktarımı (JSON) veya glikoz geçmişi CSV dosyası seçin.</string>
+    <string name="import_unsupported_file">Desteklenmeyen dosya. Bir JugglucoNG dışa aktarımı veya glikoz geçmişi CSV dosyası seçin.</string>
     <string name="clear_history_title">Geçmişi Temizle?</string>
     <string name="clear_history_confirmation">Bu, veritabanındaki tüm glikoz okumalarını silecektir. Bu işlem geri alınamaz.</string>
     <string name="delete_reading_title">Okuma silinsin mi?</string>
@@ -571,6 +571,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="export_settings_desc">Tüm uygulama ayarlarını, kimlik bilgilerini ve cihaz anahtarlarını kaydet</string>
     <string name="export_data_settings">Verileri/ayarları dışa aktar</string>
     <string name="export_data_settings_desc">Ayarlar, geçmiş, kalibrasyonlar veya tam paket seç</string>
+    <string name="export_compression">Sıkıştırma</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Her şey</string>
     <string name="export_history_data_desc">Glikoz geçmişi, günlük kayıtları ve insülin hazır ayarları</string>
     <string name="export_calibrations_desc">Manuel kalibrasyon noktaları ve kalibrasyon davranışı</string>
@@ -585,7 +588,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_data">Geçmişi İçe Aktar</string>
     <string name="import_data_desc">Yedekleme veya Libreview dosyasını yükle</string>
     <string name="import_data_settings">Verileri/ayarları içe aktar</string>
-    <string name="import_data_settings_desc">Geçmiş CSV veya ayarlar JSON dosyasını geri yükle</string>
+    <string name="import_data_settings_desc">Geçmiş CSV veya JugglucoNG dışa aktarımını geri yükle</string>
     <string name="settings_import_confirm_title">Ayarlar içe aktarılsın mı?</string>
     <string name="settings_import_confirm_message">Bu işlem uygulama ayarlarını, kimlik bilgilerini, cihaz anahtarlarını ve mirror yapılandırmasını değiştirir, ardından uygulamayı yeniden başlatır.</string>
     <string name="settings_import_successful">Ayarlar içe aktarıldı. Yeniden başlatılıyor...</string>

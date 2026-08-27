@@ -473,7 +473,7 @@
     <string name="import_history_title">Імпорт Історії</string>
     <string name="import_history_sub">Відновити показання глюкози з експорту JugglucoNG або CSV-файлу</string>
     <string name="import_no_glucose">У цьому файлі немає даних глюкози</string>
-    <string name="import_unsupported_file">Непідтримуваний файл. Виберіть експорт JugglucoNG (JSON) або CSV-файл історії глюкози.</string>
+    <string name="import_unsupported_file">Непідтримуваний файл. Виберіть експорт JugglucoNG або CSV-файл історії глюкози.</string>
     <string name="clear_history_title">Очистити Історію?</string>
     <string name="clear_history_confirmation">Це видалить усі показання глюкози з бази даних. Ця дія незворотна.</string>
     <string name="delete_reading_title">Видалити показання?</string>
@@ -531,6 +531,9 @@
     <string name="export_settings_desc">Зберегти всі налаштування програми, облікові дані та ключі пристроїв</string>
     <string name="export_data_settings">Експорт даних/налаштувань</string>
     <string name="export_data_settings_desc">Виберіть налаштування, історію, калібрування або повний пакет</string>
+    <string name="export_compression">Стиснення</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Усе</string>
     <string name="export_history_data_desc">Історія глюкози, записи журналу та профілі інсуліну</string>
     <string name="export_calibrations_desc">Точки ручного калібрування та поведінка калібрування</string>
@@ -545,7 +548,7 @@
     <string name="import_data">Імпорт Історії</string>
     <string name="import_data_desc">Завантажити бекап або файл Libreview</string>
     <string name="import_data_settings">Імпорт даних/налаштувань</string>
-    <string name="import_data_settings_desc">Відновити CSV історії або JSON налаштувань</string>
+    <string name="import_data_settings_desc">Відновити CSV історії або експорт JugglucoNG</string>
     <string name="settings_import_confirm_title">Імпортувати налаштування?</string>
     <string name="settings_import_confirm_message">Це замінить налаштування програми, облікові дані, ключі пристроїв і конфігурацію mirror, а потім перезапустить програму.</string>
     <string name="settings_import_successful">Налаштування імпортовано. Перезапуск...</string>

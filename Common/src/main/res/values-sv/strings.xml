@@ -461,7 +461,7 @@
     <string name="import_history_title">Importera Historik</string>
     <string name="import_history_sub">Återställ glukosvärden från en JugglucoNG-export eller CSV-fil</string>
     <string name="import_no_glucose">Filen innehåller inga glukosdata</string>
-    <string name="import_unsupported_file">Filen stöds inte. Välj en JugglucoNG-export (JSON) eller en CSV-fil med glukoshistorik.</string>
+    <string name="import_unsupported_file">Filen stöds inte. Välj en JugglucoNG-export eller en CSV-fil med glukoshistorik.</string>
     <string name="clear_history_title">Rensa Historik?</string>
     <string name="clear_history_confirmation">Detta tar bort alla glukosavläsningar från databasen. Detta kan inte ångras.</string>
     <string name="delete_reading_title">Ta bort avläsning?</string>
@@ -519,6 +519,9 @@
     <string name="export_settings_desc">Spara alla appinställningar, inloggningsuppgifter och enhetsnycklar</string>
     <string name="export_data_settings">Exportera data/inställningar</string>
     <string name="export_data_settings_desc">Välj inställningar, historik, kalibreringar eller ett komplett paket</string>
+    <string name="export_compression">Komprimering</string>
+    <string name="export_compression_gzip">Gzip</string>
+    <string name="export_compression_zstd">Zstandard</string>
     <string name="export_everything">Allt</string>
     <string name="export_history_data_desc">Glukoshistorik, journalposter och insulinprofiler</string>
     <string name="export_calibrations_desc">Manuella kalibreringspunkter och kalibreringsbeteende</string>
@@ -533,7 +536,7 @@
     <string name="import_data">Importera Historik</string>
     <string name="import_data_desc">Ladda backup eller Libreview-fil</string>
     <string name="import_data_settings">Importera data/inställningar</string>
-    <string name="import_data_settings_desc">Återställ historik-CSV eller inställnings-JSON</string>
+    <string name="import_data_settings_desc">Återställ historik-CSV eller JugglucoNG-export</string>
     <string name="settings_import_confirm_title">Importera inställningar?</string>
     <string name="settings_import_confirm_message">Detta ersätter appinställningar, inloggningsuppgifter, enhetsnycklar och mirror-konfiguration och startar sedan om appen.</string>
     <string name="settings_import_successful">Inställningar importerade. Startar om...</string>

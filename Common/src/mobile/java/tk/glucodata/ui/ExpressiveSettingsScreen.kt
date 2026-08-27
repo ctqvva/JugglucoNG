@@ -601,26 +601,25 @@ fun ExpressiveSettingsScreen(
                 onResult = { uri ->
                     if (uri != null) {
                         scope.launch {
-                            if (tk.glucodata.data.SettingsExporter.isSettingsExport(context, uri)) {
-                                withContext(Dispatchers.Main) {
-                                    pendingSettingsImportUri = uri
+                            when (tk.glucodata.data.ExportPackageExporter.detectImportFileType(context, uri)) {
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.SETTINGS -> {
+                                    withContext(Dispatchers.Main) { pendingSettingsImportUri = uri }
                                 }
-                            } else if (tk.glucodata.data.ExportPackageExporter.isExportPackage(context, uri)) {
-                                withContext(Dispatchers.Main) {
-                                    pendingExportPackageImportUri = uri
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.EXPORT_PACKAGE -> {
+                                    withContext(Dispatchers.Main) { pendingExportPackageImportUri = uri }
                                 }
-                            } else {
-                                // Show loading? For now just toast result
-                                val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
-                                withContext(Dispatchers.Main) {
-                                    val msg = if (result.success)
-                                        context.getString(R.string.imported_readings_count, result.successCount)
-                                    else
-                                        context.getString(
-                                            R.string.import_failed_with_error,
-                                            result.errorMessage ?: context.getString(R.string.unknown_error)
-                                        )
-                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.OTHER -> {
+                                    val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
+                                    withContext(Dispatchers.Main) {
+                                        val msg = if (result.success)
+                                            context.getString(R.string.imported_readings_count, result.successCount)
+                                        else
+                                            context.getString(
+                                                R.string.import_failed_with_error,
+                                                result.errorMessage ?: context.getString(R.string.unknown_error)
+                                            )
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             }
                         }
@@ -653,6 +652,8 @@ fun ExpressiveSettingsScreen(
                         importLauncher.launch(
                             arrayOf(
                                 "application/json",
+                                "application/gzip",
+                                "application/zstd",
                                 "text/*",
                                 "text/csv",
                                 "text/tab-separated-values",
