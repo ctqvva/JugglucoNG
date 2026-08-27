@@ -1435,6 +1435,37 @@ class ICanHealthBleManager(
         val data = characteristic.value ?: byteArrayOf()
         Log.i(TAG, "WIRE rx read ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
+            ICanHealthConstants.CGM_FEATURE -> {
+                if (data.size >= 4) {
+                    val features = (data[0].toInt() and 0xFF) or
+                        ((data[1].toInt() and 0xFF) shl 8) or
+                        ((data[2].toInt() and 0xFF) shl 16)
+                    val typeSample = data[3].toInt() and 0xFF
+                    val crcField = if (data.size >= 6) {
+                        (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+                    } else {
+                        -1
+                    }
+                    Log.i(
+                        TAG,
+                        "cgmFeature=0x${"%06X".format(features)} " +
+                            "e2eCrcSupported=${(features and (1 shl 12)) != 0} " +
+                            "crcField=0x${"%04X".format(crcField)} " +
+                            "calibrationSupported=${(features and 1) != 0} " +
+                            "multiSession=${(features and (1 shl 14)) != 0} " +
+                            "type=0x${"%X".format(typeSample and 0x0F)} " +
+                            "sampleLocation=0x${"%X".format((typeSample ushr 4) and 0x0F)}"
+                    )
+                }
+            }
+
+            ICanHealthConstants.CGM_SESSION_RUN_TIME -> {
+                if (data.size >= 2) {
+                    val hours = (data[0].toInt() and 0xFF) or ((data[1].toInt() and 0xFF) shl 8)
+                    Log.i(TAG, "cgmSessionRunTime=${hours}h (${hours / 24}d ${hours % 24}h)")
+                }
+            }
+
             ICanHealthConstants.MODEL_NUMBER -> {
                 val model = parseDeviceInfoString(data)
                 if (model.isNotEmpty()) {
@@ -2239,6 +2270,15 @@ class ICanHealthBleManager(
             disService?.getCharacteristic(ICanHealthConstants.SOFTWARE_REVISION)?.let {
                 enqueueOp(GattOp.Read(ICanHealthConstants.SOFTWARE_REVISION, ICanHealthConstants.DEVICE_INFO_SERVICE))
             }
+        }
+        // Both are readable on every unit seen so far and neither has ever been read. CGM Feature
+        // states which optional CGM behaviours the sensor implements; Session Run Time is the
+        // sensor's own statement of how long it means to last, which beats inferring it.
+        cgmService?.getCharacteristic(ICanHealthConstants.CGM_FEATURE)?.let {
+            enqueueOp(GattOp.Read(ICanHealthConstants.CGM_FEATURE, ICanHealthConstants.CGM_SERVICE))
+        }
+        cgmService?.getCharacteristic(ICanHealthConstants.CGM_SESSION_RUN_TIME)?.let {
+            enqueueOp(GattOp.Read(ICanHealthConstants.CGM_SESSION_RUN_TIME, ICanHealthConstants.CGM_SERVICE))
         }
     }
 

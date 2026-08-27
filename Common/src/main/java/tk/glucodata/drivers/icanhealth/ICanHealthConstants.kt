@@ -63,6 +63,18 @@ object ICanHealthConstants {
     /** CGM Status (Read) — time offset from session start */
     val CGM_STATUS: UUID = UUID.fromString("00002aa9-0000-1000-8000-00805f9b34fb")
 
+    /**
+     * CGM Feature (Read) — 3-byte feature bitfield, a type/sample-location byte, then the
+     * characteristic's own E2E-CRC (0xFFFF when that feature is absent).
+     *
+     * Bit 0 is Calibration Supported, bit 12 E2E-CRC Supported, bit 14 Multiple Sessions.
+     * iCGM-t6 answers 0x004001 with 0xFFFF: calibration yes, CRC no.
+     */
+    val CGM_FEATURE: UUID = UUID.fromString("00002aa8-0000-1000-8000-00805f9b34fb")
+
+    /** CGM Session Run Time (Read) — hours the sensor intends to run, from session start. */
+    val CGM_SESSION_RUN_TIME: UUID = UUID.fromString("00002aab-0000-1000-8000-00805f9b34fb")
+
     /** CGM Session Start Time (Read) — sensor activation time */
     val CGM_SESSION_START_TIME: UUID = UUID.fromString("00002aaa-0000-1000-8000-00805f9b34fb")
 
