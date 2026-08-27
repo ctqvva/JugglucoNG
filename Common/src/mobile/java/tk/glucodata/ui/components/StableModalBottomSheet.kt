@@ -74,19 +74,40 @@ internal class StableSheetHeightPolicy {
     var isViewportHeightLocked: Boolean = false
         private set
 
-    fun minimumHeight(maxHeight: Int, hasBoundedHeight: Boolean): Int =
-        if (isViewportHeightLocked && hasBoundedHeight) maxHeight else 0
-
-    fun onMeasured(measuredHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean) {
-        if (hasBoundedHeight && measuredHeight >= maxHeight) {
-            isViewportHeightLocked = true
+    /**
+     * Decides the floor from what the content *wants*, not from what it last
+     * measured at.
+     *
+     * The distinction is the whole point. While a viewport-height sheet is
+     * dragged, the framework consumes its top inset, which shrinks the space
+     * offered to it — the content still wants more than fits, so the sheet must
+     * stay at viewport height or its own expanded anchor moves under the
+     * gesture. When content is genuinely removed the intrinsic height drops
+     * below the viewport instead, and then the sheet has to be allowed to
+     * shrink. Latching on measured height cannot tell those apart: it treated
+     * a removed row as a shrinking viewport and pinned the sheet tall, leaving
+     * dead space under the last control.
+     */
+    fun resolveMinimumHeight(intrinsicHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean): Int {
+        if (!hasBoundedHeight) {
+            isViewportHeightLocked = false
+            return 0
         }
+        isViewportHeightLocked = intrinsicHeight >= maxHeight
+        return if (isViewportHeightLocked) maxHeight else 0
     }
 }
 
 private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): Modifier =
     layout { measurable, constraints ->
-        val minimumHeight = policy.minimumHeight(
+        // Intrinsic rather than measured: a measurable may only be measured once
+        // per pass, and asking it afterwards how tall it wanted to be is exactly
+        // the question that was being answered wrongly before.
+        val intrinsicHeight = runCatching {
+            measurable.maxIntrinsicHeight(constraints.maxWidth)
+        }.getOrDefault(constraints.maxHeight)
+        val minimumHeight = policy.resolveMinimumHeight(
+            intrinsicHeight = intrinsicHeight,
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
         )
@@ -96,11 +117,6 @@ private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): M
             constraints
         }
         val placeable = measurable.measure(measurementConstraints)
-        policy.onMeasured(
-            measuredHeight = placeable.height,
-            maxHeight = constraints.maxHeight,
-            hasBoundedHeight = constraints.hasBoundedHeight,
-        )
 
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)
