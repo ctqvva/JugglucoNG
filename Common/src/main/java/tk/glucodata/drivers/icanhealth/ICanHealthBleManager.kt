@@ -164,6 +164,7 @@ class ICanHealthBleManager(
     @Volatile private var historyBackfillAttemptedThisConnection = false
     @Volatile private var shouldRequestAuthenticatedHistoryBackfill = true
     @Volatile private var suppressAutomaticHistoryBackfill = false
+    @Volatile private var nativeLifetimeDeclaredFor: String? = null
     @Volatile private var sawUnsupportedSnHistoryBatch = false
     @Volatile private var awaitingFreshStatusForHistoryBackfill = false
     @Volatile private var historyBackfillPhase = HistoryBackfillPhase.NONE
@@ -3584,18 +3585,60 @@ class ICanHealthBleManager(
                 .onFailure { Log.stack(TAG, "ensureNativeDataptr(freedataptr)", it) }
             dataptr = 0L
         }
-        runCatching {
-            Natives.ensureSensorShell(
-                nativeCreationSensorName(canonicalSensorId),
-                resolveNativeShellStartTimeSec()
-            )
-        }.onFailure {
-            Log.stack(TAG, "ensureNativeDataptr(ensureSensorShell)", it)
-        }
+        declareNativeLifetime(
+            nativeCreationSensorName(canonicalSensorId),
+            resolveNativeShellStartTimeSec()
+        )
         val nativeName = resolveExistingNativeSensorName(canonicalSensorId)
             ?: nativeCreationSensorName(canonicalSensorId)
         adoptNativeSensorIfAppropriate(canonicalSensorId, nativeName)
         applyNativeSensorMetadata()
+    }
+
+    /**
+     * Create the native shell already sized for how long an iCan sensor actually runs.
+     *
+     * Poll geometry comes from `info->days` with a 15-day floor, so a sensor rated 15 that keeps
+     * going — which iCan hardware does, out to the 28-day status cap this driver already assumes
+     * everywhere else — walks off the end of its own poll map on day 15: `validPollIndex()` starts
+     * refusing and every live write is dropped, with nothing user-visible to say why.
+     * `pollStorageSize()` documents that failure against Ottai's rating extending to 28/30, and
+     * both Ottai and Anytime declare their duration through `setSensorWearDays` to avoid it. iCan
+     * never did, so every iCan sensor was capped at its rated life while the card promised 28
+     * days.
+     *
+     * Geometry is only recomputed when a shell is constructed, so the capacity has to be
+     * requested here, at creation — an already-open mapping cannot grow.
+     */
+    private fun declareNativeLifetime(name: String, startSec: Long) {
+        val days = resolvedProfile().advisoryExpectedDays
+        if (days <= 0) {
+            runCatching { Natives.ensureSensorShell(name, startSec) }
+                .onFailure { Log.stack(TAG, "ensureNativeDataptr(ensureSensorShell)", it) }
+            return
+        }
+        val key = "$name:$days"
+        val alreadyDeclared = nativeLifetimeDeclaredFor == key
+        val minimumRecords = days * 24 * 60
+        runCatching {
+            if (Natives.ensureSensorShellWithCapacity(name, startSec, minimumRecords) == 0L) {
+                Natives.ensureSensorShell(name, startSec)
+            }
+            if (alreadyDeclared) {
+                return@runCatching
+            }
+            Natives.setSensorWearDays(name, days)
+            if (!Natives.hasSensorStreamCapacity(name, minimumRecords)) {
+                Log.e(
+                    TAG,
+                    "native poll capacity below $minimumRecords for $name; readings past day " +
+                        "${minimumRecords / (24 * 60)} will be dropped instead of stored"
+                )
+            } else {
+                Log.i(TAG, "Declared $days-day native lifetime for $name ($minimumRecords records)")
+            }
+            nativeLifetimeDeclaredFor = key
+        }.onFailure { Log.stack(TAG, "declareNativeLifetime", it) }
     }
 
     private fun nativeCreationSensorName(sensorId: String): String =
