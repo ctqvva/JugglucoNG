@@ -74,7 +74,6 @@ import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistoryExporter
 import tk.glucodata.data.ScheduledBackupConfig
-import tk.glucodata.data.ScheduledBackupFrequency
 import tk.glucodata.data.ScheduledBackupIntegrityNotifier
 import tk.glucodata.data.ScheduledBackupSettings
 import tk.glucodata.data.ScheduledBackupWorker
@@ -82,8 +81,6 @@ import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import java.io.File
-import java.time.DayOfWeek
-import java.time.format.TextStyle
 import java.util.ArrayList
 import java.util.Calendar
 import java.util.Date
@@ -393,6 +390,12 @@ fun ExportDataSettingsSheet(
         exportPackageToUri(uri)
     }
 
+    val jsonSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.NONE.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
     val csvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
@@ -435,10 +438,11 @@ fun ExportDataSettingsSheet(
             Toast.makeText(context, context.getString(R.string.export_nothing_selected), Toast.LENGTH_SHORT).show()
             return
         }
-        // Always save one compressed JSON package containing every selected section. The
-        // human-readable report stays available via its own button and via Share.
+        // Save one JSON package containing every selected section. The human-readable
+        // report stays available via its own button and via Share.
         pendingRequest = request
         when (request.compression) {
+            ExportCompression.NONE -> jsonSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
             ExportCompression.GZIP -> gzipSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
             ExportCompression.ZSTD -> zstdSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
         }
@@ -625,6 +629,11 @@ fun ExportDataSettingsSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ExportRangeChip(
+                        selected = compression == ExportCompression.NONE,
+                        label = stringResource(R.string.export_compression_none),
+                        onClick = { compression = ExportCompression.NONE }
+                    )
+                    ExportRangeChip(
                         selected = historyDays == 30L,
                         label = stringResource(R.string.export_range_30_days),
                         onClick = { historyDays = 30L }
@@ -754,10 +763,9 @@ fun ScheduledBackupSettingsSheet(
     var config by remember { mutableStateOf(ScheduledBackupSettings.load(context)) }
     var enableAfterFolderPick by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    var monthlyDayText by remember(config.monthlyDay) {
-        mutableStateOf(config.monthlyDay.toString())
-    }
     var isRunningNow by remember { mutableStateOf(false) }
+    var isTestingBackup by remember { mutableStateOf(false) }
+    var backupTestMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
 
     fun persist(updated: ScheduledBackupConfig) {
         ScheduledBackupSettings.saveConfiguration(context, updated)
@@ -795,7 +803,7 @@ fun ScheduledBackupSettingsSheet(
     }
 
     fun runNow() {
-        if (config.destination == null || isRunningNow) return
+        if (config.destination == null || isRunningNow || isTestingBackup) return
         isRunningNow = true
         val workId = ScheduledBackupWorker.runNow(context)
         Toast.makeText(context, context.getString(R.string.scheduled_backup_queued), Toast.LENGTH_SHORT).show()
@@ -820,6 +828,38 @@ fun ScheduledBackupSettingsSheet(
                 else -> R.string.scheduled_backup_still_running
             }
             Toast.makeText(context, context.getString(message), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val backupTestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        isTestingBackup = true
+        scope.launch {
+            val result = ExportPackageExporter.validateBackup(context, uri)
+            backupTestMessage = result.fold(
+                onSuccess = { summary ->
+                    true to context.getString(
+                        R.string.scheduled_backup_test_success,
+                        summary.historyReadings,
+                        summary.journalEntries,
+                        summary.journalFoods,
+                        summary.insulinPresets,
+                        summary.calibrations,
+                        context.getString(
+                            if (summary.settingsIncluded) android.R.string.yes else android.R.string.no
+                        )
+                    )
+                },
+                onFailure = { error ->
+                    false to context.getString(
+                        R.string.scheduled_backup_test_failed,
+                        error.localizedMessage ?: context.getString(R.string.unknown_error)
+                    )
+                }
+            )
+            isTestingBackup = false
         }
     }
 
@@ -910,69 +950,6 @@ fun ScheduledBackupSettingsSheet(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.scheduled_backup_frequency),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ScheduledBackupFrequency.entries.forEach { frequency ->
-                        ExportRangeChip(
-                            selected = config.frequency == frequency,
-                            label = stringResource(frequency.labelResource()),
-                            onClick = {
-                                persist(
-                                    config.copy(
-                                        frequency = frequency,
-                                        retentionCount = frequency.defaultRetention
-                                    )
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-
-            if (config.frequency == ScheduledBackupFrequency.WEEKLY) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        stringResource(R.string.scheduled_backup_weekday),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        DayOfWeek.entries.forEach { day ->
-                            ExportRangeChip(
-                                selected = config.weeklyDay == day.value,
-                                label = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
-                                onClick = { persist(config.copy(weeklyDay = day.value)) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (config.frequency == ScheduledBackupFrequency.MONTHLY) {
-                OutlinedTextField(
-                    value = monthlyDayText,
-                    onValueChange = { value ->
-                        monthlyDayText = value.filter(Char::isDigit).take(2)
-                        monthlyDayText.toIntOrNull()?.takeIf { it in 1..31 }?.let { day ->
-                            persist(config.copy(monthlyDay = day))
-                        }
-                    },
-                    label = { Text(stringResource(R.string.scheduled_backup_month_day)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
             OutlinedButton(
                 onClick = { showTimePicker = true },
                 modifier = Modifier.fillMaxWidth()
@@ -1008,18 +985,21 @@ fun ScheduledBackupSettingsSheet(
                     stringResource(R.string.scheduled_backup_retention),
                     style = MaterialTheme.typography.titleSmall
                 )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ScheduledBackupSettings.retentionOptions.forEach { count ->
-                        ExportRangeChip(
-                            selected = config.retentionCount == count,
-                            label = count.toString(),
-                            onClick = { persist(config.copy(retentionCount = count)) }
-                        )
-                    }
-                }
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_daily),
+                    selected = config.dailyRetention,
+                    onSelected = { persist(config.copy(dailyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_weekly),
+                    selected = config.weeklyRetention,
+                    onSelected = { persist(config.copy(weeklyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_monthly),
+                    selected = config.monthlyRetention,
+                    onSelected = { persist(config.copy(monthlyRetention = it)) }
+                )
             }
 
             HorizontalDivider()
@@ -1047,7 +1027,7 @@ fun ScheduledBackupSettingsSheet(
 
             Button(
                 onClick = ::runNow,
-                enabled = config.destination != null && !isRunningNow,
+                enabled = config.destination != null && !isRunningNow && !isTestingBackup,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isRunningNow) {
@@ -1060,6 +1040,26 @@ fun ScheduledBackupSettingsSheet(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_run_now))
+            }
+            OutlinedButton(
+                onClick = {
+                    backupTestLauncher.launch(
+                        arrayOf("application/json", "application/gzip", "application/zstd", "*/*")
+                    )
+                },
+                enabled = !isRunningNow && !isTestingBackup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isTestingBackup) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Backup, contentDescription = null)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduled_backup_test))
             }
         }
     }
@@ -1088,24 +1088,58 @@ fun ScheduledBackupSettingsSheet(
             text = { TimePicker(state = pickerState) }
         )
     }
+
+    backupTestMessage?.let { (success, message) ->
+        AlertDialog(
+            onDismissRequest = { backupTestMessage = null },
+            confirmButton = {
+                Button(onClick = { backupTestMessage = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            icon = {
+                Icon(
+                    if (success) Icons.Default.Backup else Icons.Default.Warning,
+                    contentDescription = null
+                )
+            },
+            title = { Text(stringResource(R.string.scheduled_backup_test)) },
+            text = { Text(message) }
+        )
+    }
 }
 
-private fun ScheduledBackupFrequency.labelResource(): Int = when (this) {
-    ScheduledBackupFrequency.DAILY -> R.string.scheduled_backup_daily
-    ScheduledBackupFrequency.WEEKLY -> R.string.scheduled_backup_weekly
-    ScheduledBackupFrequency.MONTHLY -> R.string.scheduled_backup_monthly
+@Composable
+private fun BackupRetentionRow(
+    label: String,
+    selected: Int,
+    onSelected: (Int) -> Unit
+) {
+    Text(label, style = MaterialTheme.typography.bodyMedium)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ScheduledBackupSettings.retentionOptions.forEach { count ->
+            ExportRangeChip(
+                selected = selected == count,
+                label = count.toString(),
+                onClick = { onSelected(count) }
+            )
+        }
+    }
 }
 
 @Composable
 internal fun scheduledBackupSummary(config: ScheduledBackupConfig): String {
     if (!config.enabled) return stringResource(R.string.scheduled_backup_desc_off)
-    val frequency = stringResource(config.frequency.labelResource())
     val time = formatBackupTime(LocalContext.current, config.hour, config.minute)
     return stringResource(
         R.string.scheduled_backup_desc_on,
-        frequency,
         time,
-        config.retentionCount
+        config.dailyRetention,
+        config.weeklyRetention,
+        config.monthlyRetention
     )
 }
 

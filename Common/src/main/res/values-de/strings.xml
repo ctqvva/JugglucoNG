@@ -606,11 +606,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="export_data_settings">Daten/Einstellungen exportieren</string>
     <string name="export_data_settings_desc">Einstellungen, Verlauf, Kalibrierungen oder ein vollständiges Paket auswählen</string>
     <string name="export_compression">Komprimierung</string>
+    <string name="export_compression_none">Keine (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatische Sicherungen</string>
     <string name="scheduled_backup_desc_off">Aus</string>
-    <string name="scheduled_backup_desc_on">%1$s um %2$s, %3$d behalten</string>
+    <string name="scheduled_backup_desc_on">Täglich um %1$s; %2$d tägliche, %3$d wöchentliche und %4$d monatliche Sicherungen behalten</string>
+    <string name="scheduled_backup_test">Sicherungsdatei testen</string>
+    <string name="scheduled_backup_test_success">Sicherungsprüfung bestanden. Messwerte: %1$d\nJournaleinträge: %2$d\nLebensmittel: %3$d\nInsulinprofile: %4$d\nKalibrierungen: %5$d\nEinstellungen: %6$s</string>
+    <string name="scheduled_backup_test_failed">Sicherungsprüfung fehlgeschlagen: %1$s</string>
     <string name="scheduled_backup_enabled">Automatisch ausführen</string>
     <string name="scheduled_backup_enabled_desc">Android kann Hintergrundaufgaben zum Schutz des Akkus etwas verzögern</string>
     <string name="scheduled_backup_folder">Sicherungsordner</string>

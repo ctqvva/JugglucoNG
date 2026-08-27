@@ -520,11 +520,15 @@
     <string name="export_data_settings">Exportera data/inställningar</string>
     <string name="export_data_settings_desc">Välj inställningar, historik, kalibreringar eller ett komplett paket</string>
     <string name="export_compression">Komprimering</string>
+    <string name="export_compression_none">Ingen (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatiska säkerhetskopior</string>
     <string name="scheduled_backup_desc_off">Av</string>
-    <string name="scheduled_backup_desc_on">%1$s kl. %2$s, behåll %3$d</string>
+    <string name="scheduled_backup_desc_on">Dagligen kl. %1$s; behåll %2$d dagliga, %3$d veckovisa och %4$d månatliga säkerhetskopior</string>
+    <string name="scheduled_backup_test">Testa säkerhetskopia</string>
+    <string name="scheduled_backup_test_success">Kontrollen av säkerhetskopian lyckades. Mätvärden: %1$d\nJournalposter: %2$d\nLivsmedel: %3$d\nInsulinprofiler: %4$d\nKalibreringar: %5$d\nInställningar: %6$s</string>
+    <string name="scheduled_backup_test_failed">Kontrollen av säkerhetskopian misslyckades: %1$s</string>
     <string name="scheduled_backup_enabled">Kör automatiskt</string>
     <string name="scheduled_backup_enabled_desc">Android kan fördröja bakgrundsarbete något för att spara batteri</string>
     <string name="scheduled_backup_folder">Mapp för säkerhetskopior</string>

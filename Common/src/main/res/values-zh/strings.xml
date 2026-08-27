@@ -527,11 +527,15 @@
     <string name="export_data_settings">导出数据/设置</string>
     <string name="export_data_settings_desc">选择设置、历史记录、校准或完整包</string>
     <string name="export_compression">压缩</string>
+    <string name="export_compression_none">无 (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">自动备份</string>
     <string name="scheduled_backup_desc_off">关闭</string>
-    <string name="scheduled_backup_desc_on">%1$s %2$s，保留 %3$d 份</string>
+    <string name="scheduled_backup_desc_on">每天 %1$s；保留 %2$d 个每日、%3$d 个每周和 %4$d 个每月备份</string>
+    <string name="scheduled_backup_test">测试备份文件</string>
+    <string name="scheduled_backup_test_success">备份验证通过。读数：%1$d\n日志条目：%2$d\n食物：%3$d\n胰岛素配置：%4$d\n校准：%5$d\n设置：%6$s</string>
+    <string name="scheduled_backup_test_failed">备份验证失败：%1$s</string>
     <string name="scheduled_backup_enabled">自动运行</string>
     <string name="scheduled_backup_enabled_desc">Android 可能会略微延迟后台任务以节省电量</string>
     <string name="scheduled_backup_folder">备份文件夹</string>

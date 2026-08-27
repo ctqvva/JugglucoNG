@@ -420,11 +420,15 @@
     <string name="export_data_settings">Exportar dados/configurações</string>
     <string name="export_data_settings_desc">Escolha configurações, histórico, calibrações ou pacote completo</string>
     <string name="export_compression">Compressão</string>
+    <string name="export_compression_none">Nenhuma (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Cópias de segurança automáticas</string>
     <string name="scheduled_backup_desc_off">Desativadas</string>
-    <string name="scheduled_backup_desc_on">%1$s às %2$s, manter %3$d</string>
+    <string name="scheduled_backup_desc_on">Diariamente às %1$s; manter %2$d cópias diárias, %3$d semanais e %4$d mensais</string>
+    <string name="scheduled_backup_test">Testar ficheiro de cópia</string>
+    <string name="scheduled_backup_test_success">Validação da cópia concluída. Leituras: %1$d\nEntradas do diário: %2$d\nAlimentos: %3$d\nPerfis de insulina: %4$d\nCalibrações: %5$d\nDefinições: %6$s</string>
+    <string name="scheduled_backup_test_failed">Falha na validação da cópia: %1$s</string>
     <string name="scheduled_backup_enabled">Executar automaticamente</string>
     <string name="scheduled_backup_enabled_desc">O Android pode atrasar ligeiramente o trabalho em segundo plano para poupar bateria</string>
     <string name="scheduled_backup_folder">Pasta das cópias de segurança</string>

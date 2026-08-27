@@ -65,6 +65,15 @@ object ExportPackageExporter {
         val historyDisplaySerial: String? = null
     )
 
+    data class BackupValidationSummary(
+        val settingsIncluded: Boolean,
+        val historyReadings: Int,
+        val journalEntries: Int,
+        val journalFoods: Int,
+        val insulinPresets: Int,
+        val calibrations: Int
+    )
+
     enum class ImportFileType {
         SETTINGS,
         EXPORT_PACKAGE,
@@ -130,6 +139,115 @@ object ExportPackageExporter {
             SettingsExporter.SCHEMA -> ImportFileType.SETTINGS
             SCHEMA -> ImportFileType.EXPORT_PACKAGE
             else -> ImportFileType.OTHER
+        }
+    }
+
+    suspend fun validateBackup(context: Context, uri: Uri): Result<BackupValidationSummary> {
+        val appContext = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching { validateBackupPayload(readPayload(appContext, uri)) }
+        }
+    }
+
+    internal fun validateBackupPayload(payload: JSONObject): BackupValidationSummary {
+        return when (classifyPayload(payload)) {
+            ImportFileType.SETTINGS -> {
+                val settings = SettingsExporter.validatePayload(payload)
+                BackupValidationSummary(
+                    settingsIncluded = true,
+                    historyReadings = 0,
+                    journalEntries = settings.journalEntries,
+                    journalFoods = settings.journalFoods,
+                    insulinPresets = settings.journalInsulinPresets,
+                    calibrations = 0
+                )
+            }
+            ImportFileType.EXPORT_PACKAGE -> validateExportPackagePayload(payload)
+            ImportFileType.OTHER -> error("Unsupported backup file")
+        }
+    }
+
+    private fun validateExportPackagePayload(payload: JSONObject): BackupValidationSummary {
+        val schemaVersion = payload.optInt("schemaVersion", 0)
+        require(schemaVersion in 1..SCHEMA_VERSION) {
+            "Unsupported export package version: $schemaVersion"
+        }
+        val sections = payload.optJSONArray("sections") ?: error("Backup section list is missing")
+        val sectionNames = buildSet {
+            for (index in 0 until sections.length()) add(sections.getString(index))
+        }
+        require(sectionNames.isNotEmpty()) { "Backup contains no restorable sections" }
+        val supported = setOf("settings", "history", "calibrations")
+        require(sectionNames.all { it in supported }) {
+            "Backup contains an unsupported section"
+        }
+        sectionNames.forEach { section ->
+            require(payload.optJSONObject(section) != null) { "Backup section is missing: $section" }
+        }
+
+        payload.optJSONObject("settings")?.let { settings ->
+            SettingsExporter.validatePayload(settings, requireJournalData = false)
+        }
+        val history = payload.optJSONObject("history")
+        val readings = history?.requiredArray("readings").toHistoryReadings()
+        val journalEntries = history?.requiredArray("journalEntries").toJournalEntries()
+        val insulinPresets = history?.requiredArray("journalInsulinPresets").toInsulinPresets()
+        val foods = history?.requiredArray("journalFoods").toFoods()
+        val deletedReadings = history?.requiredArray("deletedReadings").toDeletedReadings()
+        val pendingDeletes = history?.requiredArray("pendingJournalDeletes").toPendingJournalDeletes()
+        if (history != null) {
+            requireFullyParsed("history readings", history.getJSONArray("readings"), readings.size)
+            requireFullyParsed("journal entries", history.getJSONArray("journalEntries"), journalEntries.size)
+            requireFullyParsed(
+                "insulin presets",
+                history.getJSONArray("journalInsulinPresets"),
+                insulinPresets.size
+            )
+            requireFullyParsed("food presets", history.getJSONArray("journalFoods"), foods.size)
+            requireFullyParsed(
+                "deleted history readings",
+                history.getJSONArray("deletedReadings"),
+                deletedReadings.size
+            )
+            requireFullyParsed(
+                "pending Nightscout deletes",
+                history.getJSONArray("pendingJournalDeletes"),
+                pendingDeletes.size
+            )
+        }
+
+        val calibrationsSection = payload.optJSONObject("calibrations")
+        val calibrations = calibrationsSection?.requiredArray("calibrations").toCalibrationEntities()
+        if (calibrationsSection != null) {
+            requireFullyParsed(
+                "calibrations",
+                calibrationsSection.getJSONArray("calibrations"),
+                calibrations.size
+            )
+            calibrationsSection.optJSONArray("sensorEnablement")?.let { states ->
+                val validStates = (0 until states.length()).count { index ->
+                    states.optJSONObject(index)?.optString("sensorId")?.isNotBlank() == true
+                }
+                requireFullyParsed("calibration sensor settings", states, validStates)
+            }
+        }
+
+        return BackupValidationSummary(
+            settingsIncluded = payload.optJSONObject("settings") != null,
+            historyReadings = readings.size,
+            journalEntries = journalEntries.size,
+            journalFoods = foods.size,
+            insulinPresets = insulinPresets.size,
+            calibrations = calibrations.size
+        )
+    }
+
+    private fun JSONObject.requiredArray(name: String): JSONArray =
+        optJSONArray(name) ?: error("Backup field is missing: $name")
+
+    private fun requireFullyParsed(label: String, source: JSONArray, parsedCount: Int) {
+        require(parsedCount == source.length()) {
+            "$label contains ${source.length() - parsedCount} invalid record(s)"
         }
     }
 

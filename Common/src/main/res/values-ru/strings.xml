@@ -612,11 +612,15 @@
     <string name="export_data_settings">Экспорт данных/настроек</string>
     <string name="export_data_settings_desc">Выберите настройки, историю, калибровки или полный пакет</string>
     <string name="export_compression">Сжатие</string>
+    <string name="export_compression_none">Без сжатия (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автоматические резервные копии</string>
     <string name="scheduled_backup_desc_off">Выключено</string>
-    <string name="scheduled_backup_desc_on">%1$s в %2$s, хранить %3$d</string>
+    <string name="scheduled_backup_desc_on">Ежедневно в %1$s; хранить %2$d ежедневных, %3$d еженедельных и %4$d ежемесячных копий</string>
+    <string name="scheduled_backup_test">Проверить файл резервной копии</string>
+    <string name="scheduled_backup_test_success">Проверка резервной копии пройдена. Показания: %1$d\nЗаписи журнала: %2$d\nПродукты: %3$d\nПрофили инсулина: %4$d\nКалибровки: %5$d\nНастройки: %6$s</string>
+    <string name="scheduled_backup_test_failed">Проверка резервной копии не пройдена: %1$s</string>
     <string name="scheduled_backup_enabled">Запускать автоматически</string>
     <string name="scheduled_backup_enabled_desc">Android может немного задерживать фоновую работу для экономии заряда</string>
     <string name="scheduled_backup_folder">Папка резервных копий</string>

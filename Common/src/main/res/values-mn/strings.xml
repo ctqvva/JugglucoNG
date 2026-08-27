@@ -677,11 +677,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_management">Өгөгдлийн удирдлага</string>
     <string name="export_data">Өгөгдөл экспортлох</string>
     <string name="export_compression">Шахалт</string>
+    <string name="export_compression_none">Шахалтгүй (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автомат нөөцлөлт</string>
     <string name="scheduled_backup_desc_off">Унтраалттай</string>
-    <string name="scheduled_backup_desc_on">%1$s %2$s цагт, %3$d-г хадгална</string>
+    <string name="scheduled_backup_desc_on">Өдөр бүр %1$s цагт; өдөр тутмын %2$d, долоо хоногийн %3$d, сарын %4$d нөөцийг хадгална</string>
+    <string name="scheduled_backup_test">Нөөц файлыг шалгах</string>
+    <string name="scheduled_backup_test_success">Нөөцийн шалгалт амжилттай. Уншилт: %1$d\nЖурналын бичлэг: %2$d\nХоол: %3$d\nИнсулины загвар: %4$d\nТохируулга: %5$d\nТохиргоо: %6$s</string>
+    <string name="scheduled_backup_test_failed">Нөөцийн шалгалт амжилтгүй: %1$s</string>
     <string name="scheduled_backup_enabled">Автоматаар ажиллуулах</string>
     <string name="scheduled_backup_enabled_desc">Android батарей хэмнэхийн тулд арын ажлыг бага зэрэг хойшлуулж болно</string>
     <string name="scheduled_backup_folder">Нөөцлөх хавтас</string>

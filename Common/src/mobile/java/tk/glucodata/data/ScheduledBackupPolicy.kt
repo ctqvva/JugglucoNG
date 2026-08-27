@@ -1,11 +1,15 @@
 package tk.glucodata.data
 
 import java.text.SimpleDateFormat
-import java.time.DayOfWeek
 import java.time.Duration
-import java.time.ZonedDateTime
+import java.time.Instant
+import java.time.LocalDateTime
 import java.time.YearMonth
-import java.time.temporal.TemporalAdjusters
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.IsoFields
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -22,6 +26,13 @@ internal data class ScheduledBackupAnomaly(val reasons: List<String>) {
 
 internal object ScheduledBackupPolicy {
     private const val FILE_PREFIX = "Juggluco_AutoBackup_"
+    private val fileTimestampFormatter = DateTimeFormatter.ofPattern(
+        "yyyy-MM-dd_HH-mm-ss'Z'",
+        Locale.US
+    )
+    private val fileNamePattern = Regex(
+        "^Juggluco_AutoBackup_(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}Z)\\.json\\.(?:gz|zst)$"
+    )
 
     fun fileName(timestamp: Long, compression: ExportCompression): String {
         val formatter = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss'Z'", Locale.US).apply {
@@ -32,31 +43,7 @@ internal object ScheduledBackupPolicy {
 
     fun nextRunAt(now: ZonedDateTime, config: ScheduledBackupConfig): ZonedDateTime {
         val localTime = now.toLocalDate().atTime(config.hour, config.minute).atZone(now.zone)
-        return when (config.frequency) {
-            ScheduledBackupFrequency.DAILY -> {
-                if (localTime.isAfter(now)) localTime else localTime.plusDays(1)
-            }
-            ScheduledBackupFrequency.WEEKLY -> {
-                var candidate = localTime.with(
-                    TemporalAdjusters.nextOrSame(DayOfWeek.of(config.weeklyDay.coerceIn(1, 7)))
-                )
-                if (!candidate.isAfter(now)) candidate = candidate.plusWeeks(1)
-                candidate
-            }
-            ScheduledBackupFrequency.MONTHLY -> {
-                var month = YearMonth.from(localTime)
-                var candidate = month.atDay(config.monthlyDay.coerceIn(1, month.lengthOfMonth()))
-                    .atTime(config.hour, config.minute)
-                    .atZone(now.zone)
-                if (!candidate.isAfter(now)) {
-                    month = month.plusMonths(1)
-                    candidate = month.atDay(config.monthlyDay.coerceIn(1, month.lengthOfMonth()))
-                        .atTime(config.hour, config.minute)
-                        .atZone(now.zone)
-                }
-                candidate
-            }
-        }
+        return if (localTime.isAfter(now)) localTime else localTime.plusDays(1)
     }
 
     fun delayMillis(now: ZonedDateTime, config: ScheduledBackupConfig): Long {
@@ -86,15 +73,34 @@ internal object ScheduledBackupPolicy {
 
     fun entriesToDelete(
         entries: List<ScheduledBackupEntry>,
-        keep: Int
+        dailyKeep: Int,
+        weeklyKeep: Int,
+        monthlyKeep: Int,
+        zoneId: ZoneId
     ): List<ScheduledBackupEntry> {
-        return entries
-            .filter { isScheduledBackupFile(it.displayName) }
-            .sortedWith(
-                compareByDescending<ScheduledBackupEntry> { it.lastModified }
-                    .thenByDescending { it.displayName }
-            )
-            .drop(keep.coerceAtLeast(1))
+        val dated = entries.mapNotNull { entry ->
+            backupTimestamp(entry.displayName)?.let { timestamp -> entry to timestamp }
+        }.sortedWith(
+            compareByDescending<Pair<ScheduledBackupEntry, Long>> { it.second }
+                .thenByDescending { it.first.displayName }
+        )
+        val keepIds = mutableSetOf<String>()
+
+        fun <T> keepNewestPerPeriod(limit: Int, period: (Long) -> T) {
+            dated.distinctBy { period(it.second) }
+                .take(limit.coerceAtLeast(1))
+                .forEach { keepIds += it.first.documentId }
+        }
+
+        fun localDate(timestamp: Long) = Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDate()
+        keepNewestPerPeriod(dailyKeep) { timestamp -> localDate(timestamp) }
+        keepNewestPerPeriod(weeklyKeep) { timestamp ->
+            val date = localDate(timestamp)
+            date.get(IsoFields.WEEK_BASED_YEAR) to date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+        }
+        keepNewestPerPeriod(monthlyKeep) { timestamp -> YearMonth.from(localDate(timestamp)) }
+
+        return dated.map { it.first }.filterNot { it.documentId in keepIds }
     }
 
     private fun compareCount(label: String, previous: Int, current: Int): String? {
@@ -105,9 +111,12 @@ internal object ScheduledBackupPolicy {
         }
     }
 
-    private fun isScheduledBackupFile(name: String): Boolean {
-        return name.startsWith(FILE_PREFIX) &&
-            (name.endsWith(ExportCompression.GZIP.fileSuffix) ||
-                name.endsWith(ExportCompression.ZSTD.fileSuffix))
+    private fun backupTimestamp(name: String): Long? {
+        val stamp = fileNamePattern.matchEntire(name)?.groupValues?.get(1) ?: return null
+        return runCatching {
+            LocalDateTime.parse(stamp, fileTimestampFormatter)
+                .toInstant(ZoneOffset.UTC)
+                .toEpochMilli()
+        }.getOrNull()
     }
 }

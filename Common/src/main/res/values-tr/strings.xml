@@ -572,11 +572,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="export_data_settings">Verileri/ayarları dışa aktar</string>
     <string name="export_data_settings_desc">Ayarlar, geçmiş, kalibrasyonlar veya tam paket seç</string>
     <string name="export_compression">Sıkıştırma</string>
+    <string name="export_compression_none">Yok (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Otomatik yedeklemeler</string>
     <string name="scheduled_backup_desc_off">Kapalı</string>
-    <string name="scheduled_backup_desc_on">%1$s %2$s, %3$d tane sakla</string>
+    <string name="scheduled_backup_desc_on">Her gün %1$s; %2$d günlük, %3$d haftalık ve %4$d aylık yedek sakla</string>
+    <string name="scheduled_backup_test">Yedek dosyasını test et</string>
+    <string name="scheduled_backup_test_success">Yedek doğrulaması başarılı. Ölçümler: %1$d\nGünlük kayıtları: %2$d\nYiyecekler: %3$d\nİnsülin profilleri: %4$d\nKalibrasyonlar: %5$d\nAyarlar: %6$s</string>
+    <string name="scheduled_backup_test_failed">Yedek doğrulaması başarısız: %1$s</string>
     <string name="scheduled_backup_enabled">Otomatik çalıştır</string>
     <string name="scheduled_backup_enabled_desc">Android pili korumak için arka plan çalışmasını biraz geciktirebilir</string>
     <string name="scheduled_backup_folder">Yedekleme klasörü</string>

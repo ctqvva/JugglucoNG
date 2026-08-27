@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import tk.glucodata.R
@@ -91,7 +92,7 @@ class ScheduledBackupWorker(
                     // an existing backup folder. Keep every older file until one known-good
                     // comparison exists; otherwise the first run could destroy recovery points.
                     if (config.baselineMetrics != null) {
-                        removeExpiredBackups(destination, config.retentionCount)
+                        removeExpiredBackups(destination, config)
                     }
                     ScheduledBackupSettings.recordSuccess(
                         context,
@@ -164,7 +165,7 @@ class ScheduledBackupWorker(
         } ?: 0L
     }
 
-    private fun removeExpiredBackups(treeUri: Uri, keep: Int) {
+    private fun removeExpiredBackups(treeUri: Uri, config: ScheduledBackupConfig) {
         val resolver = applicationContext.contentResolver
         val treeId = DocumentsContract.getTreeDocumentId(treeUri)
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, treeId)
@@ -186,7 +187,13 @@ class ScheduledBackupWorker(
                 )
             }
         }
-        ScheduledBackupPolicy.entriesToDelete(entries, keep).forEach { entry ->
+        ScheduledBackupPolicy.entriesToDelete(
+            entries = entries,
+            dailyKeep = config.dailyRetention,
+            weeklyKeep = config.weeklyRetention,
+            monthlyKeep = config.monthlyRetention,
+            zoneId = ZoneId.systemDefault()
+        ).forEach { entry ->
             val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId)
             runCatching { DocumentsContract.deleteDocument(resolver, uri) }
                 .onFailure { Log.w(TAG, "Could not remove expired backup ${entry.displayName}", it) }

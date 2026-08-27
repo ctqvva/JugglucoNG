@@ -595,11 +595,15 @@
     <string name="export_data_settings">Eksport danych/ustawień</string>
     <string name="export_data_settings_desc">Wybierz ustawienia, historię, kalibracje albo pełny pakiet</string>
     <string name="export_compression">Kompresja</string>
+    <string name="export_compression_none">Brak (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatyczne kopie zapasowe</string>
     <string name="scheduled_backup_desc_off">Wyłączone</string>
-    <string name="scheduled_backup_desc_on">%1$s o %2$s, zachowaj %3$d</string>
+    <string name="scheduled_backup_desc_on">Codziennie o %1$s; zachowaj %2$d kopii dziennych, %3$d tygodniowych i %4$d miesięcznych</string>
+    <string name="scheduled_backup_test">Sprawdź plik kopii zapasowej</string>
+    <string name="scheduled_backup_test_success">Weryfikacja kopii zapasowej zakończona powodzeniem. Odczyty: %1$d\nWpisy dziennika: %2$d\nProdukty: %3$d\nProfile insuliny: %4$d\nKalibracje: %5$d\nUstawienia: %6$s</string>
+    <string name="scheduled_backup_test_failed">Weryfikacja kopii zapasowej nie powiodła się: %1$s</string>
     <string name="scheduled_backup_enabled">Uruchamiaj automatycznie</string>
     <string name="scheduled_backup_enabled_desc">Android może nieznacznie opóźnić pracę w tle, aby oszczędzać baterię</string>
     <string name="scheduled_backup_folder">Folder kopii zapasowych</string>

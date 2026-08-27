@@ -22,58 +22,24 @@ class ScheduledBackupPolicyTests {
     }
 
     @Test
-    fun dailyWeeklyAndMonthlySchedulesUseLocalCalendarTime() {
+    fun scheduledBackupRunsEveryDayAtLocalCalendarTime() {
         val zone = ZoneId.of("Europe/London")
         val now = ZonedDateTime.of(2026, 8, 27, 10, 30, 0, 0, zone)
 
         assertEquals(
             ZonedDateTime.of(2026, 8, 28, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(now, config(ScheduledBackupFrequency.DAILY))
-        )
-        assertEquals(
-            ZonedDateTime.of(2026, 8, 30, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(
-                now,
-                config(ScheduledBackupFrequency.WEEKLY).copy(weeklyDay = 7)
-            )
-        )
-        assertEquals(
-            ZonedDateTime.of(2026, 9, 1, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(
-                now,
-                config(ScheduledBackupFrequency.MONTHLY).copy(monthlyDay = 1)
-            )
+            ScheduledBackupPolicy.nextRunAt(now, config())
         )
     }
 
     @Test
-    fun monthlyScheduleUsesLastDayWhenChosenDayDoesNotExist() {
+    fun dailyScheduleKeepsLocalTimeAcrossDaylightSavingChange() {
         val zone = ZoneId.of("Europe/London")
-        val now = ZonedDateTime.of(2027, 1, 31, 10, 0, 0, 0, zone)
+        val now = ZonedDateTime.of(2026, 10, 24, 10, 0, 0, 0, zone)
 
         assertEquals(
-            ZonedDateTime.of(2027, 2, 28, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(
-                now,
-                config(ScheduledBackupFrequency.MONTHLY).copy(monthlyDay = 31)
-            )
-        )
-    }
-
-    @Test
-    fun monthlyScheduleHandlesLeapYearsAndNonLeapCenturies() {
-        val zone = ZoneId.of("Europe/London")
-        val leapYear = ZonedDateTime.of(2028, 1, 31, 10, 0, 0, 0, zone)
-        val nonLeapCentury = ZonedDateTime.of(2100, 1, 31, 10, 0, 0, 0, zone)
-        val february29 = config(ScheduledBackupFrequency.MONTHLY).copy(monthlyDay = 29)
-
-        assertEquals(
-            ZonedDateTime.of(2028, 2, 29, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(leapYear, february29)
-        )
-        assertEquals(
-            ZonedDateTime.of(2100, 2, 28, 3, 0, 0, 0, zone),
-            ScheduledBackupPolicy.nextRunAt(nonLeapCentury, february29)
+            ZonedDateTime.of(2026, 10, 25, 3, 0, 0, 0, zone),
+            ScheduledBackupPolicy.nextRunAt(now, config())
         )
     }
 
@@ -113,40 +79,49 @@ class ScheduledBackupPolicyTests {
     }
 
     @Test
-    fun retentionOnlyDeletesOlderScheduledBackupFiles() {
-        val entries = listOf(
-            ScheduledBackupEntry("new", "Juggluco_AutoBackup_new.json.zst", 300),
-            ScheduledBackupEntry("middle", "Juggluco_AutoBackup_middle.json.gz", 200),
-            ScheduledBackupEntry("old", "Juggluco_AutoBackup_old.json.zst", 100),
+    fun retentionKeepsSimultaneousDailyWeeklyAndMonthlyRecoveryPoints() {
+        val zone = ZoneId.of("UTC")
+        val scheduledDates = listOf(
+            "2026-08-27", "2026-08-26", "2026-08-25", "2026-08-24", "2026-08-23",
+            "2026-08-22", "2026-08-16", "2026-08-09", "2026-08-02", "2026-07-31",
+            "2026-07-26", "2026-06-30", "2026-05-31", "2026-04-30", "2026-03-31",
+            "2026-02-28"
+        )
+        val entries = scheduledDates.map(::scheduledEntry) + listOf(
             ScheduledBackupEntry("manual", "Juggluco_Everything_2026-08-27.json.zst", 50),
-            ScheduledBackupEntry("other", "notes.txt", 10)
+            ScheduledBackupEntry("unknown", "Juggluco_AutoBackup_unknown.json.zst", 10)
         )
 
         assertEquals(
-            listOf("old"),
-            ScheduledBackupPolicy.entriesToDelete(entries, keep = 2).map { it.documentId }
+            setOf("2026-08-22", "2026-08-02", "2026-07-26", "2026-02-28"),
+            ScheduledBackupPolicy.entriesToDelete(
+                entries = entries,
+                dailyKeep = 5,
+                weeklyKeep = 4,
+                monthlyKeep = 6,
+                zoneId = zone
+            ).mapTo(mutableSetOf()) { it.documentId }
         )
     }
 
     @Test
-    fun defaultScheduleIsDailyWithSevenRecoveryPoints() {
+    fun defaultRetentionMatchesTheRequestedRecoveryLadder() {
         assertEquals(ScheduledBackupFrequency.DAILY, ScheduledBackupFrequency.fromStorage(null))
         assertEquals(ScheduledBackupFrequency.DAILY, ScheduledBackupFrequency.fromStorage("unknown"))
-        assertEquals(7, ScheduledBackupFrequency.DAILY.defaultRetention)
+        assertEquals(5, ScheduledBackupFrequency.DAILY.defaultRetention)
         assertEquals(4, ScheduledBackupFrequency.WEEKLY.defaultRetention)
         assertEquals(6, ScheduledBackupFrequency.MONTHLY.defaultRetention)
     }
 
-    private fun config(frequency: ScheduledBackupFrequency) = ScheduledBackupConfig(
+    private fun config() = ScheduledBackupConfig(
         enabled = false,
         destination = null,
-        frequency = frequency,
         hour = 3,
         minute = 0,
-        weeklyDay = 7,
-        monthlyDay = 1,
-        compression = ExportCompression.ZSTD,
-        retentionCount = frequency.defaultRetention,
+        compression = ExportCompression.GZIP,
+        dailyRetention = 5,
+        weeklyRetention = 4,
+        monthlyRetention = 6,
         lastSuccessAtMillis = 0,
         lastFileName = null,
         lastAttemptAtMillis = 0,
@@ -155,6 +130,15 @@ class ScheduledBackupPolicyTests {
         baselineMetrics = null,
         pendingMetrics = null
     )
+
+    private fun scheduledEntry(date: String): ScheduledBackupEntry {
+        val timestamp = ZonedDateTime.parse("${date}T03:00:00Z").toInstant().toEpochMilli()
+        return ScheduledBackupEntry(
+            documentId = date,
+            displayName = ScheduledBackupPolicy.fileName(timestamp, ExportCompression.GZIP),
+            lastModified = timestamp
+        )
+    }
 
     private fun metrics(compression: ExportCompression, bytes: Long) = ScheduledBackupMetrics(
         compression = compression,

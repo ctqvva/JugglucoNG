@@ -16,6 +16,10 @@ enum class ExportCompression(
     val fileSuffix: String,
     val mimeType: String
 ) {
+    NONE(
+        fileSuffix = ".json",
+        mimeType = "application/json"
+    ),
     GZIP(
         fileSuffix = ".json.gz",
         mimeType = "application/gzip"
@@ -37,6 +41,7 @@ internal object ExportPackageCodec {
         zstdWorkers: Int = defaultZstdWorkers()
     ) {
         val compressed = when (compression) {
+            ExportCompression.NONE -> output
             ExportCompression.GZIP -> GZIPOutputStream(output)
             ExportCompression.ZSTD -> ZstdOutputStreamNoFinalizer(output)
                 .setChecksum(true)
@@ -82,6 +87,7 @@ internal object ExportPackageCodec {
         zstdWorkers: Int
     ): OutputStreamWriter {
         val compressed = when (compression) {
+            ExportCompression.NONE -> output
             ExportCompression.GZIP -> GZIPOutputStream(output)
             ExportCompression.ZSTD -> ZstdOutputStreamNoFinalizer(output)
                 .setChecksum(true)

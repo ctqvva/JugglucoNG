@@ -608,11 +608,15 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="export_data_settings">Gegevens/instellingen exporteren</string>
     <string name="export_data_settings_desc">Kies instellingen, geschiedenis, kalibraties of een volledig pakket</string>
     <string name="export_compression">Compressie</string>
+    <string name="export_compression_none">Geen (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatische back-ups</string>
     <string name="scheduled_backup_desc_off">Uit</string>
-    <string name="scheduled_backup_desc_on">%1$s om %2$s, bewaar %3$d</string>
+    <string name="scheduled_backup_desc_on">Dagelijks om %1$s; bewaar %2$d dagelijkse, %3$d wekelijkse en %4$d maandelijkse back-ups</string>
+    <string name="scheduled_backup_test">Back-upbestand testen</string>
+    <string name="scheduled_backup_test_success">Back-upcontrole geslaagd. Metingen: %1$d\nJournaalitems: %2$d\nVoeding: %3$d\nInsulineprofielen: %4$d\nKalibraties: %5$d\nInstellingen: %6$s</string>
+    <string name="scheduled_backup_test_failed">Back-upcontrole mislukt: %1$s</string>
     <string name="scheduled_backup_enabled">Automatisch uitvoeren</string>
     <string name="scheduled_backup_enabled_desc">Android kan achtergrondwerk iets uitstellen om de batterij te sparen</string>
     <string name="scheduled_backup_folder">Back-upmap</string>

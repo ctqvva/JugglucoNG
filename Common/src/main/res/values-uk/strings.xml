@@ -532,11 +532,15 @@
     <string name="export_data_settings">Експорт даних/налаштувань</string>
     <string name="export_data_settings_desc">Виберіть налаштування, історію, калібрування або повний пакет</string>
     <string name="export_compression">Стиснення</string>
+    <string name="export_compression_none">Без стиснення (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автоматичні резервні копії</string>
     <string name="scheduled_backup_desc_off">Вимкнено</string>
-    <string name="scheduled_backup_desc_on">%1$s о %2$s, зберігати %3$d</string>
+    <string name="scheduled_backup_desc_on">Щодня о %1$s; зберігати %2$d щоденних, %3$d щотижневих і %4$d щомісячних копій</string>
+    <string name="scheduled_backup_test">Перевірити файл резервної копії</string>
+    <string name="scheduled_backup_test_success">Перевірку резервної копії пройдено. Показники: %1$d\nЗаписи журналу: %2$d\nПродукти: %3$d\nПрофілі інсуліну: %4$d\nКалібрування: %5$d\nНалаштування: %6$s</string>
+    <string name="scheduled_backup_test_failed">Перевірку резервної копії не пройдено: %1$s</string>
     <string name="scheduled_backup_enabled">Запускати автоматично</string>
     <string name="scheduled_backup_enabled_desc">Android може трохи затримувати фонову роботу для заощадження заряду</string>
     <string name="scheduled_backup_folder">Папка резервних копій</string>

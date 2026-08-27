@@ -393,11 +393,15 @@
     <string name="export_data_settings">Esporta dati/impostazioni</string>
     <string name="export_data_settings_desc">Scegli impostazioni, cronologia, calibrazioni o un pacchetto completo</string>
     <string name="export_compression">Compressione</string>
+    <string name="export_compression_none">Nessuna (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Backup automatici</string>
     <string name="scheduled_backup_desc_off">Disattivati</string>
-    <string name="scheduled_backup_desc_on">%1$s alle %2$s, conserva %3$d</string>
+    <string name="scheduled_backup_desc_on">Ogni giorno alle %1$s; conserva %2$d backup giornalieri, %3$d settimanali e %4$d mensili</string>
+    <string name="scheduled_backup_test">Verifica file di backup</string>
+    <string name="scheduled_backup_test_success">Verifica del backup superata. Letture: %1$d\nVoci del diario: %2$d\nAlimenti: %3$d\nProfili insulinici: %4$d\nCalibrazioni: %5$d\nImpostazioni: %6$s</string>
+    <string name="scheduled_backup_test_failed">Verifica del backup non riuscita: %1$s</string>
     <string name="scheduled_backup_enabled">Esegui automaticamente</string>
     <string name="scheduled_backup_enabled_desc">Android potrebbe ritardare leggermente il lavoro in background per proteggere la batteria</string>
     <string name="scheduled_backup_folder">Cartella di backup</string>

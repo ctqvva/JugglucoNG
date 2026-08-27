@@ -757,11 +757,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="export_data_settings">Export data/settings</string>
     <string name="export_data_settings_desc">Choose settings, history, calibrations, or a complete package</string>
     <string name="export_compression">Compression</string>
+    <string name="export_compression_none">None (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatic backups</string>
     <string name="scheduled_backup_desc_off">Off</string>
-    <string name="scheduled_backup_desc_on">%1$s at %2$s, keep %3$d</string>
+    <string name="scheduled_backup_desc_on">Daily at %1$s; keep %2$d daily, %3$d weekly, and %4$d monthly backups</string>
+    <string name="scheduled_backup_test">Test backup file</string>
+    <string name="scheduled_backup_test_success">Backup validation passed. Readings: %1$d\nJournal entries: %2$d\nFoods: %3$d\nInsulin presets: %4$d\nCalibrations: %5$d\nSettings: %6$s</string>
+    <string name="scheduled_backup_test_failed">Backup validation failed: %1$s</string>
     <string name="scheduled_backup_enabled">Run automatically</string>
     <string name="scheduled_backup_enabled_desc">Android may delay background work slightly to protect battery life</string>
     <string name="scheduled_backup_folder">Backup folder</string>

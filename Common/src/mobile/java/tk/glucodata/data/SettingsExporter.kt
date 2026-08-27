@@ -38,6 +38,15 @@ object SettingsExporter {
         val journalFoods: Int = 0
     )
 
+    internal data class ValidationSummary(
+        val sharedPreferenceFiles: Int,
+        val preferenceValues: Int,
+        val nativeFiles: Int,
+        val journalEntries: Int,
+        val journalInsulinPresets: Int,
+        val journalFoods: Int
+    )
+
     private data class JournalImportSummary(
         val entries: Int = 0,
         val insulinPresets: Int = 0,
@@ -100,6 +109,72 @@ object SettingsExporter {
                 Log.e(TAG, "Settings import failed", it)
             }
         }
+    }
+
+    internal fun validatePayload(
+        payload: JSONObject,
+        requireJournalData: Boolean = true
+    ): ValidationSummary {
+        require(payload.optString("schema") == SCHEMA) { "Unsupported settings export" }
+        val schemaVersion = payload.optInt("schemaVersion", 0)
+        require(schemaVersion in 1..SCHEMA_VERSION) {
+            "Unsupported settings export version: $schemaVersion"
+        }
+
+        val exportedPreferences = payload.optJSONObject("sharedPreferences")
+            ?: error("Settings preferences are missing")
+        var preferenceValueCount = 0
+        exportedPreferences.keySet().forEach { name ->
+            val entry = exportedPreferences.optJSONObject(name)
+                ?: error("Invalid shared preferences file: $name")
+            val values = entry.optJSONObject("values")
+                ?: error("Preference values are missing: $name")
+            values.keySet().forEach { key ->
+                validatePreferenceEntry(key, values.optJSONObject(key))
+                preferenceValueCount++
+            }
+        }
+
+        var nativeFileCount = 0
+        val exportedFiles = payload.optJSONObject("nativeSettingsFiles")
+            ?: error("Native settings files are missing")
+        exportedFiles.keySet().forEach { name ->
+            require(name in nativeSettingsFiles) { "Unsupported native settings file: $name" }
+            val entry = exportedFiles.optJSONObject(name)
+                ?: error("Invalid native settings file: $name")
+            val encoded = entry.optString("base64").takeIf { it.isNotBlank() }
+                ?: error("Native settings data is missing: $name")
+            java.util.Base64.getMimeDecoder().decode(encoded)
+            nativeFileCount++
+        }
+
+        val journalData = payload.optJSONObject("journalData")
+        if (requireJournalData && schemaVersion >= 2) {
+            require(journalData != null) { "Settings journal data is missing" }
+        }
+        val journalEntries = journalData?.optJSONArray("entries")
+        val insulinPresets = journalData?.optJSONArray("insulinPresets")
+        val foods = journalData?.optJSONArray("foods")
+        if (journalData != null) {
+            require(journalEntries != null) { "Settings journal entries are missing" }
+            require(insulinPresets != null) { "Settings insulin presets are missing" }
+            if (schemaVersion >= 3) require(foods != null) { "Settings food presets are missing" }
+        }
+        val parsedEntries = journalEntries.toJournalEntries()
+        val parsedInsulins = insulinPresets.toInsulinPresets()
+        val parsedFoods = foods.toFoods()
+        requireFullyParsed("settings journal entries", journalEntries, parsedEntries.size)
+        requireFullyParsed("settings insulin presets", insulinPresets, parsedInsulins.size)
+        requireFullyParsed("settings food presets", foods, parsedFoods.size)
+
+        return ValidationSummary(
+            sharedPreferenceFiles = exportedPreferences.length(),
+            preferenceValues = preferenceValueCount,
+            nativeFiles = nativeFileCount,
+            journalEntries = parsedEntries.size,
+            journalInsulinPresets = parsedInsulins.size,
+            journalFoods = parsedFoods.size
+        )
     }
 
     private suspend fun importPayloadUnchecked(
@@ -253,6 +328,31 @@ object SettingsExporter {
             }
             "null" -> editor.remove(key)
             else -> throw IllegalArgumentException("Unsupported preference type for $key")
+        }
+    }
+
+    private fun validatePreferenceEntry(key: String, entry: JSONObject?) {
+        require(entry != null) { "Invalid preference value: $key" }
+        when (entry.optString("type")) {
+            "boolean" -> entry.getBoolean("value")
+            "float" -> entry.getDouble("value")
+            "int" -> entry.getInt("value")
+            "long" -> entry.getLong("value")
+            "string" -> if (!entry.isNull("value")) entry.getString("value")
+            "string_set" -> {
+                val values = entry.getJSONArray("value")
+                for (index in 0 until values.length()) values.getString(index)
+            }
+            "null" -> Unit
+            else -> throw IllegalArgumentException("Unsupported preference type for $key")
+        }
+    }
+
+    private fun requireFullyParsed(label: String, source: JSONArray?, parsedCount: Int) {
+        if (source != null) {
+            require(parsedCount == source.length()) {
+                "$label contains ${source.length() - parsedCount} invalid record(s)"
+            }
         }
     }
 

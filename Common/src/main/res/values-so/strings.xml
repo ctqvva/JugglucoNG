@@ -735,11 +735,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="export_data_settings">Dhoofinta xogta/goobaha</string>
     <string name="export_data_settings_desc">Dooro dejinta, taariikhda, jaangooyada, ama xirmo dhamaystiran</string>
     <string name="export_compression">Cadaadis</string>
+    <string name="export_compression_none">Midna (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Kayd otomaatig ah</string>
     <string name="scheduled_backup_desc_off">Dansan</string>
-    <string name="scheduled_backup_desc_on">%1$s saacadda %2$s, hay %3$d</string>
+    <string name="scheduled_backup_desc_on">Maalin kasta %1$s; hay %2$d maalinle, %3$d toddobaadle iyo %4$d bille ah</string>
+    <string name="scheduled_backup_test">Tijaabi faylka kaydka</string>
+    <string name="scheduled_backup_test_success">Hubinta kaydka waa lagu guulaystay. Akhrisyo: %1$d\nGelinnada diiwaanka: %2$d\nCuntooyin: %3$d\nNoocyada insuliinta: %4$d\nQiyaasid: %5$d\nDejinta: %6$s</string>
+    <string name="scheduled_backup_test_failed">Hubinta kaydka way fashilantay: %1$s</string>
     <string name="scheduled_backup_enabled">Si otomaatig ah u samee</string>
     <string name="scheduled_backup_enabled_desc">Android wax yar ayuu dib u dhigi karaa shaqada asalka si uu batteriga u ilaaliyo</string>
     <string name="scheduled_backup_folder">Galka kaydka</string>

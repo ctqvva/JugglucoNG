@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 
 enum class ScheduledBackupFrequency(val defaultRetention: Int) {
-    DAILY(7),
+    DAILY(5),
     WEEKLY(4),
     MONTHLY(6);
 
@@ -28,13 +28,12 @@ data class ScheduledBackupMetrics(
 data class ScheduledBackupConfig(
     val enabled: Boolean,
     val destination: Uri?,
-    val frequency: ScheduledBackupFrequency,
     val hour: Int,
     val minute: Int,
-    val weeklyDay: Int,
-    val monthlyDay: Int,
     val compression: ExportCompression,
-    val retentionCount: Int,
+    val dailyRetention: Int,
+    val weeklyRetention: Int,
+    val monthlyRetention: Int,
     val lastSuccessAtMillis: Long,
     val lastFileName: String?,
     val lastAttemptAtMillis: Long,
@@ -55,6 +54,9 @@ object ScheduledBackupSettings {
     private const val KEY_MONTHLY_DAY = "monthly_day"
     private const val KEY_COMPRESSION = "compression"
     private const val KEY_RETENTION = "retention"
+    private const val KEY_DAILY_RETENTION = "daily_retention"
+    private const val KEY_WEEKLY_RETENTION = "weekly_retention"
+    private const val KEY_MONTHLY_RETENTION = "monthly_retention"
     private const val KEY_LAST_SUCCESS = "last_success"
     private const val KEY_LAST_FILE = "last_file"
     private const val KEY_LAST_ATTEMPT = "last_attempt"
@@ -63,25 +65,31 @@ object ScheduledBackupSettings {
     private const val BASELINE_PREFIX = "baseline_"
     private const val PENDING_PREFIX = "pending_"
 
-    val retentionOptions = listOf(3, 4, 6, 7, 14, 30)
+    val retentionOptions = listOf(1, 3, 4, 5, 6, 7, 14, 30)
 
     fun load(context: Context): ScheduledBackupConfig {
         val prefs = prefs(context)
-        val frequency = ScheduledBackupFrequency.fromStorage(prefs.getString(KEY_FREQUENCY, null))
+        val legacyFrequency = ScheduledBackupFrequency.fromStorage(prefs.getString(KEY_FREQUENCY, null))
+        val legacyRetention = prefs.getInt(KEY_RETENTION, legacyFrequency.defaultRetention)
+            .takeIf { it in retentionOptions }
+            ?: legacyFrequency.defaultRetention
+        fun retention(key: String, tier: ScheduledBackupFrequency): Int {
+            val fallback = if (legacyFrequency == tier) legacyRetention else tier.defaultRetention
+            return prefs.getInt(key, fallback).takeIf { it in retentionOptions } ?: fallback
+        }
         return ScheduledBackupConfig(
             enabled = prefs.getBoolean(KEY_ENABLED, false),
             destination = prefs.getString(KEY_DESTINATION, null)?.let(Uri::parse),
-            frequency = frequency,
             hour = prefs.getInt(KEY_HOUR, 3).coerceIn(0, 23),
             minute = prefs.getInt(KEY_MINUTE, 0).coerceIn(0, 59),
-            weeklyDay = prefs.getInt(KEY_WEEKLY_DAY, 7).coerceIn(1, 7),
-            monthlyDay = prefs.getInt(KEY_MONTHLY_DAY, 1).coerceIn(1, 31),
             compression = runCatching {
                 ExportCompression.valueOf(prefs.getString(KEY_COMPRESSION, null) ?: "")
-            }.getOrDefault(ExportCompression.ZSTD),
-            retentionCount = prefs.getInt(KEY_RETENTION, frequency.defaultRetention)
-                .takeIf { it in retentionOptions }
-                ?: frequency.defaultRetention,
+            }.getOrNull()
+                ?.takeIf { it == ExportCompression.GZIP || it == ExportCompression.ZSTD }
+                ?: ExportCompression.GZIP,
+            dailyRetention = retention(KEY_DAILY_RETENTION, ScheduledBackupFrequency.DAILY),
+            weeklyRetention = retention(KEY_WEEKLY_RETENTION, ScheduledBackupFrequency.WEEKLY),
+            monthlyRetention = retention(KEY_MONTHLY_RETENTION, ScheduledBackupFrequency.MONTHLY),
             lastSuccessAtMillis = prefs.getLong(KEY_LAST_SUCCESS, 0L),
             lastFileName = prefs.getString(KEY_LAST_FILE, null),
             lastAttemptAtMillis = prefs.getLong(KEY_LAST_ATTEMPT, 0L),
@@ -94,17 +102,25 @@ object ScheduledBackupSettings {
 
     fun saveConfiguration(context: Context, config: ScheduledBackupConfig) {
         require(!config.enabled || config.destination != null) { "A backup folder is required" }
-        require(config.retentionCount in retentionOptions) { "Unsupported retention count" }
+        require(config.dailyRetention in retentionOptions) { "Unsupported daily retention count" }
+        require(config.weeklyRetention in retentionOptions) { "Unsupported weekly retention count" }
+        require(config.monthlyRetention in retentionOptions) { "Unsupported monthly retention count" }
+        require(config.compression != ExportCompression.NONE) {
+            "Scheduled backups must use compression"
+        }
         prefs(context).edit()
             .putBoolean(KEY_ENABLED, config.enabled)
             .putString(KEY_DESTINATION, config.destination?.toString())
-            .putString(KEY_FREQUENCY, config.frequency.name)
             .putInt(KEY_HOUR, config.hour.coerceIn(0, 23))
             .putInt(KEY_MINUTE, config.minute.coerceIn(0, 59))
-            .putInt(KEY_WEEKLY_DAY, config.weeklyDay.coerceIn(1, 7))
-            .putInt(KEY_MONTHLY_DAY, config.monthlyDay.coerceIn(1, 31))
             .putString(KEY_COMPRESSION, config.compression.name)
-            .putInt(KEY_RETENTION, config.retentionCount)
+            .putInt(KEY_DAILY_RETENTION, config.dailyRetention)
+            .putInt(KEY_WEEKLY_RETENTION, config.weeklyRetention)
+            .putInt(KEY_MONTHLY_RETENTION, config.monthlyRetention)
+            .remove(KEY_FREQUENCY)
+            .remove(KEY_WEEKLY_DAY)
+            .remove(KEY_MONTHLY_DAY)
+            .remove(KEY_RETENTION)
             .apply()
     }
 

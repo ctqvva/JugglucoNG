@@ -463,11 +463,15 @@
     <string name="export_data_settings">Экспарт даных/налад</string>
     <string name="export_data_settings_desc">Выберыце налады, гісторыю, каліброўкі або поўны пакет</string>
     <string name="export_compression">Сцісканне</string>
+    <string name="export_compression_none">Без сціскання (JSON)</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Аўтаматычныя рэзервовыя копіі</string>
     <string name="scheduled_backup_desc_off">Выключана</string>
-    <string name="scheduled_backup_desc_on">%1$s а %2$s, захоўваць %3$d</string>
+    <string name="scheduled_backup_desc_on">Штодня а %1$s; захоўваць %2$d штодзённых, %3$d штотыднёвых і %4$d штомесячных копій</string>
+    <string name="scheduled_backup_test">Праверыць файл рэзервовай копіі</string>
+    <string name="scheduled_backup_test_success">Праверка рэзервовай копіі пройдзена. Паказанні: %1$d\nЗапісы журнала: %2$d\nПрадукты: %3$d\nТыпы інсуліну: %4$d\nКаліброўкі: %5$d\nНалады: %6$s</string>
+    <string name="scheduled_backup_test_failed">Праверка рэзервовай копіі не пройдзена: %1$s</string>
     <string name="scheduled_backup_enabled">Запускаць аўтаматычна</string>
     <string name="scheduled_backup_enabled_desc">Android можа крыху затрымліваць фонавую працу для эканоміі зараду</string>
     <string name="scheduled_backup_folder">Папка рэзервовых копій</string>
