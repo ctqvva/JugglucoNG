@@ -1224,6 +1224,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_retry_in">%1$d мин дараа дахин оролдохоор товлосон</string>
     <string name="nightscout_status_response_ok">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Сүүлчийн хариу: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Сүүлчийн хариу: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Сүүлчийн хариу: буруу Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout дагагч</string>
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
@@ -1252,6 +1253,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Nightscout v3 API ашиглах</string>
+    <string name="nightscout_use_v3_api_desc">Глюкозын байршуулалтад api:entries:create болон api:entries:update хэрэгтэй.</string>
     <string name="nightscout_follow_desc">Энэ Nightscout URL-аас зөвхөн унших боломжтой виртуал мэдрэгч үүсгэх.</string>
     <string name="nightscout_follow_url_required">Эхлээд Nightscout URL-г оруулна уу</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>

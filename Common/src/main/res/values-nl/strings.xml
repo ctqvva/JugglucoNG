@@ -1262,6 +1262,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Gebruik de Nightscout v3-API</string>
+    <string name="nightscout_use_v3_api_desc">Glucose-uploads hebben api:entries:create en api:entries:update nodig.</string>
     <string name="nightscout_follow_desc">Maak een alleen-lezen virtuele sensor van deze Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Voer eerst een Nightscout-URL in</string>
     <string name="nightscout_test_testing">Testen...</string>
@@ -1454,6 +1455,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_retry_in">Nieuwe poging over %1$d min</string>
     <string name="nightscout_status_response_ok">Laatste reactie: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Laatste reactie: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Laatste reactie: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout-volger</string>
     <string name="nightscout_follow_status_idle">Nightscout-volger inactief</string>

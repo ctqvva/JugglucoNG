@@ -1497,6 +1497,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_retry_in">Isku day in aad isku daydo in la qorsheeyay %1$d daqiiqo</string>
     <string name="nightscout_status_response_ok">Jawaabtii u dambaysay: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Jawaabtii u dambaysay: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Jawaabtii u dambaysay: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Jawaabtii u dambaysay: URL aan sax ahayn Nightscoout</string>
     <string name="nightscout_follow_title">Nightscoout raaca</string>
     <string name="nightscout_follow_status_idle">Nightscoout raaca</string>
@@ -1527,6 +1528,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Isticmaal Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">Soo rarista gulukoosku waxay u baahan tahay api:entries:create iyo api:entries:update.</string>
     <string name="nightscout_follow_desc">Ka samee dareemaha akhriska-kaliya ee URL-kan Nightscout.</string>
     <string name="nightscout_follow_url_required">Geli URL Nightscout marka hore</string>
     <string name="nightscout_mode_upload">Soo rar</string>

@@ -1235,6 +1235,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">夜巡网址</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">使用 Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">上传血糖数据需要 api:entries:create 和 api:entries:update。</string>
     <string name="nightscout_follow_desc">从此 Nightscout URL 创建只读虚拟传感器。</string>
     <string name="nightscout_follow_url_required">请先输入 Nightscout URL</string>
     <string name="nightscout_test_testing">正在测试...</string>
@@ -1427,6 +1428,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">将在 %1$d 分钟后重试</string>
     <string name="nightscout_status_response_ok">上次响应：HTTP %1$d</string>
     <string name="nightscout_status_response_error">上次响应：HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">上次响应：HTTP %1$d，%2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout 跟随器</string>
     <string name="nightscout_follow_status_idle">Nightscout 跟随器空闲</string>
