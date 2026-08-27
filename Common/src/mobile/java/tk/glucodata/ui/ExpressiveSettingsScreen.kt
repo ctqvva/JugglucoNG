@@ -70,6 +70,8 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
+import tk.glucodata.data.ScheduledBackupSettings
+import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.theme.labelLargeExpressive
@@ -165,6 +167,13 @@ fun ExpressiveSettingsScreen(
     var showFactoryResetDialog by remember { mutableStateOf(false) }
     var isClearing by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showScheduledBackupDialog by remember { mutableStateOf(false) }
+    var scheduledBackupConfig by remember {
+        mutableStateOf(ScheduledBackupSettings.load(context))
+    }
+    LaunchedEffect(Unit) {
+        ScheduledBackupWorker.initialize(context)
+    }
     var pendingSettingsImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingExportPackageImportUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -634,6 +643,15 @@ fun ExpressiveSettingsScreen(
                 )
 
                 SettingsItem(
+                    title = stringResource(R.string.scheduled_backup_title),
+                    subtitle = scheduledBackupSummary(scheduledBackupConfig),
+                    icon = Icons.Default.Backup,
+                    iconTint = dataColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showScheduledBackupDialog = true }
+                )
+
+                SettingsItem(
                     title = stringResource(R.string.export_data_settings),
                     subtitle = stringResource(R.string.export_data_settings_desc),
                     icon = androidx.compose.material.icons.Icons.Default.CloudUpload,
@@ -779,6 +797,14 @@ fun ExpressiveSettingsScreen(
         ExportDataSettingsSheet(
             onDismiss = { showExportDialog = false },
             sheetState = sheetState
+        )
+    }
+    if (showScheduledBackupDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ScheduledBackupSettingsSheet(
+            onDismiss = { showScheduledBackupDialog = false },
+            sheetState = sheetState,
+            onConfigurationChanged = { scheduledBackupConfig = it }
         )
     }
     pendingSettingsImportUri?.let { uri ->

@@ -13,6 +13,7 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
+import tk.glucodata.data.journal.JournalPendingDeleteEntity
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -322,6 +323,7 @@ object ExportPackageExporter {
             ?.let { endMillis - TimeUnit.DAYS.toMillis(it.coerceAtLeast(1L)) }
             ?: 0L
         val readings = database.historyDao().getReadingsSince(startMillis)
+        val deletedReadings = database.historyDao().getDeletedReadingsSince(startMillis)
         val journalEntries = if (startMillis > 0L) {
             database.journalDao().getEntriesBetween(startMillis, endMillis)
         } else {
@@ -329,6 +331,8 @@ object ExportPackageExporter {
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
         val foods = database.journalDao().getFoods()
+        val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
+            .filter { it.deletedAt >= startMillis }
 
         // Non-destructive software calibration (issue #130): the stored values stay
         // raw mg/dL; each reading additionally carries the calibrated mg/dL that live
@@ -362,6 +366,18 @@ object ExportPackageExporter {
                 "journalFoods",
                 JSONArray().also { array ->
                     foods.forEach { array.put(it.toJson()) }
+                }
+            )
+            .put(
+                "deletedReadings",
+                JSONArray().also { array ->
+                    deletedReadings.forEach { array.put(it.toJson()) }
+                }
+            )
+            .put(
+                "pendingJournalDeletes",
+                JSONArray().also { array ->
+                    pendingJournalDeletes.forEach { array.put(it.toJson()) }
                 }
             ) to HistorySummary(
             readings = readings.size,
@@ -431,6 +447,8 @@ object ExportPackageExporter {
         val entries = history.optJSONArray("journalEntries").toJournalEntries()
         val insulinPresets = history.optJSONArray("journalInsulinPresets").toInsulinPresets()
         val foods = history.optJSONArray("journalFoods").toFoods()
+        val deletedReadings = history.optJSONArray("deletedReadings").toDeletedReadings()
+        val pendingJournalDeletes = history.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
 
         if (readings.isNotEmpty()) {
             database.historyDao().insertAll(readings)
@@ -446,6 +464,15 @@ object ExportPackageExporter {
             // Written straight to the table rather than through the repository, so the wake
             // it raises has to be raised here: a restored journal is a backlog like any
             // other and would otherwise sit until something unrelated woke the uploader.
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        }
+        if (deletedReadings.isNotEmpty()) {
+            database.historyDao().insertDeletedReadings(deletedReadings)
+        }
+        if (pendingJournalDeletes.isNotEmpty()) {
+            for (tombstone in pendingJournalDeletes) {
+                database.journalDao().enqueuePendingNightscoutDelete(tombstone)
+            }
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
 
@@ -639,6 +666,22 @@ object ExportPackageExporter {
             .put("journalEntryId", journalEntryId ?: JSONObject.NULL)
     }
 
+    private fun DeletedHistoryReading.toJson(): JSONObject {
+        return JSONObject()
+            .put("timestamp", timestamp)
+            .put("sensorSerial", sensorSerial)
+            .put("deletedAt", deletedAt)
+    }
+
+    private fun JournalPendingDeleteEntity.toJson(): JSONObject {
+        return JSONObject()
+            .put("entryId", entryId)
+            .put("nsRemoteId", nsRemoteId)
+            .put("deletedAt", deletedAt)
+            .put("attempts", attempts)
+            .put("lastAttemptAt", lastAttemptAt)
+    }
+
     private fun JSONArray?.toHistoryReadings(): List<HistoryReading> {
         if (this == null) return emptyList()
         return buildList {
@@ -767,6 +810,46 @@ object ExportPackageExporter {
                         isEnabled = item.optBoolean("isEnabled", true),
                         isRawMode = item.optBoolean("isRawMode", false),
                         journalEntryId = item.optNullableLong("journalEntryId")
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JSONArray?.toDeletedReadings(): List<DeletedHistoryReading> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                val timestamp = item.optLong("timestamp", 0L)
+                val sensorSerial = item.optString("sensorSerial", "")
+                if (timestamp <= 0L || sensorSerial.isBlank()) continue
+                add(
+                    DeletedHistoryReading(
+                        timestamp = timestamp,
+                        sensorSerial = sensorSerial,
+                        deletedAt = item.optLong("deletedAt", timestamp)
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JSONArray?.toPendingJournalDeletes(): List<JournalPendingDeleteEntity> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                val entryId = item.optLong("entryId", 0L)
+                val remoteId = item.optString("nsRemoteId", "")
+                if (entryId <= 0L || remoteId.isBlank()) continue
+                add(
+                    JournalPendingDeleteEntity(
+                        entryId = entryId,
+                        nsRemoteId = remoteId,
+                        deletedAt = item.optLong("deletedAt", System.currentTimeMillis()),
+                        attempts = item.optInt("attempts", 0),
+                        lastAttemptAt = item.optLong("lastAttemptAt", 0L)
                     )
                 )
             }
