@@ -699,12 +699,27 @@ fun SensorCard(
     }
 
     // Independent, immediately applied sensor-algorithm features.
+    //
+    // Bit 0 is calibration; bits 1-3 are the model. The model mask widened from
+    // 6 to 14 when Adaptive V2 was added at base 8. Hoisted above the sheet
+    // because the sheet's height policy needs to see it: only Adaptive V2 shows
+    // the ribbon row, so selecting or leaving it is the one change that alters
+    // this sheet's intrinsic height.
+    var algorithmFeatures by remember(sensor.customCalIndex) {
+        mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
+    }
     if (showSibionicsCalSheet && sensor.isSibionics && sensor.viewMode != 1) {
         @OptIn(ExperimentalMaterial3Api::class)
         StableModalBottomSheet(
             onDismissRequest = { showSibionicsCalSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            dragHandle = { CompactSheetDragHandle() }
+            dragHandle = { CompactSheetDragHandle() },
+            // Once a sheet has measured at viewport height it stays there for
+            // the current key, so that dragging it cannot move its own anchor.
+            // Without a key that tracks the ribbon row, leaving Adaptive V2
+            // shrank the content but left the sheet pinned tall, and the
+            // difference showed up as dead space above the Close button.
+            contentKey = algorithmFeatures and 14 == 8,
         ) {
             Column(
                 modifier = Modifier
@@ -719,12 +734,6 @@ fun SensorCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Bit 0 is calibration; bits 1-3 are the model. The model mask
-                // widened from 6 to 14 when Adaptive V2 was added at base 8.
-                var algorithmFeatures by remember(sensor.customCalIndex) {
-                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
-                }
 
                 fun setCalibration(enabled: Boolean) {
                     val updated = if (enabled) algorithmFeatures or 1 else algorithmFeatures and 1.inv()

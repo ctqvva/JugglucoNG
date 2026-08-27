@@ -4010,7 +4010,14 @@ fun InteractiveGlucoseChart(
                         // range; the artifact line is phrased as a possibility,
                         // because an elevated posterior probability is not the
                         // same as an artifact having occurred.
-                        point.uncertainty?.takeIf { it.isUsable }?.let { uncertainty ->
+                        // Gated on the same preference as the ribbon, not just
+                        // on the point carrying an interval. Stored bands outlive
+                        // a switch away from Adaptive V2, so without this the
+                        // range kept appearing here for a model that never
+                        // produced one.
+                        point.uncertainty
+                            ?.takeIf { it.isUsable && uncertaintyRibbonEnabled }
+                            ?.let { uncertainty ->
                             val isMmolTooltip = GlucoseFormatter.isMmol(unit)
                             Text(
                                 text = stringResource(
