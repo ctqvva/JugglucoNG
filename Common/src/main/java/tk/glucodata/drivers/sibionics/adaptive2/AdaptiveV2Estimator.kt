@@ -95,6 +95,8 @@ internal class AdaptiveV2Estimator {
     private val telemetryModel = AdaptiveV2TelemetryModel()
     private val noiseModel = AdaptiveV2NoiseModel()
     private val lagEstimator = AdaptiveV2LagEstimator()
+    private val rateObserver = AdaptiveV2RateObserver()
+    private val rateJacobian = DoubleArray(V2.N)
 
     private val transitionMatrix = DoubleArray(V2.N * V2.N)
     private val processNoise = DoubleArray(V2.N)
@@ -158,6 +160,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.reset()
         noiseModel.reset()
         lagEstimator.reset()
+        rateObserver.reset()
         initialized = false
         lastIndex = -1
         lastTimestampMs = 0L
@@ -224,6 +227,12 @@ internal class AdaptiveV2Estimator {
         val observationVariance = noiseModel.observationVariance(telemetry, sample.index)
         vendorSensitivityDrift = sample.vendorSensitivityDrift
         updateWithChemical(observation.toDouble(), observationVariance)
+        // Motion is observed, not inferred. The rate channel is fed the same
+        // minute-level observation and contributes to the same mode likelihood,
+        // so a sustained excursion and a flat stretch stop looking alike.
+        rateObserver.observe(observation.toDouble(), sample.index.toDouble())
+        updateWithRate()
+        applyModePosterior()
         applyReferences(references, sample)
         normalizeModeProbabilities()
 
@@ -341,7 +350,54 @@ internal class AdaptiveV2Estimator {
         lastInnovation = representativeInnovation
         lastMeasurementVariance = max(representativeVariance, MIN_VARIANCE)
 
-        // Mode posterior ∝ predicted prior × likelihood.
+    }
+
+    /**
+     * Adds the rate channel's evidence to every mode's likelihood.
+     *
+     * What separates the modes here is not the rate being precise — it is that
+     * a mode carrying large velocity uncertainty *predicts* a wide range of
+     * rates and so accommodates a big one, while a steady mode does not. On a
+     * flat stretch the observed rate is near zero, which the steady mode
+     * explains best, and the ordering reverses on its own. That is the evidence
+     * the level channel structurally cannot carry: a 4000x difference in mode
+     * velocity noise reaches it through the lag coupling as 0.06% of R.
+     */
+    private fun updateWithRate() {
+        if (!rateObserver.isUsable) return
+        val observedRate = rateObserver.rate
+        val rateVariance = rateObserver.rateVariance
+        for (index in 0 until AdaptiveV2Mode.COUNT) {
+            val mode = modes[index]
+            AdaptiveV2ObservationModel.rateJacobian(rateJacobian, mode.x, lagEstimator.lagMinutes)
+            val innovation = observedRate -
+                AdaptiveV2ObservationModel.predictedRate(mode.x, lagEstimator.lagMinutes)
+
+            var priorVariance = rateVariance
+            for (row in 0 until V2.N) {
+                var sum = 0.0
+                for (column in 0 until V2.N) sum += mode.p[row * V2.N + column] * rateJacobian[column]
+                priorVariance += rateJacobian[row] * sum
+            }
+            priorVariance = max(priorVariance, MIN_VARIANCE)
+
+            // Evidence only — deliberately not a state update.
+            //
+            // A windowed slope estimates the rate at the *centre* of its window,
+            // not at its leading edge. Applied as a present-time measurement of
+            // velocity it therefore asserts that glucose is now doing what it was
+            // doing half a window ago, and the filter dutifully falls behind:
+            // measured, that cost +3.85 min against the observation where the
+            // level channel alone cost +0.71. The timing information in a trailing
+            // window is real but it is retrospective, and only one use of it is
+            // sound — deciding which mode was right, which is a question about the
+            // recent past. Where glucose is *now* stays the level channel's answer.
+            modeLogLikelihood[index] += noiseModel.logLikelihood(innovation, priorVariance)
+        }
+    }
+
+    /** Mode posterior ∝ predicted prior × likelihood, over every channel fed in. */
+    private fun applyModePosterior() {
         var maximum = Double.NEGATIVE_INFINITY
         for (index in 0 until AdaptiveV2Mode.COUNT) maximum = max(maximum, modeLogLikelihood[index])
         var total = 0.0
@@ -538,6 +594,7 @@ internal class AdaptiveV2Estimator {
         )
         noiseModel.reset()
         lagEstimator.reset()
+        rateObserver.reset()
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
             mode.reset()
@@ -662,6 +719,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.writeTo(output)
         noiseModel.writeTo(output)
         lagEstimator.writeTo(output)
+        rateObserver.writeTo(output)
     }
 
     internal fun readFrom(input: java.io.DataInputStream): Boolean {
@@ -682,6 +740,7 @@ internal class AdaptiveV2Estimator {
         telemetryModel.readFrom(input)
         noiseModel.readFrom(input)
         lagEstimator.readFrom(input)
+        rateObserver.readFrom(input)
         if (!isStateValid()) return false
         if (initialized) combine()
         return true
@@ -702,7 +761,8 @@ internal class AdaptiveV2Estimator {
             if (!AdaptiveV2ObservationModel.isStateValid(mode.x)) return false
             for (i in 0 until V2.N) if (mode.at(i, i) < 0.0) return false
         }
-        return telemetryModel.isValid() && noiseModel.isValid() && lagEstimator.isValid()
+        return telemetryModel.isValid() && noiseModel.isValid() && lagEstimator.isValid() &&
+            rateObserver.isValid()
     }
 
     companion object {

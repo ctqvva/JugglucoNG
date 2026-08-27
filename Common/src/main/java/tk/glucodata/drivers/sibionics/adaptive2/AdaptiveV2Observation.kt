@@ -390,6 +390,31 @@ internal object AdaptiveV2ObservationModel {
         out[V2.B] = 1.0
     }
 
+    /**
+     * Predicted rate of the *observed* signal, from the model's own lag law.
+     *
+     * The observation is `s*I + bias + artifact`, and its derivative is `s*İ`
+     * with the sensor states treated as slow. The transition defines
+     * `İ = (B - I)/tau`, so this channel reads precisely the blood-to-
+     * interstitial gap — the quantity that carries the lead and that the level
+     * channel cannot see. A mode that thinks glucose is moving predicts a
+     * different gap from one that thinks it is flat, which is the difference
+     * the mode likelihood needs and never had.
+     */
+    fun predictedRate(state: DoubleArray, lagMinutes: Double): Double {
+        val sensitivity = exp(state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S))
+        return sensitivity * (state[V2.B] - state[V2.I]) / max(lagMinutes, AdaptiveV2LagEstimator.MIN_LAG_MINUTES)
+    }
+
+    fun rateJacobian(out: DoubleArray, state: DoubleArray, lagMinutes: Double) {
+        val sensitivity = exp(state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S))
+        val tau = max(lagMinutes, AdaptiveV2LagEstimator.MIN_LAG_MINUTES)
+        out.fill(0.0)
+        out[V2.B] = sensitivity / tau
+        out[V2.I] = -sensitivity / tau
+        out[V2.LOG_S] = sensitivity * (state[V2.B] - state[V2.I]) / tau
+    }
+
     fun clampSensorStates(state: DoubleArray) {
         state[V2.LOG_S] = state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S)
         state[V2.BIAS] = state[V2.BIAS].coerceIn(MIN_BIAS, MAX_BIAS)
@@ -426,4 +451,178 @@ internal object AdaptiveV2ObservationModel {
         exp(state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S)).toFloat()
 
     fun softLimit(value: Double, limit: Double): Double = min(abs(value), limit) * (if (value < 0) -1.0 else 1.0)
+}
+
+/**
+ * Robust estimate of how fast the observed signal is moving, with an honest
+ * variance.
+ *
+ * This exists because the IMM could not see its own modes. The observation
+ * reads the interstitial state only, so a mode's velocity noise reaches the
+ * innovation through the lag coupling alone — a 4000x difference between
+ * STEADY and DYNAMIC arrives as 0.06% of R, and the mode probabilities never
+ * move off the transition matrix's stationary point. Motion has to be observed,
+ * not inferred from a level channel that cannot carry it.
+ *
+ * A first difference is the wrong instrument: differentiating white noise of
+ * standard deviation sigma over one minute produces slope noise of
+ * sigma*sqrt(2), so a naive minute-to-minute rate is dominated by exactly the
+ * thing that must not be allowed to drive mode choice. Two properties matter
+ * more than the estimator being clever:
+ *
+ *  - **Robust.** Theil-Sen — the median of all pairwise slopes — has a ~29%
+ *    breakdown point, so an isolated spike moves at most a minority of the
+ *    pairs and leaves the median alone. That is what keeps a one-minute
+ *    artifact from being read as the onset of a real excursion, which would
+ *    have handed DYNAMIC the evidence that belongs to ARTIFACT.
+ *  - **Honestly uncertain.** The reported variance is derived from the residual
+ *    scale actually seen in the window, inflated for differentiation and again
+ *    for Theil-Sen's efficiency loss, and floored. An over-confident rate
+ *    channel would drag the displayed value around; a wide one can still
+ *    separate a sustained excursion from noise, because that separation comes
+ *    from the modes disagreeing about the rate, not from the rate being precise.
+ */
+internal class AdaptiveV2RateObserver {
+
+    private val values = DoubleArray(WINDOW)
+    private val minutes = DoubleArray(WINDOW)
+    private var count = 0
+    private var head = 0
+
+    /** Slope in mmol/L per minute over the window, or NaN before it fills. */
+    var rate: Double = Double.NaN
+        private set
+
+    /** Variance of [rate], in (mmol/L/min)^2. */
+    var rateVariance: Double = MAX_RATE_VARIANCE
+        private set
+
+    fun reset() {
+        count = 0
+        head = 0
+        rate = Double.NaN
+        rateVariance = MAX_RATE_VARIANCE
+    }
+
+    /** True once a usable rate is available. */
+    val isUsable: Boolean get() = rate.isFinite() && rateVariance.isFinite()
+
+    fun observe(value: Double, timestampMinutes: Double) {
+        if (!value.isFinite() || !timestampMinutes.isFinite()) return
+        values[head] = value
+        minutes[head] = timestampMinutes
+        head = (head + 1) % WINDOW
+        if (count < WINDOW) count++
+        if (count < MIN_SAMPLES) {
+            rate = Double.NaN
+            rateVariance = MAX_RATE_VARIANCE
+            return
+        }
+        computeTheilSen()
+    }
+
+    private fun ordered(index: Int): Int = (head - count + index + WINDOW * 2) % WINDOW
+
+    private fun computeTheilSen() {
+        val slopes = DoubleArray(count * (count - 1) / 2)
+        var written = 0
+        for (i in 0 until count - 1) {
+            val a = ordered(i)
+            for (j in i + 1 until count) {
+                val b = ordered(j)
+                val dt = minutes[b] - minutes[a]
+                // Pairs closer than a minute would divide by an interval the
+                // sampling cannot resolve, and are the noisiest slopes anyway.
+                if (dt < MIN_PAIR_MINUTES) continue
+                slopes[written++] = (values[b] - values[a]) / dt
+            }
+        }
+        if (written < MIN_PAIRS) {
+            rate = Double.NaN
+            rateVariance = MAX_RATE_VARIANCE
+            return
+        }
+        val slope = median(slopes, written)
+
+        // Residual scale about the robust fit, as a MAD so the same spike that
+        // Theil-Sen ignored cannot inflate the variance either.
+        val anchorIndex = ordered(count / 2)
+        val anchorTime = minutes[anchorIndex]
+        val anchorValue = values[anchorIndex]
+        val residuals = DoubleArray(count)
+        for (i in 0 until count) {
+            val k = ordered(i)
+            residuals[i] = abs(values[k] - (anchorValue + slope * (minutes[k] - anchorTime)))
+        }
+        val mad = median(residuals, count)
+        val sigma = max(mad * MAD_TO_SIGMA, MIN_RESIDUAL_SIGMA)
+
+        // Variance of a slope fitted over n evenly spaced points is
+        // 12*sigma^2 / (n*(n^2-1)); Theil-Sen pays about 1.5x that for its
+        // robustness. This is where differentiation's noise amplification is
+        // accounted for rather than ignored.
+        val span = (count * (count.toDouble() * count - 1.0)).coerceAtLeast(1.0)
+        rateVariance = (THEIL_SEN_EFFICIENCY * 12.0 * sigma * sigma / span)
+            .coerceIn(MIN_RATE_VARIANCE, MAX_RATE_VARIANCE)
+        rate = slope
+    }
+
+    private fun median(source: DoubleArray, size: Int): Double {
+        val copy = source.copyOf(size)
+        copy.sort()
+        return if (size % 2 == 1) copy[size / 2] else 0.5 * (copy[size / 2 - 1] + copy[size / 2])
+    }
+
+    fun writeTo(output: DataOutputStream) {
+        output.writeInt(count)
+        output.writeInt(head)
+        for (index in 0 until WINDOW) {
+            output.writeDouble(values[index])
+            output.writeDouble(minutes[index])
+        }
+        output.writeDouble(rate)
+        output.writeDouble(rateVariance)
+    }
+
+    fun readFrom(input: DataInputStream) {
+        count = input.readInt()
+        head = input.readInt()
+        for (index in 0 until WINDOW) {
+            values[index] = input.readDouble()
+            minutes[index] = input.readDouble()
+        }
+        rate = input.readDouble()
+        rateVariance = input.readDouble()
+    }
+
+    fun isValid(): Boolean =
+        count in 0..WINDOW && head in 0 until WINDOW &&
+            (rate.isNaN() || rate.isFinite()) &&
+            rateVariance in MIN_RATE_VARIANCE..MAX_RATE_VARIANCE
+
+    internal companion object {
+        /**
+         * Nine minutes. Long enough that Theil-Sen has 36 pairs to take a
+         * median over, short enough that the rate itself is not what arrives
+         * late — a window that smooths the rate would simply move the lag from
+         * the estimator into its evidence.
+         */
+        const val WINDOW = 7
+        const val MIN_SAMPLES = 4
+        private const val MIN_PAIRS = 6
+        private const val MIN_PAIR_MINUTES = 0.9
+
+        /** MAD to Gaussian sigma. */
+        private const val MAD_TO_SIGMA = 1.4826
+
+        /** Theil-Sen's variance penalty against least squares on Gaussian noise. */
+        private const val THEIL_SEN_EFFICIENCY = 1.5
+
+        /** Display resolution is 0.1 mmol/L; residuals cannot honestly be smaller. */
+        private const val MIN_RESIDUAL_SIGMA = 0.03
+
+        /** Never claim to know the rate better than about 0.01 mmol/L/min. */
+        private const val MIN_RATE_VARIANCE = 1.0e-4
+        const val MAX_RATE_VARIANCE = 1.0
+    }
 }
