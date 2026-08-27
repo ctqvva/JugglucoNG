@@ -1351,6 +1351,7 @@ class ICanHealthBleManager(
             "Services discovered measurement=${charMeasurement != null} status=${charStatus != null} " +
                 "sessionStart=${charSessionStart != null} racp=${charRacp != null} specificOps=${charSpecificOps != null}"
         )
+        dumpGattSurface(gatt)
 
         if (charMeasurement == null) {
             Log.e(TAG, "CGM measurement characteristic missing")
@@ -1374,6 +1375,7 @@ class ICanHealthBleManager(
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         val data = characteristic.value ?: return
+        Log.i(TAG, "WIRE rx notify ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
             ICanHealthConstants.CGM_MEASUREMENT -> handleGlucoseNotification(data)
             ICanHealthConstants.CGM_SPECIFIC_OPS -> handleVendorAuthResponse(data)
@@ -1381,6 +1383,37 @@ class ICanHealthBleManager(
             // Lazy: hex-encodes the whole payload, and this fires per unhandled notification.
             else -> logd(TAG) { "Unhandled notify ${characteristic.uuid}: ${data.toHexString()}" }
         }
+    }
+
+    /** Last four hex digits of a 128-bit BLE UUID: enough to identify it, short enough to scan. */
+    private fun shortUuid(uuid: java.util.UUID): String =
+        uuid.toString().substring(4, 8).uppercase()
+
+    /**
+     * Dump the whole GATT surface once per connection.
+     *
+     * This driver was reverse-engineered from one vendor app against one sensor family, so any
+     * characteristic nobody looked at is somewhere a divergence can hide. Reading the map costs
+     * one log line per characteristic and has already turned up readable characteristics the
+     * driver never touched.
+     */
+    private fun dumpGattSurface(gatt: BluetoothGatt) {
+        runCatching {
+            gatt.services.forEach { service ->
+                Log.i(TAG, "WIRE service ${service.uuid}")
+                service.characteristics.forEach { ch ->
+                    val props = ch.properties
+                    val flags = buildString {
+                        if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) append("R")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) append("W")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) append("w")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) append("N")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) append("I")
+                    }
+                    Log.i(TAG, "WIRE   char ${ch.uuid} props=$flags")
+                }
+            }
+        }.onFailure { Log.stack(TAG, "dumpGattSurface", it) }
     }
 
     @Deprecated("Deprecated in Java")
@@ -1399,6 +1432,7 @@ class ICanHealthBleManager(
         }
 
         val data = characteristic.value ?: byteArrayOf()
+        Log.i(TAG, "WIRE rx read ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
             ICanHealthConstants.MODEL_NUMBER -> {
                 val model = parseDeviceInfoString(data)
@@ -2180,7 +2214,18 @@ class ICanHealthBleManager(
             !mActiveDeviceAddress.isNullOrBlank() -> mActiveDeviceAddress?.replace(":", "")
             else -> null
         }
-        return ICanHealthConstants.normalizeStandaloneUserId(source)
+        val resolved = ICanHealthConstants.normalizeStandaloneUserId(source)
+        // The head of that fallback chain is cleared by a remove-and-re-add, so the app can
+        // authenticate under a different identity than last time with nothing in the log saying
+        // so. Record what was chosen and everything it was chosen from.
+        Log.i(
+            TAG,
+            "WIRE authUserId=$resolved from source=$source " +
+                "(recovered=$recoveredAuthUserId configured=$configuredAuthUserId " +
+                "onboarding=$onboardingDeviceSn rawSerial=$rawSerialFromDevice " +
+                "serial=$serialFromDevice sensorId=$SerialNumber addr=$mActiveDeviceAddress)"
+        )
+        return resolved
     }
 
     private fun enqueuePreAuthReads() {
@@ -3799,6 +3844,7 @@ class ICanHealthBleManager(
                     drainGattQueue()
                     return
                 }
+                Log.i(TAG, "WIRE tx write ${shortUuid(op.charUuid)} ${op.data.toHexString()}")
                 char.value = op.data
                 char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 if (!gatt.writeCharacteristic(char)) {
