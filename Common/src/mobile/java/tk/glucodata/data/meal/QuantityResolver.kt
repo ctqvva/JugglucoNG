@@ -186,7 +186,7 @@ object QuantityResolver {
     private fun fromPieces(quantity: Quantity.Pieces, ref: NutritionReference, fmt: Formatter): QuantityResolution {
         val intro = listOf(fmt.pieces(quantity))
         // A serving that is itself a piece ("1 Riegel (25 g)") makes pieces a serving count.
-        val servingPieces = ref.servingPieces?.takeIf { it > 0f }
+        val servingPieces = ref.effectiveServingPieces
         if (ref.basis == NutritionBasis.PER_SERVING && servingPieces != null) {
             val servings = quantity.count / servingPieces
             return resolved(servings, ref.servingGrams()?.times(servings), ref.servingMilliliters()?.times(servings), intro + fmt.servingsOf(servings, null))

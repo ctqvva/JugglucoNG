@@ -104,6 +104,24 @@ class QuantityResolverTests {
     }
 
     @Test
+    fun severalPiecesOnlyShareAServingWeightWhenTheTextCarriesThatWeight() {
+        val bare = per100g.copy(
+            servingText = "6 sausages",
+            servingQuantity = 100f,
+            servingUnit = AmountUnit.GRAM,
+            servingPieces = 6f,
+            servingPieceLabel = "sausages"
+        )
+        assertNull(bare.effectiveServingPieces)
+        assertEquals(MissingReference.PIECE_WEIGHT, missing("1 sausage", bare))
+
+        val explicit = bare.copy(servingText = "6 sausages (400 g)", servingQuantity = 400f)
+        val one = resolved("1 sausage", explicit)
+        assertEquals(400f / 6f, one.grams!!, 0.001f)
+        assertEquals((400f / 6f) / 100f, one.factor, 0.0001f)
+    }
+
+    @Test
     fun piecesWithoutAnyWeightAsk() {
         assertEquals(MissingReference.PIECE_WEIGHT, missing("2 Riegel", per100g))
         val learned = per100g.copy(pieceGrams = 25f)
