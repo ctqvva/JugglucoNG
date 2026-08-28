@@ -178,6 +178,13 @@ class AiDexBleManager(
         private const val GATT_OP_WATCHDOG_RETRIES = 2  // Max retries on watchdog timeout before dropping op
         private const val STALE_CONNECTION_RECOVERY_FALLBACK_MS = 3_000L
         private const val CLEAR_STORAGE_QUIET_WINDOW_MS = 12_000L
+
+        /**
+         * Wait between pre-session `0xF3` framing candidates. The observed failing sensor holds the
+         * link for roughly seven seconds after rejecting the challenge, so this has to leave room
+         * for the diagnostic reads plus both candidates inside that window.
+         */
+        private const val PRE_SESSION_RECOVERY_FRAME_GAP_MS = 1_500L
         private const val POST_RESET_RECONNECT_DELAY_MS = 5_000L
         private const val EXPECTED_LIVE_INTERVAL_MS = 60_000L
         private const val EXPECTED_LIVE_GRACE_MS = 20_000L
@@ -321,6 +328,11 @@ class AiDexBleManager(
     private var preAuthFirstEncryptedFrameAtMs = 0L
     private var preAuthLastEncryptedFrameAtMs = 0L
     @Volatile private var consecutiveInvalidSetupRecoveries = 0
+
+    /** One-shot pre-session 0xF3 probe for F-generation sensors that reject F001 with `00`. */
+    private val preSessionRecovery = AiDexPreSessionRecovery()
+    private var preSessionRecoveryFrameAtMs = 0L
+    private var preSessionRecoverySawResponse = false
 
     private enum class PendingInvalidSetupRecovery {
         NONE,
@@ -1568,6 +1580,7 @@ class AiDexBleManager(
         handler.removeCallbacks(invalidSetupRecoveryFallback)
         pendingInvalidSetupRecovery = PendingInvalidSetupRecovery.NONE
         keyExchange.reset()
+        resetPreSessionRecovery()
         challengeWritten = false
         bondDataRead = false
         keyExchangePendingBond = false
@@ -1837,6 +1850,7 @@ class AiDexBleManager(
                 setBondValidatedByStreaming(false, "new-connection-unbonded")
             }
             keyExchange.reset()
+            resetPreSessionRecovery()
             challengeWritten = false
             bondDataRead = false
             servicesReady = false
@@ -2120,6 +2134,8 @@ class AiDexBleManager(
             return
         }
 
+        logDiscoveredGattMap(gatt)
+
         val service = gatt.getService(SERVICE_F000)
         if (service == null) {
             Log.e(TAG, "onServicesDiscovered: SERVICE_F000 (0x181F) not found! Triggering recovery")
@@ -2142,6 +2158,51 @@ class AiDexBleManager(
         cccdMissingCallbackRetries = 0
 
         writeNextCccd(gatt)
+    }
+
+    /**
+     * Dump the full discovered attribute table once per connection.
+     *
+     * Read-only. A sensor that fails authentication gives us almost nothing else to work from,
+     * and without the property bits there is no way to tell "the sensor refused us" apart from
+     * "we never had a legal way to ask".
+     */
+    private fun logDiscoveredGattMap(gatt: BluetoothGatt) {
+        val services = gatt.services
+        if (services.isNullOrEmpty()) {
+            Log.i(TAG, "GATT map: no services reported")
+            return
+        }
+        Log.i(TAG, "GATT map: ${services.size} service(s)")
+        for (service in services) {
+            val chars = service.characteristics ?: emptyList()
+            Log.i(TAG, "GATT map: service ${service.uuid} (${chars.size} char(s))")
+            for (ch in chars) {
+                val descriptors = ch.descriptors?.joinToString(",") { it.uuid.toString().substring(4, 8) }
+                    ?: ""
+                Log.i(
+                    TAG,
+                    "GATT map:   char ${ch.uuid} props=0x${"%02X".format(ch.properties)}" +
+                        " [${describeCharacteristicProperties(ch.properties)}]" +
+                        " perms=0x${"%02X".format(ch.permissions)}" +
+                        if (descriptors.isEmpty()) "" else " descriptors=[$descriptors]"
+                )
+            }
+        }
+    }
+
+    private fun describeCharacteristicProperties(props: Int): String {
+        val names = buildList {
+            if (props and BluetoothGattCharacteristic.PROPERTY_BROADCAST != 0) add("BROADCAST")
+            if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) add("READ")
+            if (props and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) add("WRITE_NR")
+            if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) add("WRITE")
+            if (props and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) add("NOTIFY")
+            if (props and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) add("INDICATE")
+            if (props and BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE != 0) add("SIGNED_WRITE")
+            if (props and BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS != 0) add("EXT_PROPS")
+        }
+        return if (names.isEmpty()) "none" else names.joinToString("|")
     }
 
     override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
@@ -2352,6 +2413,16 @@ class AiDexBleManager(
         // Lazy: this fires per notification and the hex preview copies + formats bytes.
         logi(TAG) { "onCharacteristicChanged: uuid=$uuid len=${data.size} hex=${AiDexParser.hexString(data.copyOfRange(0, minOf(data.size, 8)))}" }
 
+        if (preSessionRecoveryFrameAtMs > 0L && (uuid == CHAR_F001 || uuid == CHAR_F002)) {
+            preSessionRecoverySawResponse = true
+            Log.w(
+                TAG,
+                "Pre-session recovery: reply on $uuid after" +
+                    " ${System.currentTimeMillis() - preSessionRecoveryFrameAtMs}ms," +
+                    " len=${data.size} hex=${AiDexParser.hexString(data)}"
+            )
+        }
+
         when (uuid) {
             CHAR_F003 -> handleF003(data)
             CHAR_F001 -> handleF001Response(data, gatt)
@@ -2400,9 +2471,20 @@ class AiDexBleManager(
             return
         }
 
+        if (preSessionRecovery.hasStarted) {
+            Log.i(TAG, "Pre-session read: $uuid len=${data.size} hex=${AiDexParser.hexString(data)}")
+        }
+
         when (uuid) {
             CHAR_F002 -> {
-                if (!bondDataRead && phase == Phase.KEY_EXCHANGE && data.size == 17) {
+                // BOND data only decrypts against a PAIR key. Without one — a pre-auth diagnostic
+                // read, say — handleBondData could only fail its CRC and tear down the link.
+                if (
+                    !bondDataRead &&
+                    phase == Phase.KEY_EXCHANGE &&
+                    data.size == 17 &&
+                    keyExchange.pairKey != null
+                ) {
                     handleBondData(data, gatt)
                 } else {
                     handleF002Response(data, gatt)
@@ -2883,8 +2965,17 @@ class AiDexBleManager(
      */
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
         if (data.size < 16) {
-            Log.w(TAG, "F001 response too short (${data.size} bytes)")
+            Log.w(TAG, "F001 response too short (${data.size} bytes, hex=${AiDexParser.hexString(data)})")
+            maybeStartPreSessionRecovery(data, gatt)
             return
+        }
+
+        if (preSessionRecovery.hasStarted) {
+            Log.i(
+                TAG,
+                "Pre-session recovery: F001 answered with ${data.size} bytes after the 0xF3 probe" +
+                    " — continuing through the normal key exchange"
+            )
         }
 
         if (!challengeWritten) {
@@ -2904,6 +2995,138 @@ class AiDexBleManager(
 
         // Step 3: Read BOND data from F002
         readBondData(gatt)
+    }
+
+    /**
+     * Last-resort probe for an F-generation sensor that answers the F001 challenge with `00`.
+     *
+     * A sensor in this state is unreachable by the vendor app too, so there is no session key and
+     * no way to build the normal encrypted `0xF3`. Sensor firmware is reported to hand back the
+     * existing PAIR key rather than wiping when `0xF3` arrives after the sensor has been running
+     * for an hour, which would make this a lost-key recovery. That report is unverified and so is
+     * the framing below, which is why this stays as narrow as it can be: F-generation only, once
+     * per connection, only on an explicit one-byte `00`, and never as part of the Reset lifecycle
+     * — no RESET, no DELETE_BOND, no bond removal, no local history clearing.
+     *
+     * Anything the sensor returns re-enters the normal key exchange, where a PAIR key still has to
+     * survive BOND CRC-8 validation before it is stored.
+     */
+    private fun resetPreSessionRecovery() {
+        preSessionRecovery.reset()
+        preSessionRecoveryFrameAtMs = 0L
+        preSessionRecoverySawResponse = false
+    }
+
+    private fun maybeStartPreSessionRecovery(data: ByteArray, gatt: BluetoothGatt) {
+        val advertisedName = try {
+            mygetDeviceName()
+        } catch (_: Throwable) {
+            null
+        }
+        val isFGeneration = AiDexSerialIdentity.isFGenerationAdvertisement(advertisedName)
+
+        if (!preSessionRecovery.shouldAttempt(
+                isFGeneration = isFGeneration,
+                challengeWritten = challengeWritten,
+                hasPairKey = keyExchange.pairKey != null,
+                response = data,
+            )
+        ) {
+            logd(TAG) {
+                "Pre-session recovery: not attempting (fGen=$isFGeneration" +
+                    " challengeWritten=$challengeWritten pairKey=${keyExchange.pairKey != null}" +
+                    " len=${data.size} started=${preSessionRecovery.hasStarted})"
+            }
+            return
+        }
+
+        if (!preSessionRecovery.begin()) return
+
+        Log.w(
+            TAG,
+            "Pre-session recovery: F-generation sensor '$advertisedName' rejected the F001" +
+                " challenge with 00 — probing 0xF3 once. No reset flags, no bond removal," +
+                " no history clearing."
+        )
+
+        readPreAuthDiagnostics(gatt)
+        sendNextPreSessionRecoveryFrame(gatt)
+    }
+
+    /**
+     * Read whatever this sensor is actually willing to expose without a session.
+     *
+     * Only characteristics that really advertise PROPERTY_READ are queued, so a sensor that never
+     * offered a legal read is distinguishable from one that refused. CGM Session Run Time (0x2AAB)
+     * matters most here: it says whether the sensor believes it has been running long enough for
+     * the reported `0xF3` key-return behaviour to apply.
+     */
+    private fun readPreAuthDiagnostics(gatt: BluetoothGatt) {
+        val wanted = listOf(
+            SERVICE_DIS to CHAR_MODEL_NUMBER,
+            SERVICE_DIS to CHAR_SOFTWARE_REV,
+            SERVICE_DIS to CHAR_MANUFACTURER,
+            SERVICE_F000 to CHAR_CGM_SESSION_START,
+            SERVICE_F000 to CHAR_CGM_SESSION_RUN,
+            SERVICE_F000 to CHAR_F001,
+            SERVICE_F000 to CHAR_F002,
+        )
+        for ((serviceUuid, charUuid) in wanted) {
+            val ch = gatt.getService(serviceUuid)?.getCharacteristic(charUuid)
+            if (ch == null) {
+                Log.i(TAG, "Pre-session read: $charUuid absent")
+                continue
+            }
+            if (ch.properties and BluetoothGattCharacteristic.PROPERTY_READ == 0) {
+                Log.i(
+                    TAG,
+                    "Pre-session read: $charUuid not readable" +
+                        " (props=0x${"%02X".format(ch.properties)}) — skipping"
+                )
+                continue
+            }
+            enqueueGattOp(GattOp.Read(charUuid, serviceUuid))
+        }
+    }
+
+    /**
+     * Write the next `0xF3` framing candidate to F002, or finish if all have been tried.
+     *
+     * Candidates are sent one at a time with a wait in between, and the sequence stops as soon as
+     * the sensor says anything at all on F001 or F002.
+     */
+    private fun sendNextPreSessionRecoveryFrame(gatt: BluetoothGatt) {
+        val frame = preSessionRecovery.nextFrame(keyExchange.snSecret, keyExchange.snIv)
+        if (frame == null) {
+            Log.w(
+                TAG,
+                "Pre-session recovery: all 0xF3 framings tried, sensor stayed silent." +
+                    " Treating as unrecoverable from the app side."
+            )
+            return
+        }
+
+        Log.w(
+            TAG,
+            "Pre-session recovery: writing 0xF3 candidate ${frame.candidate}" +
+                " (${AiDexParser.hexString(frame.bytes)}) to F002"
+        )
+        preSessionRecoverySawResponse = false
+        preSessionRecoveryFrameAtMs = System.currentTimeMillis()
+        enqueueGattOp(GattOp.Write(CHAR_F002, frame.bytes))
+
+        handler.postDelayed({
+            val stillConnected = mBluetoothGatt === gatt
+            if (preSessionRecoverySawResponse) {
+                Log.i(TAG, "Pre-session recovery: sensor responded — not trying further framings")
+                return@postDelayed
+            }
+            if (!stillConnected) {
+                Log.i(TAG, "Pre-session recovery: link dropped before the next framing")
+                return@postDelayed
+            }
+            sendNextPreSessionRecoveryFrame(gatt)
+        }, PRE_SESSION_RECOVERY_FRAME_GAP_MS)
     }
 
     /**

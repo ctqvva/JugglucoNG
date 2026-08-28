@@ -23,6 +23,17 @@ object AiDexSerialIdentity {
         RegexOption.IGNORE_CASE,
     )
 
+    /**
+     * Deliberately stricter than [generationPrefixed]: the `-` separator is required so a bare
+     * serial that merely starts with `F` cannot be mistaken for the F product generation. This
+     * gates a diagnostic that writes to the sensor, so a false positive costs more than a miss.
+     */
+    private val fGenerationPrefixed = Regex(
+        "(?:^|\\s)(?:AIDEX\\s+)?F\\s*-\\s*" +
+            "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
+        RegexOption.IGNORE_CASE,
+    )
+
     fun canonicalFromAdvertisement(rawName: String): String? {
         val trimmed = rawName.trim()
         generationPrefixed.find(trimmed)?.let { match ->
@@ -54,6 +65,18 @@ object AiDexSerialIdentity {
         } else {
             trimmed
         }
+    }
+
+    /**
+     * Whether an advertisement name carries the `F` product-generation prefix.
+     *
+     * The prefix is not part of the protocol serial and does not by itself imply a different
+     * protocol; it only identifies hardware whose authentication behaviour we have observed
+     * to differ from the `X` generation.
+     */
+    fun isFGenerationAdvertisement(rawName: String?): Boolean {
+        if (rawName.isNullOrBlank()) return false
+        return fGenerationPrefixed.containsMatchIn(rawName.trim())
     }
 
     fun fallbackCanonicalFromAddress(address: String): String =
