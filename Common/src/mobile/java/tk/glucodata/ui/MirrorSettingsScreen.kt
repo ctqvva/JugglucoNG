@@ -243,6 +243,64 @@ private fun changeHostErrorMessage(context: Context, code: Int): String = when (
     else -> context.getString(R.string.mirror_error_with_code, code)
 }
 
+private data class QuickPairSender(val index: Int, val created: Boolean)
+
+private fun readMirrorConnectionSnapshots(): List<MirrorConnectionSnapshot> =
+    (0 until Natives.backuphostNr()).map { index ->
+        val iceLabel = Natives.getICElabel(index)
+        MirrorConnectionSnapshot(
+            index = index,
+            label = Natives.getbackuplabel(index),
+            isIce = !iceLabel.isNullOrBlank(),
+            iceSide = !iceLabel.isNullOrBlank() && Natives.getICEside(index),
+            isWearOs = Natives.isWearOS(index),
+            sendsData = Natives.getbackuphostnums(index) ||
+                Natives.getbackuphoststream(index) ||
+                Natives.getbackuphostscans(index),
+            receivesData = (Natives.getbackuphostreceive(index) and 2) != 0,
+            isDeactivated = Natives.getHostDeactivated(index),
+            isPending = Natives.isBackupHostPending(index)
+        )
+    }
+
+private fun refreshMirrorNetworking(context: Context, reset: Boolean = true) {
+    if (reset) Natives.resetnetwork()
+    tk.glucodata.Applic.updateservice(context, Natives.getusebluetooth())
+    tk.glucodata.Applic.wakemirrors()
+}
+
+private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickPairSender {
+    val connections = readMirrorConnectionSnapshots()
+    reusableQuickPairIndex(connections, kind)?.let { index ->
+        if (connections.first { it.index == index }.isDeactivated) {
+            Natives.setHostDeactivated(index, false)
+            refreshMirrorNetworking(context)
+        }
+        return QuickPairSender(index, created = false)
+    }
+
+    val index = when (kind) {
+        QuickPairKind.LOCAL -> Natives.makeHomeSender()
+        QuickPairKind.HYBRID -> Natives.makeICESender()
+    }
+    if (index >= 0) refreshMirrorNetworking(context, reset = false)
+    return QuickPairSender(index, created = index >= 0)
+}
+
+private fun cleanupAnnouncementSender(
+    context: Context,
+    label: String?,
+    ownedByAnnouncement: Boolean
+): Boolean {
+    if (label.isNullOrBlank()) return false
+    val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
+    if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement)) return false
+
+    Natives.deletebackuphost(connection!!.index)
+    refreshMirrorNetworking(context)
+    return true
+}
+
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
 @Composable
@@ -255,7 +313,8 @@ fun MirrorSettingsScreen(navController: NavController) {
     // mDNS
     val mdnsManager = remember { MDnsManager(context) }
     var isBroadcasting by remember { mutableStateOf(false) }
-    var broadcastSenderIdx by remember { mutableIntStateOf(-1) } // index of the sender entry on master
+    var broadcastSenderLabel by remember { mutableStateOf<String?>(null) }
+    var broadcastOwnsSender by remember { mutableStateOf(false) }
     var discoveredMirrors by remember { mutableStateOf(emptyList<DiscoveredMirror>()) }
 
     // Pending states
@@ -264,6 +323,10 @@ fun MirrorSettingsScreen(navController: NavController) {
 
     // Edit sheet state
     var editSheetPos by remember { mutableStateOf<Int?>(null) }
+
+    val latestIsBroadcasting by rememberUpdatedState(isBroadcasting)
+    val latestBroadcastSenderLabel by rememberUpdatedState(broadcastSenderLabel)
+    val latestBroadcastOwnsSender by rememberUpdatedState(broadcastOwnsSender)
 
     LaunchedEffect(triggerRefresh) { mirrors = getMirrorsList() }
 
@@ -275,7 +338,14 @@ fun MirrorSettingsScreen(navController: NavController) {
         }
         onDispose {
             mdnsManager.stopDiscovery()
-            if (isBroadcasting) mdnsManager.unregisterService()
+            if (latestIsBroadcasting) {
+                mdnsManager.unregisterService()
+                cleanupAnnouncementSender(
+                    context,
+                    latestBroadcastSenderLabel,
+                    latestBroadcastOwnsSender
+                )
+            }
         }
     }
 
@@ -427,7 +497,7 @@ fun MirrorSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.TOP,
                     onClick = {
-                        val idx = Natives.makeICESender()
+                        val idx = ensureQuickPairSender(context, QuickPairKind.HYBRID).index
                         if (idx >= 0) {
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
@@ -445,8 +515,12 @@ fun MirrorSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
                     onClick = {
-                        val idx = Natives.makeHomeSender()
+                        val sender = ensureQuickPairSender(context, QuickPairKind.LOCAL)
+                        val idx = sender.index
                         if (idx >= 0) {
+                            if (Natives.getbackuplabel(idx) == broadcastSenderLabel) {
+                                broadcastOwnsSender = false
+                            }
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
                         } else {
@@ -481,10 +555,11 @@ fun MirrorSettingsScreen(navController: NavController) {
                     onCheckedChange = { checked ->
                         isBroadcasting = checked
                         if (checked) {
-                            // Create a sender entry so master actually listens
-                            val idx = Natives.makeHomeSender()
+                            val sender = ensureQuickPairSender(context, QuickPairKind.LOCAL)
+                            val idx = sender.index
                             if (idx >= 0) {
-                                broadcastSenderIdx = idx
+                                broadcastSenderLabel = Natives.getbackuplabel(idx)
+                                broadcastOwnsSender = sender.created
                                 triggerRefresh++
                                 val senderPort = Natives.getbackuphostport(idx)?.toIntOrNull() ?: 8795
                                 // Get the full JSON (same data as QR code) for the follower
@@ -495,10 +570,21 @@ fun MirrorSettingsScreen(navController: NavController) {
                                     mirrorJson
                                 )
                             } else {
+                                broadcastSenderLabel = null
+                                broadcastOwnsSender = false
                                 mdnsManager.registerService(android.os.Build.MODEL ?: "Device")
                             }
                         } else {
                             mdnsManager.unregisterService()
+                            if (cleanupAnnouncementSender(
+                                    context,
+                                    broadcastSenderLabel,
+                                    broadcastOwnsSender
+                                )) {
+                                triggerRefresh++
+                            }
+                            broadcastSenderLabel = null
+                            broadcastOwnsSender = false
                         }
                     }
                 )
@@ -554,6 +640,37 @@ fun MirrorSettingsScreen(navController: NavController) {
                 }
             }
 
+            val cloneConnections = mirrors.filterNot { it.isWearOs }
+            item(key = "clone_master") {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.mirror_clone_master),
+                    subtitle = stringResource(R.string.mirror_clone_master_desc),
+                    icon = Icons.Filled.SyncAlt,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    checked = cloneConnections.any { !it.isDeactivated },
+                    enabled = cloneConnections.isNotEmpty(),
+                    position = CardPosition.SINGLE,
+                    onCheckedChange = { enabled ->
+                        if (!enabled && isBroadcasting) {
+                            mdnsManager.unregisterService()
+                            cleanupAnnouncementSender(
+                                context,
+                                broadcastSenderLabel,
+                                broadcastOwnsSender
+                            )
+                            isBroadcasting = false
+                            broadcastSenderLabel = null
+                            broadcastOwnsSender = false
+                        }
+                        cloneConnectionIndices(readMirrorConnectionSnapshots()).forEach { index ->
+                            Natives.setHostDeactivated(index, !enabled)
+                        }
+                        refreshMirrorNetworking(context)
+                        triggerRefresh++
+                    }
+                )
+            }
+
             if (mirrors.isEmpty()) {
                 item(key = "empty_msg") {
                     Surface(Modifier.fillMaxWidth(), shape = cardShape(CardPosition.SINGLE), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
@@ -567,15 +684,19 @@ fun MirrorSettingsScreen(navController: NavController) {
                         onEdit = { editSheetPos = mirror.index },
                         onToggle = {
                             Natives.setHostDeactivated(mirror.index, !mirror.isDeactivated)
-                            Natives.resetnetwork()
-                            tk.glucodata.Applic.wakemirrors()
+                            refreshMirrorNetworking(context)
                             triggerRefresh++
                         },
                         onShowQR = { mirror.index },
                         onDelete = {
+                            if (mirror.label == broadcastSenderLabel) {
+                                mdnsManager.unregisterService()
+                                isBroadcasting = false
+                                broadcastSenderLabel = null
+                                broadcastOwnsSender = false
+                            }
                             Natives.deletebackuphost(mirror.index)
-                            Natives.resetnetwork()
-                            tk.glucodata.Applic.wakemirrors()
+                            refreshMirrorNetworking(context)
                             triggerRefresh++
                         }
                     )
@@ -971,13 +1092,15 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = port, onValueChange = { port = it },
-                    label = { Text(stringResource(R.string.port)) },
-                    supportingText = { Text(stringResource(R.string.mirror_port_default)) },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                if (connectionType != ConnectionType.ICE) {
+                    OutlinedTextField(
+                        value = port, onValueChange = { port = it },
+                        label = { Text(stringResource(R.string.port)) },
+                        supportingText = { Text(stringResource(R.string.mirror_port_default)) },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
             }
 
             // Connection label
@@ -1125,14 +1248,26 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
 
 data class MirrorItemData(
     val index: Int, val label: String?, val names: Array<String>?,
-    val port: String?, val isDeactivated: Boolean, val status: String
+    val port: String?, val isDeactivated: Boolean, val status: String,
+    val isWearOs: Boolean
 )
 
 fun getMirrorsList(): List<MirrorItemData> {
     val mirrors = mutableListOf<MirrorItemData>()
     for (i in 0 until Natives.backuphostNr()) {
-        val names = Natives.getbackupIPs(i) ?: emptyArray()
-        mirrors.add(MirrorItemData(i, Natives.getbackuplabel(i), names, Natives.getbackuphostport(i), Natives.getHostDeactivated(i), Natives.mirrorStatus(i) ?: ""))
+        val isIce = !Natives.getICElabel(i).isNullOrBlank()
+        val names = if (isIce) emptyArray() else Natives.getbackupIPs(i) ?: emptyArray()
+        mirrors.add(
+            MirrorItemData(
+                i,
+                Natives.getbackuplabel(i),
+                names,
+                mirrorDisplayPort(isIce, Natives.getbackuphostport(i)),
+                Natives.getHostDeactivated(i),
+                Natives.mirrorStatus(i) ?: "",
+                Natives.isWearOS(i)
+            )
+        )
     }
     return mirrors
 }

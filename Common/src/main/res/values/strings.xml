@@ -2381,6 +2381,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN relay for remote connections</string>
     <string name="mirror_connections">Connections</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
     <string name="mirror_no_connections">No connections. Use Quick Pair or tap + to add.</string>
     <string name="mirror_delete_connection_title">Delete connection?</string>
     <string name="mirror_delete_connection_message">%1$s will be removed permanently.</string>

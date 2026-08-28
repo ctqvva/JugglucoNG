@@ -388,6 +388,8 @@ public class Natives {
 
         public static native int backuphostNr();
 
+        public static native int activeBackupHostNr();
+
         public static native String[] getbackupIPs(int pos);
 
         public static native boolean getbackupHasHostname(int pos);
@@ -397,6 +399,8 @@ public class Natives {
         public static native String getbackuppassword(int pos);
 
         public static native boolean isWearOS(int pos);
+
+        public static native boolean isBackupHostPending(int pos);
 
         public static native int changebackuphost(int pos, String[] names, int nr, boolean detect, String port,
                         boolean nums, boolean stream, boolean scans, boolean recover, boolean receive,
