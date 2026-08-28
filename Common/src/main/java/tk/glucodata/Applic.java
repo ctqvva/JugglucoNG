@@ -487,7 +487,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
     }
 
     public static void updateservice(Context context, boolean usebluetooth) {
-        final int backupHosts = Natives.backuphostNr();
+        final int backupHosts = Natives.activeBackupHostNr();
         final boolean keepAliveRequired = usebluetooth || backupHosts > 0;
         if (doLog) {
             Log.i(LOG_ID, "updateservice decision bluetooth=" + usebluetooth
@@ -522,7 +522,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         SensorBluetooth.destructor();
-        if (Natives.backuphostNr() <= 0) {
+        if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }
     }
@@ -561,7 +561,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
 
         if (!keeprunning.started) {
-            if (usebluetooth || Natives.backuphostNr() > 0) {
+            if (usebluetooth || Natives.activeBackupHostNr() > 0) {
                 if (keeprunning.start(context)) {
                     if (doLog) {
                         Log.i(LOG_ID, "keeprunning started");

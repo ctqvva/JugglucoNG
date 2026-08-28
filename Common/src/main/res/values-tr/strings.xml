@@ -1826,6 +1826,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Uzak bağlantılar için TURN relay</string>
     <string name="mirror_connections">Bağlantılar</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Kayıtlı tüm Clone bağlantılarını etkinleştir</string>
     <string name="mirror_no_connections">Bağlantı yok. Hızlı eşleştirmeyi kullanın veya + dokunun.</string>
     <string name="mirror_delete_connection_title">Bağlantı silinsin mi?</string>
     <string name="mirror_delete_connection_message">%1$s kalıcı olarak kaldırılacak.</string>

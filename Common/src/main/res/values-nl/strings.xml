@@ -1841,6 +1841,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN-relay voor externe verbindingen</string>
     <string name="mirror_connections">Verbindingen</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
     <string name="mirror_no_connections">Geen verbindingen. Gebruik snel koppelen of tik op +.</string>
     <string name="mirror_delete_connection_title">Verbinding verwijderen?</string>
     <string name="mirror_delete_connection_message">%1$s wordt definitief verwijderd.</string>

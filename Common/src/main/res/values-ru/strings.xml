@@ -1845,6 +1845,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Ретранслятор</string>
     <string name="mirror_turn_server_desc">TURN-ретранслятор для удаленных подключений</string>
     <string name="mirror_connections">Соединения</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Включить все сохранённые подключения Clone</string>
     <string name="mirror_no_connections">Нет соединений. Используйте быстрое сопряжение или нажмите +.</string>
     <string name="mirror_delete_connection_title">Удалить соединение?</string>
     <string name="mirror_delete_connection_message">%1$s будет удалено безвозвратно.</string>

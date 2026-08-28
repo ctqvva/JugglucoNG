@@ -40,6 +40,19 @@ extern "C" JNIEXPORT jint JNICALL fromjava(backuphostNr)(JNIEnv *env,
   return backup->gethostnr();
 }
 
+extern "C" JNIEXPORT jint JNICALL fromjava(activeBackupHostNr)(JNIEnv *env,
+                                                               jclass cl) {
+  if (!backup)
+    return 0;
+  const auto *updated = backup->getupdatedata();
+  int active = 0;
+  for (int pos = 0; pos < updated->hostnr; ++pos) {
+    if (!updated->allhosts[pos].deactivated)
+      ++active;
+  }
+  return active;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL fromjava(detectIP)(JNIEnv *envin,
                                                          jclass cl, jint pos) {
   const passhost_t &host = backup->getupdatedata()->allhosts[pos];
@@ -219,6 +232,13 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(isWearOS)(JNIEnv *envin,
   auto ret = backup->getupdatedata()->allhosts[pos].wearos;
   LOGGER("isWearos(%d)=%d\n", pos, ret);
   return ret;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(isBackupHostPending)(JNIEnv *envin, jclass cl, jint pos) {
+  if (!backup || pos < 0 || pos >= backup->gethostnr())
+    return false;
+  return backup->getupdatedata()->allhosts[pos].newconnection;
 }
 
 bool getpassive(int pos);

@@ -1923,6 +1923,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN-Relay für entfernte Verbindungen</string>
     <string name="mirror_connections">Verbindungen</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Alle gespeicherten Clone-Verbindungen aktivieren</string>
     <string name="mirror_no_connections">Keine Verbindungen. Schnell koppeln oder + antippen.</string>
     <string name="mirror_delete_connection_title">Verbindung löschen?</string>
     <string name="mirror_delete_connection_message">%1$s wird dauerhaft entfernt.</string>

@@ -2122,6 +2122,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mirror_relay">Gudbinta</string>
     <string name="mirror_turn_server_desc">U rog gudbinta isku xirka fog</string>
     <string name="mirror_connections">Xiriirinta</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Daar dhammaan xiriirrada Clone ee la kaydiyay</string>
     <string name="mirror_no_connections">Xiriir la\'aan Isticmaal Lamaane Degdeg ah ama taabo + si aad ugu darto.</string>
     <string name="mirror_delete_connection_title">Tirtir xidhiidhka?</string>
     <string name="mirror_delete_connection_message">%1$s waa laga saari doonaa si joogto ah.</string>

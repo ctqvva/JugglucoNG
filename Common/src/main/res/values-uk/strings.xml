@@ -1877,6 +1877,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Реле</string>
     <string name="mirror_turn_server_desc">TURN-реле для віддалених підключень</string>
     <string name="mirror_connections">Підключення</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">Увімкнути всі збережені підключення Clone</string>
     <string name="mirror_no_connections">Немає підключень. Використайте швидке сполучення або натисніть +.</string>
     <string name="mirror_delete_connection_title">Видалити підключення?</string>
     <string name="mirror_delete_connection_message">%1$s буде остаточно видалено.</string>

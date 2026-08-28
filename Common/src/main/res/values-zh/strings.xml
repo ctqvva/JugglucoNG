@@ -1814,6 +1814,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">中继</string>
     <string name="mirror_turn_server_desc">用于远程连接的 TURN 中继</string>
     <string name="mirror_connections">连接</string>
+    <string name="mirror_clone_master">Clone</string>
+    <string name="mirror_clone_master_desc">启用所有已保存的 Clone 连接</string>
     <string name="mirror_no_connections">没有连接。使用快速配对或点击 + 添加。</string>
     <string name="mirror_delete_connection_title">删除连接？</string>
     <string name="mirror_delete_connection_message">%1$s 将被永久移除。</string>
