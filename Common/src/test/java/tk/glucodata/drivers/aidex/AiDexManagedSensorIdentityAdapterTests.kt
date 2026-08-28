@@ -40,6 +40,32 @@ class AiDexManagedSensorIdentityAdapterTests {
     }
 
     @Test
+    fun fGenerationAuthenticationSerial_requiresExplicitMatchingFAdvertisement() {
+        assertEquals(
+            "F22222FZXKT",
+            AiDexSerialIdentity.fGenerationAuthenticationSerial(
+                storedSensorId = "X-22222FZXKT",
+                address = "60:83:DA:15:2F:2D",
+                advertisedName = "AiDEX F-22222FZXKT",
+            )
+        )
+        assertNull(
+            AiDexSerialIdentity.fGenerationAuthenticationSerial(
+                storedSensorId = "X-22222FZXKT",
+                address = "60:83:DA:15:2F:2D",
+                advertisedName = "AiDEX X-22222FZXKT",
+            )
+        )
+        assertNull(
+            AiDexSerialIdentity.fGenerationAuthenticationSerial(
+                storedSensorId = "X-2222267V4E",
+                address = "60:83:DA:15:2F:2D",
+                advertisedName = "AiDEX F-22222FZXKT",
+            )
+        )
+    }
+
+    @Test
     fun nativeAlias_stripsManagedPrefix() {
         assertEquals("222227JR7C", AiDexManagedSensorIdentityAdapter.nativeAlias("X-222227JR7C"))
     }

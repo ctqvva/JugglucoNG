@@ -20,12 +20,21 @@ import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
  *   6. F003 data decrypted with session key + SN IV
  *   7. F002 commands encrypted with session key + SN IV
  */
-class AiDexKeyExchange(val serial: String) {
+class AiDexKeyExchange private constructor(
+    val serial: String,
+    val bareSerial: String,
+) {
+
+    constructor(serial: String) : this(serial, SerialCrypto.stripPrefix(serial))
+
+    companion object {
+        /** Build a session from an already resolved protocol serial without advertisement parsing. */
+        fun fromExactProtocolSerial(protocolSerial: String): AiDexKeyExchange =
+            AiDexKeyExchange(protocolSerial, protocolSerial.uppercase())
+    }
 
     /** Bare serial number (without "X-" or "AiDEX X-" prefix).
      *  snToBytes() expects the bare serial (e.g., "2222267V4E", not "X-2222267V4E"). */
-    val bareSerial: String = SerialCrypto.stripPrefix(serial)
-
     /** SN-derived secret (F001 challenge). Stable per serial. */
     val snSecret: ByteArray = SerialCrypto.deriveSecret(bareSerial)
 
