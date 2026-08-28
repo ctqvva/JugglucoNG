@@ -32,9 +32,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +44,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -94,14 +98,65 @@ private suspend fun testJugglucoConnection(host: String, port: Int): Boolean =
 // ── QR Code ──────────────────────────────────────────────────────────────────
 
 @Composable
-fun QRCodeImage(content: String, size: Int = 500) {
+fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     if (content.isEmpty()) return
-    val bitmap = remember(content) {
+    val bitmap = remember(content, size) {
         try { com.journeyapps.barcodescanner.BarcodeEncoder().encodeBitmap(content, com.google.zxing.BarcodeFormat.QR_CODE, size, size) }
         catch (_: Exception) { null }
     }
     bitmap?.let {
-        androidx.compose.foundation.Image(bitmap = it.asImageBitmap(), contentDescription = "QR Code", modifier = Modifier.size(240.dp))
+        androidx.compose.foundation.Image(
+            bitmap = it.asImageBitmap(),
+            contentDescription = "QR Code",
+            modifier = modifier,
+            filterQuality = FilterQuality.None
+        )
+    }
+}
+
+@Composable
+private fun MirrorQrDialog(
+    title: String,
+    instruction: String?,
+    content: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            val qrSize = minOf(maxWidth - 32.dp, maxHeight - 180.dp, 560.dp)
+                .coerceAtLeast(200.dp)
+            val bitmapSize = with(LocalDensity.current) { qrSize.roundToPx() }
+            Surface(
+                modifier = Modifier.width(qrSize + 24.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(title, style = MaterialTheme.typography.titleLarge)
+                    if (instruction != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(instruction, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    QRCodeImage(content, bitmapSize, Modifier.size(qrSize))
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.close))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -292,17 +347,11 @@ fun MirrorSettingsScreen(navController: NavController) {
     }
 
     if (showMyQR != null) {
-        AlertDialog(
-            onDismissRequest = { showMyQR = null },
-            title = { Text(stringResource(R.string.auto_qr)) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.scan_with_follower), style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(16.dp))
-                    QRCodeImage(showMyQR!!)
-                }
-            },
-            confirmButton = { Button(onClick = { showMyQR = null }) { Text(stringResource(R.string.close)) } }
+        MirrorQrDialog(
+            title = stringResource(R.string.auto_qr),
+            instruction = stringResource(R.string.scan_with_follower),
+            content = showMyQR!!,
+            onDismiss = { showMyQR = null }
         )
     }
 
@@ -537,15 +586,11 @@ fun MirrorConnectionCard(
     LaunchedEffect(expanded) { if (!expanded) cardTestState = ConnTestState.IDLE }
 
     if (qrContent != null) {
-        AlertDialog(
-            onDismissRequest = { qrContent = null },
-            title = { Text(mirror.label ?: context.getString(R.string.connection_number, mirror.index)) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    QRCodeImage(qrContent!!)
-                }
-            },
-            confirmButton = { Button(onClick = { qrContent = null }) { Text(stringResource(R.string.close)) } }
+        MirrorQrDialog(
+            title = mirror.label ?: context.getString(R.string.connection_number, mirror.index),
+            instruction = null,
+            content = qrContent!!,
+            onDismiss = { qrContent = null }
         )
     }
 
