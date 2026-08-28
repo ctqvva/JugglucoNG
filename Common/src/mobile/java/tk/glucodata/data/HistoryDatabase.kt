@@ -271,7 +271,6 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_11_12,
                     MIGRATION_12_13
                 )
-                .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
             }
     }
