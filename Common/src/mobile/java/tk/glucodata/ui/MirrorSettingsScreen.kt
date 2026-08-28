@@ -45,7 +45,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import org.json.JSONObject
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
@@ -108,8 +107,8 @@ fun QRCodeImage(content: String, size: Int = 500) {
 
 fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
     try {
-        val jsonClean = if (jsonstr.endsWith(" MirrorJuggluco")) jsonstr.dropLast(15) else jsonstr
-        val json = JSONObject(jsonClean)
+        val json = parseMirrorQrJson(jsonstr)
+        val turnConfig = parseHybridQrTurnConfig(json)
         val iceLabel = json.optString("ICElabel").takeIf { it.isNotEmpty() }
         val namesArray = json.optJSONArray("names")
         val names = if (namesArray != null) {
@@ -131,6 +130,13 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
         if (pos < 0) {
             Toast.makeText(context, changeHostErrorMessage(context, pos), Toast.LENGTH_SHORT).show()
             return false
+        }
+        if (turnConfig != null) {
+            Natives.setTurnHost(0, turnConfig.host)
+            Natives.setTurnPort(0, turnConfig.port)
+            Natives.setTurnUser(0, turnConfig.username)
+            Natives.setTurnPassword(0, turnConfig.password)
+            Natives.resetnetwork()
         }
         Toast.makeText(context, context.getString(R.string.mirrorscansucces), Toast.LENGTH_SHORT).show()
         tk.glucodata.Applic.wakemirrors()
@@ -241,7 +247,18 @@ fun MirrorSettingsScreen(navController: NavController) {
             onDismissRequest = { scannedQrPayload = null },
             icon = { Icon(Icons.Filled.Link, contentDescription = null) },
             title = { Text(stringResource(R.string.mirror_connect_device_title)) },
-            text = { Text(stringResource(R.string.mirror_connect_qr_message)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.mirror_connect_qr_message))
+                    if (mirrorQrContainsTurnConfig(scannedQrPayload!!)) {
+                        Text(
+                            stringResource(R.string.mirror_connect_qr_turn_message),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     if (injectMirrorJson(scannedQrPayload!!, context)) triggerRefresh++
@@ -323,15 +340,15 @@ fun MirrorSettingsScreen(navController: NavController) {
             item(key = "qr_section") {
                 SectionLabel(stringResource(R.string.mirror_quick_pair), topPadding = 8.dp)
             }
-            item(key = "qr_share") {
+            item(key = "qr_share_hybrid") {
                 SettingsItem(
-                    title = stringResource(R.string.mirror_share_my_qr),
-                    subtitle = stringResource(R.string.mirror_share_my_qr_desc),
-                    icon = Icons.Outlined.QrCode,
+                    title = stringResource(R.string.mirror_share_relay_qr),
+                    subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
+                    icon = Icons.Filled.Cloud,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.TOP,
                     onClick = {
-                        val idx = Natives.makeHomeSender()
+                        val idx = Natives.makeICESender()
                         if (idx >= 0) {
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
@@ -341,15 +358,15 @@ fun MirrorSettingsScreen(navController: NavController) {
                     }
                 )
             }
-            item(key = "qr_share_relay") {
+            item(key = "qr_share_local") {
                 SettingsItem(
-                    title = stringResource(R.string.mirror_share_relay_qr),
-                    subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
-                    icon = Icons.Filled.Cloud,
+                    title = stringResource(R.string.mirror_share_my_qr),
+                    subtitle = stringResource(R.string.mirror_share_my_qr_desc),
+                    icon = Icons.Outlined.QrCode,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
                     onClick = {
-                        val idx = Natives.makeICESender()
+                        val idx = Natives.makeHomeSender()
                         if (idx >= 0) {
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
