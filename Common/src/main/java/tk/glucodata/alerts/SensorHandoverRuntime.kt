@@ -7,6 +7,7 @@ import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.Log
 import tk.glucodata.MultiSensorSelection
+import tk.glucodata.NativeSensorTermination
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
@@ -298,19 +299,27 @@ internal object SensorHandoverRuntime {
                 return
             }
             // Legacy native path: stop BLE processing and mark finished before
-            // removing from the Java list (same order as the remove dialog).
-            runCatching {
-                gatt.setPause(true)
-                gatt.disconnect()
-                if (gatt.dataptr != 0L) gatt.finishSensor()
-            }.onFailure { Log.e(LOG_ID, "finishSensor failed: ${it.message}") }
+            // removing from the Java list (the same checked primitive as the remove dialog).
+            runCatching { gatt.setPause(true) }
+                .onFailure { Log.e(LOG_ID, "pause before removal failed: ${it.message}") }
+            runCatching { gatt.closeGattTransport() }
+                .onFailure { Log.e(LOG_ID, "GATT close before removal failed: ${it.message}") }
+            val nativeSerial = SensorIdentity.resolveNativeSensorName(serial) ?: serial
+            val result = NativeSensorTermination.finishAndConfirm(nativeSerial, gatt.dataptr)
+            if (result != NativeSensorTermination.Result.CONFIRMED) {
+                Log.e(LOG_ID, "Native removal of $serial was not confirmed: $result")
+                runCatching {
+                    gatt.setPause(false)
+                    gatt.connectDevice(0L)
+                }.onFailure { Log.e(LOG_ID, "restore after failed removal failed: ${it.message}") }
+                return
+            }
             runCatching {
                 if (gatt.dataptr != 0L && Natives.isSibionics(gatt.dataptr)) {
                     Natives.siClearTransmitterBinding(gatt.dataptr)
                     runCatching { gatt.setDeviceAddress(null) }
                 }
             }.onFailure { Log.e(LOG_ID, "clear transmitter binding failed: ${it.message}") }
-            runCatching { gatt.close() }
         }
         removeAiDexFromPrefs(serial)
         runCatching { SensorBluetooth.sensorEnded(serial) }

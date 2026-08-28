@@ -12,6 +12,7 @@ import tk.glucodata.Applic
 import tk.glucodata.BleErrorEvent
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.MultiSensorSelection
+import tk.glucodata.NativeSensorTermination
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorHandoffUiState
@@ -835,9 +836,9 @@ class SensorViewModel : ViewModel() {
         }
     }
 
-    private fun finishNativeSensor(serial: String): Boolean {
+    private fun finishNativeSensor(serial: String, liveDataPointer: Long = 0L): Boolean {
         val nativeSerial = SensorIdentity.resolveNativeSensorName(serial) ?: serial
-        val result = NativeSensorTermination.finishAndConfirm(nativeSerial)
+        val result = NativeSensorTermination.finishAndConfirm(nativeSerial, liveDataPointer)
         if (result != NativeSensorTermination.Result.CONFIRMED) {
             android.util.Log.e(
                 "SensorViewModel",
@@ -889,7 +890,7 @@ class SensorViewModel : ViewModel() {
                     try { gatt.close() } catch (t: Throwable) {
                         android.util.Log.e("SensorVM", "terminateSensor AiDex close failed: ${t.message}")
                     }
-                    if (finishNativeSensor(serial)) {
+                    if (finishNativeSensor(serial, gatt.dataptr)) {
                         // Remove from SharedPreferences before sensorEnded so updateDevices()
                         // cannot reconstruct the callback.
                         removeAiDexFromPrefs(serial)
@@ -917,7 +918,7 @@ class SensorViewModel : ViewModel() {
                 } catch (t: Throwable) {
                     android.util.Log.e("SensorViewModel", "terminateSensor($serial) data wipe failed: ${t.message}", t)
                 }
-                if (finishNativeSensor(serial)) {
+                if (finishNativeSensor(serial, gatt.dataptr)) {
                     switchAwayFromSensor(serial)
                     SensorBluetooth.sensorEnded(serial)
                     removed = true
