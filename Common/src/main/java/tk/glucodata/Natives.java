@@ -1609,6 +1609,8 @@ public class Natives {
 
         public static native void setTurnPort(int pos, int port);
 
+        public static native void setTurnServer(int pos, String host, int port, String username, String password);
+
         public static native int TurnServerNR();
 
         // s/^[ ]*extern.*JNIEXPORT[ ]*\([a-zA-Z]*\)[ ]*JNICALL[ ]*fromjava(\([^)]*\))

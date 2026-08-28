@@ -24,8 +24,10 @@
 #include "datbackup.hpp"
 #include <algorithm>
 #include <cstdlib>
+#include <mutex>
 #include <string>
 using namespace std::literals;
+extern std::mutex turn_server_mutex;
 template <typename OUTTYPE>
 int getownips(OUTTYPE *outips, int max, bool &haswlan);
 
@@ -67,13 +69,16 @@ std::string mkbackjson(int pos) {
     inserter = std::format_to(inserter, R"({{"ICElabel":"{}")",
                               escape(host.getICEname()));
     inserter = insertbool(inserter, "side", !host.side);
-    if (back.NRturnserver && back.turnserver[0].hostname[0]) {
-      const auto &turn = back.turnserver[0];
-      inserter = std::format_to(
-          inserter,
-          R"(,"turn":["{}",{},"{}","{}"])",
-          escape(turn.hostname), turn.port, escape(turn.username),
-          escape(turn.password));
+    {
+      const std::lock_guard<std::mutex> lock(turn_server_mutex);
+      if (back.NRturnserver && back.turnserver[0].hostname[0]) {
+        const auto &turn = back.turnserver[0];
+        inserter = std::format_to(
+            inserter,
+            R"(,"turn":["{}",{},"{}","{}"])",
+            escape(turn.hostname), turn.port, escape(turn.username),
+            escape(turn.password));
+      }
     }
   } else if (!host.hashostname()) {
     int ipnr = 0;

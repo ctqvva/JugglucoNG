@@ -172,6 +172,22 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
     try {
         val json = parseMirrorQrJson(jsonstr)
         val turnConfig = parseHybridQrTurnConfig(json)
+        val previousTurnConfig = if (turnConfig != null && Natives.TurnServerNR() > 0) {
+            HybridQrTurnConfig(
+                host = Natives.getTurnHost(0).orEmpty(),
+                port = Natives.getTurnPort(0),
+                username = Natives.getTurnUser(0).orEmpty(),
+                password = Natives.getTurnPassword(0).orEmpty()
+            )
+        } else {
+            null
+        }
+        if (turnConfig != null) {
+            Natives.setTurnServer(
+                0, turnConfig.host, turnConfig.port,
+                turnConfig.username, turnConfig.password
+            )
+        }
         val iceLabel = json.optString("ICElabel").takeIf { it.isNotEmpty() }
         val namesArray = json.optJSONArray("names")
         val names = if (namesArray != null) {
@@ -191,14 +207,20 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
             iceLabel, json.optBoolean("side", false)
         )
         if (pos < 0) {
+            if (turnConfig != null) {
+                if (previousTurnConfig == null) {
+                    Natives.deleteTurnServer(0)
+                } else {
+                    Natives.setTurnServer(
+                        0, previousTurnConfig.host, previousTurnConfig.port,
+                        previousTurnConfig.username, previousTurnConfig.password
+                    )
+                }
+            }
             Toast.makeText(context, changeHostErrorMessage(context, pos), Toast.LENGTH_SHORT).show()
             return false
         }
         if (turnConfig != null) {
-            Natives.setTurnHost(0, turnConfig.host)
-            Natives.setTurnPort(0, turnConfig.port)
-            Natives.setTurnUser(0, turnConfig.username)
-            Natives.setTurnPassword(0, turnConfig.password)
             Natives.resetnetwork()
         }
         Toast.makeText(context, context.getString(R.string.mirrorscansucces), Toast.LENGTH_SHORT).show()
