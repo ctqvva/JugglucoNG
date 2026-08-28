@@ -811,6 +811,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="unbind_sensor">Sensor ontkoppelen</string>
     <string name="unbind_sensor_desc">Maak de koppeling vrij zodat een ander apparaat verbinding kan maken.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">De sensor kon niet worden verwijderd en is nog actief. Probeer het opnieuw.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="eusibionics">Sibionics EU</string>

@@ -747,6 +747,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="unbind_sensor">解除传感器绑定</string>
     <string name="unbind_sensor_desc">解除配对，以便其他设备可以连接。</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">无法移除传感器。传感器仍处于活动状态。请重试。</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>

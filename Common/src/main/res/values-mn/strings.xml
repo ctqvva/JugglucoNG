@@ -589,6 +589,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Sensor Management Strings -->
     <string name="disconnect_sensor_title">Мэдрэгчийг салгах уу?</string>
     <string name="disconnect_sensor_desc">Энэ нь мэдрэгчийн сессийг бүрмөсөн зогсооно.</string>
+    <string name="disconnect_sensor_failed">Мэдрэгчийг устгаж чадсангүй. Энэ нь идэвхтэй хэвээр байна. Дахин оролдоно уу.</string>
     <string name="disconnect_sensor_aidex_desc">Мэдрэгчийг энэ төхөөрөмжөөс устгана. Түүний түүх боломжтой хэвээр үлдэнэ.</string>
     <string name="unbind_sensor">Мэдрэгчийг хослолтоос салгах</string>
     <string name="unbind_sensor_desc">Хослолыг чөлөөлж, өөр төхөөрөмжид холбох боломжтой болгоно.</string>

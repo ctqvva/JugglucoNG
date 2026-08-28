@@ -625,6 +625,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <!-- Sensor Management Strings -->
     <string name="disconnect_sensor_title">Isku xirka Sensor?</string>
     <string name="disconnect_sensor_desc">Tani waxay si joogto ah u joojin doontaa fadhiga dareemayaasha.</string>
+    <string name="disconnect_sensor_failed">Dareemaha lama saari karin. Weli wuu shaqaynayaa. Mar kale isku day.</string>
     <string name="disconnect_sensor_aidex_desc">Dareemaha waa laga saari doonaa qalabkan. Taariikhdiisu way sii jiri doontaa.</string>
     <string name="unbind_sensor">Ka saar isku-xidhka dareemaha</string>
     <string name="unbind_sensor_desc">Sii daa isku-xidhka si qalab kale ugu xirmi karo.</string>

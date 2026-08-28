@@ -801,6 +801,7 @@
     <string name="unbind_sensor">Usuń powiązanie czujnika</string>
     <string name="unbind_sensor_desc">Zwolnij powiązanie, aby można było połączyć czujnik z innym urządzeniem.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Nie udało się usunąć sensora. Nadal jest aktywny. Spróbuj ponownie.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Wpisuj wartości na</string>

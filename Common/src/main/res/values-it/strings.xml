@@ -624,6 +624,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="unbind_sensor">Disassocia sensore</string>
     <string name="unbind_sensor_desc">Rilascia l’associazione per consentire la connessione a un altro dispositivo.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Impossibile rimuovere il sensore. È ancora attivo. Riprova.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="disturb">Disturb</string>
     <string name="doses">" doses "</string>

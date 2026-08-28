@@ -839,6 +839,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="unbind_sensor">Sensor entkoppeln</string>
     <string name="unbind_sensor_desc">Kopplung aufheben, damit ein anderes Gerät eine Verbindung herstellen kann.</string>
     <string name="disconnect_sensor_desc">Beendet die Sensorsitzung dauerhaft.</string>
+    <string name="disconnect_sensor_failed">Der Sensor konnte nicht entfernt werden und ist weiterhin aktiv. Versuchen Sie es erneut.</string>
     <string name="disconnect_sensor_title">Sensor trennen?</string>
     <string name="enabled_status">Aktiviert</string>
     <string name="eusibionics">Sibionics EU</string>

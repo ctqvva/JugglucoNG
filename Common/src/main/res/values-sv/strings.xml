@@ -735,6 +735,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="unbind_sensor">Ta bort parkopplingen</string>
     <string name="unbind_sensor_desc">Frigör parkopplingen så att en annan enhet kan ansluta.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Sensorn kunde inte tas bort och är fortfarande aktiv. Försök igen.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>

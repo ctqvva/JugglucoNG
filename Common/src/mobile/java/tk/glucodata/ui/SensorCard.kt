@@ -264,6 +264,7 @@ fun SensorCard(
     var showWipeDialog by remember { mutableStateOf(false) }
     var wipeDataChecked by remember { mutableStateOf(false) }
     var keepDataChecked by remember { mutableStateOf(false) }
+    var terminationFailed by remember(sensor.serial) { mutableStateOf(false) }
 
     // Sibionics Calibration Bottom Sheet
     var showSibionicsCalSheet by remember { mutableStateOf(false) }
@@ -363,11 +364,19 @@ fun SensorCard(
                 onDismissRequest = {
                     showTerminateDialog = false
                     keepDataChecked = false
+                    terminationFailed = false
                 },
                 title = { Text(stringResource(R.string.disconnect_sensor_title)) },
                 text = {
                     Column {
                         Text(stringResource(R.string.disconnect_sensor_desc))
+                        if (terminationFailed) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.disconnect_sensor_failed),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -380,15 +389,20 @@ fun SensorCard(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        viewModel.terminateSensor(sensor.serial, !keepDataChecked)
-                        showTerminateDialog = false
-                        keepDataChecked = false
+                        if (viewModel.terminateSensor(sensor.serial, !keepDataChecked)) {
+                            showTerminateDialog = false
+                            keepDataChecked = false
+                            terminationFailed = false
+                        } else {
+                            terminationFailed = true
+                        }
                     }) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         showTerminateDialog = false
                         keepDataChecked = false
+                        terminationFailed = false
                     }) { Text(stringResource(R.string.cancel)) }
                 }
             )

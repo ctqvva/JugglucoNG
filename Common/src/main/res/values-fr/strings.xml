@@ -693,6 +693,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="unbind_sensor">Dissocier le capteur</string>
     <string name="unbind_sensor_desc">Libérer son association afin qu\'un autre appareil puisse s\'y connecter.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Impossible de supprimer le capteur. Il est toujours actif. Réessayez.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="duration_can_t_be_negative">"Duration can't be negative: "</string>
     <string name="enable_bluetooth">Enable Bluetooth</string>

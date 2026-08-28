@@ -780,6 +780,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="unbind_sensor">Sensörün eşlemesini kaldır</string>
     <string name="unbind_sensor_desc">Başka bir cihazın bağlanabilmesi için eşlemeyi kaldır.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Sensör kaldırılamadı ve hâlâ etkin. Tekrar deneyin.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
