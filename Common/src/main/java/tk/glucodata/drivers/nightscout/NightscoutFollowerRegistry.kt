@@ -5,6 +5,7 @@ import java.net.HttpURLConnection
 import java.security.MessageDigest
 import java.util.Locale
 import tk.glucodata.ManagedCurrentSensor
+import tk.glucodata.Natives
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
@@ -112,6 +113,47 @@ object NightscoutFollowerRegistry {
         )
     }
 
+    /**
+     * Restore the configured follower without requiring Bluetooth initialization.
+     *
+     * Application.onCreate runs before an alarm receiver. Restoring here means an alarm that
+     * starts a fresh process has a callback to hand its wakelock to instead of ending the poll
+     * chain. The list lock is the same one used by SensorBluetooth.mygatts().
+     */
+    @JvmOverloads
+    fun restoreConfiguredFollower(
+        context: Context,
+        sensorId: String = loadConfig(context).sensorId,
+    ): NightscoutFollowerManager? {
+        val existing = findRunningFollower(sensorId)
+        if (existing != null) return existing
+
+        var added = false
+        val follower = synchronized(SensorBluetooth.gattcallbacks) {
+            findRunningFollowerLocked(sensorId) ?: run {
+                val restored = createRestoredCallback(context, sensorId, 0L) as? NightscoutFollowerManager
+                    ?: return@synchronized null
+                SensorBluetooth.gattcallbacks.add(restored)
+                Natives.setmaxsensors(SensorBluetooth.gattcallbacks.size)
+                added = true
+                restored
+            }
+        } ?: return null
+
+        if (added) {
+            SensorBluetooth.ensureCurrentSensorSelection()
+            ManagedSensorUiSignals.markDeviceListDirty()
+        }
+        return follower
+    }
+
+    fun recoverOnNetworkAvailable(context: Context) {
+        val config = loadConfig(context)
+        if (!config.isUsable) return
+        restoreConfiguredFollower(context, config.sensorId)
+            ?.recoverIfNeeded("network", forceWhenIdle = true)
+    }
+
     fun enableFollowerSensor(context: Context, url: String?, secret: String?, connectNow: Boolean = true): String? {
         val normalizedUrl = normalizeUrl(url)
         if (normalizedUrl.isEmpty()) return null
@@ -138,21 +180,21 @@ object NightscoutFollowerRegistry {
     }
 
     fun connectSensor(context: Context, sensorId: String) {
-        val blue = SensorBluetooth.blueone ?: return
-        val existing = SensorBluetooth.gattcallbacks.firstOrNull { callback ->
-            SensorIdentity.matches(callback.SerialNumber, sensorId) ||
-                ((callback as? ManagedBluetoothSensorDriver)?.matchesManagedSensorId(sensorId) == true)
-        }
-        val callback = existing ?: createRestoredCallback(context, sensorId, 0L)?.also {
-            SensorBluetooth.gattcallbacks.add(it)
-            tk.glucodata.Natives.setmaxsensors(SensorBluetooth.gattcallbacks.size)
-        } ?: return
+        val callback = restoreConfiguredFollower(context, sensorId) ?: return
         SensorBluetooth.ensureCurrentSensorSelection()
-        if (SensorBluetooth.blueone === blue) {
-            callback.connectDevice(0)
-        }
+        callback.connectDevice(0)
         ManagedSensorUiSignals.markDeviceListDirty()
     }
+
+    private fun findRunningFollower(sensorId: String): NightscoutFollowerManager? =
+        SensorBluetooth.mygatts().firstOrNull { callback ->
+            callback is NightscoutFollowerManager && callback.matchesManagedSensorId(sensorId)
+        } as? NightscoutFollowerManager
+
+    private fun findRunningFollowerLocked(sensorId: String): NightscoutFollowerManager? =
+        SensorBluetooth.gattcallbacks.firstOrNull { callback ->
+            callback is NightscoutFollowerManager && callback.matchesManagedSensorId(sensorId)
+        } as? NightscoutFollowerManager
 
     fun matchesSensorId(candidate: String?, expected: String?): Boolean {
         val left = candidate?.trim().orEmpty()

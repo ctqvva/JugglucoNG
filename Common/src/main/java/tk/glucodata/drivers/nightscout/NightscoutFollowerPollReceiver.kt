@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import tk.glucodata.Log
-import tk.glucodata.SensorBluetooth
 
 /**
  * Wake-up for the follower's poll.
@@ -34,13 +33,12 @@ class NightscoutFollowerPollReceiver : BroadcastReceiver() {
         val serial = intent.getStringExtra(EXTRA_SERIAL)?.trim().orEmpty()
         if (serial.isEmpty()) return
 
-        // mygatts() copies under the list's own lock; the list itself is mutated from the
-        // scan and connect paths, which can run while an alarm arrives.
-        val follower = SensorBluetooth.mygatts().firstOrNull { callback ->
-            callback is NightscoutFollowerManager && callback.SerialNumber.equals(serial, ignoreCase = true)
-        } as? NightscoutFollowerManager
+        // The alarm itself may be what starts this process. Application startup normally
+        // restores the callback first; this fallback closes the race if another startup path
+        // did not get that far.
+        val follower = NightscoutFollowerRegistry.restoreConfiguredFollower(context, serial)
         if (follower == null) {
-            Log.w(TAG, "Poll alarm for $serial with no follower running")
+            Log.w(TAG, "Poll alarm for $serial has no enabled follower to restore")
             return
         }
 
