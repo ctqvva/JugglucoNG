@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
@@ -371,30 +372,6 @@ fun AiDexScanStep(
     }
 }
 
-private fun normalizeAiDexSerial(rawName: String): String? {
-    val xPrefixed = Regex("X\\s*-?\\s*([A-Z0-9]{8,})", RegexOption.IGNORE_CASE)
-    val xMatch = xPrefixed.find(rawName)
-    if (xMatch != null) {
-        val body = xMatch.groupValues[1].uppercase()
-        return "X-$body"
-    }
-
-    // Some AiDex family sensors advertise with a product prefix (for example "Vista-...")
-    // instead of the canonical "X-..." serial format used internally by the app.
-    val familyPrefixed = Regex("(?:AIDEX|LINX|LUMI|VISTA)\\s*[-_]?\\s*([A-Z0-9]{8,})", RegexOption.IGNORE_CASE)
-    val familyMatch = familyPrefixed.find(rawName)
-    if (familyMatch != null) {
-        val body = familyMatch.groupValues[1].uppercase()
-        return "X-$body"
-    }
-
-    val cleaned = rawName.trim().replace(" ", "")
-    if (cleaned.length == 11 && cleaned.all { it.isLetterOrDigit() }) {
-        return "X-${cleaned.uppercase()}"
-    }
-    return null
-}
-
 private data class AiDexScanDetection(
     val displayName: String,
     val selectionName: String,
@@ -420,7 +397,7 @@ private fun detectAiDexCandidate(
         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
         .forEach { names.add(it) }
 
-    val serial = names.firstNotNullOfOrNull { normalizeAiDexSerial(it) }
+    val serial = names.firstNotNullOfOrNull(AiDexSerialIdentity::canonicalFromAdvertisement)
     val nameLooksAiDex = names.any(::looksLikeAiDexFamilyName)
     val hasFf30 = advertisedServiceUuids?.contains(AIDEX_FF30_SERVICE_UUID) == true ||
         scanRecordAdvertises16BitService(scanRecordBytes, 0xFF30)
@@ -430,7 +407,7 @@ private fun detectAiDexCandidate(
             scanRecordAdvertises16BitService(scanRecordBytes, 0xF000)
     val isLikelyAiDex = serial != null || nameLooksAiDex || hasFf30 || hasPrimaryServiceHint
     val displayName = names.firstOrNull() ?: address
-    val selectionName = serial ?: fallbackAiDexSerial(address)
+    val selectionName = serial ?: AiDexSerialIdentity.fallbackCanonicalFromAddress(address)
     return AiDexScanDetection(
         displayName = displayName,
         selectionName = selectionName,
@@ -446,11 +423,6 @@ private fun looksLikeAiDexFamilyName(rawName: String): Boolean {
         lowered.contains("linx") ||
         lowered.contains("lumi") ||
         lowered.contains("vista")
-}
-
-private fun fallbackAiDexSerial(address: String): String {
-    val body = address.filter(Char::isLetterOrDigit).uppercase()
-    return "X-$body"
 }
 
 private fun extractAiDexLocalName(scanRecord: ByteArray?): String? {

@@ -13,6 +13,7 @@
 
 package tk.glucodata.drivers.aidex.native.crypto
 
+import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import java.security.MessageDigest
 
 object SerialCrypto {
@@ -71,25 +72,9 @@ object SerialCrypto {
     /**
      * Strip the advertisement-name prefix from an AiDex serial number.
      *
-     * Handles: "AiDEX X-2222267V4E", "X-2222267V4E", "2222267V4E"
+     * Handles X/F advertisement names, canonical X identities, and bare serials.
      */
-    fun stripPrefix(serial: String): String {
-        val prefixes = listOf("AiDEX X-", "AIDEX X-", "aidex x-", "AiDex X-", "X-")
-        for (prefix in prefixes) {
-            if (serial.startsWith(prefix)) {
-                return serial.removePrefix(prefix)
-            }
-        }
-        // Case-insensitive fallback: find "X-" or "x-"
-        val idx = serial.indexOf("X-", ignoreCase = true)
-        if (idx >= 0) {
-            val afterDash = serial.substring(idx + 2)
-            if (afterDash.length in 8..14 && afterDash.all { it.isLetterOrDigit() }) {
-                return afterDash
-            }
-        }
-        return serial
-    }
+    fun stripPrefix(serial: String): String = AiDexSerialIdentity.bareSerial(serial)
 
     private fun md5(data: ByteArray): ByteArray {
         return MessageDigest.getInstance("MD5").digest(data)

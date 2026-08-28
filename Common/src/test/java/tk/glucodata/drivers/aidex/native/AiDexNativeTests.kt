@@ -232,7 +232,15 @@ class SerialCryptoTests {
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("AiDEX X-2222267V4E"))
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("X-2222267V4E"))
         assertEquals("2222293NWA", SerialCrypto.stripPrefix("AiDEX x-2222293NWA"))
+        assertEquals("22222FZXKT", SerialCrypto.stripPrefix("AiDEX F-22222FZXKT"))
+        assertEquals("22222FZXKT", SerialCrypto.stripPrefix("F-22222FZXKT"))
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("2222267V4E"))
+    }
+
+    @Test
+    fun testFGenerationSerialDerivesCapturedChallenge() {
+        val secret = SerialCrypto.deriveSecret(SerialCrypto.stripPrefix("AiDEX F-22222FZXKT"))
+        assertEquals("F0740DC2FA51F24A884F61FC4C14885B", AiDexParser.compactHex(secret))
     }
 
     @Test

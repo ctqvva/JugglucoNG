@@ -43,6 +43,7 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.aidex.AiDexScanReceiver
 import tk.glucodata.drivers.aidex.AiDexDriver
+import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
@@ -218,6 +219,8 @@ class AiDexBleManager(
         private const val BROADCAST_SCAN_INTERVAL_MS = 60_000L  // Time between scans (fallback)
         private const val BROADCAST_DUPLICATE_SUPPRESS_MS = 70_000L
         private const val BROADCAST_SCAN_ALARM_MIN_DELAY_MS = 10_000L
+        private const val BROADCAST_REJECTION_LOG_INTERVAL_MS = 60_000L
+        private const val BROADCAST_REJECTION_INITIAL_LOGS = 3
 
         // -- Phase-locked broadcast scan --
         // After we catch one broadcast we know roughly when the next will arrive.
@@ -234,8 +237,14 @@ class AiDexBleManager(
     }
 
     // -- Protocol Objects --
-    private val keyExchange = AiDexKeyExchange(serial)
-    private val commandBuilder = AiDexCommandBuilder(keyExchange)
+    private data class ProtocolSession(
+        val keyExchange: AiDexKeyExchange,
+        val commandBuilder: AiDexCommandBuilder = AiDexCommandBuilder(keyExchange),
+    )
+
+    @Volatile private var protocolSession = ProtocolSession(AiDexKeyExchange(serial))
+    private val keyExchange: AiDexKeyExchange get() = protocolSession.keyExchange
+    private val commandBuilder: AiDexCommandBuilder get() = protocolSession.commandBuilder
 
     // -- Reconnect Strategy --
     val reconnect = AiDexReconnect()
@@ -958,6 +967,8 @@ class AiDexBleManager(
     @Volatile private var noDirectLiveBroadcastFallbackMode: Boolean = false
     @Volatile private var broadcastScanStartedAtElapsed: Long = 0L
     @Volatile private var broadcastWakeLock: PowerManager.WakeLock? = null
+    private var broadcastRejectionLogCount: Int = 0
+    private var lastBroadcastRejectionLogAtMs: Long = 0L
 
     // Phase-lock state: learned per-broadcast cadence + count of confident catches.
     // `lastFreshBroadcastTimeMs` is the wall-clock time of the last *non-duplicate*
@@ -2814,6 +2825,7 @@ class AiDexBleManager(
     // =========================================================================
 
     private fun startKeyExchange(gatt: BluetoothGatt) {
+        maybeUseAdvertisedProtocolSerial()
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
 
@@ -2838,6 +2850,32 @@ class AiDexBleManager(
         f001.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
         gatt.writeCharacteristic(f001)
         challengeWritten = true
+    }
+
+    /**
+     * Compatibility for sensors saved by older setup code as `X-<MAC>` after it failed to parse
+     * an F-generation advertisement. This changes only the protocol secret; it deliberately does
+     * not rename storage or native sensor identity while a sensor is active.
+     */
+    private fun maybeUseAdvertisedProtocolSerial() {
+        val advertisedName = try {
+            mygetDeviceName()
+        } catch (_: Throwable) {
+            null
+        }
+        val address = mActiveDeviceAddress ?: mActiveBluetoothDevice?.address
+        val advertisedSerial = AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+            storedSensorId = SerialNumber,
+            address = address,
+            advertisedName = advertisedName,
+        ) ?: return
+        if (advertisedSerial.equals(keyExchange.bareSerial, ignoreCase = true)) return
+
+        protocolSession = ProtocolSession(AiDexKeyExchange(advertisedSerial))
+        Log.w(
+            TAG,
+            "Using advertised AiDEX protocol serial $advertisedSerial for MAC-fallback identity $SerialNumber"
+        )
     }
 
     /**
@@ -6213,8 +6251,15 @@ class AiDexBleManager(
         return lo or ((carry and 0x03) shl 8)
     }
 
-    private fun parseBroadcastSamplePayload(payload: ByteArray): ParsedBroadcastSample? {
-        if (payload.size < 7) return null
+    private data class BroadcastPayloadParseResult(
+        val sample: ParsedBroadcastSample? = null,
+        val rejectionReason: String? = null,
+    )
+
+    private fun parseBroadcastSamplePayload(payload: ByteArray): BroadcastPayloadParseResult {
+        if (payload.size < 7) {
+            return BroadcastPayloadParseResult(rejectionReason = "too-short")
+        }
 
         val offsetCandidate = if (payload.size >= 4) u32LE(payload, 0).toInt() else u16LE(payload, 0)
         val offsetMinutes = when {
@@ -6222,7 +6267,9 @@ class AiDexBleManager(
             else -> u16LE(payload, 0)
         }
         if (offsetMinutes <= 0 || offsetMinutes.toLong() > (MAX_OFFSET_DAYS * 24L * 60L)) {
-            return null
+            return BroadcastPayloadParseResult(
+                rejectionReason = "invalid-offset(u32=$offsetCandidate,u16=${u16LE(payload, 0)})"
+            )
         }
 
         val trend = payload[4].toInt()
@@ -6234,14 +6281,31 @@ class AiDexBleManager(
             else -> 0
         }
         if (glucoseMgDl !in MIN_VALID_GLUCOSE_MGDL..MAX_VALID_GLUCOSE_MGDL) {
-            return null
+            return BroadcastPayloadParseResult(
+                rejectionReason = "invalid-glucose(packed=$packedGlucose,byte5=$fallbackGlucose)"
+            )
         }
 
-        return ParsedBroadcastSample(
-            offsetMinutes = offsetMinutes,
-            trend = trend,
-            glucoseMgDl = glucoseMgDl,
+        return BroadcastPayloadParseResult(
+            sample = ParsedBroadcastSample(
+                offsetMinutes = offsetMinutes,
+                trend = trend,
+                glucoseMgDl = glucoseMgDl,
+            )
         )
+    }
+
+    private fun logRejectedBroadcastPayload(source: String, payload: ByteArray, reason: String, now: Long) {
+        val shouldLogPayload =
+            broadcastRejectionLogCount < BROADCAST_REJECTION_INITIAL_LOGS ||
+                now - lastBroadcastRejectionLogAtMs >= BROADCAST_REJECTION_LOG_INTERVAL_MS
+        if (shouldLogPayload) {
+            broadcastRejectionLogCount += 1
+            lastBroadcastRejectionLogAtMs = now
+            logd(TAG) {
+                "$source payload rejected: len=${payload.size} reason=$reason hex=${AiDexParser.hexString(payload)}"
+            }
+        }
     }
 
     private fun resolveBroadcastSampleTimestampMs(observedAtMs: Long, offsetMinutes: Int): Long {
@@ -6279,9 +6343,15 @@ class AiDexBleManager(
         val now = System.currentTimeMillis()
         val waitingForFirstDirectLive = waitingForFirstDirectLive()
         val hadRecentLiveDataBeforeBroadcast = hasRecentLiveData(now)
-        val sample = parseBroadcastSamplePayload(payload)
+        val parsed = parseBroadcastSamplePayload(payload)
+        val sample = parsed.sample
         if (sample == null) {
-            logd(TAG) { "$source payload rejected: len=${payload.size}" }
+            logRejectedBroadcastPayload(
+                source = source,
+                payload = payload,
+                reason = parsed.rejectionReason ?: "unknown",
+                now = now,
+            )
             return
         }
 
