@@ -326,19 +326,6 @@ public class bluediag {
     MainActivity activity;
     static private int gattselected = 0;
 
-    private boolean isStillActive(String serial) {
-        final String[] active = Natives.activeSensors();
-        if (active == null) {
-            return true;
-        }
-        for (String candidate : active) {
-            if (SensorIdentity.matches(candidate, serial)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void restoreAfterFailedFinish(SuperGattCallback gatt) {
         try {
             gatt.setPause(false);
@@ -357,11 +344,12 @@ public class bluediag {
                         try {
                             gat.setPause(true);
                             gat.closeGattTransport();
-                            gat.finishSensor();
                         } catch (Throwable throwable) {
                             Log.stack(LOG_ID, "Could not finish " + serial, throwable);
                         }
-                        if (!isStillActive(serial)) {
+                        final NativeSensorTermination.Result result =
+                                NativeSensorTermination.finishAndConfirm(serial, gat.dataptr);
+                        if (result == NativeSensorTermination.Result.CONFIRMED) {
                             SensorBluetooth.sensorEnded(serial);
                         } else {
                             restoreAfterFailedFinish(gat);
