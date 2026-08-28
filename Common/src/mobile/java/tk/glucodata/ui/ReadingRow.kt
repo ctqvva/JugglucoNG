@@ -269,6 +269,8 @@ fun ReadingRow(
             val timeStyle = MaterialTheme.typography.bodySmall
             val timeColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            val readingSensorId = point.sensorSerial?.takeIf { it.isNotBlank() } ?: sensorId
+            val cloneTransport = tk.glucodata.CloneSensorRegistry.transportForSensor(readingSensorId)
             val isRawModeRR = viewMode == 1 || viewMode == 3
             val calibrationSensorId = sensorId?.takeIf { it.isNotBlank() }
             // Recorded value if this reading has one, otherwise the projection —
@@ -306,6 +308,30 @@ fun ReadingRow(
             // chips: keep it tight against the main value (not floating in a
             // wide right-aligned slot) and give it the primary identity tint.
             val primaryTrendColor = if (isMultiSensor) primaryColor.copy(alpha = 0.7f) else tertiaryColor
+
+            @Composable
+            fun ReadingTime() {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = java.text.SimpleDateFormat(
+                            "HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(point.timestamp)),
+                        style = timeStyle,
+                        fontWeight = timeWeight,
+                        color = timeColor
+                    )
+                    if (cloneTransport != null) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        CloneSourceMark(
+                            transport = cloneTransport,
+                            showLabel = false,
+                            tint = timeColor,
+                            iconSize = 13.dp,
+                        )
+                    }
+                }
+            }
 
             @Composable
             fun ReadingValueContent(modifier: Modifier = Modifier) {
@@ -511,15 +537,7 @@ fun ReadingRow(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = java.text.SimpleDateFormat(
-                            "HH:mm",
-                            java.util.Locale.getDefault()
-                        ).format(java.util.Date(point.timestamp)),
-                        style = timeStyle,
-                        fontWeight = timeWeight,
-                        color = timeColor
-                    )
+                    ReadingTime()
 
                     if (showLeadingAction) {
                         Box(
@@ -563,15 +581,7 @@ fun ReadingRow(
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = java.text.SimpleDateFormat(
-                                "HH:mm",
-                                java.util.Locale.getDefault()
-                            ).format(java.util.Date(point.timestamp)),
-                            style = timeStyle,
-                            fontWeight = timeWeight,
-                            color = timeColor
-                        )
+                        ReadingTime()
 
                         if (showLeadingAction) {
                             Box(

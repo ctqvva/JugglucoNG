@@ -110,6 +110,12 @@ object HistorySyncAccess {
         }.getOrNull() ?: DEFAULT_AIDEX_SOURCE
     }
 
+    /** Called only by the native mirror receiver before it imports remote sensor files. */
+    @JvmStatic
+    fun markCloneSensor(serial: String?, transportCode: Int) {
+        CloneSensorRegistry.markCloneSensor(serial, transportCode)
+    }
+
     @JvmStatic
     @JvmOverloads
     fun syncSensorFromNative(serial: String?, forceFull: Boolean = false) {

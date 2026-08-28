@@ -358,6 +358,9 @@ fun DashboardCombinedHeader(
             ?.takeIf { it.isNotBlank() }
             ?: sensorName
     }
+    val cloneTransport = remember(refreshRevision, sensorName) {
+        tk.glucodata.CloneSensorRegistry.transportForSensor(sensorName)
+    }
     val resolvedDataState = dataState ?: remember(
         resolvedCurrentSnapshot?.timeMillis,
         latestPoint?.timestamp,
@@ -906,14 +909,23 @@ fun DashboardCombinedHeader(
                     // 1. Sensor Name (Top Label)
                     if (sensorDisplayName.isNotEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = sensorDisplayName,
-                                style = MaterialTheme.typography.labelMedium, // M3 Standard
-                                color = sensorContentColor.copy(alpha = 0.7f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false) // Allow shrinking for dots
-                            )
+                            if (cloneTransport != null) {
+                                CloneSourceMark(
+                                    transport = cloneTransport,
+                                    showLabel = true,
+                                    tint = sensorContentColor.copy(alpha = 0.7f),
+                                    textStyle = MaterialTheme.typography.labelMedium,
+                                )
+                            } else {
+                                Text(
+                                    text = sensorDisplayName,
+                                    style = MaterialTheme.typography.labelMedium, // M3 Standard
+                                    color = sensorContentColor.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false) // Allow shrinking for dots
+                                )
+                            }
                             
                             // Active Indicators (Dots) - Right of Name
                             // Hidden if only 1 active sensor
