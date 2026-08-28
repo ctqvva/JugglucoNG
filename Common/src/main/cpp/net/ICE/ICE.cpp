@@ -45,6 +45,7 @@ constexpr const int givefirst=0;
 #include <condition_variable>
 #include <limits>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "logs.hpp"
@@ -57,6 +58,8 @@ using namespace std::literals;
 #include "destruct.hpp"
 #include "PlaceBuf.hpp"
 #include "ICEConnect.hpp"
+
+extern std::mutex turn_server_mutex;
 
 constexpr const int maxconnectionunused=24*60*60;
 extern uint32_t getConnectTime(const int allindex);
@@ -652,6 +655,7 @@ static std::vector<juice_turn_server_t> usableDefaultTurnServers(juice_turn_serv
 bool shouldRecreateAgentsForTurnRefresh() {
 #if JUGGLUCO_HAS_TWILIO_TOKEN
     auto *data=backup?backup->getupdatedata():nullptr;
+    const std::lock_guard<std::mutex> lock(turn_server_mutex);
     if(data&&data->NRturnserver&&data->turnserver[0].hostname[0])
         return false;
     return time(nullptr)>oldTwilioTimes;
@@ -685,21 +689,36 @@ juice_agent *createAgent(int allindex) {
     int servercount;
 
     juice_turn_server_t conf_server;
+    std::string configured_turn_host;
+    std::string configured_turn_username;
+    std::string configured_turn_password;
+    uint16_t configured_turn_port=3478;
+    bool has_configured_turn=false;
     std::vector<juice_turn_server_t> usable_turn_servers;
     auto *updatedata = backup->getupdatedata();
-    if(updatedata->NRturnserver&&updatedata->turnserver[0].hostname[0]) {
-        conf_server.host=updatedata->turnserver[0].hostname;
-        conf_server.username=updatedata->turnserver[0].username;
-        conf_server.password=updatedata->turnserver[0].password;
-        conf_server.port=updatedata->turnserver[0].port;
+    {
+        const std::lock_guard<std::mutex> lock(turn_server_mutex);
+        if(updatedata->NRturnserver&&updatedata->turnserver[0].hostname[0]) {
+            configured_turn_host=updatedata->turnserver[0].hostname;
+            configured_turn_username=updatedata->turnserver[0].username;
+            configured_turn_password=updatedata->turnserver[0].password;
+            configured_turn_port=updatedata->turnserver[0].port;
+            has_configured_turn=true;
+            }
+        else if(updatedata->NRturnserver) {
+            LOGAR("createAgent: ignoring empty configured TURN host");
+            updatedata->NRturnserver=0;
+            }
+        }
+    if(has_configured_turn) {
+        conf_server.host=configured_turn_host.c_str();
+        conf_server.username=configured_turn_username.c_str();
+        conf_server.password=configured_turn_password.c_str();
+        conf_server.port=configured_turn_port;
         servercount=1;
         turn_servers=&conf_server;
         }
     else {
-        if(updatedata->NRturnserver) {
-            LOGAR("createAgent: ignoring empty configured TURN host");
-            updatedata->NRturnserver=0;
-            }
         refreshTwilioTurnCredentials(default_turn_servers,defaultservercount);
         usable_turn_servers=usableDefaultTurnServers(default_turn_servers,defaultservercount);
         servercount=static_cast<int>(usable_turn_servers.size());

@@ -147,10 +147,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             Toast.makeText(context, context.getString(R.string.portrange), Toast.LENGTH_LONG).show()
                             return@Button
                         }
-                        Natives.setTurnPort(0, portNum)
-                        Natives.setTurnHost(0, host)
-                        Natives.setTurnUser(0, user)
-                        Natives.setTurnPassword(0, password)
+                        Natives.setTurnServer(0, host, portNum, user, password)
                         Natives.resetnetwork()
                         tk.glucodata.Applic.wakemirrors()
                         navController.popBackStack()
