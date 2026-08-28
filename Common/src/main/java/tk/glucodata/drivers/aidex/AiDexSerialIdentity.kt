@@ -3,10 +3,9 @@ package tk.glucodata.drivers.aidex
 /**
  * Keeps BLE advertisement names separate from the canonical identity stored by JugglucoNG.
  *
- * AiDEX hardware generations may advertise an `X-` or `F-` product prefix. The app deliberately
- * keeps one stable `X-` namespace for managed AiDEX sensor identities. The normal protocol serial
- * is the bare advertisement serial; the advertised generation remains available for narrowly
- * gated protocol compatibility handling.
+ * AiDEX hardware generations may advertise an `X-` or `F-` product prefix. The prefix is not
+ * part of the serial used by the protocol, while the app deliberately keeps one stable `X-`
+ * namespace for managed AiDEX sensor identities.
  */
 object AiDexSerialIdentity {
     private const val CANONICAL_PREFIX = "X-"
@@ -14,7 +13,7 @@ object AiDexSerialIdentity {
     private const val MAX_SERIAL_LENGTH = 14
 
     private val generationPrefixed = Regex(
-        "(?:^|\\s)(?:AIDEX\\s+)?([XF])\\s*-?\\s*" +
+        "(?:^|\\s)(?:AIDEX\\s+)?[XF]\\s*-?\\s*" +
             "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
         RegexOption.IGNORE_CASE,
     )
@@ -24,39 +23,22 @@ object AiDexSerialIdentity {
         RegexOption.IGNORE_CASE,
     )
 
-    private data class AdvertisementIdentity(
-        val bareSerial: String,
-        val generation: Char?,
-    ) {
-        val canonicalId: String get() = CANONICAL_PREFIX + bareSerial
-    }
-
-    private fun parseAdvertisement(rawName: String): AdvertisementIdentity? {
+    fun canonicalFromAdvertisement(rawName: String): String? {
         val trimmed = rawName.trim()
         generationPrefixed.find(trimmed)?.let { match ->
-            return AdvertisementIdentity(
-                bareSerial = match.groupValues[2].uppercase(),
-                generation = match.groupValues[1].uppercase().single(),
-            )
+            return CANONICAL_PREFIX + match.groupValues[1].uppercase()
         }
         familyPrefixed.find(trimmed)?.let { match ->
-            return AdvertisementIdentity(
-                bareSerial = match.groupValues[1].uppercase(),
-                generation = null,
-            )
+            return CANONICAL_PREFIX + match.groupValues[1].uppercase()
         }
 
         // Preserve the previous narrow bare-name compatibility without treating every arbitrary
         // alphanumeric BLE device name as an AiDEX sensor.
         val cleaned = trimmed.replace(" ", "")
         if (cleaned.length == 11 && cleaned.all(Char::isLetterOrDigit)) {
-            return AdvertisementIdentity(cleaned.uppercase(), generation = null)
+            return CANONICAL_PREFIX + cleaned.uppercase()
         }
         return null
-    }
-
-    fun canonicalFromAdvertisement(rawName: String): String? {
-        return parseAdvertisement(rawName)?.canonicalId
     }
 
     fun bareSerial(serialOrAdvertisementName: String): String {
@@ -86,29 +68,5 @@ object AiDexSerialIdentity {
         if (!storedSensorId.equals(fallbackCanonicalFromAddress(address), ignoreCase = true)) return null
         return canonicalFromAdvertisement(advertisedName)
             ?.substring(CANONICAL_PREFIX.length)
-    }
-
-    /**
-     * Return the one alternate authentication serial used by F-generation compatibility retry.
-     *
-     * This is deliberately stricter than discovery parsing: the advertisement must explicitly
-     * contain `F-`, and its serial must match either the stored canonical identity or the exact
-     * historical `X-<MAC>` fallback for the connected address.
-     */
-    fun fGenerationAuthenticationSerial(
-        storedSensorId: String,
-        address: String?,
-        advertisedName: String?,
-    ): String? {
-        if (advertisedName.isNullOrBlank()) return null
-        val advertised = parseAdvertisement(advertisedName) ?: return null
-        if (advertised.generation != 'F') return null
-
-        val matchesCanonical = storedSensorId.equals(advertised.canonicalId, ignoreCase = true)
-        val matchesMacFallback = !address.isNullOrBlank() &&
-            storedSensorId.equals(fallbackCanonicalFromAddress(address), ignoreCase = true)
-        if (!matchesCanonical && !matchesMacFallback) return null
-
-        return "F${advertised.bareSerial}"
     }
 }

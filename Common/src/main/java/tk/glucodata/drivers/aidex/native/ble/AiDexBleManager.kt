@@ -242,11 +242,9 @@ class AiDexBleManager(
         val commandBuilder: AiDexCommandBuilder = AiDexCommandBuilder(keyExchange),
     )
 
-    private val configuredProtocolSerial = serial
-    @Volatile private var protocolSession = ProtocolSession(AiDexKeyExchange(configuredProtocolSerial))
+    @Volatile private var protocolSession = ProtocolSession(AiDexKeyExchange(serial))
     private val keyExchange: AiDexKeyExchange get() = protocolSession.keyExchange
     private val commandBuilder: AiDexCommandBuilder get() = protocolSession.commandBuilder
-    private val f001AuthFallback = AiDexF001AuthFallback()
 
     // -- Reconnect Strategy --
     val reconnect = AiDexReconnect()
@@ -314,9 +312,6 @@ class AiDexBleManager(
 
     // -- Key Exchange State --
     private var challengeWritten = false
-    private var f001WriteInFlight = false
-    private var pendingFGenerationAuthSerial: String? = null
-    private var pendingFGenerationAuthGatt: BluetoothGatt? = null
     private var bondDataRead = false
     private var keyExchangePendingBond = false
     private var bondStateAtConnection: Int = BluetoothDevice.BOND_NONE
@@ -1341,10 +1336,6 @@ class AiDexBleManager(
         cccdMissingCallbackRetries = 0
         pendingBondedCccdUuid = null
         keyExchangePendingBond = false
-        f001WriteInFlight = false
-        pendingFGenerationAuthSerial = null
-        pendingFGenerationAuthGatt = null
-        f001AuthFallback.reset()
         postCccdFollowUp = PostCccdFollowUp.NONE
         historyDownloading = false
         cccdRetryCount = 0
@@ -1845,12 +1836,8 @@ class AiDexBleManager(
             if (bondStateAtConnection != BluetoothDevice.BOND_BONDED) {
                 setBondValidatedByStreaming(false, "new-connection-unbonded")
             }
-            protocolSession = ProtocolSession(AiDexKeyExchange(configuredProtocolSerial))
+            keyExchange.reset()
             challengeWritten = false
-            f001WriteInFlight = false
-            pendingFGenerationAuthSerial = null
-            pendingFGenerationAuthGatt = null
-            f001AuthFallback.reset()
             bondDataRead = false
             servicesReady = false
             cccdChainComplete = false
@@ -2376,12 +2363,6 @@ class AiDexBleManager(
     override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
         super.onCharacteristicWrite(gatt, characteristic, status)
         logd(TAG) { "onCharacteristicWrite: uuid=${characteristic.uuid} status=$status" }
-        if (characteristic.uuid == CHAR_F001) {
-            handler.post {
-                f001WriteInFlight = false
-                writePendingFGenerationChallenge()
-            }
-        }
         if (
             pendingResetReconnect &&
             characteristic.uuid == CHAR_F002 &&
@@ -2852,6 +2833,10 @@ class AiDexBleManager(
         handler.removeCallbacks(keyExchangeWatchdog)
         handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
 
+        // Step 1: Write SN challenge to F001
+        val challenge = keyExchange.getChallenge()
+        Log.i(TAG, "Key exchange: writing challenge to F001 (${AiDexParser.hexString(challenge)})")
+
         val service = gatt.getService(SERVICE_F000)
         val f001 = service?.getCharacteristic(CHAR_F001)
         if (service == null || f001 == null) {
@@ -2861,28 +2846,10 @@ class AiDexBleManager(
             return
         }
 
-        writeF001Challenge(gatt, f001, "primary")
-    }
-
-    private fun writeF001Challenge(
-        gatt: BluetoothGatt,
-        f001: BluetoothGattCharacteristic,
-        attempt: String,
-    ) {
-        val challenge = keyExchange.getChallenge()
-        Log.i(
-            TAG,
-            "Key exchange: writing $attempt challenge to F001 " +
-                "(protocolSerial=${keyExchange.bareSerial} ${AiDexParser.hexString(challenge)})"
-        )
         f001.value = challenge
         f001.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        val started = gatt.writeCharacteristic(f001)
-        f001WriteInFlight = started
-        challengeWritten = started
-        if (!started) {
-            Log.e(TAG, "Key exchange: $attempt F001 write did not start")
-        }
+        gatt.writeCharacteristic(f001)
+        challengeWritten = true
     }
 
     /**
@@ -2915,14 +2882,13 @@ class AiDexBleManager(
      * Handle F001 notification — contains the PAIR key.
      */
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
-        if (!challengeWritten) {
-            Log.w(TAG, "F001 response received but challenge not written yet — ignoring")
+        if (data.size < 16) {
+            Log.w(TAG, "F001 response too short (${data.size} bytes)")
             return
         }
 
-        if (data.size < 16) {
-            Log.w(TAG, "F001 response too short (${data.size} bytes)")
-            handler.post { selectFGenerationAuthFallback(data, gatt) }
+        if (!challengeWritten) {
+            Log.w(TAG, "F001 response received but challenge not written yet — ignoring")
             return
         }
 
@@ -2938,59 +2904,6 @@ class AiDexBleManager(
 
         // Step 3: Read BOND data from F002
         readBondData(gatt)
-    }
-
-    private fun selectFGenerationAuthFallback(data: ByteArray, gatt: BluetoothGatt) {
-        val advertisedName = try {
-            mygetDeviceName()
-        } catch (_: Throwable) {
-            null
-        }
-        val address = mActiveDeviceAddress ?: mActiveBluetoothDevice?.address ?: gatt.device?.address
-        val alternative = f001AuthFallback.selectAlternative(
-            response = data,
-            storedSensorId = SerialNumber,
-            address = address,
-            advertisedName = advertisedName,
-            currentProtocolSerial = keyExchange.bareSerial,
-        )
-        if (alternative == null) {
-            if (data.size == 1 && data[0] == 0.toByte() && f001AuthFallback.attempted) {
-                Log.e(TAG, "F001 again returned one-byte zero after the F-generation compatibility retry")
-            }
-            return
-        }
-
-        pendingFGenerationAuthSerial = alternative
-        pendingFGenerationAuthGatt = gatt
-        Log.w(
-            TAG,
-            "F001 returned one-byte zero for the bare serial; scheduling one F-generation compatibility retry"
-        )
-        writePendingFGenerationChallenge()
-    }
-
-    private fun writePendingFGenerationChallenge() {
-        if (f001WriteInFlight) return
-        val alternative = pendingFGenerationAuthSerial ?: return
-        val gatt = pendingFGenerationAuthGatt ?: return
-        if (gatt !== mBluetoothGatt || phase != Phase.KEY_EXCHANGE) {
-            Log.w(TAG, "Dropping stale F-generation authentication retry")
-            pendingFGenerationAuthSerial = null
-            pendingFGenerationAuthGatt = null
-            return
-        }
-
-        pendingFGenerationAuthSerial = null
-        pendingFGenerationAuthGatt = null
-        val f001 = gatt.getService(SERVICE_F000)?.getCharacteristic(CHAR_F001)
-        if (f001 == null) {
-            Log.e(TAG, "F-generation authentication retry: F001 characteristic unavailable")
-            return
-        }
-
-        protocolSession = ProtocolSession(AiDexKeyExchange.fromExactProtocolSerial(alternative))
-        writeF001Challenge(gatt, f001, "F-generation compatibility")
     }
 
     /**
