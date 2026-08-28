@@ -2619,6 +2619,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_product_basis">Waarden gelden per</string>
     <string name="meal_product_values_hint">Van het etiket: per 100 g / 100 ml of per portie.</string>
     <string name="meal_product_net_quantity">Inhoud verpakking (g of ml)</string>
+    <string name="meal_product_package_pieces">Inhoud verpakking (stuks, bijv. 6 worstjes)</string>
     <string name="meal_product_serving">Portiegrootte (g of ml)</string>
     <string name="meal_serving_word">portie</string>
     <string name="meal_piece_word">stuk</string>

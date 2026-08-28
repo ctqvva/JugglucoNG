@@ -2604,6 +2604,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_product_basis">Değerler şuna göre</string>
     <string name="meal_product_values_hint">Etiketten: 100 g / 100 ml veya porsiyon başına.</string>
     <string name="meal_product_net_quantity">Paket içeriği (g veya ml)</string>
+    <string name="meal_product_package_pieces">Paket içeriği (adet, ör. 6 sosis)</string>
     <string name="meal_product_serving">Porsiyon boyutu (g veya ml)</string>
     <string name="meal_serving_word">porsiyon</string>
     <string name="meal_piece_word">adet</string>

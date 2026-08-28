@@ -2592,6 +2592,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">数值基于</string>
     <string name="meal_product_values_hint">来自标签：每 100 克 / 100 毫升或每份。</string>
     <string name="meal_product_net_quantity">包装含量（克或毫升）</string>
+    <string name="meal_product_package_pieces">包装内数量（件，例如 6 根香肠）</string>
     <string name="meal_product_serving">每份大小（克或毫升）</string>
     <string name="meal_serving_word">份</string>
     <string name="meal_piece_word">个</string>

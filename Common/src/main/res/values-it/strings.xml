@@ -2566,6 +2566,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">I valori si riferiscono a</string>
     <string name="meal_product_values_hint">Dall’etichetta: per 100 g / 100 ml o per porzione.</string>
     <string name="meal_product_net_quantity">Contenuto confezione (g o ml)</string>
+    <string name="meal_product_package_pieces">Contenuto confezione (pezzi, es. 6 salsicce)</string>
     <string name="meal_product_serving">Dimensione porzione (g o ml)</string>
     <string name="meal_serving_word">porzione</string>
     <string name="meal_piece_word">pezzo</string>

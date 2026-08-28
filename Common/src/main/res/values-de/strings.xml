@@ -2615,6 +2615,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_product_basis">Werte beziehen sich auf</string>
     <string name="meal_product_values_hint">Vom Etikett: je 100 g / 100 ml oder je Portion.</string>
     <string name="meal_product_net_quantity">Packungsinhalt (g oder ml)</string>
+    <string name="meal_product_package_pieces">Packungsinhalt (Stück, z. B. 6 Würstchen)</string>
     <string name="meal_product_serving">Portionsgröße (g oder ml)</string>
     <string name="meal_serving_word">Portion</string>
     <string name="meal_piece_word">Stück</string>

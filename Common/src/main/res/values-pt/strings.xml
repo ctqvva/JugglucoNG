@@ -2577,6 +2577,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">Os valores referem-se a</string>
     <string name="meal_product_values_hint">Do rótulo: por 100 g / 100 ml ou por porção.</string>
     <string name="meal_product_net_quantity">Conteúdo da embalagem (g ou ml)</string>
+    <string name="meal_product_package_pieces">Conteúdo da embalagem (unidades, ex. 6 salsichas)</string>
     <string name="meal_product_serving">Tamanho da porção (g ou ml)</string>
     <string name="meal_serving_word">porção</string>
     <string name="meal_piece_word">unidade</string>

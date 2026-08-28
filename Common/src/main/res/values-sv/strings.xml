@@ -2576,6 +2576,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">Värdena avser</string>
     <string name="meal_product_values_hint">Från etiketten: per 100 g / 100 ml eller per portion.</string>
     <string name="meal_product_net_quantity">Förpackningens innehåll (g eller ml)</string>
+    <string name="meal_product_package_pieces">Förpackningens innehåll (stycken, t.ex. 6 korvar)</string>
     <string name="meal_product_serving">Portionsstorlek (g eller ml)</string>
     <string name="meal_serving_word">portion</string>
     <string name="meal_piece_word">styck</string>

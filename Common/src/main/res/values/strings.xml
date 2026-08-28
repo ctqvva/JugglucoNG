@@ -2801,6 +2801,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">Values refer to</string>
     <string name="meal_product_values_hint">From the label: per 100 g / 100 ml or per serving.</string>
     <string name="meal_product_net_quantity">Package content (g or ml)</string>
+    <string name="meal_product_package_pieces">Package contents (pieces, e.g. 6 sausages)</string>
     <string name="meal_product_serving">Serving size (g or ml)</string>
     <string name="meal_serving_word">portion</string>
     <string name="meal_piece_word">piece</string>

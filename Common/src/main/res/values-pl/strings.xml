@@ -2610,6 +2610,7 @@
     <string name="meal_product_basis">Wartości odnoszą się do</string>
     <string name="meal_product_values_hint">Z etykiety: na 100 g / 100 ml lub na porcję.</string>
     <string name="meal_product_net_quantity">Zawartość opakowania (g lub ml)</string>
+    <string name="meal_product_package_pieces">Zawartość opakowania (sztuki, np. 6 kiełbasek)</string>
     <string name="meal_product_serving">Wielkość porcji (g lub ml)</string>
     <string name="meal_serving_word">porcja</string>
     <string name="meal_piece_word">sztuka</string>

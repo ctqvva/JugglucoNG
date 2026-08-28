@@ -1,5 +1,6 @@
 package tk.glucodata.data.meal
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -58,6 +59,9 @@ data class MealItemEntity(
     val kcal: Float?,
     val netQuantity: Float?,
     val netUnit: String?,
+    val packagePieces: Float?,
+    val packagePieceLabel: String?,
+    @ColumnInfo(defaultValue = "0") val packagePiecesUserEdited: Boolean,
     val servingText: String?,
     val servingQuantity: Float?,
     val servingUnit: String?,
@@ -104,6 +108,9 @@ data class MealProductEntity(
     val kcal: Float?,
     val netQuantity: Float?,
     val netUnit: String?,
+    val packagePieces: Float?,
+    val packagePieceLabel: String?,
+    @ColumnInfo(defaultValue = "0") val packagePiecesUserEdited: Boolean,
     val servingText: String?,
     val servingQuantity: Float?,
     val servingUnit: String?,

@@ -2776,6 +2776,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_product_basis">Qiyamku waxay khuseeyaan</string>
     <string name="meal_product_values_hint">Laga soo qaaday calaamadda: 100 g / 100 ml ama qaybtii.</string>
     <string name="meal_product_net_quantity">Waxa ku jira baakadda (g ama ml)</string>
+    <string name="meal_product_package_pieces">Waxa ku jira baakadda (xabbo, tus. 6 sausages)</string>
     <string name="meal_product_serving">Cabbirka qaybta (g ama ml)</string>
     <string name="meal_serving_word">qayb</string>
     <string name="meal_piece_word">xabbo</string>

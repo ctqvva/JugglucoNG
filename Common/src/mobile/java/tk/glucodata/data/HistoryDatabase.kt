@@ -36,6 +36,7 @@ import tk.glucodata.data.meal.MealProductEntity
  *   v13 — meals (composition + product cache) and the mealId correlation on journal entries
  *   v14 — contributedAt on the product cache (sent to Open Food Facts)
  *   v15 — saturated fat, salt and an OFF category on the product cache (Nutri-Score inputs)
+ *   v16 — editable package piece counts for product and meal quantity resolution
  */
 @Database(
     entities = [
@@ -49,7 +50,7 @@ import tk.glucodata.data.meal.MealProductEntity
         MealItemEntity::class,
         MealProductEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -366,6 +367,18 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /** v15 -> v16: preserve the independently editable number of pieces in a package. */
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
+                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
+                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
+                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -386,7 +399,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_11_12,
                     MIGRATION_12_13,
                     MIGRATION_13_14,
-                    MIGRATION_14_15
+                    MIGRATION_14_15,
+                    MIGRATION_15_16
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

@@ -2648,6 +2648,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_product_basis">Значення вказані</string>
     <string name="meal_product_values_hint">З етикетки: на 100 г / 100 мл або на порцію.</string>
     <string name="meal_product_net_quantity">Вміст упаковки (г або мл)</string>
+    <string name="meal_product_package_pieces">Вміст упаковки (штуки, наприклад 6 сосисок)</string>
     <string name="meal_product_serving">Розмір порції (г або мл)</string>
     <string name="meal_serving_word">порція</string>
     <string name="meal_piece_word">штука</string>

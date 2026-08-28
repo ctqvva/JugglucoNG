@@ -2691,6 +2691,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_product_basis">Утга юунд хамаарах</string>
     <string name="meal_product_values_hint">Шошгоос: 100 г / 100 мл эсвэл порц тутамд.</string>
     <string name="meal_product_net_quantity">Багцын агуулга (г эсвэл мл)</string>
+    <string name="meal_product_package_pieces">Багцын агуулга (ширхэг, ж.нь. 6 зайдас)</string>
     <string name="meal_product_serving">Порцын хэмжээ (г эсвэл мл)</string>
     <string name="meal_serving_word">порц</string>
     <string name="meal_piece_word">ширхэг</string>

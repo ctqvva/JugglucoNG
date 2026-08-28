@@ -122,6 +122,25 @@ class QuantityResolverTests {
     }
 
     @Test
+    fun packagePiecesDivideTheNetContentsNotTheServingSize() {
+        val sausages = per100g.copy(
+            netQuantity = 400f,
+            netUnit = AmountUnit.GRAM,
+            packagePieces = 6f,
+            packagePieceLabel = "sausages",
+            servingQuantity = 59f,
+            servingUnit = AmountUnit.GRAM
+        )
+        val one = resolved("1 sausage", sausages)
+        assertEquals(400f / 6f, one.grams!!, 0.001f)
+        assertEquals((400f / 6f) / 100f, one.factor, 0.0001f)
+
+        val explicitWeight = sausages.copy(pieceGrams = 62.5f)
+        assertEquals(400f / 6f, resolved("1 sausage", explicitWeight).grams!!, 0.001f)
+        assertEquals(62.5f, resolved("1 sausage", explicitWeight.copy(packagePieces = null)).grams!!, 0.001f)
+    }
+
+    @Test
     fun piecesWithoutAnyWeightAsk() {
         assertEquals(MissingReference.PIECE_WEIGHT, missing("2 Riegel", per100g))
         val learned = per100g.copy(pieceGrams = 25f)

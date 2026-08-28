@@ -102,6 +102,7 @@ internal fun MealEatSheet(
                     MacroLine(label = proteinWord, value = facts.proteinGrams)
                     MacroLine(label = fatWord, value = facts.fatGrams)
                 }
+                facts.kcal?.let { MacroLine(label = stringResource(R.string.meal_kcal), value = it, unit = "") }
             }
             Text(
                 text = stringResource(R.string.meal_eat_next_step),
