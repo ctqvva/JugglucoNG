@@ -153,10 +153,6 @@ private boolean connected=false;
             //resetGlucose=0; 
             connected=true;
             setpriority(bluetoothGatt);
-            // Libre 3 performs its security handshake immediately after connect.
-            // Give that short, write-heavy phase high priority even when the
-            // long-running Turbo option is disabled.
-            bluetoothGatt.requestConnectionPriority(CONNECTION_PRIORITY_HIGH);
             constatchange[0] = tim;
             //wasConnected = true;
             if (!isServicesDiscovered||!getservices()) {
@@ -982,10 +978,6 @@ private    void glucose_data(byte[] value) {
                }
            long res=Natives.saveLibre3MinuteL(this.sensorptr, decr);
            handleGlucoseResult(res,timmsec);
-           // Once streaming is proven, return to the user's normal low-power
-           // policy. Turbo deliberately keeps the high-priority connection.
-           if(!Natives.getpriority() && this.mBluetoothGatt != null)
-               this.mBluetoothGatt.requestConnectionPriority(CONNECTION_PRIORITY_BALANCED);
            datatime=timmsec;
            this.mBluetoothGatt.readRemoteRssi();
            }
