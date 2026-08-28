@@ -131,6 +131,8 @@
     <string name="name">Нэр:</string>
     <string name="carbperunit">Нэгж дэх нүүрс ус:</string>
     <string name="database">Өгөгдлийн сан</string>
+    <string name="history_database_incompatible_title">Түүхийн өгөгдлийн сан нийцэхгүй байна</string>
+    <string name="history_database_incompatible_message">Энэ хувилбар одоо байгаа түүхийн өгөгдлийн сангийн хувилбар эсвэл бүтэц нийцэхгүй тул нээж чадахгүй. Таны өгөгдөл устгагдаагүй. Өгөгдлийн санг үүсгэсэн хувилбар эсвэл түүнээс шинэ нийцтэй хувилбарыг суулгаад аппыг дахин эхлүүлнэ үү.</string>
     <string name="search">Хайх</string>
     <string name="trace">Мөрдөх</string>
     <string name="unknown">Тодорхойгүй</string>

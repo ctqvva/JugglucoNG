@@ -135,6 +135,8 @@
  <string name="name">İsim:</string>
  <string name="carbperunit">Karbonhidrat/Birim:</string>
  <string name="database">Veri Tabanı</string>
+ <string name="history_database_incompatible_title">Uyumsuz geçmiş veritabanı</string>
+ <string name="history_database_incompatible_message">Bu derleme, sürümü veya şeması uyumsuz olduğu için mevcut geçmiş veritabanını açamıyor. Verileriniz silinmedi. Veritabanını oluşturan derlemeyi veya daha yeni uyumlu bir derlemeyi yükleyin, ardından uygulamayı yeniden başlatın.</string>
  <string name="search">Ara</string>
  <string name="trace">İzle</string>
  <string name="unknown">Bilinmeyen</string>

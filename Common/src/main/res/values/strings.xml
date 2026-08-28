@@ -136,6 +136,8 @@
  <string name="name">Name:</string>
  <string name="carbperunit">Carbohydrates/unit:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Incompatible history database</string>
+ <string name="history_database_incompatible_message">This build cannot open the existing history database because its version or schema is incompatible. Your data was not deleted. Install the build that created the database, or a newer compatible build, then restart the app.</string>
  <string name="search">Search</string>
  <string name="trace">Trace</string>
  <string name="unknown">Unknown</string>

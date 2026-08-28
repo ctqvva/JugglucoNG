@@ -135,6 +135,8 @@
  <string name="name">Ім\'я:</string>
  <string name="carbperunit">Вуглеводи/одиниця:</string>
  <string name="database">База даних</string>
+ <string name="history_database_incompatible_title">Несумісна база даних історії</string>
+ <string name="history_database_incompatible_message">Ця збірка не може відкрити наявну базу даних історії, оскільки її версія або схема несумісна. Ваші дані не було видалено. Установіть збірку, яка створила базу даних, або новішу сумісну збірку, а потім перезапустіть застосунок.</string>
  <string name="search">Пошук</string>
  <string name="trace">Слід</string>
  <string name="unknown">Невідомий</string>

@@ -136,6 +136,8 @@
  <string name="name">Magaca:</string>
  <string name="carbperunit">Carbohydrates/cutub:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Kaydka taariikhda lama jaanqaadi karo</string>
+ <string name="history_database_incompatible_message">Noocan ma furi karo kaydka taariikhda ee jira sababtoo ah noociisa ama qaabkiisa lama jaanqaadi karo. Xogtaada lama tirtirin. Ku rakib noocii sameeyay kaydka xogta ama nooc ka cusub oo la jaanqaadi kara, dabadeed dib u bilow abka.</string>
  <string name="search">Raadi</string>
  <string name="trace">Raad raac</string>
  <string name="unknown">Lama garanayo</string>

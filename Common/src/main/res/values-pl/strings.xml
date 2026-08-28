@@ -135,6 +135,8 @@
  <string name="name">Nazwa:</string>
  <string name="carbperunit">Węglowodany/jedn.:</string>
  <string name="database">Baza danych</string>
+ <string name="history_database_incompatible_title">Niezgodna baza danych historii</string>
+ <string name="history_database_incompatible_message">Ta kompilacja nie może otworzyć istniejącej bazy danych historii, ponieważ jej wersja lub schemat są niezgodne. Dane nie zostały usunięte. Zainstaluj kompilację, która utworzyła bazę danych, albo nowszą zgodną kompilację, a następnie uruchom aplikację ponownie.</string>
  <string name="search">Szukaj</string>
  <string name="trace">Ślad</string>
  <string name="unknown">Nieznany</string>
