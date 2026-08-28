@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -7,6 +9,10 @@ private const val MIRROR_QR_SUFFIX = " MirrorJuggluco"
 private const val MAX_TURN_HOST_LENGTH = 191
 private const val MAX_TURN_USERNAME_LENGTH = 95
 private const val MAX_TURN_PASSWORD_LENGTH = 127
+
+internal val MIRROR_QR_ENCODE_HINTS = mapOf(
+    EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M
+)
 
 internal data class HybridQrTurnConfig(
     val host: String,

@@ -101,7 +101,15 @@ private suspend fun testJugglucoConnection(host: String, port: Int): Boolean =
 fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     if (content.isEmpty()) return
     val bitmap = remember(content, size) {
-        try { com.journeyapps.barcodescanner.BarcodeEncoder().encodeBitmap(content, com.google.zxing.BarcodeFormat.QR_CODE, size, size) }
+        try {
+            com.journeyapps.barcodescanner.BarcodeEncoder().encodeBitmap(
+                content,
+                com.google.zxing.BarcodeFormat.QR_CODE,
+                size,
+                size,
+                MIRROR_QR_ENCODE_HINTS
+            )
+        }
         catch (_: Exception) { null }
     }
     bitmap?.let {

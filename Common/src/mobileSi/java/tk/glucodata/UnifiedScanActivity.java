@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.Image;
 import android.os.Bundle;
+import android.util.Size;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -29,6 +30,8 @@ import androidx.camera.core.ImageProxy;
 import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.Preview;
 import androidx.camera.core.ZoomState;
+import androidx.camera.core.resolutionselector.ResolutionSelector;
+import androidx.camera.core.resolutionselector.ResolutionStrategy;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.graphics.Insets;
@@ -282,8 +285,15 @@ public class UnifiedScanActivity extends AppCompatActivity {
         Preview preview = new Preview.Builder().build();
         preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
+        ResolutionSelector analysisResolution = new ResolutionSelector.Builder()
+                .setResolutionStrategy(new ResolutionStrategy(
+                        new Size(1280, 720),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                ))
+                .build();
         ImageAnalysis analysis = new ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setResolutionSelector(analysisResolution)
                 .build();
         analysis.setAnalyzer(analyzerExecutor, this::analyzeFrame);
 
