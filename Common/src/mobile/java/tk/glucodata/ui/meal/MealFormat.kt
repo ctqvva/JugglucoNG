@@ -27,13 +27,20 @@ internal object MealFormat {
     fun number(value: Float?, locale: Locale = Locale.getDefault(), digits: Int = 2): String = grams(value, locale, digits)
 
     /** "52 g / 100 g × 0,33 = 17,2 g" — the visible derivation for one macro. */
-    fun macroDerivation(perBasis: Float, basis: NutritionBasis, factor: Float, basisWord: String, locale: Locale = Locale.getDefault()): String {
+    fun macroDerivation(
+        perBasis: Float,
+        basis: NutritionBasis,
+        factor: Float,
+        basisWord: String,
+        locale: Locale = Locale.getDefault(),
+        unit: String = "g"
+    ): String {
         val base = when (basis) {
             NutritionBasis.PER_100G -> "100 g"
             NutritionBasis.PER_100ML -> "100 ml"
             NutritionBasis.PER_SERVING, NutritionBasis.PER_BATCH -> basisWord
         }
-        return "${grams(perBasis, locale)} g / $base × ${number(factor, locale)} = ${grams(perBasis * factor, locale)} g"
+        return "${grams(perBasis, locale)} $unit / $base × ${number(factor, locale)} = ${grams(perBasis * factor, locale)} $unit"
     }
 
     /** Short editor text for a float ("70", "6,5"). */
@@ -103,10 +110,15 @@ internal fun quantityChipsFor(reference: NutritionReference, servingWord: String
         }
     }
     if (reference.basis != NutritionBasis.PER_BATCH) {
-        val pieceLabel = reference.servingPieceLabel?.takeIf { reference.effectiveServingPieces != null }
-        if (pieceLabel != null) {
+        val packageLabel = reference.packagePieceLabel?.takeIf { reference.packagePieces?.let { it > 0f } == true }
+        val servingLabel = reference.servingPieceLabel?.takeIf { reference.effectiveServingPieces != null }
+        val pieceLabel = packageLabel ?: servingLabel
+        if (pieceLabel != null && (reference.effectivePieceGrams != null || reference.effectivePieceMilliliters != null)) {
             chips += "1 $pieceLabel"
             chips += "2 $pieceLabel"
+        } else if (reference.packagePieces != null && (reference.effectivePieceGrams != null || reference.effectivePieceMilliliters != null)) {
+            chips += "1 $pieceWord"
+            chips += "2 $pieceWord"
         } else if (reference.pieceGrams != null) {
             chips += "1 $pieceWord"
         } else if (reference.servingQuantity != null && reference.basis != NutritionBasis.PER_SERVING) {

@@ -102,6 +102,7 @@ data class NutritionFacts(
  * with the same product resolves immediately.
  *
  * @param netQuantity package net content, or for a batch the cooked weight.
+ * @param packagePieces how many individually countable pieces the package contains.
  * @param servingQuantity the size of one serving in [servingUnit]; OFF's `serving_quantity`.
  * @param servingPieces how many pieces one serving is, from text like "2 Scheiben (50 g)".
  * @param servingsPerBatch recipe yield / the number of portions a meal was divided into.
@@ -112,6 +113,9 @@ data class NutritionReference(
     val basis: NutritionBasis,
     val netQuantity: Float? = null,
     val netUnit: AmountUnit? = null,
+    val packagePieces: Float? = null,
+    val packagePieceLabel: String? = null,
+    val packagePiecesUserEdited: Boolean = false,
     val servingText: String? = null,
     val servingQuantity: Float? = null,
     val servingUnit: AmountUnit? = null,
@@ -141,9 +145,12 @@ data class NutritionReference(
             return pieces.takeIf { abs(parsedAmount - amount) <= tolerance }
         }
 
-    /** Weight of one piece, either learned or derived from a trusted "1 Riegel (25 g)". */
+    /** Weight of one piece, learned directly or derived from package contents / serving text. */
     val effectivePieceGrams: Float?
         get() {
+            val packageCount = packagePieces?.takeIf { it > 0f }
+            val packageGrams = netQuantity?.takeIf { it > 0f && netUnit == AmountUnit.GRAM }
+            if (packageCount != null && packageGrams != null) return packageGrams / packageCount
             pieceGrams?.takeIf { it > 0f }?.let { return it }
             val pieces = effectiveServingPieces ?: return null
             val grams = servingQuantity?.takeIf { it > 0f && servingUnit == AmountUnit.GRAM } ?: return null
@@ -153,6 +160,9 @@ data class NutritionReference(
     /** Milliliters of one piece for liquids sold by the glass or can ("1 portion (330 ml)"). */
     val effectivePieceMilliliters: Float?
         get() {
+            val packageCount = packagePieces?.takeIf { it > 0f }
+            val packageMl = netQuantity?.takeIf { it > 0f && netUnit == AmountUnit.MILLILITER }
+            if (packageCount != null && packageMl != null) return packageMl / packageCount
             val pieces = effectiveServingPieces ?: return null
             val ml = servingQuantity?.takeIf { it > 0f && servingUnit == AmountUnit.MILLILITER } ?: return null
             return ml / pieces

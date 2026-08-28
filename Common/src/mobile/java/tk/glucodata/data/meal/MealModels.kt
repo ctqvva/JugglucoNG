@@ -111,6 +111,9 @@ internal fun MealItemEntity.toModel(): MealItem = MealItem(
         basis = NutritionBasis.fromStorage(basis),
         netQuantity = netQuantity,
         netUnit = AmountUnit.fromStorage(netUnit),
+        packagePieces = packagePieces,
+        packagePieceLabel = packagePieceLabel,
+        packagePiecesUserEdited = packagePiecesUserEdited,
         servingText = servingText,
         servingQuantity = servingQuantity,
         servingUnit = AmountUnit.fromStorage(servingUnit),
@@ -148,6 +151,9 @@ internal fun MealProductEntity.toScannedProduct(): ScannedProduct = ScannedProdu
         basis = NutritionBasis.fromStorage(basis),
         netQuantity = netQuantity,
         netUnit = AmountUnit.fromStorage(netUnit),
+        packagePieces = packagePieces,
+        packagePieceLabel = packagePieceLabel,
+        packagePiecesUserEdited = packagePiecesUserEdited,
         servingText = servingText,
         servingQuantity = servingQuantity,
         servingUnit = AmountUnit.fromStorage(servingUnit),
@@ -159,7 +165,12 @@ internal fun MealProductEntity.toScannedProduct(): ScannedProduct = ScannedProdu
     contributedAt = contributedAt
 )
 
-internal fun ScannedProduct.toProductEntity(barcode: String, now: Long, existing: MealProductEntity?): MealProductEntity =
+internal fun ScannedProduct.toProductEntity(
+    barcode: String,
+    now: Long,
+    existing: MealProductEntity?,
+    preserveExistingPackageContents: Boolean = false
+): MealProductEntity =
     MealProductEntity(
         barcode = barcode,
         source = source.storageValue,
@@ -175,6 +186,9 @@ internal fun ScannedProduct.toProductEntity(barcode: String, now: Long, existing
         kcal = facts.kcal,
         netQuantity = reference.netQuantity,
         netUnit = reference.netUnit?.storageValue,
+        packagePieces = if (preserveExistingPackageContents && existing?.packagePiecesUserEdited == true) existing.packagePieces else reference.packagePieces,
+        packagePieceLabel = if (preserveExistingPackageContents && existing?.packagePiecesUserEdited == true) existing.packagePieceLabel else reference.packagePieceLabel,
+        packagePiecesUserEdited = if (preserveExistingPackageContents) existing?.packagePiecesUserEdited == true else reference.packagePiecesUserEdited,
         servingText = reference.servingText,
         servingQuantity = reference.servingQuantity,
         servingUnit = reference.servingUnit?.storageValue,

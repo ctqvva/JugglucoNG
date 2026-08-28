@@ -28,8 +28,8 @@ object OpenFoodFactsParser {
 
         val quantityUnit = unitOf(product.optString("product_quantity_unit"))
         val servingUnit = unitOf(product.optString("serving_quantity_unit"))
-        val quantityText = product.optString("quantity").lowercase(Locale.ROOT)
-        val liquidByText = Regex("\\d\\s*(ml|cl|dl|l)\\b").containsMatchIn(quantityText)
+        val quantityText = product.optString("quantity").trim()
+        val liquidByText = Regex("\\d\\s*(ml|cl|dl|l)\\b").containsMatchIn(quantityText.lowercase(Locale.ROOT))
         val isLiquid = quantityUnit == AmountUnit.MILLILITER ||
             (quantityUnit == null && (servingUnit == AmountUnit.MILLILITER || liquidByText))
 
@@ -84,6 +84,25 @@ object OpenFoodFactsParser {
             isLiquid -> AmountUnit.MILLILITER
             else -> AmountUnit.GRAM
         }
+        val quantitySpec = ServingSizeParser.parse(quantityText)
+        val multipackPieces = Regex("^\\s*(\\d+(?:[.,]\\d+)?)\\s*[x×]\\s*\\d", RegexOption.IGNORE_CASE)
+            .find(quantityText)?.groupValues?.get(1)?.replace(',', '.')?.toFloatOrNull()
+        val packageSpecFromQuantity = multipackPieces?.let {
+            ServingSpec(pieces = it, pieceLabel = null, quantity = null, unit = null)
+        } ?: quantitySpec?.takeIf { spec ->
+            spec.pieces?.let { it > 0f } == true &&
+                (spec.quantity == null || netQuantity == null ||
+                    (spec.unit == netUnit && closeEnough(spec.quantity, netQuantity)))
+        }
+        // Some OFF records put a package count in serving_size while serving_quantity is the
+        // nutrition basis (100 g/ml). Treat only that narrow contradiction as package contents;
+        // a real "2 biscuits (30 g)" serving remains a serving.
+        val promoteServingCountToPackage = packageSpecFromQuantity == null &&
+            servingSpec?.pieces?.let { it > 1f } == true && servingSpec.quantity == null &&
+            netQuantity?.let { it > 0f } == true &&
+            (basis == NutritionBasis.PER_100G || basis == NutritionBasis.PER_100ML) &&
+            servingQuantity?.let { closeEnough(it, 100f) } == true && resolvedServingUnit == netUnit
+        val packageSpec = packageSpecFromQuantity ?: servingSpec?.takeIf { promoteServingCountToPackage }
 
         val name = listOf("product_name", "product_name_de", "product_name_en", "generic_name")
             .map { product.optString(it).trim() }
@@ -101,14 +120,19 @@ object OpenFoodFactsParser {
                 basis = basis,
                 netQuantity = netQuantity?.takeIf { it > 0f },
                 netUnit = netUnit,
+                packagePieces = packageSpec?.pieces,
+                packagePieceLabel = packageSpec?.pieceLabel?.takeUnless { it.equals("x", ignoreCase = true) },
                 servingText = servingText,
                 servingQuantity = servingQuantity?.takeIf { it > 0f },
                 servingUnit = resolvedServingUnit,
-                servingPieces = servingSpec?.pieces,
-                servingPieceLabel = servingSpec?.pieceLabel
+                servingPieces = servingSpec?.pieces?.takeUnless { promoteServingCountToPackage },
+                servingPieceLabel = servingSpec?.pieceLabel?.takeUnless { promoteServingCountToPackage }
             )
         )
     }
+
+    private fun closeEnough(a: Float, b: Float): Boolean =
+        kotlin.math.abs(a - b) <= maxOf(0.01f, kotlin.math.abs(b) * 0.001f)
 
     private fun unitOf(raw: String?): AmountUnit? = when (raw?.trim()?.lowercase(Locale.ROOT)) {
         "g", "gr", "gram", "grams" -> AmountUnit.GRAM

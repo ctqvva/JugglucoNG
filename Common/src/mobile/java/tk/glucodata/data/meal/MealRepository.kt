@@ -207,7 +207,12 @@ class MealRepository {
         }
         when (val result = OpenFoodFactsClient.lookup(barcode)) {
             is ProductLookupResult.Found -> {
-                val entity = result.product.toProductEntity(barcode, now, cached)
+                val entity = result.product.toProductEntity(
+                    barcode,
+                    now,
+                    cached,
+                    preserveExistingPackageContents = true
+                )
                 dao.upsertProduct(entity)
                 synchronized(recentMisses) { recentMisses.remove(barcode) }
                 ProductLookupOutcome.Hit(entity.toScannedProduct(), fromCache = false)
@@ -247,6 +252,9 @@ class MealRepository {
                 pieceGrams = reference.pieceGrams ?: existing.pieceGrams,
                 netQuantity = reference.netQuantity ?: existing.netQuantity,
                 netUnit = reference.netUnit?.storageValue ?: existing.netUnit,
+                packagePieces = reference.packagePieces ?: existing.packagePieces,
+                packagePieceLabel = reference.packagePieceLabel ?: existing.packagePieceLabel,
+                packagePiecesUserEdited = reference.packagePiecesUserEdited || existing.packagePiecesUserEdited,
                 servingQuantity = reference.servingQuantity ?: existing.servingQuantity,
                 servingUnit = reference.servingUnit?.storageValue ?: existing.servingUnit,
                 lastUsedAt = System.currentTimeMillis()
@@ -296,6 +304,9 @@ private fun ScannedProduct.toItemEntity(
     kcal = facts.kcal,
     netQuantity = reference.netQuantity,
     netUnit = reference.netUnit?.storageValue,
+    packagePieces = reference.packagePieces,
+    packagePieceLabel = reference.packagePieceLabel,
+    packagePiecesUserEdited = reference.packagePiecesUserEdited,
     servingText = reference.servingText,
     servingQuantity = reference.servingQuantity,
     servingUnit = reference.servingUnit?.storageValue,

@@ -62,7 +62,7 @@ class OpenFoodFactsParserTests {
     }
 
     @Test
-    fun bareMultiPieceServingDoesNotInventAPieceWeight() {
+    fun bareMultiPieceServingAtThe100gBasisBecomesEditablePackageContents() {
         val product = OpenFoodFactsParser.parse(
             "5010000000000",
             """{"code":"5010000000000","product":{"product_name":"6 sausages","nutrition_data_per":"100g",
@@ -71,12 +71,78 @@ class OpenFoodFactsParserTests {
                 "nutriments":{"carbohydrates_100g":2.7,"proteins_100g":17.7,"fat_100g":20.1}},"status":1}"""
         )!!
 
-        assertEquals(6f, product.reference.servingPieces!!, 0.0001f)
-        assertEquals("sausages", product.reference.servingPieceLabel)
-        assertNull(product.reference.effectiveServingPieces)
-        assertNull(product.reference.effectivePieceGrams)
-        val one = QuantityResolver.resolve("1 sausage", product.reference)
-        assertTrue(one is QuantityResolution.Missing && one.need == MissingReference.PIECE_WEIGHT)
+        assertEquals(6f, product.reference.packagePieces!!, 0.0001f)
+        assertEquals("sausages", product.reference.packagePieceLabel)
+        assertNull(product.reference.servingPieces)
+        assertEquals(400f / 6f, product.reference.effectivePieceGrams!!, 0.0001f)
+        val one = QuantityResolver.resolve("1 sausage", product.reference) as QuantityResolution.Resolved
+        assertEquals(400f / 6f, one.grams!!, 0.0001f)
+        assertEquals((400f / 6f) / 100f, one.factor, 0.0001f)
+
+        val cached = product.toProductEntity(product.barcode!!, now = 1L, existing = null).toScannedProduct()
+        assertEquals(6f, cached.reference.packagePieces!!, 0.0001f)
+        assertEquals("sausages", cached.reference.packagePieceLabel)
+
+        val corrected = product.copy(
+            reference = product.reference.copy(
+                packagePieces = 8f,
+                packagePiecesUserEdited = true
+            )
+        ).toProductEntity(product.barcode!!, now = 2L, existing = null)
+        val refreshed = product.toProductEntity(
+            product.barcode!!,
+            now = 3L,
+            existing = corrected,
+            preserveExistingPackageContents = true
+        ).toScannedProduct()
+        assertEquals(8f, refreshed.reference.packagePieces!!, 0.0001f)
+        assertTrue(refreshed.reference.packagePiecesUserEdited)
+
+        val cleared = product.copy(
+            reference = product.reference.copy(
+                packagePieces = null,
+                packagePieceLabel = null,
+                packagePiecesUserEdited = true
+            )
+        ).toProductEntity(product.barcode!!, now = 4L, existing = null)
+        val refreshedAfterClear = product.toProductEntity(
+            product.barcode!!,
+            now = 5L,
+            existing = cleared,
+            preserveExistingPackageContents = true
+        ).toScannedProduct()
+        assertNull(refreshedAfterClear.reference.packagePieces)
+        assertTrue(refreshedAfterClear.reference.packagePiecesUserEdited)
+    }
+
+    @Test
+    fun quantityPackageCountStaysSeparateFromARealServingCount() {
+        val product = OpenFoodFactsParser.parse(
+            "5010000000001",
+            """{"code":"5010000000001","product":{"product_name":"Meatballs","nutrition_data_per":"100g",
+                "quantity":"8 meatballs (480 g)","product_quantity":480,"product_quantity_unit":"g",
+                "serving_size":"2 meatballs (120 g)","serving_quantity":120,"serving_quantity_unit":"g",
+                "nutriments":{"carbohydrates_100g":3,"energy-kcal_100g":240}},"status":1}"""
+        )!!
+
+        assertEquals(8f, product.reference.packagePieces!!, 0.0001f)
+        assertEquals(2f, product.reference.servingPieces!!, 0.0001f)
+        assertEquals(60f, product.reference.effectivePieceGrams!!, 0.0001f)
+        assertEquals(2.4f, (QuantityResolver.resolve("2 servings", product.reference) as QuantityResolution.Resolved).factor, 0.0001f)
+    }
+
+    @Test
+    fun compactMultipackQuantityProvidesAnEditableGenericPieceCount() {
+        val product = OpenFoodFactsParser.parse(
+            "5010000000002",
+            """{"code":"5010000000002","product":{"product_name":"Sausages","nutrition_data_per":"100g",
+                "quantity":"6 x 67 g","product_quantity":400,"product_quantity_unit":"g",
+                "nutriments":{"carbohydrates_100g":2.7}},"status":1}"""
+        )!!
+
+        assertEquals(6f, product.reference.packagePieces!!, 0.0001f)
+        assertNull(product.reference.packagePieceLabel)
+        assertEquals(400f / 6f, product.reference.effectivePieceGrams!!, 0.0001f)
     }
 
     @Test

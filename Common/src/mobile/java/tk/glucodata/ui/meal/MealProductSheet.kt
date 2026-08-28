@@ -53,6 +53,7 @@ import tk.glucodata.data.meal.ProductBarcode
 import tk.glucodata.data.meal.QuantityResolution
 import tk.glucodata.data.meal.QuantityResolver
 import tk.glucodata.data.meal.ScannedProduct
+import tk.glucodata.data.meal.ServingSizeParser
 
 /** The editable fields behind a product, whether it came from a scan or is typed in. */
 internal data class ProductForm(
@@ -66,6 +67,7 @@ internal data class ProductForm(
     val kcal: String,
     val netQuantity: String,
     val netUnit: AmountUnit,
+    val packageContents: String,
     val servingQuantity: String,
     val servingUnit: AmountUnit,
     val density: String,
@@ -77,6 +79,11 @@ internal data class ProductForm(
     val barcode: String = ""
 ) {
     companion object {
+        private fun packageContents(reference: NutritionReference?): String =
+            reference?.packagePieces?.let { pieces ->
+                listOf(MealFormat.editor(pieces), reference.packagePieceLabel).filterNotNull().joinToString(" ")
+            }.orEmpty()
+
         fun from(product: ScannedProduct?): ProductForm {
             val facts = product?.facts
             val ref = product?.reference
@@ -91,6 +98,7 @@ internal data class ProductForm(
                 kcal = MealFormat.editor(facts?.kcal),
                 netQuantity = MealFormat.editor(ref?.netQuantity),
                 netUnit = ref?.netUnit ?: if (ref?.basis == NutritionBasis.PER_100ML) AmountUnit.MILLILITER else AmountUnit.GRAM,
+                packageContents = packageContents(ref),
                 servingQuantity = MealFormat.editor(ref?.servingQuantity),
                 servingUnit = ref?.servingUnit ?: if (ref?.basis == NutritionBasis.PER_100ML) AmountUnit.MILLILITER else AmountUnit.GRAM,
                 density = MealFormat.editor(ref?.densityGramsPerMl),
@@ -108,6 +116,11 @@ internal data class ProductForm(
         val carbsValue = MealFormat.parseEditor(carbs) ?: return null
         val displayName = name.trim().ifEmpty { return null }
         val originalRef = original?.reference
+        val packageSpec = ServingSizeParser.parse(packageContents)
+        val editedPackagePieces = (packageSpec?.pieces ?: MealFormat.parseEditor(packageContents))?.takeIf { it > 0f }
+        val editedPackageLabel = packageSpec?.pieceLabel
+            ?: originalRef?.packagePieceLabel?.takeIf { editedPackagePieces != null }
+        val packageWasEdited = packageContents.trim() != Companion.packageContents(originalRef)
         val editedServingQuantity = MealFormat.parseEditor(servingQuantity)?.takeIf { it > 0f }
         val servingWasEdited = editedServingQuantity != originalRef?.servingQuantity ||
             (editedServingQuantity != null && servingUnit != originalRef?.servingUnit)
@@ -141,6 +154,9 @@ internal data class ProductForm(
                 basis = basis,
                 netQuantity = MealFormat.parseEditor(netQuantity)?.takeIf { it > 0f },
                 netUnit = MealFormat.parseEditor(netQuantity)?.takeIf { it > 0f }?.let { netUnit },
+                packagePieces = editedPackagePieces,
+                packagePieceLabel = editedPackageLabel,
+                packagePiecesUserEdited = packageWasEdited || originalRef?.packagePiecesUserEdited == true,
                 servingText = originalRef?.servingText?.takeUnless { servingWasEdited },
                 servingQuantity = editedServingQuantity,
                 servingUnit = editedServingQuantity?.let { servingUnit },
@@ -287,6 +303,17 @@ internal fun MealProductSheet(
                 product.facts.proteinGrams?.let { MacroResultRow(proteinWord, it, product.reference.basis, resolved.factor, basisWord) }
                 product.facts.fatGrams?.let { MacroResultRow(fatWord, it, product.reference.basis, resolved.factor, basisWord) }
                 product.facts.fiberGrams?.let { MacroResultRow(stringResource(R.string.meal_fiber), it, product.reference.basis, resolved.factor, basisWord) }
+                product.facts.kcal?.let {
+                    MacroResultRow(
+                        stringResource(R.string.meal_kcal),
+                        it,
+                        product.reference.basis,
+                        resolved.factor,
+                        basisWord,
+                        valueUnit = "",
+                        derivationUnit = "kcal"
+                    )
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -380,11 +407,19 @@ internal fun ResolutionLine(
 }
 
 @Composable
-private fun MacroResultRow(label: String, perBasis: Float, basis: NutritionBasis, factor: Float, basisWord: String) {
+private fun MacroResultRow(
+    label: String,
+    perBasis: Float,
+    basis: NutritionBasis,
+    factor: Float,
+    basisWord: String,
+    valueUnit: String = "g",
+    derivationUnit: String = valueUnit
+) {
     Column {
-        MacroLine(label = label, value = perBasis * factor)
+        MacroLine(label = label, value = perBasis * factor, unit = valueUnit)
         Text(
-            text = MealFormat.macroDerivation(perBasis, basis, factor, basisWord),
+            text = MealFormat.macroDerivation(perBasis, basis, factor, basisWord, unit = derivationUnit),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -499,6 +534,13 @@ private fun ProductFormFields(form: ProductForm, onChange: (ProductForm) -> Unit
         NumberField(stringResource(R.string.meal_product_net_quantity), form.netQuantity, form.netUnit.symbol, Modifier.weight(1f)) { onChange(form.copy(netQuantity = it)) }
         UnitToggle(form.netUnit) { onChange(form.copy(netUnit = it)) }
     }
+    OutlinedTextField(
+        value = form.packageContents,
+        onValueChange = { onChange(form.copy(packageContents = it)) },
+        label = { Text(stringResource(R.string.meal_product_package_pieces)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         NumberField(stringResource(R.string.meal_product_serving), form.servingQuantity, form.servingUnit.symbol, Modifier.weight(1f)) { onChange(form.copy(servingQuantity = it)) }
         UnitToggle(form.servingUnit) { onChange(form.copy(servingUnit = it)) }
