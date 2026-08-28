@@ -67,6 +67,14 @@ std::string mkbackjson(int pos) {
     inserter = std::format_to(inserter, R"({{"ICElabel":"{}")",
                               escape(host.getICEname()));
     inserter = insertbool(inserter, "side", !host.side);
+    if (back.NRturnserver && back.turnserver[0].hostname[0]) {
+      const auto &turn = back.turnserver[0];
+      inserter = std::format_to(
+          inserter,
+          R"(,"turn":{{"host":"{}","port":{},"username":"{}","password":"{}"}})",
+          escape(turn.hostname), turn.port, escape(turn.username),
+          escape(turn.password));
+    }
   } else if (!host.hashostname()) {
     int ipnr = 0;
     if (hasPublicHost) {
@@ -158,7 +166,6 @@ std::string mkbackjson(int pos) {
   inserter = std::copy(std::begin(mirrorJuggluco), std::end(mirrorJuggluco) - 1,
                        inserter);
   // *inserter='\0';
-  LOGGERN(uit.data(), uit.size());
   LOGGER("size=%d\n", uit.size());
   return uit;
 }
