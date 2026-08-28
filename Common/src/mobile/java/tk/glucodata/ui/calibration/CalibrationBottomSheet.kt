@@ -67,6 +67,7 @@ import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.theme.displayLargeExpressive
 import java.text.SimpleDateFormat
 import java.util.*
@@ -226,7 +227,7 @@ fun CalibrationBottomSheet(
     // Time State
     var isTimeExpanded by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },

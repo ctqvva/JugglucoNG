@@ -229,6 +229,9 @@
         <activity
             android:name=".ui.AlarmActivity"
             android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"

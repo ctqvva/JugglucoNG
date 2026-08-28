@@ -33,10 +33,11 @@ import tk.glucodata.data.meal.MealProductEntity
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
- *   v13 — meals (composition + product cache) and the mealId correlation on journal entries
- *   v14 — contributedAt on the product cache (sent to Open Food Facts)
- *   v15 — saturated fat, salt and an OFF category on the product cache (Nutri-Score inputs)
- *   v16 — editable package piece counts for product and meal quantity resolution
+ *   v13 — retry accounting on journal delete tombstones
+ *   v14 — meals (composition + product cache) and the mealId correlation on journal entries
+ *   v15 — contributedAt on the product cache (sent to Open Food Facts)
+ *   v16 — saturated fat, salt and an OFF category on the product cache (Nutri-Score inputs)
+ *   v17 — editable package piece counts for product and meal quantity resolution
  */
 @Database(
     entities = [
@@ -50,7 +51,7 @@ import tk.glucodata.data.meal.MealProductEntity
         MealItemEntity::class,
         MealProductEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -251,15 +252,57 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addRetryColumnsIfMissing(db)
+            }
+        }
+
+        /** What the database actually holds, rather than what its version number implies. */
+        private fun hasColumn(db: SupportSQLiteDatabase, table: String, column: String): Boolean {
+            val cursor = db.query("PRAGMA table_info(`$table`)")
+            try {
+                val nameIndex = cursor.getColumnIndex("name")
+                if (nameIndex < 0) return false
+                while (cursor.moveToNext()) {
+                    if (column.equals(cursor.getString(nameIndex), ignoreCase = true)) {
+                        return true
+                    }
+                }
+            } finally {
+                cursor.close()
+            }
+            return false
+        }
+
+        private fun addRetryColumnsIfMissing(db: SupportSQLiteDatabase) {
+            if (!hasColumn(db, "journal_pending_deletes", "attempts")) {
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+            if (!hasColumn(db, "journal_pending_deletes", "lastAttemptAt")) {
+                db.execSQL(
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN lastAttemptAt INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         /**
-         * v12 -> v13: meals. A meal is composition (what is on the table) plus a product cache that
+         * v13 -> v14: meals. A meal is composition (what is on the table) plus a product cache that
          * doubles as the learned product preset; what was eaten stays a journal entry, now with a
          * nullable mealId pointing back. The CREATE statements mirror the Room entities exactly —
          * Room validates them on open.
+         *
+         * The checks also preserve databases created by earlier builds of this PR, where v13 meant
+         * meals rather than retry accounting.
          */
-        private val MIGRATION_12_13 = object : Migration(12, 13) {
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN mealId INTEGER")
+                addRetryColumnsIfMissing(db)
+                if (!hasColumn(db, "journal_entries", "mealId")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN mealId INTEGER")
+                }
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_mealId ON journal_entries (mealId)")
                 db.execSQL(
                     """
@@ -351,31 +394,54 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
-        /** v13 -> v14: remember when a cached product was sent to Open Food Facts. */
-        private val MIGRATION_13_14 = object : Migration(13, 14) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN contributedAt INTEGER")
-            }
-        }
-
-        /** v14 -> v15: the label values Open Food Facts needs for a Nutri-Score. */
+        /** v14 -> v15: remember when a cached product was sent to Open Food Facts. */
         private val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+                addRetryColumnsIfMissing(db)
+                if (!hasColumn(db, "meal_products", "contributedAt")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN contributedAt INTEGER")
+                }
             }
         }
 
-        /** v15 -> v16: preserve the independently editable number of pieces in a package. */
+        /** v15 -> v16: the label values Open Food Facts needs for a Nutri-Score. */
         private val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                addRetryColumnsIfMissing(db)
+                if (!hasColumn(db, "meal_products", "saturatedFatGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "saltGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "offCategory")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+                }
+            }
+        }
+
+        /** v16 -> v17: preserve the independently editable number of pieces in a package. */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addRetryColumnsIfMissing(db)
+                if (!hasColumn(db, "meal_items", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_items", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_items", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_products", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
             }
         }
 
@@ -400,7 +466,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_12_13,
                     MIGRATION_13_14,
                     MIGRATION_14_15,
-                    MIGRATION_15_16
+                    MIGRATION_15_16,
+                    MIGRATION_16_17
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

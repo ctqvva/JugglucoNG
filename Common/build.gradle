@@ -50,6 +50,15 @@ android {
     }
 
     defaultConfig {
+        // Build for one architecture when asked: -PjugglucoAbi=arm64-v8a. A phone needs one
+        // of the four, and the other three are most of the download. Unset, nothing changes
+        // and the APK stays universal, which is what a release has to be.
+        if (project.hasProperty('jugglucoAbi')) {
+            ndk {
+                abiFilters(*project.property('jugglucoAbi').split(',').collect { it.trim() })
+            }
+        }
+
         applicationId "tk.glucodata.ng"
         versionName appVersionName
         versionCode appVersionCode

@@ -1055,6 +1055,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="system_default_sound">Системийн үндсэн дуу</string>
     <string name="tap_to_change">Дарж өөрчлөх</string>
     <string name="threshold_label">Босго</string>
+    <string name="rearm_margin_label">Дахин сэрэмжлүүлэх зөрүү</string>
+    <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
+    <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
+    <string name="alert_feature_off">Унтраах</string>
+    <string name="fall_rate_slanting_down">бага зэрэг буурч байна</string>
+    <string name="fall_rate_falling">буурч байна</string>
+    <string name="fall_rate_falling_fast">хурдан буурч байна</string>
+    <string name="persistent_high_fall_suppress_label">Буурахад дуугүй</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Дууны түвшин/Чичиргээний профайл</string>
     <!-- Overlay/notification typography controls -->
@@ -1229,7 +1237,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments)</string>
+    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments). Хандалтын токенд api:treatments:create, api:treatments:update, api:treatments:delete шаардлагатай.</string>
+    <string name="nightscout_status_treatments_never">Эмчилгээ: одоогоор юу ч илгээгээгүй</string>
+    <string name="nightscout_status_treatments_ok">Эмчилгээ: сүүлд илгээсэн %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй, сүүлд оролдсон %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Эмчилгээ: %1$s-с хойш устгалтууд татгалзсан, сүүлд оролдсон %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">хариу алга</string>
+    <string name="nightscout_status_iob_no_token">IOB илгээлт: алгассан - Nightscout токен хараахан алга</string>
+    <string name="nightscout_status_iob_rejected">IOB илгээлт: татгалзсан (%1$s)</string>
     <string name="nightscout_send_long_insulin">Удаан үйлдэлтэй инсулин илгээх</string>
     <string name="nightscout_send_long_insulin_desc">Nightscout руу суурь болон хэт удаан инсулиныг хамт илгээх</string>
     <string name="nightscout_settings_title">Nightscout тохиргоо</string>
@@ -1253,6 +1268,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="preview">Preview</string>
     <string name="previous_calibrations">Өмнөх тохируулгууд</string>
     <string name="show_less">Бага харуулах</string>
+    <string name="show_more">Дэлгэрэнгүй харуулах</string>
     <string name="show_all_count">Бүгдийг харуулах %1$d</string>
     <string name="anytime_calibration_target_reading">Уншилт #%1$d</string>
     <string name="anytime_calibration_applied_reading">Хэрэглэсэн #%1$d</string>
@@ -1639,6 +1655,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Activity</string>
     <string name="journal_type_note">Note</string>
+    <string name="journal_source_pen">Үзгээс уншсан</string>
+    <string name="journal_source_nightscout">Nightscout-оос хүлээн авсан</string>
+    <string name="journal_source_aaps">AAPS-оос хүлээн авсан</string>
+    <string name="journal_source_api">API-аар хүлээн авсан</string>
+    <string name="journal_source_health_connect">Health Connect-оос</string>
+    <string name="journal_source_meter">Хэмжигчээс</string>
     <string name="journal_note_label">Note</string>
     <string name="journal_onset_label">Onset</string>
     <string name="journal_add_preset">Add insulin type</string>
@@ -1722,6 +1744,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="cgm_readiness_open_location_action">Open Location</string>
     <string name="cgm_readiness_open_notifications_action">Open Notifications</string>
     <string name="cgm_readiness_open_alarm_action">Open Alarm access</string>
+    <string name="cgm_readiness_open_full_screen_action">Allow full-screen alarms</string>
     <string name="cgm_readiness_open_battery_action">Open Battery settings</string>
     <string name="cgm_readiness_open_dnd_action">Open DND access</string>
     <string name="cgm_readiness_open_overlay_action">Open Overlay access</string>
@@ -1749,6 +1772,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="cgm_readiness_exact_alarm_title">Exact alarms</string>
     <string name="cgm_readiness_exact_alarm_ready_detail">Exact alarm scheduling is allowed.</string>
     <string name="cgm_readiness_exact_alarm_detail">Allow exact alarms for reliable reminders, reconnect checks, and time-critical alerts.</string>
+    <string name="cgm_readiness_full_screen_title">Full-screen alarms</string>
+    <string name="cgm_readiness_full_screen_ready_detail">Alarms are allowed to wake the locked screen.</string>
+    <string name="cgm_readiness_full_screen_detail">Without this permission alarms no longer wake a locked screen and only show as a notification. Android can take it away again with every app update, so check it after updating.</string>
     <string name="cgm_readiness_battery_title">Battery unrestricted</string>
     <string name="cgm_readiness_battery_ready_detail">Android battery optimization is disabled for this app.</string>
     <string name="cgm_readiness_battery_detail">Disable battery optimization so background BLE, alarms, and network sync are not stopped.</string>
@@ -1973,6 +1999,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_connect_saved_fail">Энэ cloud ID-д аккаунт эсвэл хадгалсан материал алга</string>
     <string name="ottai_status_needs_ble_address">BLE хаяг хэрэгтэй</string>
     <string name="ottai_status_warmup_provisional">Түр халаалт • %1$d мин үлдлээ</string>
+    <string name="anytime_status_warming_up">Халаалт</string>
+    <string name="anytime_status_warming_up_remaining">Халаалт • %1$d мин үлдлээ</string>
     <string name="ottai_status_loading_history">Түүхийг ачаалж байна • %1$d%%</string>
     <string name="ottai_ble_scan_title">Ойролцоох Ottai мэдрэгчүүд</string>
     <string name="ottai_ble_scan_hint">Утсаа мэдрэгчид ойртуулна уу. Тогтвортой CGM дамжуулагчид энд гарна.</string>
@@ -2086,6 +2114,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_dismiss_action_summary">Мэдэгдлийг шудрах эсвэл хаах</string>
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
+    <string name="alarm_return_to_previous_app_title">Дохионы дараа өмнөх апп руу буцах</string>
+    <string name="alarm_return_to_previous_app_summary">Бүтэн дэлгэцийн дохионы дараа JugglucoNG-г нээхийн оронд ашиглаж байсан апп руу буцна</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
     <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>
@@ -2149,8 +2179,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="calibration_import_replace_desc">Энэ мэдрэгчийн калибровкийн профайлыг солих.</string>
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох. Хандалтын токенд api:treatments:read зөвшөөрөл шаардлагатай.</string>
     <string name="nightscout_test_testing">Шалгаж байна...</string>
+    <string name="nightscout_refresh_token">Токен шинэчлэх</string>
+    <string name="nightscout_token_refreshing">Токен шинэчилж байна...</string>
+    <string name="nightscout_token_ok">Токен %1$s хүртэл хүчинтэй - эрхүүд: %2$s</string>
+    <string name="nightscout_token_error">Токен шинэчлэх амжилтгүй боллоо - %1$s</string>
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
     <string name="nightscout_test_ok">Холбогдсон - HTTP %1$d</string>
     <string name="nightscout_test_connection">Холболтыг шалгах</string>
@@ -2224,7 +2258,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_show_cob_desc">Журналын COB-г төлөвийн мөрөнд харуулна</string>
     <string name="notification_show_delta_minutes_desc">%1$d минутын өөрчлөлтийг сумны хажууд харуулна</string>
     <string name="dashboard_rows_show_delta_title">Уншилтын жагсаалтын дельта</string>
-    <string name="dashboard_rows_show_delta_desc">Уншилт бүрийн хажууд өөрчлөлтийг харуулна</string>
+    <string name="dashboard_rows_show_delta_desc">Уншилт бүрийн хажууд өөрчлөлтийг хянах самбар болон түүхэнд харуулна</string>
     <string name="glucose_range_colors_title">Утгыг хязгаараар будах</string>
     <string name="glucose_range_colors_desc">Хяналтын самбар болон мэдэгдэлд хязгаарын өнгө ашиглана</string>
     <string name="very_range_title">Маш бага / маш өндөр</string>
@@ -2403,9 +2437,19 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_handover_multiple_text">Мэдрэгчийн хугацаа дууссан ч хэд хэдэн залгамжлагч мэдрэгч идэвхтэй байна. Автомат шилжүүлгийг алгаслаа; гараар шилжүүлнэ үү.</string>
     <string name="sensor_handover_successor_ready">Залгамжлагч мэдрэгч бэлэн; хугацаа дуусахад автомат шилжүүлэг ажиллана</string>
     <string name="nightscout_upload_iob">IOB-г Nightscout руу илгээх</string>
-    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ. Хандалтын токенд api:devicestatus:create шаардлагатай.</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. Ottai апп-аас салгах эсвэл эндээс тухайн мэдрэгчийг устгаж холболтыг чөлөөлөөд дахин оролдоно уу.</string>
+    <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
+    <string name="ottai_cloud_unbind_title">Энэ мэдрэгчийг бүрмөсөн салгах уу?</string>
+    <string name="ottai_cloud_unbind_message">%1$s энэ Ottai бүртгэлээс бүрмөсөн хасагдана. Бүртгэл цаашид түүний нэвтрэх мэдээллийг авч чадахгүй бөгөөд мэдрэгч албан ёсны Ottai апп-д ажиллахгүй. JugglucoNG-д хадгалсан нэвтрэх мэдээлэл болон мэдрэгчийн төлөв өөрчлөгдөхгүй. Энэ үйлдлийг буцаах боломжгүй.</string>
+    <string name="ottai_cloud_unbind_confirm">Бүрмөсөн салгах</string>
+    <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. JugglucoNG дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
+    <string name="ottai_cloud_unbind_failed">Мэдрэгчийг Ottai-аас салгаж чадсангүй.</string>
+    <string name="ottai_cloud_binding_checking">Ottai үүлэн холболтыг шалгаж байна…</string>
+    <string name="ottai_cloud_binding_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдсон</string>
+    <string name="ottai_cloud_binding_not_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдоогүй</string>
+    <string name="ottai_cloud_binding_error">Ottai үүлэн холболтыг шалгаж чадсангүй</string>
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Яаралтай SMS</string>
@@ -2570,11 +2614,20 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_forget_desc">Тэмдэглэлд аль хэдийн байгаа тунгууд хэвээр үлдэнэ.</string>
     <string name="insulin_pen_new_doses">%1$d шинэ тун</string>
     <string name="insulin_pen_no_new_doses">Үзгийг уншлаа. Шинэ тун алга.</string>
+    <string name="insulin_pen_duplicates_removed">Өмнөх уншилтаас үлдсэн давхардсан %1$d тунг устгалаа</string>
+    <string name="insulin_pen_duplicates_found">Өмнөх уншилтаас үлдсэн давхардсан %1$d тун байна. Үзгийн тохиргооноос устгана уу.</string>
+    <string name="insulin_pen_merged_manual">%1$d тун таны гараар оруулсантай тохирлоо.</string>
+    <string name="insulin_pen_cleanup">Давхардсан тунг устгах</string>
+    <string name="insulin_pen_cleanup_count">Давхардсан %1$d тунг устгах</string>
+    <string name="insulin_pen_cleanup_desc">Өмнөх хувилбарууд уншилт бүрт тунг дахин бичдэг байсан. Үзгийн өөрийн бүртгэл эдгээр нь ганц тарилга байсныг харуулж байна.</string>
+    <string name="insulin_pen_cleanup_none">Устгах зүйл алга. Шинэчилсний дараа уншаагүй бол үзгийг нэг уншуулна уу.</string>
+    <string name="insulin_pen_cleanup_confirm">Давхардсан %1$d тунг устгах уу?</string>
     <string name="insulin_pen_doses_label">Тунгууд</string>
     <string name="insulin_pen_select_all">Бүгдийг сонгох</string>
     <string name="insulin_pen_select_none">Цэвэрлэх</string>
     <string name="insulin_pen_units">%1$s нэгж</string>
-    <string name="insulin_pen_priming">Агаар гаргалт</string>
+    <string name="insulin_pen_replaces">%1$s-г орлуулна</string>
+    <string name="insulin_pen_priming_skipped">%1$d агааржуулалт алгасав</string>
     <string name="insulin_pen_add_doses">%1$d тун нэмэх</string>
     <string name="insulin_pen_doses_added">Тэмдэглэлд %1$d тун нэмэгдлээ</string>
     <string name="insulin_pens_journal_off">Тэмдэглэл унтраалттай тул оруулсан тунгууд хаана ч харагдахгүй.</string>
@@ -2582,6 +2635,18 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insulin_pen_full_read_armed">Бэлэн — үзгээ утсандаа ойртуулна уу</string>
     <string name="insulin_pen_full_read_desc">Үзэг хэдэн сарын тунг хадгалдаг бөгөөд бүрэн уншихад хэдэн секунд тогтвортой хүрэлцээ шаардана. Сүүлийн оруулснаас цааш ухахад ашиглана.</string>
     <string name="insulin_pen_read_cut_short">Үзгийг хэт эрт авчихлаа. Утас чичрэх хүртэл барина уу.</string>
+    <string name="insulin_pen_background_title">Арын горимд импортлох</string>
+    <string name="insulin_pen_background_desc">Апп нээлттэй биш үед утсанд ойртуулсан үзэгний шинэ тунгууд асуулгүйгээр өдрийн тэмдэглэлд нэмэгдэнэ.</string>
+    <string name="insulin_pen_background_desc_more">Агааржуулалтын тунг алгасна. Дэлгэц асаалттай, утас түгжээгүй байх ёстой — дэлгэц унтраалттай үед Android NFC уншдаггүй. Утсанд ойртуулсан аливаа контактгүй карт уншигчийг хормын төдий сэрээх бөгөөд бусад картын аппууд аль аппыг ашиглахыг асууж магадгүй.</string>
+    <string name="insulin_pen_import_channel">Үзэгний импорт</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d тун тэмдэглэлд нэмэгдлээ</item>
+        <item quantity="other">%d тун тэмдэглэлд нэмэгдлээ</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d тун уншлаа — инсулинаа сонгохын тулд аппаа нээнэ үү</item>
+        <item quantity="other">%d тун уншлаа — инсулинаа сонгохын тулд аппаа нээнэ үү</item>
+    </plurals>
     <string name="status_watch_reading">Цаг энэ мэдрэгчийг уншиж байна</string>
     <string name="return_sensor_to_phone">Мэдрэгчийг утсанд буцаах</string>
     <string name="wear_prediction_title">Таамаглал</string>

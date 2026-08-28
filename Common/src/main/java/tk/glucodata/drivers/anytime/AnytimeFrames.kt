@@ -11,6 +11,8 @@
 //   AnytimeFrames.parseRawRecords(bytes)     — 9-byte or 11-byte raw records
 //   AnytimeFrames.parseWideRawSeriesRecords  — 0x22 CT2.5/CT3A/CT4 history batches
 //   AnytimeFrames.parseComputedRecord(bytes) — 19-byte computed glucose record
+//   AnytimeFrames.parseCt5CurrentRecord      — CT5 0x35 live push (see hasGlucose)
+//   AnytimeFrames.parseCt5SeriesRecords      — CT5 0x37 history batch (see hasGlucose)
 //   AnytimeFrames.parseCheckResponse(bytes)  — 0x05 health response
 //   AnytimeFrames.parseResetResponse(bytes)  — 0x11 reset response
 
@@ -29,7 +31,17 @@ data class AnytimeRawRecord(
     val recordBytes: ByteArray,
 )
 
-/** 19-byte computed-glucose record (CT5 push, CT3 on demand). */
+/**
+ * 19-byte computed-glucose record (CT5 push, CT3 on demand).
+ *
+ * A CT5 frame has three possible outcomes, and they must stay distinguishable:
+ *   1. malformed          — parser returns null
+ *   2. valid, no glucose  — [hasGlucose] false; warm-up telemetry, no reading
+ *   3. valid with glucose — [hasGlucose] true
+ *
+ * Collapsing (2) into (1) is what used to make every warm-up push look like a
+ * "bad frame" and left a fresh sensor effectively unknown until first glucose.
+ */
 data class AnytimeComputedRecord(
     val glucoseId: Int,
     val hypoEarlyWarnMinutes: Int,
@@ -42,6 +54,8 @@ data class AnytimeComputedRecord(
     val errorCode: Int,
     val trend: Int,
     val warnCode: Int,
+    /** False for a protocol-valid record the sensor has not computed glucose for yet. */
+    val hasGlucose: Boolean = true,
 ) {
     val gluMgdl: Int get() = (gluMmol * 18.0f + 0.5f).toInt()
 }
@@ -562,10 +576,14 @@ object AnytimeFrames {
         return out
     }
 
+    // A warm-up record (no glucose) is still a plausible live record. Without the
+    // ~10 bits of glucose entropy far more of the 256 keys survive this filter, so
+    // in practice the ambiguity check below rejects rather than guessing — which is
+    // the safe outcome. A fresh activation establishes the cipher through setID.
     private fun looksLikeCt5LiveRecord(record: AnytimeComputedRecord, maxGlucoseId: Int): Boolean =
         record.glucoseId in 0..maxGlucoseId &&
                 record.errorCode == 0 &&
-                record.gluMgdl in 20..600 &&
+                (!record.hasGlucose || record.gluMgdl in 20..600) &&
                 record.temperatureC in 15f..45f &&
                 record.ibNa in 0f..100f &&
                 record.iwNa in 0f..100f &&
@@ -574,6 +592,7 @@ object AnytimeFrames {
     private fun ct5RecordSignature(record: AnytimeComputedRecord): String =
         listOf(
             record.glucoseId,
+            record.hasGlucose,
             record.gluMgdl,
             (record.temperatureC * 10f).roundToInt(),
             record.trend,
@@ -629,7 +648,9 @@ object AnytimeFrames {
         val trend = (trendAndHigh ushr 4) and 0x0F
         val glucoseMgdl = ((trendAndHigh and 0x0F) shl 8) or (decoded[offset + 7].toInt() and 0xFF)
         val error = decoded[offset + 8].toInt() and 0xFF
-        if (glucoseMgdl <= 0) return null
+        // glucoseMgdl == 0 is a valid warm-up/status record, not a malformed frame.
+        // Callers use hasGlucose to decide whether a reading may be stored.
+        val hasGlucose = glucoseMgdl > 0
         return AnytimeComputedRecord(
             glucoseId = glucoseId,
             hypoEarlyWarnMinutes = 0,
@@ -637,11 +658,12 @@ object AnytimeFrames {
             ibNa = ibRaw / 100f,
             iwNa = iwRaw / 100f,
             temperatureC = temperature,
-            gluMmol = glucoseMgdl / 18f,
+            gluMmol = if (hasGlucose) glucoseMgdl / 18f else 0f,
             referenceBgMmol = 0f,
             errorCode = error,
             trend = trend,
             warnCode = 0,
+            hasGlucose = hasGlucose,
         )
     }
 
@@ -867,6 +889,7 @@ object AnytimeFrames {
             errorCode = err,
             trend = trend,
             warnCode = warn,
+            hasGlucose = (gluInt != 0 || gluFrac != 0),
         )
     }
 

@@ -58,6 +58,21 @@ class AlertDisplayTextTests {
     }
 
     @Test
+    fun badgeKeepsForecastMessagesIntact() {
+        // The forecast message carries the projected value AND the horizon
+        // ("(30 Min)"); the digit-stripping meant for "Low 4.0 mmol/L" mangled
+        // it into "Forecast low:  ( min)" - live log, PRE_LOW at reboot.
+        assertEquals(
+            "Forecast low: 33 mg/dL (30 min)",
+            AlertDisplayText.notificationBadge(AlertType.PRE_LOW, false, "Forecast low: 33 mg/dL (30 min)")
+        )
+        assertEquals(
+            "Forecast high: 12.5 mmol/L (20 min)",
+            AlertDisplayText.notificationBadge(AlertType.PRE_HIGH, false, "Forecast high: 12.5 mmol/L (20 min)")
+        )
+    }
+
+    @Test
     fun badgeStripsGlucoseValueFromGlucoseAlerts() {
         assertEquals(
             "Low",
