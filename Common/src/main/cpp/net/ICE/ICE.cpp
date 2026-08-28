@@ -261,6 +261,22 @@ static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *
     userdata[head->side!=host.side].on_recv(agent,data,size,allindex);
     }
 
+static int selectedCloneTransportCode(juice_agent *agent) {
+    char localAddr[JUICE_MAX_ADDRESS_STRING_LEN];
+    char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN];
+    if (juice_get_selected_addresses_inc_type(
+            agent,
+            localAddr,
+            JUICE_MAX_ADDRESS_STRING_LEN,
+            remoteAddr,
+            JUICE_MAX_ADDRESS_STRING_LEN) != 0) {
+        return clone_transport_unknown;
+    }
+    return strstr(localAddr, " Relay") || strstr(remoteAddr, " Relay")
+        ? clone_transport_turn
+        : clone_transport_local_ice;
+}
+
 static bool diagnostics(juice_agent *agent,const char *name,bool side) {
     bool success=true;
     // Retrieve candidates
@@ -314,6 +330,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
     switch(state) {
         case	JUICE_STATE_GATHERING:
         case	JUICE_STATE_CONNECTING:
+            con->selectedCloneTransport.store(clone_transport_unknown);
             con->notConnected();
             break;
         case JUICE_STATE_CONNECTED: {
@@ -321,6 +338,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->setConnected();
             con->agent.store(agent);
             con->connectTime=time(nullptr);
+            con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
             struct CONNECTED {
                 static void thread( juice_agent_t *agent, int allindex) {
                    LOGGERICE("start CONNECT::thread allindex=%d\n",allindex);

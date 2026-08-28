@@ -1724,22 +1724,33 @@ fun SensorCard(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SensorModelBadge(
-                            badge = badge,
-                            vendor = sensor.vendor,
-                            color = sensorTint,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        SensorIdentityControl(
-                            name = displayName,
-                            selected = sensor.isSelectedForDisplay,
-                            selectable = canToggleEnabled,
-                            color = sensorTint,
-                            onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
-                            onPickColor = { showColorSheet = true },
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        if (sensor.isCloneSource) {
+                            CloneSourceMark(
+                                transport = tk.glucodata.CloneSensorRegistry.transportForSensor(sensor.serial),
+                                showLabel = true,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                iconSize = 18.dp,
+                                textStyle = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+                        } else {
+                            SensorModelBadge(
+                                badge = badge,
+                                vendor = sensor.vendor,
+                                color = sensorTint,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            SensorIdentityControl(
+                                name = displayName,
+                                selected = sensor.isSelectedForDisplay,
+                                selectable = canToggleEnabled,
+                                color = sensorTint,
+                                onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
+                                onPickColor = { showColorSheet = true },
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
 
                         if (isHandedOff) {
                             IconButton(
