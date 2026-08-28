@@ -62,6 +62,24 @@ class OpenFoodFactsParserTests {
     }
 
     @Test
+    fun bareMultiPieceServingDoesNotInventAPieceWeight() {
+        val product = OpenFoodFactsParser.parse(
+            "5010000000000",
+            """{"code":"5010000000000","product":{"product_name":"6 sausages","nutrition_data_per":"100g",
+                "product_quantity":400,"product_quantity_unit":"g","serving_size":"6 sausages",
+                "serving_quantity":100,"serving_quantity_unit":"g",
+                "nutriments":{"carbohydrates_100g":2.7,"proteins_100g":17.7,"fat_100g":20.1}},"status":1}"""
+        )!!
+
+        assertEquals(6f, product.reference.servingPieces!!, 0.0001f)
+        assertEquals("sausages", product.reference.servingPieceLabel)
+        assertNull(product.reference.effectiveServingPieces)
+        assertNull(product.reference.effectivePieceGrams)
+        val one = QuantityResolver.resolve("1 sausage", product.reference)
+        assertTrue(one is QuantityResolution.Missing && one.need == MissingReference.PIECE_WEIGHT)
+    }
+
+    @Test
     fun notFoundAndInvalidBodiesAreNull() {
         assertNull(OpenFoodFactsParser.parse("4999999999999", """{"code":"4999999999999","status":0,"status_verbose":"product not found"}"""))
         assertNull(OpenFoodFactsParser.parse("1", "not json"))

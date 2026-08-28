@@ -1,5 +1,7 @@
 package tk.glucodata.data.meal
 
+import kotlin.math.abs
+
 /**
  * What one set of nutrition numbers refers to. A product label states its values per 100 g or
  * per 100 ml, a recipe per serving, and a cooked meal as a whole batch. The quantity engine never
@@ -119,11 +121,31 @@ data class NutritionReference(
     val densityGramsPerMl: Float? = null,
     val pieceGrams: Float? = null
 ) {
-    /** Weight of one piece, either learned or derived from "1 Riegel (25 g)". */
+    /**
+     * Piece count that is safe to combine with [servingQuantity]. A single piece is unambiguous;
+     * multiple pieces need their total amount in the same serving text. This keeps a noisy pair
+     * such as `serving_size = "6 sausages"` and `serving_quantity = 100 g` from inventing a
+     * 16.67 g sausage while retaining explicit text such as "2 Scheiben (62.5 g)".
+     */
+    val effectiveServingPieces: Float?
+        get() {
+            val pieces = servingPieces?.takeIf { it > 0f } ?: return null
+            if (pieces == 1f) return pieces
+            val parsed = ServingSizeParser.parse(servingText) ?: return null
+            val parsedPieces = parsed.pieces ?: return null
+            if (abs(parsedPieces - pieces) > 0.0001f) return null
+            val parsedAmount = parsed.quantity ?: return null
+            val amount = servingQuantity?.takeIf { it > 0f } ?: return null
+            if (parsed.unit != servingUnit) return null
+            val tolerance = maxOf(0.01f, abs(parsedAmount) * 0.001f)
+            return pieces.takeIf { abs(parsedAmount - amount) <= tolerance }
+        }
+
+    /** Weight of one piece, either learned or derived from a trusted "1 Riegel (25 g)". */
     val effectivePieceGrams: Float?
         get() {
             pieceGrams?.takeIf { it > 0f }?.let { return it }
-            val pieces = servingPieces?.takeIf { it > 0f } ?: return null
+            val pieces = effectiveServingPieces ?: return null
             val grams = servingQuantity?.takeIf { it > 0f && servingUnit == AmountUnit.GRAM } ?: return null
             return grams / pieces
         }
@@ -131,7 +153,7 @@ data class NutritionReference(
     /** Milliliters of one piece for liquids sold by the glass or can ("1 portion (330 ml)"). */
     val effectivePieceMilliliters: Float?
         get() {
-            val pieces = servingPieces?.takeIf { it > 0f } ?: return null
+            val pieces = effectiveServingPieces ?: return null
             val ml = servingQuantity?.takeIf { it > 0f && servingUnit == AmountUnit.MILLILITER } ?: return null
             return ml / pieces
         }

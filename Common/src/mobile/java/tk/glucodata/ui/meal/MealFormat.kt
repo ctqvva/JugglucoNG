@@ -103,7 +103,7 @@ internal fun quantityChipsFor(reference: NutritionReference, servingWord: String
         }
     }
     if (reference.basis != NutritionBasis.PER_BATCH) {
-        val pieceLabel = reference.servingPieceLabel?.takeIf { reference.servingPieces != null }
+        val pieceLabel = reference.servingPieceLabel?.takeIf { reference.effectiveServingPieces != null }
         if (pieceLabel != null) {
             chips += "1 $pieceLabel"
             chips += "2 $pieceLabel"

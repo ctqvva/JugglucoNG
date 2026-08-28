@@ -55,7 +55,7 @@ import tk.glucodata.data.meal.QuantityResolver
 import tk.glucodata.data.meal.ScannedProduct
 
 /** The editable fields behind a product, whether it came from a scan or is typed in. */
-private data class ProductForm(
+internal data class ProductForm(
     val name: String,
     val brand: String,
     val basis: NutritionBasis,
@@ -108,6 +108,17 @@ private data class ProductForm(
         val carbsValue = MealFormat.parseEditor(carbs) ?: return null
         val displayName = name.trim().ifEmpty { return null }
         val originalRef = original?.reference
+        val editedServingQuantity = MealFormat.parseEditor(servingQuantity)?.takeIf { it > 0f }
+        val servingWasEdited = editedServingQuantity != originalRef?.servingQuantity ||
+            (editedServingQuantity != null && servingUnit != originalRef?.servingUnit)
+        // The parsed piece count is not visible in the editor. Changing the visible serving size
+        // therefore makes it one labelled piece instead of retaining an invisible divisor.
+        val editedServingPieces = when {
+            editedServingQuantity == null -> null
+            servingWasEdited && originalRef?.servingPieceLabel != null -> 1f
+            servingWasEdited -> null
+            else -> originalRef?.servingPieces
+        }
         return ScannedProduct(
             barcode = barcode ?: original?.barcode ?: ProductBarcode.normalize(this.barcode),
             displayName = displayName,
@@ -130,11 +141,11 @@ private data class ProductForm(
                 basis = basis,
                 netQuantity = MealFormat.parseEditor(netQuantity)?.takeIf { it > 0f },
                 netUnit = MealFormat.parseEditor(netQuantity)?.takeIf { it > 0f }?.let { netUnit },
-                servingText = originalRef?.servingText,
-                servingQuantity = MealFormat.parseEditor(servingQuantity)?.takeIf { it > 0f },
-                servingUnit = MealFormat.parseEditor(servingQuantity)?.takeIf { it > 0f }?.let { servingUnit },
-                servingPieces = originalRef?.servingPieces,
-                servingPieceLabel = originalRef?.servingPieceLabel,
+                servingText = originalRef?.servingText?.takeUnless { servingWasEdited },
+                servingQuantity = editedServingQuantity,
+                servingUnit = editedServingQuantity?.let { servingUnit },
+                servingPieces = editedServingPieces,
+                servingPieceLabel = originalRef?.servingPieceLabel?.takeIf { editedServingPieces != null },
                 servingsPerBatch = originalRef?.servingsPerBatch,
                 densityGramsPerMl = MealFormat.parseEditor(density)?.takeIf { it > 0f },
                 pieceGrams = MealFormat.parseEditor(pieceGrams)?.takeIf { it > 0f }
