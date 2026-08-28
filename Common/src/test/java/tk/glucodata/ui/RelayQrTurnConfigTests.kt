@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -7,6 +9,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RelayQrTurnConfigTests {
+    @Test
+    fun mirrorQrUsesMediumErrorCorrection() {
+        assertEquals(
+            ErrorCorrectionLevel.M,
+            MIRROR_QR_ENCODE_HINTS[EncodeHintType.ERROR_CORRECTION]
+        )
+    }
+
     @Test
     fun hybridQrParsesItsTurnConfiguration() {
         val json = parseMirrorQrJson(
