@@ -71,7 +71,7 @@ std::string mkbackjson(int pos) {
       const auto &turn = back.turnserver[0];
       inserter = std::format_to(
           inserter,
-          R"(,"turn":{{"host":"{}","port":{},"username":"{}","password":"{}"}})",
+          R"(,"turn":["{}",{},"{}","{}"])",
           escape(turn.hostname), turn.port, escape(turn.username),
           escape(turn.password));
     }

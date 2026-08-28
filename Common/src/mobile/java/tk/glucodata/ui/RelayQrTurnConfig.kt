@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 private const val MIRROR_QR_SUFFIX = " MirrorJuggluco"
@@ -24,14 +25,29 @@ internal fun parseMirrorQrJson(payload: String): JSONObject {
 }
 
 internal fun parseHybridQrTurnConfig(json: JSONObject): HybridQrTurnConfig? {
-    val turn = json.optJSONObject("turn") ?: return null
+    if (!json.has("turn")) return null
     require(json.optString("ICElabel", "").isNotBlank()) {
         "TURN configuration requires an ICE label"
     }
-    val host = turn.optString("host", "").trim()
-    val port = turn.optInt("port", -1)
-    val username = turn.optString("username", "")
-    val password = turn.optString("password", "")
+    val config = when (val turn = json.get("turn")) {
+        is JSONObject -> HybridQrTurnConfig(
+            turn.optString("host", "").trim(),
+            turn.optInt("port", -1),
+            turn.optString("username", ""),
+            turn.optString("password", "")
+        )
+        is JSONArray -> {
+            require(turn.length() == 4) { "TURN configuration is invalid" }
+            HybridQrTurnConfig(
+                turn.optString(0, "").trim(),
+                turn.optInt(1, -1),
+                turn.optString(2, ""),
+                turn.optString(3, "")
+            )
+        }
+        else -> throw IllegalArgumentException("TURN configuration is invalid")
+    }
+    val (host, port, username, password) = config
 
     require(host.isNotEmpty()) { "TURN host is missing" }
     require(port in 1..65535) { "TURN port is invalid" }
@@ -39,7 +55,7 @@ internal fun parseHybridQrTurnConfig(json: JSONObject): HybridQrTurnConfig? {
     require(username.length <= MAX_TURN_USERNAME_LENGTH) { "TURN username is too long" }
     require(password.length <= MAX_TURN_PASSWORD_LENGTH) { "TURN password is too long" }
 
-    return HybridQrTurnConfig(host, port, username, password)
+    return config
 }
 
 internal fun mirrorQrContainsTurnConfig(payload: String): Boolean =
