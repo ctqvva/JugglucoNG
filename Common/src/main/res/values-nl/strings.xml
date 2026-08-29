@@ -2604,4 +2604,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_possible_artifact">Mogelijk tijdelijk sensorartefact</string>
     <string name="sibionics_uncertainty_ribbon">Onzekerheidsband</string>
     <string name="sibionics_uncertainty_ribbon_desc">Toon de band met het waarschijnlijke bereik rond de glucoselijn</string>
+    <string name="freeze_displayed_values">Weergegeven waarden behouden</string>
+    <string name="freeze_displayed_values_desc">Een meting behoudt de weergegeven waarde. Kalibratiewijzigingen gelden alleen voor recente metingen.</string>
+    <string name="freeze_displayed_values_on">Weergegeven waarden worden behouden</string>
+    <string name="freeze_displayed_values_off">Wordt bij elke wijziging herberekend</string>
 </resources>

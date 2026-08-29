@@ -2786,4 +2786,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_possible_artifact">Possible transient sensor artifact</string>
     <string name="sibionics_uncertainty_ribbon">Uncertainty ribbon</string>
     <string name="sibionics_uncertainty_ribbon_desc">Show the likely-range band around the glucose line</string>
+    <string name="freeze_displayed_values">Keep displayed values</string>
+    <string name="freeze_displayed_values_desc">A reading keeps the value it was shown as. Calibration changes affect recent readings only.</string>
+    <string name="freeze_displayed_values_on">Keeping displayed values</string>
+    <string name="freeze_displayed_values_off">Recalculating on every change</string>
 </resources>

@@ -2608,4 +2608,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_possible_artifact">Возможен временный артефакт датчика</string>
     <string name="sibionics_uncertainty_ribbon">Полоса неопределённости</string>
     <string name="sibionics_uncertainty_ribbon_desc">Показывать полосу вероятного диапазона вокруг линии глюкозы</string>
+    <string name="freeze_displayed_values">Сохранять показанные значения</string>
+    <string name="freeze_displayed_values_desc">Измерение сохраняет значение, которое было показано. Изменения калибровки влияют только на свежие измерения.</string>
+    <string name="freeze_displayed_values_on">Показанные значения сохраняются</string>
+    <string name="freeze_displayed_values_off">Пересчёт при каждом изменении</string>
 </resources>

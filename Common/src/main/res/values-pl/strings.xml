@@ -2599,4 +2599,8 @@
     <string name="glucose_possible_artifact">Możliwy przejściowy artefakt czujnika</string>
     <string name="sibionics_uncertainty_ribbon">Pasmo niepewności</string>
     <string name="sibionics_uncertainty_ribbon_desc">Pokaż pasmo prawdopodobnego zakresu wokół linii glikemii</string>
+    <string name="freeze_displayed_values">Zachowuj wyświetlone wartości</string>
+    <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
+    <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
+    <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
 </resources>

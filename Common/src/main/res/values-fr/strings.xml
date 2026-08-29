@@ -2567,4 +2567,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_possible_artifact">Possible artefact transitoire du capteur</string>
     <string name="sibionics_uncertainty_ribbon">Bande d\'incertitude</string>
     <string name="sibionics_uncertainty_ribbon_desc">Afficher la bande de plage probable autour de la courbe de glycémie</string>
+    <string name="freeze_displayed_values">Conserver les valeurs affichées</string>
+    <string name="freeze_displayed_values_desc">Une mesure conserve la valeur affichée. Les modifications d\'étalonnage n\'affectent que les mesures récentes.</string>
+    <string name="freeze_displayed_values_on">Valeurs affichées conservées</string>
+    <string name="freeze_displayed_values_off">Recalcul à chaque modification</string>
 </resources>

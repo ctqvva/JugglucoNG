@@ -2589,4 +2589,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucose_possible_artifact">Olası geçici sensör hatası</string>
     <string name="sibionics_uncertainty_ribbon">Belirsizlik bandı</string>
     <string name="sibionics_uncertainty_ribbon_desc">Glukoz çizgisi çevresinde olası aralık bandını göster</string>
+    <string name="freeze_displayed_values">Gösterilen değerleri koru</string>
+    <string name="freeze_displayed_values_desc">Bir ölçüm gösterildiği değeri korur. Kalibrasyon değişiklikleri yalnızca son ölçümleri etkiler.</string>
+    <string name="freeze_displayed_values_on">Gösterilen değerler korunuyor</string>
+    <string name="freeze_displayed_values_off">Her değişiklikte yeniden hesaplanıyor</string>
 </resources>
