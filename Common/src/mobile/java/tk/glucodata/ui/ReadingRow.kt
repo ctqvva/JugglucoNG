@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -271,6 +272,8 @@ fun ReadingRow(
             val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             val readingSensorId = point.sensorSerial?.takeIf { it.isNotBlank() } ?: sensorId
             val cloneTransport = tk.glucodata.CloneSensorRegistry.transportForSensor(readingSensorId)
+            val isNightscoutReading =
+                tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.isFollowerSensorId(readingSensorId)
             val isRawModeRR = viewMode == 1 || viewMode == 3
             val calibrationSensorId = sensorId?.takeIf { it.isNotBlank() }
             // Recorded value if this reading has one, otherwise the projection —
@@ -328,6 +331,14 @@ fun ReadingRow(
                             showLabel = false,
                             tint = timeColor,
                             iconSize = 13.dp,
+                        )
+                    } else if (isNightscoutReading) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = stringResource(R.string.journal_source_nightscout),
+                            tint = timeColor,
+                            modifier = Modifier.size(13.dp),
                         )
                     }
                 }
