@@ -20,8 +20,6 @@
 /*                                                                                   */
 /*      Fri Nov 21 11:08:14 CET 2025                                                 */
 #pragma once
-#define RESETAGENT 1
-
 #include <condition_variable>
 #include "datbackup.hpp"
 #include "logs.hpp"
@@ -37,9 +35,6 @@
 #define LOGARICE(...) LOGAR("ICE: " __VA_ARGS__)
 extern bool initAgent(juice_agent *agent,int allindex);
 extern juice_agent *createAgent(int allindex);
-#ifdef RESETAGENT
-extern   "C"     void resetAgent(juice_agent_t *agent);
-#endif
 
 inline constexpr const juice_log_level_t juice_log_level=
 #ifdef NOLOG
@@ -52,10 +47,10 @@ JUICE_LOG_LEVEL_VERBOSE;
 extern int hostselect(std::string_view name);
 class ICEConnect: public Connect {
     public:
-time_t connectTime=0;
-juice_state_t state{};
-Phase_t phase=Start;
-bool wakeReceiver=false;
+std::atomic<time_t> connectTime{0};
+std::atomic<juice_state_t> state{JUICE_STATE_DISCONNECTED};
+std::atomic<Phase_t> phase{Start};
+std::atomic_bool wakeReceiver{false};
 std::mutex receiveThreadMutex;
 std::condition_variable receiveThreadCon; 
 std::atomic_flag startSending{};
@@ -65,17 +60,16 @@ bool other_started;
 void resetStart() {
  start_ack=false;
  other_started=false;
- #ifndef NOLOG
  bool old=startSending.test_and_set();
- #endif
  startDone.test_and_set();
  LOGGER("resetStart flag was %d now %d\n",old,startSending.test());
  };
 bool side;
-bool endConnect=false;
-bool isConnected=false;
+std::atomic_bool endConnect{false};
+std::atomic_bool isConnected{false};
 ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
 std::atomic<juice_agent*> agent;
+std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
 char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
@@ -112,9 +106,15 @@ virtual int setindex(int in) override{
 int cloneTransportCode() const override {
         return selectedCloneTransport.load();
         }
-#ifdef RESETAGENT
-       bool recreateAgent=false;
-#endif
+bool isCurrentAgent(juice_agent_t *candidate) const {
+        return candidate && !finish.load() && agent.load() == candidate;
+        }
+bool isCurrentAgent(juice_agent_t *candidate, uint64_t generation) const {
+        return isCurrentAgent(candidate) && agentGeneration.load() == generation;
+        }
+uint64_t currentAgentGeneration() const {
+        return agentGeneration.load();
+        }
  int newConnection(int allindex) {
         setindex(allindex);
         if(initrunning.test_and_set()) {
@@ -125,17 +125,7 @@ int cloneTransportCode() const override {
         LOGGER("start newConnection(%d)\n",allindex);
         destruct _{[this]{initrunning.clear();}};
         auto wasagent=agent.exchange(nullptr);
-
-#ifdef RESETAGENT
-       extern bool shouldRecreateAgentsForTurnRefresh();
-       if(recreateAgent||shouldRecreateAgentsForTurnRefresh()) {
-          extern void   recreateAgents();
-          if(!recreateAgent)
-              recreateAgents();
-          recreateAgent=false;
-#else 
-        {
-#endif
+        agentGeneration.fetch_add(1);
         if(wasagent) {
             LOGGER("1: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG
@@ -145,45 +135,43 @@ int cloneTransportCode() const override {
             #ifndef NOLOG
             juice_set_log_level(juice_log_level);
             #endif
-            wasagent=nullptr;
             }
-          }
         icedata[1].reCreated(); 
         icedata[0].reCreated(); 
         resetStart();
         wakeReceiver=false;
-        
-        juice_agent *theagent;
-#ifdef RESETAGENT
-        if(wasagent) {
-                LOGGER("newConnection(%d): resetAgent(%p)\n",allindex,wasagent);
-                 resetAgent(wasagent);
-                 theagent=wasagent;
-                 }
-       else
-#endif
-        {
-            theagent=createAgent( allindex);
-            }
+        selectedCloneTransport.store(clone_transport_unknown);
+        isConnected=false;
+        endConnect=false;
+        phase=NewConnection;
+
+        juice_agent *theagent=createAgent(allindex);
+        if(!theagent) {
+                phase=FailedInitAgent;
+                endConnect=true;
+                return -1;
+                }
+        // Publish the new agent before negotiation begins. libjuice can invoke
+        // state and candidate callbacks synchronously from initAgent().
+        agent.store(theagent);
        if(!initAgent(theagent,allindex)) {
                 phase=FailedInitAgent;
-//                auto wasagent=agent; agent=nullptr;
                 LOGGER("end ICEConnect::newConnection failed allindex=%d, juice_destroy(%p)\n",allindex,theagent);
-                if(theagent) {
+                auto current=agent.exchange(nullptr);
+                agentGeneration.fetch_add(1);
+                if(current) {
             #ifndef NOLOG
                     juice_set_log_level(JUICE_LOG_LEVEL_VERBOSE);
                 #endif
-                    juice_destroy(theagent);
+                    juice_destroy(current);
             #ifndef NOLOG
                     juice_set_log_level(juice_log_level);
                 #endif
                     }
+                endConnect=true;
                 return -1;
                 }
-        endConnect=false;
-        agent.store(theagent);
         LOGGERICE("end ICEConnect::newConnection(%d) agent=%p\n",allindex,agent.load());
-        phase=NewConnection;
         return 1;
         }
 
@@ -207,13 +195,8 @@ void endConnection() override{
                 }
         destruct _{[this]{initrunning.clear();}};
         LOGGERICE("%d: ICEConnect::endConnection allindex=%d agent=%p\n",side,allindex,agent.load());
-        juice_agent *wasagent;
-
-#ifdef RESETAGENT
-        if(finish)
-#endif
-        {
-        wasagent=agent.exchange(nullptr);
+        juice_agent *wasagent=agent.exchange(nullptr);
+        agentGeneration.fetch_add(1);
         if(wasagent) {
             LOGGER("endConnection: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG
@@ -224,13 +207,7 @@ void endConnection() override{
             juice_set_log_level(juice_log_level);
             #endif
             } 
-        }
 #ifndef NOLOG
-#ifdef RESETAGENT
-        else {
-            wasagent=agent.load();
-            }
-#endif
         LOGGERICE("%d: end ICEConnect::endConnection allindex=%d set agent=%p\n",side,allindex, wasagent);
 #endif
         }
