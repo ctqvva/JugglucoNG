@@ -2,6 +2,7 @@ package tk.glucodata.ui.components
 
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -15,9 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
 
 /**
  * App-wide modal sheet entry point.
@@ -27,11 +28,11 @@ import kotlin.math.abs
  * dynamically consumes its top inset. That moves the expanded anchor during the gesture and makes
  * the sheet appear to resist or jitter.
  *
- * Short sheets retain their intrinsic height, including across temporary viewport changes such as
- * the keyboard opening. A sheet whose content intrinsically needs the whole viewport remains
- * viewport-height for the current [contentKey], keeping its expanded anchor stable while nested
- * scrolling continues to work normally. Change [contentKey] when one sheet instance swaps between
- * layouts with fundamentally different intrinsic heights.
+ * Short sheets retain their intrinsic height. Once a sheet has measured at the viewport height
+ * without the keyboard visible, it remains viewport-height for the current [contentKey], keeping
+ * its expanded anchor stable while nested scrolling continues to work normally. Change
+ * [contentKey] when one sheet instance swaps between layouts with fundamentally different
+ * intrinsic heights.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +54,12 @@ fun StableModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
+    val density = LocalDensity.current
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.stabilizeViewportHeight(heightPolicy),
+        modifier = modifier.stabilizeViewportHeight(heightPolicy, isImeVisible),
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
@@ -76,44 +79,31 @@ internal class StableSheetHeightPolicy {
     var isViewportHeightLocked: Boolean = false
         private set
 
-    private var decidedForIntrinsicHeight: Int = UNDECIDED
+    fun minimumHeight(maxHeight: Int, hasBoundedHeight: Boolean): Int =
+        if (isViewportHeightLocked && hasBoundedHeight) maxHeight else 0
 
     /**
-     * Reconsiders the height lock only when the content's intrinsic height changes, not when the
-     * available viewport changes. The latter happens while dragging a full-height sheet and while
-     * the keyboard is visible. A temporary keyboard-sized viewport must not permanently turn an
-     * otherwise short sheet into a full-height one.
+     * A short sheet can fill the reduced viewport while the keyboard is open. Do not mistake that
+     * temporary measurement for content that genuinely needs the full viewport.
      */
-    fun resolveMinimumHeight(intrinsicHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean): Int {
-        if (!hasBoundedHeight) {
-            isViewportHeightLocked = false
-            decidedForIntrinsicHeight = UNDECIDED
-            return 0
+    fun onMeasured(
+        measuredHeight: Int,
+        maxHeight: Int,
+        hasBoundedHeight: Boolean,
+        isImeVisible: Boolean,
+    ) {
+        if (hasBoundedHeight && !isImeVisible && measuredHeight >= maxHeight) {
+            isViewportHeightLocked = true
         }
-
-        val undecided = decidedForIntrinsicHeight == UNDECIDED
-        val contentChanged = !undecided &&
-            abs(intrinsicHeight - decidedForIntrinsicHeight) > maxHeight / HYSTERESIS_DIVISOR
-        if (undecided || contentChanged) {
-            isViewportHeightLocked = intrinsicHeight >= maxHeight
-            decidedForIntrinsicHeight = intrinsicHeight
-        }
-        return if (isViewportHeightLocked) maxHeight else 0
-    }
-
-    private companion object {
-        const val UNDECIDED = -1
-        const val HYSTERESIS_DIVISOR = 20
     }
 }
 
-private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): Modifier =
+private fun Modifier.stabilizeViewportHeight(
+    policy: StableSheetHeightPolicy,
+    isImeVisible: Boolean,
+): Modifier =
     layout { measurable, constraints ->
-        val intrinsicHeight = runCatching {
-            measurable.maxIntrinsicHeight(constraints.maxWidth)
-        }.getOrDefault(constraints.maxHeight)
-        val minimumHeight = policy.resolveMinimumHeight(
-            intrinsicHeight = intrinsicHeight,
+        val minimumHeight = policy.minimumHeight(
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
         )
@@ -123,6 +113,12 @@ private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): M
             constraints
         }
         val placeable = measurable.measure(measurementConstraints)
+        policy.onMeasured(
+            measuredHeight = placeable.height,
+            maxHeight = constraints.maxHeight,
+            hasBoundedHeight = constraints.hasBoundedHeight,
+            isImeVisible = isImeVisible,
+        )
 
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)
