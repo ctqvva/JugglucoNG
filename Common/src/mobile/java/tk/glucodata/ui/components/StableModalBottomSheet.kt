@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 /**
  * App-wide modal sheet entry point.
@@ -26,10 +27,11 @@ import androidx.compose.ui.unit.dp
  * dynamically consumes its top inset. That moves the expanded anchor during the gesture and makes
  * the sheet appear to resist or jitter.
  *
- * Short sheets retain their intrinsic height. Once a sheet has measured at the viewport height,
- * it remains viewport-height for the current [contentKey], keeping its expanded anchor stable while
- * nested scrolling continues to work normally. Change [contentKey] when one sheet instance swaps
- * between layouts with fundamentally different intrinsic heights.
+ * Short sheets retain their intrinsic height, including across temporary viewport changes such as
+ * the keyboard opening. A sheet whose content intrinsically needs the whole viewport remains
+ * viewport-height for the current [contentKey], keeping its expanded anchor stable while nested
+ * scrolling continues to work normally. Change [contentKey] when one sheet instance swaps between
+ * layouts with fundamentally different intrinsic heights.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,19 +76,44 @@ internal class StableSheetHeightPolicy {
     var isViewportHeightLocked: Boolean = false
         private set
 
-    fun minimumHeight(maxHeight: Int, hasBoundedHeight: Boolean): Int =
-        if (isViewportHeightLocked && hasBoundedHeight) maxHeight else 0
+    private var decidedForIntrinsicHeight: Int = UNDECIDED
 
-    fun onMeasured(measuredHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean) {
-        if (hasBoundedHeight && measuredHeight >= maxHeight) {
-            isViewportHeightLocked = true
+    /**
+     * Reconsiders the height lock only when the content's intrinsic height changes, not when the
+     * available viewport changes. The latter happens while dragging a full-height sheet and while
+     * the keyboard is visible. A temporary keyboard-sized viewport must not permanently turn an
+     * otherwise short sheet into a full-height one.
+     */
+    fun resolveMinimumHeight(intrinsicHeight: Int, maxHeight: Int, hasBoundedHeight: Boolean): Int {
+        if (!hasBoundedHeight) {
+            isViewportHeightLocked = false
+            decidedForIntrinsicHeight = UNDECIDED
+            return 0
         }
+
+        val undecided = decidedForIntrinsicHeight == UNDECIDED
+        val contentChanged = !undecided &&
+            abs(intrinsicHeight - decidedForIntrinsicHeight) > maxHeight / HYSTERESIS_DIVISOR
+        if (undecided || contentChanged) {
+            isViewportHeightLocked = intrinsicHeight >= maxHeight
+            decidedForIntrinsicHeight = intrinsicHeight
+        }
+        return if (isViewportHeightLocked) maxHeight else 0
+    }
+
+    private companion object {
+        const val UNDECIDED = -1
+        const val HYSTERESIS_DIVISOR = 20
     }
 }
 
 private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): Modifier =
     layout { measurable, constraints ->
-        val minimumHeight = policy.minimumHeight(
+        val intrinsicHeight = runCatching {
+            measurable.maxIntrinsicHeight(constraints.maxWidth)
+        }.getOrDefault(constraints.maxHeight)
+        val minimumHeight = policy.resolveMinimumHeight(
+            intrinsicHeight = intrinsicHeight,
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
         )
@@ -96,11 +123,6 @@ private fun Modifier.stabilizeViewportHeight(policy: StableSheetHeightPolicy): M
             constraints
         }
         val placeable = measurable.measure(measurementConstraints)
-        policy.onMeasured(
-            measuredHeight = placeable.height,
-            maxHeight = constraints.maxHeight,
-            hasBoundedHeight = constraints.hasBoundedHeight,
-        )
 
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)
