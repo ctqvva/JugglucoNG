@@ -111,6 +111,7 @@ static jclass JNIHistorySyncAccess = nullptr;
 static jmethodID jhistoryMarkCloneSensor = nullptr,
                  jhistoryReconcilePrimaryCloneSensor = nullptr,
                  jhistorySyncSensor = nullptr,
+                 jhistorySyncRecentSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
                  jhistoryMergeFullSyncSensor = nullptr;
 static jclass JNICalibrationProfileAccess = nullptr;
@@ -311,6 +312,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
             R"(GetStaticMethodID(JNIHistorySyncAccess,"syncSensorFromNative","(Ljava/lang/String;Z)V") failed)"
             "");
       }
+      if (!(jhistorySyncRecentSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "syncRecentSensorFromNative",
+                "(Ljava/lang/String;J)V"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"syncRecentSensorFromNative","(Ljava/lang/String;J)V") failed)"
+            "");
+      }
       if (!(jhistoryForceFullSyncSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "forceFullSyncForSensor",
                 "(Ljava/lang/String;)V"))) {
@@ -490,6 +498,28 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
   env->DeleteLocalRef(jserial);
   if (env->ExceptionCheck()) {
     LOGAR("javaMirrorSyncSensor exception");
+    env->ExceptionClear();
+  }
+}
+
+void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
+                                int cloneTransport) {
+  if (!serial || !*serial || anchorTimeMs <= 0 || !JNIHistorySyncAccess) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jserial = env->NewStringUTF(serial);
+  if (jhistoryMarkCloneSensor) {
+    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+                              jserial, cloneTransport);
+  }
+  if (!env->ExceptionCheck() && jhistorySyncRecentSensor) {
+    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistorySyncRecentSensor,
+                              jserial, static_cast<jlong>(anchorTimeMs));
+  }
+  env->DeleteLocalRef(jserial);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaMirrorSyncRecentSensor exception");
     env->ExceptionClear();
   }
 }

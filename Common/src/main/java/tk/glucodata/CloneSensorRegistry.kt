@@ -149,11 +149,27 @@ object CloneSensorRegistry {
 
     @JvmStatic
     fun reconcilePrimaryCloneSensor(primarySensorId: String?) {
-        val sensorIds = synchronized(lock) {
-            CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).keys.toList()
-        }
         val primaryAliases = candidateKeys(primarySensorId)
-        CloneSensorKeyCodec.nonPrimarySensorIds(sensorIds, primaryAliases).forEach { sensorId ->
+        if (primaryAliases.isEmpty()) return
+        val currentEntries = synchronized(lock) {
+            CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null))
+        }
+        val retained = currentEntries.filterKeys { storedId ->
+            candidateKeys(storedId).any { it in primaryAliases }
+        }
+        if (retained.isEmpty()) return
+
+        val receiverPrimary = SensorIdentity.resolveMainSensor()
+        val receiverWasFollowingClone = currentEntries.keys.any { sensorId ->
+            candidateKeys(sensorId).any { it in candidateKeys(receiverPrimary) }
+        }
+        val retired = currentEntries.keys.filterNot(retained::containsKey)
+        synchronized(lock) {
+            prefs()?.edit()
+                ?.putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(retained))
+                ?.apply()
+        }
+        retired.forEach { sensorId ->
             runCatching {
                 val sensorPointer = Natives.str2sensorptr(sensorId)
                 if (sensorPointer != 0L) Natives.finishfromSensorptr(sensorPointer)
@@ -162,8 +178,10 @@ object CloneSensorRegistry {
         }
         val primary = primarySensorId?.takeIf { transportForSensor(it) != null } ?: return
         runCatching { SensorBluetooth.blockLocalCloneConnection(primary) }
-        runCatching { SensorBluetooth.setCurrentSensorSelection(primary) }
-        runCatching { MultiSensorSelection.moveToFront(primary) }
+        if (receiverWasFollowingClone && !SensorIdentity.matches(receiverPrimary, primary)) {
+            runCatching { SensorBluetooth.setCurrentSensorSelection(primary) }
+            runCatching { MultiSensorSelection.moveToFront(primary) }
+        }
     }
 
     @JvmStatic

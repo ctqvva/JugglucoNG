@@ -46,6 +46,8 @@
 extern Backup *backup;
 extern void        processglucosevalue(int sendindex,int newstart=-1);
 extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
+extern void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
+                                       int cloneTransport);
 extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 
@@ -115,15 +117,16 @@ extern bool receivelastpos(const lastpos_t *data) ;
 
 static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport);
 
-static void mirrorSyncSensor(int sendindex, bool forceFull, int cloneTransport) {
+static std::string mirrorSensorSerial(int sendindex) {
     if(sendindex < 0 || !sensors) {
-        return;
+        return {};
     }
     if(SensorGlucoseData *hist = sensors->getSensorData(sendindex)) {
         if(const auto *serial = hist->shortsensorname(); serial && serial->data()[0]) {
-            javaMirrorSyncSensor(serial->data(), forceFull, cloneTransport);
+            return serial->data();
         }
     }
+    return {};
 }
 
 static std::string extractMirrorSensorSerial(std::string_view name) {
@@ -139,13 +142,42 @@ static std::string extractMirrorSensorSerial(std::string_view name) {
     return std::string(rest.substr(0, slash));
 }
 
+static std::string mirrorSensorSerialForPath(std::string_view path, int sendindex) {
+    if (std::string serial = extractMirrorSensorSerial(path); !serial.empty()) {
+        return serial;
+    }
+    return mirrorSensorSerial(sendindex);
+}
+
 static void mirrorSyncSensorForPath(std::string_view path, int sendindex, bool forceFull,
                                     int cloneTransport) {
-    if (std::string serial = extractMirrorSensorSerial(path); !serial.empty()) {
+    if (std::string serial = mirrorSensorSerialForPath(path, sendindex); !serial.empty()) {
         javaMirrorSyncSensor(serial.c_str(), forceFull, cloneTransport);
+    }
+}
+
+static void mirrorSyncRecentSensorForPath(std::string_view path, int sendindex,
+                                          int cloneTransport) {
+    std::string serial = mirrorSensorSerialForPath(path, sendindex);
+    if (serial.empty()) {
         return;
     }
-    mirrorSyncSensor(sendindex, forceFull, cloneTransport);
+    int64_t anchorTimeMs = 0;
+    if (sensors && sendindex >= 0) {
+        if (SensorGlucoseData *hist = sensors->getSensorData(sendindex)) {
+            if (const ScanData *poll = hist->lastValidStream()) {
+                anchorTimeMs = static_cast<int64_t>(poll->t) * 1000LL;
+            }
+        }
+    }
+    if (anchorTimeMs > 0) {
+        javaMirrorSyncRecentSensor(serial.c_str(), anchorTimeMs, cloneTransport);
+    } else {
+        javaMirrorSyncSensor(serial.c_str(), false, cloneTransport);
+    }
+    // A live stream update identifies the sender's current Clone sensor.  The
+    // receiver's own global current sensor (for example Nightscout) does not.
+    javaMirrorReconcilePrimarySensor(serial.c_str());
 }
 
 static std::vector<std::pair<std::string, bool>> pendingMirrorSensorSyncs;
@@ -165,18 +197,10 @@ static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) 
 }
 
 static void flushPendingMirrorSensorSyncs(int cloneTransport) {
-    const int current = sensors ? sensors->infoblockptr()->current : -1;
-    const char *primary = current >= 0 ? sensors->shortsensorname_chars(current) : nullptr;
-    bool primaryMarked = !primary || !primary[0];
     for (const auto &entry : pendingMirrorSensorSyncs) {
         javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport);
-        primaryMarked = primaryMarked || entry.first == primary;
     }
     pendingMirrorSensorSyncs.clear();
-    if (!primaryMarked) {
-        javaMirrorSyncSensor(primary, false, cloneTransport);
-    }
-    javaMirrorReconcilePrimarySensor(primary);
 }
 
 static bool isMirrorSensorInfoPath(std::string_view path) {
@@ -514,9 +538,9 @@ for(int it=0;it<len;) {
                 }
 extern                bool updateDevices() ;
             flushPendingMirrorSensorSyncs(cloneTransportCode());
-            // Mark imported sensor records as Clone before Java rebuilds the
-            // callback roster. Reversing this order briefly treated copied
-            // sensors as local and could start their BLE connection.
+            // Mark imported records as Clone before Java rebuilds the callback
+            // roster.  Primary Clone selection is driven by live stream data,
+            // not by the receiver's global current-sensor field.
             ret=updateDevices();
             LOGGERTAG("updateDevices=%d\n",ret);
             };break;
@@ -1060,7 +1084,7 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
         if((gegs->dowith&streamupdatebit)==streamupdatebit) {
                 const auto [sendindex,startpos]=getstartinfo(gegs,start);
                 processglucosevalue(sendindex,startpos);
-                mirrorSyncSensorForPath(namesv, sendindex, false, cloneTransport);
+                mirrorSyncRecentSensorForPath(namesv, sendindex, cloneTransport);
 
                 }
         else {
@@ -1083,10 +1107,11 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
     if (isMirrorSensorInfoPath(namesv) || isMirrorSensorDataPath(namesv)) {
         queueMirrorSyncSensorForPath(namesv, isMirrorSensorDataPath(namesv));
     }
-    // The sender's primary index arrives in sensors.dat.  Some mirror sessions do not
-    // follow it with sresetdevices, so waiting for that command leaves imported sensors
-    // unmarked long enough for SensorBluetooth.updateDevices() to treat them as local BLE
-    // sensors.  Finalise Clone identity and primary selection as soon as sensors.dat lands.
+    // Some mirror sessions do not follow sensors.dat with sresetdevices. Mark
+    // queued records now so SensorBluetooth never treats them as local BLE.
+    // Do not derive a sender primary here: incremental writes commonly contain
+    // only one 32-byte sensor record and leave the receiver's own current field
+    // untouched.
     if (namesv == "sensors/sensors.dat") {
         flushPendingMirrorSensorSyncs(cloneTransport);
     }
