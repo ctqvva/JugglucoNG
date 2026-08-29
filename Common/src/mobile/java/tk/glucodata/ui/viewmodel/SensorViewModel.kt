@@ -837,8 +837,7 @@ class SensorViewModel : ViewModel() {
     }
 
     private fun finishNativeSensor(serial: String, liveDataPointer: Long = 0L): Boolean {
-        val nativeSerial = SensorIdentity.resolveNativeSensorName(serial) ?: serial
-        val result = NativeSensorTermination.finishAndConfirm(nativeSerial, liveDataPointer)
+        val result = NativeSensorTermination.finishAndConfirm(serial, liveDataPointer)
         if (result != NativeSensorTermination.Result.CONFIRMED) {
             android.util.Log.e(
                 "SensorViewModel",
@@ -846,19 +845,6 @@ class SensorViewModel : ViewModel() {
             )
         }
         return result == NativeSensorTermination.Result.CONFIRMED
-    }
-
-    private fun restoreLegacySensorAfterFailedTermination(gatt: SuperGattCallback) {
-        try {
-            gatt.setPause(false)
-            gatt.connectDevice(0L)
-        } catch (t: Throwable) {
-            android.util.Log.e(
-                "SensorViewModel",
-                "Could not restore ${gatt.SerialNumber} after failed termination: ${t.message}",
-                t,
-            )
-        }
     }
 
     // A sensor leaves the UI only after its durable source of truth has been removed. Bluetooth
@@ -890,7 +876,7 @@ class SensorViewModel : ViewModel() {
                     try { gatt.close() } catch (t: Throwable) {
                         android.util.Log.e("SensorVM", "terminateSensor AiDex close failed: ${t.message}")
                     }
-                    if (finishNativeSensor(serial, gatt.dataptr)) {
+                    if (finishNativeSensor(gatt.SerialNumber ?: serial, gatt.dataptr)) {
                         // Remove from SharedPreferences before sensorEnded so updateDevices()
                         // cannot reconstruct the callback.
                         removeAiDexFromPrefs(serial)
@@ -918,12 +904,10 @@ class SensorViewModel : ViewModel() {
                 } catch (t: Throwable) {
                     android.util.Log.e("SensorViewModel", "terminateSensor($serial) data wipe failed: ${t.message}", t)
                 }
-                if (finishNativeSensor(serial, gatt.dataptr)) {
+                if (finishNativeSensor(gatt.SerialNumber ?: serial, gatt.dataptr)) {
                     switchAwayFromSensor(serial)
                     SensorBluetooth.sensorEnded(serial)
                     removed = true
-                } else {
-                    restoreLegacySensorAfterFailedTermination(gatt)
                 }
             }
         } else {

@@ -304,14 +304,10 @@ internal object SensorHandoverRuntime {
                 .onFailure { Log.e(LOG_ID, "pause before removal failed: ${it.message}") }
             runCatching { gatt.closeGattTransport() }
                 .onFailure { Log.e(LOG_ID, "GATT close before removal failed: ${it.message}") }
-            val nativeSerial = SensorIdentity.resolveNativeSensorName(serial) ?: serial
+            val nativeSerial = gatt.SerialNumber ?: serial
             val result = NativeSensorTermination.finishAndConfirm(nativeSerial, gatt.dataptr)
             if (result != NativeSensorTermination.Result.CONFIRMED) {
                 Log.e(LOG_ID, "Native removal of $serial was not confirmed: $result")
-                runCatching {
-                    gatt.setPause(false)
-                    gatt.connectDevice(0L)
-                }.onFailure { Log.e(LOG_ID, "restore after failed removal failed: ${it.message}") }
                 return
             }
             runCatching {

@@ -1,11 +1,9 @@
 package tk.glucodata
 
 /**
- * Marks one native sensor finished and verifies that the native active roster dropped it.
- *
- * Live callbacks must supply their existing stream pointer: it owns the exact sensors.dat index
- * used by [Natives.finishSensor]. A callback-free record temporarily acquires the same kind of
- * stream pointer through [Natives.getdataptr] and releases it after the finish attempt.
+ * Marks one exact native sensor record finished and verifies that the native active roster
+ * dropped that exact name. Logical identity aliases are deliberately not used here: two physical
+ * sensors must never make each other look active or be retired in each other's place.
  */
 object NativeSensorTermination {
     enum class Result {
@@ -16,18 +14,15 @@ object NativeSensorTermination {
     }
 
     internal interface Access {
-        fun acquireDataPointer(sensorId: String): Long
-        fun finish(dataPointer: Long)
-        fun releaseDataPointer(dataPointer: Long)
+        fun findSensorPointer(sensorId: String): Long
+        fun finish(sensorPointer: Long)
         fun activeSensors(): Array<String>?
     }
 
     private object SystemAccess : Access {
-        override fun acquireDataPointer(sensorId: String): Long = Natives.getdataptr(sensorId)
+        override fun findSensorPointer(sensorId: String): Long = Natives.str2sensorptr(sensorId)
 
-        override fun finish(dataPointer: Long) = Natives.finishSensor(dataPointer)
-
-        override fun releaseDataPointer(dataPointer: Long) = Natives.freedataptr(dataPointer)
+        override fun finish(sensorPointer: Long) = Natives.finishfromSensorptr(sensorPointer)
 
         override fun activeSensors(): Array<String>? = Natives.activeSensors()
     }
@@ -41,18 +36,17 @@ object NativeSensorTermination {
         liveDataPointer: Long,
         access: Access,
         matches: (String, String) -> Boolean = { candidate, expected ->
-            SensorIdentity.matches(candidate, expected)
+            candidate.trim().equals(expected.trim(), ignoreCase = true)
         },
     ): Result {
-        var acquiredDataPointer = 0L
         return try {
-            val dataPointer = if (liveDataPointer != 0L) {
-                liveDataPointer
-            } else {
-                access.acquireDataPointer(sensorId).also { acquiredDataPointer = it }
-            }
-            if (dataPointer != 0L) {
-                access.finish(dataPointer)
+            // The displayed sensor name is the durable identity. A live callback's
+            // stream pointer can be stale or can represent an aliased managed shell.
+            @Suppress("UNUSED_VARIABLE")
+            val ignoredLivePointer = liveDataPointer
+            val sensorPointer = access.findSensorPointer(sensorId)
+            if (sensorPointer != 0L) {
+                access.finish(sensorPointer)
             }
 
             val active = access.activeSensors()
@@ -60,10 +54,6 @@ object NativeSensorTermination {
             if (active.any { matches(it, sensorId) }) Result.STILL_ACTIVE else Result.CONFIRMED
         } catch (_: Throwable) {
             Result.FAILED
-        } finally {
-            if (acquiredDataPointer != 0L) {
-                runCatching { access.releaseDataPointer(acquiredDataPointer) }
-            }
         }
     }
 }
