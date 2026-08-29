@@ -88,6 +88,20 @@ internal data class AdaptiveV2Reference(
  */
 internal class AdaptiveV2Estimator {
 
+    /**
+     * Per-minute internals of the level update, for diagnosing a single event
+     * end to end. Written every sample; read only by tests.
+     */
+    internal class UpdateTrace {
+        var observation = 0.0; var predicted = 0.0; var innovation = 0.0
+        var rawWeight = 0.0; var effectiveR = 0.0; var priorVariance = 0.0
+        var gainB = 0.0; var gainI = 0.0; var gainV = 0.0
+        var b = 0.0; var i = 0.0; var v = 0.0
+        var lagTerm = 0.0; var motion = 0.0; var artifact = 0.0
+    }
+
+    internal val updateTrace = UpdateTrace()
+
     private val modes = Array(AdaptiveV2Mode.COUNT) { AdaptiveV2Gaussian() }
     private val mixed = Array(AdaptiveV2Mode.COUNT) { AdaptiveV2Gaussian() }
     private val modeProbability = FloatArray(AdaptiveV2Mode.COUNT)
@@ -185,6 +199,7 @@ internal class AdaptiveV2Estimator {
         sample: AdaptiveV2Sample,
         references: List<AdaptiveV2Reference> = emptyList(),
         stockComparisonMmol: Float = Float.NaN,
+        adaptiveV1ComparisonMmol: Float = Float.NaN,
     ): ProbabilisticGlucoseEstimate? {
         val observation = sample.calibratedMmol
         if (!observation.isFinite() || observation <= 0f) return null
@@ -245,7 +260,7 @@ internal class AdaptiveV2Estimator {
         lastIndex = sample.index
         lastTimestampMs = sample.timestampMs
         latestDiagnostics = buildDiagnostics(
-            sample, estimate, telemetry, stockComparisonMmol,
+            sample, estimate, telemetry, stockComparisonMmol, adaptiveV1ComparisonMmol,
         )
         return estimate
     }
@@ -330,8 +345,32 @@ internal class AdaptiveV2Estimator {
             // One IRLS step of the Student-t likelihood: down-weight, do not reject.
             val weight = noiseModel.robustWeight(innovation * innovation / priorVariance)
             val effectiveVariance = observationVariance / max(weight, MIN_ROBUST_WEIGHT)
+            if (index == AdaptiveV2Mode.STEADY.ordinal) {
+                updateTrace.observation = observation
+                updateTrace.predicted = AdaptiveV2ObservationModel.predicted(mode.x)
+                updateTrace.innovation = innovation
+                updateTrace.rawWeight = weight
+                updateTrace.effectiveR = effectiveVariance
+                updateTrace.priorVariance = priorVariance
+                // Kalman gain K = P H^T / S for the three glucose states.
+                var s = effectiveVariance
+                val ph = DoubleArray(V2.N)
+                for (row in 0 until V2.N) {
+                    var sum = 0.0
+                    for (col in 0 until V2.N) sum += mode.p[row * V2.N + col] * jacobian[col]
+                    ph[row] = sum
+                }
+                for (row in 0 until V2.N) s += jacobian[row] * ph[row]
+                val denom = max(s, MIN_VARIANCE)
+                updateTrace.gainB = ph[V2.B] / denom
+                updateTrace.gainI = ph[V2.I] / denom
+                updateTrace.gainV = ph[V2.V] / denom
+            }
             val innovationVariance = mode.update(jacobian, innovation, effectiveVariance)
             AdaptiveV2ObservationModel.clampSensorStates(mode.x)
+            if (index == AdaptiveV2Mode.STEADY.ordinal) {
+                updateTrace.b = mode.x[V2.B]; updateTrace.i = mode.x[V2.I]; updateTrace.v = mode.x[V2.V]
+            }
 
             modeLogLikelihood[index] = noiseModel.logLikelihood(innovation, priorVariance)
             val probabilityWeight = modeProbability[index].toDouble()
@@ -478,6 +517,7 @@ internal class AdaptiveV2Estimator {
             // narrow exactly when the median is extrapolating hardest.
             val rate = mode.x[V2.V]
             val lagTerm = rate * rate * lagEstimator.lagVariance
+            if (index == AdaptiveV2Mode.STEADY.ordinal) updateTrace.lagTerm = lagTerm
             glucoseVariances[index] =
                 max(mode.at(V2.B, V2.B) + lagTerm, MIN_VARIANCE).toFloat()
             rateMeans[index] = mode.x[V2.V].toFloat()
@@ -601,6 +641,7 @@ internal class AdaptiveV2Estimator {
         estimate: ProbabilisticGlucoseEstimate,
         telemetry: AdaptiveV2Telemetry,
         stockComparisonMmol: Float,
+        adaptiveV1ComparisonMmol: Float,
     ): AdaptiveV2Diagnostics {
         var interstitial = 0.0
         var artifact = 0.0
@@ -638,6 +679,7 @@ internal class AdaptiveV2Estimator {
             sensorStateCompensationMmol = sample.sensorStateCompensationMmol,
             activeSensitivity = sample.activeSensitivity,
             stockMmol = stockComparisonMmol,
+            adaptiveV1Mmol = adaptiveV1ComparisonMmol,
         )
     }
 

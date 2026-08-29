@@ -725,6 +725,15 @@ fun SensorCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
+                    // So the sheet closes the gap rather than snapping: when the
+                    // ribbon row leaves and the pin releases, the height change
+                    // is animated instead of appearing between two frames.
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        )
+                    )
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp)
             ) {

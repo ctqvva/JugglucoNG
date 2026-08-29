@@ -2549,6 +2549,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_estimated">Glicemia stimata</string>
     <string name="glucose_uncertainty_elevated">Incertezza del sensore elevata</string>
     <string name="glucose_possible_artifact">Possibile artefatto transitorio del sensore</string>
+    <string name="debug_v2_trace_title">Diagnostica Adaptive V2</string>
+    <string name="debug_v2_trace_desc">Registra una riga dettagliata per ogni lettura durante il log. Utile solo per segnalare problemi del sensore.</string>
     <string name="sibionics_uncertainty_ribbon">Banda di incertezza</string>
     <string name="sibionics_uncertainty_ribbon_desc">Mostra la fascia dell\'intervallo probabile attorno alla linea della glicemia</string>
     <string name="freeze_displayed_values">Mantieni i valori visualizzati</string>

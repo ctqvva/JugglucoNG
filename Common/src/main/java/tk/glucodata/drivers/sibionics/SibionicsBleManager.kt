@@ -327,6 +327,13 @@ class SibionicsBleManager(
         }
         pendingResetCommand = SibionicsRegistry.isResetRequested(context, SerialNumber)
         algorithmSelection = SibionicsRegistry.loadAlgorithmSelection(context, SerialNumber)
+        // The diagnostics trace is a debug preference, so it has to be restored
+        // here too: a toggle that silently resets on restart is worse than no
+        // toggle, because a capture started after a reboot comes back empty.
+        SibionicsAdaptiveV2Trace.enabled = runCatching {
+            context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+                .getBoolean("debug_sibionics_v2_trace", false)
+        }.getOrDefault(false)
         SibionicsRegistry.loadIntegratedCalibrationBaseline(context, SerialNumber)
             ?.takeIf { it.unit == Applic.unit }
             ?.let { baseline ->
