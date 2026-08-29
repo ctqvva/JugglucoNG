@@ -115,6 +115,10 @@ class QuantityResolverTests {
         assertNull(bare.effectiveServingPieces)
         assertEquals(MissingReference.PIECE_WEIGHT, missing("1 sausage", bare))
 
+        val repeatedReferenceAmount = bare.copy(servingText = "6 sausages (100 g)")
+        assertNull(repeatedReferenceAmount.effectiveServingPieces)
+        assertEquals(MissingReference.PIECE_WEIGHT, missing("1 sausage", repeatedReferenceAmount))
+
         val explicit = bare.copy(servingText = "6 sausages (400 g)", servingQuantity = 400f)
         val one = resolved("1 sausage", explicit)
         assertEquals(400f / 6f, one.grams!!, 0.001f)

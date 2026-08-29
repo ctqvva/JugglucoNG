@@ -127,9 +127,11 @@ data class NutritionReference(
 ) {
     /**
      * Piece count that is safe to combine with [servingQuantity]. A single piece is unambiguous;
-     * multiple pieces need their total amount in the same serving text. This keeps a noisy pair
-     * such as `serving_size = "6 sausages"` and `serving_quantity = 100 g` from inventing a
-     * 16.67 g sausage while retaining explicit text such as "2 Scheiben (62.5 g)".
+     * multiple pieces need their total amount in the same serving text. A multi-piece serving
+     * that repeats the 100 g/ml nutrition basis is still ambiguous: some OFF records put the
+     * reference amount there instead of the real package weight. This keeps records such as
+     * `serving_size = "6 sausages (100 g)"` from inventing a 16.67 g sausage while retaining
+     * explicit text such as "2 Scheiben (62.5 g)".
      */
     val effectiveServingPieces: Float?
         get() {
@@ -142,7 +144,13 @@ data class NutritionReference(
             val amount = servingQuantity?.takeIf { it > 0f } ?: return null
             if (parsed.unit != servingUnit) return null
             val tolerance = maxOf(0.01f, abs(parsedAmount) * 0.001f)
-            return pieces.takeIf { abs(parsedAmount - amount) <= tolerance }
+            if (abs(parsedAmount - amount) > tolerance) return null
+            val repeatsReferenceAmount = when (basis) {
+                NutritionBasis.PER_100G -> servingUnit == AmountUnit.GRAM && abs(amount - 100f) <= 0.1f
+                NutritionBasis.PER_100ML -> servingUnit == AmountUnit.MILLILITER && abs(amount - 100f) <= 0.1f
+                NutritionBasis.PER_SERVING, NutritionBasis.PER_BATCH -> false
+            }
+            return pieces.takeUnless { repeatsReferenceAmount }
         }
 
     /** Weight of one piece, learned directly or derived from package contents / serving text. */

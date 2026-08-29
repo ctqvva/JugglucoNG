@@ -116,6 +116,23 @@ class OpenFoodFactsParserTests {
     }
 
     @Test
+    fun repeated100gReferenceDoesNotInventAPieceWeightWithoutPackageData() {
+        val product = OpenFoodFactsParser.parse(
+            "5010525358000",
+            """{"code":"5010525358000","product":{"product_name":"Bacon & Cheddar Pork Sausages",
+                "brands":"Morrisons","serving_size":"6 sausages (100 g)","serving_quantity":100,
+                "serving_quantity_unit":"g","nutriments":{"carbohydrates_100g":2.7,
+                "proteins_100g":17.7,"fat_100g":20.1,"energy-kcal_100g":264}},"status":1}"""
+        )!!
+
+        assertNull(product.reference.netQuantity)
+        assertNull(product.reference.packagePieces)
+        assertNull(product.reference.effectiveServingPieces)
+        assertNull(product.reference.effectivePieceGrams)
+        assertTrue(QuantityResolver.resolve("1 sausage", product.reference) is QuantityResolution.Missing)
+    }
+
+    @Test
     fun quantityPackageCountStaysSeparateFromARealServingCount() {
         val product = OpenFoodFactsParser.parse(
             "5010000000001",
