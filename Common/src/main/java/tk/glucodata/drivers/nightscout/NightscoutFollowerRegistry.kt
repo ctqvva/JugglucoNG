@@ -227,6 +227,9 @@ object NightscoutFollowerRegistry {
         return left.isNotEmpty() && right.isNotEmpty() && left.equals(right, ignoreCase = true)
     }
 
+    fun isFollowerSensorId(candidate: String?): Boolean =
+        candidate?.trim()?.startsWith(SENSOR_PREFIX, ignoreCase = true) == true
+
     fun applyAuth(connection: HttpURLConnection, secret: String) {
         val trimmed = secret.trim()
         if (trimmed.isEmpty()) return
