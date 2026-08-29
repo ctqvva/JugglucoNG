@@ -110,6 +110,34 @@ internal class AdaptiveV2Estimator {
     private val noiseModel = AdaptiveV2NoiseModel()
     private val lagEstimator = AdaptiveV2LagEstimator()
 
+    /**
+     * Evidence that the previous sample was an isolated artifact, because this
+     * one reversed it.
+     *
+     * At the first minute a genuine sharp move and a single bad sample are not
+     * distinguishable, so the estimator follows both — a surprising observation
+     * is still an observation. What separates them is what arrives next. A
+     * large innovation immediately followed by a large one of the opposite sign
+     * is a spike, not a trajectory, and that is positive evidence rather than
+     * mere surprise.
+     */
+    private var reversalEvidence = 0.0
+
+    /**
+     * Recent unexplained innovation, carried into the reported interval.
+     *
+     * Following a surprising observation is right, but reporting it with the
+     * same confidence as an expected one is not. This is the "and widen" half
+     * of the contract: the estimator moves the median immediately and says, in
+     * the only place a reader can see it, that this minute was not predicted.
+     * It decays quickly, so a confirmed move stops being described as
+     * uncertain once it stops being surprising.
+     */
+    private var surpriseVariance = 0.0
+
+    /** Previous minute's normalised innovation, for the reversal test. */
+    private var previousNormalised = 0.0
+
     private val transitionMatrix = DoubleArray(V2.N * V2.N)
     private val processNoise = DoubleArray(V2.N)
     private val glucoseNoiseBlock = DoubleArray(9)
@@ -172,6 +200,9 @@ internal class AdaptiveV2Estimator {
         telemetryModel.reset()
         noiseModel.reset()
         lagEstimator.reset()
+        reversalEvidence = 0.0
+        surpriseVariance = 0.0
+        previousNormalised = 0.0
         initialized = false
         lastIndex = -1
         lastTimestampMs = 0L
@@ -239,6 +270,12 @@ internal class AdaptiveV2Estimator {
         val observationVariance = noiseModel.observationVariance(telemetry, sample.index)
         vendorSensitivityDrift = sample.vendorSensitivityDrift
         updateWithChemical(observation.toDouble(), observationVariance)
+        // Before combine(): the interval reported for this minute has to reflect
+        // how surprising this minute was, not the previous one.
+        surpriseVariance = max(
+            surpriseVariance * SURPRISE_DECAY,
+            (lastInnovation * lastInnovation - lastMeasurementVariance).coerceAtLeast(0.0),
+        )
         applyReferences(references, sample)
         normalizeModeProbabilities()
 
@@ -249,6 +286,7 @@ internal class AdaptiveV2Estimator {
             dtMinutes = elapsed.minutes,
             trust = (1.0 - estimate.artifactProbability.toDouble()).coerceIn(0.0, 1.0),
         )
+        detectReversal()
         noiseModel.adapt(
             innovation = lastInnovation,
             priorVariance = lastMeasurementVariance,
@@ -274,7 +312,7 @@ internal class AdaptiveV2Estimator {
             AdaptiveV2ModeModel.transition(
                 AdaptiveV2Mode.ALL[from],
                 telemetry.impedanceDisturbance,
-                telemetry.vendorArtifactHint,
+                (telemetry.vendorArtifactHint + reversalEvidence.toFloat()).coerceIn(0f, 1f),
                 dtMinutes,
                 transitionRow,
             )
@@ -409,6 +447,39 @@ internal class AdaptiveV2Estimator {
      * decays naturally through later state evolution instead of being
      * explicitly aged out.
      */
+    /**
+     * Turns a one-minute excursion that immediately reversed into artifact
+     * evidence, and undoes the dynamics it created.
+     *
+     * Following the spike was correct — there was nothing to distinguish it
+     * from a real move. But a followed spike leaves velocity behind, and
+     * velocity is what would carry a false excursion forward as a lead and
+     * make a one-minute artifact into a multi-minute one. So the reversal both
+     * raises the artifact prior and damps the velocity and acceleration the
+     * spike produced, with their variances inflated so the next real move is
+     * still free to re-establish them.
+     */
+    private fun detectReversal() {
+        val normalised = lastInnovation / sqrt(max(lastMeasurementVariance, MIN_VARIANCE))
+        val reversed = normalised * previousNormalised < 0.0 &&
+            abs(normalised) > REVERSAL_SIGMA && abs(previousNormalised) > REVERSAL_SIGMA
+        reversalEvidence = if (reversed) {
+            val strength = min(abs(normalised), abs(previousNormalised)) / REVERSAL_FULL_SIGMA
+            for (index in 0 until AdaptiveV2Mode.COUNT) {
+                val mode = modes[index]
+                mode.x[V2.V] *= REVERSAL_VELOCITY_DAMPING
+                mode.x[V2.ACC] *= REVERSAL_VELOCITY_DAMPING
+                mode.setAt(V2.V, V2.V, mode.at(V2.V, V2.V) * REVERSAL_VARIANCE_RELEASE)
+                mode.setAt(V2.ACC, V2.ACC, mode.at(V2.ACC, V2.ACC) * REVERSAL_VARIANCE_RELEASE)
+                mode.symmetrize()
+            }
+            max(reversalEvidence, strength.coerceIn(0.0, 1.0))
+        } else {
+            reversalEvidence * REVERSAL_DECAY
+        }
+        previousNormalised = normalised
+    }
+
     private fun applyReferences(references: List<AdaptiveV2Reference>, sample: AdaptiveV2Sample) {
         if (references.isEmpty()) return
         val pending = references.filter {
@@ -517,9 +588,10 @@ internal class AdaptiveV2Estimator {
             // narrow exactly when the median is extrapolating hardest.
             val rate = mode.x[V2.V]
             val lagTerm = rate * rate * lagEstimator.lagVariance
+            val surpriseTerm = SURPRISE_WIDENING * surpriseVariance
             if (index == AdaptiveV2Mode.STEADY.ordinal) updateTrace.lagTerm = lagTerm
             glucoseVariances[index] =
-                max(mode.at(V2.B, V2.B) + lagTerm, MIN_VARIANCE).toFloat()
+                max(mode.at(V2.B, V2.B) + lagTerm + surpriseTerm, MIN_VARIANCE).toFloat()
             rateMeans[index] = mode.x[V2.V].toFloat()
             rateVariances[index] = max(mode.at(V2.V, V2.V), MIN_VARIANCE).toFloat()
         }
@@ -578,6 +650,9 @@ internal class AdaptiveV2Estimator {
         )
         noiseModel.reset()
         lagEstimator.reset()
+        reversalEvidence = 0.0
+        surpriseVariance = 0.0
+        previousNormalised = 0.0
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
             mode.reset()
@@ -755,6 +830,26 @@ internal class AdaptiveV2Estimator {
 
         private const val MIN_PROBABILITY = 1e-4
         private const val MIN_VARIANCE = 1e-8
+        /** Both innovations must exceed this, in sigma, for a sign flip to count. */
+        private const val REVERSAL_SIGMA = 1.6
+
+        /** Sigma at which reversal evidence is treated as conclusive. */
+        private const val REVERSAL_FULL_SIGMA = 4.0
+
+        /** Velocity left after a reversal: a spike must not become a trend. */
+        private const val REVERSAL_VELOCITY_DAMPING = 0.15
+
+        /** Variance released with it, so a real move can re-establish velocity at once. */
+        private const val REVERSAL_VARIANCE_RELEASE = 6.0
+
+        private const val REVERSAL_DECAY = 0.55
+
+        /** How much of the unexplained innovation is reported as uncertainty. */
+        private const val SURPRISE_WIDENING = 0.45
+
+        /** Surprise fades fast: a confirmed move is no longer a surprising one. */
+        private const val SURPRISE_DECAY = 0.35
+
         private const val MIN_ROBUST_WEIGHT = 0.02
         private const val PROBABILITY_TOLERANCE = 1e-3f
 
