@@ -828,6 +828,7 @@
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Ostatni: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Ostatni błąd BLE</string>
     <string name="libre_setup_done">Gotowe</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Dostosuj eksperymentalne zachowanie skanowania Libre 3 przed parowaniem.</string>

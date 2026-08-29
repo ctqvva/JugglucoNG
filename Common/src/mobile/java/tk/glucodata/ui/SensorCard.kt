@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -133,6 +134,14 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
+
+internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? =
+    eventAtMs.takeIf { it > 0L }?.coerceAtMost(nowMs)
+
+internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
+    val age = relativeAge?.toString()?.trim().orEmpty()
+    return if (age.isEmpty()) status else "$status · $age"
+}
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -1496,7 +1505,25 @@ fun SensorCard(
                     if (sensor.connectionStatus.isNotEmpty() &&
                         !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
                     ) {
-                        DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
+                        val errorEventAt = bleErrorEventTimeForDisplay(sensor.connectionStatusAtMs, now)
+                        val rowLabel = if (errorEventAt != null) {
+                            stringResource(R.string.last_ble_error)
+                        } else {
+                            stringResource(R.string.last_ble_status)
+                        }
+                        val rowValue = if (errorEventAt != null) {
+                            bleErrorValue(
+                                sensor.connectionStatus,
+                                DateUtils.getRelativeTimeSpanString(
+                                    errorEventAt,
+                                    now,
+                                    DateUtils.MINUTE_IN_MILLIS,
+                                ),
+                            )
+                        } else {
+                            sensor.connectionStatus
+                        }
+                        DataRow(rowLabel, rowValue)
                     }
                     DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
                     

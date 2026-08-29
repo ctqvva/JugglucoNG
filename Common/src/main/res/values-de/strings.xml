@@ -868,6 +868,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="keep_auto_calibration">Autokalibrierungsdaten behalten</string>
     <string name="keep_data">Sensorinfo behalten</string>
     <string name="last_ble_status">Letzter BLE-Status</string>
+    <string name="last_ble_error">Letzter BLE-Fehler</string>
     <string name="libre_setup_done">Fertig</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Experimentelles Scan-Verhalten für Libre 3 vor dem Koppeln anpassen.</string>

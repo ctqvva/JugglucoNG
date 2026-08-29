@@ -653,6 +653,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="enabled_status">Hawl gal</string>
     <string name="disabled_status">Dansan</string>
     <string name="last_ble_status">Heerka BLE ee u dambeeyay</string>
+    <string name="last_ble_error">Ciladdii BLE ee u dambeysay</string>
     <string name="sensor_address">Cinwaanka</string>
     <string name="sensor_started">bilaabay</string>
     <string name="sensor_ends_officially">Si Rasmi Ah U Dhamaatay</string>

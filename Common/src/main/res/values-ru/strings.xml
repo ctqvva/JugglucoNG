@@ -493,6 +493,7 @@
     <string name="enabled_status">Включен</string>
     <string name="disabled_status">Отключен</string>
     <string name="last_ble_status">Статус BLE</string>
+    <string name="last_ble_error">Последняя ошибка BLE</string>
     <string name="sensor_address">Адрес</string>
     <string name="sensor_started">Запущен</string>
     <string name="sensor_ends_officially">Офиц. окончание</string>

@@ -47,6 +47,7 @@ data class SensorInfo(
     val displayName: String,
     val deviceAddress: String,
     val connectionStatus: String,
+    val connectionStatusAtMs: Long = 0L,
     val starttime: String,
     val streaming: Boolean,
     val rssi: Int,
@@ -513,7 +514,7 @@ class SensorViewModel : ViewModel() {
                         // when the link recovers, so any of those strings can stick
                         // around while readings flow. A reading newer than the event
                         // proves recovery: the recorded status is then history and
-                        // only shown in the "Last BLE status" detail row.
+                        // only shown in the timestamped "Last BLE error" detail row.
                         val bleStatusOutdated = SensorBluetooth.connectionStatusOutdated(gatt)
 
                         fun mapBleStatus(status: String): String = when {
@@ -565,6 +566,7 @@ class SensorViewModel : ViewModel() {
                                 bleStatusOutdated && bleStatus.isNotEmpty() -> mapBleStatus(bleStatus)
                                 else -> ""
                             },
+                            connectionStatusAtMs = SensorBluetooth.connectionStatusChangedAt(gatt),
                             starttime = if (startMs > 0) tk.glucodata.bluediag.datestr(startMs) else "",
                             streaming = warmupStatus == null && isActivelyReceiving,
                             rssi = gatt.readrssi,
