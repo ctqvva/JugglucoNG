@@ -412,7 +412,7 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
                 return -1;
                 }
         if(!con->isConnected||(!doSend&&(time(nullptr)-startWait)<waitsec)) {
-                LOGGERICE("allindex=%d side=%d connect=%d doSend=%d wait\n",allindex,side,con->isConnected,doSend);
+                LOGGERICE("allindex=%d side=%d connect=%d doSend=%d wait\n",allindex,side,con->isConnected.load(),doSend);
                 {
                 std::unique_lock<std::mutex> lck(doSendMutex);
                 doSendCond.wait_for(lck,std::chrono::seconds(waitsec), [this] {return doSend; });   

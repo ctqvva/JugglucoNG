@@ -37,7 +37,7 @@ protected:
 public:
   std::atomic_flag senduprunning{};
     int allindex;
-   bool finish=false;
+   std::atomic_bool finish{false};
     bool receiving=false;
     Connect(int index):allindex(index) {}
 

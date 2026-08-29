@@ -97,6 +97,26 @@ static bool stillworking(int allindex)  {
         }
     return res;
     }
+
+static ICEConnect *currentICEConnection(int allindex, juice_agent_t *agent) {
+    if(!stillworking(allindex))
+        return nullptr;
+    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    if(!con||!con->isCurrentAgent(agent)) {
+        LOGGERICE("Ignoring stale agent callback allindex=%d agent=%p\n",allindex,agent);
+        return nullptr;
+        }
+    return con;
+    }
+
+static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int seconds) {
+    for(int i=0;i<seconds;++i) {
+        if(!con->isCurrentAgent(agent)||con->endConnect.load())
+            return false;
+        sleep(1);
+        }
+    return con->isCurrentAgent(agent)&&!con->endConnect.load();
+    }
 const char *juiceErrorString(int error) {
     switch(error) {
         case JUICE_ERR_SUCCESS : return "success";
@@ -147,13 +167,19 @@ private:
     };
 //static bool gathering_done=false;
 
-static void getAddressesThread(juice_agent *agent,std::string_view commonLabel,bool side,std::string_view hostname) {
+static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generation,
+                               std::string commonLabel,bool side,std::string hostname) {
    static std::string_view address{"/address"};
    CreateAgentData addressdata(commonLabel,side,"") ;
    int errors=0;
    while(errors<5) {
+            ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+            if(!con||!con->isCurrentAgent(agent,generation))
+                return;
             LOGGERICE("getaddress %s %d\n",commonLabel.data(),side);
             auto [resbody,code]=ContextHTTPS::getContext().getRequest(hostname,port,address,addressdata.getSpan());
+            if(!con->isCurrentAgent(agent,generation))
+                return;
             switch(code) {
                 case 200: {
                 if(resbody.size()>= (sizeof(BackDescription )+20)) {
@@ -173,13 +199,15 @@ static void getAddressesThread(juice_agent *agent,std::string_view commonLabel,b
                 };break;
               case 400: {
                 LOGGERICE("getaddress %s %d: ERROR try again\n",commonLabel.data(),side);
-                sleep(2);
                 ++errors;
+                if(!waitForCurrentAgent(con,agent,2))
+                    return;
                   };break;
               default: {
                 LOGGERICE("getaddress %s %d: Http error\n",commonLabel.data(),side);
-                sleep(10);
                 ++errors;
+                if(!waitForCurrentAgent(con,agent,10))
+                    return;
                 };break;
                 };
           }
@@ -190,23 +218,33 @@ static void getAddressesThread(juice_agent *agent,std::string_view commonLabel,b
 
 static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr) {
    const int allindex=(int)(long)user_ptr;
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con)
+        return;
+   const uint64_t generation=con->currentAgentGeneration();
    const passhost_t &host= getBackupHosts()[allindex];
+   const std::string commonLabel(host.getICEname());
+   const bool side=host.side;
+   const std::string hostname(hostnames[con->hostindex]);
    static std::string_view address{"/address"};
-   CreateAgentData sdpdata(host.getICEname(),host.side,sdp) ;
+   CreateAgentData sdpdata(commonLabel,side,sdp) ;
    for(int i=0;i<20;++i) {
-       auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostnames[con->hostindex],port,address,std::span((const char *)sdpdata.data(),sdpdata.size()));
+       if(!con->isCurrentAgent(agent,generation))
+           return;
+       auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostname,port,address,std::span((const char *)sdpdata.data(),sdpdata.size()));
+       if(!con->isCurrentAgent(agent,generation))
+           return;
        if(code==200) {
-             LOGGERICE( "putaddress %s %d: success: %s\n",host.getICEname().data(),host.side, sdp);
+             LOGGERICE( "putaddress %s %d: success: %s\n",commonLabel.data(),side, sdp);
             break;
             }
        if(code==400) {
-            LOGGERICE( "putaddress %s %d: failed: %s\n",host.getICEname().data(),host.side, sdp);
+            LOGGERICE( "putaddress %s %d: failed: %s\n",commonLabel.data(),side, sdp);
             break;
             }
-      LOGGERICE("putaddress %s %d: ERROR: %s\n",host.getICEname().data(),host.side,  sdp);
-      sleep(20);
+      LOGGERICE("putaddress %s %d: ERROR: %s\n",commonLabel.data(),side,  sdp);
+      if(!waitForCurrentAgent(con,agent,20))
+          return;
       }
    }
 
@@ -214,34 +252,41 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
 // Agent 1: on local candidates gathering done
 static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
    const int allindex=(int)(long)user_ptr;
-    //gathering_done=true;
-    std::thread th{[allindex] {
-        const passhost_t &host= getBackupHosts()[allindex];
-        LOGGERICE("Gathering done %s %d\n",host.getICEname().data(),host.side);
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con)
+        return;
+    const uint64_t generation=con->currentAgentGeneration();
+    const passhost_t &host= getBackupHosts()[allindex];
+    const std::string commonLabel(host.getICEname());
+    const bool side=host.side;
+    const int hostindex=con->hostindex;
+    CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
+    std::vector<char> doneBody(body.data(),body.data()+body.size());
+    std::thread th{[allindex,agent,generation,commonLabel,side,hostindex,
+                    doneBody=std::move(doneBody)] {
+        LOGGERICE("Gathering done %s %d\n",commonLabel.data(),side);
         ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
-        if(!con) {
-            LOGGERICE("connection[%d]==NULL\n",allindex);
+        if(!con||!con->isCurrentAgent(agent,generation))
             return;
-            }
-        CreateAgentData body(host.getICEname(),host.side,con->sdp,con->sdplen);
         std::string_view done{"/done"sv};
         con->startDone.wait(true);
+        if(!con->isCurrentAgent(agent,generation))
+            return;
         while(true) {
-            auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostnames[con->hostindex],port,done,std::span((const char *)body.data(),body.size()));
+            auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostnames[hostindex],port,done,doneBody);
+            if(!con->isCurrentAgent(agent,generation))
+                return;
             if(code==200) {
-                LOGGERICE("%s %d: OK DONE\n",host.getICEname().data(),host.side);
+                LOGGERICE("%s %d: OK DONE\n",commonLabel.data(),side);
                 break;
                }
             if(code==400) {
-                LOGGERICE("%s %d: WRONG DONE\n",host.getICEname().data(),host.side);
+                LOGGERICE("%s %d: WRONG DONE\n",commonLabel.data(),side);
                 break;
                 }
-            LOGGERICE("%s %d: ERROR DONE code=%d\n",host.getICEname().data(),host.side,code);
-            sleep(10);
-            if(con->finish) {
-                LOGARICE("Finish  thread");
+            LOGGERICE("%s %d: ERROR DONE code=%d\n",commonLabel.data(),side,code);
+            if(!waitForCurrentAgent(con,agent,10))
                 return;
-                }
               };
           }};
        th.detach();
@@ -253,12 +298,18 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
 #include "ICE_data.hpp"
 static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
     const int allindex=(int)(long)user_ptr;
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con)
+        return;
     const passhost_t &host= getBackupHosts()[allindex];
     if(!host.ICE) {
             LOGGERICE("ERROR: on_recv1 called on non-ICE host allindex=%d name=%s\n",allindex, host.getICEname());
             return;
             }
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    if(size<sizeof(udp_header)) {
+            LOGGERICE("ERROR: short ICE packet allindex=%d size=%zu\n",allindex,size);
+            return;
+            }
     ICE_data *userdata=con->icedata;
     udp_header  *head=const_cast<udp_header *>(reinterpret_cast<const udp_header *>(data));
     userdata[head->side!=host.side].on_recv(agent,data,size,allindex);
@@ -324,11 +375,11 @@ extern void receiverthread(passhost_t *host,const int allindex);
 static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *user_ptr) {
    const int allindex=(int)(long)user_ptr;
     LOGGERICE("on_state_changed1 allindex=%d\n",allindex);
-    if(!stillworking(allindex))
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con)
         return;
     const passhost_t &host= getBackupHosts()[allindex];
     LOGGERICE("%s %d State: %s\n", host.getICEname().data(),host.side,juice_state_to_string(state));
-    ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
     con->state=state;
     switch(state) {
         case	JUICE_STATE_GATHERING:
@@ -339,25 +390,25 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
         case JUICE_STATE_CONNECTED: {
             setConnectTime(allindex,0);
             con->setConnected();
-            con->agent.store(agent);
             con->connectTime=time(nullptr);
             con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
+            const uint64_t generation=con->currentAgentGeneration();
             struct CONNECTED {
-                static void thread( juice_agent_t *agent, int allindex) {
+                static void thread(juice_agent_t *agent,int allindex,uint64_t generation) {
                    LOGGERICE("start CONNECT::thread allindex=%d\n",allindex);
                     passhost_t &host= getBackupHosts()[allindex];
                     ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
-                    if(!con) {
-                        LOGGERICE("connection[%d]==NULL\n",allindex);
-                        return;
-                        }
-                    if(con->finish) {
-                        LOGGERICE("allindex=%d Finish  thread\n",allindex);
+                    if(!con||!con->isCurrentAgent(agent,generation)) {
+                        LOGGERICE("connection[%d] no longer owns agent=%p\n",allindex,agent);
                         return;
                         }
 
                    con->icedata[host.side].sendStart(agent,con);
+                   if(!con->isCurrentAgent(agent,generation))
+                       return;
                    con->startSending.wait(true);
+                   if(!con->isCurrentAgent(agent,generation))
+                       return;
                    LOGGERICE("allindex=%d After con->startSending.wait(true)\n",allindex);
                    {
                    std::lock_guard<std::mutex> lck(con->receiveThreadMutex);
@@ -368,45 +419,42 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
                    con->startDone.notify_all();
                    };
                    };
-            std::thread th(CONNECTED::thread,agent,allindex);
+            std::thread th(CONNECTED::thread,agent,allindex,generation);
             th.detach();
             diagnostics(agent,host.getICEname().data(),host.side);
             }; break;
         case JUICE_STATE_FAILED: {
-            con->notConnected();
-            struct Failure {
-                static void thread( juice_agent_t *agent, int allindex) {
-                    const passhost_t &host= getBackupHosts()[allindex];
-                    ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
-                    if(!con) {
-                        LOGGERICE("connections[%d]==NULL\n",allindex);
+            con->selectedCloneTransport.store(clone_transport_unknown);
+            const std::string commonLabel(host.getICEname());
+            const bool side=host.side;
+            const std::string hostname(hostnames[con->hostindex]);
+            CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
+            std::vector<char> failureBody(body.data(),body.data()+body.size());
+
+            // Start replacement negotiation immediately. Reporting the old
+            // description to the rendezvous service is useful cleanup, but it
+            // must not hold reconnection hostage while the network is absent.
+            con->endConnectionHere();
+            {
+            std::lock_guard<std::mutex> lck(con->receiveThreadMutex);
+            con->wakeReceiver=true;
+            con->receiveThreadCon.notify_one();
+            }
+            std::thread th{[commonLabel,side,hostname,
+                            failureBody=std::move(failureBody)] {
+                std::string_view failure{"/failure"sv};
+                for(int i=0;i<3;++i) {
+                    auto [resbody,code]=ContextHTTPS::getContext().putRequest(
+                        hostname,port,failure,
+                        std::span(failureBody.data(),failureBody.size()));
+                    if(code==200) {
+                        LOGGERICE("%s %d: OK FAILURE\n",commonLabel.data(),side);
                         return;
                         }
-                    CreateAgentData body(host.getICEname(),host.side,con->sdp,con->sdplen);
-                    std::string_view failure{"/failure"sv};
-                    for(int i=0;i<20;++i) {
-                        auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostnames[con->hostindex],port,failure,std::span((const char *)body.data(),body.size()));
-                        if(code==200) {
-                            LOGGERICE("%s %d: OK FAILURE\n",host.getICEname().data(),host.side);
-                            break;
-                            }
-                       LOGGERICE("%s %d: ERROR FAILURE code=%d\n",host.getICEname().data(),host.side,code);
-                       sleep(20);
-                       }
-                    con->notConnected();
-                    con->endConnectionHere();
-                    if(con->finish) {
-                        LOGARICE("Finish Failure::thread");
-                        return;
-                        }
-                   {
-                   std::lock_guard<std::mutex> lck(con->receiveThreadMutex);
-                   con->wakeReceiver=true;
-                   con->receiveThreadCon.notify_one();
-                   }
-                    };
-                    };
-            std::thread th(Failure::thread,agent,allindex);
+                    LOGGERICE("%s %d: ERROR FAILURE code=%d\n",commonLabel.data(),side,code);
+                    sleep(5);
+                    }
+                }};
             th.detach();
              }
             break;
@@ -444,7 +492,7 @@ void ICEConnect::receiverThread(int argindex) {
         LOGGER("receiverThread  before wait_for %d seconds\n",waitsec);
         {
         std::unique_lock<std::mutex> lck(receiveThreadMutex);
-        receiveThreadCon.wait_for(lck,std::chrono::seconds(waitsec), [this] {return wakeReceiver; });   
+        receiveThreadCon.wait_for(lck,std::chrono::seconds(waitsec), [this] {return wakeReceiver.load(); });
         }
         wakeReceiver=false;
         if(isConnected) {
@@ -482,7 +530,7 @@ void ICEConnect::receiverThread(int argindex) {
                         continue;
                     case 0:
                         LOGGERICE("side=%d receiverThread: already connecting\n",host.side);
-                        waitsec=3*60;
+                        waitsec=5;
                         continue;
                     case -1:
                         LOGGERICE("side=%d receiverThread: error retry\n",host.side);
@@ -746,27 +794,29 @@ juice_agent *createAgent(int allindex) {
 
 extern void   recreateAgents();
 void   recreateAgents() {
-    LOGAR("recreateAgents()");
-    const int hostnr=backup->getupdatedata()->hostnr;
-    for(int index=0;index<hostnr;++index) {
-        const passhost_t &host= getBackupHosts()[index];
-        if(host.ICE) {
-            if(ICEConnect *con=static_cast<ICEConnect *>(connections[index]))
-                       con->recreateAgent=true;
-            }
-        }
+    // ICE agents are now destroyed on every network reset and reconnect, so
+    // there is no reusable agent that needs to be marked for recreation.
+    LOGAR("recreateAgents(): agents are recreated on reconnect");
     }
 static std::string_view description="/description";
 
 static bool waitonDescription(juice_agent *agent,int allindex,std::string_view commonLabel,int side,std::string_view hostname) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con)
+        return false;
+    const uint64_t generation=con->currentAgentGeneration();
     CreateAgentData sdpdata(commonLabel,side,"");
     LOGGERICE("getdescription %s\n",sdpdata.data());
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("getdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
         return false;
-        }
+    }
     while(true) {
+        if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
+            return false;
         auto [resbody,code]=ContextHTTPS::getContext().getRequest(hostname,port,description,sdpdata.getSpan());
+        if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
+            return false;
         if(code== 200) {
             if(resbody.size()>= (sizeof(BackDescription )+20)) {
                 const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
@@ -776,12 +826,14 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
                 }
              else {
                 LOGGERICE("getdescription failure %s size=%d: getdescription Remote small body in :\n%.*s\n",commonLabel.data(),(int)resbody.size(),(int)resbody.size(),(const char *)resbody.data());
-                sleep(1);
+                if(!waitForCurrentAgent(con,agent,1))
+                    return false;
                 }
             }
          else {
             LOGGERICE("getdescription failure %s %d: %s returns code=%d\n",commonLabel.data(),side,sdpdata.data(),code); 
-            sleep(20);
+            if(!waitForCurrentAgent(con,agent,20))
+                return false;
             }
         const auto lastfailedtime=getConnectTime(allindex);
         if(lastfailedtime&&(time(nullptr)-lastfailedtime)>maxconnectionunused)
@@ -800,10 +852,15 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("putdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
         return false;
-        }
+    }
+    const uint64_t generation=con->currentAgentGeneration();
     while(true) {
+            if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
+                return false;
             LOGGERICE("putdescription: %s %d: Local description:\n%s\n",commonLabel.data(),side, con->sdp);
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostname,port,description,std::span((const char *)sdpdata.data(),sdpdata.size()));
+            if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
+                return false;
             if(code==200) {
                 if(resbody.size()>= (sizeof(BackDescription )+20)) {
                     const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
@@ -814,12 +871,14 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                     }
                  else {
                     LOGGERICE("putdescription: %s %d: Remote small body in :\n%s\n",commonLabel.data(),side,(const char *)resbody.data());
-                    sleep(1);
+                    if(!waitForCurrentAgent(con,agent,1))
+                        return false;
                     }
                 }
              else {
                 LOGGERICE("putdescription: %s %d: Http error\n",commonLabel.data(),side);
-                sleep(20);
+                if(!waitForCurrentAgent(con,agent,20))
+                    return false;
                 }
 
         const auto lastfailedtime=getConnectTime(allindex);
@@ -863,7 +922,9 @@ bool initAgent(juice_agent *agent,int allindex) {
     if(!stillworking(allindex))
         return false;
 
-    std::jthread receive{getAddressesThread,agent,commonLabel,side,hostname};
+    std::jthread receive{getAddressesThread,agent,allindex,
+                         con->currentAgentGeneration(),std::string(commonLabel),side,
+                         std::string(hostname)};
     LOGGERICE("initAgent %s %d: Before juice_gather_candidates\n",commonLabel.data(),side);
     con->phase=GatherCandidates;
     int ret=juice_gather_candidates(agent);

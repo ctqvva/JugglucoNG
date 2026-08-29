@@ -57,6 +57,7 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.util.DiscoveredMirror
 import tk.glucodata.util.MDnsManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
@@ -328,7 +329,14 @@ fun MirrorSettingsScreen(navController: NavController) {
     val latestBroadcastSenderLabel by rememberUpdatedState(broadcastSenderLabel)
     val latestBroadcastOwnsSender by rememberUpdatedState(broadcastOwnsSender)
 
-    LaunchedEffect(triggerRefresh) { mirrors = getMirrorsList() }
+    // Native ICE state changes independently of Compose. Keep the visible
+    // connection cards current while this screen is open.
+    LaunchedEffect(triggerRefresh) {
+        while (true) {
+            mirrors = getMirrorsList()
+            delay(1_000)
+        }
+    }
 
     DisposableEffect(Unit) {
         mdnsManager.discoverServices { mirror ->
