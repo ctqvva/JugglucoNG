@@ -109,6 +109,7 @@ jmethodID jdoglucose = nullptr, jupdateDevices = nullptr,
           jbluePermission = nullptr;
 static jclass JNIHistorySyncAccess = nullptr;
 static jmethodID jhistoryMarkCloneSensor = nullptr,
+                 jhistoryReconcilePrimaryCloneSensor = nullptr,
                  jhistorySyncSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
                  jhistoryMergeFullSyncSensor = nullptr;
@@ -294,6 +295,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
                 "(Ljava/lang/String;I)V"))) {
         LOGAR(
             R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;I)V") failed)"
+            "");
+      }
+      if (!(jhistoryReconcilePrimaryCloneSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "reconcilePrimaryCloneSensor",
+                "(Ljava/lang/String;)V"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"reconcilePrimaryCloneSensor","(Ljava/lang/String;)V") failed)"
             "");
       }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
@@ -486,6 +494,22 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
   }
 }
 
+void javaMirrorReconcilePrimarySensor(const char *serial) {
+  if (!JNIHistorySyncAccess || !jhistoryReconcilePrimaryCloneSensor)
+    return;
+  JNIEnv *env = getenv();
+  jstring jserial = serial ? env->NewStringUTF(serial) : nullptr;
+  env->CallStaticVoidMethod(JNIHistorySyncAccess,
+                            jhistoryReconcilePrimaryCloneSensor, jserial);
+  if (jserial)
+    env->DeleteLocalRef(jserial);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaMirrorReconcilePrimarySensor exception");
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+  }
+}
+
 std::string javaExportCalibrationProfile(const char *serial) {
   if (!serial || !*serial || !JNICalibrationProfileAccess || !jexportCalibrationProfile) {
     return {};
@@ -611,10 +635,8 @@ void callshowsensorinfo(const char *text, SensorGlucoseData *sensorptr) {
 }
 
 void render() {
-  // GlucoseCurve has been a plain View since the legacy OpenGL renderer was
-  // removed. Calling a GLSurfaceView method ID on it is invalid JNI and crashed
-  // the ICE receiver whenever it handled srender. Java's replacement
-  // requestRender() is intentionally a no-op, so the native path is one too.
+  // GlucoseCurve is no longer a GLSurfaceView. Calling its former base-class
+  // method ID is invalid JNI and crashed the ICE receiver on srender.
   LOGAR("Render ignored: legacy renderer removed");
 }
 #endif

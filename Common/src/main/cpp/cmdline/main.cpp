@@ -992,6 +992,9 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
     LOGGER("javaMirrorSyncSensor(%s,%d,%d)\n", serial ? serial : "(null)", forceFull,
            cloneTransport);
 }
+void javaMirrorReconcilePrimarySensor(const char *serial) {
+    LOGGER("javaMirrorReconcilePrimarySensor(%s)\n", serial ? serial : "(null)");
+}
 extern std::string javaExportCalibrationProfile(const char *serial);
 std::string javaExportCalibrationProfile(const char *serial) {
     LOGGER("javaExportCalibrationProfile(%s)\n", serial ? serial : "(null)");

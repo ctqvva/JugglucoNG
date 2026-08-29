@@ -486,8 +486,9 @@ void ICEConnect::receiverThread(int argindex) {
                         continue;
                     case -1:
                         LOGGERICE("side=%d receiverThread: error retry\n",host.side);
-                        // Connectivity callbacks can wake this sooner; the
-                        // polling fallback should still recover promptly.
+                        // Connectivity callbacks can wake this sooner. Keep a
+                        // short polling fallback so a returning mobile network
+                        // does not leave Clone stale for several minutes.
                         waitsec=30;
                         continue;
                     };

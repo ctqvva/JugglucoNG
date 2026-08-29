@@ -34,6 +34,26 @@ internal object CloneSensorKeyCodec {
         .distinctBy { it.first }
         .sortedBy { it.first }
         .joinToString("\n") { (key, transport) -> "$key|${transport.code}" }
+
+    fun transportFor(encoded: String?, sensorId: String?): CloneTransport? =
+        transportForAny(encoded, listOfNotNull(sensorId))
+
+    fun transportForAny(encoded: String?, sensorIds: Iterable<String>): CloneTransport? {
+        val stored = decode(encoded)
+        return sensorIds.asSequence().mapNotNull(::normalize).mapNotNull(stored::get).firstOrNull()
+    }
+
+    fun nonPrimarySensorIds(sensorIds: Iterable<String>, primarySensorId: String?): List<String> {
+        return nonPrimarySensorIds(sensorIds, listOfNotNull(primarySensorId))
+    }
+
+    fun nonPrimarySensorIds(
+        sensorIds: Iterable<String>,
+        primarySensorIds: Iterable<String>
+    ): List<String> {
+        val primaryKeys = primarySensorIds.mapNotNull(::normalize).toSet()
+        return sensorIds.mapNotNull(::normalize).filterNot { it in primaryKeys }
+    }
 }
 
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
@@ -63,23 +83,33 @@ object CloneSensorRegistry {
         }
     }
 
+    private fun registryKey(sensorId: String?): String? =
+        runCatching { SensorIdentity.resolveRoomStorageSensorId(sensorId) }
+            .getOrNull()
+            ?.let(CloneSensorKeyCodec::normalize)
+            ?: CloneSensorKeyCodec.normalize(sensorId)
+
     @JvmStatic
     fun markCloneSensor(sensorId: String?, transportCode: Int) {
-        val key = CloneSensorKeyCodec.normalize(sensorId) ?: return
+        val key = registryKey(sensorId) ?: return
+        val aliases = candidateKeys(sensorId) + key
         val transport = CloneTransport.fromCode(transportCode)
         synchronized(lock) {
             val preferences = prefs() ?: return
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
             val effectiveTransport = if (transport == CloneTransport.UNKNOWN) {
-                current[key] ?: CloneTransport.UNKNOWN
+                aliases.asSequence().mapNotNull(current::get).firstOrNull() ?: CloneTransport.UNKNOWN
             } else {
                 transport
             }
-            if (current[key] == effectiveTransport) return
-            preferences.edit()
-                .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(current + (key to effectiveTransport)))
-                .apply()
+            val updated = current.filterKeys { it !in aliases } + (key to effectiveTransport)
+            if (updated != current) {
+                preferences.edit()
+                    .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
+                    .apply()
+            }
         }
+        runCatching { SensorBluetooth.blockLocalCloneConnection(sensorId) }
     }
 
     @JvmStatic
@@ -103,10 +133,46 @@ object CloneSensorRegistry {
     }
 
     @JvmStatic
+    fun deactivateAllCloneSensors() {
+        val sensorIds = synchronized(lock) {
+            CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).keys.toList()
+        }
+        sensorIds.forEach { sensorId ->
+            runCatching {
+                val sensorPointer = Natives.str2sensorptr(sensorId)
+                if (sensorPointer != 0L) Natives.finishfromSensorptr(sensorPointer)
+            }
+            runCatching { SensorBluetooth.retireCloneSensor(sensorId) }
+        }
+        runCatching { SensorBluetooth.updateDevices() }
+    }
+
+    @JvmStatic
+    fun reconcilePrimaryCloneSensor(primarySensorId: String?) {
+        val sensorIds = synchronized(lock) {
+            CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).keys.toList()
+        }
+        val primaryAliases = candidateKeys(primarySensorId)
+        CloneSensorKeyCodec.nonPrimarySensorIds(sensorIds, primaryAliases).forEach { sensorId ->
+            runCatching {
+                val sensorPointer = Natives.str2sensorptr(sensorId)
+                if (sensorPointer != 0L) Natives.finishfromSensorptr(sensorPointer)
+            }
+            runCatching { SensorBluetooth.retireCloneSensor(sensorId) }
+        }
+        val primary = primarySensorId?.takeIf { transportForSensor(it) != null } ?: return
+        runCatching { SensorBluetooth.blockLocalCloneConnection(primary) }
+        runCatching { SensorBluetooth.setCurrentSensorSelection(primary) }
+        runCatching { MultiSensorSelection.moveToFront(primary) }
+    }
+
+    @JvmStatic
     fun transportForSensor(sensorId: String?): CloneTransport? {
         val requested = candidateKeys(sensorId)
         if (requested.isEmpty()) return null
-        val stored = CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null))
-        return requested.asSequence().mapNotNull(stored::get).firstOrNull()
+        return CloneSensorKeyCodec.transportForAny(
+            prefs()?.getString(KEY_SENSOR_IDS, null),
+            requested,
+        )
     }
 }
