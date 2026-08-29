@@ -342,8 +342,96 @@ internal class AdaptiveV2Estimator {
             }
             priorVariance = max(priorVariance, MIN_VARIANCE)
 
-            // One IRLS step of the Student-t likelihood: down-weight, do not reject.
-            val weight = noiseModel.robustWeight(innovation * innovation / priorVariance)
+            // Surprise is handled by admitting the state may be wrong, not by
+            // refusing the sample.
+            //
+            // The Student-t step alone inverts gain against evidence. Measured
+            // on the reported event: as the observation rose 8.5 -> 12.4 the
+            // weight collapsed 1.06 -> 0.048, the effective variance inflated
+            // sixtyfold and the gain into B fell 25x, so the estimate captured
+            // 12% of the move and peaked three minutes late and 2.8 mmol/L
+            // short. Catching up late then drove velocity to +0.095, which had
+            // to reverse, overshot to -0.127 and carried the estimate below the
+            // sensor. One mechanism, both symptoms.
+            //
+            // A large innovation is genuinely ambiguous — bad sample, or a
+            // model that is wrong. Down-weighting answers "bad sample" every
+            // time. Inflating the state covariance instead answers "one of us
+            // is wrong and it may be me": the gain stays usable so the median
+            // moves on the first minute, and the posterior widens because the
+            // widened prior is carried through the update. Ambiguity shows up
+            // as a wider interval rather than a frozen median.
+            val normalisedSquared = innovation * innovation / priorVariance
+            val weight = noiseModel.robustWeight(normalisedSquared)
+            // The mode likelihood must be scored against the *honest* surprise,
+            // before any inflation. Inflating first makes every hypothesis able
+            // to explain the sample equally well, which is precisely the
+            // question the likelihood exists to answer: it dropped pArtifact on
+            // an isolated excursion to 0.012 and stopped artifacts being
+            // attributed to the sensor at all.
+            val likelihoodVariance = priorVariance
+            // Covariance matching, bounded by the surprise it has to explain.
+            //
+            // Add only the variance the innovation is actually unexplained by,
+            // shared into the glucose block *with its B/I correlation intact*.
+            // Both details are load-bearing. A multiplicative inflation
+            // compounds every minute and ran the prior up twelve-thousandfold
+            // over three; and inflating the diagonal alone decorrelates B from
+            // the state the observation reads, which sent the gain into B above
+            // 1 and the estimate to 14.4 against a 12.4 peak. Adding the
+            // unexplained amount is self-limiting: once the prior can account
+            // for the innovation, nothing further is added.
+            // Only DYNAMIC is granted the room, because only DYNAMIC's
+            // hypothesis is "glucose is moving fast". STEADY claims it is not
+            // and ARTIFACT claims this is not glucose at all; letting either of
+            // them stretch to cover a large excursion erases the very
+            // distinction the mode posterior exists to draw, and measurably did
+            // — with the room shared by all modes, pDynamic on a real excursion
+            // fell to 0.18 and the isolated-spike case stopped being won by
+            // ARTIFACT. Confined to DYNAMIC, the mode that can explain the
+            // sample is also the one that gets to follow it, so it wins the
+            // posterior and carries the mixture with it.
+            val unexplained = if (
+                index == AdaptiveV2Mode.DYNAMIC.ordinal ||
+                index == AdaptiveV2Mode.ARTIFACT.ordinal
+            ) {
+                (innovation * innovation - priorVariance).coerceIn(0.0, SURPRISE_ABSORB_CAP)
+            } else {
+                0.0
+            }
+            if (unexplained > 0.0) {
+                val add = SURPRISE_SHARE * unexplained
+                if (index == AdaptiveV2Mode.ARTIFACT.ordinal) {
+                    // ARTIFACT absorbs into its own transient state, never into
+                    // glucose. Both hypotheses then track a sustained dip — one
+                    // calling it glucose, the other calling it the sensor — and
+                    // both stay alive to be judged on what happens next. Letting
+                    // only DYNAMIC absorb made it the sole explanation for a
+                    // compression low and dropped pArtifact to 0.024 on exactly
+                    // the case where being wrong invents a low that is not there.
+                    mode.setAt(V2.ARTIFACT, V2.ARTIFACT, mode.at(V2.ARTIFACT, V2.ARTIFACT) + add)
+                } else {
+                    // STEADY claims glucose is not moving and must not be given
+                    // room to follow a large excursion; only DYNAMIC's
+                    // hypothesis is that it is. The mode that can explain the
+                    // sample is the one that gets to follow it, so it wins the
+                    // posterior and carries the mixture.
+                    mode.setAt(V2.I, V2.I, mode.at(V2.I, V2.I) + add)
+                    mode.setAt(V2.B, V2.B, mode.at(V2.B, V2.B) + add)
+                    mode.setAt(V2.B, V2.I, mode.at(V2.B, V2.I) + add * SURPRISE_CORRELATION)
+                    mode.setAt(V2.I, V2.B, mode.at(V2.I, V2.B) + add * SURPRISE_CORRELATION)
+                }
+                mode.symmetrize()
+                priorVariance = observationVariance
+                for (row in 0 until V2.N) {
+                    var sum = 0.0
+                    for (column in 0 until V2.N) sum += mode.p[row * V2.N + column] * jacobian[column]
+                    priorVariance += jacobian[row] * sum
+                }
+                priorVariance = max(priorVariance, MIN_VARIANCE)
+            }
+            // The floor is what stops the remaining down-weighting becoming a
+            // refusal. It bounds the gain reduction to about 3x rather than 25x.
             val effectiveVariance = observationVariance / max(weight, MIN_ROBUST_WEIGHT)
             if (index == AdaptiveV2Mode.STEADY.ordinal) {
                 updateTrace.observation = observation
@@ -372,7 +460,7 @@ internal class AdaptiveV2Estimator {
                 updateTrace.b = mode.x[V2.B]; updateTrace.i = mode.x[V2.I]; updateTrace.v = mode.x[V2.V]
             }
 
-            modeLogLikelihood[index] = noiseModel.logLikelihood(innovation, priorVariance)
+            modeLogLikelihood[index] = noiseModel.logLikelihood(innovation, likelihoodVariance)
             val probabilityWeight = modeProbability[index].toDouble()
             representativeInnovation += probabilityWeight * innovation
             representativeVariance += probabilityWeight * innovationVariance
@@ -439,7 +527,7 @@ internal class AdaptiveV2Estimator {
                 // An inconsistent anchor is down-weighted, not obeyed. Nothing
                 // here forces an instantaneous discontinuity.
                 val weight = noiseModel.robustWeight(innovation * innovation / priorVariance)
-                mode.update(jacobian, innovation, REFERENCE_VARIANCE / max(weight, MIN_ROBUST_WEIGHT))
+                mode.update(jacobian, innovation, REFERENCE_VARIANCE / max(weight, MIN_ANCHOR_ROBUST_WEIGHT))
                 AdaptiveV2ObservationModel.clampSensorStates(mode.x)
             }
             reweightModesFromLikelihood()
@@ -755,7 +843,30 @@ internal class AdaptiveV2Estimator {
 
         private const val MIN_PROBABILITY = 1e-4
         private const val MIN_VARIANCE = 1e-8
-        private const val MIN_ROBUST_WEIGHT = 0.02
+        /**
+         * Floor on the robust down-weighting. Raised from 0.02: at the old
+         * floor a real excursion inflated the observation variance fiftyfold
+         * and the filter simply declined to follow it.
+         */
+        private const val MIN_ROBUST_WEIGHT = 0.28
+
+        /**
+         * The sensor stream earns the raised floor above because a large
+         * innovation there is usually the model being wrong. A typed
+         * fingerstick has no such excuse: an absurd anchor must stay
+         * down-weighted to near-refusal, and sharing the raised floor let one
+         * drag the estimate 1.7 mmol/L.
+         */
+        private const val MIN_ANCHOR_ROBUST_WEIGHT = 0.02
+
+        /** Share of the unexplained innovation variance admitted into the glucose block. */
+        private const val SURPRISE_SHARE = 0.5
+
+        /** Ceiling on unexplained variance absorbed in one minute, in (mmol/L)^2. */
+        private const val SURPRISE_ABSORB_CAP = 4.0
+
+        /** B/I correlation preserved while admitting it, so B moves with I. */
+        private const val SURPRISE_CORRELATION = 0.9
         private const val PROBABILITY_TOLERANCE = 1e-3f
 
         private const val MIN_STEP_MINUTES = 0.25
