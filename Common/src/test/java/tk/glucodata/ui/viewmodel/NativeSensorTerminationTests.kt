@@ -1,32 +1,26 @@
 package tk.glucodata.ui.viewmodel
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 import tk.glucodata.NativeSensorTermination
 
 class NativeSensorTerminationTests {
     private class FakeAccess(
-        private val acquiredPointer: Long = 42L,
+        private val sensorPointer: Long = 42L,
         private val active: Array<String>? = emptyArray(),
         private val finishFailure: Throwable? = null,
     ) : NativeSensorTermination.Access {
         var finishedPointer: Long? = null
-        var acquiredSensorId: String? = null
-        var releasedPointer: Long? = null
+        var requestedSensorId: String? = null
 
-        override fun acquireDataPointer(sensorId: String): Long {
-            acquiredSensorId = sensorId
-            return acquiredPointer
+        override fun findSensorPointer(sensorId: String): Long {
+            requestedSensorId = sensorId
+            return sensorPointer
         }
 
         override fun finish(dataPointer: Long) {
             finishFailure?.let { throw it }
             finishedPointer = dataPointer
-        }
-
-        override fun releaseDataPointer(dataPointer: Long) {
-            releasedPointer = dataPointer
         }
 
         override fun activeSensors(): Array<String>? = active
@@ -37,7 +31,7 @@ class NativeSensorTerminationTests {
     }
 
     @Test
-    fun finishAndConfirm_usesLiveDataPointerWithoutReconstructingIt() {
+    fun finishAndConfirm_targetsTheExactNamedSensorInsteadOfTheLiveCallbackPointer() {
         val access = FakeAccess()
 
         val result = NativeSensorTermination.finishAndConfirm(
@@ -48,9 +42,8 @@ class NativeSensorTerminationTests {
         )
 
         assertEquals(NativeSensorTermination.Result.CONFIRMED, result)
-        assertEquals(73L, access.finishedPointer)
-        assertNull(access.acquiredSensorId)
-        assertNull(access.releasedPointer)
+        assertEquals(42L, access.finishedPointer)
+        assertEquals("OLD-SENSOR", access.requestedSensorId)
     }
 
     @Test
@@ -60,7 +53,7 @@ class NativeSensorTerminationTests {
         val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 73L, access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.STILL_ACTIVE, result)
-        assertEquals(73L, access.finishedPointer)
+        assertEquals(42L, access.finishedPointer)
     }
 
     @Test
@@ -73,25 +66,24 @@ class NativeSensorTerminationTests {
     }
 
     @Test
-    fun finishAndConfirm_acquiresAndReleasesPointerForCallbackFreeSensor() {
+    fun finishAndConfirm_usesTheSameNamedPathForCallbackFreeSensor() {
         val access = FakeAccess(active = arrayOf("new-sensor"))
 
         val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.CONFIRMED, result)
-        assertEquals("OLD-SENSOR", access.acquiredSensorId)
+        assertEquals("OLD-SENSOR", access.requestedSensorId)
         assertEquals(42L, access.finishedPointer)
-        assertEquals(42L, access.releasedPointer)
     }
 
     @Test
     fun finishAndConfirm_rejectsAnActiveSensorWithoutAPointer() {
-        val access = FakeAccess(acquiredPointer = 0L, active = arrayOf("OLD-SENSOR"))
+        val access = FakeAccess(sensorPointer = 0L, active = arrayOf("OLD-SENSOR"))
 
         val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.STILL_ACTIVE, result)
-        assertNull(access.finishedPointer)
+        assertEquals(null, access.finishedPointer)
     }
 
     @Test
@@ -104,13 +96,12 @@ class NativeSensorTerminationTests {
     }
 
     @Test
-    fun finishAndConfirm_releasesCallbackFreePointerAfterNativeFailure() {
+    fun finishAndConfirm_reportsNamedNativeFailureWithoutReconnecting() {
         val access = FakeAccess(finishFailure = IllegalStateException("test failure"))
 
         val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.FAILED, result)
-        assertEquals("OLD-SENSOR", access.acquiredSensorId)
-        assertEquals(42L, access.releasedPointer)
+        assertEquals("OLD-SENSOR", access.requestedSensorId)
     }
 }
