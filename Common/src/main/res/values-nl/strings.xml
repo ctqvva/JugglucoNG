@@ -842,6 +842,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="interval">Interval</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Glucosegeschiedenis verwijderen</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Laatste BLE-fout</string>
     <string name="libre_setup_done">Klaar</string>
@@ -927,6 +928,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="scan_accuchek">Accu-Chek scannen</string>
     <string name="scan_caresens_air">Scan CareSens Air</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Sensorindex</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>

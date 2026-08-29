@@ -560,6 +560,46 @@ extern "C" JNIEXPORT void JNICALL fromjava(finishSensor)(JNIEnv *env, jclass cl,
   finishsensor(sensorptr, sensorindex);
 }
 
+static std::vector<int> sensorIndicesFromId(JNIEnv *env, jstring jsensor) {
+  if (!sensors || !jsensor)
+    return {};
+  const char *sensorChars = env->GetStringUTFChars(jsensor, nullptr);
+  if (!sensorChars)
+    return {};
+  const auto sensorindices =
+      sensors->sensorindices(std::string_view(sensorChars));
+  env->ReleaseStringUTFChars(jsensor, sensorChars);
+  return sensorindices;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(removeSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const auto sensorindices = sensorIndicesFromId(env, jsensor);
+  if (sensorindices.empty()) {
+    LOGAR("removeSensorById unknown sensor");
+    return JNI_FALSE;
+  }
+  bool removedAll = true;
+  for (const int sensorindex : sensorindices) {
+    SensorGlucoseData *sensorptr = sensors->getSensorData(sensorindex);
+    LOGGER("removeSensorById %s index=%d of %zu\n",
+           sensors->getsensor(sensorindex)->showsensorname(), sensorindex,
+           sensorindices.size());
+    if (!sensors->removesensor(sensorindex)) {
+      removedAll = false;
+      continue;
+    }
+    if (sensorptr)
+      setstreaming(sensorptr);
+    if (!sensors->getsensor(sensorindex)->wasRemovedByUser())
+      removedAll = false;
+  }
+  setusedsensors();
+  if (backup)
+    backup->wakebackup(Backup::wakeall);
+  return removedAll ? JNI_TRUE : JNI_FALSE;
+}
+
 static void unfinishsensor(SensorGlucoseData *sensorptr, int sensorindex) {
   LOGGER("unfinishSensor %s\n", sensorptr->showsensorname().data());
   sensors->unfinishsensor(sensorindex);
@@ -909,6 +949,28 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(resolveFullSensorName)(
   jstring result = (name && name[0]) ? envin->NewStringUTF(name) : nullptr;
   envin->ReleaseStringUTFChars(sensorId, str);
   return result;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorIndex)(
+    JNIEnv *envin, jclass cl, jstring sensorId) {
+  if (!sensors || !sensorId)
+    return -1;
+  const char *str = envin->GetStringUTFChars(sensorId, nullptr);
+  if (!str)
+    return -1;
+
+  int ind = sensors->sensorindex(str);
+  if (ind < 0) {
+    ind = sensors->sensorindexshort(str);
+  }
+  envin->ReleaseStringUTFChars(sensorId, str);
+  return ind;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorIndexFromDataPtr)(
+    JNIEnv *envin, jclass cl, jlong dataptr) {
+  const streamdata *sdata = reinterpret_cast<const streamdata *>(dataptr);
+  return sdata ? sdata->sensorindex : -1;
 }
 
 /*
@@ -1628,7 +1690,7 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
   hist->sensorerror = false;
   const int ind = hist->sensorIndex;
   if (auto *sens = sensors->getsensor(ind)) {
-    sens->finished = 0;
+    sens->reactivateFromData();
     if (startTimeSec > 0 &&
         (sens->starttime == 0 ||
          static_cast<uint32_t>(startTimeSec) < sens->starttime)) {
@@ -2018,8 +2080,8 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
       sdata->hist->sensorerror = false;
       if (senso->finished) {
         LOGGER("processTooth finished=%d\n", senso->finished);
-        senso->finished = 0;
-        backup->resensordata(sdata->sensorindex);
+        if (senso->reactivateFromData())
+          backup->resensordata(sdata->sensorindex);
       }
 
       backup->wakebackup(Backup::wakestream);

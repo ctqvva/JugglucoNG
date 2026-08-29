@@ -811,6 +811,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="isdisconnected">Disconnected</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Glikoz geçmişini sil</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Son BLE hatası</string>
@@ -911,6 +912,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="scan_caresens_air">CareSens Air\'i tarayın</string>
     <string name="schedules">Schedules</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Sensör dizini</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>

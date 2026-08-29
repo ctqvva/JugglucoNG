@@ -635,6 +635,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="wipe_data">Tirtir xogta dareenka</string>
     <string name="disconnect">Xiriirka ka jar</string>
     <string name="keep_data">Hayso macluumaadka dareenka</string>
+    <string name="remove_sensor_history">Tirtir taariikhda gulukoosta</string>
 
     <string name="reconnect_sensor_title">Dib u xidhid Sensor?</string>
     <string name="reconnect_sensor_desc">Tani waxay dib u dajin doontaa isku xidhka waxayna isku dayi doontaa in dib loo xidho.</string>
@@ -659,6 +660,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="last_ble_status">Heerka BLE ee u dambeeyay</string>
     <string name="last_ble_error">Ciladdii BLE ee u dambeysay</string>
     <string name="sensor_address">Cinwaanka</string>
+    <string name="sensor_index">Tusmada dareemaha</string>
     <string name="sensor_started">bilaabay</string>
     <string name="sensor_ends_officially">Si Rasmi Ah U Dhamaatay</string>
     <string name="sensor_expected_end">Dhamaadka la filayo</string>

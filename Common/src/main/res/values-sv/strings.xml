@@ -773,6 +773,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="isdisconnected">Disconnected</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Ta bort glukoshistorik</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Senaste BLE-felet</string>
@@ -879,6 +880,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_caresens_air">Skanna CareSens Air</string>
     <string name="schedules">Schedules</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Sensorindex</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>

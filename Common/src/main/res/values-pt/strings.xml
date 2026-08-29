@@ -708,6 +708,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="isdisconnected">Disconnected</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Eliminar histórico de glicose</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Último erro de BLE</string>
@@ -847,6 +848,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="secret">api_secret</string>
     <string name="sendfrom">"Send from: "</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Índice do sensor</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>

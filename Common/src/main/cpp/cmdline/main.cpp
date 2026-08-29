@@ -875,8 +875,7 @@ void     processglucosevalue(int sendindex,int newstart) {
             if(dif<maxbluetoothage) {
                 sensor *senso=sensors->getsensor(sendindex);
                 logprint("finished=%d not finished %s ",senso->finished,ctime(&tim));
-                if(senso->finished) {
-                    senso->finished=0;
+                if(senso->finished && senso->reactivateFromData()) {
                     backup->resensordata(sendindex);
                     }
 

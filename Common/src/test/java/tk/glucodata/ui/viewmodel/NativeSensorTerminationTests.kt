@@ -6,21 +6,15 @@ import tk.glucodata.NativeSensorTermination
 
 class NativeSensorTerminationTests {
     private class FakeAccess(
-        private val sensorPointer: Long = 42L,
         private val active: Array<String>? = emptyArray(),
-        private val finishFailure: Throwable? = null,
+        private val removeFailure: Throwable? = null,
     ) : NativeSensorTermination.Access {
-        var finishedPointer: Long? = null
-        var requestedSensorId: String? = null
+        var removedSensorId: String? = null
 
-        override fun findSensorPointer(sensorId: String): Long {
-            requestedSensorId = sensorId
-            return sensorPointer
-        }
-
-        override fun finish(dataPointer: Long) {
-            finishFailure?.let { throw it }
-            finishedPointer = dataPointer
+        override fun remove(sensorId: String): Boolean {
+            removeFailure?.let { throw it }
+            removedSensorId = sensorId
+            return true
         }
 
         override fun activeSensors(): Array<String>? = active
@@ -31,77 +25,71 @@ class NativeSensorTerminationTests {
     }
 
     @Test
-    fun finishAndConfirm_targetsTheExactNamedSensorInsteadOfTheLiveCallbackPointer() {
-        val access = FakeAccess()
+    fun removeAndConfirm_resolvesTheSelectedRecordBySensorId() {
+        val access = FakeAccess(active = arrayOf("XX0TEST000A"))
 
-        val result = NativeSensorTermination.finishAndConfirm(
-            "OLD-SENSOR",
-            73L,
+        val result = NativeSensorTermination.removeAndConfirm(
+            "XX0TEST000B",
             access,
             exactMatch,
         )
 
         assertEquals(NativeSensorTermination.Result.CONFIRMED, result)
-        assertEquals(42L, access.finishedPointer)
-        assertEquals("OLD-SENSOR", access.requestedSensorId)
+        assertEquals("XX0TEST000B", access.removedSensorId)
     }
 
     @Test
-    fun finishAndConfirm_rejectsAnEntryThatRemainsActive() {
+    fun removeAndConfirm_rejectsAnEntryThatRemainsActive() {
         val access = FakeAccess(active = arrayOf("old-sensor", "new-sensor"))
 
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 73L, access, exactMatch)
+        val result = NativeSensorTermination.removeAndConfirm("OLD-SENSOR", access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.STILL_ACTIVE, result)
-        assertEquals(42L, access.finishedPointer)
+        assertEquals("OLD-SENSOR", access.removedSensorId)
     }
 
     @Test
-    fun finishAndConfirm_doesNotClaimSuccessWhenActiveStateIsUnavailable() {
+    fun removeAndConfirm_rejectsOneSurvivingDuplicateEntry() {
+        val access = FakeAccess(active = arrayOf("OLD-SENSOR", "OLD-SENSOR", "NEW-SENSOR"))
+
+        val result = NativeSensorTermination.removeAndConfirm("old-sensor", access)
+
+        assertEquals(NativeSensorTermination.Result.STILL_ACTIVE, result)
+    }
+
+    @Test
+    fun removeAndConfirm_doesNotCollapseDifferentPhysicalSensorIds() {
+        val access = FakeAccess(active = arrayOf("XX0TEST000A"))
+
+        val result = NativeSensorTermination.removeAndConfirm("XX0TEST000B", access)
+
+        assertEquals(NativeSensorTermination.Result.CONFIRMED, result)
+    }
+
+    @Test
+    fun removeAndConfirm_doesNotClaimSuccessWhenActiveStateIsUnavailable() {
         val access = FakeAccess(active = null)
 
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 73L, access, exactMatch)
+        val result = NativeSensorTermination.removeAndConfirm("OLD-SENSOR", access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.ACTIVE_STATE_UNAVAILABLE, result)
     }
 
     @Test
-    fun finishAndConfirm_usesTheSameNamedPathForCallbackFreeSensor() {
-        val access = FakeAccess(active = arrayOf("new-sensor"))
+    fun removeAndConfirm_acceptsAnAlreadyInactiveSensor() {
+        val access = FakeAccess(active = arrayOf("NEW-SENSOR"))
 
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
+        val result = NativeSensorTermination.removeAndConfirm("OLD-SENSOR", access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.CONFIRMED, result)
-        assertEquals("OLD-SENSOR", access.requestedSensorId)
-        assertEquals(42L, access.finishedPointer)
     }
 
     @Test
-    fun finishAndConfirm_rejectsAnActiveSensorWithoutAPointer() {
-        val access = FakeAccess(sensorPointer = 0L, active = arrayOf("OLD-SENSOR"))
+    fun removeAndConfirm_reportsNativeFailure() {
+        val access = FakeAccess(removeFailure = IllegalStateException("test failure"))
 
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
-
-        assertEquals(NativeSensorTermination.Result.STILL_ACTIVE, result)
-        assertEquals(null, access.finishedPointer)
-    }
-
-    @Test
-    fun finishAndConfirm_reportsNativeFailure() {
-        val access = FakeAccess(finishFailure = IllegalStateException("test failure"))
-
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 73L, access, exactMatch)
+        val result = NativeSensorTermination.removeAndConfirm("OLD-SENSOR", access, exactMatch)
 
         assertEquals(NativeSensorTermination.Result.FAILED, result)
-    }
-
-    @Test
-    fun finishAndConfirm_reportsNamedNativeFailureWithoutReconnecting() {
-        val access = FakeAccess(finishFailure = IllegalStateException("test failure"))
-
-        val result = NativeSensorTermination.finishAndConfirm("OLD-SENSOR", 0L, access, exactMatch)
-
-        assertEquals(NativeSensorTermination.Result.FAILED, result)
-        assertEquals("OLD-SENSOR", access.requestedSensorId)
     }
 }
