@@ -72,6 +72,42 @@ class AdaptiveV2ArtifactContractTest {
         assertTrue("did not settle back: $after", after.all { abs(it - 6f) < 0.4f })
     }
 
+    /**
+     * The paired case, and the reason a sign flip cannot be the test.
+     *
+     * A genuine sharp peak produces the same innovation signature as a spike:
+     * large positive, then large negative. The difference is only visible in
+     * where the signal ends up — a spike returns to where it started, a turn
+     * does not. These two tests differ solely in that, and must come out
+     * opposite.
+     */
+    @Test
+    fun aGenuineSharpPeakIsNotAnArtifactAndTurnsImmediately() {
+        val (estimator, n) = settled()
+        // Up hard, turn, and keep going down: never returns to 6.
+        val up = listOf(7.1f, 8.3f, 9.2f)
+        val down = listOf(8.6f, 7.9f, 7.2f, 6.6f)
+        var minute = n
+        val rising = up.map { estimator.process(sample(++minute, it))!! }
+        val falling = down.map { estimator.process(sample(++minute, it))!! }
+        println("PEAK obs->est " + (up + down).zip(rising + falling)
+            .joinToString(" ") { "%.1f/%.2f".format(it.first, it.second.glucoseMmol) })
+
+        val turn = falling.first()
+        assertTrue("a real peak was called an artifact: ${turn.artifactProbability}",
+            turn.artifactProbability < 0.3f)
+        // The turn is followed on the minute it happens, not after confirmation.
+        assertTrue(
+            "the turn was not followed: peak=${rising.last().glucoseMmol} turn=${turn.glucoseMmol}",
+            turn.glucoseMmol < rising.last().glucoseMmol,
+        )
+        // And the continued fall keeps its velocity rather than being damped out.
+        assertTrue("velocity was stripped from a real turn: ${falling.last().rateMmolPerMin}",
+            falling.last().rateMmolPerMin < -0.1f)
+        assertTrue("the fall was not tracked: ${falling.last().glucoseMmol}",
+            falling.last().glucoseMmol < 7.4f)
+    }
+
     @Test
     fun aSustainedMoveIsNotTreatedAsAReversalArtifact() {
         val (estimator, n) = settled()

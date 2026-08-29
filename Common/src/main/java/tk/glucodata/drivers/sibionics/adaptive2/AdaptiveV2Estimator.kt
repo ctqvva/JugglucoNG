@@ -135,8 +135,22 @@ internal class AdaptiveV2Estimator {
      */
     private var surpriseVariance = 0.0
 
-    /** Previous minute's normalised innovation, for the reversal test. */
-    private var previousNormalised = 0.0
+    /** Telemetry for the sample currently being folded in. */
+    private var telemetryForUpdate = AdaptiveV2Telemetry(0f, 0f, 0f, 0f, 1f, false)
+
+    /**
+     * Distrust carried in from earlier minutes.
+     *
+     * Deliberately not this minute's reversal evidence. A reversal is a
+     * statement about the *previous* sample, and the sample that proves it is
+     * the reliable one — suppressing it would be exactly backwards, and would
+     * leave the estimate stuck at the artifact it just disproved.
+     */
+    private var episodeDistrust = 0.0
+
+    /** Last three calibrated observations: the reversal test is about the signal, not the fit. */
+    private var observationBeforeLast = Double.NaN
+    private var lastObservation = Double.NaN
 
     private val transitionMatrix = DoubleArray(V2.N * V2.N)
     private val processNoise = DoubleArray(V2.N)
@@ -201,8 +215,10 @@ internal class AdaptiveV2Estimator {
         noiseModel.reset()
         lagEstimator.reset()
         reversalEvidence = 0.0
+        episodeDistrust = 0.0
         surpriseVariance = 0.0
-        previousNormalised = 0.0
+        observationBeforeLast = Double.NaN
+        lastObservation = Double.NaN
         initialized = false
         lastIndex = -1
         lastTimestampMs = 0L
@@ -269,6 +285,13 @@ internal class AdaptiveV2Estimator {
 
         val observationVariance = noiseModel.observationVariance(telemetry, sample.index)
         vendorSensitivityDrift = sample.vendorSensitivityDrift
+        telemetryForUpdate = telemetry
+        // Before the update: a reversal means the state was dragged by a sample
+        // now known to be bad, so undoing that has to happen before the sample
+        // that proves it is folded in — otherwise the correction lands a minute
+        // late, which is the very thing this estimator exists not to do.
+        episodeDistrust = reversalEvidence * REVERSAL_DECAY
+        detectReversal(observation.toDouble())
         updateWithChemical(observation.toDouble(), observationVariance)
         // Before combine(): the interval reported for this minute has to reflect
         // how surprising this minute was, not the previous one.
@@ -286,7 +309,6 @@ internal class AdaptiveV2Estimator {
             dtMinutes = elapsed.minutes,
             trust = (1.0 - estimate.artifactProbability.toDouble()).coerceIn(0.0, 1.0),
         )
-        detectReversal()
         noiseModel.adapt(
             innovation = lastInnovation,
             priorVariance = lastMeasurementVariance,
@@ -380,8 +402,30 @@ internal class AdaptiveV2Estimator {
             }
             priorVariance = max(priorVariance, MIN_VARIANCE)
 
-            // One IRLS step of the Student-t likelihood: down-weight, do not reject.
-            val weight = noiseModel.robustWeight(innovation * innovation / priorVariance)
+            // Down-weighting is gated on evidence, not on surprise.
+            //
+            // The Student-t step keys off innovation size alone, which makes
+            // "this reading is unexpected" and "this reading is wrong" the same
+            // statement. They are not. Measured on a 1.2 mmol/L per minute ramp
+            // it held the estimate to 67% of each minute's move and left it
+            // 0.85 below the signal, which is the same suppression that stops a
+            // rapid fall reaching where it actually went.
+            //
+            // So the robust weight is now scaled by how much independent reason
+            // there is to distrust the sample: telemetry disturbance, vendor
+            // quality flags, and a previous excursion that returned to where it
+            // started. With no such evidence the observation is taken at face
+            // value however surprising it is; with strong evidence the full
+            // Student-t suppression applies.
+            val rawWeight = noiseModel.robustWeight(innovation * innovation / priorVariance)
+            val distrust = max(
+                episodeDistrust,
+                AdaptiveV2ModeModel.artifactEvidenceFor(
+                    telemetryForUpdate.impedanceDisturbance,
+                    telemetryForUpdate.vendorArtifactHint,
+                ).toDouble(),
+            ).coerceIn(0.0, 1.0)
+            val weight = 1.0 - distrust * (1.0 - rawWeight)
             val effectiveVariance = observationVariance / max(weight, MIN_ROBUST_WEIGHT)
             if (index == AdaptiveV2Mode.STEADY.ordinal) {
                 updateTrace.observation = observation
@@ -459,25 +503,52 @@ internal class AdaptiveV2Estimator {
      * spike produced, with their variances inflated so the next real move is
      * still free to re-establish them.
      */
-    private fun detectReversal() {
-        val normalised = lastInnovation / sqrt(max(lastMeasurementVariance, MIN_VARIANCE))
-        val reversed = normalised * previousNormalised < 0.0 &&
-            abs(normalised) > REVERSAL_SIGMA && abs(previousNormalised) > REVERSAL_SIGMA
-        reversalEvidence = if (reversed) {
-            val strength = min(abs(normalised), abs(previousNormalised)) / REVERSAL_FULL_SIGMA
+    private fun detectReversal(observation: Double) {
+        // A sign flip is not evidence of anything on its own.
+        //
+        // A genuine sharp peak produces exactly one large positive innovation
+        // followed by a large negative one, so keying off the sign alone
+        // classifies every real turning point as an artifact and strips the
+        // velocity out of it — the opposite of what this estimator is for.
+        //
+        // What separates a spike from a turn is whether the signal came *back*.
+        // An isolated bad sample leaves the level where it started: the
+        // excursion and the return are the same size. A real turn moves and
+        // stays moved, so the return is small against the excursion that
+        // preceded it. That is measured on the observations themselves, using
+        // only samples already in hand.
+        val excursion = lastObservation - observationBeforeLast
+        val net = observation - observationBeforeLast
+        val returned = observationBeforeLast.isFinite() && lastObservation.isFinite() &&
+            abs(excursion) > REVERSAL_MIN_EXCURSION &&
+            abs(net) < RETURN_FRACTION * abs(excursion)
+
+        reversalEvidence = if (returned) {
+            val strength = ((abs(excursion) - REVERSAL_MIN_EXCURSION) /
+                (REVERSAL_FULL_EXCURSION - REVERSAL_MIN_EXCURSION)).coerceIn(0.0, 1.0)
+            // The spike was followed, which was right, but it left velocity
+            // behind and velocity is what would carry a one-minute artifact
+            // forward as a multi-minute lead. Damp it, and release its variance
+            // so a real move can re-establish it on the very next sample.
             for (index in 0 until AdaptiveV2Mode.COUNT) {
                 val mode = modes[index]
                 mode.x[V2.V] *= REVERSAL_VELOCITY_DAMPING
                 mode.x[V2.ACC] *= REVERSAL_VELOCITY_DAMPING
                 mode.setAt(V2.V, V2.V, mode.at(V2.V, V2.V) * REVERSAL_VARIANCE_RELEASE)
                 mode.setAt(V2.ACC, V2.ACC, mode.at(V2.ACC, V2.ACC) * REVERSAL_VARIANCE_RELEASE)
+                // The level was dragged by a sample now known to be an
+                // artifact, so the belief in it is worth less than the
+                // covariance says. Releasing it lets the sample that proved the
+                // artifact also undo it, in one step rather than several.
+                mode.setAt(V2.B, V2.B, mode.at(V2.B, V2.B) * REVERSAL_LEVEL_RELEASE)
                 mode.symmetrize()
             }
-            max(reversalEvidence, strength.coerceIn(0.0, 1.0))
+            max(reversalEvidence, strength)
         } else {
             reversalEvidence * REVERSAL_DECAY
         }
-        previousNormalised = normalised
+        observationBeforeLast = lastObservation
+        lastObservation = observation
     }
 
     private fun applyReferences(references: List<AdaptiveV2Reference>, sample: AdaptiveV2Sample) {
@@ -651,8 +722,10 @@ internal class AdaptiveV2Estimator {
         noiseModel.reset()
         lagEstimator.reset()
         reversalEvidence = 0.0
+        episodeDistrust = 0.0
         surpriseVariance = 0.0
-        previousNormalised = 0.0
+        observationBeforeLast = Double.NaN
+        lastObservation = Double.NaN
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
             mode.reset()
@@ -830,17 +903,26 @@ internal class AdaptiveV2Estimator {
 
         private const val MIN_PROBABILITY = 1e-4
         private const val MIN_VARIANCE = 1e-8
-        /** Both innovations must exceed this, in sigma, for a sign flip to count. */
-        private const val REVERSAL_SIGMA = 1.6
+        /** Smallest one-minute excursion, in mmol/L, worth testing for a return. */
+        private const val REVERSAL_MIN_EXCURSION = 0.6
 
-        /** Sigma at which reversal evidence is treated as conclusive. */
-        private const val REVERSAL_FULL_SIGMA = 4.0
+        /** Excursion size at which a full return is conclusive evidence. */
+        private const val REVERSAL_FULL_EXCURSION = 2.5
+
+        /**
+         * How far back toward the pre-excursion level the signal must come for
+         * the excursion to count as isolated rather than a genuine turn.
+         */
+        private const val RETURN_FRACTION = 0.4
 
         /** Velocity left after a reversal: a spike must not become a trend. */
         private const val REVERSAL_VELOCITY_DAMPING = 0.15
 
         /** Variance released with it, so a real move can re-establish velocity at once. */
         private const val REVERSAL_VARIANCE_RELEASE = 6.0
+
+        /** Level variance released on a confirmed reversal, so the correction lands at once. */
+        private const val REVERSAL_LEVEL_RELEASE = 12.0
 
         private const val REVERSAL_DECAY = 0.55
 
@@ -850,7 +932,7 @@ internal class AdaptiveV2Estimator {
         /** Surprise fades fast: a confirmed move is no longer a surprising one. */
         private const val SURPRISE_DECAY = 0.35
 
-        private const val MIN_ROBUST_WEIGHT = 0.02
+        private const val MIN_ROBUST_WEIGHT = 0.30
         private const val PROBABILITY_TOLERANCE = 1e-3f
 
         private const val MIN_STEP_MINUTES = 0.25

@@ -258,6 +258,10 @@ internal object AdaptiveV2ModeModel {
      *   minute; a shorter substep is interpolated toward the identity so mode
      *   persistence scales with real time instead of with call count.
      */
+    /** Artifact evidence for one sample as a scalar, for consumers outside the mode prior. */
+    fun artifactEvidenceFor(impedanceDisturbance: Float, vendorArtifactHint: Float): Float =
+        artifactPrior.artifactEvidence(impedanceDisturbance, vendorArtifactHint).coerceIn(0f, 1f)
+
     fun transition(
         from: AdaptiveV2Mode,
         impedanceDisturbance: Float,

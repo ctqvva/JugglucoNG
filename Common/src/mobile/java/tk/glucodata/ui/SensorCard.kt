@@ -724,16 +724,13 @@ fun SensorCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // No animateContentSize here. Animating the height of the
+                    // same node that owns the scroll makes the sheet's measured
+                    // height move every frame while a drag is in progress, which
+                    // is the jank and the refusal to swipe down to close. The
+                    // ribbon row already animates itself via AnimatedVisibility,
+                    // and the height pin releases through contentKey.
                     .verticalScroll(rememberScrollState())
-                    // So the sheet closes the gap rather than snapping: when the
-                    // ribbon row leaves and the pin releases, the height change
-                    // is animated instead of appearing between two frames.
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        )
-                    )
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp)
             ) {
