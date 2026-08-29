@@ -24,7 +24,7 @@ internal fun reusableQuickPairIndex(
         !connection.receivesData &&
         when (kind) {
             QuickPairKind.HYBRID -> connection.isIce && !connection.iceSide
-            QuickPairKind.LOCAL -> !connection.isIce && connection.label?.startsWith("auto") == true
+            QuickPairKind.LOCAL -> !connection.isIce && connection.label == "Local Clone"
         }
 }?.index
 

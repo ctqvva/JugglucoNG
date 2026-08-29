@@ -611,22 +611,11 @@ void callshowsensorinfo(const char *text, SensorGlucoseData *sensorptr) {
 }
 
 void render() {
-  LOGAR("Render");
-  if (jobject curve = getglucosecurve()) {
-    JNIEnv *env = getenv();
-    struct method {
-      jmethodID requestRendermeth;
-      method(JNIEnv *env) {
-        jclass cl = env->FindClass("android/opengl/GLSurfaceView");
-        requestRendermeth = env->GetMethodID(cl, "requestRender", "()V");
-        env->DeleteLocalRef(cl);
-      };
-    };
-    static method meth(env);
-    env->CallVoidMethod(curve, meth.requestRendermeth);
-    env->DeleteLocalRef(curve);
-  }
-  //   onestep();
+  // GlucoseCurve has been a plain View since the legacy OpenGL renderer was
+  // removed. Calling a GLSurfaceView method ID on it is invalid JNI and crashed
+  // the ICE receiver whenever it handled srender. Java's replacement
+  // requestRender() is intentionally a no-op, so the native path is one too.
+  LOGAR("Render ignored: legacy renderer removed");
 }
 #endif
 extern NVGcontext *genVG;

@@ -9,7 +9,7 @@ import org.junit.Test
 class MirrorConnectionPolicyTests {
     private fun connection(
         index: Int,
-        label: String? = "auto$index",
+        label: String? = "Local Clone",
         isIce: Boolean = false,
         iceSide: Boolean = false,
         isWearOs: Boolean = false,
@@ -39,9 +39,9 @@ class MirrorConnectionPolicyTests {
     fun localQrReusesOnlyGeneratedPendingSender() {
         val connections = listOf(
             connection(1, label = "Kitchen"),
-            connection(2, label = "auto2", receivesData = true),
-            connection(3, label = "auto3", isPending = false),
-            connection(4, label = "auto4")
+            connection(2, receivesData = true),
+            connection(3, isPending = false),
+            connection(4)
         )
 
         assertEquals(4, reusableQuickPairIndex(connections, QuickPairKind.LOCAL))
