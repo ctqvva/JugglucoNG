@@ -1156,6 +1156,10 @@ class SensorViewModel : ViewModel() {
     // Edit 39d: AiDex-safe reconnect. For AiDex, restart vendor stack instead of
     // calling native resetbluetooth (SIGSEGV risk). For legacy sensors, use proven sequence.
     fun reconnectSensor(serial: String, wipeData: Boolean = false) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) {
+            android.util.Log.w("SensorVM", "Ignoring local reconnect for Clone sensor $serial")
+            return
+        }
         val gatt = findGatt(serial)
         if (gatt != null) {
             viewModelScope.launch {

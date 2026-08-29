@@ -1190,6 +1190,38 @@ public class SensorBluetooth {
         return gatt == null ? 0L : gatt.constatchange[1];
     }
 
+    /** Keep mirrored sensor records visible without claiming their physical transmitter. */
+    public static void blockLocalCloneConnection(String sensorId) {
+        if (sensorId == null || sensorId.isEmpty()) return;
+        synchronized (gattcallbacks) {
+            for (SuperGattCallback callback : gattcallbacks) {
+                if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
+                    callback.setPause(true);
+                    callback.closeGattTransport();
+                }
+            }
+        }
+    }
+
+    public static void retireCloneSensor(String sensorId) {
+        if (sensorId == null || sensorId.isEmpty()) return;
+        synchronized (gattcallbacks) {
+            for (int index = gattcallbacks.size() - 1; index >= 0; index--) {
+                SuperGattCallback callback = gattcallbacks.get(index);
+                if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
+                    callback.free();
+                    gattcallbacks.remove(index);
+                }
+            }
+            Natives.setmaxsensors(gattcallbacks.size());
+        }
+        final String current = SensorIdentity.resolveMainSensor();
+        if (SensorIdentity.matches(current, sensorId)) {
+            final String replacement = resolveReplacementSensorSerial(sensorId);
+            setCurrentSensorSelection(replacement != null ? replacement : "");
+        }
+    }
+
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---
     public static void addAiDexSensor(Context context, String name, String address) {
         if (context == null || name == null || name.trim().isEmpty() || address == null || address.trim().isEmpty()) {

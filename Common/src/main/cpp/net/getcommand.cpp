@@ -46,6 +46,7 @@
 extern Backup *backup;
 extern void        processglucosevalue(int sendindex,int newstart=-1);
 extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
+extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 
 //getdata filedata("/data/local/tmp/testdir");
@@ -164,10 +165,18 @@ static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) 
 }
 
 static void flushPendingMirrorSensorSyncs(int cloneTransport) {
+    const int current = sensors ? sensors->infoblockptr()->current : -1;
+    const char *primary = current >= 0 ? sensors->shortsensorname_chars(current) : nullptr;
+    bool primaryMarked = !primary || !primary[0];
     for (const auto &entry : pendingMirrorSensorSyncs) {
         javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport);
+        primaryMarked = primaryMarked || entry.first == primary;
     }
     pendingMirrorSensorSyncs.clear();
+    if (!primaryMarked) {
+        javaMirrorSyncSensor(primary, false, cloneTransport);
+    }
+    javaMirrorReconcilePrimarySensor(primary);
 }
 
 static bool isMirrorSensorInfoPath(std::string_view path) {
@@ -504,8 +513,11 @@ for(int it=0;it<len;) {
                 return {it,comlen};
                 }
 extern                bool updateDevices() ;
-            ret=updateDevices();
             flushPendingMirrorSensorSyncs(cloneTransportCode());
+            // Mark imported sensor records as Clone before Java rebuilds the
+            // callback roster. Reversing this order briefly treated copied
+            // sensors as local and could start their BLE connection.
+            ret=updateDevices();
             LOGGERTAG("updateDevices=%d\n",ret);
             };break;
         case sbackup: 
@@ -1070,6 +1082,13 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
     }
     if (isMirrorSensorInfoPath(namesv) || isMirrorSensorDataPath(namesv)) {
         queueMirrorSyncSensorForPath(namesv, isMirrorSensorDataPath(namesv));
+    }
+    // The sender's primary index arrives in sensors.dat.  Some mirror sessions do not
+    // follow it with sresetdevices, so waiting for that command leaves imported sensors
+    // unmarked long enough for SensorBluetooth.updateDevices() to treat them as local BLE
+    // sensors.  Finalise Clone identity and primary selection as soon as sensors.dat lands.
+    if (namesv == "sensors/sensors.dat") {
+        flushPendingMirrorSensorSyncs(cloneTransport);
     }
     LOGARTAG("savedata success");
 #ifdef WEAROS

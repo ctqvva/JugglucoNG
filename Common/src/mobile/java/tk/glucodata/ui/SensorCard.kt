@@ -1462,7 +1462,23 @@ fun SensorCard(
                             }
                         }
 
-                        if (isHandedOff) {
+                        if (sensor.isCloneSource) {
+                            val selectedDescription = stringResource(R.string.sensor_display_selected)
+                            val selectDescription = stringResource(R.string.sensor_display_select)
+                            IconButton(
+                                onClick = { viewModel.setMain(sensor.serial) },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                            ) {
+                                Icon(
+                                    imageVector = if (sensor.isSelectedForDisplay) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                    contentDescription = if (sensor.isSelectedForDisplay) selectedDescription else selectDescription,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                        } else if (isHandedOff) {
                             IconButton(
                                 onClick = { viewModel.returnSensorToPhone(sensor.serial) },
                                 modifier = Modifier

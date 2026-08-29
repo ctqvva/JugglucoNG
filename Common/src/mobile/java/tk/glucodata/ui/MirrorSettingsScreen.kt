@@ -665,6 +665,9 @@ fun MirrorSettingsScreen(navController: NavController) {
                         cloneConnectionIndices(readMirrorConnectionSnapshots()).forEach { index ->
                             Natives.setHostDeactivated(index, !enabled)
                         }
+                        if (!enabled) {
+                            tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                        }
                         refreshMirrorNetworking(context)
                         triggerRefresh++
                     }
@@ -684,6 +687,9 @@ fun MirrorSettingsScreen(navController: NavController) {
                         onEdit = { editSheetPos = mirror.index },
                         onToggle = {
                             Natives.setHostDeactivated(mirror.index, !mirror.isDeactivated)
+                            if (!isCloneEnabled(readMirrorConnectionSnapshots())) {
+                                tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                            }
                             refreshMirrorNetworking(context)
                             triggerRefresh++
                         },
@@ -696,6 +702,9 @@ fun MirrorSettingsScreen(navController: NavController) {
                                 broadcastOwnsSender = false
                             }
                             Natives.deletebackuphost(mirror.index)
+                            if (!isCloneEnabled(readMirrorConnectionSnapshots())) {
+                                tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                            }
                             refreshMirrorNetworking(context)
                             triggerRefresh++
                         }

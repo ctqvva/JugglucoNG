@@ -142,6 +142,11 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
+    fun reconcilePrimaryCloneSensor(serial: String?) {
+        CloneSensorRegistry.reconcilePrimaryCloneSensor(serial)
+    }
+
+    @JvmStatic
     @JvmOverloads
     fun syncSensorFromNative(serial: String?, forceFull: Boolean = false) {
         if (serial.isNullOrBlank()) return
