@@ -104,6 +104,7 @@ data class SensorInfo(
     val isSelectedForDisplay: Boolean = false,
     val assignedColorArgb: Int = SensorVisuals.colorArgb(serial),
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
+    val sensorIndex: Int = -1,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -383,6 +384,13 @@ class SensorViewModel : ViewModel() {
                 Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
             SensorHandoffUiState.NONE -> null
         }
+        val sensorIndex = runCatching {
+            if (snapshot.dataptr != 0L) {
+                Natives.getSensorIndexFromDataPtr(snapshot.dataptr)
+            } else {
+                Natives.getSensorIndex(snapshot.serial)
+            }
+        }.getOrDefault(-1)
         return SensorInfo(
             serial = snapshot.serial,
             displayName = snapshot.displayName
@@ -439,6 +447,7 @@ class SensorViewModel : ViewModel() {
             resetCompensationActive = snapshot.resetCompensationActive,
             resetCompensationStatus = snapshot.resetCompensationStatus,
             handoffUiState = handoffUiState,
+            sensorIndex = sensorIndex,
         )
     }
 
@@ -623,6 +632,7 @@ class SensorViewModel : ViewModel() {
                             ?: persistedBleErrors.firstOrNull {
                                 SensorIdentity.matches(it.sensorId, sensorSerial)
                             }.takeIf { isActivelyReceiving }
+                        val sensorIndex = Natives.getSensorIndexFromDataPtr(gatt.dataptr)
                         val currentViewMode = nativeViewMode
                         val isActiveSensor = activeSensorSerial != null && SensorIdentity.matches(sensorSerial, activeSensorSerial)
     
@@ -656,6 +666,7 @@ class SensorViewModel : ViewModel() {
                             detailedStatus = displayStatus,
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
+                            sensorIndex = sensorIndex,
                         )
                     }
                 } catch (e: Exception) {
@@ -884,8 +895,8 @@ class SensorViewModel : ViewModel() {
         }
     }
 
-    private fun finishNativeSensor(serial: String, liveDataPointer: Long = 0L): Boolean {
-        val result = NativeSensorTermination.finishAndConfirm(serial, liveDataPointer)
+    private fun removeNativeSensor(serial: String): Boolean {
+        val result = NativeSensorTermination.removeAndConfirm(serial)
         if (result != NativeSensorTermination.Result.CONFIRMED) {
             android.util.Log.e(
                 "SensorViewModel",
@@ -924,7 +935,7 @@ class SensorViewModel : ViewModel() {
                     try { gatt.close() } catch (t: Throwable) {
                         android.util.Log.e("SensorVM", "terminateSensor AiDex close failed: ${t.message}")
                     }
-                    if (finishNativeSensor(gatt.SerialNumber ?: serial, gatt.dataptr)) {
+                    if (removeNativeSensor(gatt.SerialNumber ?: serial)) {
                         // Remove from SharedPreferences before sensorEnded so updateDevices()
                         // cannot reconstruct the callback.
                         removeAiDexFromPrefs(serial)
@@ -952,7 +963,7 @@ class SensorViewModel : ViewModel() {
                 } catch (t: Throwable) {
                     android.util.Log.e("SensorViewModel", "terminateSensor($serial) data wipe failed: ${t.message}", t)
                 }
-                if (finishNativeSensor(gatt.SerialNumber ?: serial, gatt.dataptr)) {
+                if (removeNativeSensor(gatt.SerialNumber ?: serial)) {
                     switchAwayFromSensor(serial)
                     SensorBluetooth.sensorEnded(serial)
                     removed = true
@@ -974,7 +985,7 @@ class SensorViewModel : ViewModel() {
                         try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
                         removed = true
                     }
-                } else if (finishNativeSensor(serial)) {
+                } else if (removeNativeSensor(serial)) {
                     switchAwayFromSensor(serial)
                     try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
                     removed = true

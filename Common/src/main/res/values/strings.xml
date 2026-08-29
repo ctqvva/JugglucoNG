@@ -657,6 +657,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wipe_data">Wipe sensor data</string>
     <string name="disconnect">Disconnect</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Delete glucose history</string>
 
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
@@ -681,6 +682,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Last BLE error</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Sensor index</string>
     <string name="sensor_started">Started</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>

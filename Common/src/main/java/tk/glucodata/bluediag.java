@@ -348,7 +348,7 @@ public class bluediag {
                             Log.stack(LOG_ID, "Could not finish " + serial, throwable);
                         }
                         final NativeSensorTermination.Result result =
-                                NativeSensorTermination.finishAndConfirm(serial, gat.dataptr);
+                                NativeSensorTermination.removeAndConfirm(serial);
                         if (result == NativeSensorTermination.Result.CONFIRMED) {
                             SensorBluetooth.sensorEnded(serial);
                         } else {

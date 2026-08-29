@@ -477,6 +477,7 @@
     <string name="wipe_data">Стереть данные</string>
     <string name="disconnect">Отключить</string>
     <string name="keep_data">Оставить информацию о датчике</string>
+    <string name="remove_sensor_history">Удалить историю глюкозы</string>
 
     <string name="reconnect_sensor_title">Переподключить датчик?</string>
     <string name="reconnect_sensor_desc">Это сбросит соединение и попытается подключиться снова.</string>
@@ -499,6 +500,7 @@
     <string name="last_ble_status">Статус BLE</string>
     <string name="last_ble_error">Последняя ошибка BLE</string>
     <string name="sensor_address">Адрес</string>
+    <string name="sensor_index">Индекс датчика</string>
     <string name="sensor_started">Запущен</string>
     <string name="sensor_ends_officially">Офиц. окончание</string>
     <string name="sensor_expected_end">Ожид. окончание</string>

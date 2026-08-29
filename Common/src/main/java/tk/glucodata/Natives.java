@@ -139,6 +139,10 @@ public class Natives {
 
         public static native String resolveFullSensorName(String sensorId);
 
+        public static native int getSensorIndex(String sensorId);
+
+        public static native int getSensorIndexFromDataPtr(long dataptr);
+
         public static native void freedataptr(long dataptr);
 
         public static native void setDeviceAddress(long dataptr, String deviceAddress);
@@ -1001,6 +1005,8 @@ public class Natives {
         public static native int getfloatingPos();
 
         public static native void finishSensor(long dataptr);
+
+        public static native boolean removeSensorById(String sensorId);
 
         public static native void unfinishSensor(long dataptr);
 
