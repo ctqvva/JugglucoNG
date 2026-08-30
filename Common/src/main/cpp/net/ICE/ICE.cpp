@@ -564,6 +564,11 @@ void startReceiverThread(int allindex) {
     if(ICEConnect *con=static_cast<ICEConnect *>(connections[allindex])) {
         if(!con->claimReceiverThread()) {
             LOGGER("startReceiverThread(%d): already running\n",allindex);
+            {
+            std::lock_guard<std::mutex> lock(con->receiveThreadMutex);
+            con->wakeReceiver=true;
+            }
+            con->receiveThreadCon.notify_one();
             return;
             }
         LOGGER("startReceiverThread(%d)\n",allindex);

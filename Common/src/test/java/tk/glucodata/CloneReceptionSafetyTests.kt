@@ -55,6 +55,8 @@ class CloneReceptionSafetyTests {
         assertTrue(closeGate >= 0 && quiesce > closeGate)
         assertTrue(host.contains("connection->endConnection()"))
         assertTrue(host.contains("if (host.ICE) startReceiverThread(index)"))
+        assertTrue(ice.contains("startReceiverThread(%d): already running"))
+        assertTrue(ice.contains("con->wakeReceiver=true"))
     }
 
     @Test
