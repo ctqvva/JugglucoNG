@@ -391,11 +391,13 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
            return -1;
            }
         LOGGERICE("allindex=%d side=%d senddata doSend(%p).acquire();\n",allindex,side,&doSend);
-        time_t startWait=time(nullptr);
-        static constexpr const int waitsec=4*60;
+        static constexpr const int waitsec=30;
+        bool readyToSend;
         {
         std::unique_lock<std::mutex> lck(doSendMutex);
-        doSendCond.wait_for(lck,std::chrono::seconds(waitsec), [this] {return doSend; });   
+        readyToSend=doSendCond.wait_for(
+            lck,std::chrono::seconds(waitsec),
+            [this] {return doSend||shutdown; });
         }
 //        certain_try_acquire(doSend);
         if(shutdown) {
@@ -411,16 +413,14 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
                 LOGGERICE("side=%d senddata ICEConnect==null\n",side);
                 return -1;
                 }
-        if(!con->isConnected||(!doSend&&(time(nullptr)-startWait)<waitsec)) {
-                LOGGERICE("allindex=%d side=%d connect=%d doSend=%d wait\n",allindex,side,con->isConnected.load(),doSend);
-                {
-                std::unique_lock<std::mutex> lck(doSendMutex);
-                doSendCond.wait_for(lck,std::chrono::seconds(waitsec), [this] {return doSend; });   
+        if(!con->isConnected||!con->isCurrentAgent(agent)) {
+                LOGGERICE("allindex=%d side=%d senddata connection changed while waiting\n",allindex,side);
+                return -1;
                 }
-                if(!doSend) {
-                    LOGGERICE("allindex=%dside=%d senddata !doSend\n",allindex,side);
-                    return -1;
-                    }
+        if(!readyToSend) {
+                LOGGERICE("allindex=%d side=%d senddata timed out waiting for peer request\n",allindex,side);
+                con->endConnection();
+                return -1;
                 }
         nextAck=0;
         lastAcked=false;
