@@ -1410,6 +1410,13 @@ sendindex); extern bool doend(int sendindex); */
             LOGAR(" no start");
           }
         }
+        // changeICEhost() starts this companion thread when an ICE entry is
+        // created or edited. Restore the same lifecycle after process startup;
+        // receiver-only Clone entries have no sender index and otherwise stay
+        // at Phase::Start until an unrelated network change wakes them.
+        if (host.ICE && !host.deactivated) {
+          startReceiverThread(i);
+        }
       }
 
       extern void showbackup();
