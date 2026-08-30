@@ -1027,6 +1027,16 @@ public:
     return receives;
   }
 
+  // Close the per-connection command gate without waiting for an in-flight
+  // command or tearing down libjuice. The UI uses this as the immediate half
+  // of Clone disable before the blocking teardown runs on a worker thread.
+  void prepareHostDeactivation(int index) {
+    if (index < 0 || index >= getupdatedata()->hostnr)
+      return;
+    if (Connect *connection = connections[index])
+      connection->setReceiverCommandsEnabled(false);
+  }
+
   void deactivateHost(int index, bool deactive) {
     LOGGER("deactivateHost(%d,%d)\n", index, deactive);
     if (index >= getupdatedata()->hostnr)

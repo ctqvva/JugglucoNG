@@ -119,6 +119,10 @@ void ICE_data::setRTO(int rtt) {
 #endif
 #endif
 void ICE_data::ackeddata(juice_agent_t *agent,udp_header  *head) {
+      // libjuice invokes this callback while holding its connection mutex. Keep
+      // all acknowledgement state under sendMutex, but never take the inverse
+      // path by calling juice_send() while sendMutex is held (see senddata()).
+      std::lock_guard<std::mutex> sendLock(sendMutex);
       int index=head->index;
       if(head->trans_id==send_trans_id) {
           if(index<0||index>=acknowledged.size()) {
@@ -135,21 +139,21 @@ void ICE_data::ackeddata(juice_agent_t *agent,udp_header  *head) {
           if(head->fin) {
             ++nextAck;
             ++send_trans_id;
+            {
+            std::lock_guard<std::mutex> sendWindowLock(doSendMutex);
             doSend=false;
-            LOGGERICE("ackeddata: last ack ++send_trans_id=%d\n",send_trans_id);
-            {std::lock_guard<std::mutex> lck(sendMutex);
-            lastAcked=true;
-            sendCond.notify_one();                        
             }
+            LOGGERICE("ackeddata: last ack ++send_trans_id=%d\n",send_trans_id);
+            lastAcked=true;
+            sendCond.notify_one();
             }
           else {
               while(acknowledged[nextAck])
                 ++nextAck;
               if(nextAck==lastpacket) {
-                     std::lock_guard<std::mutex> lck(sendMutex);
                      sentAck=true;
-                     sendCond.notify_one();                        
-               }
+                     sendCond.notify_one();
+                    }
                /*
               else {
                   int previndex=index-1;
@@ -207,9 +211,17 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
                 if(!sendShutdown) 
                        sendshutDown(agent);
                 return;
-                }
+            }
             if(!head->ack) {
-                if(head->trans_id==send_trans_id||setNext(send_trans_id,head->trans_id)) {
+                bool acceptedTransaction;
+                uint16_t currentSendTransaction;
+                {
+                std::lock_guard<std::mutex> sendLock(sendMutex);
+                acceptedTransaction=head->trans_id==send_trans_id||
+                                    setNext(send_trans_id,head->trans_id);
+                currentSendTransaction=send_trans_id;
+                }
+                if(acceptedTransaction) {
                     LOGGERICE("on_recv allindex=%d side=%d ASK trans_id=%d same as send_trans_id\n",allindex,side,head->trans_id);
                     head->ack=true;
                     if(!sendWithError(agent, data,sizeof(udp_header))) {
@@ -228,7 +240,7 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
 
                     }
                  else
-                    LOGGERICE("on_recv side=%d ASK trans_id=%d != send_trans_id=%d\n",side,head->trans_id,send_trans_id);
+                    LOGGERICE("on_recv side=%d ASK trans_id=%d != send_trans_id=%d\n",side,head->trans_id,currentSendTransaction);
                 return;
                 }
          else {
@@ -422,26 +434,31 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
                 con->endConnection();
                 return -1;
                 }
+        LOGGERICE("side=%d start senddata %.*s %d\n",side,40,data,len);
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+
+        uint32_t starttime2=tv.tv_sec,rel_msec;
+   //     uint32_t startmsec=tv.tv_usec/100;
+        int totalminuslastunits=(len-1)/dataunit;
+        int trans_id;
+        {
+        std::lock_guard<std::mutex> lck(sendMutex);
         nextAck=0;
         lastAcked=false;
         sentAck=false;
+        trans_id=send_trans_id;
+        starttime=starttime2;
+        lastpacket=totalminuslastunits;
+        bzero(&acknowledged,sizeof(acknowledged)); //only relevant once?
+        }
         destruct _{[this]{
+                std::lock_guard<std::mutex> lck(sendMutex);
                 nextAck=0;
                 lastAcked=false;
                 sentAck=false;
                 lastpacket=-1;
                 }};
-        LOGGERICE("side=%d start senddata %.*s %d\n",side,40,data,len);
-        const int trans_id=send_trans_id;
-        struct timeval tv;
-        gettimeofday(&tv, nullptr);
-        
-        uint32_t starttime2=tv.tv_sec,rel_msec; 
-        starttime=starttime2;
-   //     uint32_t startmsec=tv.tv_usec/100;
-        int totalminuslastunits=(len-1)/dataunit;
-        lastpacket=totalminuslastunits; 
-        bzero( &acknowledged,sizeof( acknowledged)); //only relevant once?
         if(totalminuslastunits>0) {
             for(int index=0;index<totalminuslastunits; index++) {
                 rel_msec= sendpacket(agent, trans_id,data,len, index, starttime2);
@@ -476,6 +493,7 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                         if(waited>waittime) {
                              if(waited>std::chrono::microseconds(RTO*timesRTO*100*16)) {
                                     LOGGERICE("%d senddata endConnection b\n",side);
+                                    lck.unlock();
                                     con->endConnection();
                                     return -1;
                                     }
@@ -492,7 +510,14 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                                 if(!acknowledged[index]) {
                                         ++notack;
                                         LOGGERICE("side=%d trans_id %d senddata packet %d not acknowledged\n",side,trans_id,index);
+                                        // libjuice holds its connection mutex while
+                                        // delivering acknowledgements. Release our
+                                        // acknowledgement mutex before entering it,
+                                        // otherwise TURN traffic can deadlock the two
+                                        // threads in opposite lock order.
+                                        lck.unlock();
                                         rel_msec= sendpacket(agent, trans_id,data,len, index, starttime2);
+                                        lck.lock();
                                         if(shutdown) {
                                             LOGGERICE("%d senddata: shutdown 3\n",side);
                                             return -1;
@@ -553,12 +578,15 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                        LOGGER("trans_id=%d RTO=%d waittime=%d final took too long\n",trans_id,RTO,waittime);
                        if((newnow-now)> std::chrono::microseconds(RTO*timesRTO*100*16)) {
                             LOGGERICE("%d senddata endConnection c\n",side);
+                            lck.unlock();
                             con->endConnection();
                             return -1;
                             }
                         if(!acknowledged[totalminuslastunits]) {
                                 LOGGERICE("trans_id=%d side=%d senddata final packet %d not acknowledged\n",trans_id,side,totalminuslastunits);
+                                lck.unlock();
                                 rel_msec= sendpacket(agent, trans_id,data,len, totalminuslastunits, starttime2);
+                                lck.lock();
                                 if(shutdown) {
                                     LOGGERICE("%d senddata: shutdown 6\n",side);
                                     return -1;

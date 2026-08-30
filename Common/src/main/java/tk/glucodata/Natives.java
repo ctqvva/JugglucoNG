@@ -1231,6 +1231,8 @@ public class Natives {
 
         public static native boolean getHostDeactivated(int pos);
 
+        public static native void prepareHostDeactivation(int pos);
+
         public static native void setHostDeactivated(int pos, boolean val);
 
         // public static native long makeSIdataptr(String gegs);

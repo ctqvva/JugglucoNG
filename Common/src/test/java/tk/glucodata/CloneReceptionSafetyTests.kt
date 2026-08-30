@@ -97,4 +97,44 @@ class CloneReceptionSafetyTests {
         assertTrue(access.contains("return CloneSensorRegistry.whileReceptionEnabled"))
     }
 
+    @Test
+    fun cloneDisableClosesTheNativeGateBeforeWorkerTeardown() {
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+
+        val prepare = screen.indexOf("Natives::prepareHostDeactivation")
+        val worker = screen.indexOf("executor.execute")
+        assertTrue(prepare >= 0 && worker > prepare)
+        assertTrue(screen.contains("Natives.setHostDeactivated(index, deactivated)"))
+        assertTrue(screen.contains("enabled = cloneConnections.isNotEmpty() && !CloneHostTransitionRunner.isRunning()"))
+    }
+
+    @Test
+    fun turnRetransmissionNeverEntersLibjuiceWithTheAckMutexHeld() {
+        val transport = source("Common/src/main/cpp/net/ICE/ICE_data.cpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(transport.contains("std::lock_guard<std::mutex> sendLock(sendMutex)"))
+        assertTrue(transport.contains("lck.unlock(); rel_msec= sendpacket"))
+        assertTrue(transport.contains("rel_msec= sendpacket(agent, trans_id,data,len, index, starttime2); lck.lock();"))
+        assertTrue(transport.contains("lck.unlock(); con->endConnection();"))
+    }
+
+    @Test
+    fun rendezvousRequestsAreBoundedAndCancelledWithTheirIceGeneration() {
+        val https = source("Common/src/main/cpp/net/ICE/ContextHTTPS.cpp")
+            .replace(Regex("\\s+"), " ")
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(https.contains("O_NONBLOCK"))
+        assertTrue(https.contains("deadline.pollMilliseconds()"))
+        assertTrue(https.contains("cancelled->load(std::memory_order_acquire)"))
+        assertTrue(ice.contains(".timeoutMilliseconds=10000"))
+        assertTrue(ice.contains("waitForCurrentAgent(con,agent,5)"))
+        assertTrue(connection.contains("cancelRendezvous();"))
+    }
+
 }

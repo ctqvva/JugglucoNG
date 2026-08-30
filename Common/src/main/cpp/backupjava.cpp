@@ -603,6 +603,10 @@ fromjava(getHostDeactivated)(JNIEnv *envin, jclass cl, jint pos) {
   }
   return true;
 }
+extern "C" JNIEXPORT void JNICALL
+fromjava(prepareHostDeactivation)(JNIEnv *envin, jclass cl, jint pos) {
+  backup->prepareHostDeactivation(pos);
+}
 extern "C" JNIEXPORT void JNICALL fromjava(setHostDeactivated)(JNIEnv *envin,
                                                                jclass cl,
                                                                jint pos,
