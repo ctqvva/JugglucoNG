@@ -24,9 +24,9 @@ class HistorySourceProvenanceTests {
     }
 
     @Test
-    fun aNewKnownSourceCanReplaceTheLegacySensorDefault() {
+    fun aLaterRemoteImportCannotRelabelAnEstablishedSensorRow() {
         assertEquals(
-            GlucoseReadingSource.NIGHTSCOUT,
+            GlucoseReadingSource.SENSOR,
             HistorySourceProvenance.stableSource(
                 GlucoseReadingSource.SENSOR,
                 GlucoseReadingSource.NIGHTSCOUT,

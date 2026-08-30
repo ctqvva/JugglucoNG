@@ -233,7 +233,7 @@ class HistoryDisplayMergeTests {
     }
 
     @Test
-    fun mergeReadings_keepsDistinctSameTimestampValuesUnderPreferredRules() {
+    fun mergeReadings_selectsThePreferredCopyWhenReplicatedValuesDisagree() {
         val clone = reading(
             id = 30,
             timestamp = 6 * HOUR_MS,
@@ -259,6 +259,98 @@ class HistoryDisplayMergeTests {
         )
 
         assertEquals(nightscout, merged.single())
+    }
+
+    @Test
+    fun mergeReadings_keepsAReplicaWinnerAcrossSmallTimestampSkew() {
+        val clone = reading(
+            id = 40,
+            timestamp = 7 * HOUR_MS,
+            sensorSerial = "physical-sensor",
+            value = 121f,
+            rawValue = 120f,
+            source = GlucoseReadingSource.CLONE_LOCAL_ICE,
+            firstStoredAt = 1_000L,
+        )
+        val nightscout = reading(
+            id = 41,
+            timestamp = 7 * HOUR_MS + 20_000L,
+            sensorSerial = "NSF-TEST",
+            value = 122f,
+            rawValue = 122f,
+            source = GlucoseReadingSource.NIGHTSCOUT,
+            firstStoredAt = 2_000L,
+        )
+
+        assertEquals(
+            clone,
+            HistoryDisplayMerge.mergeReadings(listOf(clone, nightscout), "physical-sensor").single(),
+        )
+        assertEquals(
+            clone,
+            HistoryDisplayMerge.mergeReadings(listOf(clone, nightscout), "NSF-TEST").single(),
+        )
+    }
+
+    @Test
+    fun mergeReadings_doesNotCollapseTwoIndependentPhysicalSensors() {
+        val first = reading(
+            id = 50,
+            timestamp = 8 * HOUR_MS,
+            sensorSerial = "physical-a",
+            value = 133f,
+            rawValue = 132f,
+            firstStoredAt = 1_000L,
+        )
+        val second = reading(
+            id = 51,
+            timestamp = 8 * HOUR_MS,
+            sensorSerial = "physical-b",
+            value = 133f,
+            rawValue = 132f,
+            firstStoredAt = 2_000L,
+        )
+
+        assertEquals(
+            first,
+            HistoryDisplayMerge.mergeReadings(listOf(first, second), "physical-a").single(),
+        )
+        assertEquals(
+            second,
+            HistoryDisplayMerge.mergeReadings(listOf(first, second), "physical-b").single(),
+        )
+    }
+
+    @Test
+    fun mergeReadings_keepsMultiRowReplicaProvenanceUnderEitherPreference() {
+        val cloneFirst = reading(
+            id = 60,
+            timestamp = 9 * HOUR_MS,
+            sensorSerial = "physical-sensor",
+            value = 140f,
+            rawValue = 139f,
+            source = GlucoseReadingSource.CLONE_TURN,
+            firstStoredAt = 1_000L,
+        )
+        val nightscoutFirst = reading(
+            id = 61,
+            timestamp = 9 * HOUR_MS + 5 * MINUTE_MS,
+            sensorSerial = "NSF-TEST",
+            value = 145f,
+            rawValue = 145f,
+            source = GlucoseReadingSource.NIGHTSCOUT,
+            firstStoredAt = 2_000L,
+        )
+        val copies = listOf(
+            cloneFirst,
+            reading(62, cloneFirst.timestamp, "NSF-TEST", 140f, 140f, GlucoseReadingSource.NIGHTSCOUT, 3_000L),
+            nightscoutFirst,
+            reading(63, nightscoutFirst.timestamp, "physical-sensor", 145f, 144f, GlucoseReadingSource.CLONE_TURN, 4_000L),
+        ).sortedBy(HistoryReading::timestamp)
+
+        val expected = listOf(cloneFirst, nightscoutFirst)
+        assertEquals(expected, HistoryDisplayMerge.mergeReadings(copies, "physical-sensor"))
+        assertEquals(expected, HistoryDisplayMerge.mergeReadings(copies, "NSF-TEST"))
     }
 
     private fun reading(
