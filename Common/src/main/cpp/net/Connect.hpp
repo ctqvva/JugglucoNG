@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <vector>
 #include <atomic>
+#include <mutex>
 #include <string_view>
 #include "passhost.hpp"
 #include "crypt.h"
@@ -35,11 +36,19 @@ inline constexpr int clone_transport_turn = 2;
 class Connect {
 protected:
 public:
-  std::atomic_flag senduprunning{};
+    std::atomic_flag senduprunning{};
     int allindex;
-   std::atomic_bool finish{false};
+    std::atomic_bool finish{false};
     bool receiving=false;
+    std::atomic_bool receiverCommandsEnabled{true};
+    std::mutex receiverCommandsMutex;
     Connect(int index):allindex(index) {}
+    void setReceiverCommandsEnabled(bool enabled) {
+        receiverCommandsEnabled.store(enabled, std::memory_order_release);
+    }
+    void waitForReceiverCommandsIdle() {
+        std::lock_guard<std::mutex> lock(receiverCommandsMutex);
+    }
 
 virtual int setindex(int index) {
         allindex=index; 

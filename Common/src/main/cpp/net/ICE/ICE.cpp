@@ -470,6 +470,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
     }
 
 void ICEConnect::receiverThread(int argindex) {
+    destruct runningGuard{[this] { releaseReceiverThread(); }};
     #ifndef HAVE_NOPRCTL
       constexpr const int maxbuf=14;
       char name[14];
@@ -561,6 +562,10 @@ void ICEConnect::receiverThread(int argindex) {
 
 void startReceiverThread(int allindex) {
     if(ICEConnect *con=static_cast<ICEConnect *>(connections[allindex])) {
+        if(!con->claimReceiverThread()) {
+            LOGGER("startReceiverThread(%d): already running\n",allindex);
+            return;
+            }
         LOGGER("startReceiverThread(%d)\n",allindex);
         std::thread th{&ICEConnect::receiverThread,con,allindex};
         th.detach();

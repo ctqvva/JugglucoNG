@@ -217,6 +217,17 @@ object CloneSensorRegistry {
         }
     }
 
+    /**
+     * Commits receiver state only while the local gate remains open. Disable
+     * takes the same monitor, so it either waits for this commit and clears it,
+     * or closes the gate before the commit starts.
+     */
+    internal fun <T> whileReceptionEnabled(block: () -> T): T? = synchronized(lock) {
+        val preferences = prefs() ?: return@synchronized null
+        if (!preferences.getBoolean(KEY_RECEPTION_ENABLED, true)) return@synchronized null
+        block()
+    }
+
     @JvmStatic
     fun deactivateAllCloneSensors() {
         val sensorIds = synchronized(lock) {
@@ -245,9 +256,9 @@ object CloneSensorRegistry {
     fun reconcilePrimaryCloneSensor(primarySensorId: String?) {
         val primaryAliases = candidateKeys(primarySensorId)
         if (primaryAliases.isEmpty()) return
-        val currentEntries = synchronized(lock) {
+        val currentEntries = whileReceptionEnabled {
             CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null))
-        }
+        } ?: return
         val retained = currentEntries.filterKeys { storedId ->
             candidateKeys(storedId).any { it in primaryAliases }
         }
@@ -258,7 +269,7 @@ object CloneSensorRegistry {
             candidateKeys(sensorId).any { it in candidateKeys(receiverPrimary) }
         }
         val retired = currentEntries.keys.filterNot(retained::containsKey)
-        synchronized(lock) {
+        val committed = whileReceptionEnabled {
             val preferences = prefs()
             val currentConnections = CloneSensorConnectionCodec.decode(
                 preferences?.getString(KEY_SENSOR_CONNECTIONS, null)
@@ -271,7 +282,9 @@ object CloneSensorRegistry {
                     CloneSensorConnectionCodec.encode(retainedConnections),
                 )
                 ?.apply()
-        }
+            true
+        } ?: false
+        if (!committed) return
         retired.forEach { sensorId ->
             runCatching {
                 val sensorPointer = Natives.str2sensorptr(sensorId)

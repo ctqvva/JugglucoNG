@@ -386,7 +386,12 @@ extern bool setBlueWatch(passhost_t *host,int sensor,int nums) ;
 
 
  std::pair<int,int> Connect::interpret(passhost_t *host,crypt_t *ctx,senddata_t *datain,int len) {
-    if (!host || host->deactivated) {
+    // Disabling a host closes this gate before tearing down its transport, then
+    // waits on this mutex. Once deactivateHost() returns, no command that began
+    // on the old connection can still mutate native sensor state or Java state.
+    std::lock_guard<std::mutex> commandLock(receiverCommandsMutex);
+    if (!host || host->deactivated ||
+        !receiverCommandsEnabled.load(std::memory_order_acquire)) {
         LOGARTAG("interpret: reject data from deactivated host");
         return {-1,0};
         }
