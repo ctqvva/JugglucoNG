@@ -44,3 +44,59 @@ enum class SensorVendor(
         }
     }
 }
+
+/** Concrete sensor family shown beside the vendor badge. */
+enum class SensorTypeName(
+    val labelRes: Int,
+) {
+    LIBRE_2(R.string.sensor_type_libre_2),
+    LIBRE_3(R.string.sensor_type_libre_3),
+    SIBIONICS_GS1(R.string.sensor_type_sibionics_gs1),
+    SIBIONICS_2(R.string.sensor_type_sibionics_2),
+    SIBIONICS_GS3(R.string.sensor_type_sibionics_gs3),
+    DEXCOM_G7(R.string.sensor_type_dexcom_g7),
+    ACCUCHEK_SMARTGUIDE(R.string.sensor_type_accuchek_smartguide),
+    AIDEX_LINX(R.string.sensor_type_aidex_linx),
+    ICAN_I3(R.string.sensor_type_ican_i3),
+    MQ(R.string.sensor_type_mq),
+    ANYTIME(R.string.sensor_type_anytime),
+    OTTAI_CGM(R.string.sensor_type_ottai),
+    UNKNOWN(R.string.unknown),
+    ;
+
+    companion object {
+        private const val LEGACY_AIDEX_STREAM_KIND = 0x100
+
+        fun fromManagedFamily(
+            family: ManagedSensorUiFamily,
+            vendorModel: String = "",
+        ): SensorTypeName = when (family) {
+            ManagedSensorUiFamily.AIDEX -> AIDEX_LINX
+            ManagedSensorUiFamily.ICAN -> ICAN_I3
+            ManagedSensorUiFamily.MQ -> MQ
+            ManagedSensorUiFamily.ANYTIME -> ANYTIME
+            ManagedSensorUiFamily.OTTAI -> OTTAI_CGM
+            ManagedSensorUiFamily.SIBIONICS -> when {
+                vendorModel.equals("Sibionics 2", ignoreCase = true) -> SIBIONICS_2
+                vendorModel.equals("Sibionics GS3", ignoreCase = true) -> SIBIONICS_GS3
+                else -> SIBIONICS_GS1
+            }
+            ManagedSensorUiFamily.GENERIC -> UNKNOWN
+        }
+
+        fun fromNativeKind(
+            kind: Int,
+            isSibionics2: Boolean = false,
+        ): SensorTypeName = when (kind) {
+            SensorSourceResolver.SENSOR_KIND_LIBRE2 -> LIBRE_2
+            SensorSourceResolver.SENSOR_KIND_LIBRE3 -> LIBRE_3
+            SensorSourceResolver.SENSOR_KIND_SIBIONICS ->
+                if (isSibionics2) SIBIONICS_2 else SIBIONICS_GS1
+            SensorSourceResolver.SENSOR_KIND_DEXCOM -> DEXCOM_G7
+            SensorSourceResolver.SENSOR_KIND_ACCUCHEK -> ACCUCHEK_SMARTGUIDE
+            SensorSourceResolver.SENSOR_KIND_AIDEX,
+            LEGACY_AIDEX_STREAM_KIND -> AIDEX_LINX
+            else -> UNKNOWN
+        }
+    }
+}

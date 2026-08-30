@@ -2562,4 +2562,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_type_libre_2">Libre 2</string>
+    <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
+    <string name="sensor_type_sibionics_2">Sibionics 2</string>
+    <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
+    <string name="sensor_type_dexcom_g7">Dexcom G7</string>
+    <string name="sensor_type_accuchek_smartguide">Accu-Chek SmartGuide</string>
+    <string name="sensor_type_aidex_linx">AiDex / LinX</string>
+    <string name="sensor_type_ican_i3">iCan i3</string>
+    <string name="sensor_type_mq">MQ</string>
+    <string name="sensor_type_anytime">Anytime</string>
+    <string name="sensor_type_ottai">Ottai CGM</string>
 </resources>

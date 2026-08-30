@@ -1301,7 +1301,7 @@ fun SensorCard(
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        text = stringResource(sensor.vendor.labelRes),
+                                        text = stringResource(sensor.sensorType.labelRes),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
