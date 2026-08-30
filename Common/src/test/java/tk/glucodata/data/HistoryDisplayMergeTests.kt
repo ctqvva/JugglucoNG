@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
+import tk.glucodata.GlucoseReadingSource
 
 class HistoryDisplayMergeTests {
     private companion object {
@@ -196,19 +197,87 @@ class HistoryDisplayMergeTests {
         )
     }
 
+    @Test
+    fun mergeReadings_keepsFirstDeliveryWhenNightscoutBecomesPreferred() {
+        val clone = reading(
+            id = 20,
+            timestamp = 5 * HOUR_MS,
+            sensorSerial = "physical-sensor",
+            value = 112f,
+            rawValue = 111f,
+            source = GlucoseReadingSource.CLONE_TURN,
+            firstStoredAt = 1_000L,
+        )
+        val nightscout = reading(
+            id = 21,
+            timestamp = 5 * HOUR_MS,
+            sensorSerial = "NSF-TEST",
+            value = 112f,
+            rawValue = 112f,
+            source = GlucoseReadingSource.NIGHTSCOUT,
+            firstStoredAt = 2_000L,
+        )
+
+        val clonePreferred = HistoryDisplayMerge.mergeReadings(
+            listOf(clone, nightscout),
+            preferredSerial = "physical-sensor",
+        )
+        val nightscoutPreferred = HistoryDisplayMerge.mergeReadings(
+            listOf(clone, nightscout),
+            preferredSerial = "NSF-TEST",
+        )
+
+        assertEquals(clone, clonePreferred.single())
+        assertEquals(clone, nightscoutPreferred.single())
+        assertEquals(GlucoseReadingSource.CLONE_TURN, nightscoutPreferred.single().source)
+    }
+
+    @Test
+    fun mergeReadings_keepsDistinctSameTimestampValuesUnderPreferredRules() {
+        val clone = reading(
+            id = 30,
+            timestamp = 6 * HOUR_MS,
+            sensorSerial = "physical-sensor",
+            value = 112f,
+            rawValue = 111f,
+            source = GlucoseReadingSource.CLONE_LOCAL_ICE,
+            firstStoredAt = 1_000L,
+        )
+        val nightscout = reading(
+            id = 31,
+            timestamp = 6 * HOUR_MS,
+            sensorSerial = "NSF-TEST",
+            value = 118f,
+            rawValue = 118f,
+            source = GlucoseReadingSource.NIGHTSCOUT,
+            firstStoredAt = 2_000L,
+        )
+
+        val merged = HistoryDisplayMerge.mergeReadings(
+            listOf(clone, nightscout),
+            preferredSerial = "NSF-TEST",
+        )
+
+        assertEquals(nightscout, merged.single())
+    }
+
     private fun reading(
         id: Long,
         timestamp: Long,
         sensorSerial: String,
         value: Float,
-        rawValue: Float
+        rawValue: Float,
+        source: String = GlucoseReadingSource.SENSOR,
+        firstStoredAt: Long = id,
     ) = HistoryReading(
         id = id,
         timestamp = timestamp,
         sensorSerial = sensorSerial,
         value = value,
         rawValue = rawValue,
-        rate = null
+        rate = null,
+        source = source,
+        firstStoredAt = firstStoredAt,
     )
 
     /**

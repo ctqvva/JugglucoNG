@@ -7,4 +7,10 @@ object HistorySourceProvenance {
         existing == GlucoseReadingSource.SENSOR && incoming != GlucoseReadingSource.SENSOR -> incoming
         else -> existing
     }
+
+    fun stableFirstStoredAt(existing: Long?, incoming: Long): Long = when {
+        existing != null && existing > 0L -> existing
+        incoming > 0L -> incoming
+        else -> System.currentTimeMillis()
+    }
 }

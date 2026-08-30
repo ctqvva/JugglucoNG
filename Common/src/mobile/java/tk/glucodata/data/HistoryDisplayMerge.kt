@@ -1,6 +1,7 @@
 package tk.glucodata.data
 
 import tk.glucodata.SensorIdentity
+import kotlin.math.abs
 
 internal object HistoryDisplayMerge {
     private const val SENSOR_MINUTE_BUCKET_MS = 60_000L
@@ -77,7 +78,12 @@ internal object HistoryDisplayMerge {
         }
 
         val coalesced = collapseLogicalSensorBuckets(readings, resolver, logicalResolver)
-        val filtered = applyPreferredOverlapDominance(coalesced, resolver, logicalResolver)
+        // A Nightscout pull and Clone can persist the same physical reading under
+        // different virtual sensors. Pick its first delivery before applying the
+        // currently selected sensor's coverage, otherwise changing receivers
+        // retroactively relabels the entire visible timeline.
+        val stableDeliveries = collapseEquivalentDeliveries(coalesced, resolver)
+        val filtered = applyPreferredOverlapDominance(stableDeliveries, resolver, logicalResolver)
         val merged = ArrayList<HistoryReading>(filtered.size)
         var currentTimestamp = Long.MIN_VALUE
         var currentBest: HistoryReading? = null
@@ -176,6 +182,63 @@ internal object HistoryDisplayMerge {
             byBucket[key] = if (existing == null) reading else choosePreferred(existing, reading, resolver)
         }
         return byBucket.values.sortedBy { it.timestamp }
+    }
+
+    private fun collapseEquivalentDeliveries(
+        readings: List<HistoryReading>,
+        resolver: PreferredMatchResolver,
+    ): List<HistoryReading> {
+        if (readings.size < 2) return readings
+
+        val collapsed = ArrayList<HistoryReading>(readings.size)
+        var start = 0
+        while (start < readings.size) {
+            val timestamp = readings[start].timestamp
+            var end = start + 1
+            while (end < readings.size && readings[end].timestamp == timestamp) end++
+
+            val deliveries = ArrayList<HistoryReading>(end - start)
+            for (index in start until end) {
+                val candidate = readings[index]
+                val equivalentIndex = deliveries.indexOfFirst { sameDeliveredValue(it, candidate) }
+                if (equivalentIndex < 0) {
+                    deliveries.add(candidate)
+                } else {
+                    deliveries[equivalentIndex] = chooseFirstDelivery(
+                        deliveries[equivalentIndex],
+                        candidate,
+                        resolver,
+                    )
+                }
+            }
+            collapsed.addAll(deliveries)
+            start = end
+        }
+        return collapsed
+    }
+
+    private fun sameDeliveredValue(left: HistoryReading, right: HistoryReading): Boolean {
+        val leftValue = left.value.takeIf { it.isFinite() && it > 0f }
+            ?: left.rawValue.takeIf { it.isFinite() && it > 0f }
+        val rightValue = right.value.takeIf { it.isFinite() && it > 0f }
+            ?: right.rawValue.takeIf { it.isFinite() && it > 0f }
+        return leftValue != null && rightValue != null && abs(leftValue - rightValue) <= 0.5f
+    }
+
+    private fun chooseFirstDelivery(
+        current: HistoryReading,
+        candidate: HistoryReading,
+        resolver: PreferredMatchResolver,
+    ): HistoryReading {
+        val currentOrder = current.firstStoredAt.takeIf { it > 0L } ?: current.id
+        val candidateOrder = candidate.firstStoredAt.takeIf { it > 0L } ?: candidate.id
+        if (candidateOrder != currentOrder) {
+            return if (candidateOrder < currentOrder) candidate else current
+        }
+        if (candidate.id != current.id) {
+            return if (candidate.id < current.id) candidate else current
+        }
+        return choosePreferred(current, candidate, resolver)
     }
 
     /**

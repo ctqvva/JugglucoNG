@@ -50,6 +50,12 @@ interface HistoryDao {
         endTimeExclusive: Long
     ): List<HistoryReading>
 
+    @Query("SELECT * FROM history_readings WHERE sensorSerial = :sensorSerial AND timestamp IN (:timestamps)")
+    suspend fun getSensorReadingsAtTimestamps(
+        sensorSerial: String,
+        timestamps: List<Long>
+    ): List<HistoryReading>
+
     @Query("""
         SELECT timestamp FROM history_readings
         WHERE sensorSerial IN (:serials)

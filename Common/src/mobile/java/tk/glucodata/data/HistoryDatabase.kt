@@ -37,6 +37,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         phone holds at v15 depends on which build it happened to install
  *   v17 — per-journal-entry LibreView delivery timestamp
  *   v18 — per-reading glucose source provenance
+ *   v19 — stable first-arrival ordering for equivalent replicated readings
  */
 @Database(
     entities = [
@@ -49,7 +50,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -447,6 +448,22 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /** v18 -> v19: retain stable first-arrival ordering for equivalent replicas. */
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE history_readings " +
+                        "ADD COLUMN firstStoredAt INTEGER NOT NULL DEFAULT 0"
+                )
+                // The table's autoincrement id is the only durable arrival order
+                // available for pre-migration rows. New rows use wall-clock time.
+                db.execSQL(
+                    "UPDATE history_readings SET firstStoredAt = id " +
+                        "WHERE firstStoredAt <= 0"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -470,7 +487,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_14_15,
                     MIGRATION_15_16,
                     MIGRATION_16_17,
-                    MIGRATION_17_18
+                    MIGRATION_17_18,
+                    MIGRATION_18_19
                 )
                 .build().also { INSTANCE = it }
             }
