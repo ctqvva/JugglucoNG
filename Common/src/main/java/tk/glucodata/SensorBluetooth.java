@@ -1494,94 +1494,99 @@ public class SensorBluetooth {
 
         String[] devs = allDevs.toArray(new String[0]);
         ArrayList<Integer> rem = new ArrayList<>();
-        int gatnr = gattcallbacks.size();
-        if (devs == null) {
-            for (int i = 0; i < gatnr; i++) {
-                String was = gattcallbacks.get(i).SerialNumber;
-                rem.add(i);
-            }
-            if (rem.size() == 0) {
-                return false;
-            }
-        } else {
-
-            int heb = 0;
-
-            for (int i = 0; i < gatnr; i++) {
-                var gatt = gattcallbacks.get(i);
-                String was = gatt.SerialNumber;
-                int matched = consumeMatchingDeviceIds(devs, gatt);
-                if (matched == 0) {
+        // Clone disable can retire managed callbacks from the UI thread while a
+        // native sync asks us to rebuild this same roster. Keep the comparison
+        // and mutation atomic with retireCloneSensor(), which uses this monitor.
+        synchronized (gattcallbacks) {
+            int gatnr = gattcallbacks.size();
+            if (devs == null) {
+                for (int i = 0; i < gatnr; i++) {
+                    String was = gattcallbacks.get(i).SerialNumber;
                     rem.add(i);
-                } else {
-                    gatt.stopHealth = false;
-                    heb += matched;
                 }
-            }
-            if (devs.length == heb && rem.size() == 0) {
-                return false;
-            }
-        }
-        if (mBluetoothManager != null)
-            stopScan(false);
-        // rem.sort((x,y)->{return x-y;});
-        Collections.sort(rem, (x, y) -> {
-            return x - y;
-        });
+                if (rem.size() == 0) {
+                    return false;
+                }
+            } else {
 
-        for (int el = rem.size() - 1; el >= 0; el--) {
-            int weg = rem.get(el);
-            final String removedSerial = gattcallbacks.get(weg).SerialNumber;
-            {
-                if (doLog) {
-                    Log.i(LOG_ID, "remove " + removedSerial);
-                }
-                ;
-            }
-            ;
-            gattcallbacks.get(weg).free();
-            gattcallbacks.remove(weg);
-            rehomeCurrentSensorAfterRemoval(removedSerial, allDevs);
-        }
-        int index = gattcallbacks.size();
-        if (devs != null) {
-            for (String dev : devs) {
-                if (dev != null) {
-                    if (!isValidShortSensorName(dev)) {
-                        if (doLog) {
-                            Log.w(LOG_ID, "add skip invalid name " + dev);
-                        }
-                        continue;
+                int heb = 0;
+
+                for (int i = 0; i < gatnr; i++) {
+                    var gatt = gattcallbacks.get(i);
+                    String was = gatt.SerialNumber;
+                    int matched = consumeMatchingDeviceIds(devs, gatt);
+                    if (matched == 0) {
+                        rem.add(i);
+                    } else {
+                        gatt.stopHealth = false;
+                        heb += matched;
                     }
-                    {
-                        if (doLog) {
-                            Log.i(LOG_ID, "add " + dev);
-                        }
-                        ;
+                }
+                if (devs.length == heb && rem.size() == 0) {
+                    return false;
+                }
+            }
+            if (mBluetoothManager != null)
+                stopScan(false);
+            // rem.sort((x,y)->{return x-y;});
+            Collections.sort(rem, (x, y) -> {
+                return x - y;
+            });
+
+            for (int el = rem.size() - 1; el >= 0; el--) {
+                int weg = rem.get(el);
+                final String removedSerial = gattcallbacks.get(weg).SerialNumber;
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "remove " + removedSerial);
                     }
                     ;
-                    final boolean persistedManaged = hasPersistedManagedRecord(dev);
-                    final boolean suppressGenericManagedShell = shouldSuppressGenericManagedShell(dev);
-                    final long managedDataptr =
-                        (persistedManaged || suppressGenericManagedShell) ? resolvePersistedManagedDataptr(dev) : 0L;
-                    if (persistedManaged || suppressGenericManagedShell) {
-                        final SuperGattCallback managed = ManagedSensorIdentityRegistry.INSTANCE.createManagedCallback(Applic.app, dev, managedDataptr);
-                        if (managed != null) {
-                            gattcallbacks.add(managed);
-                            if (managedDataptr != 0L) {
-                                adoptCurrentSensorIfBlank(dev);
+                }
+                ;
+                gattcallbacks.get(weg).free();
+                gattcallbacks.remove(weg);
+                rehomeCurrentSensorAfterRemoval(removedSerial, allDevs);
+            }
+            int index = gattcallbacks.size();
+            if (devs != null) {
+                for (String dev : devs) {
+                    if (dev != null) {
+                        if (!isValidShortSensorName(dev)) {
+                            if (doLog) {
+                                Log.w(LOG_ID, "add skip invalid name " + dev);
                             }
+                            continue;
+                        }
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "add " + dev);
+                            }
+                            ;
+                        }
+                        ;
+                        final boolean persistedManaged = hasPersistedManagedRecord(dev);
+                        final boolean suppressGenericManagedShell = shouldSuppressGenericManagedShell(dev);
+                        final long managedDataptr =
+                            (persistedManaged || suppressGenericManagedShell) ? resolvePersistedManagedDataptr(dev) : 0L;
+                        if (persistedManaged || suppressGenericManagedShell) {
+                            final SuperGattCallback managed = ManagedSensorIdentityRegistry.INSTANCE.createManagedCallback(Applic.app, dev, managedDataptr);
+                            if (managed != null) {
+                                gattcallbacks.add(managed);
+                                if (managedDataptr != 0L) {
+                                    adoptCurrentSensorIfBlank(dev);
+                                }
+                                increasedwait = startincreasedwait;
+                                index++;
+                            }
+                            continue;
+                        }
+                        final long dataptr = Natives.getdataptr(dev);
+                        if (dataptr != 0L) {
+                            gattcallbacks.add(getGattCallback(dev, dataptr));
+                            adoptCurrentSensorIfBlank(dev);
                             increasedwait = startincreasedwait;
                             index++;
                         }
-                        continue;
-                    }
-                    final long dataptr = Natives.getdataptr(dev);
-                    if (dataptr != 0L) {
-                        gattcallbacks.add(getGattCallback(dev, dataptr));
-                        adoptCurrentSensorIfBlank(dev);
-                        increasedwait = startincreasedwait;
-                        index++;
                     }
                 }
             }

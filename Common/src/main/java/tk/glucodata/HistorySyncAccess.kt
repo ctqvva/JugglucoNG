@@ -154,12 +154,12 @@ object HistorySyncAccess {
 
     /** Called only by the native mirror receiver before it imports remote sensor files. */
     @JvmStatic
-    fun markCloneSensor(serial: String?, transportCode: Int, connectionIdentity: String?) {
+    fun markCloneSensor(serial: String?, transportCode: Int, connectionIdentity: String?): Boolean =
         CloneSensorRegistry.markCloneSensor(serial, transportCode, connectionIdentity)
-    }
 
     @JvmStatic
     fun reconcilePrimaryCloneSensor(serial: String?) {
+        if (!CloneSensorRegistry.isReceptionEnabled()) return
         CloneSensorRegistry.reconcilePrimaryCloneSensor(serial)
     }
 
@@ -175,6 +175,7 @@ object HistorySyncAccess {
 
     @JvmStatic
     fun importCloneIobSnapshot(raw: String?): Boolean {
+        if (!CloneSensorRegistry.isReceptionEnabled()) return false
         if (raw.isNullOrBlank()) return false
         val method = importCloneIobMethod ?: return false
         return runCatching {

@@ -386,8 +386,12 @@ extern bool setBlueWatch(passhost_t *host,int sensor,int nums) ;
 
 
  std::pair<int,int> Connect::interpret(passhost_t *host,crypt_t *ctx,senddata_t *datain,int len) {
+    if (!host || host->deactivated) {
+        LOGARTAG("interpret: reject data from deactivated host");
+        return {-1,0};
+        }
     const std::string cloneConnectionIdentity =
-        host && host->ICE ? std::string(host->getICEname()) : std::string();
+        host->ICE ? std::string(host->getICEname()) : std::string();
 
 LOGGERTAG("interpret len=%d \n",len);
 for(int it=0;it<len;) {

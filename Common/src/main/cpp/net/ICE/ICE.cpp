@@ -499,6 +499,11 @@ void ICEConnect::receiverThread(int argindex) {
         receiveThreadCon.wait_for(lck,std::chrono::seconds(waitsec), [this] {return wakeReceiver.load(); });
         }
         wakeReceiver=false;
+        if(host.deactivated) {
+            LOGGERICE("allindex=%d receiverThread parked: host deactivated\n",allindex);
+            waitsec=5*60;
+            continue;
+            }
         if(isConnected) {
             notifyReceive();
             if(receiveConnect(&host)) {
@@ -571,7 +576,7 @@ void wakeICEReceiversForNetworkChange(bool resetConnections) {
     const int hostCount = backup->gethostnr();
     for (int allindex = 0; allindex < hostCount; ++allindex) {
         const passhost_t &host = getBackupHosts()[allindex];
-        if (!host.ICE)
+        if (!host.ICE || host.deactivated)
             continue;
         ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
         if (!connection)
