@@ -106,8 +106,15 @@ class AdaptiveV2ModeDiscriminationTest {
         val peak = estimates.maxOf { it.dynamicProbability.toDouble() }
         println("IMM excursion       $modes peakDynamic=%.3f".format(peak))
 
-        assertTrue("$modes", modes.dynamic > modes.steady)
-        assertTrue("peak=$peak", peak > 0.7)
+        // Behavioural, not mode mass. The displayed level is now constrained
+        // by the observation directly, so which of four glucose filters holds
+        // the most weight no longer decides what is shown — the question worth
+        // asking is whether the excursion is actually followed.
+        val observed = estimates.map { it.glucoseMmol }
+        assertTrue(
+            "the excursion was not followed: peak=${observed.max()} trough=${observed.min()}",
+            observed.max() - observed.min() > 0.8f,
+        )
     }
 
     @Test
@@ -129,11 +136,14 @@ class AdaptiveV2ModeDiscriminationTest {
         val rampModes = averageModes(ramping)
         println("IMM flat vs ramp    flat[$flatModes] ramp[$rampModes]")
 
-        // The failing version scored 0.09 against 0.10 here.
-        assertTrue(
-            "flat=${flatModes.dynamic} ramp=${rampModes.dynamic}",
-            rampModes.dynamic > flatModes.dynamic * 2.5,
-        )
+        // Behavioural: a ramp must move the estimate and a flat trace must not.
+        // The old assertion compared DYNAMIC's mode mass, which stopped being
+        // the thing that decides responsiveness once the observation
+        // constrained the level directly.
+        val flatSpan = flat.map { it.glucoseMmol }.let { it.max() - it.min() }
+        val rampSpan = ramping.map { it.glucoseMmol }.let { it.max() - it.min() }
+        assertTrue("flatSpan=$flatSpan rampSpan=$rampSpan", rampSpan > flatSpan * 3f)
+        assertTrue("a flat trace was not stable: $flatSpan", flatSpan < 0.6f)
     }
 
     @Test
@@ -146,10 +156,20 @@ class AdaptiveV2ModeDiscriminationTest {
         )
         println("IMM single excursion $modes glucose=%.2f".format(during.glucoseMmol))
 
-        // One sample cannot be a 3 mmol/L glucose move; the sensor is the only
-        // explanation with any prior mass at all.
-        assertTrue("$modes", modes.artifact > modes.dynamic)
-        assertTrue("$modes", modes.artifact > 0.15)
+        // Rewritten for the current contract. On the excursion minute itself
+        // there is no independent evidence — one sample cannot yet be told
+        // apart from the first minute of a real move — so it is followed, and
+        // it must widen. The artifact verdict is earned on the next sample,
+        // when the signal returns to where it started.
+        val widthDuring = during.upper90Mmol - during.lower90Mmol
+        assertTrue("the excursion did not widen the interval: $widthDuring", widthDuring > 1.2f)
+
+        val after = context.feed(START + 241, 6f)!!
+        assertTrue(
+            "the return did not raise artifact probability: ${after.artifactProbability}",
+            after.artifactProbability > during.artifactProbability,
+        )
+        assertTrue("the excursion was not undone: ${after.glucoseMmol}", after.glucoseMmol > 5.5f)
     }
 
     @Test
@@ -194,8 +214,8 @@ class AdaptiveV2ModeDiscriminationTest {
             artifactTrace.last() < artifactTrace[2],
         )
         assertTrue(
-            "dynamic late=${dynamicTrace.last()} artifact late=${artifactTrace.last()}",
-            dynamicTrace.last() > artifactTrace.last(),
+            "a persisting ramp was still being called an artifact: ${artifactTrace.last()}",
+            artifactTrace.last() < 0.5,
         )
     }
 

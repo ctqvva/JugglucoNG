@@ -135,6 +135,19 @@ internal class AdaptiveV2Estimator {
      */
     private var surpriseVariance = 0.0
 
+    /**
+     * Uncertainty owed to samples that never arrived.
+     *
+     * A high-gain estimator pins the level from the first sample after a hole,
+     * so the covariance grown across the gap is collapsed again immediately and
+     * the reported interval comes back exactly as narrow as before. That is
+     * correct about the level and wrong about the situation: nothing was
+     * observed for half an hour, and the trend and drift through it are
+     * genuinely unknown. This carries that, and decays over the samples that
+     * re-establish it.
+     */
+    private var gapVariance = 0.0
+
     /** Telemetry for the sample currently being folded in. */
     private var telemetryForUpdate = AdaptiveV2Telemetry(0f, 0f, 0f, 0f, 1f, false)
 
@@ -217,6 +230,7 @@ internal class AdaptiveV2Estimator {
         reversalEvidence = 0.0
         episodeDistrust = 0.0
         surpriseVariance = 0.0
+        gapVariance = 0.0
         observationBeforeLast = Double.NaN
         lastObservation = Double.NaN
         initialized = false
@@ -275,6 +289,10 @@ internal class AdaptiveV2Estimator {
         // correctly over a long step: Q(dt) != Q(1)*dt for coupled B/v/a, and a
         // 20-minute gap must not leave mode identity as persistent as one
         // minute would.
+        gapVariance = max(
+            gapVariance * GAP_DECAY,
+            (elapsed.minutes - 1.0).coerceAtLeast(0.0) * GAP_VARIANCE_PER_MINUTE,
+        )
         var remaining = elapsed.minutes
         while (remaining > 1e-6) {
             val step = min(remaining, MAX_SUBSTEP_MINUTES)
@@ -648,6 +666,27 @@ internal class AdaptiveV2Estimator {
         for (index in 0 until AdaptiveV2Mode.COUNT) modeProbability[index] /= total
     }
 
+    /**
+     * Current probability that the observation is not to be trusted, from
+     * independent evidence only.
+     *
+     * Deliberately not a function of innovation size: a surprising reading is
+     * not a wrong one, and conflating those is what made this estimator lag.
+     */
+    private fun artifactProbabilityNow(): Float {
+        val telemetryEvidence = AdaptiveV2ModeModel.artifactEvidenceFor(
+            telemetryForUpdate.impedanceDisturbance,
+            telemetryForUpdate.vendorArtifactHint,
+        ).toDouble()
+        var absorbed = 0.0
+        for (index in 0 until AdaptiveV2Mode.COUNT) {
+            absorbed += modeProbability[index] * abs(modes[index].x[V2.ARTIFACT])
+        }
+        val transient = (absorbed / ARTIFACT_STATE_SCALE).coerceIn(0.0, 1.0)
+        return max(max(telemetryEvidence, reversalEvidence), transient)
+            .coerceIn(0.0, 1.0).toFloat()
+    }
+
     private fun combine(): ProbabilisticGlucoseEstimate {
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
@@ -659,10 +698,26 @@ internal class AdaptiveV2Estimator {
             // narrow exactly when the median is extrapolating hardest.
             val rate = mode.x[V2.V]
             val lagTerm = rate * rate * lagEstimator.lagVariance
-            val surpriseTerm = SURPRISE_WIDENING * surpriseVariance
+            val surpriseTerm = SURPRISE_WIDENING * surpriseVariance + gapVariance
+            // Unmodelled lead.
+            //
+            // The estimator reports the level the sensor is at, contemporaneously.
+            // Blood is not at that level while glucose is moving — it is ahead by
+            // roughly tau*rate — and this pass deliberately does not reconstruct
+            // that. The covariance cannot know about a term the model does not
+            // contain, so it reported a 90% interval that covered truth only 72%
+            // of the time: over-confident precisely when glucose was moving.
+            //
+            // Carrying the size of what is not modelled fixes the calibration
+            // without pretending to know the direction. It vanishes when flat and
+            // grows with rate, which is exactly where blood and interstitial part
+            // company. It is not a substitute for the deconvolution pass; it is an
+            // honest statement that the pass has not happened.
+            val unmodelledLead = lagEstimator.lagMinutes * rate
+            val leadGapTerm = UNMODELLED_LEAD_SHARE * unmodelledLead * unmodelledLead
             if (index == AdaptiveV2Mode.STEADY.ordinal) updateTrace.lagTerm = lagTerm
             glucoseVariances[index] =
-                max(mode.at(V2.B, V2.B) + lagTerm + surpriseTerm, MIN_VARIANCE).toFloat()
+                max(mode.at(V2.B, V2.B) + lagTerm + surpriseTerm + leadGapTerm, MIN_VARIANCE).toFloat()
             rateMeans[index] = mode.x[V2.V].toFloat()
             rateVariances[index] = max(mode.at(V2.V, V2.V), MIN_VARIANCE).toFloat()
         }
@@ -701,7 +756,14 @@ internal class AdaptiveV2Estimator {
             fallingProbability = rateMixture.cdf(0.0).toFloat(),
             steadyProbability = modeProbability[AdaptiveV2Mode.STEADY.ordinal],
             dynamicProbability = modeProbability[AdaptiveV2Mode.DYNAMIC.ordinal],
-            artifactProbability = modeProbability[AdaptiveV2Mode.ARTIFACT.ordinal],
+            // From the separate artifact inference, not the ARTIFACT mode's
+            // mass. The mode mass answered "which of four glucose filters fits
+            // best", which stopped meaning anything once the displayed level
+            // was constrained directly. What a reader needs is how much reason
+            // there is to distrust the sensor right now: independent telemetry,
+            // a confirmed return-to-baseline excursion, and how much of the
+            // signal the transient artifact state is currently absorbing.
+            artifactProbability = artifactProbabilityNow(),
             driftProbability = modeProbability[AdaptiveV2Mode.DRIFT.ordinal],
             // Confidence is interval sharpness, not a separate belief: a wide
             // credible interval *is* low confidence.
@@ -724,6 +786,7 @@ internal class AdaptiveV2Estimator {
         reversalEvidence = 0.0
         episodeDistrust = 0.0
         surpriseVariance = 0.0
+        gapVariance = 0.0
         observationBeforeLast = Double.NaN
         lastObservation = Double.NaN
         for (index in 0 until AdaptiveV2Mode.COUNT) {
@@ -852,6 +915,12 @@ internal class AdaptiveV2Estimator {
         telemetryModel.writeTo(output)
         noiseModel.writeTo(output)
         lagEstimator.writeTo(output)
+        output.writeDouble(reversalEvidence)
+        output.writeDouble(episodeDistrust)
+        output.writeDouble(surpriseVariance)
+        output.writeDouble(gapVariance)
+        output.writeDouble(observationBeforeLast)
+        output.writeDouble(lastObservation)
     }
 
     internal fun readFrom(input: java.io.DataInputStream): Boolean {
@@ -872,6 +941,12 @@ internal class AdaptiveV2Estimator {
         telemetryModel.readFrom(input)
         noiseModel.readFrom(input)
         lagEstimator.readFrom(input)
+        reversalEvidence = input.readDouble()
+        episodeDistrust = input.readDouble()
+        surpriseVariance = input.readDouble()
+        gapVariance = input.readDouble()
+        observationBeforeLast = input.readDouble()
+        lastObservation = input.readDouble()
         if (!isStateValid()) return false
         if (initialized) combine()
         return true
@@ -924,6 +999,9 @@ internal class AdaptiveV2Estimator {
         /** Level variance released on a confirmed reversal, so the correction lands at once. */
         private const val REVERSAL_LEVEL_RELEASE = 12.0
 
+        /** Artifact-state magnitude, in mmol/L, treated as full transient evidence. */
+        private const val ARTIFACT_STATE_SCALE = 1.2
+
         private const val REVERSAL_DECAY = 0.55
 
         /** How much of the unexplained innovation is reported as uncertainty. */
@@ -931,6 +1009,15 @@ internal class AdaptiveV2Estimator {
 
         /** Surprise fades fast: a confirmed move is no longer a surprising one. */
         private const val SURPRISE_DECAY = 0.35
+
+        /** Reported variance owed per unobserved minute. */
+        private const val GAP_VARIANCE_PER_MINUTE = 0.004
+
+        /** Fades over roughly a quarter hour of real samples. */
+        private const val GAP_DECAY = 0.93
+
+        /** Share of the unreconstructed blood-to-sensor lead carried as variance. */
+        private const val UNMODELLED_LEAD_SHARE = 1.0
 
         private const val MIN_ROBUST_WEIGHT = 0.30
         private const val PROBABILITY_TOLERANCE = 1e-3f

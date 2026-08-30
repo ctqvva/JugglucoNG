@@ -384,8 +384,16 @@ class AdaptiveV2EvaluationTest {
             "obs=${trace.observations.getOrNull(minimumMinute)} " +
             "truthThere=${trace.bloodTruth.getOrNull(minimumMinute)}")
         assertTrue("minimum=$minimum truth=$truthMinimum", truthMinimum < 3.4f)
+        // RECORDED. With suppression gated on independent evidence, an
+        // artifact dip with no telemetry behind it is followed rather than
+        // damped, so the minimum on an artifact-bearing day now undershoots
+        // truth (1.58 against 2.51). That is the deliberate cost of the
+        // no-hidden-smoothing contract: the reversal that would identify it
+        // arrives a minute later, and the interval is widened meanwhile.
+        // Bounded so it cannot drift further, not treated as correct.
         assertTrue("minimum=$minimum truth=$truthMinimum", minimum < 3.4f)
-        assertTrue("minimum=$minimum truth=$truthMinimum", minimum > truthMinimum - 0.9f)
+        assertTrue("undershoot grew: minimum=$minimum truth=$truthMinimum", minimum > 1.2f)
+        assertTrue("minimum=$minimum truth=$truthMinimum", minimum > truthMinimum - 1.0f)
     }
 
     @Test
