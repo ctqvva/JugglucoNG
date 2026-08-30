@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.BuildConfig
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
@@ -572,6 +573,7 @@ object ExportPackageExporter {
             .put("rawValueMgDl", rawValue.toDouble())
             .put("calibratedValueMgDl", calibratedMgDl?.toDouble() ?: JSONObject.NULL)
             .put("rate", rate?.toDouble() ?: JSONObject.NULL)
+            .put("source", source)
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
@@ -657,7 +659,9 @@ object ExportPackageExporter {
                         sensorSerial = sensorSerial,
                         value = value,
                         rawValue = rawValue,
-                        rate = item.optNullableFloat("rate")
+                        rate = item.optNullableFloat("rate"),
+                        source = item.optString("source", GlucoseReadingSource.SENSOR)
+                            .ifBlank { GlucoseReadingSource.SENSOR },
                     )
                 )
             }
