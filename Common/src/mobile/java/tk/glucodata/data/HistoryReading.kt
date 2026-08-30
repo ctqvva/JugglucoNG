@@ -28,5 +28,7 @@ data class HistoryReading(
     val value: Float,             // Calibrated/auto glucose value (mg/dL)
     val rawValue: Float,          // Raw sensor value (mg/dL)
     val rate: Float?,             // Rate of change (nullable - may not always be available)
-    val source: String = GlucoseReadingSource.SENSOR
+    val source: String = GlucoseReadingSource.SENSOR,
+    /** First time this logical row reached Room; preserved across overlap rewrites. */
+    val firstStoredAt: Long = System.currentTimeMillis(),
 )

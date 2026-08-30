@@ -574,6 +574,7 @@ object ExportPackageExporter {
             .put("calibratedValueMgDl", calibratedMgDl?.toDouble() ?: JSONObject.NULL)
             .put("rate", rate?.toDouble() ?: JSONObject.NULL)
             .put("source", source)
+            .put("firstStoredAt", firstStoredAt)
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
@@ -662,6 +663,8 @@ object ExportPackageExporter {
                         rate = item.optNullableFloat("rate"),
                         source = item.optString("source", GlucoseReadingSource.SENSOR)
                             .ifBlank { GlucoseReadingSource.SENSOR },
+                        firstStoredAt = item.optLong("firstStoredAt", System.currentTimeMillis())
+                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
                     )
                 )
             }

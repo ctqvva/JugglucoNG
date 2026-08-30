@@ -670,11 +670,11 @@ class HistoryRepository(context: Context = Applic.app) {
                 }
                 database.withTransaction {
                     val bucketStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
-                    val existingSource = dao.getSensorReadingsInTimeRange(
+                    val existing = dao.getSensorReadingsInTimeRange(
                         sensorSerial = serial,
                         startTimeInclusive = bucketStart,
                         endTimeExclusive = bucketStart + SENSOR_MINUTE_BUCKET_MS,
-                    ).firstOrNull { it.timestamp == timestamp }?.source
+                    ).firstOrNull { it.timestamp == timestamp }
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = serial,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
@@ -687,7 +687,11 @@ class HistoryRepository(context: Context = Applic.app) {
                     )
                     dao.insert(
                         reading.copy(
-                            source = HistorySourceProvenance.stableSource(existingSource, reading.source)
+                            source = HistorySourceProvenance.stableSource(existing?.source, reading.source),
+                            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                                existing?.firstStoredAt,
+                                reading.firstStoredAt,
+                            ),
                         )
                     )
                 }
@@ -775,7 +779,28 @@ class HistoryRepository(context: Context = Applic.app) {
                 filteredReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(newest.sensorSerial, newest.timestamp, writer = "storeReadings")
                 }
-                dao.insertAll(filteredReadings)
+                database.withTransaction {
+                    val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
+                    filteredReadings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+                        rows.map(HistoryReading::timestamp).distinct().chunked(DELETED_TIMESTAMP_QUERY_CHUNK)
+                            .forEach { timestamps ->
+                                dao.getSensorReadingsAtTimestamps(serial, timestamps).forEach { existing ->
+                                    existingByKey[serial to existing.timestamp] = existing
+                                }
+                            }
+                    }
+                    val readingsWithStableProvenance = filteredReadings.map { incoming ->
+                        val existing = existingByKey[incoming.sensorSerial to incoming.timestamp]
+                        incoming.copy(
+                            source = HistorySourceProvenance.stableSource(existing?.source, incoming.source),
+                            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                                existing?.firstStoredAt,
+                                incoming.firstStoredAt,
+                            ),
+                        )
+                    }
+                    dao.insertAll(readingsWithStableProvenance)
+                }
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
                 // Only log small batches (likely genuine new data, not re-syncs)
                 if (filteredReadings.size <= 10) {
@@ -823,7 +848,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     bucketDurationMs = bucketDurationMs,
                 ) ?: return@withContext false
                 database.withTransaction {
-                    val existingSources = HashMap<Long, String>()
+                    val existingProvenance = HashMap<Long, HistoryReading>()
                     for (range in plan.bucketRanges) {
                         val startTimeInclusive = range.firstBucketId * bucketDurationMs
                         val endTimeExclusive = (range.lastBucketId + 1L) * bucketDurationMs
@@ -831,14 +856,19 @@ class HistoryRepository(context: Context = Applic.app) {
                             sensorSerial = sensorSerial,
                             startTimeInclusive = startTimeInclusive,
                             endTimeExclusive = endTimeExclusive,
-                        ).forEach { existing -> existingSources[existing.timestamp] = existing.source }
+                        ).forEach { existing -> existingProvenance[existing.timestamp] = existing }
                     }
                     val readingsWithStableSources = collapsedReadings.map { incoming ->
+                        val existing = existingProvenance[incoming.timestamp]
                         incoming.copy(
                             source = HistorySourceProvenance.stableSource(
-                                existingSources[incoming.timestamp],
+                                existing?.source,
                                 incoming.source,
-                            )
+                            ),
+                            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                                existing?.firstStoredAt,
+                                incoming.firstStoredAt,
+                            ),
                         )
                     }
                     deleteSensorRowsInBucketRanges(

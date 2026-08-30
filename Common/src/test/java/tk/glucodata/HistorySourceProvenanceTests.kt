@@ -33,4 +33,16 @@ class HistorySourceProvenanceTests {
             ),
         )
     }
+
+    @Test
+    fun firstStoredTimeSurvivesOverlapRewrites() {
+        assertEquals(
+            123L,
+            HistorySourceProvenance.stableFirstStoredAt(123L, 999L),
+        )
+        assertEquals(
+            999L,
+            HistorySourceProvenance.stableFirstStoredAt(null, 999L),
+        )
+    }
 }
