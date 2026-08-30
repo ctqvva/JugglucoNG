@@ -699,43 +699,16 @@ fun SensorCard(
     }
 
     // Independent, immediately applied sensor-algorithm features.
-    //
-    // Bit 0 is calibration; bits 1-3 are the model. The model mask widened from
-    // 6 to 14 when Adaptive V2 was added at base 8.
-    var algorithmFeatures by remember(sensor.customCalIndex) {
-        mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
-    }
     if (showSibionicsCalSheet && sensor.isSibionics && sensor.viewMode != 1) {
         @OptIn(ExperimentalMaterial3Api::class)
-        // Plain ModalBottomSheet, deliberately.
-        //
-        // StableModalBottomSheet forces the sheet's minimum height to the
-        // viewport once its content has measured that tall. That is what keeps
-        // a full-height sheet's expanded anchor still while it is dragged, and
-        // on this sheet it is also what stopped a downward drag from ever
-        // reaching the dismiss anchor: the sheet cannot shrink below the
-        // viewport, so the gesture had nowhere to go and the sheet could not be
-        // swiped closed. Three attempts at a cleverer resize policy each traded
-        // one broken behaviour for another.
-        //
-        // This sheet does not need the pin. It is not a viewport-height sheet
-        // by intent — its content is a short settings list — and standard
-        // Material 3 nested-scroll dismissal is worth more here than a stable
-        // anchor. The other sheets keep the pinned wrapper unchanged.
-        ModalBottomSheet(
+        StableModalBottomSheet(
             onDismissRequest = { showSibionicsCalSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            dragHandle = { CompactSheetDragHandle() },
+            dragHandle = { CompactSheetDragHandle() }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // No animateContentSize here. Animating the height of the
-                    // same node that owns the scroll makes the sheet's measured
-                    // height move every frame while a drag is in progress, which
-                    // is the jank and the refusal to swipe down to close. The
-                    // ribbon row already animates itself via AnimatedVisibility,
-                    // and the height pin releases through contentKey.
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp)
@@ -746,6 +719,12 @@ fun SensorCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Bit 0 is calibration; bits 1-3 are the model. The model mask
+                // widened from 6 to 14 when Adaptive V2 was added at base 8.
+                var algorithmFeatures by remember(sensor.customCalIndex) {
+                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
+                }
 
                 fun setCalibration(enabled: Boolean) {
                     val updated = if (enabled) algorithmFeatures or 1 else algorithmFeatures and 1.inv()
