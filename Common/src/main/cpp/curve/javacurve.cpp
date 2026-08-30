@@ -295,9 +295,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
       env->DeleteLocalRef(cl);
       if (!(jhistoryMarkCloneSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "markCloneSensor",
-                "(Ljava/lang/String;II)V"))) {
+                "(Ljava/lang/String;ILjava/lang/String;)V"))) {
         LOGAR(
-            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;II)V") failed)"
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;ILjava/lang/String;)V") failed)"
             "");
       }
       if (!(jhistoryReconcilePrimaryCloneSensor = env->GetStaticMethodID(
@@ -473,7 +473,7 @@ int bluePermission() {
   return getenv()->CallStaticIntMethod(JNIApplic, jbluePermission);
 }
 void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
-                          int cloneConnectionIndex) {
+                          const char *cloneConnectionIdentity) {
   if (!serial || !*serial) {
     return;
   }
@@ -483,9 +483,11 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
   }
   JNIEnv *env = getenv();
   jstring jserial = env->NewStringUTF(serial);
+  jstring jconnectionIdentity = env->NewStringUTF(
+      cloneConnectionIdentity ? cloneConnectionIdentity : "");
   if (jhistoryMarkCloneSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport, cloneConnectionIndex);
+                              jserial, cloneTransport, jconnectionIdentity);
     if (env->ExceptionCheck()) {
       LOGAR("markCloneSensor exception");
       env->ExceptionClear();
@@ -512,6 +514,7 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
                                 JNI_FALSE);
     }
   }
+  env->DeleteLocalRef(jconnectionIdentity);
   env->DeleteLocalRef(jserial);
   if (env->ExceptionCheck()) {
     LOGAR("javaMirrorSyncSensor exception");
@@ -520,20 +523,23 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
 }
 
 void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
-                                int cloneTransport, int cloneConnectionIndex) {
+                                int cloneTransport, const char *cloneConnectionIdentity) {
   if (!serial || !*serial || anchorTimeMs <= 0 || !JNIHistorySyncAccess) {
     return;
   }
   JNIEnv *env = getenv();
   jstring jserial = env->NewStringUTF(serial);
+  jstring jconnectionIdentity = env->NewStringUTF(
+      cloneConnectionIdentity ? cloneConnectionIdentity : "");
   if (jhistoryMarkCloneSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport, cloneConnectionIndex);
+                              jserial, cloneTransport, jconnectionIdentity);
   }
   if (!env->ExceptionCheck() && jhistorySyncRecentSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistorySyncRecentSensor,
                               jserial, static_cast<jlong>(anchorTimeMs));
   }
+  env->DeleteLocalRef(jconnectionIdentity);
   env->DeleteLocalRef(jserial);
   if (env->ExceptionCheck()) {
     LOGAR("javaMirrorSyncRecentSensor exception");

@@ -88,28 +88,28 @@ class CloneSensorKeyCodecTests {
     }
 
     @Test
-    fun connectionIndexEncodingIsStableAndRejectsInvalidEntries() {
+    fun connectionIdentityEncodingIsStableAndRejectsInvalidEntries() {
         val encoded = CloneSensorConnectionCodec.encode(
             linkedMapOf(
-                " receiver-b " to 7,
-                "RECEIVER-A" to 2,
-                "INVALID" to -1,
+                " receiver-b " to "ice-peer-b",
+                "RECEIVER-A" to "ice-peer-a",
+                "INVALID" to "bad|identity",
             )
         )
 
-        assertEquals("RECEIVER-A|2\nRECEIVER-B|7", encoded)
+        assertEquals("RECEIVER-A|ice-peer-a\nRECEIVER-B|ice-peer-b", encoded)
         assertEquals(
-            mapOf("RECEIVER-A" to 2, "RECEIVER-B" to 7),
-            CloneSensorConnectionCodec.decode("$encoded\nBROKEN|-1\nNOPE|x"),
+            mapOf("RECEIVER-A" to "ice-peer-a", "RECEIVER-B" to "ice-peer-b"),
+            CloneSensorConnectionCodec.decode("$encoded\nBROKEN|\nNOPE|bad|identity"),
         )
     }
 
     @Test
-    fun connectionIndexLookupAcceptsOnlyExplicitAliases() {
-        val encoded = CloneSensorConnectionCodec.encode(mapOf("CLONE-PRIMARY" to 4))
+    fun connectionIdentityLookupAcceptsOnlyExplicitAliases() {
+        val encoded = CloneSensorConnectionCodec.encode(mapOf("CLONE-PRIMARY" to "ice-peer-primary"))
 
         assertEquals(
-            4,
+            "ice-peer-primary",
             CloneSensorConnectionCodec.connectionForAny(
                 encoded,
                 listOf("clone-primary", "another-alias"),

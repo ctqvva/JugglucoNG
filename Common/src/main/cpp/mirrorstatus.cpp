@@ -148,14 +148,24 @@ extern "C" JNIEXPORT jstring JNICALL   fromjava(mirrorStatus)(JNIEnv *envin, jcl
 	}
 
 extern "C" JNIEXPORT jint JNICALL fromjava(getCloneConnectionTransport)(
-        JNIEnv *, jclass, jint allindex) {
-    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        JNIEnv *env, jclass, jstring connectionIdentity) {
+    if (!backup || !connectionIdentity)
         return clone_transport_unknown;
-    const passhost_t &host = getBackupHosts()[allindex];
-    Connect *connection = connections[allindex];
-    if (!host.ICE || !connection)
+    const char *identity = env->GetStringUTFChars(connectionIdentity, nullptr);
+    if (!identity)
         return clone_transport_unknown;
-    return connection->cloneTransportCode();
+    int transport = clone_transport_unknown;
+    for (int allindex = 0; allindex < backup->gethostnr(); ++allindex) {
+        const passhost_t &host = getBackupHosts()[allindex];
+        if (!host.ICE || host.getICEname() != identity)
+            continue;
+        Connect *connection = connections[allindex];
+        if (connection)
+            transport = connection->cloneTransportCode();
+        break;
+    }
+    env->ReleaseStringUTFChars(connectionIdentity, identity);
+    return transport;
 }
 
 extern char servererrorbuf[];

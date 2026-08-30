@@ -988,16 +988,17 @@ static void writeMirrorCalibrationFile(const char *serial, const char *json) {
 }
 
 extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
-                                 int cloneConnectionIndex);
+                                 const char *cloneConnectionIdentity);
 void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
-                          int cloneConnectionIndex) {
-    LOGGER("javaMirrorSyncSensor(%s,%d,%d,%d)\n", serial ? serial : "(null)", forceFull,
-           cloneTransport, cloneConnectionIndex);
+                          const char *cloneConnectionIdentity) {
+    LOGGER("javaMirrorSyncSensor(%s,%d,%d,%s)\n", serial ? serial : "(null)", forceFull,
+           cloneTransport, cloneConnectionIdentity ? cloneConnectionIdentity : "(null)");
 }
 void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
-                                int cloneTransport, int cloneConnectionIndex) {
-    LOGGER("javaMirrorSyncRecentSensor(%s,%lld,%d,%d)\n", serial ? serial : "(null)",
-           static_cast<long long>(anchorTimeMs), cloneTransport, cloneConnectionIndex);
+                                int cloneTransport, const char *cloneConnectionIdentity) {
+    LOGGER("javaMirrorSyncRecentSensor(%s,%lld,%d,%s)\n", serial ? serial : "(null)",
+           static_cast<long long>(anchorTimeMs), cloneTransport,
+           cloneConnectionIdentity ? cloneConnectionIdentity : "(null)");
 }
 void javaMirrorReconcilePrimarySensor(const char *serial) {
     LOGGER("javaMirrorReconcilePrimarySensor(%s)\n", serial ? serial : "(null)");
