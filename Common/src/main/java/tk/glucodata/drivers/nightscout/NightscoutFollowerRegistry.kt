@@ -129,6 +129,7 @@ object NightscoutFollowerRegistry {
 
     fun disableFollowerSensor(context: Context) {
         val sensorId = loadConfig(context).sensorId
+        NightscoutFollowerDeviceStatus.clear()
         ManagedCurrentSensor.clearIfMatches(sensorId)
         saveConfig(context, enabled = false, url = loadConfig(context).url, secret = loadConfig(context).secret)
         SensorBluetooth.mygatts()

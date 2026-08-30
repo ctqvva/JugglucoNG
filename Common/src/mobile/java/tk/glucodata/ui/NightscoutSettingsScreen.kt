@@ -75,13 +75,12 @@ import tk.glucodata.NightPost
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalTreatmentUploader
 import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
+import tk.glucodata.drivers.nightscout.NightscoutModePreference
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
-
-private enum class NightscoutMode { UPLOAD, FOLLOW }
 
 // Sealed result for test connection so we don't parse strings
 private sealed class TestState {
@@ -156,17 +155,18 @@ fun NightscoutSettingsScreen(navController: NavController) {
 
     var mode by rememberSaveable {
         mutableStateOf(
-            when {
-                initialUploaderActive -> NightscoutMode.UPLOAD
-                followerConfig.enabled -> NightscoutMode.FOLLOW
-                else -> NightscoutMode.UPLOAD
-            }
+            NightscoutModePreference.load(
+                context = context,
+                legacyUploaderActive = initialUploaderActive,
+                legacyFollowerEnabled = followerConfig.enabled,
+            )
         )
     }
 
     fun persistSettings(connectFollower: Boolean = false) {
-        val uploadActive = isActive && mode == NightscoutMode.UPLOAD
-        val followActive = isActive && mode == NightscoutMode.FOLLOW
+        NightscoutModePreference.save(context, mode)
+        val uploadActive = isActive && mode == NightscoutModePreference.Mode.UPLOAD
+        val followActive = isActive && mode == NightscoutModePreference.Mode.FOLLOW
         val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
 
         Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, isV3)
@@ -237,14 +237,14 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 refreshStatus()
-                delay(if (isActive && mode == NightscoutMode.UPLOAD) 5_000L else 15_000L)
+                delay(if (isActive && mode == NightscoutModePreference.Mode.UPLOAD) 5_000L else 15_000L)
             }
         }
     }
 
     DisposableEffect(Unit) {
         refreshStatus()
-        onDispose { persistSettings(connectFollower = isActive && mode == NightscoutMode.FOLLOW) }
+        onDispose { persistSettings(connectFollower = isActive && mode == NightscoutModePreference.Mode.FOLLOW) }
     }
 
     fun formatStatusTime(epochSeconds: Long): String {
@@ -257,13 +257,13 @@ fun NightscoutSettingsScreen(navController: NavController) {
     }
 
     val uploaderSummary = when {
-        !isActive || mode != NightscoutMode.UPLOAD -> context.getString(R.string.nightscout_status_paused)
+        !isActive || mode != NightscoutModePreference.Mode.UPLOAD -> context.getString(R.string.nightscout_status_paused)
         uploaderRunning -> context.getString(R.string.nightscout_status_running)
         retryMinutes > 0 -> context.getString(R.string.nightscout_status_retry_in, retryMinutes)
         else -> context.getString(R.string.nightscout_status_waiting)
     }
     val responseSummary = when {
-        !isActive || mode != NightscoutMode.UPLOAD -> context.getString(R.string.nightscout_status_paused)
+        !isActive || mode != NightscoutModePreference.Mode.UPLOAD -> context.getString(R.string.nightscout_status_paused)
         lastResponseCode == 0 && lastAttemptTime <= 0L -> context.getString(R.string.nightscout_status_waiting)
         lastResponseCode == -2 -> context.getString(R.string.nightscout_status_response_invalid_url)
         lastResponseCode in 200..299 -> context.getString(R.string.nightscout_status_response_ok, lastResponseCode)
@@ -274,12 +274,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
     }
 
     val masterSubtitle = when (mode) {
-        NightscoutMode.UPLOAD -> if (isActive) {
+        NightscoutModePreference.Mode.UPLOAD -> if (isActive) {
             context.getString(R.string.nightscout_upload_active)
         } else {
             context.getString(R.string.nightscout_upload_paused)
         }
-        NightscoutMode.FOLLOW -> when {
+        NightscoutModePreference.Mode.FOLLOW -> when {
             !isActive -> context.getString(R.string.nightscout_follow_status_paused)
             NightscoutFollowerRegistry.normalizeUrl(url).isBlank() -> context.getString(R.string.nightscout_follow_status_config_needed)
             else -> context.getString(R.string.nightscout_follow_status_following)
@@ -314,7 +314,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     checked = isActive,
                     onCheckedChange = { enabled ->
                         isActive = enabled
-                        persistSettings(connectFollower = enabled && mode == NightscoutMode.FOLLOW)
+                        persistSettings(connectFollower = enabled && mode == NightscoutModePreference.Mode.FOLLOW)
                     },
                     icon = Icons.Filled.CloudUpload
                 )
@@ -322,25 +322,25 @@ fun NightscoutSettingsScreen(navController: NavController) {
 
             item("nightscout_mode_group") {
                 ConnectedButtonGroup(
-                    options = listOf(NightscoutMode.UPLOAD, NightscoutMode.FOLLOW),
+                    options = listOf(NightscoutModePreference.Mode.UPLOAD, NightscoutModePreference.Mode.FOLLOW),
                     selectedOption = mode,
                     onOptionSelected = { selectedMode ->
                         if (selectedMode == mode) return@ConnectedButtonGroup
                         mode = selectedMode
-                        persistSettings(connectFollower = isActive && selectedMode == NightscoutMode.FOLLOW)
+                        persistSettings(connectFollower = isActive && selectedMode == NightscoutModePreference.Mode.FOLLOW)
                         testState = TestState.Idle
                     },
                     label = {},
                     labelText = { selectedMode ->
                         when (selectedMode) {
-                            NightscoutMode.UPLOAD -> context.getString(R.string.nightscout_mode_upload)
-                            NightscoutMode.FOLLOW -> context.getString(R.string.nightscout_mode_follow)
+                            NightscoutModePreference.Mode.UPLOAD -> context.getString(R.string.nightscout_mode_upload)
+                            NightscoutModePreference.Mode.FOLLOW -> context.getString(R.string.nightscout_mode_follow)
                         }
                     },
                     icon = { selectedMode ->
                         when (selectedMode) {
-                            NightscoutMode.UPLOAD -> Icons.Default.CloudUpload
-                            NightscoutMode.FOLLOW -> Icons.Default.Link
+                            NightscoutModePreference.Mode.UPLOAD -> Icons.Default.CloudUpload
+                            NightscoutModePreference.Mode.FOLLOW -> Icons.Default.Link
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -387,7 +387,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { persistSettings(connectFollower = isActive && mode == NightscoutMode.FOLLOW) }),
+                            keyboardActions = KeyboardActions(onDone = { persistSettings(connectFollower = isActive && mode == NightscoutModePreference.Mode.FOLLOW) }),
                             trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
@@ -440,7 +440,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
             }
 
             // Upload-only items
-            if (mode == NightscoutMode.UPLOAD) {
+            if (mode == NightscoutModePreference.Mode.UPLOAD) {
                 item("nightscout_status_card") {
                     Card(
                         modifier = Modifier
@@ -592,7 +592,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
 
             // Follow-only items. The uploader's v3 switch above is an uploader setting: a
             // follower may point at a different server, so it carries its own.
-            if (mode == NightscoutMode.FOLLOW) {
+            if (mode == NightscoutModePreference.Mode.FOLLOW) {
                 item("nightscout_follow_options_group") {
                     SettingsSwitchItem(
                         title = stringResource(R.string.nightscout_follow_use_v3_api),
