@@ -25,7 +25,14 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
 #include <dirent.h>
+#include <fcntl.h>
+#include <mutex>
+#include <poll.h>
+#include <thread>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -34,6 +41,8 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <sys/ioctl.h>
+
+#include "ContextHTTPS.hpp"
 
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
@@ -229,33 +238,132 @@ static void sockopt(int new_fd) {
 //    else LOGGER("KEEPINTVL=%d\n",retalive);
      }
 
+class RequestDeadline {
+    using clock = std::chrono::steady_clock;
+    clock::time_point end;
+    std::shared_ptr<const std::atomic_bool> cancelled;
+public:
+    explicit RequestDeadline(const HTTPSRequestOptions &options)
+        : end(clock::now() + std::chrono::milliseconds(
+              std::max(options.timeoutMilliseconds, 1))),
+          cancelled(options.cancelled) {}
+
+    bool stopped() const {
+        return (cancelled && cancelled->load(std::memory_order_acquire)) ||
+               clock::now() >= end;
+    }
+
+    int pollMilliseconds() const {
+        if(stopped())
+            return 0;
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+            end - clock::now()).count();
+        return static_cast<int>(std::clamp<int64_t>(remaining, 1, 250));
+    }
+};
+
+struct AddressResolution {
+    std::mutex mutex;
+    std::condition_variable ready;
+    addrinfo *addresses=nullptr;
+    int status=EAI_SYSTEM;
+    bool complete=false;
+
+    ~AddressResolution() {
+        if(addresses)
+            freeaddrinfo(addresses);
+        }
+};
+
+static std::shared_ptr<AddressResolution> resolveAddresses(
+        std::string host,std::string service,const RequestDeadline &deadline) {
+    auto resolution=std::make_shared<AddressResolution>();
+    std::thread([resolution,host=std::move(host),service=std::move(service)] {
+        addrinfo hints{.ai_family=AF_UNSPEC,.ai_socktype=SOCK_STREAM};
+        addrinfo *addresses=nullptr;
+        const int status=getaddrinfo(host.c_str(),service.c_str(),&hints,&addresses);
+        {
+            std::lock_guard<std::mutex> lock(resolution->mutex);
+            resolution->addresses=addresses;
+            resolution->status=status;
+            resolution->complete=true;
+        }
+        resolution->ready.notify_one();
+    }).detach();
+
+    std::unique_lock<std::mutex> lock(resolution->mutex);
+    while(!resolution->complete&&!deadline.stopped())
+        resolution->ready.wait_for(
+            lock,std::chrono::milliseconds(deadline.pollMilliseconds()));
+    if(!resolution->complete)
+        return {};
+    return resolution;
+}
+
+static bool waitForSocket(int sock, short events, const RequestDeadline &deadline) {
+    while(!deadline.stopped()) {
+        pollfd descriptor{.fd=sock,.events=events,.revents=0};
+        const int result=poll(&descriptor,1,deadline.pollMilliseconds());
+        if(result>0) {
+            if(descriptor.revents&(POLLERR|POLLHUP|POLLNVAL))
+                return false;
+            if(descriptor.revents&events)
+                return true;
+            continue;
+            }
+        if(result<0&&errno!=EINTR) {
+            lerror("poll");
+            return false;
+            }
+        }
+    return false;
+    }
+
 // Create a TCP connection to host:port
-static int tcp_connect(const char *host, int port) {
-    struct addrinfo hints{ .ai_family = AF_UNSPEC, .ai_socktype = SOCK_STREAM}, *res = nullptr;
+static int tcp_connect(std::string_view host, int port,const RequestDeadline &deadline) {
     char port_str[16];
     snprintf(port_str, sizeof(port_str), "%d", port);
-    LOGGERHTTPS("tcp_connect(%s,%d)\n",host,port);
-    if(getaddrinfo(host, port_str, &hints, &res) != 0) {
-        lerror("getaddrinfo");
+    LOGGERHTTPS("tcp_connect(%.*s,%d)\n",host.size(),host.data(),port);
+    auto resolution=resolveAddresses(std::string(host),port_str,deadline);
+    if(!resolution||resolution->status) {
+        LOGGERHTTPS("getaddrinfo failed: %d\n",
+                    resolution?resolution->status:EAI_AGAIN);
         return -1;
         }
-    destruct _{[res]{ freeaddrinfo(res);}};
-    LOGARHTTPS("Before socket");
-    int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    LOGGERHTTPS("After socket sock=%d\n",sock);
-    if(sock < 0) {
-        lerror("socket");
-        return -1;
-       }
-    if(connect(sock, res->ai_addr, res->ai_addrlen) != 0) {
-        lerror("connect");
-        close(sock);
-        return -1;
-       }
-    sockopt(sock);
-    int flag = 1;
-    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    return sock;
+    for(addrinfo *address=resolution->addresses;
+        address&&!deadline.stopped();address=address->ai_next) {
+        LOGARHTTPS("Before socket");
+        int sock = socket(address->ai_family, address->ai_socktype, address->ai_protocol);
+        LOGGERHTTPS("After socket sock=%d\n",sock);
+        if(sock < 0)
+            continue;
+        const int oldFlags=fcntl(sock,F_GETFL,0);
+        if(oldFlags<0||fcntl(sock,F_SETFL,oldFlags|O_NONBLOCK)<0) {
+            lerror("fcntl O_NONBLOCK");
+            close(sock);
+            continue;
+            }
+        if(connect(sock,address->ai_addr,address->ai_addrlen)!=0) {
+            if(errno!=EINPROGRESS||!waitForSocket(sock,POLLOUT,deadline)) {
+                close(sock);
+                continue;
+                }
+            int socketError=0;
+            socklen_t errorLength=sizeof(socketError);
+            if(getsockopt(sock,SOL_SOCKET,SO_ERROR,&socketError,&errorLength)<0||socketError) {
+                if(socketError)
+                    errno=socketError;
+                lerror("connect");
+                close(sock);
+                continue;
+                }
+            }
+        sockopt(sock);
+        int flag = 1;
+        setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+        return sock;
+        }
+    return -1;
     }
 
 #ifdef DLSYMS_SSL 
@@ -274,7 +382,6 @@ static int SSL_set_tlsext_host_name2(const SSL *s, const char *name) {
  #endif
 
 
-#include "ContextHTTPS.hpp"
     ContextHTTPS::ContextHTTPS(){
         LOGARHTTPS("ContextHTTPS()");
         static bool initlib=initLibrary();
@@ -286,6 +393,7 @@ static int SSL_set_tlsext_host_name2(const SSL *s, const char *name) {
         if (!ctx) {
             LOGARHTTPS("Failed to create SSL_CTX");
             error=true;
+            return;
             }
         error=!load_android_cacerts(ctx);
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, nullptr);
@@ -340,25 +448,34 @@ static const char *geterrorstring(int error) {
 }
 #endif
 
-static int SSLreadfull(SSL* ssl, char *dataptr,const int buflen) {
+static int SSLwait(SSL *ssl,int result,int sock,const RequestDeadline &deadline) {
+    const int error=SSL_get_error(ssl,result);
+    LOGGERHTTPS("SSL operation Error %d %s\n",error,geterrorstring(error));
+    if(error==SSL_ERROR_WANT_READ)
+        return waitForSocket(sock,POLLIN,deadline)?0:-1;
+    if(error==SSL_ERROR_WANT_WRITE)
+        return waitForSocket(sock,POLLOUT,deadline)?0:-1;
+    return -1;
+    }
+
+static int SSLreadfull(SSL* ssl,int sock,char *dataptr,const int buflen,
+                       const RequestDeadline &deadline) {
     LOGGERHTTPS("start SSLreadfull %d\n", buflen);
     int n=0;
-     for(int res;;n+=res) {
+     while(!deadline.stopped()) {
         if(n>=buflen) {
             LOGGERHTTPS("SSL_read all %d\n",n);
             break;
             }
-        res=SSL_read(ssl, dataptr+n,buflen-n);
+        const int res=SSL_read(ssl, dataptr+n,buflen-n);
         if(res>0) {
             LOGGERHTTPS("SSLread %d\n",res);
+            n+=res;
             continue;
             }
-        int err = SSL_get_error(ssl, res);
-        LOGGERHTTPS("SSL_read Error %d %s\n",err,geterrorstring(err));
-        if(err==SSL_ERROR_WANT_READ) {
-                res=0;
+        if(SSLwait(ssl,res,sock,deadline)==0)
                 continue;
-                }
+        int err = SSL_get_error(ssl, res);
         if (err == SSL_ERROR_SSL) {
             unsigned long e = ERR_get_error();
             constexpr const int maxbuf=200;
@@ -414,73 +531,41 @@ static int SSLwritefull(SSL* ssl, const char *dataptr,const int buflen) {
 
 
 
-static void shutdowner(int sock,SSL* ssl) {
-   int flag = 1;
-   setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-/*   struct linger l = { .l_onoff = 0, .l_linger = 0 };
-   setsockopt(sock, SOL_SOCKET, SO_LINGER, &l, sizeof(l)); */
-  for(int i=0;i<10;++i) { 
-       int outq = 0;
-        if(ioctl(sock, TIOCOUTQ, &outq) == 0) {
-            LOGGERHTTPS("SIOCOUTQ = %d bytes\n", outq);
-            if(outq==0)
-                break;
-            }
-        else {
-            flerrorHTTPS("ioctl(sock, TIOCOUTQ, &outq)): ");
-            break;
-            }
-       
-        usleep(500000);
-        }
-    /*
-    struct tcp_info ti;
-    socklen_t len = sizeof(ti);
-    if(getsockopt(sock, IPPROTO_TCP, TCP_INFO, &ti, &len) == 0) {
-        LOGGERHTTPS("tcpi_state=%u tcpi_retransmits=%u tcpi_rto=%u tcpi_snd_mss=%u tcpi_rtt=%u\n",ti.tcpi_state, ti.tcpi_retransmits, ti.tcpi_rto, ti.tcpi_snd_mss, ti.tcpi_rtt);
-        } */
-   for(int i=0;i<5;++i) {
-       int res=SSL_shutdown(ssl);
-       LOGGERHTTPS("SSL_shutdown=%d\n",res);
-       if(res) {
-           if(res==-1) {
-                unsigned long err;
-                while ((err = ERR_get_error()) != 0) {
-                    char buf[256];
-                    ERR_error_string_n(err, buf, sizeof(buf));
-                    LOGGERHTTPS("OpenSSL error: %s (0x%lx)\n", buf, err);
-                    }
-                }
-             break;
-             }
-         usleep(1000*500);
-         }
-      }
-
-std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view host,int port,const std::string_view path,const std::string_view TYPE,const std::span<const char> input, const std::string_view header) {
+std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view host,int port,const std::string_view path,const std::string_view TYPE,const std::span<const char> input, const std::string_view header,const HTTPSRequestOptions &options) {
     std::vector<char> uit;   
     if(error) {
         return {uit,-1};
         }
-    int sock = tcp_connect(host.data(), port);
+    RequestDeadline deadline(options);
+    int sock = tcp_connect(host, port,deadline);
     if (sock < 0) {
         return {uit,-1};
     }
     SSL* ssl = SSL_new(ctx);
     LOGGERHTTPS("after SSL_new(ctx)=%p\n",ssl);
+    if(!ssl) {
+       shutdown(sock,SHUT_RDWR);
+       close(sock);
+       return {uit,-1};
+       }
 
-    destruct _{[ssl,sock]{ 
-       shutdowner(sock,ssl);
+    destruct _{[ssl,sock]{
+       SSL_shutdown(ssl);
        shutdown(sock,SHUT_RDWR);
        close(sock);
        SSL_free(ssl);
        LOGGERHTTPS("close(%d)\n",sock);
         }};
     SSL_set_fd(ssl, sock);
-    SSL_set_tlsext_host_name2(ssl, host.data());  // SNI
+    const std::string hostName(host);
+    SSL_set_tlsext_host_name2(ssl, hostName.c_str());  // SNI
 
     LOGARHTTPS("before SSL_connect");
-    auto conres=SSL_connect(ssl);
+    int conres;
+    while((conres=SSL_connect(ssl))!=1) {
+        if(SSLwait(ssl,conres,sock,deadline)<0)
+            break;
+        }
     LOGGERHTTPS("after SSL_connect conres=%d\n",conres);
     if(conres != 1) {
        const std:: string mess=get_openssl_error_string();
@@ -505,10 +590,24 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
         memcpy(dataptr+requestsize, input.data(), input.size());
         requestsize+=input.size();
        }
-   SSL_write(ssl, dataptr, requestsize);
-   SSL_write(ssl, "", 0);
+   int written=0;
+   while(written<requestsize&&!deadline.stopped()) {
+       const int result=SSL_write(ssl,dataptr+written,requestsize-written);
+       if(result>0) {
+           written+=result;
+           continue;
+           }
+       if(SSLwait(ssl,result,sock,deadline)<0)
+           break;
+       }
+   if(written!=requestsize)
+       return {uit,-1};
    LOGGERHTTPS("after SSL_write %d\n", requestsize);
-   int n=SSL_read(ssl, dataptr,maxdata);
+   int n;
+   while((n=SSL_read(ssl,dataptr,maxdata))<=0) {
+       if(SSLwait(ssl,n,sock,deadline)<0)
+           return {uit,-1};
+       }
    LOGGERHTTPS("after SSL_read=%d\n", n);
    char *enddata=dataptr+n;
    int   status_code=-1;
@@ -518,7 +617,6 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
         startpos+=end;
         }
     else {
-        error=true;
         LOGGERHTTPS("no space in #%s# len=%d\n",dataptr,n);
         return {uit,-1};
         }
@@ -535,7 +633,7 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
         #endif
         if(n==maxdata) {
             do {
-                int n=SSLreadfull(ssl, dataptr,maxdata);
+                int n=SSLreadfull(ssl,sock,dataptr,maxdata,deadline);
                 if(n<=0)
                     break;
                 uit.reserve(uit.capacity()+n);
