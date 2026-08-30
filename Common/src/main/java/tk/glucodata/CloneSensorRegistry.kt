@@ -56,10 +56,43 @@ internal object CloneSensorKeyCodec {
     }
 }
 
+internal object CloneSensorConnectionCodec {
+    fun decode(encoded: String?): Map<String, Int> = encoded
+        .orEmpty()
+        .lineSequence()
+        .mapNotNull { line ->
+            val key = CloneSensorKeyCodec.normalize(line.substringBefore('|'))
+                ?: return@mapNotNull null
+            val connectionIndex = line.substringAfter('|', "-1").trim().toIntOrNull()
+                ?.takeIf { it >= 0 }
+                ?: return@mapNotNull null
+            key to connectionIndex
+        }
+        .toMap()
+
+    fun encode(entries: Map<String, Int>): String = entries
+        .mapNotNull { (key, connectionIndex) ->
+            CloneSensorKeyCodec.normalize(key)
+                ?.takeIf { connectionIndex >= 0 }
+                ?.let { it to connectionIndex }
+        }
+        .distinctBy { it.first }
+        .sortedBy { it.first }
+        .joinToString("\n") { (key, connectionIndex) -> "$key|$connectionIndex" }
+
+    fun connectionForAny(encoded: String?, sensorIds: Iterable<String>): Int? {
+        val stored = decode(encoded)
+        return sensorIds.asSequence().mapNotNull(CloneSensorKeyCodec::normalize)
+            .mapNotNull(stored::get)
+            .firstOrNull()
+    }
+}
+
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
 object CloneSensorRegistry {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_SENSOR_IDS = "clone_source_sensor_ids_v1"
+    private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_indices_v1"
     private val lock = Any()
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -90,7 +123,7 @@ object CloneSensorRegistry {
             ?: CloneSensorKeyCodec.normalize(sensorId)
 
     @JvmStatic
-    fun markCloneSensor(sensorId: String?, transportCode: Int) {
+    fun markCloneSensor(sensorId: String?, transportCode: Int, connectionIndex: Int) {
         val key = registryKey(sensorId) ?: return
         val aliases = candidateKeys(sensorId) + key
         val transport = CloneTransport.fromCode(transportCode)
@@ -108,6 +141,21 @@ object CloneSensorRegistry {
                     .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
                     .apply()
             }
+            if (connectionIndex >= 0) {
+                val currentConnections = CloneSensorConnectionCodec.decode(
+                    preferences.getString(KEY_SENSOR_CONNECTIONS, null)
+                )
+                val updatedConnections = currentConnections.filterKeys { it !in aliases } +
+                    (key to connectionIndex)
+                if (updatedConnections != currentConnections) {
+                    preferences.edit()
+                        .putString(
+                            KEY_SENSOR_CONNECTIONS,
+                            CloneSensorConnectionCodec.encode(updatedConnections),
+                        )
+                        .apply()
+                }
+            }
         }
         runCatching { SensorBluetooth.blockLocalCloneConnection(sensorId) }
     }
@@ -120,16 +168,29 @@ object CloneSensorRegistry {
             val preferences = prefs() ?: return
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
             val updated = current.filterKeys { it !in localKeys }
-            if (updated == current) return
-            preferences.edit()
-                .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
-                .apply()
+            val currentConnections = CloneSensorConnectionCodec.decode(
+                preferences.getString(KEY_SENSOR_CONNECTIONS, null)
+            )
+            val updatedConnections = currentConnections.filterKeys { it !in localKeys }
+            if (updated != current || updatedConnections != currentConnections) {
+                preferences.edit()
+                    .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
+                    .putString(
+                        KEY_SENSOR_CONNECTIONS,
+                        CloneSensorConnectionCodec.encode(updatedConnections),
+                    )
+                    .apply()
+            }
         }
     }
 
     @JvmStatic
     fun isCloneSensor(sensorId: String?): Boolean {
         return transportForSensor(sensorId) != null
+    }
+
+    fun hasAnyCloneSensor(): Boolean = synchronized(lock) {
+        CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).isNotEmpty()
     }
 
     @JvmStatic
@@ -165,8 +226,17 @@ object CloneSensorRegistry {
         }
         val retired = currentEntries.keys.filterNot(retained::containsKey)
         synchronized(lock) {
-            prefs()?.edit()
+            val preferences = prefs()
+            val currentConnections = CloneSensorConnectionCodec.decode(
+                preferences?.getString(KEY_SENSOR_CONNECTIONS, null)
+            )
+            val retainedConnections = currentConnections.filterKeys(retained::containsKey)
+            preferences?.edit()
                 ?.putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(retained))
+                ?.putString(
+                    KEY_SENSOR_CONNECTIONS,
+                    CloneSensorConnectionCodec.encode(retainedConnections),
+                )
                 ?.apply()
         }
         retired.forEach { sensorId ->
@@ -192,5 +262,18 @@ object CloneSensorRegistry {
             prefs()?.getString(KEY_SENSOR_IDS, null),
             requested,
         )
+    }
+
+    /** Returns the route selected by the sensor's current ICE connection, not its last imported row. */
+    fun liveTransportForSensor(sensorId: String?): CloneTransport? {
+        val requested = candidateKeys(sensorId)
+        if (requested.isEmpty() || !isCloneSensor(sensorId)) return null
+        val connectionIndex = CloneSensorConnectionCodec.connectionForAny(
+            prefs()?.getString(KEY_SENSOR_CONNECTIONS, null),
+            requested,
+        ) ?: return CloneTransport.UNKNOWN
+        return runCatching {
+            CloneTransport.fromCode(Natives.getCloneConnectionTransport(connectionIndex))
+        }.getOrDefault(CloneTransport.UNKNOWN)
     }
 }

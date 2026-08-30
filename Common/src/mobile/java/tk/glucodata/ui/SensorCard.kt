@@ -1640,7 +1640,7 @@ fun SensorCard(
             abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
                 snapshot.primaryStr.isNotBlank()
         }
-        freshSnapshot ?: latestPersistedReading?.let { point ->
+        val persistedSnapshot = latestPersistedReading?.let { point ->
             val value = point.value.takeIf { it.isFinite() && it > 0.1f }
                 ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
                 ?: return@let null
@@ -1652,6 +1652,7 @@ fun SensorCard(
                 source = "sensor-card-history",
             )?.takeIf { it.primaryStr.isNotBlank() }
         }
+        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
     }
     var cloneHealthNowMillis by remember(sensor.serial) {
         mutableStateOf(System.currentTimeMillis())
@@ -1659,18 +1660,25 @@ fun SensorCard(
     LaunchedEffect(sensor.serial, sensor.isCloneSource) {
         while (sensor.isCloneSource) {
             cloneHealthNowMillis = System.currentTimeMillis()
-            delay(15_000L)
+            delay(1_000L)
         }
     }
     val cloneHasRecentData = !sensor.isCloneSource || currentSnapshot?.let { snapshot ->
         abs(cloneHealthNowMillis - snapshot.timeMillis) <= Notify.glucosetimeout
     } == true
+    val cloneTransport = if (sensor.isCloneSource) {
+        tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensor.serial)
+    } else {
+        null
+    }
+    val cloneHasLiveConnection = cloneTransport == tk.glucodata.CloneTransport.LOCAL_ICE ||
+        cloneTransport == tk.glucodata.CloneTransport.TURN
     // A watch-owned sensor is operational even though this phone's local BLE
     // callback is deliberately paused. A Clone record, however, is only
     // healthy while readings are actually arriving; transport connectivity by
     // itself must not make a silent Clone look enabled.
     val isStreaming = when {
-        sensor.isCloneSource -> cloneHasRecentData
+        sensor.isCloneSource -> cloneHasRecentData && cloneHasLiveConnection
         else -> isLocallyStreaming || isHandedOff
     }
     // Visual Feedback: Darken card when disconnected/paused
@@ -1763,7 +1771,7 @@ fun SensorCard(
                     ) {
                         if (sensor.isCloneSource) {
                             CloneSourceMark(
-                                transport = tk.glucodata.CloneSensorRegistry.transportForSensor(sensor.serial),
+                                transport = cloneTransport,
                                 showLabel = true,
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 iconSize = 18.dp,
@@ -1868,12 +1876,13 @@ fun SensorCard(
                     // repeating what the play button already says.
                     val sensorStatusText = when {
                         sensor.isCloneSource && !cloneHasRecentData -> stringResource(R.string.nodata)
+                        sensor.isCloneSource && !cloneHasLiveConnection -> stringResource(R.string.status_disconnected)
                         !isStreaming -> pausedText
                         sensor.isCloneSource -> stringResource(
-                            when (tk.glucodata.CloneSensorRegistry.transportForSensor(sensor.serial)) {
+                            when (cloneTransport) {
                                 tk.glucodata.CloneTransport.TURN -> R.string.clone_source_turn_description
                                 tk.glucodata.CloneTransport.LOCAL_ICE -> R.string.clone_source_local_ice_description
-                                tk.glucodata.CloneTransport.UNKNOWN, null -> R.string.clone_source_label
+                                tk.glucodata.CloneTransport.UNKNOWN, null -> R.string.status_disconnected
                             }
                         )
                         sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
@@ -1897,7 +1906,7 @@ fun SensorCard(
                                 Text(
                                     text = status,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = if (sensor.isCloneSource && !cloneHasRecentData) {
+                                    color = if (sensor.isCloneSource && (!cloneHasRecentData || !cloneHasLiveConnection)) {
                                         MaterialTheme.colorScheme.error
                                     } else if (isStreaming) {
                                         MaterialTheme.colorScheme.onSurface

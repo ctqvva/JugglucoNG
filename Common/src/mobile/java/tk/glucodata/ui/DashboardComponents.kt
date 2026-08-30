@@ -359,7 +359,7 @@ fun DashboardCombinedHeader(
             ?: sensorName
     }
     val cloneTransport = remember(refreshRevision, sensorName) {
-        tk.glucodata.CloneSensorRegistry.transportForSensor(sensorName)
+        tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName)
     }
     val resolvedDataState = dataState ?: remember(
         resolvedCurrentSnapshot?.timeMillis,

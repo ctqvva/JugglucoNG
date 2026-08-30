@@ -147,6 +147,17 @@ extern "C" JNIEXPORT jstring JNICALL   fromjava(mirrorStatus)(JNIEnv *envin, jcl
 	return envin->NewStringUTF(text.get());
 	}
 
+extern "C" JNIEXPORT jint JNICALL fromjava(getCloneConnectionTransport)(
+        JNIEnv *, jclass, jint allindex) {
+    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        return clone_transport_unknown;
+    const passhost_t &host = getBackupHosts()[allindex];
+    Connect *connection = connections[allindex];
+    if (!host.ICE || !connection)
+        return clone_transport_unknown;
+    return connection->cloneTransportCode();
+}
+
 extern char servererrorbuf[];
 extern "C" JNIEXPORT jstring JNICALL   fromjava(serverError)(JNIEnv *envin, jclass cl) {
 	return envin->NewStringUTF(servererrorbuf);
