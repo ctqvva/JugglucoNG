@@ -295,9 +295,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
       env->DeleteLocalRef(cl);
       if (!(jhistoryMarkCloneSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "markCloneSensor",
-                "(Ljava/lang/String;ILjava/lang/String;)V"))) {
+                "(Ljava/lang/String;ILjava/lang/String;)Z"))) {
         LOGAR(
-            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;ILjava/lang/String;)V") failed)"
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;ILjava/lang/String;)Z") failed)"
             "");
       }
       if (!(jhistoryReconcilePrimaryCloneSensor = env->GetStaticMethodID(
@@ -485,13 +485,22 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
   jstring jserial = env->NewStringUTF(serial);
   jstring jconnectionIdentity = env->NewStringUTF(
       cloneConnectionIdentity ? cloneConnectionIdentity : "");
+  bool accepted = false;
   if (jhistoryMarkCloneSensor) {
-    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport, jconnectionIdentity);
+    accepted = env->CallStaticBooleanMethod(
+        JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+        jserial, cloneTransport, jconnectionIdentity);
     if (env->ExceptionCheck()) {
       LOGAR("markCloneSensor exception");
       env->ExceptionClear();
+      accepted = false;
     }
+  }
+  if (!accepted) {
+    env->DeleteLocalRef(jconnectionIdentity);
+    env->DeleteLocalRef(jserial);
+    LOGAR("Clone sensor sync rejected while local reception is disabled");
+    return;
   }
   if (forceFull) {
     if (jhistoryMergeFullSyncSensor) {
@@ -531,11 +540,13 @@ void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
   jstring jserial = env->NewStringUTF(serial);
   jstring jconnectionIdentity = env->NewStringUTF(
       cloneConnectionIdentity ? cloneConnectionIdentity : "");
+  bool accepted = false;
   if (jhistoryMarkCloneSensor) {
-    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport, jconnectionIdentity);
+    accepted = env->CallStaticBooleanMethod(
+        JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+        jserial, cloneTransport, jconnectionIdentity);
   }
-  if (!env->ExceptionCheck() && jhistorySyncRecentSensor) {
+  if (!env->ExceptionCheck() && accepted && jhistorySyncRecentSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistorySyncRecentSensor,
                               jserial, static_cast<jlong>(anchorTimeMs));
   }

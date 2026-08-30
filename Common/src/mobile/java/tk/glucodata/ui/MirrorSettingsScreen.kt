@@ -170,8 +170,13 @@ private fun MirrorQrDialog(
 }
 
 fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
+    val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
     try {
         val json = parseMirrorQrJson(jsonstr)
+        // A newly scanned connection is active immediately. Open the local
+        // receiver gate before native startup so its first authenticated packet
+        // cannot race a previously stored global-off state.
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
         val turnConfig = parseHybridQrTurnConfig(json)
         val previousTurnConfig = if (turnConfig != null && Natives.TurnServerNR() > 0) {
             HybridQrTurnConfig(
@@ -208,6 +213,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
             iceLabel, json.optBoolean("side", false)
         )
         if (pos < 0) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
             if (turnConfig != null) {
                 if (previousTurnConfig == null) {
                     Natives.deleteTurnServer(0)
@@ -228,6 +234,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
         tk.glucodata.Applic.wakemirrors()
         return true
     } catch (_: Exception) {
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
         Toast.makeText(context, context.getString(R.string.mirror_invalid_qr_data), Toast.LENGTH_SHORT).show()
         return false
     }
@@ -270,10 +277,18 @@ private fun refreshMirrorNetworking(context: Context, reset: Boolean = true) {
     tk.glucodata.Applic.wakemirrors()
 }
 
+private fun finishCloneReceptionDisable() {
+    tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+    // Drop the mobile snapshot cache too, then immediately resolve Nightscout
+    // or local Journal state for every IOB consumer.
+    tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+}
+
 private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickPairSender {
     val connections = readMirrorConnectionSnapshots()
     reusableQuickPairIndex(connections, kind)?.let { index ->
         if (connections.first { it.index == index }.isDeactivated) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
             Natives.setHostDeactivated(index, false)
             refreshMirrorNetworking(context)
         }
@@ -284,20 +299,29 @@ private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickP
         QuickPairKind.LOCAL -> Natives.makeHomeSender()
         QuickPairKind.HYBRID -> Natives.makeICESender()
     }
-    if (index >= 0) refreshMirrorNetworking(context, reset = false)
+    if (index >= 0) {
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
+        refreshMirrorNetworking(context, reset = false)
+    }
     return QuickPairSender(index, created = index >= 0)
 }
 
 private fun cleanupAnnouncementSender(
     context: Context,
     label: String?,
-    ownedByAnnouncement: Boolean
+    ownedByAnnouncement: Boolean,
+    syncReceptionState: Boolean = true,
 ): Boolean {
     if (label.isNullOrBlank()) return false
     val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
     if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement)) return false
 
     Natives.deletebackuphost(connection!!.index)
+    if (syncReceptionState) {
+        val cloneEnabled = isCloneEnabled(readMirrorConnectionSnapshots())
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(cloneEnabled)
+        if (!cloneEnabled) finishCloneReceptionDisable()
+    }
     refreshMirrorNetworking(context)
     return true
 }
@@ -659,12 +683,16 @@ fun MirrorSettingsScreen(navController: NavController) {
                     enabled = cloneConnections.isNotEmpty(),
                     position = CardPosition.SINGLE,
                     onCheckedChange = { enabled ->
+                        // Close the receiver gate before native host shutdown;
+                        // open it before native host startup.
+                        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabled)
                         if (!enabled && isBroadcasting) {
                             mdnsManager.unregisterService()
                             cleanupAnnouncementSender(
                                 context,
                                 broadcastSenderLabel,
-                                broadcastOwnsSender
+                                broadcastOwnsSender,
+                                syncReceptionState = false,
                             )
                             isBroadcasting = false
                             broadcastSenderLabel = null
@@ -674,7 +702,7 @@ fun MirrorSettingsScreen(navController: NavController) {
                             Natives.setHostDeactivated(index, !enabled)
                         }
                         if (!enabled) {
-                            tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                            finishCloneReceptionDisable()
                         }
                         refreshMirrorNetworking(context)
                         triggerRefresh++
@@ -694,15 +722,23 @@ fun MirrorSettingsScreen(navController: NavController) {
                         mirror = mirror,
                         onEdit = { editSheetPos = mirror.index },
                         onToggle = {
+                            val enabledAfterToggle = mirror.isDeactivated || cloneConnections.any {
+                                it.index != mirror.index && !it.isDeactivated
+                            }
+                            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterToggle)
                             Natives.setHostDeactivated(mirror.index, !mirror.isDeactivated)
-                            if (!isCloneEnabled(readMirrorConnectionSnapshots())) {
-                                tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                            if (!enabledAfterToggle) {
+                                finishCloneReceptionDisable()
                             }
                             refreshMirrorNetworking(context)
                             triggerRefresh++
                         },
                         onShowQR = { mirror.index },
                         onDelete = {
+                            val enabledAfterDelete = cloneConnections.any {
+                                it.index != mirror.index && !it.isDeactivated
+                            }
+                            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterDelete)
                             if (mirror.label == broadcastSenderLabel) {
                                 mdnsManager.unregisterService()
                                 isBroadcasting = false
@@ -710,8 +746,8 @@ fun MirrorSettingsScreen(navController: NavController) {
                                 broadcastOwnsSender = false
                             }
                             Natives.deletebackuphost(mirror.index)
-                            if (!isCloneEnabled(readMirrorConnectionSnapshots())) {
-                                tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+                            if (!enabledAfterDelete) {
+                                finishCloneReceptionDisable()
                             }
                             refreshMirrorNetworking(context)
                             triggerRefresh++
@@ -996,6 +1032,8 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
         // changebackuphost(pos, names, nr, detect, port, nums, stream, scans,
         //   recover, receive, activeonly, passiveonly, pass, starttime, label,
         //   testip, hasname, icelabel, side)
+        val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
         val result = Natives.changebackuphost(
             if (isNew) -1 else pos,
             finalNames,
@@ -1018,6 +1056,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             /* side */ iceSide
         )
         if (result < 0) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
             Toast.makeText(context, changeHostErrorMessage(context, result), Toast.LENGTH_SHORT).show()
             return false
         }

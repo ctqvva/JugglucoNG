@@ -1039,6 +1039,11 @@ public:
       setBlueMessage(index, false);
     host.deactivated = deactive;
     if (deactive) {
+      if (host.ICE && connections[index]) {
+        // ICE owns a separate receiver loop and no classic host socket. End
+        // its current agent now; the loop parks on host.deactivated.
+        connections[index]->endConnection();
+      }
       if (host.activereceive) {
         LOGGER("stop active receive     shutdown(%d)\n", hostsocks[index]);
         extern std::vector<condvar_t *> active_receive;

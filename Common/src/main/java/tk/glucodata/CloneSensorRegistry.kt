@@ -96,6 +96,7 @@ object CloneSensorRegistry {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_SENSOR_IDS = "clone_source_sensor_ids_v1"
     private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_labels_v1"
+    private const val KEY_RECEPTION_ENABLED = "clone_reception_enabled_v1"
     private val lock = Any()
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -126,12 +127,13 @@ object CloneSensorRegistry {
             ?: CloneSensorKeyCodec.normalize(sensorId)
 
     @JvmStatic
-    fun markCloneSensor(sensorId: String?, transportCode: Int, connectionIdentity: String?) {
-        val key = registryKey(sensorId) ?: return
+    fun markCloneSensor(sensorId: String?, transportCode: Int, connectionIdentity: String?): Boolean {
+        val key = registryKey(sensorId) ?: return false
         val aliases = candidateKeys(sensorId) + key
         val transport = CloneTransport.fromCode(transportCode)
         synchronized(lock) {
-            val preferences = prefs() ?: return
+            val preferences = prefs() ?: return false
+            if (!preferences.getBoolean(KEY_RECEPTION_ENABLED, true)) return false
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
             val effectiveTransport = if (transport == CloneTransport.UNKNOWN) {
                 aliases.asSequence().mapNotNull(current::get).firstOrNull() ?: CloneTransport.UNKNOWN
@@ -162,6 +164,7 @@ object CloneSensorRegistry {
             }
         }
         runCatching { SensorBluetooth.blockLocalCloneConnection(sensorId) }
+        return true
     }
 
     @JvmStatic
@@ -197,10 +200,36 @@ object CloneSensorRegistry {
         CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).isNotEmpty()
     }
 
+    /**
+     * Local receiver gate. The default keeps existing configured receivers working
+     * after an upgrade; once the user turns Clone off, late packets must not be
+     * able to repopulate the registry until a local connection is enabled again.
+     */
+    @JvmStatic
+    fun isReceptionEnabled(): Boolean = synchronized(lock) {
+        prefs()?.getBoolean(KEY_RECEPTION_ENABLED, true) ?: true
+    }
+
+    @JvmStatic
+    fun setReceptionEnabled(enabled: Boolean) {
+        synchronized(lock) {
+            prefs()?.edit()?.putBoolean(KEY_RECEPTION_ENABLED, enabled)?.apply()
+        }
+    }
+
     @JvmStatic
     fun deactivateAllCloneSensors() {
         val sensorIds = synchronized(lock) {
-            CloneSensorKeyCodec.decode(prefs()?.getString(KEY_SENSOR_IDS, null)).keys.toList()
+            val preferences = prefs()
+            val registered = CloneSensorKeyCodec.decode(
+                preferences?.getString(KEY_SENSOR_IDS, null)
+            ).keys.toList()
+            preferences?.edit()
+                ?.remove(KEY_SENSOR_IDS)
+                ?.remove(KEY_SENSOR_CONNECTIONS)
+                ?.apply()
+            CloneIobSnapshot.clear()
+            registered
         }
         sensorIds.forEach { sensorId ->
             runCatching {
