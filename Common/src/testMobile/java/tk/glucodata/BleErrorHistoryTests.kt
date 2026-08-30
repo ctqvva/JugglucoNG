@@ -9,7 +9,7 @@ class BleErrorHistoryTests {
     @Test
     fun `serialized history reloads without losing sensor status or timestamp`() {
         val expected = listOf(
-            BleErrorEvent("XX0PMEN0HA5", "Status=147", 12_345L),
+            BleErrorEvent("TEST-SENSOR-001", "Status=147", 12_345L),
             BleErrorEvent("sensor with spaces", "Loss of signal", 12_000L),
         )
 

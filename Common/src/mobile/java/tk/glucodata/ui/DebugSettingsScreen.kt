@@ -59,6 +59,7 @@ import tk.glucodata.R
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -131,6 +132,12 @@ private fun readBleErrorHistory(): LogSnapshot {
     )
 }
 
+private fun bleErrorHistoryText(): String =
+    readBleErrorHistory().lines
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString("\n", postfix = "\n")
+        .orEmpty()
+
 /** Short, non-identifying preamble so a shared log says which build it came from. */
 private fun reportHeader(): String = buildString {
     append("# Juggluco ").append(BuildConfig.VERSION_NAME).append('\n')
@@ -168,13 +175,14 @@ fun DebugSettingsScreen(navController: NavController) {
 
     fun currentFile(): File? = logType.fileName()?.let { File(context.filesDir, it) }
 
-    fun currentText(): String = if (logType == LogType.BLE_ERRORS) {
-        readBleErrorHistory().lines
-            .takeIf { it.isNotEmpty() }
-            ?.joinToString("\n", postfix = "\n")
-            .orEmpty()
-    } else {
-        currentFile()?.takeIf(File::exists)?.readText().orEmpty()
+    fun exportSource(type: LogType): DebugLogExportSource? {
+        val source = when (type) {
+            LogType.TRACE, LogType.LOGCAT -> DebugLogExportSource.FileContent(
+                File(context.filesDir, requireNotNull(type.fileName()))
+            )
+            LogType.BLE_ERRORS -> DebugLogExportSource.TextContent(bleErrorHistoryText())
+        }
+        return source.takeUnless(DebugLogExportSource::isEmpty)
     }
 
     LaunchedEffect(logType) {
@@ -212,45 +220,79 @@ fun DebugSettingsScreen(navController: NavController) {
         ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        val selectedType = logType
         scope.launch {
+            var empty = false
             val error = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use { output ->
-                        output.write(reportHeader().toByteArray())
-                        output.write(currentText().toByteArray())
+                val source = exportSource(selectedType)
+                if (source == null) {
+                    empty = true
+                    null
+                } else {
+                    var destinationOpened = false
+                    runCatching {
+                        val output = context.contentResolver.openOutputStream(uri, "wt")
+                            ?: throw IOException("Could not open export destination")
+                        destinationOpened = true
+                        output.use {
+                            writeDebugLogReport(it, reportHeader(), source)
+                        }
+                    }.exceptionOrNull().also {
+                        if (it != null && destinationOpened) {
+                            // ACTION_CREATE_DOCUMENT has already created the destination. Do not
+                            // leave a header-only or otherwise partial file behind after failure.
+                            runCatching { context.contentResolver.delete(uri, null, null) }
+                        }
                     }
-                }.exceptionOrNull()
+                }
             }
-            if (error != null) snackbarHost.showSnackbar(savingError + error.message)
+            when {
+                empty -> snackbarHost.showSnackbar(nothingToShare)
+                error != null -> snackbarHost.showSnackbar(savingError + error.message)
+            }
         }
     }
 
     fun shareLog() {
+        val selectedType = logType
         scope.launch {
+            var empty = false
             val result = withContext(Dispatchers.IO) {
+                var staged: File? = null
                 runCatching {
-                    val contents = currentText()
-                    if (contents.isEmpty()) return@runCatching null
+                    val source = exportSource(selectedType)
+                    if (source == null) {
+                        empty = true
+                        return@runCatching null
+                    }
                     val outDir = File(context.cacheDir, "exports").apply { mkdirs() }
                     // Each staged copy is as large as the log itself. Drop earlier ones so
                     // repeated shares don't quietly park tens of MB in the cache.
                     outDir.listFiles { f -> f.name.startsWith("juggluco-") }
                         ?.forEach { it.delete() }
-                    val staged = File(outDir, logType.exportName())
-                    staged.outputStream().use { output ->
-                        output.write(reportHeader().toByteArray())
-                        output.write(contents.toByteArray())
+                    val stagedFile = File(outDir, selectedType.exportName())
+                    staged = stagedFile
+                    stagedFile.outputStream().use { output ->
+                        writeDebugLogReport(output, reportHeader(), source)
                     }
                     FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.fileprovider",
-                        staged
+                        stagedFile
                     )
+                }.onFailure {
+                    // A failed staged copy must not masquerade as a valid shareable trace.
+                    staged?.delete()
                 }
+            }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                snackbarHost.showSnackbar(savingError + error.message)
+                return@launch
             }
             val uri = result.getOrNull()
             if (uri == null) {
-                snackbarHost.showSnackbar(nothingToShare)
+                if (empty) snackbarHost.showSnackbar(nothingToShare)
                 return@launch
             }
             runCatching {
