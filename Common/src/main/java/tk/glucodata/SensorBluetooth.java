@@ -1475,29 +1475,28 @@ public class SensorBluetooth {
             blueone = null;
             return false;
         }
-        String[] nativeDevs = filterActiveSensorNames(Natives.activeSensors());
-
-        ArrayList<String> candidateDevs = new ArrayList<>();
-        if (nativeDevs != null) {
-            for (String s : nativeDevs) {
-                if (isValidShortSensorName(s)) {
-                    candidateDevs.add(s);
+        // Clone disable can retire managed callbacks from the UI thread while a
+        // native sync asks us to rebuild this same roster. Take the native and
+        // managed snapshots under the same monitor as comparison and mutation;
+        // otherwise a pre-disable snapshot can re-add a callback after retirement.
+        synchronized (gattcallbacks) {
+            String[] nativeDevs = filterActiveSensorNames(Natives.activeSensors());
+            ArrayList<String> candidateDevs = new ArrayList<>();
+            if (nativeDevs != null) {
+                for (String s : nativeDevs) {
+                    if (isValidShortSensorName(s)) {
+                        candidateDevs.add(s);
+                    }
                 }
             }
-        }
-        for (String serial : ManagedSensorIdentityRegistry.INSTANCE.persistedSensorIds(Applic.app)) {
-            if (isValidShortSensorName(serial)) {
-                candidateDevs.add(serial);
+            for (String serial : ManagedSensorIdentityRegistry.INSTANCE.persistedSensorIds(Applic.app)) {
+                if (isValidShortSensorName(serial)) {
+                    candidateDevs.add(serial);
+                }
             }
-        }
-        ArrayList<String> allDevs = distinctRuntimeSensorIds(candidateDevs);
-
-        String[] devs = allDevs.toArray(new String[0]);
-        ArrayList<Integer> rem = new ArrayList<>();
-        // Clone disable can retire managed callbacks from the UI thread while a
-        // native sync asks us to rebuild this same roster. Keep the comparison
-        // and mutation atomic with retireCloneSensor(), which uses this monitor.
-        synchronized (gattcallbacks) {
+            ArrayList<String> allDevs = distinctRuntimeSensorIds(candidateDevs);
+            String[] devs = allDevs.toArray(new String[0]);
+            ArrayList<Integer> rem = new ArrayList<>();
             int gatnr = gattcallbacks.size();
             if (devs == null) {
                 for (int i = 0; i < gatnr; i++) {

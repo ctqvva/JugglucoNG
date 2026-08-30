@@ -48,9 +48,13 @@ class CloneReceptionSafetyTests {
 
         assertTrue(ice.contains("if(host.deactivated)"))
         assertTrue(ice.contains("if (!host.ICE || host.deactivated)"))
-        assertTrue(commands.contains("if (!host || host->deactivated)"))
-        assertTrue(host.contains("if (host.ICE && connections[index])"))
-        assertTrue(host.contains("connections[index]->endConnection()"))
+        assertTrue(commands.contains("std::lock_guard<std::mutex> commandLock(receiverCommandsMutex)"))
+        assertTrue(commands.contains("host->deactivated || !receiverCommandsEnabled.load"))
+        val closeGate = host.indexOf("connection->setReceiverCommandsEnabled(false)")
+        val quiesce = host.indexOf("connection->waitForReceiverCommandsIdle()")
+        assertTrue(closeGate >= 0 && quiesce > closeGate)
+        assertTrue(host.contains("connection->endConnection()"))
+        assertTrue(host.contains("if (host.ICE) startReceiverThread(index)"))
     }
 
     @Test
@@ -62,7 +66,7 @@ class CloneReceptionSafetyTests {
 
         assertTrue(bridge.contains("(Ljava/lang/String;ILjava/lang/String;)Z"))
         assertTrue(bridge.contains("if (!accepted)"))
-        assertTrue(access.contains("if (!CloneSensorRegistry.isReceptionEnabled()) return false"))
+        assertTrue(access.contains("CloneSensorRegistry.whileReceptionEnabled"))
     }
 
     @Test
@@ -73,7 +77,22 @@ class CloneReceptionSafetyTests {
         val rosterStart = bluetooth.indexOf("boolean updateDevicers()")
         assertTrue(retireStart >= 0 && rosterStart >= 0)
         assertTrue(bluetooth.substring(retireStart).contains("synchronized (gattcallbacks)"))
-        assertTrue(bluetooth.substring(rosterStart).contains("synchronized (gattcallbacks)"))
+        val roster = bluetooth.substring(rosterStart)
+        val rosterLock = roster.indexOf("synchronized (gattcallbacks)")
+        val activeSnapshot = roster.indexOf("Natives.activeSensors()")
+        assertTrue(rosterLock >= 0 && activeSnapshot > rosterLock)
+    }
+
+    @Test
+    fun reconcileAndIobImportCommitUnderTheReceiverGate() {
+        val registry = source("Common/src/main/java/tk/glucodata/CloneSensorRegistry.kt")
+            .replace(Regex("\\s+"), " ")
+        val access = source("Common/src/main/java/tk/glucodata/HistorySyncAccess.kt")
+            .replace(Regex("\\s+"), " ")
+
+        val reconcile = registry.substring(registry.indexOf("fun reconcilePrimaryCloneSensor"))
+        assertTrue(reconcile.contains("whileReceptionEnabled"))
+        assertTrue(access.contains("return CloneSensorRegistry.whileReceptionEnabled"))
     }
 
 }

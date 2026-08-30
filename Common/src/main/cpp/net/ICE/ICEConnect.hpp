@@ -51,6 +51,7 @@ std::atomic<time_t> connectTime{0};
 std::atomic<juice_state_t> state{JUICE_STATE_DISCONNECTED};
 std::atomic<Phase_t> phase{Start};
 std::atomic_bool wakeReceiver{false};
+std::atomic_bool receiverThreadRunning{false};
 std::mutex receiveThreadMutex;
 std::condition_variable receiveThreadCon; 
 std::atomic_flag startSending{};
@@ -119,6 +120,13 @@ bool isCurrentAgent(juice_agent_t *candidate, uint64_t generation) const {
         }
 uint64_t currentAgentGeneration() const {
         return agentGeneration.load();
+        }
+bool claimReceiverThread() {
+        bool expected=false;
+        return receiverThreadRunning.compare_exchange_strong(expected, true);
+        }
+void releaseReceiverThread() {
+        receiverThreadRunning.store(false);
         }
  int newConnection(int allindex) {
         setindex(allindex);

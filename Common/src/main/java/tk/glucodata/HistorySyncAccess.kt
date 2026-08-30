@@ -175,14 +175,15 @@ object HistorySyncAccess {
 
     @JvmStatic
     fun importCloneIobSnapshot(raw: String?): Boolean {
-        if (!CloneSensorRegistry.isReceptionEnabled()) return false
         if (raw.isNullOrBlank()) return false
         val method = importCloneIobMethod ?: return false
-        return runCatching {
-            method.invoke(null, raw) as? Boolean ?: false
-        }.onFailure {
-            Log.w(TAG, "importCloneIobSnapshot failed", it)
-        }.getOrDefault(false)
+        return CloneSensorRegistry.whileReceptionEnabled {
+            runCatching {
+                method.invoke(null, raw) as? Boolean ?: false
+            }.onFailure {
+                Log.w(TAG, "importCloneIobSnapshot failed", it)
+            }.getOrDefault(false)
+        } ?: false
     }
 
     @JvmStatic

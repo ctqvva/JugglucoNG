@@ -1037,12 +1037,15 @@ public:
       return;
     if (host.wearos)
       setBlueMessage(index, false);
+    Connect *connection = connections[index];
+    if (deactive && connection)
+      connection->setReceiverCommandsEnabled(false);
     host.deactivated = deactive;
     if (deactive) {
-      if (host.ICE && connections[index]) {
+      if (host.ICE && connection) {
         // ICE owns a separate receiver loop and no classic host socket. End
         // its current agent now; the loop parks on host.deactivated.
-        connections[index]->endConnection();
+        connection->endConnection();
       }
       if (host.activereceive) {
         LOGGER("stop active receive     shutdown(%d)\n", hostsocks[index]);
@@ -1070,7 +1073,16 @@ public:
         ::shutdown(sock, SHUT_RDWR);
       }
 
+      // Transport shutdown prevents new input. Waiting here makes the native
+      // disable call a quiescence boundary for a command already in interpret().
+      if (connection)
+        connection->waitForReceiverCommandsIdle();
+
     } else {
+      if (connection)
+        connection->setReceiverCommandsEnabled(true);
+      if (host.ICE)
+        startReceiverThread(index);
       if (host.index >= 0)
         startthread(index, host.index);
       if (host.activereceive) {
