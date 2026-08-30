@@ -437,7 +437,9 @@ class DashboardViewModel(
     private fun stopJournalEntriesObservation() {
         journalEntriesJob?.cancel()
         journalEntriesJob = null
-        _journalEntries.value = emptyList()
+        // The enabled state controls visibility at the UI boundary. Keep the
+        // last Room emission while observation is paused so a receiver or
+        // sensor-mode refresh cannot masquerade as an empty database.
     }
 
     private fun ensureJournalPresetsObserved() {
