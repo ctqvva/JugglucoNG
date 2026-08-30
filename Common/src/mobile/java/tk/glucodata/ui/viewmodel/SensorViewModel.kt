@@ -14,6 +14,7 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorOwnershipRuntime
+import tk.glucodata.SensorVendor
 import tk.glucodata.SensorVisuals
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.Natives
@@ -89,6 +90,7 @@ data class SensorInfo(
     val vendorModel: String = "",  // AiDex: model name from GET_DEVICE_INFO (e.g. "GX-01S")
     val isIcan: Boolean = false,
     val isAnytime: Boolean = false,  // Anytime/Yuwell: vendor reports battery as percent + voltage
+    val vendor: SensorVendor = SensorVendor.UNKNOWN,
     // Edit 59: Reset compensation state
     val resetCompensationActive: Boolean = false,  // AiDex: whether initialization bias compensation is active
     val resetCompensationStatus: String = "",  // AiDex: human-readable compensation status (e.g. "Phase 1: ×1.176 (23h left)")
@@ -164,6 +166,7 @@ class SensorViewModel : ViewModel() {
         if (sensor.startMs > 0L) score += 100
         if (sensor.detailedStatus.isNotBlank()) score += 50
         if (sensor.connectionStatus.isNotBlank()) score += 20
+        if (sensor.vendor != SensorVendor.UNKNOWN) score += 10
         return score
     }
 
@@ -382,6 +385,7 @@ class SensorViewModel : ViewModel() {
             isMq = isMq,
             isIcan = isIcan,
             isAnytime = isAnytime,
+            vendor = SensorVendor.fromManagedFamily(snapshot.uiFamily),
             startMs = snapshot.startTimeMs,
             officialEndMs = snapshot.officialEndMs,
             expectedEndMs = snapshot.expectedEndMs,
@@ -482,6 +486,9 @@ class SensorViewModel : ViewModel() {
                         var autoResetDays = Natives.getAutoResetDays(gatt.dataptr)
                         val isSi2 = Natives.isSibionics2(gatt.dataptr)
                         val isSi = Natives.isSibionics(gatt.dataptr)
+                        val sensorVendor = SensorVendor.fromNativeKind(
+                            runCatching { Natives.getLibreVersion(gatt.dataptr) }.getOrDefault(-1)
+                        )
                         // Managed and legacy Sibionics 2 both default to 22 days, while preserving
                         // an explicit earlier reset target selected with the sensor-card stepper.
                         if (isSi2 && autoResetDays !in 1..22 && autoResetDays != 300) {
@@ -576,6 +583,7 @@ class SensorViewModel : ViewModel() {
                             isSibionics = isSi,
                             isSibionics2 = isSi2,
                             isAidex = false,
+                            vendor = sensorVendor,
                             startMs = startMs,
                             officialEndMs = officialEndMs,
                             expectedEndMs = expectedEndMs,

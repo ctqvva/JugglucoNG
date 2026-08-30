@@ -2667,4 +2667,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucosechartvaluecomplicationlabel">График + утга</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + утга + сум</string>
     <string name="glucosechartfullcomplicationlabel">График + утга + сум + цаг</string>
+    <string name="sensor_vendor_abbott">Abbott</string>
+    <string name="sensor_vendor_sibionics">Sibionics</string>
+    <string name="sensor_vendor_dexcom">Dexcom</string>
+    <string name="sensor_vendor_roche">Roche</string>
+    <string name="sensor_vendor_microtech">MicroTech</string>
+    <string name="sensor_vendor_sinocare">Sinocare</string>
+    <string name="sensor_vendor_glutec">Glutec</string>
+    <string name="sensor_vendor_yuwell">Yuwell</string>
+    <string name="sensor_vendor_ottai">Ottai</string>
 </resources>

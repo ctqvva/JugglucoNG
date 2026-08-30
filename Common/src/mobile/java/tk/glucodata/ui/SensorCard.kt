@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -53,6 +55,7 @@ import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
+import tk.glucodata.SensorVendor
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
@@ -133,6 +136,32 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
+
+@Composable
+private fun SensorVendorBadge(
+    vendor: SensorVendor,
+    modifier: Modifier = Modifier,
+) {
+    val vendorName = stringResource(vendor.labelRes)
+    Surface(
+        modifier = modifier
+            .size(28.dp)
+            .clearAndSetSemantics { contentDescription = vendorName },
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = vendor.badgeText,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+            )
+        }
+    }
+}
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -1261,14 +1290,25 @@ fun SensorCard(
                             }
                             // Title with optional "Active" badge
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = sensor.displayName.ifBlank { sensor.serial },
-                                    style = serialTextStyle,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                )
+                                SensorVendorBadge(sensor.vendor)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = sensor.displayName.ifBlank { sensor.serial },
+                                        style = serialTextStyle,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = stringResource(sensor.vendor.labelRes),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
+                                }
                                 // Toggle Main Sensor Badge
                                 Spacer(modifier = Modifier.width(8.dp))
                                 val isMain = sensor.isActive

@@ -2553,4 +2553,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Gráfico + valor</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Gráfico + valor + seta</string>
     <string name="glucosechartfullcomplicationlabel">Gráfico + valor + seta + hora</string>
+    <string name="sensor_vendor_abbott">Abbott</string>
+    <string name="sensor_vendor_sibionics">Sibionics</string>
+    <string name="sensor_vendor_dexcom">Dexcom</string>
+    <string name="sensor_vendor_roche">Roche</string>
+    <string name="sensor_vendor_microtech">MicroTech</string>
+    <string name="sensor_vendor_sinocare">Sinocare</string>
+    <string name="sensor_vendor_glutec">Glutec</string>
+    <string name="sensor_vendor_yuwell">Yuwell</string>
+    <string name="sensor_vendor_ottai">Ottai</string>
 </resources>

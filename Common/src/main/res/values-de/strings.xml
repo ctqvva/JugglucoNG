@@ -2591,4 +2591,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <string name="sensor_vendor_abbott">Abbott</string>
+    <string name="sensor_vendor_sibionics">Sibionics</string>
+    <string name="sensor_vendor_dexcom">Dexcom</string>
+    <string name="sensor_vendor_roche">Roche</string>
+    <string name="sensor_vendor_microtech">MicroTech</string>
+    <string name="sensor_vendor_sinocare">Sinocare</string>
+    <string name="sensor_vendor_glutec">Glutec</string>
+    <string name="sensor_vendor_yuwell">Yuwell</string>
+    <string name="sensor_vendor_ottai">Ottai</string>
 </resources>
