@@ -2,6 +2,7 @@ package tk.glucodata.drivers.aidex
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,6 +19,14 @@ class AiDexManagedSensorIdentityAdapterTests {
             "X-2222267V4E",
             AiDexSerialIdentity.canonicalFromAdvertisement("AiDEX sensor X-2222267V4E")
         )
+    }
+
+    @Test
+    fun fGenerationDetection_requiresExplicitFSeparator() {
+        assertTrue(AiDexSerialIdentity.isFGenerationAdvertisement("AiDEX F-22222FZXKT"))
+        assertTrue(AiDexSerialIdentity.isFGenerationAdvertisement("F-22222FZXKT"))
+        assertFalse(AiDexSerialIdentity.isFGenerationAdvertisement("AiDEX X-22222FZXKT"))
+        assertFalse(AiDexSerialIdentity.isFGenerationAdvertisement("22222FZXKT"))
     }
 
     @Test

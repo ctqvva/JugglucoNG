@@ -242,7 +242,9 @@ class AiDexBleManager(
         val commandBuilder: AiDexCommandBuilder = AiDexCommandBuilder(keyExchange),
     )
 
-    @Volatile private var protocolSession = ProtocolSession(AiDexKeyExchange(serial))
+    @Volatile private var protocolSession = ProtocolSession(
+        AiDexKeyExchange(serial, AiDexPairingMaterialRegistry.find(serial))
+    )
     private val keyExchange: AiDexKeyExchange get() = protocolSession.keyExchange
     private val commandBuilder: AiDexCommandBuilder get() = protocolSession.commandBuilder
 
@@ -2826,6 +2828,7 @@ class AiDexBleManager(
 
     private fun startKeyExchange(gatt: BluetoothGatt) {
         maybeUseAdvertisedProtocolSerial()
+        maybeUseProvisionedPairingMaterial()
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
 
@@ -2871,11 +2874,26 @@ class AiDexBleManager(
         ) ?: return
         if (advertisedSerial.equals(keyExchange.bareSerial, ignoreCase = true)) return
 
-        protocolSession = ProtocolSession(AiDexKeyExchange(advertisedSerial))
+        protocolSession = ProtocolSession(
+            AiDexKeyExchange(advertisedSerial, AiDexPairingMaterialRegistry.find(advertisedSerial))
+        )
         Log.w(
             TAG,
             "Using advertised AiDEX protocol serial $advertisedSerial for MAC-fallback identity $SerialNumber"
         )
+    }
+
+    /** Pick up material installed or removed after construction but before F001 is written. */
+    private fun maybeUseProvisionedPairingMaterial() {
+        val protocolSerial = keyExchange.bareSerial
+        val material = AiDexPairingMaterialRegistry.find(protocolSerial)
+        if (material == null && !keyExchange.usesProvisionedPairingMaterial) return
+        protocolSession = ProtocolSession(AiDexKeyExchange(protocolSerial, material))
+        if (material != null) {
+            Log.i(TAG, "Using provisioned AiDEX pairing material for $protocolSerial")
+        } else {
+            Log.i(TAG, "Provisioned AiDEX pairing material cleared for $protocolSerial; using serial derivation")
+        }
     }
 
     /**
@@ -2883,7 +2901,27 @@ class AiDexBleManager(
      */
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
         if (data.size < 16) {
-            Log.w(TAG, "F001 response too short (${data.size} bytes)")
+            Log.w(TAG, "F001 response too short (${data.size} bytes, hex=${AiDexParser.hexString(data)})")
+            val advertisedName = try {
+                mygetDeviceName()
+            } catch (_: Throwable) {
+                null
+            }
+            if (
+                data.size == 1 &&
+                (data[0].toInt() and 0xFF) == 0 &&
+                AiDexSerialIdentity.isFGenerationAdvertisement(advertisedName)
+            ) {
+                if (keyExchange.usesProvisionedPairingMaterial) {
+                    Log.e(TAG, "F-generation sensor rejected the provisioned F001 pairing material")
+                } else {
+                    Log.e(
+                        TAG,
+                        "F-generation sensor rejected serial-derived F001 pairing material; " +
+                            "this firmware may require sensor-specific server-provisioned secret/IV"
+                    )
+                }
+            }
             return
         }
 

@@ -22,6 +22,11 @@ object AiDexSerialIdentity {
             "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
         RegexOption.IGNORE_CASE,
     )
+    private val fGenerationPrefixed = Regex(
+        "(?:^|\\s)(?:AIDEX\\s+)?F\\s*-\\s*" +
+            "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
+        RegexOption.IGNORE_CASE,
+    )
 
     fun canonicalFromAdvertisement(rawName: String): String? {
         val trimmed = rawName.trim()
@@ -55,6 +60,9 @@ object AiDexSerialIdentity {
             trimmed
         }
     }
+
+    fun isFGenerationAdvertisement(rawName: String?): Boolean =
+        !rawName.isNullOrBlank() && fGenerationPrefixed.containsMatchIn(rawName.trim())
 
     fun fallbackCanonicalFromAddress(address: String): String =
         CANONICAL_PREFIX + address.filter(Char::isLetterOrDigit).uppercase()
