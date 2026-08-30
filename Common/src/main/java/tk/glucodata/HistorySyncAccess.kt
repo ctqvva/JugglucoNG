@@ -8,6 +8,7 @@ object HistorySyncAccess {
     private const val TAG = "HistorySyncAccess"
     private const val SYNC_CLASS_NAME = "tk.glucodata.data.HistorySync"
     private const val REPOSITORY_CLASS_NAME = "tk.glucodata.data.HistoryRepository"
+    private const val JOURNAL_SNAPSHOT_CLASS_NAME = "tk.glucodata.OutboundApiJournalSnapshot"
     private const val DEFAULT_AIDEX_SOURCE = 4
 
     private val syncHolder by lazy { runCatching { Class.forName(SYNC_CLASS_NAME) }.getOrNull() }
@@ -134,6 +135,22 @@ object HistorySyncAccess {
             repositoryHolder?.getField("GLUCODATA_SOURCE_AIDEX")?.getInt(null)
         }.getOrNull() ?: DEFAULT_AIDEX_SOURCE
     }
+    private val journalSnapshotHolder by lazy {
+        runCatching { Class.forName(JOURNAL_SNAPSHOT_CLASS_NAME) }.getOrNull()
+    }
+    private val exportCloneIobMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "cloneIobSnapshotJson",
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val importCloneIobMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod("importCloneIobSnapshot", String::class.java)
+        }.getOrNull()
+    }
 
     /** Called only by the native mirror receiver before it imports remote sensor files. */
     @JvmStatic
@@ -144,6 +161,27 @@ object HistorySyncAccess {
     @JvmStatic
     fun reconcilePrimaryCloneSensor(serial: String?) {
         CloneSensorRegistry.reconcilePrimaryCloneSensor(serial)
+    }
+
+    @JvmStatic
+    fun exportCloneIobSnapshot(): String {
+        val method = exportCloneIobMethod ?: return ""
+        return runCatching {
+            method.invoke(null, System.currentTimeMillis()) as? String ?: ""
+        }.onFailure {
+            Log.w(TAG, "exportCloneIobSnapshot failed", it)
+        }.getOrDefault("")
+    }
+
+    @JvmStatic
+    fun importCloneIobSnapshot(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val method = importCloneIobMethod ?: return false
+        return runCatching {
+            method.invoke(null, raw) as? Boolean ?: false
+        }.onFailure {
+            Log.w(TAG, "importCloneIobSnapshot failed", it)
+        }.getOrDefault(false)
     }
 
     @JvmStatic

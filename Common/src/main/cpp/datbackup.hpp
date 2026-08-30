@@ -197,6 +197,7 @@ struct updateone {
   int updateiob();
   int numbertypes();
   int sendCalibrate();
+  int sendCloneIobSnapshot();
 };
 
 #include "maxsendtohost.h"

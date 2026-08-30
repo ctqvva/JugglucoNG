@@ -51,6 +51,7 @@ extern void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
                                        int cloneTransport, int cloneConnectionIndex);
 extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
+extern void javaImportCloneIobSnapshot(const char *json);
 
 //getdata filedata("/data/local/tmp/testdir");
 getdata filedata;
@@ -319,6 +320,7 @@ static bool mergeMirrorPollHoles(std::string_view path, int fp, uint32_t offset,
 
 static constexpr std::string_view mirrorCalibrationPrefix = "mirror/calibration/";
 static constexpr std::string_view mirrorCalibrationSuffix = ".json";
+static constexpr std::string_view mirrorIobSnapshotPath = "mirror/iob.json";
 
 static bool isMirrorCalibrationProfilePath(std::string_view name) {
     return name.size() >= (mirrorCalibrationPrefix.size() + mirrorCalibrationSuffix.size()) &&
@@ -1111,6 +1113,12 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport,
             javaImportMirrorCalibrationProfile(
                 serial.empty() ? nullptr : serial.c_str(),
                 json.c_str());
+        }
+    }
+    if (namesv == mirrorIobSnapshotPath) {
+        std::string json = collectFileOncePayload(gegs, payloadStart);
+        if (!json.empty()) {
+            javaImportCloneIobSnapshot(json.c_str());
         }
     }
     if (isMirrorSensorInfoPath(namesv) || isMirrorSensorDataPath(namesv)) {

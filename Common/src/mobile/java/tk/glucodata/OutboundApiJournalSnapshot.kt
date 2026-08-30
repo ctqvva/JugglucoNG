@@ -68,6 +68,7 @@ object OutboundApiJournalSnapshot {
             JournalIobAccess.pushWatchserver(now)
             if (values != null) JugglucoSend.rebroadcastIob()
             Notify.showoldglucose()
+            Natives.wakebackup()
         }
     }
 
@@ -99,14 +100,28 @@ object OutboundApiJournalSnapshot {
         return fresh
     }
 
-    private suspend fun buildBroadcastIob(atMillis: Long): FloatArray? {
+    private suspend fun buildBroadcastIob(
+        atMillis: Long,
+        allowCloneRemote: Boolean = true,
+    ): FloatArray? {
         val app = Applic.app ?: return null
+        val cloneRemote = if (allowCloneRemote && CloneSensorRegistry.hasAnyCloneSensor()) {
+            CloneIobSnapshot.fresh(atMillis)
+        } else {
+            null
+        }
+        val nightscoutRemote =
+            tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus.fresh(atMillis)
         val prefs = app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(JOURNAL_ENABLED_KEY, true)) return null
+        if (!prefs.getBoolean(JOURNAL_ENABLED_KEY, true)) {
+            return remoteIobValues(cloneRemote, nightscoutRemote)
+        }
         val dao = HistoryDatabase.getInstance(app).journalDao()
         val hasInsulin = dao.countEntriesByType(JournalEntryType.INSULIN.storageValue) > 0
         val hasCarbs = dao.countEntriesByType(JournalEntryType.CARBS.storageValue) > 0
-        if (!hasInsulin && !hasCarbs) return null
+        if (!hasInsulin && !hasCarbs) {
+            return remoteIobValues(cloneRemote, nightscoutRemote)
+        }
         val presetsById = dao.getInsulinPresets().map { toPresetModel(it) }.associateBy { it.id }
         val maxPresetDurationMs = presetsById.values.maxOfOrNull { it.durationMinutes.coerceAtLeast(0) }
             ?.times(60_000L)
@@ -135,16 +150,68 @@ object OutboundApiJournalSnapshot {
         // local. The 30-minute-window projections keep the local values in
         // either case; they only feed the notification risk tint and have no
         // remote counterpart.
-        val remote = tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus.fresh(atMillis)
         val localIob = if (hasInsulin) insulin.iobUnits else Float.NaN
         val localEiob = if (hasInsulin) insulin.eiobUnits else Float.NaN
         return floatArrayOf(
-            remote?.iobUnits ?: localIob,
-            remote?.eiobUnits?.takeIf { it.isFinite() } ?: localEiob,
-            remote?.cobGrams?.takeIf { it.isFinite() } ?: cobNow,
-            if (hasInsulin) iobNextWindow else Float.NaN,
-            cobNextWindow
+            cloneRemote?.iobUnits?.takeIf { it.isFinite() }
+                ?: nightscoutRemote?.iobUnits?.takeIf { it.isFinite() }
+                ?: localIob,
+            cloneRemote?.eiobUnits?.takeIf { it.isFinite() }
+                ?: nightscoutRemote?.eiobUnits?.takeIf { it.isFinite() }
+                ?: localEiob,
+            cloneRemote?.cobGrams?.takeIf { it.isFinite() }
+                ?: nightscoutRemote?.cobGrams?.takeIf { it.isFinite() }
+                ?: cobNow,
+            cloneRemote?.iobNext30Units?.takeIf { it.isFinite() }
+                ?: if (hasInsulin) iobNextWindow else Float.NaN,
+            cloneRemote?.cobNext30Grams?.takeIf { it.isFinite() }
+                ?: cobNextWindow,
         )
+    }
+
+    private fun remoteIobValues(
+        cloneRemote: CloneIobSnapshot.RemoteIob?,
+        nightscoutRemote: tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus.RemoteIob?,
+    ): FloatArray? = when {
+        cloneRemote != null -> cloneRemote.values()
+        nightscoutRemote != null -> floatArrayOf(
+            nightscoutRemote.iobUnits,
+            nightscoutRemote.eiobUnits,
+            nightscoutRemote.cobGrams,
+            Float.NaN,
+            Float.NaN,
+        )
+        else -> null
+    }
+
+    @JvmStatic
+    fun cloneIobSnapshotJson(timeMillis: Long): String = runBlocking {
+        val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+        val values = withContext(Dispatchers.IO) {
+            // Never forward a snapshot received from another Clone. That would
+            // turn a receiver into a timestamp-refreshing echo and keep stale
+            // IOB alive after the authoritative sender disappeared. Local
+            // journal state and a configured Nightscout follower remain valid
+            // sources for this phone's outbound snapshot.
+            runCatching {
+                buildBroadcastIob(atMillis, allowCloneRemote = false)
+            }.getOrNull()
+        } ?: return@runBlocking ""
+        CloneIobSnapshot.encode(values, atMillis)
+    }
+
+    @JvmStatic
+    fun importCloneIobSnapshot(raw: String): Boolean {
+        val remote = CloneIobSnapshot.parse(raw) ?: return false
+        if (!CloneIobSnapshot.update(remote)) return false
+        broadcastIobCache = null
+        val now = System.currentTimeMillis()
+        val values = broadcastIobSnapshot(now)
+        JournalIobAccess.pushWatchserver(now)
+        if (values != null) JugglucoSend.rebroadcastIob()
+        Notify.showoldglucose()
+        UiRefreshBus.requestDataRefresh()
+        return true
     }
 
     @JvmStatic

@@ -110,6 +110,8 @@ jmethodID jdoglucose = nullptr, jupdateDevices = nullptr,
 static jclass JNIHistorySyncAccess = nullptr;
 static jmethodID jhistoryMarkCloneSensor = nullptr,
                  jhistoryReconcilePrimaryCloneSensor = nullptr,
+                 jhistoryExportCloneIobSnapshot = nullptr,
+                 jhistoryImportCloneIobSnapshot = nullptr,
                  jhistorySyncSensor = nullptr,
                  jhistorySyncRecentSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
@@ -303,6 +305,20 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
                 "(Ljava/lang/String;)V"))) {
         LOGAR(
             R"(GetStaticMethodID(JNIHistorySyncAccess,"reconcilePrimaryCloneSensor","(Ljava/lang/String;)V") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneIobSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneIobSnapshot",
+                "()Ljava/lang/String;"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneIobSnapshot","()Ljava/lang/String;") failed)"
+            "");
+      }
+      if (!(jhistoryImportCloneIobSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "importCloneIobSnapshot",
+                "(Ljava/lang/String;)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneIobSnapshot","(Ljava/lang/String;)Z") failed)"
             "");
       }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
@@ -537,6 +553,45 @@ void javaMirrorReconcilePrimarySensor(const char *serial) {
   if (env->ExceptionCheck()) {
     LOGAR("javaMirrorReconcilePrimarySensor exception");
     env->ExceptionDescribe();
+    env->ExceptionClear();
+  }
+}
+
+std::string javaExportCloneIobSnapshot() {
+  if (!JNIHistorySyncAccess || !jhistoryExportCloneIobSnapshot) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = (jstring)env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneIobSnapshot);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneIobSnapshot exception");
+    env->ExceptionClear();
+    return {};
+  }
+  if (!jjson) {
+    return {};
+  }
+  const char *chars = env->GetStringUTFChars(jjson, nullptr);
+  std::string out = chars ? std::string(chars) : std::string();
+  if (chars) {
+    env->ReleaseStringUTFChars(jjson, chars);
+  }
+  env->DeleteLocalRef(jjson);
+  return out;
+}
+
+void javaImportCloneIobSnapshot(const char *json) {
+  if (!json || !*json || !JNIHistorySyncAccess || !jhistoryImportCloneIobSnapshot) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = env->NewStringUTF(json);
+  env->CallStaticBooleanMethod(JNIHistorySyncAccess,
+                               jhistoryImportCloneIobSnapshot, jjson);
+  env->DeleteLocalRef(jjson);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaImportCloneIobSnapshot exception");
     env->ExceptionClear();
   }
 }

@@ -1013,6 +1013,11 @@ void javaImportMirrorCalibrationProfile(const char *serial, const char *json) {
            serial ? serial : "(null)", json ? strlen(json) : 0U);
     writeMirrorCalibrationFile(serial, json);
 }
+std::string javaExportCloneIobSnapshot() {
+    return {};
+}
+void javaImportCloneIobSnapshot(const char *) {
+}
     /*
 extern bool hour24clock;
 bool hour24clock=true;
