@@ -40,6 +40,7 @@ enum class ManagedSensorUiFamily {
     ANYTIME,
     OTTAI,
     SIBIONICS,
+    NIGHTSCOUT,
 }
 
 data class ManagedSensorUiSnapshot(

@@ -13,6 +13,7 @@ class SensorVendorTests {
         assertEquals(SensorVendor.YUWELL, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.ANYTIME))
         assertEquals(SensorVendor.OTTAI, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.OTTAI))
         assertEquals(SensorVendor.SIBIONICS, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS))
+        assertEquals(SensorVendor.NIGHTSCOUT, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
         assertEquals(SensorVendor.UNKNOWN, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
     }
 
@@ -56,6 +57,7 @@ class SensorVendorTests {
         assertEquals(SensorTypeName.SIBIONICS_GS1, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS))
         assertEquals(SensorTypeName.SIBIONICS_2, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics 2"))
         assertEquals(SensorTypeName.SIBIONICS_GS3, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics GS3"))
+        assertEquals(SensorTypeName.NIGHTSCOUT, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
         assertEquals(SensorTypeName.UNKNOWN, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
     }
 }

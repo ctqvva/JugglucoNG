@@ -16,6 +16,7 @@ enum class SensorVendor(
     GLUTEC("MQ", R.string.sensor_vendor_glutec),
     YUWELL("YW", R.string.sensor_vendor_yuwell),
     OTTAI("OT", R.string.sensor_vendor_ottai),
+    NIGHTSCOUT("", R.string.sensor_type_nightscout),
     UNKNOWN("?", R.string.unknown),
     ;
 
@@ -29,6 +30,7 @@ enum class SensorVendor(
             ManagedSensorUiFamily.ANYTIME -> YUWELL
             ManagedSensorUiFamily.OTTAI -> OTTAI
             ManagedSensorUiFamily.SIBIONICS -> SIBIONICS
+            ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
@@ -61,6 +63,7 @@ enum class SensorTypeName(
     MQ(R.string.sensor_type_mq),
     ANYTIME(R.string.sensor_type_anytime),
     OTTAI_CGM(R.string.sensor_type_ottai),
+    NIGHTSCOUT(R.string.sensor_type_nightscout),
     UNKNOWN(R.string.unknown),
     ;
 
@@ -81,6 +84,7 @@ enum class SensorTypeName(
                 vendorModel.equals("Sibionics GS3", ignoreCase = true) -> SIBIONICS_GS3
                 else -> SIBIONICS_GS1
             }
+            ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 

@@ -2611,4 +2611,5 @@
     <string name="sensor_type_mq">MQ</string>
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
+    <string name="sensor_type_nightscout">Nightscout</string>
 </resources>

@@ -154,11 +154,19 @@ private fun SensorVendorBadge(
         Box(
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = vendor.badgeText,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Black,
-            )
+            if (vendor == SensorVendor.NIGHTSCOUT) {
+                Icon(
+                    imageVector = Icons.Default.CloudDownload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            } else {
+                Text(
+                    text = vendor.badgeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Black,
+                )
+            }
         }
     }
 }
