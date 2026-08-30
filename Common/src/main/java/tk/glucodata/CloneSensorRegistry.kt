@@ -57,30 +57,33 @@ internal object CloneSensorKeyCodec {
 }
 
 internal object CloneSensorConnectionCodec {
-    fun decode(encoded: String?): Map<String, Int> = encoded
+    fun decode(encoded: String?): Map<String, String> = encoded
         .orEmpty()
         .lineSequence()
         .mapNotNull { line ->
             val key = CloneSensorKeyCodec.normalize(line.substringBefore('|'))
                 ?: return@mapNotNull null
-            val connectionIndex = line.substringAfter('|', "-1").trim().toIntOrNull()
-                ?.takeIf { it >= 0 }
+            val connectionIdentity = line.substringAfter('|', "").trim()
+                .takeIf { it.isNotEmpty() && '|' !in it }
                 ?: return@mapNotNull null
-            key to connectionIndex
+            key to connectionIdentity
         }
         .toMap()
 
-    fun encode(entries: Map<String, Int>): String = entries
-        .mapNotNull { (key, connectionIndex) ->
+    fun encode(entries: Map<String, String>): String = entries
+        .mapNotNull { (key, connectionIdentity) ->
             CloneSensorKeyCodec.normalize(key)
-                ?.takeIf { connectionIndex >= 0 }
-                ?.let { it to connectionIndex }
+                ?.let { normalized ->
+                    connectionIdentity.trim()
+                        .takeIf { it.isNotEmpty() && '|' !in it && '\n' !in it && '\r' !in it }
+                        ?.let { normalized to it }
+                }
         }
         .distinctBy { it.first }
         .sortedBy { it.first }
-        .joinToString("\n") { (key, connectionIndex) -> "$key|$connectionIndex" }
+        .joinToString("\n") { (key, connectionIdentity) -> "$key|$connectionIdentity" }
 
-    fun connectionForAny(encoded: String?, sensorIds: Iterable<String>): Int? {
+    fun connectionForAny(encoded: String?, sensorIds: Iterable<String>): String? {
         val stored = decode(encoded)
         return sensorIds.asSequence().mapNotNull(CloneSensorKeyCodec::normalize)
             .mapNotNull(stored::get)
@@ -92,7 +95,7 @@ internal object CloneSensorConnectionCodec {
 object CloneSensorRegistry {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_SENSOR_IDS = "clone_source_sensor_ids_v1"
-    private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_indices_v1"
+    private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_labels_v1"
     private val lock = Any()
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -123,7 +126,7 @@ object CloneSensorRegistry {
             ?: CloneSensorKeyCodec.normalize(sensorId)
 
     @JvmStatic
-    fun markCloneSensor(sensorId: String?, transportCode: Int, connectionIndex: Int) {
+    fun markCloneSensor(sensorId: String?, transportCode: Int, connectionIdentity: String?) {
         val key = registryKey(sensorId) ?: return
         val aliases = candidateKeys(sensorId) + key
         val transport = CloneTransport.fromCode(transportCode)
@@ -141,12 +144,13 @@ object CloneSensorRegistry {
                     .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
                     .apply()
             }
-            if (connectionIndex >= 0) {
+            val stableConnectionIdentity = connectionIdentity?.trim()?.takeIf { it.isNotEmpty() }
+            if (stableConnectionIdentity != null) {
                 val currentConnections = CloneSensorConnectionCodec.decode(
                     preferences.getString(KEY_SENSOR_CONNECTIONS, null)
                 )
                 val updatedConnections = currentConnections.filterKeys { it !in aliases } +
-                    (key to connectionIndex)
+                    (key to stableConnectionIdentity)
                 if (updatedConnections != currentConnections) {
                     preferences.edit()
                         .putString(
@@ -268,12 +272,12 @@ object CloneSensorRegistry {
     fun liveTransportForSensor(sensorId: String?): CloneTransport? {
         val requested = candidateKeys(sensorId)
         if (requested.isEmpty() || !isCloneSensor(sensorId)) return null
-        val connectionIndex = CloneSensorConnectionCodec.connectionForAny(
+        val connectionIdentity = CloneSensorConnectionCodec.connectionForAny(
             prefs()?.getString(KEY_SENSOR_CONNECTIONS, null),
             requested,
         ) ?: return CloneTransport.UNKNOWN
         return runCatching {
-            CloneTransport.fromCode(Natives.getCloneConnectionTransport(connectionIndex))
+            CloneTransport.fromCode(Natives.getCloneConnectionTransport(connectionIdentity))
         }.getOrDefault(CloneTransport.UNKNOWN)
     }
 }
