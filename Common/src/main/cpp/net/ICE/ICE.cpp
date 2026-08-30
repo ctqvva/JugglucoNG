@@ -117,6 +117,13 @@ static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int secon
         }
     return con->isCurrentAgent(agent)&&!con->endConnect.load();
     }
+
+static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
+    return {
+        .timeoutMilliseconds=10000,
+        .cancelled=con->currentRendezvousCancellation()
+        };
+    }
 const char *juiceErrorString(int error) {
     switch(error) {
         case JUICE_ERR_SUCCESS : return "success";
@@ -177,7 +184,9 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
             if(!con||!con->isCurrentAgent(agent,generation))
                 return;
             LOGGERICE("getaddress %s %d\n",commonLabel.data(),side);
-            auto [resbody,code]=ContextHTTPS::getContext().getRequest(hostname,port,address,addressdata.getSpan());
+            auto [resbody,code]=ContextHTTPS::getContext().getRequest(
+                hostname,port,address,addressdata.getSpan(),{},
+                rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation))
                 return;
             switch(code) {
@@ -231,7 +240,10 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
    for(int i=0;i<20;++i) {
        if(!con->isCurrentAgent(agent,generation))
            return;
-       auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostname,port,address,std::span((const char *)sdpdata.data(),sdpdata.size()));
+       auto [resbody,code]=ContextHTTPS::getContext().putRequest(
+           hostname,port,address,
+           std::span((const char *)sdpdata.data(),sdpdata.size()),{},
+           rendezvousRequestOptions(con));
        if(!con->isCurrentAgent(agent,generation))
            return;
        if(code==200) {
@@ -273,7 +285,9 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
         if(!con->isCurrentAgent(agent,generation))
             return;
         while(true) {
-            auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostnames[hostindex],port,done,doneBody);
+            auto [resbody,code]=ContextHTTPS::getContext().putRequest(
+                hostnames[hostindex],port,done,doneBody,{},
+                rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation))
                 return;
             if(code==200) {
@@ -854,7 +868,9 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
     while(true) {
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
-        auto [resbody,code]=ContextHTTPS::getContext().getRequest(hostname,port,description,sdpdata.getSpan());
+        auto [resbody,code]=ContextHTTPS::getContext().getRequest(
+            hostname,port,description,sdpdata.getSpan(),{},
+            rendezvousRequestOptions(con));
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
         if(code== 200) {
@@ -872,7 +888,7 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
             }
          else {
             LOGGERICE("getdescription failure %s %d: %s returns code=%d\n",commonLabel.data(),side,sdpdata.data(),code); 
-            if(!waitForCurrentAgent(con,agent,20))
+            if(!waitForCurrentAgent(con,agent,5))
                 return false;
             }
         const auto lastfailedtime=getConnectTime(allindex);
@@ -898,7 +914,10 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
             LOGGERICE("putdescription: %s %d: Local description:\n%s\n",commonLabel.data(),side, con->sdp);
-            auto [resbody,code]=ContextHTTPS::getContext().putRequest(hostname,port,description,std::span((const char *)sdpdata.data(),sdpdata.size()));
+            auto [resbody,code]=ContextHTTPS::getContext().putRequest(
+                hostname,port,description,
+                std::span((const char *)sdpdata.data(),sdpdata.size()),{},
+                rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
             if(code==200) {
@@ -917,7 +936,7 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                 }
              else {
                 LOGGERICE("putdescription: %s %d: Http error\n",commonLabel.data(),side);
-                if(!waitForCurrentAgent(con,agent,20))
+                if(!waitForCurrentAgent(con,agent,5))
                     return false;
                 }
 

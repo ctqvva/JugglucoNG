@@ -21,6 +21,7 @@
 /*      Fri Nov 21 11:08:14 CET 2025                                                 */
 #pragma once
 #include <condition_variable>
+#include <memory>
 #include "datbackup.hpp"
 #include "logs.hpp"
 #include <sys/socket.h>
@@ -68,6 +69,9 @@ void resetStart() {
 bool side;
 std::atomic_bool endConnect{false};
 std::atomic_bool isConnected{false};
+std::mutex rendezvousMutex;
+std::shared_ptr<std::atomic_bool> rendezvousCancellation{
+        std::make_shared<std::atomic_bool>(false)};
 ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
@@ -87,6 +91,7 @@ void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
        isConnected=false;
        endConnect=true;
+       cancelRendezvous();
         icedata[1].setshutdown(); 
         icedata[0].setshutdown();
         startSending.clear();
@@ -98,6 +103,19 @@ private:
 //uint32_t initrunning=0;
 std::atomic_flag initrunning{};
 public:
+std::shared_ptr<const std::atomic_bool> currentRendezvousCancellation() {
+        std::lock_guard<std::mutex> lock(rendezvousMutex);
+        return rendezvousCancellation;
+        }
+void cancelRendezvous() {
+        std::lock_guard<std::mutex> lock(rendezvousMutex);
+        rendezvousCancellation->store(true,std::memory_order_release);
+        }
+void beginRendezvous() {
+        std::lock_guard<std::mutex> lock(rendezvousMutex);
+        rendezvousCancellation->store(true,std::memory_order_release);
+        rendezvousCancellation=std::make_shared<std::atomic_bool>(false);
+        }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
         icedata[1].allindex=in;
@@ -137,6 +155,7 @@ void releaseReceiverThread() {
 
         LOGGER("start newConnection(%d)\n",allindex);
         destruct _{[this]{initrunning.clear();}};
+        cancelRendezvous();
         auto wasagent=agent.exchange(nullptr);
         agentGeneration.fetch_add(1);
         if(wasagent) {
@@ -156,6 +175,7 @@ void releaseReceiverThread() {
         selectedCloneTransport.store(clone_transport_unknown);
         isConnected=false;
         endConnect=false;
+        beginRendezvous();
         phase=NewConnection;
 
         juice_agent *theagent=createAgent(allindex);
