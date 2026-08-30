@@ -359,6 +359,7 @@
     <string name="clear">Очистить</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">История ошибок BLE</string>
     <string name="log_enabled_waiting">Лог включен. Ожидание записей...</string>
     <string name="log_unchecked">Лог выключен. Включите для начала.</string>
     <string name="error_reading_file">"Ошибка чтения файла: "</string>

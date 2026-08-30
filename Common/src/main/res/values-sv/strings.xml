@@ -364,6 +364,7 @@
     <string name="clear">Rensa</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-felhistorik</string>
     <string name="log_enabled_waiting">Logg aktiverad. Väntar på poster...</string>
     <string name="log_unchecked">Logg inaktiverad. Aktivera för att starta.</string>
     <string name="error_reading_file">"Fel vid läsning av fil: "</string>

@@ -439,6 +439,7 @@
     <string name="clear">Wyczyść</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Historia błędów BLE</string>
     <string name="log_enabled_waiting">Log włączony. Oczekiwanie...</string>
     <string name="log_unchecked">Log wyłączony. Włącz, aby rozpocząć.</string>
     <string name="error_reading_file">"Błąd odczytu pliku: "</string>

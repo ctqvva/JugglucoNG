@@ -328,6 +328,7 @@
     <string name="clear">Effacer</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Historique des erreurs BLE</string>
     <string name="log_enabled_waiting">Journal activé. En attente d\'entrées...</string>
     <string name="log_unchecked">Journal désactivé. Activer pour commencer.</string>
     <string name="error_reading_file">"Erreur de lecture du fichier : "</string>

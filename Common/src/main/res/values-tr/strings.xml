@@ -416,6 +416,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clear">Temizle</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE hata geçmişi</string>
     <string name="log_enabled_waiting">Günlük etkin. Girişler bekleniyor...</string>
     <string name="log_unchecked">Günlük devre dışı. Başlatmak için etkinleştirin.</string>
     <string name="error_reading_file">"Dosya okuma hatası: "</string>

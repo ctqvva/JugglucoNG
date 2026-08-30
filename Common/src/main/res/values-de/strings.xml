@@ -451,6 +451,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clear">Löschen</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-Fehlerverlauf</string>
     <string name="log_enabled_waiting">Protokoll aktiviert. Warte auf Einträge...</string>
     <string name="log_unchecked">Protokoll deaktiviert. Aktivieren zum Starten.</string>
     <string name="error_reading_file">"Fehler beim Lesen der Datei: "</string>

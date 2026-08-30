@@ -371,6 +371,7 @@
     <string name="clear">清除</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE 错误历史</string>
     <string name="log_enabled_waiting">日志已启用。等待条目...</string>
     <string name="log_unchecked">日志未选中。启用以开始。</string>
     <string name="error_reading_file">"读取文件错误： "</string>

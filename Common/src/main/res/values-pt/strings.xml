@@ -263,6 +263,7 @@
     <string name="clear">Limpar</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Histórico de erros BLE</string>
     <string name="log_enabled_waiting">Log ativado. Aguardando entradas...</string>
     <string name="log_unchecked">Log desativado. Ative para iniciar.</string>
     <string name="error_reading_file">"Erro ao ler arquivo: "</string>

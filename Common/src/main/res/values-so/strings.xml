@@ -509,6 +509,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clear">Cad</string>
     <string name="trace_log">Raad raac.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Taariikhda khaladaadka BLE</string>
     <string name="log_enabled_waiting">Log waa la furay Sugaya soo gelida...</string>
     <string name="log_unchecked">Log aan la hubin Awood in aad bilowdo</string>
     <string name="error_reading_file">"Cilaad akhriska faylka:"</string>

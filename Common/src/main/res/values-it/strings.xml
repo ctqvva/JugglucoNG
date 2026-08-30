@@ -238,6 +238,7 @@
     <string name="clear">Cancella</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Cronologia errori BLE</string>
     <string name="log_enabled_waiting">Log abilitato. In attesa di voci...</string>
     <string name="log_unchecked">Log disabilitato. Abilita per iniziare.</string>
     <string name="error_reading_file">"Errore lettura file: "</string>

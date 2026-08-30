@@ -483,6 +483,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clear">Цэвэрлэх</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE алдааны түүх</string>
     <string name="log_enabled_waiting">Лог идэвхжсэн. Бичилтүүдийг хүлээж байна...</string>
     <string name="log_unchecked">Лог сонгогдоогүй. Эхлүүлэхийн тулд идэвхжүүлнэ үү.</string>
     <string name="error_reading_file">"Файлыг уншихад алдаа гарлаа: "</string>

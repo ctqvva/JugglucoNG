@@ -518,6 +518,7 @@
     <string name="debug_logs_title">Журналы адладкі</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Гісторыя памылак BLE</string>
     <string name="log_enabled_waiting">Журнал уключаны. Чаканне запісаў...</string>
     <string name="log_unchecked">Журнал выключаны. Уключыце для пачатку.</string>
     <string name="error_reading_file">"Памылка чытання файла: "</string>

@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic
+import tk.glucodata.BleErrorEvent
+import tk.glucodata.BleErrorHistory
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
@@ -454,6 +456,7 @@ class SensorViewModel : ViewModel() {
             // Legacy sensors not in activeSensors() are finished — exclude them from the UI.
             // AiDex sensors (X- prefix) are managed via SharedPreferences, not activeSensors().
             val activeSet = activeSensors?.toHashSet() ?: HashSet()
+            val persistedBleErrors = BleErrorHistory.events()
 
             val sensorList = gatts.mapNotNull { gatt ->
                 try {
@@ -554,6 +557,25 @@ class SensorViewModel : ViewModel() {
                         val sensorSerial = SensorIdentity.resolveAppSensorId(gatt.SerialNumber)
                             ?: gatt.SerialNumber
                             ?: "Unknown"
+                        val isGattFailure = bleStatus.startsWith("Status=") &&
+                            bleStatus.removePrefix("Status=").toIntOrNull()?.let { it != 0 } != false
+                        val liveError = when {
+                            isGattFailure ||
+                                (bleStatusOutdated && bleStatus.isNotEmpty() &&
+                                    !bleStatus.startsWith("Status=")) -> BleErrorEvent(
+                                sensorId = sensorSerial,
+                                status = bleStatus,
+                                atMs = SensorBluetooth.connectionStatusChangedAt(gatt),
+                            )
+                            else -> null
+                        }
+                        // A newly constructed callback has no memory of the previous process.
+                        // Once readings are flowing again, restore its latest retained failure so
+                        // the one-hour card window survives an app or APK restart.
+                        val displayedError = liveError
+                            ?: persistedBleErrors.firstOrNull {
+                                SensorIdentity.matches(it.sensorId, sensorSerial)
+                            }.takeIf { isActivelyReceiving }
                         val currentViewMode = nativeViewMode
                         val isActiveSensor = activeSensorSerial != null && SensorIdentity.matches(sensorSerial, activeSensorSerial)
     
@@ -561,12 +583,8 @@ class SensorViewModel : ViewModel() {
                             serial = sensorSerial,
                             displayName = try { gatt.mygetDeviceName() } catch (_: Throwable) { sensorSerial },
                             deviceAddress = gatt.mActiveDeviceAddress ?: "Unknown",
-                            connectionStatus = when {
-                                bleStatus.startsWith("Status=") -> mapBleStatus(bleStatus)
-                                bleStatusOutdated && bleStatus.isNotEmpty() -> mapBleStatus(bleStatus)
-                                else -> ""
-                            },
-                            connectionStatusAtMs = SensorBluetooth.connectionStatusChangedAt(gatt),
+                            connectionStatus = displayedError?.status?.let(::mapBleStatus).orEmpty(),
+                            connectionStatusAtMs = displayedError?.atMs ?: 0L,
                             starttime = if (startMs > 0) tk.glucodata.bluediag.datestr(startMs) else "",
                             streaming = warmupStatus == null && isActivelyReceiving,
                             rssi = gatt.readrssi,

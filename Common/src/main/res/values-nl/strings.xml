@@ -443,6 +443,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clear">Wissen</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-foutgeschiedenis</string>
     <string name="log_enabled_waiting">Log ingeschakeld. Wachten op items...</string>
     <string name="log_unchecked">Log uitgeschakeld. Inschakelen om te starten.</string>
     <string name="error_reading_file">"Fout bij lezen bestand: "</string>
