@@ -103,24 +103,23 @@ object OutboundApiJournalSnapshot {
     private suspend fun buildBroadcastIob(
         atMillis: Long,
         allowCloneRemote: Boolean = true,
+        allowNightscoutRemote: Boolean = true,
     ): FloatArray? {
         val app = Applic.app ?: return null
-        val cloneRemote = if (allowCloneRemote && CloneSensorRegistry.hasAnyCloneSensor()) {
-            CloneIobSnapshot.fresh(atMillis)
-        } else {
-            null
-        }
-        val nightscoutRemote =
-            tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus.fresh(atMillis)
+        val remote = RemoteIobSnapshot.fresh(
+            atMillis,
+            allowClone = allowCloneRemote,
+            allowNightscout = allowNightscoutRemote,
+        )
         val prefs = app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
         if (!prefs.getBoolean(JOURNAL_ENABLED_KEY, true)) {
-            return remoteIobValues(cloneRemote, nightscoutRemote)
+            return remote?.asArray()
         }
         val dao = HistoryDatabase.getInstance(app).journalDao()
         val hasInsulin = dao.countEntriesByType(JournalEntryType.INSULIN.storageValue) > 0
         val hasCarbs = dao.countEntriesByType(JournalEntryType.CARBS.storageValue) > 0
         if (!hasInsulin && !hasCarbs) {
-            return remoteIobValues(cloneRemote, nightscoutRemote)
+            return remote?.asArray()
         }
         val presetsById = dao.getInsulinPresets().map { toPresetModel(it) }.associateBy { it.id }
         val maxPresetDurationMs = presetsById.values.maxOfOrNull { it.durationMinutes.coerceAtLeast(0) }
@@ -153,35 +152,14 @@ object OutboundApiJournalSnapshot {
         val localIob = if (hasInsulin) insulin.iobUnits else Float.NaN
         val localEiob = if (hasInsulin) insulin.eiobUnits else Float.NaN
         return floatArrayOf(
-            cloneRemote?.iobUnits?.takeIf { it.isFinite() }
-                ?: nightscoutRemote?.iobUnits?.takeIf { it.isFinite() }
-                ?: localIob,
-            cloneRemote?.eiobUnits?.takeIf { it.isFinite() }
-                ?: nightscoutRemote?.eiobUnits?.takeIf { it.isFinite() }
-                ?: localEiob,
-            cloneRemote?.cobGrams?.takeIf { it.isFinite() }
-                ?: nightscoutRemote?.cobGrams?.takeIf { it.isFinite() }
-                ?: cobNow,
-            cloneRemote?.iobNext30Units?.takeIf { it.isFinite() }
+            remote?.iobUnits?.takeIf { it.isFinite() } ?: localIob,
+            remote?.eiobUnits?.takeIf { it.isFinite() } ?: localEiob,
+            remote?.cobGrams?.takeIf { it.isFinite() } ?: cobNow,
+            remote?.iobNext30Units?.takeIf { it.isFinite() }
                 ?: if (hasInsulin) iobNextWindow else Float.NaN,
-            cloneRemote?.cobNext30Grams?.takeIf { it.isFinite() }
+            remote?.cobNext30Grams?.takeIf { it.isFinite() }
                 ?: cobNextWindow,
         )
-    }
-
-    private fun remoteIobValues(
-        cloneRemote: CloneIobSnapshot.RemoteIob?,
-        nightscoutRemote: tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus.RemoteIob?,
-    ): FloatArray? = when {
-        cloneRemote != null -> cloneRemote.values()
-        nightscoutRemote != null -> floatArrayOf(
-            nightscoutRemote.iobUnits,
-            nightscoutRemote.eiobUnits,
-            nightscoutRemote.cobGrams,
-            Float.NaN,
-            Float.NaN,
-        )
-        else -> null
     }
 
     @JvmStatic
@@ -198,6 +176,21 @@ object OutboundApiJournalSnapshot {
             }.getOrNull()
         } ?: return@runBlocking ""
         CloneIobSnapshot.encode(values, atMillis)
+    }
+
+    /** Local journal state only; remote snapshots must never be timestamp-refreshed into Nightscout. */
+    @JvmStatic
+    fun nightscoutUploadIobSnapshot(timeMillis: Long): FloatArray? = runBlocking {
+        val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+        withContext(Dispatchers.IO) {
+            runCatching {
+                buildBroadcastIob(
+                    atMillis,
+                    allowCloneRemote = false,
+                    allowNightscoutRemote = false,
+                )
+            }.getOrNull()
+        }
     }
 
     @JvmStatic
