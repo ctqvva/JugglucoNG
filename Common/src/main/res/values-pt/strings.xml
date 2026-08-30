@@ -2070,6 +2070,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">Transmitir tendência do app</string>
     <string name="broadcast_computed_trend_desc">Use a tendência do app em vez da tendência do sensor</string>
     <string name="dashboard_show_delta_desc">Mudança medida ao longo do intervalo delta, abaixo da seta de tendência</string>
+    <string name="match_arrow_to_displayed_delta_title">Corresponder setas ao delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">Quando um delta for mostrado, usar o mesmo intervalo para as setas do painel e da notificação</string>
     <string name="dashboard_show_delta_title">Delta (Δ) no painel</string>
     <string name="delta_alarm_interval_follow">Como leitura Δ (atualmente %1$d min)</string>
     <string name="delta_alarm_interval_label">Janela Delta</string>

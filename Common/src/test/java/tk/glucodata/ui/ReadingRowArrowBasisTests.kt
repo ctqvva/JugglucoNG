@@ -69,10 +69,27 @@ class ReadingRowArrowBasisTests {
         ).single()!!
 
         assertEquals("+6.1", delta.text)
-        val shown = trendResultForDisplayedDelta(regressed(velocity = -2.4f), delta.rateMgdlPerMinute)
+        val shown = trendResultForDisplayedDelta(
+            regressed(velocity = -2.4f),
+            delta.rateMgdlPerMinute,
+            useDisplayedDelta = true,
+        )
 
         assertEquals(1.22f, shown.velocity, 0.001f)
         assertEquals(TrendEngine.TrendState.SingleUp, shown.state)
+    }
+
+    @Test
+    fun theHeroKeepsItsRegressionWhenArrowMatchingIsOff() {
+        val falling = regressed(velocity = -2.4f)
+
+        val shown = trendResultForDisplayedDelta(
+            falling,
+            deltaRateMgdlPerMinute = 1.22f,
+            useDisplayedDelta = false,
+        )
+
+        assertSame(falling, shown)
     }
 
     @Test

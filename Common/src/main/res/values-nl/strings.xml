@@ -2111,6 +2111,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="broadcast_computed_trend_title">Apptrend uitzenden</string>
     <string name="broadcast_computed_trend_desc">Gebruik de apptrend in plaats van de sensortrend</string>
     <string name="dashboard_show_delta_desc">Gemeten verandering over het delta-interval, onder de trendpijl</string>
+    <string name="match_arrow_to_displayed_delta_title">Pijlen afstemmen op delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">Als een delta wordt getoond, hetzelfde interval gebruiken voor de pijlen op het dashboard en in de melding</string>
     <string name="dashboard_show_delta_title">Delta (Δ) op het dashboard</string>
     <string name="delta_alarm_interval_follow">Zoals Δ uitlezing (momenteel %1$d min)</string>
     <string name="delta_alarm_interval_label">Delta-venster</string>

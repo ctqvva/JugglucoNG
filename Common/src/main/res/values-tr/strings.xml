@@ -2096,6 +2096,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="broadcast_computed_trend_title">Uygulama eğilimini yayınla</string>
     <string name="broadcast_computed_trend_desc">Sensör eğilimi yerine uygulama eğilimini kullan</string>
     <string name="dashboard_show_delta_desc">Trend okunun altındaki delta aralığında ölçülen değişiklik</string>
+    <string name="match_arrow_to_displayed_delta_title">Okları delta ile eşleştir</string>
+    <string name="match_arrow_to_displayed_delta_desc">Delta gösterildiğinde pano ve bildirim okları için aynı aralığı kullan</string>
     <string name="dashboard_show_delta_title">Gösterge tablosundaki Delta (Δ)</string>
     <string name="delta_alarm_interval_follow">Δ okuması gibi (şu anda %1$d dk)</string>
     <string name="delta_alarm_interval_label">Delta penceresi</string>

@@ -2059,6 +2059,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">Trasmetti trend app</string>
     <string name="broadcast_computed_trend_desc">Usa il trend dell\'app invece di quello del sensore</string>
     <string name="dashboard_show_delta_desc">Variazione misurata nell\'intervallo delta, sotto la freccia di tendenza</string>
+    <string name="match_arrow_to_displayed_delta_title">Abbina le frecce al delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">Quando viene mostrato un delta, usa lo stesso intervallo per le frecce del cruscotto e della notifica</string>
     <string name="dashboard_show_delta_title">Delta (Δ) sul cruscotto</string>
     <string name="delta_alarm_interval_follow">Come la lettura Δ (attualmente %1$d min)</string>
     <string name="delta_alarm_interval_label">Finestra Delta</string>

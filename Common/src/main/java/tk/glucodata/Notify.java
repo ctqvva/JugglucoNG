@@ -3477,6 +3477,9 @@ public class Notify {
         boolean showIob = prefs.getBoolean("notification_show_iob", false);
         boolean showCob = prefs.getBoolean("notification_show_cob", false);
         boolean showDelta = prefs.getBoolean("notification_show_delta", false);
+        boolean matchArrowToDisplayedDelta = prefs.getBoolean(
+                GlucoseDelta.MATCH_ARROW_TO_DISPLAYED_DELTA_KEY,
+                GlucoseDelta.DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA);
         int deltaIntervalMinutes = prefs.getInt("delta_interval_minutes", GlucoseDelta.DEFAULT_INTERVAL_MINUTES);
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
@@ -3502,8 +3505,8 @@ public class Notify {
         // the peer values and look like it belongs to the last peer.
         boolean inlineMultiArrows = showArrow && !peerValueItems.isEmpty();
 
-        // A visible Δ and its arrow state one movement. Derive both from the same pair;
-        // without a usable or enabled Δ, keep the steadier regression rate.
+        // Keep the delta as an independent readout unless the user chooses to match the
+        // arrow to it. Without a usable delta, keep the steadier regression rate.
         String deltaText = "";
         if (showDelta && nativePoints.size() >= 2) {
             final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
@@ -3522,7 +3525,7 @@ public class Notify {
             final float displayedDelta = previous == null ? Float.NaN : GlucoseDelta.delta(
                     newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes);
             deltaText = GlucoseDelta.format(displayedDelta, isMmol);
-            if (!deltaText.isEmpty())
+            if (matchArrowToDisplayedDelta && !deltaText.isEmpty())
                 rate = GlucoseDelta.rateMgdlPerMinute(displayedDelta, isMmol, deltaIntervalMinutes);
             if (doLog)
                 Log.i(LOG_ID, "notification delta=" + deltaText

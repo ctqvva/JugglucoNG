@@ -2198,6 +2198,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="broadcast_computed_trend_title">Аппын трендийг дамжуулах</string>
     <string name="broadcast_computed_trend_desc">Мэдрэгчийн оронд аппын трендийг ашиглах</string>
     <string name="dashboard_show_delta_desc">Тренд сумны доор дельта интервал дээрх хэмжсэн өөрчлөлт</string>
+    <string name="match_arrow_to_displayed_delta_title">Сумыг дельтатай тааруулах</string>
+    <string name="match_arrow_to_displayed_delta_desc">Дельта харагдах үед хяналтын самбар болон мэдэгдлийн суманд ижил интервалыг ашиглана</string>
     <string name="dashboard_show_delta_title">Хяналтын самбар дээрх Delta (Δ).</string>
     <string name="delta_alarm_interval_follow">Δ унших дуртай (одоогоор %1$d мин)</string>
     <string name="delta_alarm_interval_label">Дельта цонх</string>

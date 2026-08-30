@@ -24,10 +24,14 @@ import java.util.Locale;
  * repeat on plain sensor noise, so a one-minute delta shows "0" next to a visibly
  * climbing chart — GDH exposes the same 1-vs-5-minute choice for the same reason.
  * The interval is a global setting; the same value drives the readout and the
- * FALLING_FAST / RISING_FAST delta alarms.
+ * FALLING_FAST / RISING_FAST delta alarms. The readout is independent of the
+ * smoother trend regression by default; users can instead match visible dashboard
+ * and notification arrows to this interval.
  */
 public final class GlucoseDelta {
     private static final float MGDL_PER_MMOL = 18.0182f;
+    public static final String MATCH_ARROW_TO_DISPLAYED_DELTA_KEY = "match_arrow_to_displayed_delta";
+    public static final boolean DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA = false;
     public static final int DEFAULT_INTERVAL_MINUTES = 5;
     public static final long WINDOW_MILLIS = 5L * 60L * 1000L;
     // Callers walk back to a point at least this much older than the newest

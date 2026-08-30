@@ -899,7 +899,9 @@ fun JournalTimelineRow(
 internal fun trendResultForDisplayedDelta(
     regressed: tk.glucodata.logic.TrendEngine.TrendResult,
     deltaRateMgdlPerMinute: Float?,
+    useDisplayedDelta: Boolean = true,
 ): tk.glucodata.logic.TrendEngine.TrendResult {
+    if (!useDisplayedDelta) return regressed
     val rate = deltaRateMgdlPerMinute?.takeIf { it.isFinite() } ?: return regressed
     return regressed.copy(state = tk.glucodata.logic.TrendEngine.stateFor(rate), velocity = rate)
 }
