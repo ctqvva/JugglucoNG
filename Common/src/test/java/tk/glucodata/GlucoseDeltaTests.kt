@@ -77,6 +77,13 @@ class GlucoseDeltaTests {
     }
 
     @Test
+    fun displayedDeltaConvertsToTheArrowRate() {
+        assertEquals(1.22f, GlucoseDelta.rateMgdlPerMinute(6.1f, false, 5), 0.001f)
+        assertEquals(3.60364f, GlucoseDelta.rateMgdlPerMinute(0.2f, true, 1), 0.001f)
+        assertTrue(GlucoseDelta.rateMgdlPerMinute(Float.NaN, false, 5).isNaN())
+    }
+
+    @Test
     fun formatsMgdlCompactlyWithSign() {
         withLocale(Locale.US) {
             assertEquals("+2", GlucoseDelta.format(2f, false))

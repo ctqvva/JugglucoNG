@@ -227,7 +227,7 @@ fun ReadingRow(
     // than the longer regression, which answers a different question and can point the other
     // way during a reversal — Δ −5 beside an arrow up is the app contradicting itself.
     val trendResult = remember(regressed, deltaRateMgdlPerMinute) {
-        rowTrendResult(regressed, deltaRateMgdlPerMinute)
+        trendResultForDisplayedDelta(regressed, deltaRateMgdlPerMinute)
     }
 
     Surface(
@@ -891,12 +891,12 @@ fun JournalTimelineRow(
 }
 
 /**
- * The arrow's own reading of a row: the movement the Δ beside it states when there is one,
- * the regression otherwise. Only the velocity and the state it maps to are replaced; how
+ * The movement stated by an arrow with a visible Δ: the Δ's rate when there is one, the
+ * regression otherwise. Only the velocity and the state it maps to are replaced; how
  * confident and how noisy the neighbourhood is are properties of the data, not of which
- * window was measured.
+ * window was measured. Shared by the hero and reading rows so both pairings stay coherent.
  */
-internal fun rowTrendResult(
+internal fun trendResultForDisplayedDelta(
     regressed: tk.glucodata.logic.TrendEngine.TrendResult,
     deltaRateMgdlPerMinute: Float?,
 ): tk.glucodata.logic.TrendEngine.TrendResult {

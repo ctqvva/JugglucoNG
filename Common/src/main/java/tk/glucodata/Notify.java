@@ -3502,6 +3502,34 @@ public class Notify {
         // the peer values and look like it belongs to the last peer.
         boolean inlineMultiArrows = showArrow && !peerValueItems.isEmpty();
 
+        // A visible Δ and its arrow state one movement. Derive both from the same pair;
+        // without a usable or enabled Δ, keep the steadier regression rate.
+        String deltaText = "";
+        if (showDelta && nativePoints.size() >= 2) {
+            final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
+            final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
+            GlucosePoint previous = null;
+            for (int i = nativePoints.size() - 2; i >= 0; i--) {
+                final GlucosePoint p = nativePoints.get(i);
+                final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
+                if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
+                    previous = p;
+                    break;
+                }
+            }
+            final float previousValue = previous == null ? Float.NaN
+                    : (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
+            final float displayedDelta = previous == null ? Float.NaN : GlucoseDelta.delta(
+                    newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes);
+            deltaText = GlucoseDelta.format(displayedDelta, isMmol);
+            if (!deltaText.isEmpty())
+                rate = GlucoseDelta.rateMgdlPerMinute(displayedDelta, isMmol, deltaIntervalMinutes);
+            if (doLog)
+                Log.i(LOG_ID, "notification delta=" + deltaText
+                        + " points=" + nativePoints.size()
+                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp)));
+        }
+
         // Arrow color: optionally driven by the 30-minute linear forecast
         // (value color says where you are, arrow color where you're heading).
         // Gated on data age: during a reconnect gap the trend window only
@@ -3586,38 +3614,11 @@ public class Notify {
                         ? iobLine
                         : new android.text.SpannableStringBuilder(iobLine).append(" · ").append(sensorStatusText);
         }
-        // The "Δ" readout: measured change over the last ~5 minutes — a raw
-        // number to sanity-check the estimated arrow against. Leftmost, right
-        // next to the arrow. Walks back to the first point old enough for the
-        // window; the tail can hold near-duplicates (persisted vs live
-        // timestamp of the same reading), so never take blind indices.
-        if (showDelta && nativePoints.size() >= 2) {
-            final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
-            final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
-            GlucosePoint previous = null;
-            for (int i = nativePoints.size() - 2; i >= 0; i--) {
-                final GlucosePoint p = nativePoints.get(i);
-                final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
-                if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
-                    previous = p;
-                    break;
-                }
-            }
-            final float previousValue = previous == null ? Float.NaN
-                    : (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
-            final String deltaText = previous == null ? "" : GlucoseDelta.format(
-                    GlucoseDelta.delta(newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes),
-                    isMmol);
-            if (doLog)
-                Log.i(LOG_ID, "notification delta=" + deltaText
-                        + " points=" + nativePoints.size()
-                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp)));
-            if (!deltaText.isEmpty()) {
-                newStatusText = (newStatusText == null || newStatusText.length() == 0)
-                        ? "Δ " + deltaText
-                        : new android.text.SpannableStringBuilder("Δ ").append(deltaText)
-                                .append(" · ").append(newStatusText);
-            }
+        if (!deltaText.isEmpty()) {
+            newStatusText = (newStatusText == null || newStatusText.length() == 0)
+                    ? "Δ " + deltaText
+                    : new android.text.SpannableStringBuilder("Δ ").append(deltaText)
+                            .append(" · ").append(newStatusText);
         }
 
         // Apply Style to Status Text too

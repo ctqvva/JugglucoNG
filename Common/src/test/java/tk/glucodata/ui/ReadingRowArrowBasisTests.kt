@@ -42,7 +42,7 @@ class ReadingRowArrowBasisTests {
         assertEquals(-21f / 5f, delta.rateMgdlPerMinute, 0.001f)
 
         val climbing = regressed(velocity = 2.4f)
-        val shown = rowTrendResult(climbing, delta.rateMgdlPerMinute)
+        val shown = trendResultForDisplayedDelta(climbing, delta.rateMgdlPerMinute)
 
         assertTrue("the arrow may not point up beside a fall", shown.velocity < 0f)
         assertEquals(TrendEngine.TrendState.DoubleDown, shown.state)
@@ -53,8 +53,26 @@ class ReadingRowArrowBasisTests {
     fun withoutADeltaTheRegressionIsKept() {
         val climbing = regressed(velocity = 2.4f)
 
-        assertSame(climbing, rowTrendResult(climbing, null))
-        assertSame(climbing, rowTrendResult(climbing, Float.NaN))
+        assertSame(climbing, trendResultForDisplayedDelta(climbing, null))
+        assertSame(climbing, trendResultForDisplayedDelta(climbing, Float.NaN))
+    }
+
+    /** The reported field case: the hero regresses down while its displayed Δ is positive. */
+    @Test
+    fun theHeroArrowFollowsItsDisplayedPositiveDelta() {
+        val points = history(5L to 207.9f, 0L to 214f)
+        val delta = readingDeltas(
+            listOf(nowMillis),
+            points,
+            isMmol = false,
+            deltaIntervalMinutes = 5,
+        ).single()!!
+
+        assertEquals("+6.1", delta.text)
+        val shown = trendResultForDisplayedDelta(regressed(velocity = -2.4f), delta.rateMgdlPerMinute)
+
+        assertEquals(1.22f, shown.velocity, 0.001f)
+        assertEquals(TrendEngine.TrendState.SingleUp, shown.state)
     }
 
     @Test

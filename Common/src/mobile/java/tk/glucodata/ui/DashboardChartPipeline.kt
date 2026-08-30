@@ -322,7 +322,10 @@ internal fun readingDeltas(
         )
         val text = tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
             ?: return@map null
-        ReadingDelta(text, perMinuteMgdl(delta, isMmol, deltaIntervalMinutes))
+        ReadingDelta(
+            text,
+            tk.glucodata.GlucoseDelta.rateMgdlPerMinute(delta, isMmol, deltaIntervalMinutes)
+        )
     }
 }
 
@@ -411,14 +414,4 @@ internal class RowDeltaIndex(
         /** The bucket of the rows no sensor owns; a string no serial can be. */
         const val SHARED = "\u0000shared"
     }
-}
-
-/**
- * The delta is a change over the configured window, in the unit on screen; an arrow turns by
- * mg/dL per minute. Same movement, said the way the arrow reads it.
- */
-private fun perMinuteMgdl(delta: Float, isMmol: Boolean, deltaIntervalMinutes: Int): Float {
-    val minutes = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(deltaIntervalMinutes)
-    val perMinute = delta / minutes
-    return if (isMmol) perMinute * tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else perMinute
 }
