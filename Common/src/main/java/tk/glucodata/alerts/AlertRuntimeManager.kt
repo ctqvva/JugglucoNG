@@ -39,6 +39,7 @@ object AlertRuntimeManager {
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
+    private val compressionTrendHolds = CompressionTrendHoldState()
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
     // Shared by the standard-glucose and the delta evaluation on purpose: the
     // quiet period must see both families, or one keeps talking over the other.
@@ -80,6 +81,7 @@ object AlertRuntimeManager {
             // baseline so the jump can't be mistaken for a steep fall/rise.
             fallingDeltaState.resetBaseline()
             risingDeltaState.resetBaseline()
+            compressionTrendHolds.clear()
             if (suppressThroughMs > 0L) {
                 Log.i(LOG_ID, "Calibration changed; glucose alerts wait for reading after $suppressThroughMs")
             }
@@ -233,6 +235,15 @@ object AlertRuntimeManager {
             if (type == AlertType.LOW) {
                 CompressionHoldRuntime.onLowCleared()
             }
+            if (type == AlertType.PRE_LOW) {
+                compressionTrendHolds.onCandidateCleared(type)
+            }
+        }
+
+        // The early-warning wait never competes with an actual low. Clear it before the
+        // priority pick so LOW and VERY_LOW run through their existing paths unchanged.
+        if (AlertType.LOW in activeTypes || AlertType.VERY_LOW in activeTypes) {
+            compressionTrendHolds.clear()
         }
 
         val type = standardGlucoseAlertTypes.firstOrNull { it in activeTypes }
@@ -279,6 +290,21 @@ object AlertRuntimeManager {
             standardEpisodes.clearPending(type)
             return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
+        if (type == AlertType.PRE_LOW) {
+            when (compressionTrendDecisionLocked(type, condition.glucoseValue)) {
+                CompressionTrendHoldState.Decision.HOLD -> {
+                    standardEpisodes.markPendingDelivery(type)
+                    return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
+                }
+                CompressionTrendHoldState.Decision.DROP -> {
+                    standardEpisodes.clearPending(type)
+                    Log.i(LOG_ID, "Dropped PRE_LOW after sensor-pressure trend recovery")
+                    return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
+                }
+                CompressionTrendHoldState.Decision.ALLOW -> Unit
+            }
+        }
+
         // Like snooze, a held LOW episode stays pending so the alarm fires the moment
         // the hold lifts.
         if (type == AlertType.LOW && CompressionHoldRuntime.gateLow(condition.glucoseValue, rate)) {
@@ -693,6 +719,9 @@ object AlertRuntimeManager {
 
         if (!config.enabled || deltaThreshold == null || deltaCount == null || deltaBorder == null) {
             state.reset()
+            if (type == AlertType.FALLING_FAST) {
+                compressionTrendHolds.onCandidateCleared(type)
+            }
             clearRuntimeAlert(type, "delta-alarm-disabled")
             return
         }
@@ -723,11 +752,39 @@ object AlertRuntimeManager {
         )
 
         if (!activeNow) {
+            if (type == AlertType.FALLING_FAST) {
+                compressionTrendHolds.onCandidateCleared(type)
+            }
             clearRuntimeAlert(type, "delta-alarm-time-inactive")
             return
         }
-        if (snoozed || !shouldTrigger) {
+        if (snoozed) {
+            if (type == AlertType.FALLING_FAST) {
+                compressionTrendHolds.onCandidateCleared(type)
+            }
             return
+        }
+        if (!shouldTrigger) {
+            if (type == AlertType.FALLING_FAST) {
+                compressionTrendHolds.onDeltaCandidateMissing(lastReadingTimeMs)
+            }
+            return
+        }
+
+        if (type == AlertType.FALLING_FAST) {
+            when (compressionTrendDecisionLocked(type, glucoseValue)) {
+                CompressionTrendHoldState.Decision.HOLD -> {
+                    // shouldTrigger disarms on an offer. Keep offering the same run until
+                    // the bounded wait decides; scheduler passes cannot inflate its counter.
+                    state.rearmAfterFailedDelivery()
+                    return
+                }
+                CompressionTrendHoldState.Decision.DROP -> {
+                    Log.i(LOG_ID, "Dropped FALLING_FAST after sensor-pressure trend recovery")
+                    return
+                }
+                CompressionTrendHoldState.Decision.ALLOW -> Unit
+            }
         }
 
         if (suppressedBySameDirectionAlertLocked(type)) {
@@ -783,6 +840,29 @@ object AlertRuntimeManager {
                 "(quiet period ${windowMs / 60_000L} min)"
         )
         return true
+    }
+
+    private fun compressionTrendDecisionLocked(
+        type: AlertType,
+        glucoseValue: Float
+    ): CompressionTrendHoldState.Decision {
+        if (!CompressionHoldRuntime.isOptedIn() || CompressionHoldRuntime.isSelfDisabled()) {
+            compressionTrendHolds.clear()
+            return CompressionTrendHoldState.Decision.ALLOW
+        }
+        val lowThreshold = runCatching {
+            AlertRepository.loadConfig(AlertType.LOW).threshold
+        }.getOrNull()
+        val actualLow = lowThreshold?.let {
+            it.isFinite() && it > 0f && glucoseValue <= it
+        } == true
+        return compressionTrendHolds.onCandidate(
+            type = type,
+            nowMs = System.currentTimeMillis(),
+            readingTimeMs = lastReadingTimeMs,
+            valueMgdl = glucoseValue,
+            actualLow = actualLow
+        )
     }
 
     /** Notification text naming the threshold that fired ("... in 3 days" / "... in 6 hours"). */

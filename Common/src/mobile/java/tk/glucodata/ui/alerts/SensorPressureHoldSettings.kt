@@ -36,6 +36,7 @@ import tk.glucodata.R
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CompressionHoldRuntime
+import tk.glucodata.alerts.CompressionTrendHoldState
 import tk.glucodata.logic.CompressionLowDetector
 import tk.glucodata.ui.components.StyledSwitch
 import kotlin.math.roundToInt
@@ -180,6 +181,15 @@ internal fun SensorPressureHoldCard(
                         stringResource(R.string.sensor_pressure_hold_optin_summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        stringResource(
+                            R.string.sensor_pressure_early_warning_wait,
+                            CompressionTrendHoldState.CONFIRMATION_MINUTES
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
