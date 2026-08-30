@@ -91,6 +91,28 @@ int updateone::sendCalibrate() {
     return sensors->sendCalibrates(getcrypt(), con,ind,startSendCalibrate);
     }
 
+int updateone::sendCloneIobSnapshot() {
+    const passhost_t &host = backup->getHosts()[allindex];
+    if (!host.ICE)
+        return 2;
+    Connect *connect = getConnect();
+    if (!connect)
+        return 0;
+    extern std::string javaExportCloneIobSnapshot();
+    const std::string json = javaExportCloneIobSnapshot();
+    if (json.empty())
+        return 2;
+    static constexpr std::string_view path = "mirror/iob.json";
+    if (!connect->senddata(
+            getcrypt(), 0,
+            reinterpret_cast<const senddata_t *>(json.data()),
+            static_cast<int>(json.size()), path)) {
+        LOGGER("sendCloneIobSnapshot failed for host=%d\n", allindex);
+        return 0;
+    }
+    return 1;
+}
+
 
 #ifndef WEAROS
 int updateone::numbertypes() {
@@ -224,6 +246,11 @@ int updateone::update() {
     updatesettings=update;
     if(int iobret=updateiob()) {
         ret|=iobret;
+        }
+    else
+        return 0;
+    if(int cloneIobRet=sendCloneIobSnapshot()) {
+        ret|=cloneIobRet;
         }
     else
         return 0;
