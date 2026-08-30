@@ -45,9 +45,10 @@
 
 extern Backup *backup;
 extern void        processglucosevalue(int sendindex,int newstart=-1);
-extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
+extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                                 int cloneConnectionIndex);
 extern void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
-                                       int cloneTransport);
+                                       int cloneTransport, int cloneConnectionIndex);
 extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 
@@ -115,7 +116,8 @@ int alignadd(int was,int bij) {
 //s/it+=comlen/it=alignadd(it,comlen)/g
 extern bool receivelastpos(const lastpos_t *data) ;
 
-static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport);
+static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport,
+                         int cloneConnectionIndex);
 
 static std::string mirrorSensorSerial(int sendindex) {
     if(sendindex < 0 || !sensors) {
@@ -150,14 +152,14 @@ static std::string mirrorSensorSerialForPath(std::string_view path, int sendinde
 }
 
 static void mirrorSyncSensorForPath(std::string_view path, int sendindex, bool forceFull,
-                                    int cloneTransport) {
+                                    int cloneTransport, int cloneConnectionIndex) {
     if (std::string serial = mirrorSensorSerialForPath(path, sendindex); !serial.empty()) {
-        javaMirrorSyncSensor(serial.c_str(), forceFull, cloneTransport);
+        javaMirrorSyncSensor(serial.c_str(), forceFull, cloneTransport, cloneConnectionIndex);
     }
 }
 
 static void mirrorSyncRecentSensorForPath(std::string_view path, int sendindex,
-                                          int cloneTransport) {
+                                          int cloneTransport, int cloneConnectionIndex) {
     std::string serial = mirrorSensorSerialForPath(path, sendindex);
     if (serial.empty()) {
         return;
@@ -171,9 +173,10 @@ static void mirrorSyncRecentSensorForPath(std::string_view path, int sendindex,
         }
     }
     if (anchorTimeMs > 0) {
-        javaMirrorSyncRecentSensor(serial.c_str(), anchorTimeMs, cloneTransport);
+        javaMirrorSyncRecentSensor(serial.c_str(), anchorTimeMs, cloneTransport,
+                                   cloneConnectionIndex);
     } else {
-        javaMirrorSyncSensor(serial.c_str(), false, cloneTransport);
+        javaMirrorSyncSensor(serial.c_str(), false, cloneTransport, cloneConnectionIndex);
     }
     // A live stream update identifies the sender's current Clone sensor.  The
     // receiver's own global current sensor (for example Nightscout) does not.
@@ -196,9 +199,10 @@ static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) 
     pendingMirrorSensorSyncs.emplace_back(std::move(serial), forceFull);
 }
 
-static void flushPendingMirrorSensorSyncs(int cloneTransport) {
+static void flushPendingMirrorSensorSyncs(int cloneTransport, int cloneConnectionIndex) {
     for (const auto &entry : pendingMirrorSensorSyncs) {
-        javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport);
+        javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport,
+                             cloneConnectionIndex);
     }
     pendingMirrorSensorSyncs.clear();
 }
@@ -374,6 +378,7 @@ extern bool setBlueWatch(passhost_t *host,int sensor,int nums) ;
 
 
  std::pair<int,int> Connect::interpret(passhost_t *host,crypt_t *ctx,senddata_t *datain,int len) {
+    const int cloneConnectionIndex = host ? gethostindex(host) : -1;
 
 LOGGERTAG("interpret len=%d \n",len);
 for(int it=0;it<len;) {
@@ -537,7 +542,7 @@ for(int it=0;it<len;) {
                 return {it,comlen};
                 }
 extern                bool updateDevices() ;
-            flushPendingMirrorSensorSyncs(cloneTransportCode());
+            flushPendingMirrorSensorSyncs(cloneTransportCode(), cloneConnectionIndex);
             // Mark imported records as Clone before Java rebuilds the callback
             // roster.  Primary Clone selection is driven by live stream data,
             // not by the receiver's global current-sensor field.
@@ -611,7 +616,7 @@ extern                bool updateDevices() ;
                 return {it,comlen};
                 }
 
-            ret=savefileonce(gegs, cloneTransportCode());
+            ret=savefileonce(gegs, cloneTransportCode(), cloneConnectionIndex);
             } break;
         default:;
         }
@@ -1036,7 +1041,8 @@ static bool startedreceiving() {
 #include        <filesystem>
 #include "strsepconcat.hpp"
 */
-static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
+static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport,
+                         int cloneConnectionIndex) {
     const int nr=gegs->nr;
     const uint8_t *start=reinterpret_cast<const uint8_t*>(&gegs->gegs[nr]);
     const char *name=reinterpret_cast<const char *>(start);
@@ -1068,7 +1074,8 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
     if((gegs->dowith&startcalibratedupdate)==startcalibratedupdate) {
         const auto [sendindex,startpos,history]= getcaliinfo(gegs,start);
         setcalibratedstart(sendindex,startpos,history);
-        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport);
+        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport,
+                                cloneConnectionIndex);
 /*
         int namelen=gegs->namelen-1;
         pathconcat fullpathin{filedata.getbase(),std::string_view(name,namelen)};
@@ -1084,14 +1091,16 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
         if((gegs->dowith&streamupdatebit)==streamupdatebit) {
                 const auto [sendindex,startpos]=getstartinfo(gegs,start);
                 processglucosevalue(sendindex,startpos);
-                mirrorSyncRecentSensorForPath(namesv, sendindex, cloneTransport);
+                mirrorSyncRecentSensorForPath(namesv, sendindex, cloneTransport,
+                                              cloneConnectionIndex);
 
                 }
         else {
                 if((gegs->dowith&starthistoryupdate)==starthistoryupdate) {
                         const auto [sendindex,startpos]=getstartinfo(gegs,start);
                         sethistorystart(sendindex,startpos);
-                        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport);
+                        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport,
+                                                cloneConnectionIndex);
                         }
              }
         }
@@ -1113,7 +1122,7 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
     // only one 32-byte sensor record and leave the receiver's own current field
     // untouched.
     if (namesv == "sensors/sensors.dat") {
-        flushPendingMirrorSensorSyncs(cloneTransport);
+        flushPendingMirrorSensorSyncs(cloneTransport, cloneConnectionIndex);
     }
     LOGARTAG("savedata success");
 #ifdef WEAROS

@@ -987,15 +987,17 @@ static void writeMirrorCalibrationFile(const char *serial, const char *json) {
     }
 }
 
-extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
-void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport) {
-    LOGGER("javaMirrorSyncSensor(%s,%d,%d)\n", serial ? serial : "(null)", forceFull,
-           cloneTransport);
+extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                                 int cloneConnectionIndex);
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                          int cloneConnectionIndex) {
+    LOGGER("javaMirrorSyncSensor(%s,%d,%d,%d)\n", serial ? serial : "(null)", forceFull,
+           cloneTransport, cloneConnectionIndex);
 }
 void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
-                                int cloneTransport) {
-    LOGGER("javaMirrorSyncRecentSensor(%s,%lld,%d)\n", serial ? serial : "(null)",
-           static_cast<long long>(anchorTimeMs), cloneTransport);
+                                int cloneTransport, int cloneConnectionIndex) {
+    LOGGER("javaMirrorSyncRecentSensor(%s,%lld,%d,%d)\n", serial ? serial : "(null)",
+           static_cast<long long>(anchorTimeMs), cloneTransport, cloneConnectionIndex);
 }
 void javaMirrorReconcilePrimarySensor(const char *serial) {
     LOGGER("javaMirrorReconcilePrimarySensor(%s)\n", serial ? serial : "(null)");

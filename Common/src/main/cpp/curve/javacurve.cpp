@@ -293,9 +293,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
       env->DeleteLocalRef(cl);
       if (!(jhistoryMarkCloneSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "markCloneSensor",
-                "(Ljava/lang/String;I)V"))) {
+                "(Ljava/lang/String;II)V"))) {
         LOGAR(
-            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;I)V") failed)"
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;II)V") failed)"
             "");
       }
       if (!(jhistoryReconcilePrimaryCloneSensor = env->GetStaticMethodID(
@@ -456,7 +456,8 @@ bool bluetoothEnabled() {
 int bluePermission() {
   return getenv()->CallStaticIntMethod(JNIApplic, jbluePermission);
 }
-void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport) {
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                          int cloneConnectionIndex) {
   if (!serial || !*serial) {
     return;
   }
@@ -468,7 +469,7 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
   jstring jserial = env->NewStringUTF(serial);
   if (jhistoryMarkCloneSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport);
+                              jserial, cloneTransport, cloneConnectionIndex);
     if (env->ExceptionCheck()) {
       LOGAR("markCloneSensor exception");
       env->ExceptionClear();
@@ -503,7 +504,7 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport
 }
 
 void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
-                                int cloneTransport) {
+                                int cloneTransport, int cloneConnectionIndex) {
   if (!serial || !*serial || anchorTimeMs <= 0 || !JNIHistorySyncAccess) {
     return;
   }
@@ -511,7 +512,7 @@ void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
   jstring jserial = env->NewStringUTF(serial);
   if (jhistoryMarkCloneSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
-                              jserial, cloneTransport);
+                              jserial, cloneTransport, cloneConnectionIndex);
   }
   if (!env->ExceptionCheck() && jhistorySyncRecentSensor) {
     env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistorySyncRecentSensor,

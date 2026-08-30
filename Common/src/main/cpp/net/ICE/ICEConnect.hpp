@@ -104,7 +104,12 @@ virtual int setindex(int in) override{
         return Connect::setindex(in);
         }
 int cloneTransportCode() const override {
-        return selectedCloneTransport.load();
+        const juice_state_t currentState = state.load();
+        return isConnected.load() &&
+                       (currentState == JUICE_STATE_CONNECTED ||
+                        currentState == JUICE_STATE_COMPLETED)
+                   ? selectedCloneTransport.load()
+                   : clone_transport_unknown;
         }
 bool isCurrentAgent(juice_agent_t *candidate) const {
         return candidate && !finish.load() && agent.load() == candidate;

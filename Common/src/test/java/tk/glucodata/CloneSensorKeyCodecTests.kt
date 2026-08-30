@@ -86,4 +86,40 @@ class CloneSensorKeyCodecTests {
             )
         )
     }
+
+    @Test
+    fun connectionIndexEncodingIsStableAndRejectsInvalidEntries() {
+        val encoded = CloneSensorConnectionCodec.encode(
+            linkedMapOf(
+                " receiver-b " to 7,
+                "RECEIVER-A" to 2,
+                "INVALID" to -1,
+            )
+        )
+
+        assertEquals("RECEIVER-A|2\nRECEIVER-B|7", encoded)
+        assertEquals(
+            mapOf("RECEIVER-A" to 2, "RECEIVER-B" to 7),
+            CloneSensorConnectionCodec.decode("$encoded\nBROKEN|-1\nNOPE|x"),
+        )
+    }
+
+    @Test
+    fun connectionIndexLookupAcceptsOnlyExplicitAliases() {
+        val encoded = CloneSensorConnectionCodec.encode(mapOf("CLONE-PRIMARY" to 4))
+
+        assertEquals(
+            4,
+            CloneSensorConnectionCodec.connectionForAny(
+                encoded,
+                listOf("clone-primary", "another-alias"),
+            ),
+        )
+        assertNull(
+            CloneSensorConnectionCodec.connectionForAny(
+                encoded,
+                listOf("different-sensor"),
+            )
+        )
+    }
 }
