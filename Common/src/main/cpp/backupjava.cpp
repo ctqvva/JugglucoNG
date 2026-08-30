@@ -30,6 +30,7 @@
 extern jclass JNIString;
 extern jstring myNewStringUTF(JNIEnv *env, const std::string_view str);
 extern bool networkpresent;
+void wakeICEReceiversForNetworkChange(bool resetConnections);
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(backuphasrestore)(JNIEnv *env,
                                                                  jclass cl) {
@@ -465,6 +466,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
   } else
     networkpresent = true;
 
+  wakeICEReceiversForNetworkChange(false);
+
   wakeuploader();
 #if !defined(WEAROS) && !defined(TESTMENU)
   wakeaftermin(0);
@@ -474,6 +477,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
 void resetnetwork() {
   LOGSTRING("resetnetwork\n");
   if (backup) {
+    wakeICEReceiversForNetworkChange(true);
     extern void recreateAgents();
     recreateAgents();
     backup->closeallsocks();

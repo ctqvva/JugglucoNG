@@ -387,6 +387,10 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->selectedCloneTransport.store(clone_transport_unknown);
             con->notConnected();
             break;
+        case JUICE_STATE_DISCONNECTED:
+            con->selectedCloneTransport.store(clone_transport_unknown);
+            con->notConnected();
+            break;
         case JUICE_STATE_CONNECTED: {
             setConnectTime(allindex,0);
             con->setConnected();
@@ -537,7 +541,7 @@ void ICEConnect::receiverThread(int argindex) {
                         // Connectivity callbacks can wake this sooner. Keep a
                         // short polling fallback so a returning mobile network
                         // does not leave Clone stale for several minutes.
-                        waitsec=30;
+                        waitsec=5;
                         continue;
                     };
                      break;
@@ -560,6 +564,27 @@ void startReceiverThread(int allindex) {
         LOGGER("startReceiverThread() connections[%d]=NULL\n",allindex);
         }
     }
+
+void wakeICEReceiversForNetworkChange(bool resetConnections) {
+    if (!backup)
+        return;
+    const int hostCount = backup->gethostnr();
+    for (int allindex = 0; allindex < hostCount; ++allindex) {
+        const passhost_t &host = getBackupHosts()[allindex];
+        if (!host.ICE)
+            continue;
+        ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+        if (!connection)
+            continue;
+        if (resetConnections)
+            connection->endConnectionHere();
+        {
+            std::lock_guard<std::mutex> lock(connection->receiveThreadMutex);
+            connection->wakeReceiver = true;
+        }
+        connection->receiveThreadCon.notify_one();
+    }
+}
 static  void juice_logger(juice_log_level_t level, const char *message) {
         if(message) {
             LOGGER("libjuice%d: %s\n",level,message);
