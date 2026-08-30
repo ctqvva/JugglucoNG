@@ -2557,6 +2557,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_carb_lookback_label">Fenêtre rétrospective des glucides</string>
     <string name="tuning_carb_lookback_description">Les glucides consignés jusqu\'à cette durée avant la chute comptent encore comme explication d\'une remontée — manger juste avant que la baisse ne s\'enregistre est le profil d\'une vraie hypo traitée.</string>
     <string name="sensor_pressure_hold_optin_summary">Quand une hypo soudaine ressemble à une pression sur le capteur, l\'alarme d\'hypo attend quelques minutes et un signal discret joue à la place ; si la valeur ne remonte pas, l\'alarme complète se déclenche. Cette fonction fait entièrement confiance à votre journal.</string>
+    <string name="sensor_pressure_early_warning_wait">Tant que la fonction est active, Prévision basse et Chute rapide attendent aussi jusqu’à %1$d min. Si la courbe remonte, l’avertissement précoce est abandonné; si la chute continue, il est libéré. Bas et Très bas ne sont pas retardés par cette vérification.</string>
     <string name="sensor_pressure_hold_optin_more">Comment ça marche et quel est le risque</string>
     <string name="sensor_pressure_hold_optin_less">Afficher moins</string>
     <string name="hypo_episode_log_pressure_toggle_long">Marquer comme pression sur le capteur</string>

@@ -2585,6 +2585,7 @@
     <string name="tuning_carb_lookback_label">Okres wsteczny węglowodanów</string>
     <string name="tuning_carb_lookback_description">Węglowodany wpisane najwyżej tyle czasu przed spadkiem nadal liczą się jako wyjaśnienie powrotu do normy — jedzenie tuż przed zarejestrowaniem spadku to obraz leczonego prawdziwego niedocukrzenia.</string>
     <string name="sensor_pressure_hold_optin_summary">Gdy nagły spadek glukozy wygląda jak nacisk na sensor, alarm niskiej glukozy czeka kilka minut i zamiast niego odtwarzana jest delikatna podpowiedź; jeśli wartość nie wraca do normy, włącza się pełny alarm. Funkcja całkowicie ufa Twojemu dziennikowi.</string>
+    <string name="sensor_pressure_early_warning_wait">Gdy funkcja jest włączona, alarmy Przewidywana niska i Szybki spadek także czekają do %1$d min. Odbicie krzywej odrzuca wczesne ostrzeżenie; dalszy spadek je uruchamia. Niska i Bardzo niska nie są opóźniane przez tę kontrolę.</string>
     <string name="sensor_pressure_hold_optin_more">Jak to działa i na czym polega ryzyko</string>
     <string name="sensor_pressure_hold_optin_less">Pokaż mniej</string>
     <string name="hypo_episode_log_pressure_toggle_long">Oznacz jako nacisk na sensor</string>

@@ -2,7 +2,8 @@
 
 > **Status update (2026-08-23):** the spike graduated. The branch now carries the full
 > feature set — the pure retrospective detector, the live **sensor pressure hold**
-> ("compression low gatekeeper": opt-in, experimental, LOW-only, VERY_LOW untouched,
+> ("compression low gatekeeper": opt-in, experimental, a bounded LOW hold plus a
+> six-minute confirmation wait for PRE_LOW and FALLING_FAST, VERY_LOW untouched,
 > gentle SENSOR_PRESSURE cue, receipts, self-disable), the **hypo episode log** (every
 > below-range episode of the last 30 days, user-togglable pressure classification), and
 > the **statistics retro-fix** (confirmed pressure episodes drop out of the Compose
@@ -42,6 +43,21 @@ Scans a recorded trace and reports an episode only when the full signature is ob
 
 Sensor age is recorded on the episode as a weight, never a condition; there is no night
 window. All thresholds are named constants awaiting calibration against real traces.
+
+## Early-warning confirmation wait
+
+PRE_LOW and FALLING_FAST are exposed to shallower compression waves than the LOW detector
+can safely classify. While sensor pressure hold is enabled, either early warning waits up
+to six minutes. Recovery by at least 3 mg/dL from the lowest value drops the candidate. A
+continuing fall releases it at the deadline. Entering the configured LOW range releases the
+wait immediately, and neither LOW nor VERY_LOW passes through this state.
+
+This wait is deliberately separate from the retrospective detector. The field trace that
+motivated it contains 15 to 32 mg/dL waves and several do not start from a quiet baseline,
+so weakening the LOW detector enough to accept them would also weaken its real-low guards.
+The dashboard signal-quality number was checked as a possible supporting input. It stayed
+mostly green at the false-alert points and overlapped the genuine-low controls, so the wait
+does not use it as a decision signal.
 
 The detector is pure: samples plus lambdas (`iobUnitsAt`, `dosePeakPassedAt`,
 `carbGramsBetween`), following the `GlucosePredictionKernel.simulate` seam pattern, so the

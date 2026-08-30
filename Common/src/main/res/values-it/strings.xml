@@ -2541,6 +2541,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_carb_lookback_label">Retrospettiva dei carboidrati</string>
     <string name="tuning_carb_lookback_description">I carboidrati registrati fino a questo tempo prima della discesa contano ancora come spiegazione di una risalita — mangiare poco prima che il calo si registri è l\'aspetto tipico di una vera ipoglicemia trattata.</string>
     <string name="sensor_pressure_hold_optin_summary">Quando un\'ipoglicemia improvvisa sembra pressione sul sensore, l\'allarme di ipoglicemia attende qualche minuto e al suo posto suona un segnale discreto; se il valore non risale, suona l\'allarme completo. Questa funzione si fida completamente del tuo diario.</string>
+    <string name="sensor_pressure_early_warning_wait">Quando la funzione è attiva, anche Previsione bassa e In rapido calo attendono fino a %1$d min. Se la curva risale, l’avviso anticipato viene annullato; se la discesa continua, viene attivato. Basso e Molto basso non vengono ritardati da questo controllo.</string>
     <string name="sensor_pressure_hold_optin_more">Come funziona e qual è il rischio</string>
     <string name="sensor_pressure_hold_optin_less">Mostra meno</string>
     <string name="hypo_episode_log_pressure_toggle_long">Segna come pressione sul sensore</string>

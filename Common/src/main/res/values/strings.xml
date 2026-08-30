@@ -860,6 +860,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="experimental_badge">Experimental</string>
     <string name="sensor_pressure_hold_optin_title">Hold low alarms on suspected pressure</string>
     <string name="sensor_pressure_hold_optin_summary">When a sudden low looks like pressure on the sensor, the low alarm waits a few minutes and a gentle cue plays instead; if the value does not recover, the full alarm fires. This trusts your journal completely.</string>
+    <string name="sensor_pressure_early_warning_wait">While this is on, Forecast Low and Falling Fast also wait up to %1$d min. If the graph starts recovering, the early warning is discarded. If it keeps falling, the warning is allowed through. This check does not delay Low or Very Low.</string>
     <string name="sensor_pressure_hold_optin_more">How it works and what the risk is</string>
     <string name="sensor_pressure_hold_expand">Show settings</string>
     <string name="sensor_pressure_hold_collapse">Hide settings</string>

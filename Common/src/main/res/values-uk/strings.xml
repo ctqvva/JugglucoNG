@@ -2623,6 +2623,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_carb_lookback_label">Облік вуглеводів назад</string>
     <string name="tuning_carb_lookback_description">Вуглеводи, внесені не раніше ніж за цей час до падіння, усе ще вважаються поясненням відновлення — поїсти саме перед тим, як падіння зафіксується, — так виглядає купована справжня гіпоглікемія.</string>
     <string name="sensor_pressure_hold_optin_summary">Коли раптове падіння глюкози схоже на тиск на сенсор, сигнал низької глюкози чекає кілька хвилин, а замість нього лунає м\'яка підказка; якщо значення не відновлюється, спрацьовує повний сигнал. Функція повністю довіряє вашому журналу.</string>
+    <string name="sensor_pressure_early_warning_wait">Поки функцію ввімкнено, Прогноз низького та Швидке падіння також чекають до %1$d хв. Якщо крива відновлюється, раннє попередження скасовується; якщо падіння триває, воно спрацьовує. Низький і Дуже низький ця перевірка не затримує.</string>
     <string name="sensor_pressure_hold_optin_more">Як це працює і в чому ризик</string>
     <string name="sensor_pressure_hold_optin_less">Показати менше</string>
     <string name="hypo_episode_log_pressure_toggle_long">Позначити як тиск на сенсор</string>

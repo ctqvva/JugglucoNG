@@ -2551,6 +2551,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_carb_lookback_label">Kolhydrat-tillbakablick</string>
     <string name="tuning_carb_lookback_description">Kolhydrater som förts in upp till så här långt före fallet räknas fortfarande som förklaring till en återhämtning — att äta strax innan raset registreras är precis så ett behandlat verkligt lågt värde ser ut.</string>
     <string name="sensor_pressure_hold_optin_summary">När ett plötsligt lågt värde ser ut som sensortryck väntar larmet för lågt värde några minuter och en diskret signal spelas i stället; om värdet inte återhämtar sig utlöses det fulla larmet. Detta litar helt på din dagbok.</string>
+    <string name="sensor_pressure_early_warning_wait">När funktionen är aktiv väntar även Förväntat lågt och Snabbt fallande i upp till %1$d min. En återhämtande kurva tar bort den tidiga varningen; ett fortsatt fall släpper fram den. Lågt och Mycket lågt fördröjs inte av denna kontroll.</string>
     <string name="sensor_pressure_hold_optin_more">Så fungerar det och vad risken är</string>
     <string name="sensor_pressure_hold_optin_less">Visa mindre</string>
     <string name="hypo_episode_log_pressure_toggle_long">Markera som sensortryck</string>

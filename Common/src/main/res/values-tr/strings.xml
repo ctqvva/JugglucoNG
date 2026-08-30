@@ -2579,6 +2579,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="tuning_carb_lookback_label">Karbonhidrat geriye bakış</string>
     <string name="tuning_carb_lookback_description">Düşüşten en fazla bu kadar önce kaydedilen karbonhidratlar yine de toparlanmayı açıklar sayılır — düşüş kaydedilmeden hemen önce yemek yemek, tedavi edilmiş gerçek bir düşüşün görünümüdür.</string>
     <string name="sensor_pressure_hold_optin_summary">Ani bir düşüş sensör basıncına benziyorsa, düşük alarmı birkaç dakika bekler ve bunun yerine hafif bir uyarı çalar; değer toparlanmazsa tam alarm çalar. Bu özellik günlüğünüze tamamen güvenir.</string>
+    <string name="sensor_pressure_early_warning_wait">Bu özellik açıkken Düşük tahmini ve Hızlı düşüş de en fazla %1$d dk bekler. Eğri toparlanırsa erken uyarı iptal edilir; düşüş sürerse uyarı serbest bırakılır. Düşük ve Çok düşük bu kontrol nedeniyle gecikmez.</string>
     <string name="sensor_pressure_hold_optin_more">Nasıl çalışır ve riski nedir</string>
     <string name="sensor_pressure_hold_optin_less">Daha az göster</string>
     <string name="hypo_episode_log_pressure_toggle_long">Sensör basıncı olarak işaretle</string>

@@ -2594,6 +2594,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tuning_carb_lookback_label">Koolhydraat-terugblik</string>
     <string name="tuning_carb_lookback_description">Koolhydraten die tot zo lang vóór de daling zijn ingevoerd, tellen nog als verklaring voor een herstel — eten vlak voordat de daling zichtbaar wordt, is precies hoe een behandelde echte lage waarde eruitziet.</string>
     <string name="sensor_pressure_hold_optin_summary">Als een plotselinge lage waarde op sensordruk lijkt, wacht het laag-alarm een paar minuten en klinkt in plaats daarvan een zacht signaal; herstelt de waarde niet, dan gaat het volledige alarm af. Dit vertrouwt volledig op je logboek.</string>
+    <string name="sensor_pressure_early_warning_wait">Zolang dit is ingeschakeld, wachten Voorspeld laag en Snel dalend ook maximaal %1$d min. Een herstellende curve laat de vroege waarschuwing vervallen; bij een aanhoudende daling wordt deze vrijgegeven. Laag en Zeer laag worden door deze controle niet vertraagd.</string>
     <string name="sensor_pressure_hold_optin_more">Hoe het werkt en wat het risico is</string>
     <string name="sensor_pressure_hold_optin_less">Minder tonen</string>
     <string name="hypo_episode_log_pressure_toggle_long">Markeren als sensordruk</string>

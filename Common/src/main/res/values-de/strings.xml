@@ -2590,6 +2590,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="tuning_carb_lookback_label">Kohlenhydrat-Rückschau</string>
     <string name="tuning_carb_lookback_description">Kohlenhydrate, die bis zu so lange vor dem Abfall eingetragen wurden, zählen noch als Erklärung für eine Erholung — Essen, kurz bevor der Sturz registriert wird, ist genau das Bild eines behandelten echten Tiefs.</string>
     <string name="sensor_pressure_hold_optin_summary">Sieht ein plötzliches Tief nach Sensordruck aus, wartet der Niedrig-Alarm einige Minuten und es spielt stattdessen ein dezenter Hinweis; erholt sich der Wert nicht, löst der volle Alarm aus. Das vertraut Ihrem Tagebuch vollständig.</string>
+    <string name="sensor_pressure_early_warning_wait">Wenn die Funktion aktiv ist, warten „Vorhersage niedrig“ und „Schnell fallend“ ebenfalls bis zu %1$d Min. Erholt sich die Kurve, wird die Frühwarnung verworfen; fällt sie weiter, wird die Warnung freigegeben. Niedrig und Sehr niedrig werden durch diese Prüfung nicht verzögert.</string>
     <string name="sensor_pressure_hold_optin_more">Wie es funktioniert und worin das Risiko besteht</string>
     <string name="sensor_pressure_hold_optin_less">Weniger anzeigen</string>
     <string name="hypo_episode_log_pressure_toggle_long">Als Sensordruck markieren</string>
