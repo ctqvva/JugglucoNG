@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
 import java.io.BufferedReader
@@ -362,7 +363,8 @@ object HistoryExporter {
                         sensorSerial = importSerial,
                         value = reading.valueMgDl,
                         rawValue = reading.rawValueMgDl,
-                        rate = 0f
+                        rate = 0f,
+                        source = GlucoseReadingSource.IMPORT,
                     )
                 }
                 if (readings.isNotEmpty()) {

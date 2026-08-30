@@ -58,6 +58,19 @@ object HistorySyncAccess {
             )
         }.getOrNull()
     }
+    private val storeReadingWithSourceMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod(
+                "storeReadingWithSourceAsync",
+                Long::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                String::class.java,
+                String::class.java
+            )
+        }.getOrNull()
+    }
     private val storeHistoryBatchMethod by lazy {
         runCatching {
             repositoryHolder?.getMethod(
@@ -77,6 +90,18 @@ object HistorySyncAccess {
                 LongArray::class.java,
                 FloatArray::class.java,
                 FloatArray::class.java
+            )
+        }.getOrNull()
+    }
+    private val storeHistoryBatchWithSourceBlockingMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod(
+                "storeHistoryBatchWithSourceBlocking",
+                String::class.java,
+                LongArray::class.java,
+                FloatArray::class.java,
+                FloatArray::class.java,
+                String::class.java
             )
         }.getOrNull()
     }
@@ -255,6 +280,37 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
+    fun storeCurrentReadingWithSourceAsync(
+        timestamp: Long,
+        valueMgdl: Float,
+        rawValueMgdl: Float,
+        rate: Float,
+        sensorSerial: String?,
+        source: String
+    ) {
+        if (timestamp <= 0L || sensorSerial.isNullOrBlank()) return
+        val method = storeReadingWithSourceMethod
+        if (method == null) {
+            Log.w(TAG, "source-aware current storage unavailable; using sensor default for $sensorSerial")
+            storeCurrentReadingAsync(timestamp, valueMgdl, rawValueMgdl, rate, sensorSerial)
+            return
+        }
+        runCatching {
+            method.invoke(
+                null,
+                timestamp,
+                valueMgdl,
+                rawValueMgdl,
+                rate,
+                sensorSerial,
+                source,
+            )
+        }.onFailure {
+            Log.w(TAG, "source-aware current storage failed for serial=$sensorSerial timestamp=$timestamp", it)
+        }
+    }
+
+    @JvmStatic
     fun storeSensorHistoryBatchAsync(
         sensorSerial: String?,
         timestamps: LongArray,
@@ -313,6 +369,35 @@ object HistorySyncAccess {
                 "storeSensorHistoryBatchBlocking failed for serial=$sensorSerial size=${timestamps.size}",
                 it
             )
+        }.getOrDefault(false)
+    }
+
+    @JvmStatic
+    fun storeSensorHistoryBatchWithSourceBlocking(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        source: String
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank()) return false
+        if (timestamps.isEmpty()) return true
+        val method = storeHistoryBatchWithSourceBlockingMethod
+        if (method == null) {
+            Log.w(TAG, "source-aware history storage unavailable; using sensor default for $sensorSerial")
+            return storeSensorHistoryBatchBlocking(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
+        }
+        return runCatching {
+            method.invoke(
+                null,
+                sensorSerial,
+                timestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                source,
+            ) as? Boolean ?: false
+        }.onFailure {
+            Log.w(TAG, "source-aware history storage failed for serial=$sensorSerial size=${timestamps.size}", it)
         }.getOrDefault(false)
     }
 

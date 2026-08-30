@@ -38,6 +38,19 @@ interface HistoryDao {
     suspend fun getReadingsSinceForSensors(serials: List<String>, startTime: Long): List<HistoryReading>
 
     @Query("""
+        SELECT * FROM history_readings
+        WHERE sensorSerial = :sensorSerial
+          AND timestamp >= :startTimeInclusive
+          AND timestamp < :endTimeExclusive
+        ORDER BY timestamp ASC
+    """)
+    suspend fun getSensorReadingsInTimeRange(
+        sensorSerial: String,
+        startTimeInclusive: Long,
+        endTimeExclusive: Long
+    ): List<HistoryReading>
+
+    @Query("""
         SELECT timestamp FROM history_readings
         WHERE sensorSerial IN (:serials)
           AND timestamp >= :startTime

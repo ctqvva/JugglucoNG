@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
+import tk.glucodata.CloneSensorRegistry
+import tk.glucodata.GlucoseReadingSource
+import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -482,11 +485,40 @@ class HistoryRepository(context: Context = Applic.app) {
         }
 
         @JvmStatic
+        fun storeReadingWithSourceAsync(
+            timestamp: Long,
+            value: Float,
+            rawValue: Float,
+            rate: Float,
+            sensorSerial: String,
+            source: String
+        ) {
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                HistoryRepository().storeReading(timestamp, value, rawValue, rate, sensorSerial, source)
+            }
+        }
+
+        @JvmStatic
         fun storeHistoryBatchAsync(
             sensorSerial: String,
             timestamps: LongArray,
             values: FloatArray,
             rawValues: FloatArray
+        ) = storeHistoryBatchWithSourceAsync(
+            sensorSerial,
+            timestamps,
+            values,
+            rawValues,
+            GlucoseReadingSource.SENSOR,
+        )
+
+        @JvmStatic
+        fun storeHistoryBatchWithSourceAsync(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            source: String
         ) {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
             if (roomSerial.isBlank()) return
@@ -513,7 +545,8 @@ class HistoryRepository(context: Context = Applic.app) {
                         sensorSerial = roomSerial,
                         value = if (value.isFinite()) value else 0f,
                         rawValue = if (rawValue.isFinite()) rawValue else 0f,
-                        rate = null
+                        rate = null,
+                        source = source,
                     )
                 )
             }
@@ -529,6 +562,22 @@ class HistoryRepository(context: Context = Applic.app) {
             timestamps: LongArray,
             values: FloatArray,
             rawValues: FloatArray
+        ): Boolean = storeHistoryBatchWithSourceBlocking(
+            sensorSerial,
+            timestamps,
+            values,
+            rawValues,
+            GlucoseReadingSource.SENSOR,
+        )
+
+        @Keep
+        @JvmStatic
+        fun storeHistoryBatchWithSourceBlocking(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            source: String
         ): Boolean {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
             if (roomSerial.isBlank()) return false
@@ -557,7 +606,8 @@ class HistoryRepository(context: Context = Applic.app) {
                                 sensorSerial = roomSerial,
                                 value = if (value.isFinite()) value else 0f,
                                 rawValue = if (rawValue.isFinite()) rawValue else 0f,
-                                rate = null
+                                rate = null,
+                                source = source,
                             )
                         )
                     }
@@ -583,7 +633,14 @@ class HistoryRepository(context: Context = Applic.app) {
      * Values should be in mg/dL (will be converted on display).
      * Uses main sensor serial if none specified.
      */
-    suspend fun storeReading(timestamp: Long, value: Float, rawValue: Float, rate: Float, sensorSerial: String? = null) {
+    suspend fun storeReading(
+        timestamp: Long,
+        value: Float,
+        rawValue: Float,
+        rate: Float,
+        sensorSerial: String? = null,
+        source: String = GlucoseReadingSource.SENSOR,
+    ) {
         // Don't store invalid readings
         if (value <= 0 && rawValue <= 0) return
         
@@ -601,7 +658,8 @@ class HistoryRepository(context: Context = Applic.app) {
             sensorSerial = serial,
             value = value,
             rawValue = rawValue,
-            rate = rate
+            rate = rate,
+            source = source,
         )
         reportIfFutureTimestamp(serial, timestamp, writer = "storeReading")
         withContext(Dispatchers.IO) {
@@ -611,6 +669,12 @@ class HistoryRepository(context: Context = Applic.app) {
                     return@withContext
                 }
                 database.withTransaction {
+                    val bucketStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
+                    val existingSource = dao.getSensorReadingsInTimeRange(
+                        sensorSerial = serial,
+                        startTimeInclusive = bucketStart,
+                        endTimeExclusive = bucketStart + SENSOR_MINUTE_BUCKET_MS,
+                    ).firstOrNull { it.timestamp == timestamp }?.source
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = serial,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
@@ -621,7 +685,11 @@ class HistoryRepository(context: Context = Applic.app) {
                             )
                         )
                     )
-                    dao.insert(reading)
+                    dao.insert(
+                        reading.copy(
+                            source = HistorySourceProvenance.stableSource(existingSource, reading.source)
+                        )
+                    )
                 }
                 recordDisplayValueForStoredReading(
                     sensorSerial = serial,
@@ -755,12 +823,30 @@ class HistoryRepository(context: Context = Applic.app) {
                     bucketDurationMs = bucketDurationMs,
                 ) ?: return@withContext false
                 database.withTransaction {
+                    val existingSources = HashMap<Long, String>()
+                    for (range in plan.bucketRanges) {
+                        val startTimeInclusive = range.firstBucketId * bucketDurationMs
+                        val endTimeExclusive = (range.lastBucketId + 1L) * bucketDurationMs
+                        dao.getSensorReadingsInTimeRange(
+                            sensorSerial = sensorSerial,
+                            startTimeInclusive = startTimeInclusive,
+                            endTimeExclusive = endTimeExclusive,
+                        ).forEach { existing -> existingSources[existing.timestamp] = existing.source }
+                    }
+                    val readingsWithStableSources = collapsedReadings.map { incoming ->
+                        incoming.copy(
+                            source = HistorySourceProvenance.stableSource(
+                                existingSources[incoming.timestamp],
+                                incoming.source,
+                            )
+                        )
+                    }
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = sensorSerial,
                         bucketDurationMs = bucketDurationMs,
                         bucketRanges = plan.bucketRanges
                     )
-                    dao.insertAll(collapsedReadings)
+                    dao.insertAll(readingsWithStableSources)
                 }
                 BatteryTrace.bump(
                     "room.history.replace_bucket_batch",
@@ -1061,7 +1147,8 @@ class HistoryRepository(context: Context = Applic.app) {
                     timestamp = reading.timestamp,
                     rawValue = reading.rawValue,
                     rate = reading.rate,
-                    sensorSerial = reading.sensorSerial
+                    sensorSerial = reading.sensorSerial,
+                    source = reading.source,
                 )
             }
         }.flowOn(Dispatchers.IO)
@@ -1107,7 +1194,8 @@ class HistoryRepository(context: Context = Applic.app) {
                     timestamp = it.timestamp,
                     rawValue = it.rawValue,
                     rate = it.rate,
-                    sensorSerial = it.sensorSerial
+                    sensorSerial = it.sensorSerial,
+                    source = it.source,
                 )
             }
         }.flowOn(Dispatchers.IO)
@@ -1276,7 +1364,8 @@ class HistoryRepository(context: Context = Applic.app) {
                     timestamp = it.timestamp,
                     rawValue = it.rawValue,
                     rate = it.rate,
-                    sensorSerial = it.sensorSerial
+                    sensorSerial = it.sensorSerial,
+                    source = it.source,
                 )
             }
         }.flowOn(Dispatchers.IO)
@@ -1458,6 +1547,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 rawValue = reading.rawValue,
                 rate = reading.rate,
                 sensorSerial = reading.sensorSerial,
+                source = reading.source,
                 uncertainty = uncertainty[uncertaintyKey(reading)]?.toGlucoseUncertainty(),
                 sealedDisplayValue = if (!freezeEnabled) {
                     null
@@ -1465,7 +1555,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     display[displayKey(reading.sensorSerial, reading.timestamp)]
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
                         ?.displayMgdl
-                }
+                },
             )
         }
     }
@@ -1546,9 +1636,10 @@ class HistoryRepository(context: Context = Applic.app) {
             rawValue = reading.rawValue,
             rate = reading.rate,
             sensorSerial = reading.sensorSerial,
+            source = reading.source,
             sealedDisplayValue = display[displayKey(reading.sensorSerial, reading.timestamp)]
                 ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
-                ?.displayMgdl
+                ?.displayMgdl,
         )
     }
 
@@ -1657,6 +1748,13 @@ class HistoryRepository(context: Context = Applic.app) {
     private suspend fun backfillSensor(serial: String, requestedStartTimeMs: Long): Boolean {
         try {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+            val readingSource = if (CloneSensorRegistry.isCloneSensor(roomSerial)) {
+                GlucoseReadingSource.forCloneTransport(
+                    CloneSensorRegistry.transportForSensor(roomSerial)
+                )
+            } else {
+                GlucoseReadingSource.SENSOR
+            }
             val startSec = resolveNativeBackfillStartSec(serial, requestedStartTimeMs)
             val rawHistory = loadNativeHistory(serial, startSec)
             if (rawHistory == null) {
@@ -1684,7 +1782,8 @@ class HistoryRepository(context: Context = Applic.app) {
                         sensorSerial = roomSerial,
                         value = value,
                         rawValue = rawValue,
-                        rate = 0f  // Rate not available from history
+                        rate = 0f, // Rate not available from history
+                        source = readingSource,
                     ))
                     if (readings.size >= NATIVE_BACKFILL_INSERT_CHUNK) {
                         storedCount += insertBackfillChunk(serial, readings)

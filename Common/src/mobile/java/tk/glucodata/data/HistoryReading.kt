@@ -3,6 +3,7 @@ package tk.glucodata.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import tk.glucodata.GlucoseReadingSource
 
 /**
  * Room entity for storing glucose readings independently from C++ sensor data.
@@ -26,5 +27,6 @@ data class HistoryReading(
     val sensorSerial: String,     // Sensor short name (e.g. "X-ABCDEF123456", "GS1Sb-XXX")
     val value: Float,             // Calibrated/auto glucose value (mg/dL)
     val rawValue: Float,          // Raw sensor value (mg/dL)
-    val rate: Float?              // Rate of change (nullable - may not always be available)
+    val rate: Float?,             // Rate of change (nullable - may not always be available)
+    val source: String = GlucoseReadingSource.SENSOR
 )
