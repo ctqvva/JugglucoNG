@@ -41,6 +41,19 @@ class CompressionTrendHoldStateTests {
     }
 
     @Test
+    fun reboundWavesDropBothRisingEarlyWarningFamilies() {
+        val rebounds = listOf(
+            listOf(96f, 106f, 117f, 128f, 136f, 133f, 128f),
+            listOf(129f, 135f, 142f, 151f, 157f, 155f, 150f)
+        )
+
+        for (wave in rebounds) {
+            assertEquals(Decision.DROP, replay(AlertType.PRE_HIGH, wave))
+            assertEquals(Decision.DROP, replay(AlertType.RISING_FAST, wave))
+        }
+    }
+
+    @Test
     fun recordedGenuineFallsAreReleasedAtTheBound() {
         val genuineFalls = listOf(
             listOf(87f, 86f, 85f, 81f, 80f, 79f, 78f),
@@ -50,6 +63,19 @@ class CompressionTrendHoldStateTests {
         for (fall in genuineFalls) {
             assertEquals(Decision.ALLOW, replay(AlertType.PRE_LOW, fall))
             assertEquals(Decision.ALLOW, replay(AlertType.FALLING_FAST, fall))
+        }
+    }
+
+    @Test
+    fun genuineRisesAreReleasedAtTheBound() {
+        val genuineRises = listOf(
+            listOf(110f, 114f, 118f, 122f, 126f, 130f, 134f),
+            listOf(145f, 151f, 158f, 166f, 175f, 185f, 196f)
+        )
+
+        for (rise in genuineRises) {
+            assertEquals(Decision.ALLOW, replay(AlertType.PRE_HIGH, rise))
+            assertEquals(Decision.ALLOW, replay(AlertType.RISING_FAST, rise))
         }
     }
 
@@ -65,13 +91,48 @@ class CompressionTrendHoldStateTests {
     }
 
     @Test
-    fun lowAndVeryLowNeverEnterTheState() {
+    fun lowAndVeryLowUseTheDeepDetectorInstead() {
         val state = CompressionTrendHoldState()
         for (type in listOf(AlertType.LOW, AlertType.VERY_LOW)) {
             assertEquals(Decision.ALLOW,
                 state.onCandidate(type, t0, t0, 70f, actualLow = false))
             assertFalse(state.isHolding(type))
         }
+    }
+
+    @Test
+    fun highThresholdsWaitButDoNotDropOnASmallReversalWhileStillActive() {
+        for (type in listOf(AlertType.HIGH, AlertType.VERY_HIGH)) {
+            val state = CompressionTrendHoldState()
+            assertEquals(Decision.HOLD,
+                state.onCandidate(type, t0, t0, 190f, actualLow = false))
+            assertEquals(Decision.ALLOW,
+                state.onCandidate(type, t0 + 6 * minute, t0 + 6 * minute, 180f, false))
+        }
+    }
+
+    @Test
+    fun aClearedHighThresholdCanStartANewConfirmation() {
+        val state = CompressionTrendHoldState()
+        assertEquals(Decision.HOLD,
+            state.onCandidate(AlertType.HIGH, t0, t0, 190f, actualLow = false))
+        state.onCandidateCleared(AlertType.HIGH)
+        assertEquals(Decision.HOLD,
+            state.onCandidate(AlertType.HIGH, t0 + minute, t0 + minute, 191f, false))
+    }
+
+    @Test
+    fun actualLowClearsFallingWaitsWithoutTouchingAReboundWait() {
+        val state = CompressionTrendHoldState()
+        assertEquals(Decision.HOLD,
+            state.onCandidate(AlertType.PRE_LOW, t0, t0, 80f, actualLow = false))
+        assertEquals(Decision.HOLD,
+            state.onCandidate(AlertType.RISING_FAST, t0, t0, 130f, actualLow = false))
+
+        state.clearFalling()
+
+        assertFalse(state.isHolding(AlertType.PRE_LOW))
+        assertTrue(state.isHolding(AlertType.RISING_FAST))
     }
 
     @Test
@@ -97,13 +158,26 @@ class CompressionTrendHoldStateTests {
         assertEquals(Decision.HOLD,
             state.onCandidate(AlertType.FALLING_FAST, t0, t0, 130f, actualLow = false))
 
-        state.onDeltaCandidateMissing(t0)
+        state.onDeltaCandidateMissing(AlertType.FALLING_FAST, t0)
         assertTrue(state.isHolding(AlertType.FALLING_FAST))
 
-        state.onDeltaCandidateMissing(t0 + minute)
+        state.onDeltaCandidateMissing(AlertType.FALLING_FAST, t0 + minute)
         assertFalse(state.isHolding(AlertType.FALLING_FAST))
         assertEquals(Decision.HOLD,
             state.onCandidate(AlertType.FALLING_FAST, t0 + 2 * minute, t0 + 2 * minute, 140f, false))
+    }
+
+    @Test
+    fun missingRisingDeltaCandidateUsesTheSameNewReadingRule() {
+        val state = CompressionTrendHoldState()
+        assertEquals(Decision.HOLD,
+            state.onCandidate(AlertType.RISING_FAST, t0, t0, 130f, actualLow = false))
+
+        state.onDeltaCandidateMissing(AlertType.RISING_FAST, t0)
+        assertTrue(state.isHolding(AlertType.RISING_FAST))
+
+        state.onDeltaCandidateMissing(AlertType.RISING_FAST, t0 + minute)
+        assertFalse(state.isHolding(AlertType.RISING_FAST))
     }
 
     @Test

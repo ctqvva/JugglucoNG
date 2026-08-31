@@ -27,14 +27,15 @@ import tk.glucodata.logic.CompressionLowDetector
  *
  * Called under the alert runtime lock on its scheduler thread. The expensive suspicion
  * assembly (Room history, reflection into the journal) runs only on the tick that would
- * fire a LOW alarm and only while no hold is running — every other tick touches nothing
- * but prefs and arithmetic.
+ * fire a selected LOW or VERY_LOW alarm and only while no hold is running. Every other
+ * tick touches nothing but prefs and arithmetic.
  */
 internal object CompressionHoldRuntime {
     private const val LOG_ID = "CompressionHold"
     private const val PREFS_NAME = "tk.glucodata.compression_hold"
 
     const val PREF_ENABLED = "compression_hold_enabled"
+    const val PREF_COVERED_ALERTS_MASK = "compression_hold_covered_alerts_mask"
     const val PREF_MAX_HOLD_MINUTES = "compression_hold_max_minutes"
     const val PREF_FLOOR_MODE = "compression_hold_floor_mode"
     const val PREF_FLOOR_CUSTOM_MGDL = "compression_hold_floor_custom_mgdl"
@@ -60,7 +61,7 @@ internal object CompressionHoldRuntime {
     private val holdState = CompressionHoldState()
     private var lastSuspect: CompressionLowDetector.OngoingSuspect? = null
 
-    // One hold per LOW episode: once a hold has escalated, the same episode is never
+    // One hold per low-side episode: once a hold has escalated, the same episode is never
     // held again — otherwise a delivery refused by a rearm cooldown would let a fresh
     // full-length hold start on the same falling trace, doubling the configured bound.
     private var episodeSpent = false
@@ -70,6 +71,28 @@ internal object CompressionHoldRuntime {
     fun isOptedIn(): Boolean = prefs()?.getBoolean(PREF_ENABLED, false) == true
 
     fun isSelfDisabled(): Boolean = prefs()?.getBoolean(PREF_SELF_DISABLED, false) == true
+
+    fun coveredAlertTypes(): Set<AlertType> {
+        val p = prefs() ?: return CompressionAlertCoverage.defaultTypes
+        return try {
+            CompressionAlertCoverage.decode(
+                p.getInt(PREF_COVERED_ALERTS_MASK, CompressionAlertCoverage.defaultMask)
+            )
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "coveredAlertTypes", t)
+            emptySet()
+        }
+    }
+
+    fun isAlertCovered(type: AlertType): Boolean = type in coveredAlertTypes()
+
+    fun setAlertCovered(type: AlertType, covered: Boolean) {
+        if (type !in CompressionAlertCoverage.eligibleTypes) return
+        val updated = CompressionAlertCoverage.updated(coveredAlertTypes(), type, covered)
+        prefs()?.edit()
+            ?.putInt(PREF_COVERED_ALERTS_MASK, CompressionAlertCoverage.encode(updated))
+            ?.apply()
+    }
 
     /**
      * Re-enabling clears the self-disable latch and starts the escalation count fresh.
@@ -121,6 +144,14 @@ internal object CompressionHoldRuntime {
         prefs()?.edit()?.putFloat(PREF_FLOOR_CUSTOM_MGDL, mgdl.coerceIn(30f, 100f))?.apply()
     }
 
+    fun isAtHardFloor(displayValue: Float): Boolean = try {
+        val floorMgdl = resolveFloorMgdl()
+        floorMgdl.isFinite() && toMgdl(displayValue) <= floorMgdl
+    } catch (t: Throwable) {
+        Log.stack(LOG_ID, "isAtHardFloor", t)
+        true
+    }
+
     fun loadTuning(): CompressionLowDetector.Tuning {
         val p = prefs() ?: return CompressionLowDetector.Tuning.DEFAULT
         val d = CompressionLowDetector.Tuning.DEFAULT
@@ -165,7 +196,8 @@ internal object CompressionHoldRuntime {
     // --- runtime surface (called by AlertRuntimeManager under its lock) ---
 
     /**
-     * Gate for an undelivered, unsnoozed LOW alarm. True means "withhold this tick".
+     * Gate for an undelivered, unsnoozed LOW or VERY_LOW alarm. True means
+     * "withhold this tick".
      * The cue and every log line happen in here; the caller only keeps the episode
      * pending so the alarm fires the instant the hold lifts.
      *
@@ -173,11 +205,12 @@ internal object CompressionHoldRuntime {
      * deliberate choice to be left alone: the hold still runs, silently, and the floor,
      * the window and the escalation are untouched. A cue that is switched ON but cannot
      * sound (snoozed, outside its schedule, refused by the alert tracker) is a
-     * malfunction, and there no hold starts at all — LOW fires as if the feature were
+     * malfunction, and there no hold starts at all. The alarm fires as if the feature were
      * off, because the user is expecting a signal that would never come.
      */
-    fun gateLow(displayValue: Float, rate: Float): Boolean {
+    fun gateLow(type: AlertType, displayValue: Float, rate: Float): Boolean {
         try {
+            if (type != AlertType.LOW && type != AlertType.VERY_LOW) return false
             val nowMs = System.currentTimeMillis()
             if (!isOptedIn() || isSelfDisabled()) {
                 release(holdState.onDisabled())
@@ -213,7 +246,7 @@ internal object CompressionHoldRuntime {
                     }
                     holdStartForRecord = nowMs
                     lastSuspect = suspicion
-                    Log.i(LOG_ID, "Holding LOW${if (cueWanted) "" else " (cue off, silent)"}: $suspicion")
+                    Log.i(LOG_ID, "Holding ${type.name}${if (cueWanted) "" else " (cue off, silent)"}: $suspicion")
                     true
                 }
                 is CompressionHoldState.Action.ContinueHold -> true
@@ -230,6 +263,18 @@ internal object CompressionHoldRuntime {
             Log.stack(LOG_ID, "gateLow", t)
             release(holdState.onDisabled())
             return false
+        }
+    }
+
+    /** A settings change must release a hold when no active low-side alarm remains selected. */
+    fun releaseIfNoCoveredLowActive(hasCoveredLowAlert: Boolean) {
+        try {
+            if (!holdState.holding || hasCoveredLowAlert) return
+            episodeSpent = true
+            release(holdState.forceEscalate("alarm-unselected"))
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "releaseIfNoCoveredLowActive", t)
+            release(holdState.onDisabled())
         }
     }
 

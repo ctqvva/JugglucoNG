@@ -1,14 +1,17 @@
 package tk.glucodata.alerts
 
+import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Bounded confirmation wait for early low warnings while sensor-pressure mode is enabled.
+ * Bounded confirmation wait for selected sensor-pressure-sensitive warnings.
  *
- * PRE_LOW and FALLING_FAST are valuable because they arrive before an actual low, but that
- * also makes them the alerts most exposed to a short, false compression fall. A candidate
- * waits just long enough to distinguish the two outcomes: recovery drops the early warning;
- * a fall still standing at the deadline is released. LOW and VERY_LOW never enter this state.
+ * A pressure dip can fire falling alarms on the way down and rising alarms when pressure is
+ * released. Falling candidates track their nadir and rising candidates track their peak. A
+ * reversal drops the warning; movement still standing at the deadline is released. HIGH and
+ * VERY_HIGH use the same bounded wait but require their threshold condition to clear rather
+ * than treating a small reversal above threshold as recovery. LOW and VERY_LOW use the deeper
+ * compression detector and never enter this state.
  *
  * One hold is tracked per alert type because the forecast and delta alarms have independent
  * episode latches. The caller owns those latches and tells this state when a candidate clears.
@@ -28,7 +31,8 @@ internal class CompressionTrendHoldState {
     private data class Hold(
         val startedAtMs: Long,
         var latestReadingTimeMs: Long,
-        var lowestMgdl: Float
+        val falling: Boolean,
+        var extremeMgdl: Float
     )
 
     private val holds = mutableMapOf<AlertType, Hold>()
@@ -41,10 +45,11 @@ internal class CompressionTrendHoldState {
         valueMgdl: Float,
         actualLow: Boolean
     ): Decision {
-        if (type != AlertType.PRE_LOW && type != AlertType.FALLING_FAST) {
+        if (type !in confirmationTypes) {
             return Decision.ALLOW
         }
-        if (!valueMgdl.isFinite() || actualLow) {
+        val falling = isFalling(type)
+        if (!valueMgdl.isFinite() || (falling && actualLow)) {
             holds.remove(type)
             decidedAtReading[type] = readingTimeMs
             return Decision.ALLOW
@@ -53,7 +58,7 @@ internal class CompressionTrendHoldState {
 
         val running = holds[type]
         if (running == null) {
-            holds[type] = Hold(nowMs, readingTimeMs, valueMgdl)
+            holds[type] = Hold(nowMs, readingTimeMs, falling, valueMgdl)
             return Decision.HOLD
         }
         if (nowMs < running.startedAtMs || readingTimeMs < running.latestReadingTimeMs) {
@@ -63,14 +68,26 @@ internal class CompressionTrendHoldState {
         }
 
         running.latestReadingTimeMs = readingTimeMs
-        running.lowestMgdl = min(running.lowestMgdl, valueMgdl)
+        running.extremeMgdl = if (running.falling) {
+            min(running.extremeMgdl, valueMgdl)
+        } else {
+            max(running.extremeMgdl, valueMgdl)
+        }
         if (nowMs - running.startedAtMs < CONFIRMATION_MS) {
             return Decision.HOLD
         }
 
         holds.remove(type)
         decidedAtReading[type] = readingTimeMs
-        return if (valueMgdl >= running.lowestMgdl + RECOVERY_MGDL) {
+        if (type == AlertType.HIGH || type == AlertType.VERY_HIGH) {
+            return Decision.ALLOW
+        }
+        val recovered = if (running.falling) {
+            valueMgdl >= running.extremeMgdl + RECOVERY_MGDL
+        } else {
+            valueMgdl <= running.extremeMgdl - RECOVERY_MGDL
+        }
+        return if (recovered) {
             Decision.DROP
         } else {
             Decision.ALLOW
@@ -87,17 +104,26 @@ internal class CompressionTrendHoldState {
      * FALLING_FAST has no threshold episode object. A newer reading with no candidate means
      * its delta run broke; scheduler passes of the same reading must not cancel a live wait.
      */
-    fun onDeltaCandidateMissing(readingTimeMs: Long) {
-        val candidateReading = holds[AlertType.FALLING_FAST]?.latestReadingTimeMs
-            ?: decidedAtReading[AlertType.FALLING_FAST]
+    fun onDeltaCandidateMissing(type: AlertType, readingTimeMs: Long) {
+        if (type != AlertType.FALLING_FAST && type != AlertType.RISING_FAST) return
+        val candidateReading = holds[type]?.latestReadingTimeMs
+            ?: decidedAtReading[type]
             ?: return
         if (readingTimeMs > candidateReading) {
-            holds.remove(AlertType.FALLING_FAST)
-            decidedAtReading.remove(AlertType.FALLING_FAST)
+            holds.remove(type)
+            decidedAtReading.remove(type)
         }
     }
 
-    /** Actual-low priority or disabling the feature cancels every early-warning wait. */
+    /** An actual-low alarm cancels only falling early-warning waits. */
+    fun clearFalling() {
+        for (type in fallingTypes) {
+            holds.remove(type)
+            decidedAtReading.remove(type)
+        }
+    }
+
+    /** Disabling the feature or replacing the sensor reading baseline cancels every wait. */
     fun clear() {
         holds.clear()
         decidedAtReading.clear()
@@ -105,9 +131,20 @@ internal class CompressionTrendHoldState {
 
     internal fun isHolding(type: AlertType): Boolean = type in holds
 
+    internal fun supports(type: AlertType): Boolean = type in confirmationTypes
+
     companion object {
         const val CONFIRMATION_MINUTES = 6L
         const val RECOVERY_MGDL = 3f
         private const val CONFIRMATION_MS = CONFIRMATION_MINUTES * 60_000L
+        private val fallingTypes = setOf(AlertType.PRE_LOW, AlertType.FALLING_FAST)
+        private val confirmationTypes = fallingTypes + setOf(
+            AlertType.PRE_HIGH,
+            AlertType.RISING_FAST,
+            AlertType.HIGH,
+            AlertType.VERY_HIGH
+        )
+
+        private fun isFalling(type: AlertType): Boolean = type in fallingTypes
     }
 }
