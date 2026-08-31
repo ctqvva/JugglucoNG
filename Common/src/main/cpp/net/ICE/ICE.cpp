@@ -50,6 +50,7 @@ constexpr const int givefirst=0;
 
 #include "logs.hpp"
 #include "ContextHTTPS.hpp"
+#include "ElapsedRealtime.hpp"
 using namespace std::literals;
 #include "Agent_data.hpp"
 #include "BackDescription.hpp"
@@ -110,10 +111,14 @@ static ICEConnect *currentICEConnection(int allindex, juice_agent_t *agent) {
     }
 
 static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int seconds) {
-    for(int i=0;i<seconds;++i) {
-        if(!con->isCurrentAgent(agent)||con->endConnect.load())
-            return false;
-        sleep(1);
+    const int64_t deadline=elapsedRealtimeMilliseconds()+
+                           static_cast<int64_t>(std::max(seconds,0))*1000;
+    while(con->isCurrentAgent(agent)&&!con->endConnect.load()) {
+        const int64_t remaining=deadline-elapsedRealtimeMilliseconds();
+        if(remaining<=0)
+            break;
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(std::min<int64_t>(remaining,250)));
         }
     return con->isCurrentAgent(agent)&&!con->endConnect.load();
     }
