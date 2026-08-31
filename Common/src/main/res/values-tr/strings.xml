@@ -2525,8 +2525,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_pressure_hold_summary_text">Son 14 gün: %1$d bekletildi, %2$d basınç olarak çözüldü, %3$d yükseltildi.</string>
     <string name="sensor_pressure_hold_section_title">Sensör Basıncı Bekletmesi</string>
     <string name="experimental_badge">Deneysel</string>
-    <string name="sensor_pressure_hold_optin_title">Şüpheli basınçta düşük alarmlarını beklet</string>
-    <string name="sensor_pressure_hold_optin_description">Sensörün üzerine yatmak veya yaslanmak çevresindeki dokuyu sıkıştırıp ani bir düşüş gibi gösterebilir. Bir düşüş buna benziyorsa — günlüğünüzdeki insüline göre fazla hızlıysa ve sakin bir eğriden çıkıyorsa — düşük alarmı birkaç dakika bekletilir ve bunun yerine hafif Sensör Basıncı uyarısı çalar. Değer toparlanırsa basınçtı; toparlanmazsa tam alarm çalar. Bu özellik günlüğünüze tamamen güvenir: hiç girilmemiş bir doz veya kurtarma karbonhidratı gerçek bir düşüşü basınç gibi gösterebilir. Yalnızca düzenli kayıt tutuyorsanız etkinleştirin — bu riski siz taşırsınız.</string>
+    <string name="sensor_pressure_hold_optin_title">Şüpheli basınçta seçilen alarmları yönet</string>
+    <string name="sensor_pressure_hold_optin_description">Sensörün üzerine yatmak veya yaslanmak dokuyu sıkıştırıp ani bir düşüş ve ardından hızlı bir geri sıçrama gösterebilir. Seçilen tahmin ve hızlı değişim alarmları hareketin doğrulanmasını bekler. Düşük ve Çok düşük tam algılayıcıyı, azami bekletme süresini ve kesin tabanı kullanır. Girilmemiş bir doz veya kurtarma karbonhidratı gerçek bir düşüşü hâlâ basınç gibi gösterebilir. Yalnızca düzenli kayıt tutuyor ve bu riski kabul ediyorsanız etkinleştirin.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">%1$d yükseltilmiş bekletmeden sonra kendini kapattı. Temiz bir kayıtla yeniden denemek için tekrar açın.</string>
     <string name="sensor_pressure_hold_max_hold_label">Azami bekletme süresi</string>
     <string name="sensor_pressure_hold_max_hold_description">Desen ne derse desin alarm bu kadar dakika sonra mutlaka çalar.</string>
@@ -2578,8 +2578,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stats_open_hypo_log">Hipo olayları</string>
     <string name="tuning_carb_lookback_label">Karbonhidrat geriye bakış</string>
     <string name="tuning_carb_lookback_description">Düşüşten en fazla bu kadar önce kaydedilen karbonhidratlar yine de toparlanmayı açıklar sayılır — düşüş kaydedilmeden hemen önce yemek yemek, tedavi edilmiş gerçek bir düşüşün görünümüdür.</string>
-    <string name="sensor_pressure_hold_optin_summary">Ani bir düşüş sensör basıncına benziyorsa, düşük alarmı birkaç dakika bekler ve bunun yerine hafif bir uyarı çalar; değer toparlanmazsa tam alarm çalar. Bu özellik günlüğünüze tamamen güvenir.</string>
-    <string name="sensor_pressure_early_warning_wait">Bu özellik açıkken Düşük tahmini ve Hızlı düşüş de en fazla %1$d dk bekler. Eğri toparlanırsa erken uyarı iptal edilir; düşüş sürerse uyarı serbest bırakılır. Düşük ve Çok düşük bu kontrol nedeniyle gecikmez.</string>
+    <string name="sensor_pressure_hold_optin_summary">Ani bir düşüş veya geri sıçrama sensör basıncına benziyorsa seçilen alarmlar kısa süre bekler. Hareket sürerse normal alarm çalar. Bu özellik günlüğünüze tamamen güvenir.</string>
+    <string name="sensor_pressure_early_warning_wait">Seçilen tahmin, hızlı değişim, Yüksek ve Çok yüksek alarmları en fazla %1$d dk bekler. Toparlanma düşen uyarıyı, tersine dönüş yükselen uyarıyı iptal eder. Düşük ve Çok düşük aşağıdaki algılayıcıyı ve kesin tabanı kullanır.</string>
+    <string name="sensor_pressure_covered_alarms_title">Yönetilen alarmlar</string>
+    <string name="sensor_pressure_covered_alarms_description">Hangi alarmların geciktirilebileceğini seçin. Varsayılan olarak Düşük, iki tahmin ve iki hızlı değişim alarmı seçilidir. Bir alarmı değiştirmeden bırakmak için işaretini kaldırın.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">Hiçbir alarm seçilmediği için bu özellik bir alarmı bekletemez veya doğrulayamaz.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Kesin taban Çok düşük eşiğini izlediği sürece Çok düşük hemen çalar. Bekletmeye izin vermek için bilinçli olarak daha düşük özel bir taban veya tabansız seçeneğini seçin.</string>
     <string name="sensor_pressure_hold_optin_more">Nasıl çalışır ve riski nedir</string>
     <string name="sensor_pressure_hold_optin_less">Daha az göster</string>
     <string name="hypo_episode_log_pressure_toggle_long">Sensör basıncı olarak işaretle</string>

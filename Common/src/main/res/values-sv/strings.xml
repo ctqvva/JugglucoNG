@@ -2497,8 +2497,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_summary_text">Senaste 14 dagarna: %1$d tillbakahållna, %2$d lösta som tryck, %3$d eskalerade.</string>
     <string name="sensor_pressure_hold_section_title">Tillbakahållning vid sensortryck</string>
     <string name="experimental_badge">Experimentell</string>
-    <string name="sensor_pressure_hold_optin_title">Håll tillbaka larm för lågt värde vid misstänkt tryck</string>
-    <string name="sensor_pressure_hold_optin_description">Att ligga eller luta sig mot sensorn kan pressa ihop vävnaden runt den och ge ett falskt plötsligt lågt värde. När ett fall ser ut så — för snabbt för insulinet i din dagbok, ur en lugn kurva — hålls larmet för lågt värde tillbaka i några minuter, och den diskreta sensortryckssignalen spelas i stället. Om värdet återhämtar sig var det tryck; om inte utlöses det fulla larmet. Detta litar helt på din dagbok: en dos eller räddningskolhydrater som aldrig fördes in kan få ett verkligt lågt värde att se ut som tryck. Aktivera bara om du loggar tillförlitligt — den risken bär du.</string>
+    <string name="sensor_pressure_hold_optin_title">Hantera valda larm vid misstänkt sensortryck</string>
+    <string name="sensor_pressure_hold_optin_description">Att ligga eller luta sig mot sensorn kan pressa ihop vävnaden och ge ett falskt plötsligt fall följt av en snabb rekyl. Valda prognos- och snabblarm väntar på att rörelsen bekräftas. Lågt och Mycket lågt använder den fullständiga detektorn, den maximala hålltiden och den hårda nedre gränsen. En dos eller räddningskolhydrater som inte loggats kan fortfarande få ett verkligt lågt värde att se ut som tryck. Aktivera bara om du loggar tillförlitligt och accepterar risken.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Stängde av sig själv efter %1$d eskalerade tillbakahållningar. Slå på igen för att försöka på nytt med rent facit.</string>
     <string name="sensor_pressure_hold_max_hold_label">Längsta tillbakahållningstid</string>
     <string name="sensor_pressure_hold_max_hold_description">Larmet utlöses alltid efter så här många minuter, oavsett vad mönstret säger.</string>
@@ -2550,8 +2550,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Hypoepisoder</string>
     <string name="tuning_carb_lookback_label">Kolhydrat-tillbakablick</string>
     <string name="tuning_carb_lookback_description">Kolhydrater som förts in upp till så här långt före fallet räknas fortfarande som förklaring till en återhämtning — att äta strax innan raset registreras är precis så ett behandlat verkligt lågt värde ser ut.</string>
-    <string name="sensor_pressure_hold_optin_summary">När ett plötsligt lågt värde ser ut som sensortryck väntar larmet för lågt värde några minuter och en diskret signal spelas i stället; om värdet inte återhämtar sig utlöses det fulla larmet. Detta litar helt på din dagbok.</string>
-    <string name="sensor_pressure_early_warning_wait">När funktionen är aktiv väntar även Förväntat lågt och Snabbt fallande i upp till %1$d min. En återhämtande kurva tar bort den tidiga varningen; ett fortsatt fall släpper fram den. Lågt och Mycket lågt fördröjs inte av denna kontroll.</string>
+    <string name="sensor_pressure_hold_optin_summary">När ett plötsligt fall eller en rekyl ser ut som sensortryck väntar de valda larmen kort. Om rörelsen fortsätter utlöses det vanliga larmet. Detta litar helt på din dagbok.</string>
+    <string name="sensor_pressure_early_warning_wait">Valda prognos-, snabbändrings-, Högt- och Mycket högt-larm väntar i upp till %1$d min. En återhämtning tar bort en fallande varning, och en vändning tar bort en stigande varning. Lågt och Mycket lågt använder detektorn och den hårda nedre gränsen nedan.</string>
+    <string name="sensor_pressure_covered_alarms_title">Larm som hanteras</string>
+    <string name="sensor_pressure_covered_alarms_description">Välj vilka larm som får fördröjas. Standard är Lågt, båda prognoslarmen och båda snabbändringslarmen. Avmarkera ett larm för att lämna det oförändrat.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">Inga larm är valda, så funktionen kan inte hålla tillbaka eller bekräfta ett larm.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Mycket lågt utlöses fortfarande direkt när den hårda nedre gränsen följer dess tröskel. Välj medvetet en lägre egen gräns eller ingen gräns för att låta larmet hållas tillbaka.</string>
     <string name="sensor_pressure_hold_optin_more">Så fungerar det och vad risken är</string>
     <string name="sensor_pressure_hold_optin_less">Visa mindre</string>
     <string name="hypo_episode_log_pressure_toggle_long">Markera som sensortryck</string>

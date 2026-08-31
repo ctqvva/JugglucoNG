@@ -858,9 +858,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_summary_text">Last 14 days: %1$d held, %2$d resolved as pressure, %3$d escalated.</string>
     <string name="sensor_pressure_hold_section_title">Sensor Pressure Hold</string>
     <string name="experimental_badge">Experimental</string>
-    <string name="sensor_pressure_hold_optin_title">Hold low alarms on suspected pressure</string>
-    <string name="sensor_pressure_hold_optin_summary">When a sudden low looks like pressure on the sensor, the low alarm waits a few minutes and a gentle cue plays instead; if the value does not recover, the full alarm fires. This trusts your journal completely.</string>
-    <string name="sensor_pressure_early_warning_wait">While this is on, Forecast Low and Falling Fast also wait up to %1$d min. If the graph starts recovering, the early warning is discarded. If it keeps falling, the warning is allowed through. This check does not delay Low or Very Low.</string>
+    <string name="sensor_pressure_hold_optin_title">Handle selected alarms on suspected pressure</string>
+    <string name="sensor_pressure_hold_optin_summary">When a sudden dip or rebound looks like pressure on the sensor, the selected alarms wait briefly. If the movement continues, the normal alarm fires. This trusts your journal completely.</string>
+    <string name="sensor_pressure_early_warning_wait">Selected forecast, fast-change, High, and Very High alarms wait up to %1$d min. Recovery discards a falling warning; a reversal discards a rising warning. Low and Very Low use the detector and hard floor below.</string>
+    <string name="sensor_pressure_covered_alarms_title">Alarms handled</string>
+    <string name="sensor_pressure_covered_alarms_description">Choose which alarms pressure handling may delay. The defaults are Low, both forecast alarms, and both fast-change alarms. Clear a check to leave that alarm unchanged.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">No alarms are selected, so this feature cannot hold or confirm an alarm.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Very Low still fires immediately while the hard floor follows its threshold. To let it be held, deliberately choose a lower custom floor or no floor.</string>
     <string name="sensor_pressure_hold_optin_more">How it works and what the risk is</string>
     <string name="sensor_pressure_hold_expand">Show settings</string>
     <string name="sensor_pressure_hold_collapse">Hide settings</string>
@@ -872,7 +876,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hypo_episode_log_counted_note">Counted in statistics</string>
     <string name="hypo_episode_log_chart_caption">Shaded: the episode. 30 min of context on either side. Lines: your low and very-low thresholds.</string>
     <string name="hypo_episode_log_no_trace">No readings recorded for this episode.</string>
-    <string name="sensor_pressure_hold_optin_description">Lying or leaning on the sensor can squeeze the tissue around it and fake a sudden low. When a fall looks like that — too fast for the insulin in your journal, out of a calm curve — the low alarm is held back for a few minutes and the gentle Sensor Pressure cue plays instead. If the value recovers, it was pressure; if not, the full alarm fires. This trusts your journal completely: a dose or rescue carbs that were never entered can make a real low look like pressure. Enable only if you log reliably — you carry that risk.</string>
+    <string name="sensor_pressure_hold_optin_description">Lying or leaning on the sensor can squeeze the tissue around it and fake a sudden dip, followed by a sharp rebound when pressure is released. Selected forecast and fast-change alarms wait for the movement to confirm itself. Low and Very Low use the deeper pressure detector, maximum hold, and hard floor. A missing dose or rescue-carb entry can still make a real low look like pressure. Enable this only if you log reliably and accept that risk.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Switched itself off after %1$d escalated holds. Toggle on again to retry with a fresh record.</string>
     <string name="sensor_pressure_hold_max_hold_label">Maximum hold time</string>
     <string name="sensor_pressure_hold_max_hold_description">The alarm always fires after this many minutes, whatever the pattern says.</string>

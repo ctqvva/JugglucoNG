@@ -2498,8 +2498,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_summary_text">Últimos 14 dias: %1$d alarmes retidos, %2$d resolvidos como pressão, %3$d disparados mesmo assim.</string>
     <string name="sensor_pressure_hold_section_title">Retenção por pressão no sensor</string>
     <string name="experimental_badge">Experimental</string>
-    <string name="sensor_pressure_hold_optin_title">Reter alarmes de hipoglicemia sob suspeita de pressão</string>
-    <string name="sensor_pressure_hold_optin_description">Deitar ou apoiar-se sobre o sensor pode comprimir o tecido ao redor e simular uma hipoglicemia repentina. Quando uma queda tem essa aparência — rápida demais para a insulina do seu diário, surgida de uma curva tranquila — o alarme fica retido por alguns minutos e, no lugar dele, toca o aviso discreto Pressão no sensor. Se o valor se recuperar, era pressão; se não, o alarme completo dispara. Esta função confia totalmente no seu diário: uma dose ou carboidratos de correção nunca registrados podem fazer uma hipoglicemia real parecer pressão. Ative apenas se você registra tudo com confiabilidade — esse risco é seu.</string>
+    <string name="sensor_pressure_hold_optin_title">Tratar os alarmes escolhidos sob suspeita de pressão</string>
+    <string name="sensor_pressure_hold_optin_description">Deitar ou apoiar-se sobre o sensor pode comprimir o tecido e simular uma queda repentina seguida por uma recuperação brusca. Os alarmes escolhidos de previsão e mudança rápida aguardam a confirmação do movimento. Baixa e Muito baixa usam o detector completo, o tempo máximo e o piso absoluto. Uma dose ou carboidratos de correção não registrados ainda podem fazer uma hipoglicemia real parecer pressão. Ative apenas se você registra tudo com confiabilidade e aceita esse risco.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Desativou-se sozinha após %1$d retenções que acabaram em alarme. Ative novamente para tentar de novo com um histórico limpo.</string>
     <string name="sensor_pressure_hold_max_hold_label">Tempo máximo de retenção</string>
     <string name="sensor_pressure_hold_max_hold_description">O alarme sempre dispara após esse número de minutos, diga o padrão o que disser.</string>
@@ -2551,8 +2551,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">Episódios de hipoglicemia</string>
     <string name="tuning_carb_lookback_label">Janela retroativa de carboidratos</string>
     <string name="tuning_carb_lookback_description">Carboidratos registrados até esse tempo antes da queda ainda contam como explicação para uma recuperação — comer pouco antes de a queda aparecer é a cara de uma hipoglicemia real tratada.</string>
-    <string name="sensor_pressure_hold_optin_summary">Quando uma hipoglicemia repentina parece pressão no sensor, o alarme espera alguns minutos e, no lugar dele, toca um aviso discreto; se o valor não se recuperar, o alarme completo dispara. Esta função confia totalmente no seu diário.</string>
-    <string name="sensor_pressure_early_warning_wait">Enquanto esta função estiver ativa, Previsão baixa e Queda rápida também aguardam até %1$d min. Se a curva recuperar, o aviso antecipado é descartado; se a queda continuar, o aviso é liberado. Baixa e Muito baixa não são atrasadas por esta verificação.</string>
+    <string name="sensor_pressure_hold_optin_summary">Quando uma queda ou recuperação repentina parece pressão no sensor, os alarmes escolhidos aguardam brevemente. Se o movimento continuar, o alarme normal dispara. Esta função confia totalmente no seu diário.</string>
+    <string name="sensor_pressure_early_warning_wait">Os alarmes escolhidos de previsão, mudança rápida, Alta e Muito alta aguardam até %1$d min. Uma recuperação descarta um aviso de queda, e uma inversão descarta um aviso de subida. Baixa e Muito baixa usam o detector e o piso absoluto abaixo.</string>
+    <string name="sensor_pressure_covered_alarms_title">Alarmes tratados</string>
+    <string name="sensor_pressure_covered_alarms_description">Escolha quais alarmes podem ser atrasados. Por padrão, ficam selecionados Baixa, as duas previsões e os dois alarmes de mudança rápida. Desmarque um alarme para deixá-lo inalterado.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">Nenhum alarme está selecionado, portanto a função não pode reter nem confirmar um alarme.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Muito baixa ainda dispara imediatamente enquanto o piso absoluto segue o seu limite. Para permitir a retenção, escolha de propósito um piso personalizado mais baixo ou nenhum piso.</string>
     <string name="sensor_pressure_hold_optin_more">Como funciona e qual é o risco</string>
     <string name="sensor_pressure_hold_optin_less">Mostrar menos</string>
     <string name="hypo_episode_log_pressure_toggle_long">Marcar como pressão no sensor</string>

@@ -2540,8 +2540,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_pressure_hold_summary_text">Afgelopen 14 dagen: %1$d vastgehouden, %2$d opgelost als druk, %3$d geëscaleerd.</string>
     <string name="sensor_pressure_hold_section_title">Vasthouden bij sensordruk</string>
     <string name="experimental_badge">Experimenteel</string>
-    <string name="sensor_pressure_hold_optin_title">Laag-alarmen vasthouden bij vermoede druk</string>
-    <string name="sensor_pressure_hold_optin_description">Liggen of leunen op de sensor kan het weefsel eromheen samendrukken en een plotselinge lage waarde voorwenden. Als een daling er zo uitziet — te snel voor de insuline in je logboek, vanuit een rustige curve — wordt het laag-alarm een paar minuten vastgehouden en klinkt in plaats daarvan het zachte sensordruk-signaal. Herstelt de waarde, dan was het druk; zo niet, dan gaat het volledige alarm af. Dit vertrouwt volledig op je logboek: een dosis of nood-koolhydraten die nooit zijn ingevoerd, kunnen een echte lage waarde op druk laten lijken. Schakel dit alleen in als je betrouwbaar logt — dat risico draag jij.</string>
+    <string name="sensor_pressure_hold_optin_title">Gekozen alarmen behandelen bij vermoede sensordruk</string>
+    <string name="sensor_pressure_hold_optin_description">Liggen of leunen op de sensor kan het weefsel samendrukken en een plotselinge daling met een scherpe terugvering veroorzaken. Gekozen voorspellings- en snelheidsalarmen wachten tot de beweging is bevestigd. Laag en Zeer laag gebruiken de volledige detector, maximale wachttijd en harde ondergrens. Een niet ingevoerde dosis of noodkoolhydraten kunnen een echte lage waarde nog steeds op druk laten lijken. Schakel dit alleen in als je betrouwbaar logt en dit risico accepteert.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Heeft zichzelf uitgeschakeld na %1$d geëscaleerde vastgehouden alarmen. Zet opnieuw aan om het met een schone telling te proberen.</string>
     <string name="sensor_pressure_hold_max_hold_label">Maximale vasthoudtijd</string>
     <string name="sensor_pressure_hold_max_hold_description">Na zoveel minuten gaat het alarm hoe dan ook af, wat het patroon ook zegt.</string>
@@ -2593,8 +2593,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stats_open_hypo_log">Hypo-episodes</string>
     <string name="tuning_carb_lookback_label">Koolhydraat-terugblik</string>
     <string name="tuning_carb_lookback_description">Koolhydraten die tot zo lang vóór de daling zijn ingevoerd, tellen nog als verklaring voor een herstel — eten vlak voordat de daling zichtbaar wordt, is precies hoe een behandelde echte lage waarde eruitziet.</string>
-    <string name="sensor_pressure_hold_optin_summary">Als een plotselinge lage waarde op sensordruk lijkt, wacht het laag-alarm een paar minuten en klinkt in plaats daarvan een zacht signaal; herstelt de waarde niet, dan gaat het volledige alarm af. Dit vertrouwt volledig op je logboek.</string>
-    <string name="sensor_pressure_early_warning_wait">Zolang dit is ingeschakeld, wachten Voorspeld laag en Snel dalend ook maximaal %1$d min. Een herstellende curve laat de vroege waarschuwing vervallen; bij een aanhoudende daling wordt deze vrijgegeven. Laag en Zeer laag worden door deze controle niet vertraagd.</string>
+    <string name="sensor_pressure_hold_optin_summary">Als een plotselinge daling of terugvering op sensordruk lijkt, wachten de gekozen alarmen kort. Gaat de beweging door, dan klinkt het normale alarm. Dit vertrouwt volledig op je logboek.</string>
+    <string name="sensor_pressure_early_warning_wait">Gekozen voorspellings-, snelheids-, Hoog- en Zeer hoog-alarmen wachten maximaal %1$d min. Herstel verwijdert een dalende waarschuwing, een omkering verwijdert een stijgende waarschuwing. Laag en Zeer laag gebruiken de detector en harde ondergrens hieronder.</string>
+    <string name="sensor_pressure_covered_alarms_title">Behandelde alarmen</string>
+    <string name="sensor_pressure_covered_alarms_description">Kies welke alarmen mogen worden vertraagd. Standaard zijn Laag, beide voorspellingen en beide snelheidsalarmen geselecteerd. Haal het vinkje weg om een alarm ongewijzigd te laten.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">Er zijn geen alarmen geselecteerd, dus deze functie kan geen alarm vasthouden of bevestigen.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Zeer laag klinkt nog steeds direct zolang de harde ondergrens de drempel volgt. Kies bewust een lagere eigen ondergrens of geen ondergrens om dit alarm te laten vasthouden.</string>
     <string name="sensor_pressure_hold_optin_more">Hoe het werkt en wat het risico is</string>
     <string name="sensor_pressure_hold_optin_less">Minder tonen</string>
     <string name="hypo_episode_log_pressure_toggle_long">Markeren als sensordruk</string>

@@ -2,8 +2,8 @@
 
 > **Status update (2026-08-23):** the spike graduated. The branch now carries the full
 > feature set — the pure retrospective detector, the live **sensor pressure hold**
-> ("compression low gatekeeper": opt-in, experimental, a bounded LOW hold plus a
-> six-minute confirmation wait for PRE_LOW and FALLING_FAST, VERY_LOW untouched,
+> ("compression low gatekeeper": opt-in, experimental, user-selectable alarm coverage,
+> a bounded LOW/VERY_LOW detector hold plus direction-aware six-minute confirmation,
 > gentle SENSOR_PRESSURE cue, receipts, self-disable), the **hypo episode log** (every
 > below-range episode of the last 30 days, user-togglable pressure classification), and
 > the **statistics retro-fix** (confirmed pressure episodes drop out of the Compose
@@ -44,15 +44,27 @@ Scans a recorded trace and reports an episode only when the full signature is ob
 Sensor age is recorded on the episode as a weight, never a condition; there is no night
 window. All thresholds are named constants awaiting calibration against real traces.
 
-## Early-warning confirmation wait
+## Alarm selection and confirmation wait
 
-PRE_LOW and FALLING_FAST are exposed to shallower compression waves than the LOW detector
-can safely classify. While sensor pressure hold is enabled, either early warning waits up
-to six minutes. Recovery by at least 3 mg/dL from the lowest value drops the candidate. A
-continuing fall releases it at the deadline. Entering the configured LOW range releases the
-wait immediately, and neither LOW nor VERY_LOW passes through this state.
+The settings list all eight glucose threshold, forecast, and fast-change alarms. Each can
+be included independently. The defaults cover LOW, PRE_LOW, FALLING_FAST, PRE_HIGH, and
+RISING_FAST. HIGH, VERY_HIGH, and VERY_LOW remain unselected until the user opts in.
 
-This wait is deliberately separate from the retrospective detector. The field trace that
+LOW and VERY_LOW use the full compression detector, maximum hold, and hard floor. With the
+default hard floor following the VERY_LOW threshold, selecting VERY_LOW alone does not
+delay it. The user must also deliberately lower or disable the floor. This keeps severe
+low readings immediate unless two separate settings are changed.
+
+The forecast, fast-change, HIGH, and VERY_HIGH alarms use a bounded six-minute confirmation
+wait. Falling candidates track their lowest value; recovery by at least 3 mg/dL drops the
+warning. Rising candidates track their highest value; a reversal by at least 3 mg/dL drops
+the warning. A candidate that clears during the wait disappears normally, while movement
+still standing at the deadline is released. HIGH and VERY_HIGH require their threshold
+condition to clear rather than treating a small reversal above threshold as recovery.
+Entering the configured LOW range immediately releases PRE_LOW and FALLING_FAST from this
+confirmation state so the selected LOW/VERY_LOW policy owns the safety decision.
+
+The confirmation wait is deliberately separate from the retrospective detector. The field trace that
 motivated it contains 15 to 32 mg/dL waves and several do not start from a quiet baseline,
 so weakening the LOW detector enough to accept them would also weaken its real-low guards.
 The dashboard signal-quality number was checked as a possible supporting input. It stayed

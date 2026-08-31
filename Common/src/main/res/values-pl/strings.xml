@@ -2531,8 +2531,8 @@
     <string name="sensor_pressure_hold_summary_text">Ostatnie 14 dni: %1$d wstrzymanych, %2$d uznanych za nacisk, %3$d eskalowanych.</string>
     <string name="sensor_pressure_hold_section_title">Wstrzymanie przy nacisku na sensor</string>
     <string name="experimental_badge">Eksperymentalne</string>
-    <string name="sensor_pressure_hold_optin_title">Wstrzymuj alarmy niskiej glukozy przy podejrzeniu nacisku</string>
-    <string name="sensor_pressure_hold_optin_description">Leżenie lub opieranie się na sensorze może ścisnąć tkankę wokół niego i udawać nagły spadek glukozy. Gdy spadek tak wygląda — zbyt szybki jak na insulinę w dzienniku, ze spokojnej krzywej — alarm niskiej glukozy jest wstrzymany na kilka minut, a zamiast niego odtwarzana jest delikatna podpowiedź „Nacisk na sensor”. Jeśli wartość wraca do normy, był to nacisk; jeśli nie, włącza się pełny alarm. Funkcja całkowicie ufa Twojemu dziennikowi: niewpisana dawka lub węglowodany ratunkowe mogą sprawić, że prawdziwy spadek będzie wyglądał jak nacisk. Włącz tylko, jeśli prowadzisz dziennik rzetelnie — to ryzyko bierzesz na siebie.</string>
+    <string name="sensor_pressure_hold_optin_title">Obsługuj wybrane alarmy przy podejrzeniu nacisku</string>
+    <string name="sensor_pressure_hold_optin_description">Leżenie lub opieranie się na sensorze może ścisnąć tkankę i udawać nagły spadek, po którym następuje szybkie odbicie. Wybrane alarmy prognozy i szybkiej zmiany czekają na potwierdzenie ruchu. Niska i Bardzo niska używają pełnego detektora, maksymalnego czasu i twardego progu. Niewpisana dawka lub węglowodany ratunkowe nadal mogą sprawić, że prawdziwy spadek będzie wyglądał jak nacisk. Włącz tylko, jeśli prowadzisz dziennik rzetelnie i akceptujesz to ryzyko.</string>
     <string name="sensor_pressure_hold_self_disabled_notice">Wyłączyło się samo po %1$d eskalowanych wstrzymaniach. Włącz ponownie, aby spróbować od nowa z czystym rejestrem.</string>
     <string name="sensor_pressure_hold_max_hold_label">Maksymalny czas wstrzymania</string>
     <string name="sensor_pressure_hold_max_hold_description">Alarm zawsze włącza się po tylu minutach, niezależnie od wzorca.</string>
@@ -2584,8 +2584,12 @@
     <string name="stats_open_hypo_log">Epizody hipoglikemii</string>
     <string name="tuning_carb_lookback_label">Okres wsteczny węglowodanów</string>
     <string name="tuning_carb_lookback_description">Węglowodany wpisane najwyżej tyle czasu przed spadkiem nadal liczą się jako wyjaśnienie powrotu do normy — jedzenie tuż przed zarejestrowaniem spadku to obraz leczonego prawdziwego niedocukrzenia.</string>
-    <string name="sensor_pressure_hold_optin_summary">Gdy nagły spadek glukozy wygląda jak nacisk na sensor, alarm niskiej glukozy czeka kilka minut i zamiast niego odtwarzana jest delikatna podpowiedź; jeśli wartość nie wraca do normy, włącza się pełny alarm. Funkcja całkowicie ufa Twojemu dziennikowi.</string>
-    <string name="sensor_pressure_early_warning_wait">Gdy funkcja jest włączona, alarmy Przewidywana niska i Szybki spadek także czekają do %1$d min. Odbicie krzywej odrzuca wczesne ostrzeżenie; dalszy spadek je uruchamia. Niska i Bardzo niska nie są opóźniane przez tę kontrolę.</string>
+    <string name="sensor_pressure_hold_optin_summary">Gdy nagły spadek lub odbicie wygląda jak nacisk na sensor, wybrane alarmy czekają krótko. Jeśli ruch trwa, włącza się zwykły alarm. Funkcja całkowicie ufa Twojemu dziennikowi.</string>
+    <string name="sensor_pressure_early_warning_wait">Wybrane alarmy prognozy, szybkiej zmiany, Wysoka i Bardzo wysoka czekają do %1$d min. Odbicie odrzuca ostrzeżenie o spadku, a odwrócenie odrzuca ostrzeżenie o wzroście. Niska i Bardzo niska używają detektora i twardego progu poniżej.</string>
+    <string name="sensor_pressure_covered_alarms_title">Obsługiwane alarmy</string>
+    <string name="sensor_pressure_covered_alarms_description">Wybierz alarmy, które mogą być opóźnione. Domyślnie zaznaczone są Niska, obie prognozy i oba alarmy szybkiej zmiany. Odznacz alarm, aby pozostawić go bez zmian.</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">Nie wybrano żadnego alarmu, więc funkcja nie może wstrzymać ani potwierdzić alarmu.</string>
+    <string name="sensor_pressure_very_low_floor_notice">Bardzo niska nadal włącza się natychmiast, gdy twardy próg podąża za jej progiem. Aby umożliwić wstrzymanie, świadomie wybierz niższy własny próg albo brak progu.</string>
     <string name="sensor_pressure_hold_optin_more">Jak to działa i na czym polega ryzyko</string>
     <string name="sensor_pressure_hold_optin_less">Pokaż mniej</string>
     <string name="hypo_episode_log_pressure_toggle_long">Oznacz jako nacisk na sensor</string>

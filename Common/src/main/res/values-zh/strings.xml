@@ -2513,8 +2513,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_summary_text">最近 14 天：延后 %1$d 次，判定为压迫 %2$d 次，升级 %3$d 次。</string>
     <string name="sensor_pressure_hold_section_title">传感器压迫延后</string>
     <string name="experimental_badge">实验性</string>
-    <string name="sensor_pressure_hold_optin_title">疑似压迫时延后低血糖警报</string>
-    <string name="sensor_pressure_hold_optin_description">压在或靠在传感器上会挤压周围组织，造成假性骤降。当下降看起来像这样——相对于日志中的胰岛素过快，且从平稳曲线中突然出现——低血糖警报会被延后几分钟，改为播放轻柔的传感器压迫提示。若数值回升，那就是压迫；若没有，则完整警报响起。此功能完全信任您的日志：从未录入的剂量或急救碳水会让真正的低血糖看起来像压迫。仅在您可靠记录时启用——该风险由您承担。</string>
+    <string name="sensor_pressure_hold_optin_title">疑似压迫时处理所选警报</string>
+    <string name="sensor_pressure_hold_optin_description">压在或靠在传感器上会挤压组织，造成假性骤降，并在压力解除后快速回弹。所选预测和快速变化警报会等待走势得到确认。低值和极低值使用完整检测器、最长延后时间和硬性下限。未录入的剂量或急救碳水仍可能让真正的低血糖看起来像压迫。仅在您可靠记录并接受此风险时启用。</string>
     <string name="sensor_pressure_hold_self_disabled_notice">在 %1$d 次升级延后后已自动关闭。重新打开可用全新记录再次尝试。</string>
     <string name="sensor_pressure_hold_max_hold_label">最长延后时间</string>
     <string name="sensor_pressure_hold_max_hold_description">无论模式如何，警报都会在这么多分钟后必定响起。</string>
@@ -2566,8 +2566,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_open_hypo_log">低血糖发作</string>
     <string name="tuning_carb_lookback_label">碳水回溯</string>
     <string name="tuning_carb_lookback_description">下降前这段时间内记录的碳水仍算作回升的解释——在下降被记录前刚吃过东西，正是经过处理的真正低血糖的样子。</string>
-    <string name="sensor_pressure_hold_optin_summary">当骤降看起来像传感器压迫时，低血糖警报会等待几分钟，改为播放轻柔提示；若数值未回升，则完整警报响起。此功能完全信任您的日志。</string>
-    <string name="sensor_pressure_early_warning_wait">启用此功能时，预测低值和快速下降也会等待最多 %1$d 分钟。曲线回升时会取消提前警报；若继续下降则放行警报。此检查不会延迟低值和极低值警报。</string>
+    <string name="sensor_pressure_hold_optin_summary">当骤降或快速回弹看起来像传感器压迫时，所选警报会短暂等待。若走势继续，则正常警报响起。此功能完全信任您的日志。</string>
+    <string name="sensor_pressure_early_warning_wait">所选预测、快速变化、高值和极高值警报最多等待 %1$d 分钟。回升会取消下降警报，反转会取消上升警报。低值和极低值使用下方的检测器和硬性下限。</string>
+    <string name="sensor_pressure_covered_alarms_title">处理的警报</string>
+    <string name="sensor_pressure_covered_alarms_description">选择压迫处理可以延后的警报。默认选择低值、两个预测警报和两个快速变化警报。取消勾选可让该警报保持原样。</string>
+    <string name="sensor_pressure_covered_alarms_none_warning">未选择任何警报，因此此功能无法延后或确认警报。</string>
+    <string name="sensor_pressure_very_low_floor_notice">当硬性下限跟随极低值阈值时，极低值仍会立即报警。若要允许延后，请明确选择更低的自定义下限或无下限。</string>
     <string name="sensor_pressure_hold_optin_more">工作原理与风险所在</string>
     <string name="sensor_pressure_hold_optin_less">显示较少</string>
     <string name="hypo_episode_log_pressure_toggle_long">标记为传感器压迫</string>

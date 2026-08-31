@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +36,7 @@ import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
+import tk.glucodata.alerts.CompressionAlertCoverage
 import tk.glucodata.alerts.CompressionHoldRuntime
 import tk.glucodata.alerts.CompressionTrendHoldState
 import tk.glucodata.logic.CompressionLowDetector
@@ -62,6 +64,7 @@ internal fun SensorPressureHoldCard(
 ) {
     var optedIn by remember { mutableStateOf(CompressionHoldRuntime.isOptedIn()) }
     var selfDisabled by remember { mutableStateOf(CompressionHoldRuntime.isSelfDisabled()) }
+    var coveredAlerts by remember { mutableStateOf(CompressionHoldRuntime.coveredAlertTypes()) }
     var maxHold by remember { mutableStateOf(CompressionHoldRuntime.maxHoldMinutes()) }
     var floorMode by remember { mutableStateOf(CompressionHoldRuntime.floorMode()) }
     var floorCustomMgdl by remember { mutableStateOf(CompressionHoldRuntime.floorCustomMgdl()) }
@@ -217,6 +220,37 @@ internal fun SensorPressureHoldCard(
                     }
                 }
                 if (optedIn) {
+                    Text(
+                        stringResource(R.string.sensor_pressure_covered_alarms_title),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        stringResource(R.string.sensor_pressure_covered_alarms_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    for (type in CompressionAlertCoverage.eligibleTypes) {
+                        CoveredAlarmOption(
+                            label = stringResource(type.nameResId),
+                            selected = type in coveredAlerts
+                        ) { selected ->
+                            coveredAlerts = CompressionAlertCoverage.updated(
+                                coveredAlerts,
+                                type,
+                                selected
+                            )
+                            CompressionHoldRuntime.setAlertCovered(type, selected)
+                        }
+                    }
+                    if (coveredAlerts.isEmpty()) {
+                        WarningText(stringResource(R.string.sensor_pressure_covered_alarms_none_warning))
+                    }
+                    if (AlertType.VERY_LOW in coveredAlerts &&
+                        floorMode == CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
+                    ) {
+                        WarningText(stringResource(R.string.sensor_pressure_very_low_floor_notice))
+                    }
+
                     LabeledSlider(
                         label = stringResource(R.string.sensor_pressure_hold_max_hold_label),
                         description = stringResource(R.string.sensor_pressure_hold_max_hold_description),
@@ -513,6 +547,17 @@ private fun FloorModeOption(label: String, selected: Boolean, onSelect: () -> Un
     ) {
         RadioButton(selected = selected, onClick = onSelect)
         // Weighted so a long translation wraps instead of running off the card.
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun CoveredAlarmOption(label: String, selected: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onChange(!selected) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = selected, onCheckedChange = onChange)
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }
