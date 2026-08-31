@@ -345,6 +345,17 @@ static int selectedCloneTransportCode(juice_agent *agent) {
         : clone_transport_local_ice;
 }
 
+static void wakeCloneSender(const passhost_t &host,uintptr_t reason) {
+    if(!backup||host.index<0||
+       static_cast<size_t>(host.index)>=backup->con_vars.size())
+        return;
+    if(auto *sender=backup->con_vars[host.index]) {
+        LOGGERICE("wake Clone sender index=%d reason=%lx\n",host.index,
+                  static_cast<unsigned long>(reason));
+        sender->wakebackup(reason);
+        }
+}
+
 static bool diagnostics(juice_agent *agent,const char *name,bool side) {
     bool success=true;
     // Retrieve candidates
@@ -428,6 +439,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
                    if(!con->isCurrentAgent(agent,generation))
                        return;
                    LOGGERICE("allindex=%d After con->startSending.wait(true)\n",allindex);
+                   wakeCloneSender(host,wakeall);
                    {
                    std::lock_guard<std::mutex> lck(con->receiveThreadMutex);
                    con->wakeReceiver=true;
@@ -453,6 +465,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             // description to the rendezvous service is useful cleanup, but it
             // must not hold reconnection hostage while the network is absent.
             con->endConnectionHere();
+            wakeCloneSender(host,wakeall|wakereconnect);
             {
             std::lock_guard<std::mutex> lck(con->receiveThreadMutex);
             con->wakeReceiver=true;

@@ -257,6 +257,10 @@ int  connect(const passhost_t *pass) {
             return newConnection(index);
             }
         if(!isConnected)   {
+            if(agent.load()&&!endConnect.load()) {
+                LOGGERICE("allindex=%d %s %d: ICE::Connect::connect keep pending agent\n",allindex,pass->getICEname().data(),pass->side);
+                return 0;
+                }
             LOGGERICE("allindex=%d %s %d: ICE::Connect::connect !isConnection\n",allindex,pass->getICEname().data(),pass->side);
             return newConnection(index);
             }
