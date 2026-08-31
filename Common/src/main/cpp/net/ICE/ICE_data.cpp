@@ -214,14 +214,26 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
             }
             if(!head->ack) {
                 bool acceptedTransaction;
+                bool implicitlyAcknowledgedPrevious=false;
                 uint16_t currentSendTransaction;
                 {
                 std::lock_guard<std::mutex> sendLock(sendMutex);
-                acceptedTransaction=head->trans_id==send_trans_id||
-                                    setNext(send_trans_id,head->trans_id);
+                acceptedTransaction=head->trans_id==send_trans_id;
+                if(!acceptedTransaction&&setNext(send_trans_id,head->trans_id)) {
+                    // The receiver can ask for transaction N+1 before the final
+                    // acknowledgement for N arrives. Its request proves that it
+                    // received N completely, so release the sender waiting on N
+                    // before servicing N+1.
+                    lastAcked=true;
+                    sendCond.notify_one();
+                    implicitlyAcknowledgedPrevious=true;
+                    acceptedTransaction=true;
+                    }
                 currentSendTransaction=send_trans_id;
                 }
                 if(acceptedTransaction) {
+                    if(implicitlyAcknowledgedPrevious)
+                        LOGGERICE("on_recv ASK trans_id=%d implicitly acknowledged previous transaction\n",head->trans_id);
                     LOGGERICE("on_recv allindex=%d side=%d ASK trans_id=%d same as send_trans_id\n",allindex,side,head->trans_id);
                     head->ack=true;
                     if(!sendWithError(agent, data,sizeof(udp_header))) {
