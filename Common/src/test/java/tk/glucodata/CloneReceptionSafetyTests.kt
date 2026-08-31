@@ -128,12 +128,19 @@ class CloneReceptionSafetyTests {
             .replace(Regex("\\s+"), " ")
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
             .replace(Regex("\\s+"), " ")
+        val retryWait = ice.substring(
+            ice.indexOf("static bool waitForCurrentAgent"),
+            ice.indexOf("static HTTPSRequestOptions")
+        )
 
         assertTrue(https.contains("O_NONBLOCK"))
         assertTrue(https.contains("deadline.pollMilliseconds()"))
         assertTrue(https.contains("cancelled->load(std::memory_order_acquire)"))
+        assertTrue(https.contains("elapsedRealtimeMilliseconds()"))
         assertTrue(ice.contains(".timeoutMilliseconds=10000"))
         assertTrue(ice.contains("waitForCurrentAgent(con,agent,5)"))
+        assertTrue(retryWait.contains("std::min<int64_t>(remaining,250)"))
+        assertTrue(!retryWait.contains("sleep(1)"))
         assertTrue(connection.contains("cancelRendezvous();"))
     }
 

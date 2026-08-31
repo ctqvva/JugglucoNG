@@ -43,6 +43,7 @@
 #include <sys/ioctl.h>
 
 #include "ContextHTTPS.hpp"
+#include "ElapsedRealtime.hpp"
 
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
@@ -239,25 +240,23 @@ static void sockopt(int new_fd) {
      }
 
 class RequestDeadline {
-    using clock = std::chrono::steady_clock;
-    clock::time_point end;
+    int64_t endMilliseconds;
     std::shared_ptr<const std::atomic_bool> cancelled;
 public:
     explicit RequestDeadline(const HTTPSRequestOptions &options)
-        : end(clock::now() + std::chrono::milliseconds(
-              std::max(options.timeoutMilliseconds, 1))),
+        : endMilliseconds(elapsedRealtimeMilliseconds()+
+              std::max(options.timeoutMilliseconds,1)),
           cancelled(options.cancelled) {}
 
     bool stopped() const {
         return (cancelled && cancelled->load(std::memory_order_acquire)) ||
-               clock::now() >= end;
+               elapsedRealtimeMilliseconds()>=endMilliseconds;
     }
 
     int pollMilliseconds() const {
         if(stopped())
             return 0;
-        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end - clock::now()).count();
+        const int64_t remaining=endMilliseconds-elapsedRealtimeMilliseconds();
         return static_cast<int>(std::clamp<int64_t>(remaining, 1, 250));
     }
 };
