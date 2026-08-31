@@ -50,11 +50,9 @@ object AiDexNativeFactory {
 
     /**
      * Install already-decoded, sensor-specific pairing material for subsequent AiDex key
-     * exchanges in this process.
-     *
-     * This is intentionally not a server client: the vendor response contains encrypted fields
-     * and the authenticated response contract has not yet been established. Callers must supply
-     * exactly two decoded 16-byte values. Their contents are never logged.
+     * exchanges in this process. Persistence, when desired, is handled by
+     * [AiDexProvisioningStore]. Callers must supply exactly two decoded 16-byte values. Their
+     * contents are never logged.
      */
     @JvmStatic
     fun installProvisionedPairingMaterial(

@@ -11,9 +11,9 @@ import java.util.concurrent.ConcurrentHashMap
  * otherwise derive from the serial. The first value is returned by `getSecret()` and is written
  * to F001; the second remains the protocol IV used for BOND and session traffic.
  *
- * This type deliberately accepts already-decoded bytes only. The vendor APK names its server
- * fields `encryptedAesKey` and `encryptedIV`, but their response encryption/authentication
- * contract is not established well enough to reproduce here.
+ * This type deliberately accepts already-decoded bytes only. The CN provisioning client owns the
+ * vendor envelope, integrity signature, and base64 response fields so BLE crypto remains isolated
+ * from account/network concerns.
  */
 class AiDexPairingMaterial private constructor(
     secret: ByteArray,
@@ -38,8 +38,8 @@ class AiDexPairingMaterial private constructor(
 }
 
 /**
- * Process-local handoff point for a future authenticated key source or an explicit diagnostic
- * import. Material is never logged and is not persisted in plaintext by the BLE driver.
+ * Process-local handoff point for authenticated provisioning or an explicit diagnostic import.
+ * Material is never logged and persistence remains outside the BLE driver.
  */
 internal object AiDexPairingMaterialRegistry {
     private val entries = ConcurrentHashMap<String, AiDexPairingMaterial>()

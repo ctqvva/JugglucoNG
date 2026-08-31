@@ -43,6 +43,7 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.aidex.AiDexScanReceiver
 import tk.glucodata.drivers.aidex.AiDexDriver
+import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
@@ -2874,6 +2875,7 @@ class AiDexBleManager(
         ) ?: return
         if (advertisedSerial.equals(keyExchange.bareSerial, ignoreCase = true)) return
 
+        AiDexProvisioningStore.installSaved(Applic.app, advertisedSerial)
         protocolSession = ProtocolSession(
             AiDexKeyExchange(advertisedSerial, AiDexPairingMaterialRegistry.find(advertisedSerial))
         )
@@ -2886,6 +2888,7 @@ class AiDexBleManager(
     /** Pick up material installed or removed after construction but before F001 is written. */
     private fun maybeUseProvisionedPairingMaterial() {
         val protocolSerial = keyExchange.bareSerial
+        AiDexProvisioningStore.installSaved(Applic.app, protocolSerial)
         val material = AiDexPairingMaterialRegistry.find(protocolSerial)
         if (material == null && !keyExchange.usesProvisionedPairingMaterial) return
         protocolSession = ProtocolSession(AiDexKeyExchange(protocolSerial, material))
