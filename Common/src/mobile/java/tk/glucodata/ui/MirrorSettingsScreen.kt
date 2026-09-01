@@ -295,6 +295,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
                     rendezvousHost = iceConfig.rendezvousHost,
                     rendezvousPort = iceConfig.rendezvousPort,
                     useTurnForStun = iceConfig.useTurnForStun,
+                    verifyRendezvousCertificate = iceConfig.verifyRendezvousCertificate,
                 ),
             )
             if (!saved) throw IllegalStateException("Could not save Clone ICE settings")

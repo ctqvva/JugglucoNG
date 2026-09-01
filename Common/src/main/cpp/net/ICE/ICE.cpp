@@ -88,18 +88,20 @@ ICEConfigSnapshot currentICEConfig() {
     }
 
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
-                     bool useTurnForStun) {
+                     bool useTurnForStun, bool verifyRendezvousCertificate) {
     const std::lock_guard<std::mutex> lock(ice_config_mutex);
     ice_config.rendezvousHost=std::move(rendezvousHost);
     ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
     ice_config.useTurnForStun=useTurnForStun;
+    ice_config.verifyRendezvousCertificate=verifyRendezvousCertificate;
     }
 
 RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
     auto config=currentICEConfig();
     if(config.rendezvousHost.empty())
         config.rendezvousHost=std::string(hostnames[hostselect(label)]);
-    return {std::move(config.rendezvousHost),config.rendezvousPort};
+    return {std::move(config.rendezvousHost),config.rendezvousPort,
+            config.verifyRendezvousCertificate};
     }
 
 ICEConnect::ICEConnect(int allindex,const passhost_t &host)
@@ -107,6 +109,7 @@ ICEConnect::ICEConnect(int allindex,const passhost_t &host)
     auto endpoint=resolveRendezvousEndpoint(host.getICEname());
     rendezvousHost=std::move(endpoint.host);
     rendezvousPort=endpoint.port;
+    verifyRendezvousCertificate=endpoint.verifyCertificate;
     agent.store(nullptr);
     }
 #ifndef LOGGER
@@ -155,7 +158,8 @@ static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int secon
 static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
     return {
         .timeoutMilliseconds=10000,
-        .cancelled=con->currentRendezvousCancellation()
+        .cancelled=con->currentRendezvousCancellation(),
+        .verifyCertificate=con->verifyRendezvousCertificate
         };
     }
 
@@ -521,6 +525,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             const bool side=host.side;
             const std::string hostname(con->rendezvousHost);
             const uint16_t rendezvousPort=con->rendezvousPort;
+            const bool verifyCertificate=con->verifyRendezvousCertificate;
             CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
             std::vector<char> failureBody(body.data(),body.data()+body.size());
 
@@ -534,13 +539,14 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->wakeReceiver=true;
             con->receiveThreadCon.notify_one();
             }
-            std::thread th{[commonLabel,side,hostname,rendezvousPort,
+            std::thread th{[commonLabel,side,hostname,rendezvousPort,verifyCertificate,
                             failureBody=std::move(failureBody)] {
                 std::string_view failure{"/failure"sv};
                 for(int i=0;i<3;++i) {
                     auto [resbody,code]=ContextHTTPS::getContext().putRequest(
                         hostname,rendezvousPort,failure,
-                        std::span(failureBody.data(),failureBody.size()));
+                        std::span(failureBody.data(),failureBody.size()),{},
+                        {.verifyCertificate=verifyCertificate});
                     if(code==200) {
                         LOGGERICE("%s %d: OK FAILURE\n",commonLabel.data(),side);
                         return;

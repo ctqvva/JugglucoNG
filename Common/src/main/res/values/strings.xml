@@ -488,8 +488,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
-    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_host_hint">e.g. connect.example.com</string>
     <string name="rendezvous_port">Rendezvous port</string>
+    <string name="use_custom_rendezvous_server">Use custom rendezvous server</string>
+    <string name="use_custom_rendezvous_server_summary">Otherwise use the app default</string>
+    <string name="verify_rendezvous_certificate">Verify rendezvous certificate</string>
+    <string name="verify_rendezvous_certificate_summary">Check the certificate chain and hostname. Disable only for a trusted self-signed server.</string>
+    <string name="rendezvous_host_required">Enter a hostname for the custom rendezvous server</string>
+    <string name="turn_udp_port_default">Default: 3478 (UDP)</string>
     <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
 
     <!-- New Strings for Material UI & Language Support -->

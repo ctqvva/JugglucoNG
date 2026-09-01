@@ -6,6 +6,7 @@ data class CloneIceNetworkConfig(
     val rendezvousHost: String = "",
     val rendezvousPort: Int = DEFAULT_RENDEZVOUS_PORT,
     val useTurnForStun: Boolean = false,
+    val verifyRendezvousCertificate: Boolean = true,
 ) {
     init {
         require(rendezvousHost.length <= MAX_HOST_LENGTH)
@@ -23,6 +24,7 @@ object CloneIceNetworkConfigStore {
     private const val KEY_RENDEZVOUS_HOST = "rendezvous_host"
     private const val KEY_RENDEZVOUS_PORT = "rendezvous_port"
     private const val KEY_USE_TURN_FOR_STUN = "use_turn_for_stun"
+    private const val KEY_VERIFY_RENDEZVOUS_CERTIFICATE = "verify_rendezvous_certificate"
 
     @JvmStatic
     fun load(context: Context): CloneIceNetworkConfig {
@@ -43,6 +45,10 @@ object CloneIceNetworkConfigStore {
             rendezvousHost = host,
             rendezvousPort = rendezvousPort,
             useTurnForStun = prefs.getBoolean(KEY_USE_TURN_FOR_STUN, false),
+            verifyRendezvousCertificate = prefs.getBoolean(
+                KEY_VERIFY_RENDEZVOUS_CERTIFICATE,
+                true,
+            ),
         )
     }
 
@@ -63,6 +69,10 @@ object CloneIceNetworkConfigStore {
             .putString(KEY_RENDEZVOUS_HOST, normalized.rendezvousHost)
             .putInt(KEY_RENDEZVOUS_PORT, normalized.rendezvousPort)
             .putBoolean(KEY_USE_TURN_FOR_STUN, normalized.useTurnForStun)
+            .putBoolean(
+                KEY_VERIFY_RENDEZVOUS_CERTIFICATE,
+                normalized.verifyRendezvousCertificate,
+            )
             .commit()
         if (committed) applyToNative(normalized)
         return committed
@@ -83,6 +93,7 @@ object CloneIceNetworkConfigStore {
             config.rendezvousHost,
             config.rendezvousPort,
             config.useTurnForStun,
+            config.verifyRendezvousCertificate,
         )
     }
 }

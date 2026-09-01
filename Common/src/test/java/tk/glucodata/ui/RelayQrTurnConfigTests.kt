@@ -95,7 +95,7 @@ class RelayQrTurnConfigTests {
         val turn = parseHybridQrTurnConfig(json)
 
         assertEquals(
-            HybridQrIceConfig(true, "turn.example.test", 6789),
+            HybridQrIceConfig(true, "turn.example.test", 6789, true),
             parseHybridQrIceConfig(json, turn),
         )
     }
@@ -107,7 +107,7 @@ class RelayQrTurnConfigTests {
         )
 
         assertEquals(
-            HybridQrIceConfig(false, "connect.example.test", 6789),
+            HybridQrIceConfig(false, "connect.example.test", 6789, true),
             parseHybridQrIceConfig(json, parseHybridQrTurnConfig(json)),
         )
     }
@@ -119,9 +119,30 @@ class RelayQrTurnConfigTests {
         )
 
         assertEquals(
-            HybridQrIceConfig(false, "", 6789),
+            HybridQrIceConfig(false, "", 6789, true),
             parseHybridQrIceConfig(json, null),
         )
+    }
+
+    @Test
+    fun hybridQrCanCarryTrustedSelfSignedCertificateMode() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":["connect.example.test",6789],"cv":false} MirrorJuggluco"""
+        )
+
+        assertEquals(
+            HybridQrIceConfig(false, "connect.example.test", 6789, false),
+            parseHybridQrIceConfig(json, null),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun certificateVerificationChoiceMustBeBoolean() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":["connect.example.test",6789],"cv":"false"} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
     }
 
     @Test(expected = IllegalArgumentException::class)

@@ -81,6 +81,7 @@ char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
 std::string rendezvousHost;
 uint16_t rendezvousPort;
+bool verifyRendezvousCertificate;
 
 ICEConnect(int allindex,const passhost_t &host);
 ~ICEConnect() {
