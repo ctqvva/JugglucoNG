@@ -41,11 +41,11 @@ class CloneTransportPresentationTests {
             CloneTransportPresentation.statusTextRes(CloneTransport.TURN),
         )
         assertEquals(
-            R.string.clone_transport_unknown,
+            R.string.clone_transport_reconnecting,
             CloneTransportPresentation.statusTextRes(CloneTransport.UNKNOWN),
         )
         assertEquals(
-            R.string.clone_transport_unknown,
+            R.string.clone_transport_reconnecting,
             CloneTransportPresentation.statusTextRes(null),
         )
     }

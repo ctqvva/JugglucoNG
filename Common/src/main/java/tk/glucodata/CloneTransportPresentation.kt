@@ -19,6 +19,6 @@ object CloneTransportPresentation {
     fun statusTextRes(transport: CloneTransport?): Int = when (transport) {
         CloneTransport.LOCAL_ICE -> R.string.clone_transport_local_ice
         CloneTransport.TURN -> R.string.clone_transport_turn_ice
-        CloneTransport.UNKNOWN, null -> R.string.clone_transport_unknown
+        CloneTransport.UNKNOWN, null -> R.string.clone_transport_reconnecting
     }
 }
