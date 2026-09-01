@@ -2646,7 +2646,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Локальный ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Подключение неизвестно</string>
+    <string name="clone_transport_reconnecting">Повторное подключение…</string>
     <string name="mirror_route">Маршрут</string>
     <string name="mirror_stun_server">Сервер STUN</string>
     <string name="mirror_certificate_verification">Проверка сертификата</string>

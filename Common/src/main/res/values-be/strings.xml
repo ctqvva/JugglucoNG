@@ -2670,7 +2670,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Лакальны ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Падключэнне невядомае</string>
+    <string name="clone_transport_reconnecting">Паўторнае падключэнне…</string>
     <string name="mirror_route">Маршрут</string>
     <string name="mirror_stun_server">Сервер STUN</string>
     <string name="mirror_certificate_verification">Праверка сертыфіката</string>

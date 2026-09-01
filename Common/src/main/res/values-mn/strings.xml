@@ -2714,7 +2714,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Local ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Connection unknown</string>
+    <string name="clone_transport_reconnecting">Дахин холбогдож байна…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN server</string>
     <string name="mirror_certificate_verification">Certificate verification</string>

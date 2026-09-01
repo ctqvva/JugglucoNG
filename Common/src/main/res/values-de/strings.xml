@@ -2638,7 +2638,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Lokales ICE</string>
     <string name="clone_transport_turn_ice">TURN-ICE</string>
-    <string name="clone_transport_unknown">Verbindung unbekannt</string>
+    <string name="clone_transport_reconnecting">Verbindung wird wiederhergestellt…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN-Server</string>
     <string name="mirror_certificate_verification">Zertifikatsprüfung</string>

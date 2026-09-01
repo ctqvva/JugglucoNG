@@ -2642,7 +2642,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Lokale ICE</string>
     <string name="clone_transport_turn_ice">TURN-ICE</string>
-    <string name="clone_transport_unknown">Verbinding onbekend</string>
+    <string name="clone_transport_reconnecting">Opnieuw verbinden…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN-server</string>
     <string name="mirror_certificate_verification">Certificaatcontrole</string>

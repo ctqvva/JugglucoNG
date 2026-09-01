@@ -2637,7 +2637,7 @@
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Lokalny ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Nieznane połączenie</string>
+    <string name="clone_transport_reconnecting">Ponowne łączenie…</string>
     <string name="mirror_route">Trasa</string>
     <string name="mirror_stun_server">Serwer STUN</string>
     <string name="mirror_certificate_verification">Weryfikacja certyfikatu</string>

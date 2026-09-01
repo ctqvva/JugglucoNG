@@ -2605,7 +2605,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">ICE local</string>
     <string name="clone_transport_turn_ice">ICE TURN</string>
-    <string name="clone_transport_unknown">Connexion inconnue</string>
+    <string name="clone_transport_reconnecting">Reconnexion…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">Serveur STUN</string>
     <string name="mirror_certificate_verification">Vérification du certificat</string>

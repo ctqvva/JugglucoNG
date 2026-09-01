@@ -2627,7 +2627,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Yerel ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Bağlantı bilinmiyor</string>
+    <string name="clone_transport_reconnecting">Yeniden bağlanıyor…</string>
     <string name="mirror_route">Rota</string>
     <string name="mirror_stun_server">STUN sunucusu</string>
     <string name="mirror_certificate_verification">Sertifika doğrulaması</string>

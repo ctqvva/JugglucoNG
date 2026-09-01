@@ -2615,7 +2615,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">本地 ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">连接未知</string>
+    <string name="clone_transport_reconnecting">正在重新连接…</string>
     <string name="mirror_route">路由</string>
     <string name="mirror_stun_server">STUN 服务器</string>
     <string name="mirror_certificate_verification">证书验证</string>

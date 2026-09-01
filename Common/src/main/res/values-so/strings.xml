@@ -2799,7 +2799,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_source_label">Clone</string>
     <string name="clone_transport_local_ice">Local ICE</string>
     <string name="clone_transport_turn_ice">TURN ICE</string>
-    <string name="clone_transport_unknown">Connection unknown</string>
+    <string name="clone_transport_reconnecting">Dib ayaa loo xiriirinayaa…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN server</string>
     <string name="mirror_certificate_verification">Certificate verification</string>
