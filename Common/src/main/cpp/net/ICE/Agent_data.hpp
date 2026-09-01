@@ -31,7 +31,9 @@ struct Agent_data {
  static   Agent_data* newAgent(char side,const std::string_view label,const std::span<const char> descrip) {
         int labelsize= label.size();
         int datalen =labelsize+1+descrip.size()+1+sizeof(Agent_data);
-        Agent_data *agent=reinterpret_cast<Agent_data *>(new(std::align_val_t(alignof(Agent_data)),std::nothrow) char[datalen]);
+        Agent_data *agent=reinterpret_cast<Agent_data *>(new(std::align_val_t(alignof(Agent_data)),std::nothrow) char[datalen]{});
+        if(!agent)
+            return nullptr;
         agent->labelsize=labelsize;
         agent->descriptionsize=descrip.size();
         agent->labelsize=labelsize;
