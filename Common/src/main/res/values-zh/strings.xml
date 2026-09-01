@@ -2568,4 +2568,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">图表 + 数值</string>
     <string name="glucosechartvaluearrowcomplicationlabel">图表 + 数值 + 箭头</string>
     <string name="glucosechartfullcomplicationlabel">图表 + 数值 + 箭头 + 时间</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2（实验性）</string>
+    <string name="sibionics_adaptive_v2_desc">独立的传感器状态估计，并给出可能范围</string>
+    <string name="glucose_likely_range">可能范围</string>
+    <string name="glucose_likely_range_value">可能范围 %1$s–%2$s</string>
+    <string name="glucose_estimated">估计血糖</string>
+    <string name="glucose_uncertainty_elevated">传感器不确定性升高</string>
+    <string name="glucose_possible_artifact">可能存在瞬时传感器伪影</string>
+    <string name="sibionics_uncertainty_ribbon">不确定性色带</string>
+    <string name="sibionics_uncertainty_ribbon_desc">在血糖曲线周围显示可能范围色带</string>
+    <string name="freeze_displayed_values">保留已显示的数值</string>
+    <string name="freeze_displayed_values_desc">读数保留当时显示的数值。校准更改仅影响最近的读数。</string>
+    <string name="freeze_displayed_values_on">正在保留已显示的数值</string>
+    <string name="freeze_displayed_values_off">每次更改后重新计算</string>
 </resources>

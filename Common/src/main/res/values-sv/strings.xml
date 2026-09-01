@@ -2552,4 +2552,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Diagram + värde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagram + värde + pil</string>
     <string name="glucosechartfullcomplicationlabel">Diagram + värde + pil + tid</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimentell)</string>
+    <string name="sibionics_adaptive_v2_desc">Oberoende skattning av sensortillstånd med sannolikt intervall</string>
+    <string name="glucose_likely_range">Sannolikt intervall</string>
+    <string name="glucose_likely_range_value">sannolikt intervall %1$s–%2$s</string>
+    <string name="glucose_estimated">Uppskattat glukos</string>
+    <string name="glucose_uncertainty_elevated">Förhöjd sensorosäkerhet</string>
+    <string name="glucose_possible_artifact">Möjlig tillfällig sensorartefakt</string>
+    <string name="sibionics_uncertainty_ribbon">Osäkerhetsband</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Visa bandet för sannolikt intervall runt glukoskurvan</string>
+    <string name="freeze_displayed_values">Behåll visade värden</string>
+    <string name="freeze_displayed_values_desc">Ett värde behåller det som visades. Kalibreringsändringar påverkar bara de senaste värdena.</string>
+    <string name="freeze_displayed_values_on">Visade värden behålls</string>
+    <string name="freeze_displayed_values_off">Räknas om vid varje ändring</string>
 </resources>

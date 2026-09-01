@@ -72,6 +72,22 @@
     public final void markSensorReset(java.lang.String);
 }
 
+# Keep GlucoseUncertaintyStore names and reflected members stable.
+# GlucoseUncertaintyAccess in src/main resolves this mobile-only class by name, and the same
+# failure mode as HistoryRepository above applies: without these rules the lookup throws only
+# in minified builds, the bridge silently stores nothing, and every chart renders without its
+# uncertainty ribbon with no error anywhere. The members also carry @Keep at their declaration;
+# keep both in sync when adding one.
+-keepnames class tk.glucodata.data.GlucoseUncertaintyStore
+-keepclassmembers class tk.glucodata.data.GlucoseUncertaintyStore {
+    public static final tk.glucodata.data.GlucoseUncertaintyStore INSTANCE;
+    public static void storeBatch(java.lang.String,long[],float[],float[],float,float[],float[]);
+    public static void storeReading(java.lang.String,long,float,float,float,float,float);
+    public static void clearForSensor(java.lang.String);
+    public static void deleteForSensorAfter(java.lang.String,long);
+    public static void pruneOlderThan(long);
+}
+
 # Keep the hidden-framework connection-parameter callback.
 # BluetoothGattCallback#onConnectionUpdated exists since Android O but is absent from the SDK
 # stubs, so SuperGattCallback declares it without @Override and nothing in the compiled code

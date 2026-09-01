@@ -72,6 +72,8 @@ class SibionicsBleManager(
         val impedance: Float,
         val index: Int,
         val live: Boolean,
+        /** Credible interval in mg/dL; null for every model that does not estimate one. */
+        val uncertainty: tk.glucodata.GlucoseUncertainty? = null,
     )
 
     private data class AlgorithmRebuildResult(
@@ -325,6 +327,13 @@ class SibionicsBleManager(
         }
         pendingResetCommand = SibionicsRegistry.isResetRequested(context, SerialNumber)
         algorithmSelection = SibionicsRegistry.loadAlgorithmSelection(context, SerialNumber)
+        // The diagnostics trace is a debug preference, so it has to be restored
+        // here too: a toggle that silently resets on restart is worse than no
+        // toggle, because a capture started after a reboot comes back empty.
+        SibionicsAdaptiveV2Trace.enabled = runCatching {
+            context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+                .getBoolean("debug_sibionics_v2_trace", false)
+        }.getOrDefault(false)
         SibionicsRegistry.loadIntegratedCalibrationBaseline(context, SerialNumber)
             ?.takeIf { it.unit == Applic.unit }
             ?.let { baseline ->
@@ -1363,6 +1372,7 @@ class SibionicsBleManager(
                 }
             }
         }
+        var uncertaintyMmol: tk.glucodata.GlucoseUncertainty? = null
         val displayMmol = synchronized(algorithmLock) {
             if (index <= 1) algorithm.reset()
             val stockMmol = algorithm.processStock(
@@ -1372,7 +1382,7 @@ class SibionicsBleManager(
                 mode = if (live) SibionicsAlgorithmMode.LIVE else SibionicsAlgorithmMode.REPLAY,
             )
             val measurementMmol = integratedCalibratedMmol(stockMmol, eventMs)
-            algorithm.processPreparedMeasurement(
+            val value = algorithm.processPreparedMeasurement(
                 stockMmol = stockMmol,
                 measurementMmol = measurementMmol,
                 rawMmol = rawMmol,
@@ -1380,7 +1390,12 @@ class SibionicsBleManager(
                 index = index,
                 impedance = impedance,
                 eventTimeMs = eventMs,
+                calibrationAnchors = referenceAnchorsForEstimator(),
             )
+            // Read inside the lock: the posterior belongs to the sample just
+            // processed, and another packet arriving first would replace it.
+            uncertaintyMmol = algorithm.latestUncertaintyMmol()
+            value
         }
         if (live) lastLiveAlgorithmIndexSeen = index
         algorithmStateDirty = true
@@ -1399,7 +1414,49 @@ class SibionicsBleManager(
             return null
         }
 
-        return EmittedReading(eventMs, glucoseMgdl, rawMgdl, temperatureC, impedance, index, live)
+        return EmittedReading(
+            sampleMs = eventMs,
+            glucoseMgdl = glucoseMgdl,
+            rawMgdl = rawMgdl,
+            temperatureC = temperatureC,
+            impedance = impedance,
+            index = index,
+            live = live,
+            uncertainty = uncertaintyMmol?.scaled(SibionicsConstants.MGDL_PER_MMOLL),
+        )
+    }
+
+    /**
+     * Calibration entries as direct references for an estimator that consumes
+     * them as observations of glucose rather than as a correction applied to a
+     * stock value. Only Adaptive V2 uses these; every other model still goes
+     * through [integratedCalibratedMmol].
+     */
+    private fun referenceAnchorsForEstimator(): List<SibionicsCalibrationAnchor> {
+        if (algorithmSelection.model != SibionicsCustomAlgorithmModel.ADAPTIVE_V2) return emptyList()
+        if (!algorithmSelection.calibrationEnabled) return emptyList()
+        val packed = runCatching {
+            tk.glucodata.CalibrationAccess.getActiveCalibrationAnchors(SerialNumber, false)
+        }.getOrDefault(DoubleArray(0))
+        if (packed.size < 3 || packed.size % 3 != 0) return emptyList()
+        val anchors = ArrayList<SibionicsCalibrationAnchor>(packed.size / 3)
+        var offset = 0
+        while (offset + 2 < packed.size) {
+            val sensorValue = packed[offset].toFloat()
+            val userValue = packed[offset + 1].toFloat()
+            val timestamp = packed[offset + 2].toLong()
+            // Anchors are stored in display units; the estimator works in mmol/L.
+            val toMmol = if (Applic.unit == 1) 1f else 1f / SibionicsConstants.MGDL_PER_MMOLL
+            if (timestamp > 0L && userValue.isFinite() && userValue > 0f) {
+                anchors += SibionicsCalibrationAnchor(
+                    sensorMmol = sensorValue * toMmol,
+                    referenceMmol = userValue * toMmol,
+                    timestampMs = timestamp,
+                )
+            }
+            offset += 3
+        }
+        return anchors
     }
 
     private fun integratedCalibratedMmol(stockMmol: Float, eventMs: Long): Float {
@@ -1620,6 +1677,13 @@ class SibionicsBleManager(
             }
         }
         mirrorReadingsIntoNative(result.readings)
+        // A rebuild replaces the values these intervals described, so the old
+        // rows go before the new ones land; a stale band outliving its value
+        // would be worse than no band at all.
+        result.readings.firstOrNull()?.let { first ->
+            tk.glucodata.GlucoseUncertaintyAccess.deleteForSensorAfter(SerialNumber, first.sampleMs - 1L)
+        }
+        storeUncertainty(result.readings)
         val last = result.readings.last()
         HistorySyncAccess.storeCurrentReadingAsync(
             last.sampleMs,
@@ -1652,6 +1716,7 @@ class SibionicsBleManager(
             shortCode = shortCodeSnapshot,
             sensitivity = sensitivitySnapshot,
             unitIsMmol = Applic.unit == 1,
+            referenceAnchors = referenceAnchorsForEstimator(),
         ) { displayStock, timestamps ->
             calibratedDisplaySeries(displayStock, timestamps)
         }
@@ -1666,6 +1731,7 @@ class SibionicsBleManager(
                     impedance = reading.impedance,
                     index = reading.index,
                     live = false,
+                    uncertainty = reading.uncertainty,
                 )
             },
             sourceSamples = replay.sourceSamples,
@@ -1822,6 +1888,7 @@ class SibionicsBleManager(
             val values = FloatArray(history.size) { history[it].glucoseMgdl }
             val raws = FloatArray(history.size) { history[it].rawMgdl }
             HistorySyncAccess.storeSensorHistoryBatchAsync(SerialNumber, timestamps, values, raws)
+            storeUncertainty(history)
             // Native stream writes are minute-index-addressed and idempotent,
             // so replayed backfill batches are safe. Without this the sensor
             // never exists in the native store — invisible to the watch
@@ -1892,6 +1959,31 @@ class SibionicsBleManager(
         }.getOrDefault(false)
     }
 
+    /**
+     * Writes credible intervals for readings that carry one. Readings without
+     * uncertainty write nothing at all, so a model that does not estimate it
+     * leaves no rows and renders as a plain line.
+     */
+    private fun storeUncertainty(readings: List<EmittedReading>) {
+        val serial = SerialNumber ?: return
+        val withUncertainty = readings.filter { it.uncertainty?.isUsable == true }
+        if (withUncertainty.isEmpty()) return
+        val size = withUncertainty.size
+        tk.glucodata.GlucoseUncertaintyAccess.storeBatch(
+            sensorSerial = serial,
+            timestamps = LongArray(size) { withUncertainty[it].sampleMs },
+            lowerMgdl = FloatArray(size) { withUncertainty[it].uncertainty!!.lower },
+            upperMgdl = FloatArray(size) { withUncertainty[it].uncertainty!!.upper },
+            intervalMass = withUncertainty.first().uncertainty!!.intervalMass,
+            confidences = FloatArray(size) {
+                withUncertainty[it].uncertainty!!.confidence ?: Float.NaN
+            },
+            artifactProbabilities = FloatArray(size) {
+                withUncertainty[it].uncertainty!!.artifactProbability ?: Float.NaN
+            },
+        )
+    }
+
     private fun publishLiveReading(reading: EmittedReading) {
         val previousTime = latestReadingTimeMs
         val previousValue = latestGlucoseMgdl
@@ -1909,6 +2001,7 @@ class SibionicsBleManager(
         Applic.app?.let {
             SibionicsRegistry.saveLastReading(it, SerialNumber, reading.sampleMs, reading.glucoseMgdl, reading.rawMgdl)
         }
+        storeUncertainty(listOf(reading))
         if (mirrorReadingIntoNative(reading)) {
             NightscoutUploadWake.afterLiveNativeWrite("sibionics-managed", reading.sampleMs)
         }
@@ -2110,6 +2203,13 @@ class SibionicsBleManager(
             algorithm.setSelection(selection)
         }
         algorithmStateDirty = true
+        // Stored intervals describe values the rebuild is about to replace. If
+        // the new model does not estimate uncertainty they describe nothing at
+        // all, so they go now rather than lingering on the chart until a
+        // rebuild happens to overwrite them.
+        if (!selection.model.providesUncertainty) {
+            tk.glucodata.GlucoseUncertaintyAccess.clearForSensor(SerialNumber)
+        }
         Applic.app?.let { SibionicsRegistry.saveAlgorithmSelection(it, SerialNumber, selection) }
         // The selection flips integratesUserCalibration(); drop the memoized value so manual
         // calibration isn't double-applied (or silently skipped) until the next record write.

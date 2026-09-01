@@ -2553,4 +2553,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Gráfico + valor</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Gráfico + valor + seta</string>
     <string name="glucosechartfullcomplicationlabel">Gráfico + valor + seta + hora</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
+    <string name="sibionics_adaptive_v2_desc">Estimativa independente do estado do sensor com intervalo provável</string>
+    <string name="glucose_likely_range">Intervalo provável</string>
+    <string name="glucose_likely_range_value">intervalo provável %1$s–%2$s</string>
+    <string name="glucose_estimated">Glicose estimada</string>
+    <string name="glucose_uncertainty_elevated">Incerteza do sensor elevada</string>
+    <string name="glucose_possible_artifact">Possível artefacto transitório do sensor</string>
+    <string name="sibionics_uncertainty_ribbon">Faixa de incerteza</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Mostrar a faixa do intervalo provável em torno da linha de glicose</string>
+    <string name="freeze_displayed_values">Manter os valores exibidos</string>
+    <string name="freeze_displayed_values_desc">Uma leitura mantém o valor exibido. Alterações de calibração afetam apenas leituras recentes.</string>
+    <string name="freeze_displayed_values_on">Valores exibidos mantidos</string>
+    <string name="freeze_displayed_values_off">Recalculado a cada alteração</string>
 </resources>

@@ -40,12 +40,19 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 
 import androidx.compose.material.icons.filled.AccessTime
@@ -713,8 +720,10 @@ fun SensorCard(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Bit 0 is calibration; bits 1-3 are the model. The model mask
+                // widened from 6 to 14 when Adaptive V2 was added at base 8.
                 var algorithmFeatures by remember(sensor.customCalIndex) {
-                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 7))
+                    mutableIntStateOf(sensor.customCalIndex.coerceIn(0, 15))
                 }
 
                 fun setCalibration(enabled: Boolean) {
@@ -738,13 +747,14 @@ fun SensorCard(
                     Triple(6, R.string.sibionics_responsive_algorithm, R.string.sibionics_responsive_algorithm_desc),
                     Triple(4, R.string.sibionics_balanced_algorithm, R.string.sibionics_balanced_algorithm_desc),
                     Triple(2, R.string.sibionics_state_algorithm, R.string.sibionics_state_algorithm_desc),
+                    Triple(8, R.string.sibionics_adaptive_v2, R.string.sibionics_adaptive_v2_desc),
                 )
                 Column(
                     modifier = Modifier.selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     algorithmOptions.forEachIndexed { index, (modelBase, titleRes, subtitleRes) ->
-                        val selected = algorithmFeatures and 6 == modelBase
+                        val selected = algorithmFeatures and 14 == modelBase
                         val shape = when (index) {
                             0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
                             algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
@@ -869,6 +879,10 @@ fun SensorCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Adaptive V2 is the only model that reports a credible
+                // interval, so the ribbon control only exists when it is
+                // selected. The two switches then form one visual group.
+                val showsUncertainty = algorithmFeatures and 14 == 8
                 SettingsSwitchItem(
                     title = stringResource(R.string.calibration),
                     subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
@@ -877,10 +891,58 @@ fun SensorCard(
                     onCheckedChange = ::setCalibration,
                     icon = Icons.Default.Science,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    position = CardPosition.SINGLE,
-//                    shape = RoundedCornerShape(16.dp),
-
+                    position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
+                    // Its bottom edge has to travel from a lone card to the head
+                    // of a pair while the ribbon row is still opening below it.
+                    animatePosition = true,
                 )
+
+                var ribbonEnabled by remember {
+                    mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context))
+                }
+                AnimatedVisibility(
+                    visible = showsUncertainty,
+                    enter = expandVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = IntSize.VisibilityThreshold,
+                        ),
+                        expandFrom = Alignment.Top,
+                    ) + fadeIn(animationSpec = tween(durationMillis = 150, delayMillis = 50)),
+                    exit = shrinkVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = IntSize.VisibilityThreshold,
+                        ),
+                        shrinkTowards = Alignment.Top,
+                    ) + fadeOut(animationSpec = tween(durationMillis = 100)),
+                ) {
+                    // The 2dp group gap lives inside the transition so it
+                    // collapses with the row instead of leaving a stray sliver
+                    // under the calibration card.
+                    Column {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.sibionics_uncertainty_ribbon),
+                            subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
+                            subtitleStyle = MaterialTheme.typography.bodySmall,
+                            checked = ribbonEnabled,
+                            onCheckedChange = { enabled ->
+                                ribbonEnabled = enabled
+                                // Display only: the estimate and its interval are
+                                // still computed and stored, so the value details
+                                // keep working and turning it back on needs no
+                                // rebuild.
+                                GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
+                            },
+                            icon = Icons.Default.Insights,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            position = CardPosition.BOTTOM,
+                        )
+                    }
+                }
 //
 //                Spacer(modifier = Modifier.height(24.dp))
 //                Text(
@@ -1692,10 +1754,11 @@ fun SensorCard(
                 if (sensor.isSibionics && sensor.viewMode != 1) {
                     val calibrationEnabled = sensor.customCalIndex and 1 != 0
                     val baseAlgorithm = stringResource(
-                        when (sensor.customCalIndex and 6) {
+                        when (sensor.customCalIndex and 14) {
                             2 -> R.string.sibionics_state_algorithm
                             4 -> R.string.sibionics_balanced_algorithm
                             6 -> R.string.sibionics_responsive_algorithm
+                            8 -> R.string.sibionics_adaptive_v2
                             else -> R.string.sibionics_stock_algorithm_desc
                         }
                     )

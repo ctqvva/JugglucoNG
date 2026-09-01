@@ -294,7 +294,15 @@ private fun buildSmoothedChartData(
     value = { it.value },
     rawValue = { it.rawValue },
     sensorSerial = { it.sensorSerial },
-    withValues = { point, auto, raw -> point.copy(value = auto, rawValue = raw) }
+    // The band follows the value it describes; smoothing displaces the line but
+    // does not make the sensor more certain, so the width is preserved.
+    withValues = { point, auto, raw ->
+        point.copy(
+            value = auto,
+            rawValue = raw,
+            uncertainty = point.uncertainty?.shifted(auto - point.value),
+        )
+    }
 )
 
 private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
@@ -305,10 +313,26 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
     private val rawCalibrationActive = HashMap<String?, Boolean>()
     private val autoCalibrationActive = HashMap<String?, Boolean>()
 
-    fun hasCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
-        if (tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues()) {
-            return false
+    /**
+     * Timestamp to index, built once.
+     *
+     * [valueForPoint] used to find its index with `points.indexOf(point)` — a
+     * linear scan comparing every field of a data class — from inside the
+     * per-dot draw loop. That is visible-dots times total-history equality
+     * checks per frame, so it degraded as the database grew rather than as the
+     * chart got busier, which is the shape of the jank that showed up on a
+     * long-lived store. Timestamps are unique per rendered series here (the
+     * merge collapses minute buckets before this sees them); a collision would
+     * only pick the other point with the same timestamp, which is what the scan
+     * did too.
+     */
+    private val indexByTimestamp: Map<Long, Int> by lazy(LazyThreadSafetyMode.NONE) {
+        HashMap<Long, Int>(points.size * 2).apply {
+            points.forEachIndexed { index, point -> putIfAbsent(point.timestamp, index) }
         }
+    }
+
+    fun hasCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
         val cache = if (isRawMode) rawCalibrationActive else autoCalibrationActive
         return cache.getOrPut(sensorId) {
             tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawMode, sensorId)
@@ -324,30 +348,10 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
         }
         val point = points[index]
         val baseValue = if (isRawMode) point.rawValue else point.value
-        val resolved = if (
-            baseValue.isFinite() &&
-            baseValue > 0.1f &&
-            hasCalibration(isRawMode, point.sensorSerial)
-        ) {
-            tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                baseValue,
-                point.timestamp,
-                isRawMode,
-                sensorIdOverride = point.sensorSerial
-            )
-        } else {
-            baseValue
-        }
-        values[index] = resolved
-        computed[index] = true
-        return resolved
-    }
-
-    fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
-        val pointIndex = points.indexOf(point)
-        return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
-            val baseValue = if (isRawMode) point.rawValue else point.value
-            if (
+        // A reading whose displayed value was recorded draws at that value, so
+        // the line does not move under a calibration edit — see ReadingDisplay.
+        val resolved = point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+            ?: if (
                 baseValue.isFinite() &&
                 baseValue > 0.1f &&
                 hasCalibration(isRawMode, point.sensorSerial)
@@ -361,6 +365,30 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
             } else {
                 baseValue
             }
+        values[index] = resolved
+        computed[index] = true
+        return resolved
+    }
+
+    fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
+        val pointIndex = indexByTimestamp[point.timestamp] ?: -1
+        return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
+            val baseValue = if (isRawMode) point.rawValue else point.value
+            point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+                ?: if (
+                    baseValue.isFinite() &&
+                    baseValue > 0.1f &&
+                    hasCalibration(isRawMode, point.sensorSerial)
+                ) {
+                    tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
+                        baseValue,
+                        point.timestamp,
+                        isRawMode,
+                        sensorIdOverride = point.sensorSerial
+                    )
+                } else {
+                    baseValue
+                }
         }
     }
 }
@@ -587,6 +615,16 @@ private fun PreviewWindowNavigator(
         }
     }
 }
+
+/**
+ * Above this posterior artifact probability the tooltip mentions the
+ * possibility. Chosen so the notice appears when the artifact hypothesis is a
+ * genuine competitor, not whenever it is merely non-zero.
+ */
+private const val ARTIFACT_NOTICE_PROBABILITY = 0.25f
+
+/** Below this confidence the tooltip says so rather than leaving the wide band unexplained. */
+private const val LOW_CONFIDENCE_NOTICE = 0.45f
 
 data class ChartViewportSnapshot(
     val startMillis: Long,
@@ -967,6 +1005,13 @@ fun InteractiveGlucoseChart(
     val formatDate = remember { java.text.SimpleDateFormat("EEE dd", java.util.Locale.getDefault()) }
 
     // Reusable objects to avoid allocation on every frame
+    // The ribbon is a display preference, and it is also gated on the data
+    // actually carrying intervals: after switching away from Adaptive V2 the
+    // stored bands are cleared, so a chart holding a stale list must not keep
+    // drawing them. Re-read on every refresh rather than remembered once,
+    // because the setting lives in the sensor sheet, not here.
+    val uncertaintyRibbonEnabled = GlucoseUncertaintyDisplay.isRibbonEnabled()
+
     val reusablePath = remember { Path() }
     val reusablePeerPath = remember { Path() }
     val reusableRawPath = remember { Path() }
@@ -2550,6 +2595,38 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
+                // --- 2b. UNCERTAINTY RIBBON (behind the lines) ---
+                // Drawn only for the algorithm lane, which is the only one an
+                // estimator attaches a credible interval to; raw-only mode has
+                // no interval and renders exactly as it always did.
+                if (endIdx > startIdx && uncertaintyRibbonEnabled &&
+                    (viewMode == 0 || viewMode == 2 || viewMode == 3)
+                ) {
+                    val ribbonIsRawMode = viewMode == 1 || viewMode == 3
+                    val ribbonHasCalibration = calibratedValueResolver.hasCalibration(ribbonIsRawMode)
+                    with(GlucoseUncertaintyRibbon) {
+                        drawUncertaintyRibbon(
+                            renderData = renderData,
+                            startIndex = startIdx,
+                            endIndex = endIdx,
+                            viewportStartMs = viewportStart,
+                            timeScale = dataWidth / animDur,
+                            chartHeight = chartHeight,
+                            yMin = cYMin,
+                            yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
+                            gapThresholdMs = ChartGap.THRESHOLD_MS,
+                            color = primaryColor,
+                            centerValueAt = { index ->
+                                if (ribbonHasCalibration) {
+                                    calibratedValueResolver.valueAt(index, ribbonIsRawMode)
+                                } else {
+                                    renderData[index].value
+                                }
+                            },
+                        )
+                    }
+                }
+
                 // --- 3. DATA LINES (Unified & Optimized) ---
                 if (endIdx > startIdx) {
                     val gapThreshold = ChartGap.THRESHOLD_MS
@@ -4005,6 +4082,45 @@ fun InteractiveGlucoseChart(
                             text = styledText,
                             style = MaterialTheme.typography.titleMedium
                         )
+                        // Uncertainty, when the estimator that produced this
+                        // point actually reported it. The range is stated as a
+                        // range; the artifact line is phrased as a possibility,
+                        // because an elevated posterior probability is not the
+                        // same as an artifact having occurred.
+                        // Gated on the same preference as the ribbon, not just
+                        // on the point carrying an interval. Stored bands outlive
+                        // a switch away from Adaptive V2, so without this the
+                        // range kept appearing here for a model that never
+                        // produced one.
+                        point.uncertainty
+                            ?.takeIf { it.isUsable && uncertaintyRibbonEnabled }
+                            ?.let { uncertainty ->
+                            val isMmolTooltip = GlucoseFormatter.isMmol(unit)
+                            Text(
+                                text = stringResource(
+                                    R.string.glucose_likely_range_value,
+                                    GlucoseFormatter.format(uncertainty.lower, isMmolTooltip),
+                                    GlucoseFormatter.format(uncertainty.upper, isMmolTooltip),
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = statusContentColor.copy(alpha = 0.72f),
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                            val statusRes = when {
+                                (uncertainty.artifactProbability ?: 0f) >= ARTIFACT_NOTICE_PROBABILITY ->
+                                    R.string.glucose_possible_artifact
+                                (uncertainty.confidence ?: 1f) <= LOW_CONFIDENCE_NOTICE ->
+                                    R.string.glucose_uncertainty_elevated
+                                else -> null
+                            }
+                            statusRes?.let {
+                                Text(
+                                    text = stringResource(it),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = statusContentColor.copy(alpha = 0.58f),
+                                )
+                            }
+                        }
                         tooltipPeerPoints.forEach { peer ->
                             val attrs = peerDrawAttrs[peer.sensorSerial]
                             val peerColor = attrs?.first ?: SensorColors.getColor(peer.sensorSerial.orEmpty())
