@@ -90,6 +90,7 @@ static PowerManager.WakeLock wakeLock =null;
        started=true;
        Applic app=(Applic) getApplicationContext();
        app.initproc();
+       CloneBackgroundLiveness.sync();
        logLifecycleState("onStartCommand",intent);
        if(Natives.getfloatglucose()&&!Natives.gethidefloatinJuggluco()) 
                 Floating.makefloat();
@@ -130,6 +131,7 @@ static PowerManager.WakeLock wakeLock =null;
   @Override
   public void onDestroy() {
     logLifecycleState("onDestroy",null);
+    CloneBackgroundLiveness.release();
     if(theservice==this) {
       theservice=null;
       started=false;

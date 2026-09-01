@@ -877,6 +877,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="turn_on_location_permission">Turn on Location permission</string>
     <string name="turn_on_nearby_devices_permission">Turn on NEARBY DEVICES permission</string>
     <string name="turnserver">Server TURN</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
     <string name="turnservers">Server TURN</string>
     <string name="type">"Type: "</string>
     <string name="unified_reset_desc">This will restart the sensor and reset the auto-calibration algorithm.</string>
@@ -1790,6 +1797,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connections">Connessioni</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Attiva tutte le connessioni Clone salvate</string>
+    <string name="mirror_background_liveness">Mantieni Clone attivo in background</string>
+    <string name="mirror_background_liveness_desc">Mantiene attivo il ricevitore per letture clonate e avvisi senza interruzioni. Consuma più batteria.</string>
     <string name="mirror_no_connections">Nessuna connessione. Usa associazione rapida o tocca +.</string>
     <string name="mirror_delete_connection_title">Eliminare la connessione?</string>
     <string name="mirror_delete_connection_message">%1$s verrà rimosso definitivamente.</string>

@@ -44,8 +44,10 @@ class RelayQrTurnConfigTests {
     @Test
     fun olderIceQrWithoutTurnConfigurationRemainsValid() {
         val payload = """{"ICElabel":"pair","side":true} MirrorJuggluco"""
+        val json = parseMirrorQrJson(payload)
 
-        assertNull(parseHybridQrTurnConfig(parseMirrorQrJson(payload)))
+        assertNull(parseHybridQrTurnConfig(json))
+        assertNull(parseHybridQrIceConfig(json, null))
         assertFalse(mirrorQrContainsTurnConfig(payload))
     }
 
@@ -83,5 +85,78 @@ class RelayQrTurnConfigTests {
                 """{"ICElabel":"pair","turn":["turn.example.test",3478]} MirrorJuggluco"""
             )
         )
+    }
+
+    @Test
+    fun hybridQrReusesTurnEndpointForStunAndRendezvous() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","turn":["turn.example.test",3478,"clone","s3cret"],"stun":true,"rv":6789} MirrorJuggluco"""
+        )
+        val turn = parseHybridQrTurnConfig(json)
+
+        assertEquals(
+            HybridQrIceConfig(true, "turn.example.test", 6789),
+            parseHybridQrIceConfig(json, turn),
+        )
+    }
+
+    @Test
+    fun hybridQrCarriesAnExplicitRendezvousEndpoint() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","turn":["turn.example.test",3478,"clone","s3cret"],"stun":false,"rv":["connect.example.test",6789]} MirrorJuggluco"""
+        )
+
+        assertEquals(
+            HybridQrIceConfig(false, "connect.example.test", 6789),
+            parseHybridQrIceConfig(json, parseHybridQrTurnConfig(json)),
+        )
+    }
+
+    @Test
+    fun hybridQrCanExplicitlySelectTheAppDefaults() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":0} MirrorJuggluco"""
+        )
+
+        assertEquals(
+            HybridQrIceConfig(false, "", 6789),
+            parseHybridQrIceConfig(json, null),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun turnForStunRequiresTurnCredentialsInTheQr() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":true,"rv":0} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun compactRendezvousRequiresTurnConfiguration() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":6789} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun iceNetworkConfigurationMustBeComplete() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun explicitRendezvousPortMustBeNumeric() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":["connect.example.test","6789"]} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
     }
 }

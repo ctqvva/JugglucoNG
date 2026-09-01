@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -142,6 +143,71 @@ class CloneReceptionSafetyTests {
         assertTrue(retryWait.contains("std::min<int64_t>(remaining,250)"))
         assertTrue(!retryWait.contains("sleep(1)"))
         assertTrue(connection.contains("cancelRendezvous();"))
+    }
+
+    @Test
+    fun rejectedRendezvousGenerationRestartsWithoutWaitingForPacTimeout() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(ice.contains("restartRejectedNegotiation(con,agent,generation,allindex"))
+        assertTrue(ice.contains("local candidate rejected"))
+        assertTrue(ice.contains("remote candidate stream unavailable"))
+        assertTrue(ice.contains("generation rejected"))
+        assertTrue(ice.contains("if(con->endConnect.load()||!stillworking(allindex))"))
+        assertTrue(connection.contains("requestReconnectIfCurrent"))
+        assertTrue(connection.contains("endConnect.compare_exchange_strong(expected,true)"))
+    }
+
+    @Test
+    fun backgroundLivenessIsOptionalAndReceiverScoped() {
+        val policy = source("Common/src/main/java/tk/glucodata/CloneBackgroundLiveness.kt")
+            .replace(Regex("\\s+"), " ")
+        val registry = source("Common/src/main/java/tk/glucodata/CloneSensorRegistry.kt")
+            .replace(Regex("\\s+"), " ")
+        val service = source("Common/src/main/java/tk/glucodata/keeprunning.java")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(policy.contains("getBoolean(KEY_ENABLED, false)"))
+        assertTrue(policy.contains("enabled && receptionEnabled && hasReceiver"))
+        assertTrue(policy.contains("PowerManager.PARTIAL_WAKE_LOCK"))
+        assertTrue(policy.contains("(Natives.getbackuphostreceive(index) and 2) != 0"))
+        assertTrue(registry.contains("CloneBackgroundLiveness.sync()"))
+        assertTrue(service.contains("CloneBackgroundLiveness.sync();"))
+        assertTrue(service.contains("CloneBackgroundLiveness.release();"))
+
+        assertFalse(CloneBackgroundLiveness.shouldHold(false, receptionEnabled = true, hasReceiver = true))
+        assertFalse(CloneBackgroundLiveness.shouldHold(true, receptionEnabled = false, hasReceiver = true))
+        assertFalse(CloneBackgroundLiveness.shouldHold(true, receptionEnabled = true, hasReceiver = false))
+        assertTrue(CloneBackgroundLiveness.shouldHold(true, receptionEnabled = true, hasReceiver = true))
+    }
+
+    @Test
+    fun hybridQrAppliesItsIceServicesBeforeStartingTheConnection() {
+        val generator = source("Common/src/main/cpp/hostJson.cpp")
+            .replace(Regex("\\s+"), " ")
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+        val startup = source("Common/src/main/java/tk/glucodata/Applic.java")
+            .replace(Regex("\\s+"), " ")
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(generator.contains("const auto iceConfig=currentICEConfig()"))
+        assertTrue(generator.contains("insertbool(inserter,\"stun\""))
+        assertTrue(generator.contains("R\"(,\"rv\":"))
+
+        val saveConfig = screen.indexOf("CloneIceNetworkConfigStore.save")
+        val createHost = screen.indexOf("val pos = Natives.changebackuphost")
+        assertTrue(saveConfig >= 0 && createHost > saveConfig)
+        assertTrue(screen.contains("rollbackNetworkConfiguration()"))
+
+        assertTrue(startup.contains("CloneIceNetworkConfigStore.initialize(this)"))
+        assertTrue(ice.contains("const auto networkConfig=currentICEConfig()"))
+        assertTrue(ice.contains("networkConfig.useTurnForStun&&has_configured_turn"))
+        assertTrue(ice.contains("hostname,rendezvousPort"))
     }
 
 }

@@ -976,6 +976,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="trend_rising">Der Trend steigt um %1$s Prozent.</string>
     <string name="trend_unchanged">Der Trend bleibt unverändert.</string>
     <string name="turnserver">TURN-Server</string>
+    <string name="clone_ice_services">ICE-Dienste</string>
+    <string name="use_turn_for_stun">TURN-Server für STUN verwenden</string>
+    <string name="use_turn_for_stun_summary">Den konfigurierten TURN-Server auch für STUN verwenden</string>
+    <string name="rendezvous_server">Rendezvous-Server</string>
+    <string name="rendezvous_host_hint">Leer lassen, um den Standard der App zu verwenden</string>
+    <string name="rendezvous_port">Rendezvous-Port</string>
+    <string name="turn_required_for_stun">TURN muss konfiguriert sein, bevor es für STUN verwendet werden kann</string>
     <string name="turnservers">TURN-Server</string>
     <string name="unified_reset_desc">Startet den Sensor neu und setzt den Autokalibrierungs-Algorithmus zurück.</string>
     <string name="unit_mg">mg/dL</string>
@@ -1925,6 +1932,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connections">Verbindungen</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle gespeicherten Clone-Verbindungen aktivieren</string>
+    <string name="mirror_background_liveness">Clone im Hintergrund aktiv halten</string>
+    <string name="mirror_background_liveness_desc">Hält den Empfänger für unterbrechungsfreie Clone-Werte und Alarme aktiv. Verbraucht mehr Akku.</string>
     <string name="mirror_no_connections">Keine Verbindungen. Schnell koppeln oder + antippen.</string>
     <string name="mirror_delete_connection_title">Verbindung löschen?</string>
     <string name="mirror_delete_connection_message">%1$s wird dauerhaft entfernt.</string>

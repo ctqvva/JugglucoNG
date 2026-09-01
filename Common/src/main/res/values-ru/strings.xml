@@ -939,6 +939,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="streamingnotenabled">" Streaming not enabled"</string>
     <string name="threshold">Threshold</string>
     <string name="turnserver">TURN-сервер</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
     <string name="turnservers">TURN-серверы</string>
     <string name="unified_reset_desc">This will restart the sensor and reset the auto-calibration algorithm.</string>
     <string name="unit_mg">mg/dL</string>
@@ -1847,6 +1854,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connections">Соединения</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Включить все сохранённые подключения Clone</string>
+    <string name="mirror_background_liveness">Поддерживать Clone в фоновом режиме</string>
+    <string name="mirror_background_liveness_desc">Не даёт приёмнику засыпать для непрерывных клонированных показаний и оповещений. Увеличивает расход батареи.</string>
     <string name="mirror_no_connections">Нет соединений. Используйте быстрое сопряжение или нажмите +.</string>
     <string name="mirror_delete_connection_title">Удалить соединение?</string>
     <string name="mirror_delete_connection_message">%1$s будет удалено безвозвратно.</string>

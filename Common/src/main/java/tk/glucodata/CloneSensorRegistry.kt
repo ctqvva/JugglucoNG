@@ -215,6 +215,7 @@ object CloneSensorRegistry {
         synchronized(lock) {
             prefs()?.edit()?.putBoolean(KEY_RECEPTION_ENABLED, enabled)?.apply()
         }
+        CloneBackgroundLiveness.sync()
     }
 
     /**

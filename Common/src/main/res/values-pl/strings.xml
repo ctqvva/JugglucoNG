@@ -943,6 +943,13 @@
     <string name="trend_rising">The trend is rising by %1$s percent.</string>
     <string name="trend_unchanged">The trend remains unchanged.</string>
     <string name="turnserver">Serwer TURN</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
     <string name="turnservers">Serwery TURN</string>
     <string name="unified_reset_desc">This will restart the sensor and reset the auto-calibration algorithm.</string>
     <string name="unit_mg">mg/dL</string>
@@ -1835,6 +1842,8 @@
     <string name="mirror_connections">Połączenia</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
+    <string name="mirror_background_liveness">Utrzymuj Clone aktywny w tle</string>
+    <string name="mirror_background_liveness_desc">Utrzymuje odbiornik aktywny, aby zapewnić nieprzerwane sklonowane odczyty i alerty. Zużywa więcej baterii.</string>
     <string name="mirror_no_connections">Brak połączeń. Użyj szybkiego parowania lub dotknij +.</string>
     <string name="mirror_delete_connection_title">Usunąć połączenie?</string>
     <string name="mirror_delete_connection_message">%1$s zostanie trwale usunięte.</string>

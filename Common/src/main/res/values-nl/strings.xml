@@ -948,6 +948,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="trend_rising">The trend is rising by %1$s percent.</string>
     <string name="trend_unchanged">The trend remains unchanged.</string>
     <string name="turnserver">TURN-server</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
     <string name="turnservers">TURN-servers</string>
     <string name="unified_reset_desc">This will restart the sensor and reset the auto-calibration algorithm.</string>
     <string name="unit_mg">mg/dL</string>
@@ -1843,6 +1850,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connections">Verbindingen</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
+    <string name="mirror_background_liveness">Clone actief houden op de achtergrond</string>
+    <string name="mirror_background_liveness_desc">Houdt de ontvanger wakker voor ononderbroken gekloonde waarden en meldingen. Verbruikt meer batterij.</string>
     <string name="mirror_no_connections">Geen verbindingen. Gebruik snel koppelen of tik op +.</string>
     <string name="mirror_delete_connection_title">Verbinding verwijderen?</string>
     <string name="mirror_delete_connection_message">%1$s wordt definitief verwijderd.</string>

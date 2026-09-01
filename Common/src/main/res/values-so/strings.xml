@@ -481,6 +481,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 <string name="QRmirror">Muraayada QR</string>
     <string name="turnservers">U rog Serveryada</string>
     <string name="turnserver">DAAR Server</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
 
     <!-- New Strings for Material UI & Language Support -->
     <string name="notification_chart_title">Shaxda Ogeysiinta</string>
@@ -2124,6 +2131,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mirror_connections">Xiriirinta</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Daar dhammaan xiriirrada Clone ee la kaydiyay</string>
+    <string name="mirror_background_liveness">Clone ka dhig mid gadaal ka shaqeeya</string>
+    <string name="mirror_background_liveness_desc">Qalabka qaata ayuu soo jeediyaa si akhrisyada la koobiyey iyo digniinuhu u socdaan joogto. Baytari badan ayuu isticmaalaa.</string>
     <string name="mirror_no_connections">Xiriir la\'aan Isticmaal Lamaane Degdeg ah ama taabo + si aad ugu darto.</string>
     <string name="mirror_delete_connection_title">Tirtir xidhiidhka?</string>
     <string name="mirror_delete_connection_message">%1$s waa laga saari doonaa si joogto ah.</string>
