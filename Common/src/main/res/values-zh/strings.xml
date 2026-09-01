@@ -2584,8 +2584,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_estimated">估计血糖</string>
     <string name="glucose_uncertainty_elevated">传感器不确定性升高</string>
     <string name="glucose_possible_artifact">可能存在瞬时传感器伪影</string>
-    <string name="debug_v2_trace_title">Adaptive V2 诊断</string>
-    <string name="debug_v2_trace_desc">记录期间为每个读数写入一行详细数据。仅在反馈传感器问题时有用。</string>
     <string name="sibionics_uncertainty_ribbon">不确定性色带</string>
     <string name="sibionics_uncertainty_ribbon_desc">在血糖曲线周围显示可能范围色带</string>
     <string name="freeze_displayed_values">保留已显示的数值</string>

@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -68,7 +67,6 @@ enum class LogType {
 }
 
 private const val LOG_TAIL_BYTES = 50L * 1024L
-private const val PREF_V2_TRACE = "debug_sibionics_v2_trace"
 private const val PREF_HOWTO_DISMISSED = "debug_howto_dismissed"
 
 private fun LogType.fileName(): String =
@@ -295,24 +293,6 @@ fun DebugSettingsScreen(navController: NavController) {
                     } else {
                         Natives.dologcat(enabled)
                     }
-                }
-            )
-
-            // Sibionics Adaptive V2 per-sample rows, written into whichever log
-            // is recording. Off by default: it is a CSV line every minute.
-            var v2Trace by remember {
-                mutableStateOf(prefs.getBoolean(PREF_V2_TRACE, false))
-            }
-            tk.glucodata.ui.components.SettingsSwitchItem(
-                title = stringResource(R.string.debug_v2_trace_title),
-                subtitle = stringResource(R.string.debug_v2_trace_desc),
-                checked = v2Trace,
-                icon = Icons.Default.Timeline,
-                onCheckedChange = { enabled ->
-                    v2Trace = enabled
-                    prefs.edit().putBoolean(PREF_V2_TRACE, enabled).apply()
-                    tk.glucodata.drivers.sibionics.SibionicsAdaptiveV2Trace.enabled = enabled
-                    if (enabled) tk.glucodata.drivers.sibionics.SibionicsAdaptiveV2Trace.reset()
                 }
             )
 
