@@ -2585,7 +2585,7 @@
     <string name="tuning_carb_lookback_label">Okres wsteczny węglowodanów</string>
     <string name="tuning_carb_lookback_description">Węglowodany wpisane najwyżej tyle czasu przed spadkiem nadal liczą się jako wyjaśnienie powrotu do normy — jedzenie tuż przed zarejestrowaniem spadku to obraz leczonego prawdziwego niedocukrzenia.</string>
     <string name="sensor_pressure_hold_optin_summary">Gdy nagły spadek lub odbicie wygląda jak nacisk na sensor, wybrane alarmy czekają krótko. Jeśli ruch trwa, włącza się zwykły alarm. Funkcja całkowicie ufa Twojemu dziennikowi.</string>
-    <string name="sensor_pressure_early_warning_wait">Wybrane alarmy prognozy, szybkiej zmiany, Wysoka i Bardzo wysoka czekają do %1$d min. Odbicie odrzuca ostrzeżenie o spadku, a odwrócenie odrzuca ostrzeżenie o wzroście. Niska i Bardzo niska używają detektora i twardego progu poniżej.</string>
+    <string name="sensor_pressure_early_warning_wait">Tylko gdy detektor wykryje gwałtowny, niewyjaśniony spadek, wybrane alarmy prognozy, szybkiej zmiany, Wysoka i Bardzo wysoka czekają do %1$d min. Odbicie odrzuca ostrzeżenie o spadku, a odwrócenie odrzuca ostrzeżenie o wzroście. Niska i Bardzo niska używają detektora i twardego progu poniżej.</string>
     <string name="sensor_pressure_covered_alarms_title">Obsługiwane alarmy</string>
     <string name="sensor_pressure_covered_alarms_description">Wybierz alarmy, które mogą być opóźnione. Domyślnie zaznaczone są Niska, obie prognozy i oba alarmy szybkiej zmiany. Odznacz alarm, aby pozostawić go bez zmian.</string>
     <string name="sensor_pressure_covered_alarms_none_warning">Nie wybrano żadnego alarmu, więc funkcja nie może wstrzymać ani potwierdzić alarmu.</string>

@@ -860,7 +860,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="experimental_badge">Experimental</string>
     <string name="sensor_pressure_hold_optin_title">Handle selected alarms on suspected pressure</string>
     <string name="sensor_pressure_hold_optin_summary">When a sudden dip or rebound looks like pressure on the sensor, the selected alarms wait briefly. If the movement continues, the normal alarm fires. This trusts your journal completely.</string>
-    <string name="sensor_pressure_early_warning_wait">Selected forecast, fast-change, High, and Very High alarms wait up to %1$d min. Recovery discards a falling warning; a reversal discards a rising warning. Low and Very Low use the detector and hard floor below.</string>
+    <string name="sensor_pressure_early_warning_wait">Only when the detector finds a steep unexplained fall, selected forecast, fast-change, High, and Very High alarms wait up to %1$d min. Recovery discards a falling warning; a reversal discards a rising warning. Low and Very Low use the detector and hard floor below.</string>
     <string name="sensor_pressure_covered_alarms_title">Alarms handled</string>
     <string name="sensor_pressure_covered_alarms_description">Choose which alarms pressure handling may delay. The defaults are Low, both forecast alarms, and both fast-change alarms. Clear a check to leave that alarm unchanged.</string>
     <string name="sensor_pressure_covered_alarms_none_warning">No alarms are selected, so this feature cannot hold or confirm an alarm.</string>

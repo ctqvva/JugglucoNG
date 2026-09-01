@@ -2567,7 +2567,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tuning_carb_lookback_label">碳水回溯</string>
     <string name="tuning_carb_lookback_description">下降前这段时间内记录的碳水仍算作回升的解释——在下降被记录前刚吃过东西，正是经过处理的真正低血糖的样子。</string>
     <string name="sensor_pressure_hold_optin_summary">当骤降或快速回弹看起来像传感器压迫时，所选警报会短暂等待。若走势继续，则正常警报响起。此功能完全信任您的日志。</string>
-    <string name="sensor_pressure_early_warning_wait">所选预测、快速变化、高值和极高值警报最多等待 %1$d 分钟。回升会取消下降警报，反转会取消上升警报。低值和极低值使用下方的检测器和硬性下限。</string>
+    <string name="sensor_pressure_early_warning_wait">仅当检测器发现快速且无法解释的下降时，所选预测、快速变化、高值和极高值警报才会最多等待 %1$d 分钟。回升会取消下降警报，反转会取消上升警报。低值和极低值使用下方的检测器和硬性下限。</string>
     <string name="sensor_pressure_covered_alarms_title">处理的警报</string>
     <string name="sensor_pressure_covered_alarms_description">选择压迫处理可以延后的警报。默认选择低值、两个预测警报和两个快速变化警报。取消勾选可让该警报保持原样。</string>
     <string name="sensor_pressure_covered_alarms_none_warning">未选择任何警报，因此此功能无法延后或确认警报。</string>

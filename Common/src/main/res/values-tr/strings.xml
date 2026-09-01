@@ -2579,7 +2579,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="tuning_carb_lookback_label">Karbonhidrat geriye bakış</string>
     <string name="tuning_carb_lookback_description">Düşüşten en fazla bu kadar önce kaydedilen karbonhidratlar yine de toparlanmayı açıklar sayılır — düşüş kaydedilmeden hemen önce yemek yemek, tedavi edilmiş gerçek bir düşüşün görünümüdür.</string>
     <string name="sensor_pressure_hold_optin_summary">Ani bir düşüş veya geri sıçrama sensör basıncına benziyorsa seçilen alarmlar kısa süre bekler. Hareket sürerse normal alarm çalar. Bu özellik günlüğünüze tamamen güvenir.</string>
-    <string name="sensor_pressure_early_warning_wait">Seçilen tahmin, hızlı değişim, Yüksek ve Çok yüksek alarmları en fazla %1$d dk bekler. Toparlanma düşen uyarıyı, tersine dönüş yükselen uyarıyı iptal eder. Düşük ve Çok düşük aşağıdaki algılayıcıyı ve kesin tabanı kullanır.</string>
+    <string name="sensor_pressure_early_warning_wait">Yalnızca algılayıcı ani ve açıklanamayan bir düşüş bulduğunda seçilen tahmin, hızlı değişim, Yüksek ve Çok yüksek alarmları en fazla %1$d dk bekler. Toparlanma düşen uyarıyı, tersine dönüş yükselen uyarıyı iptal eder. Düşük ve Çok düşük aşağıdaki algılayıcıyı ve kesin tabanı kullanır.</string>
     <string name="sensor_pressure_covered_alarms_title">Yönetilen alarmlar</string>
     <string name="sensor_pressure_covered_alarms_description">Hangi alarmların geciktirilebileceğini seçin. Varsayılan olarak Düşük, iki tahmin ve iki hızlı değişim alarmı seçilidir. Bir alarmı değiştirmeden bırakmak için işaretini kaldırın.</string>
     <string name="sensor_pressure_covered_alarms_none_warning">Hiçbir alarm seçilmediği için bu özellik bir alarmı bekletemez veya doğrulayamaz.</string>

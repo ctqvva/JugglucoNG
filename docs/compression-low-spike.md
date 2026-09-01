@@ -3,7 +3,7 @@
 > **Status update (2026-08-23):** the spike graduated. The branch now carries the full
 > feature set — the pure retrospective detector, the live **sensor pressure hold**
 > ("compression low gatekeeper": opt-in, experimental, user-selectable alarm coverage,
-> a bounded LOW/VERY_LOW detector hold plus direction-aware six-minute confirmation,
+> a bounded LOW/VERY_LOW detector hold plus detector-armed, direction-aware six-minute confirmation,
 > gentle SENSOR_PRESSURE cue, receipts, self-disable), the **hypo episode log** (every
 > below-range episode of the last 30 days, user-togglable pressure classification), and
 > the **statistics retro-fix** (confirmed pressure episodes drop out of the Compose
@@ -55,21 +55,25 @@ default hard floor following the VERY_LOW threshold, selecting VERY_LOW alone do
 delay it. The user must also deliberately lower or disable the floor. This keeps severe
 low readings immediate unless two separate settings are changed.
 
-The forecast, fast-change, HIGH, and VERY_HIGH alarms use a bounded six-minute confirmation
-wait. Falling candidates track their lowest value; recovery by at least 3 mg/dL drops the
-warning. Rising candidates track their highest value; a reversal by at least 3 mg/dL drops
-the warning. A candidate that clears during the wait disappears normally, while movement
-still standing at the deadline is released. HIGH and VERY_HIGH require their threshold
-condition to clear rather than treating a small reversal above threshold as recovery.
-Entering the configured LOW range immediately releases PRE_LOW and FALLING_FAST from this
-confirmation state so the selected LOW/VERY_LOW policy owns the safety decision.
+The forecast, fast-change, HIGH, and VERY_HIGH alarms may use a bounded six-minute
+confirmation wait, but selection alone never starts it. The prospective detector must first
+find the full steep, unexplained fall from a quiet baseline. That evidence follows the trace
+through its rebound so a selected rising alarm can be associated with the same suspected
+pressure event. Without detector evidence, the alarm path is unchanged. Falling candidates
+track their lowest value; recovery by at least 3 mg/dL drops the warning. Rising candidates
+track their highest value; a reversal by at least 3 mg/dL drops the warning. A candidate that
+clears on a newer reading disappears normally, while scheduler reevaluations of the same
+reading cannot restart the bounded clock. Movement still standing at the deadline is
+released. HIGH and VERY_HIGH require their threshold condition to clear rather than treating
+a small reversal above threshold as recovery. Entering the configured LOW range immediately
+releases PRE_LOW and FALLING_FAST from this confirmation state so the selected LOW/VERY_LOW
+policy owns the safety decision.
 
-The confirmation wait is deliberately separate from the retrospective detector. The field trace that
-motivated it contains 15 to 32 mg/dL waves and several do not start from a quiet baseline,
-so weakening the LOW detector enough to accept them would also weaken its real-low guards.
-The dashboard signal-quality number was checked as a possible supporting input. It stayed
-mostly green at the false-alert points and overlapped the genuine-low controls, so the wait
-does not use it as a decision signal.
+The confirmation state remains separate from retrospective classification, but it is armed
+only by the same prospective detector evidence used for LOW. The dashboard signal-quality
+number was checked as a possible supporting input. It stayed mostly green at the false-alert
+points and overlapped the genuine-low controls, so the wait does not use it as a decision
+signal.
 
 The detector is pure: samples plus lambdas (`iobUnitsAt`, `dosePeakPassedAt`,
 `carbGramsBetween`), following the `GlucosePredictionKernel.simulate` seam pattern, so the

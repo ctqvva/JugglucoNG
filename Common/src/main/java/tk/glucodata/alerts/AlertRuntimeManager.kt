@@ -75,6 +75,7 @@ object AlertRuntimeManager {
             fallingDeltaState.resetBaseline()
             risingDeltaState.resetBaseline()
             compressionTrendHolds.clear()
+            CompressionHoldRuntime.clearTrendEvidence()
             if (suppressThroughMs > 0L) {
                 Log.i(LOG_ID, "Calibration changed; glucose alerts wait for reading after $suppressThroughMs")
             }
@@ -154,6 +155,16 @@ object AlertRuntimeManager {
         syncCurrentReadingLocked()
 
         val glucoseAlertsBlocked = calibrationReadingBarrier.blocks(lastReadingTimeMs)
+        if (!glucoseAlertsBlocked) {
+            currentGlucoseValueLocked()?.let { glucoseValue ->
+                CompressionHoldRuntime.observeTrendReading(
+                    readingTimeMs = lastReadingTimeMs,
+                    displayValue = glucoseValue,
+                    rateMgdlPerMinute = currentRateLocked(),
+                    sensorId = lastDisplaySnapshot?.sensorId
+                )
+            }
+        }
         val standardAlertEvaluation = if (glucoseAlertsBlocked) {
             AlertRuntimeEvaluation()
         } else {
@@ -223,7 +234,7 @@ object AlertRuntimeManager {
         transition.cleared.forEach { type ->
             clearRuntimeAlert(type, "standard-condition-cleared")
             if (compressionTrendHolds.supports(type)) {
-                compressionTrendHolds.onCandidateCleared(type)
+                compressionTrendHolds.onCandidateCleared(type, lastReadingTimeMs)
             }
         }
         if (transition.cleared.any { it == AlertType.LOW || it == AlertType.VERY_LOW } &&
@@ -610,6 +621,16 @@ object AlertRuntimeManager {
             return CompressionTrendHoldState.Decision.ALLOW
         }
         if (!CompressionHoldRuntime.isAlertCovered(type)) {
+            compressionTrendHolds.onCandidateCleared(type)
+            return CompressionTrendHoldState.Decision.ALLOW
+        }
+        if (!CompressionHoldRuntime.hasTrendEvidence(
+                type = type,
+                readingTimeMs = lastReadingTimeMs,
+                displayValue = glucoseValue,
+                sensorId = lastDisplaySnapshot?.sensorId
+            )
+        ) {
             compressionTrendHolds.onCandidateCleared(type)
             return CompressionTrendHoldState.Decision.ALLOW
         }
