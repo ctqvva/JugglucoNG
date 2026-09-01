@@ -470,6 +470,16 @@ fun SensorCard(
     var aiDexBiasChecked by remember(sensor.serial, sensor.resetCompensationActive) { mutableStateOf(sensor.resetCompensationActive) }
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
+    // A lone sensor with no colour of its own is drawn the way the dashboard trace is —
+    // the theme accent — rather than a palette hue assigned by a hash nobody chose. A second
+    // sensor, or a colour the user picked, is what makes identity colour worth showing.
+    val hasPickedColor = SensorVisuals.colorOverrideArgb(sensor.serial) != null
+    val sensorTint = if (sensorCount > 1 || hasPickedColor) {
+        sensor.color
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     val scope = rememberCoroutineScope() // Fix: Add missing scope
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
@@ -905,7 +915,7 @@ fun SensorCard(
         }
         ExpressiveColorPickerDialog(
             title = stringResource(R.string.sensor_color_title),
-            initialColor = sensor.color.toArgb(),
+            initialColor = sensorTint.toArgb(),
             showOpacity = false,
             onDismiss = { showColorSheet = false },
             onReset = if (pinnedColor != null) {
@@ -1471,7 +1481,7 @@ fun SensorCard(
                         .width(4.dp)
                         .fillMaxHeight()
                         .background(
-                            sensor.color.copy(alpha = if (sensor.isActive) 1f else 0.4f),
+                            sensorTint.copy(alpha = if (sensor.isActive) 1f else 0.4f),
                             RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
                         )
                 )
@@ -1494,14 +1504,14 @@ fun SensorCard(
                         SensorModelBadge(
                             badge = badge,
                             vendor = sensor.vendor,
-                            color = sensor.color,
+                            color = sensorTint,
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         SensorIdentityControl(
                             name = displayName,
                             selected = sensor.isSelectedForDisplay,
                             selectable = canToggleEnabled,
-                            color = sensor.color,
+                            color = sensorTint,
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
                             modifier = Modifier.weight(1f),
@@ -1585,7 +1595,7 @@ fun SensorCard(
                             currentSnapshot?.let { snapshot ->
                                 SensorCurrentValueChip(
                                     snapshot = snapshot,
-                                    accentColor = sensor.color
+                                    accentColor = sensorTint
                                 )
                             }
                             sensorStatusText?.let { status ->
