@@ -110,6 +110,13 @@ class CloneReceptionSafetyTests {
         assertFalse(importBody.contains("Notify.showoldglucose()"))
         assertTrue(snapshots.contains("cloneIobRefreshJob = journalChangedScope.launch"))
 
+        val journalImport = snapshots.substring(
+            snapshots.indexOf("fun importCloneJournalSnapshot"),
+            snapshots.indexOf("fun importFromJson"),
+        )
+        assertTrue(journalImport.contains("cloneJournalImportMutex.withLock"))
+        assertTrue(snapshots.contains("CloneSensorRegistry.whileReceptionEnabled"))
+
     }
 
     @Test

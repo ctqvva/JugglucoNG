@@ -47,8 +47,13 @@ class JournalRepository {
 
     suspend fun upsertEntry(input: JournalEntryInput): Long {
         val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
+        val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
         val existing = input.id?.let { dao.getEntryById(it) }
             ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
+            ?: nsRemoteId?.let { dao.getEntryByNightscoutRemoteId(it) }
+        val matchedByRemoteId = existing != null &&
+            existing.sourceRecordId != sourceRecordId &&
+            existing.nsRemoteId == nsRemoteId
         val now = System.currentTimeMillis()
         val entity = JournalEntryEntity(
             id = existing?.id ?: (input.id ?: 0L),
@@ -62,15 +67,19 @@ class JournalRepository {
             durationMinutes = input.durationMinutes,
             intensity = input.intensity?.storageValue,
             insulinPresetId = input.insulinPresetId,
-            source = input.source.storageValue,
-            sourceRecordId = sourceRecordId,
+            // Clone and Nightscout can deliver the same treatment in either
+            // order. When their shared Nightscout ID found the row, retain the
+            // first observed provenance and storage identity instead of
+            // oscillating between sources or creating a duplicate.
+            source = if (matchedByRemoteId) existing!!.source else input.source.storageValue,
+            sourceRecordId = if (matchedByRemoteId) existing!!.sourceRecordId else sourceRecordId,
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
             foodId = input.foodId,
             proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
             fatGrams = input.fatGrams?.coerceAtLeast(0f),
             nsUploadedAt = existing?.nsUploadedAt,
-            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId
+            nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
         )
         val id = dao.upsertEntry(entity)
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
@@ -84,6 +93,9 @@ class JournalRepository {
         // from another system is never sent back, so importing from one does not wake it.
         if (!isMirroredSource(input.source)) {
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
+            if (!affectsIob(entity.entryType) && !affectsIob(existing?.entryType)) {
+                tk.glucodata.Natives.wakebackup()
+            }
         }
         return id
     }
@@ -247,7 +259,10 @@ class JournalRepository {
     private fun isMirroredSource(source: JournalEntrySource): Boolean =
         source == JournalEntrySource.AAPS ||
             source == JournalEntrySource.NIGHTSCOUT ||
-            source == JournalEntrySource.API
+            source == JournalEntrySource.API ||
+            source == JournalEntrySource.CLONE ||
+            source == JournalEntrySource.CLONE_LOCAL_ICE ||
+            source == JournalEntrySource.CLONE_TURN
 
     private fun affectsIob(entryType: String?): Boolean {
         return entryType == JournalEntryType.INSULIN.storageValue ||
