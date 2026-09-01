@@ -40,20 +40,10 @@ class CloneJournalSnapshotPolicyTests {
     }
 
     @Test
-    fun cloneIdentityRemainsLocalAfterNightscoutAssignsItsOwnRemoteId() {
+    fun cloneIdentityUsesTheImmutableLocalRowAfterOtherIdentifiersChange() {
         assertEquals(
             "journal:42",
-            OutboundApiJournalSnapshot.cloneJournalTransferIdentifier(
-                sourceRecordId = null,
-                localId = 42L,
-            ),
-        )
-        assertEquals(
-            "health-connect:record-7",
-            OutboundApiJournalSnapshot.cloneJournalTransferIdentifier(
-                sourceRecordId = "health-connect:record-7",
-                localId = 42L,
-            ),
+            OutboundApiJournalSnapshot.cloneJournalTransferIdentifier(localId = 42L),
         )
     }
 }

@@ -19,12 +19,13 @@ interface JournalDao {
     suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
 
     @Query(
-        "SELECT * FROM journal_entries WHERE nsRemoteId = :nsRemoteId AND entryType = :entryType LIMIT 1"
+        "SELECT * FROM journal_entries WHERE nsRemoteId = :nsRemoteId AND entryType = :entryType " +
+            "ORDER BY createdAt ASC, id ASC"
     )
-    suspend fun getEntryByNightscoutRemoteIdAndType(
+    suspend fun getEntriesByNightscoutRemoteIdAndType(
         nsRemoteId: String,
         entryType: String,
-    ): JournalEntryEntity?
+    ): List<JournalEntryEntity>
 
     @Query("SELECT * FROM journal_entries ORDER BY timestamp ASC, id ASC")
     suspend fun getEntries(): List<JournalEntryEntity>

@@ -49,11 +49,27 @@ class JournalRepository {
         val (id, entity, existing) = database.withTransaction {
             val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
             val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
-            val existing = input.id?.let { dao.getEntryById(it) }
-                ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
-                ?: nsRemoteId?.let {
-                    dao.getEntryByNightscoutRemoteIdAndType(it, input.type.storageValue)
-                }
+            val idMatch = input.id?.let { dao.getEntryById(it) }
+            val sourceMatch = sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
+            val remoteMatches = nsRemoteId?.let {
+                dao.getEntriesByNightscoutRemoteIdAndType(it, input.type.storageValue)
+            }.orEmpty()
+            val remoteMatch = remoteMatches.firstOrNull()
+            val overlap = if (idMatch == null) {
+                cloneNightscoutOverlap(
+                    sourceMatch = sourceMatch,
+                    remoteMatches = remoteMatches,
+                    incomingNsRemoteId = nsRemoteId,
+                    incomingEntryType = input.type.storageValue,
+                )
+            } else {
+                null
+            }
+            val existing = idMatch
+                ?: overlap?.keeper
+                ?: sourceMatch
+                ?: remoteMatch
+            val redundantOverlap = overlap?.redundantRows.orEmpty()
             val remoteIdentityMatch = existing?.takeIf {
                 it.sourceRecordId != sourceRecordId &&
                     isSameNightscoutJournalKind(
@@ -98,7 +114,13 @@ class JournalRepository {
                 nsUploadedAt = existing?.nsUploadedAt,
                 nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
             )
-            Triple(dao.upsertEntry(entity), entity, existing)
+            val rowId = dao.upsertEntry(entity)
+            // A Clone row can arrive before the sender learns its Nightscout ID while
+            // the Nightscout follower imports the same treatment independently. Once
+            // both identities meet, retain the first local row and remove only the
+            // redundant local copy. This must never create a remote delete tombstone.
+            redundantOverlap.forEach { dao.deleteEntryById(it.id) }
+            Triple(rowId, entity, existing)
         }
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
@@ -581,13 +603,59 @@ private fun isCloneJournalSource(source: JournalEntrySource): Boolean = when (so
     else -> false
 }
 
-private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? {
-    nsRemoteId?.takeIf { it.isNotBlank() }?.let { return it }
-    if (source != JournalEntrySource.NIGHTSCOUT.storageValue) return null
-    val parts = sourceRecordId?.split(":") ?: return null
-    if (parts.size != 4 || parts[0] != "nightscout") return null
-    val baseId = parts[2].takeIf { it.isNotBlank() } ?: return null
-    return baseId.takeUnless { it.startsWith("hash", ignoreCase = true) }
+internal data class JournalOverlap(
+    val keeper: JournalEntryEntity,
+    val redundantRows: List<JournalEntryEntity>,
+)
+
+internal fun cloneNightscoutOverlap(
+    sourceMatch: JournalEntryEntity?,
+    remoteMatches: List<JournalEntryEntity>,
+    incomingNsRemoteId: String?,
+    incomingEntryType: String,
+): JournalOverlap? {
+    if (sourceMatch == null || incomingNsRemoteId == null) return null
+    if (sourceMatch.entryType != incomingEntryType) return null
+    val overlapping = remoteMatches.filter { candidate ->
+        candidate.id != sourceMatch.id &&
+            candidate.nsRemoteId == incomingNsRemoteId &&
+            candidate.entryType == incomingEntryType &&
+            isCloneNightscoutPair(sourceMatch.source, candidate.source)
+    }
+    if (overlapping.isEmpty()) return null
+    val allRows = listOf(sourceMatch) + overlapping
+    val keeper = allRows.reduce { first, second ->
+        if (isEarlierJournalRow(first.createdAt, first.id, second.createdAt, second.id)) first else second
+    }
+    return JournalOverlap(keeper, allRows.filter { it.id != keeper.id })
+}
+
+internal fun isCloneNightscoutPair(firstSource: String, secondSource: String): Boolean {
+    val first = JournalEntrySource.fromStorage(firstSource)
+    val second = JournalEntrySource.fromStorage(secondSource)
+    return (isCloneJournalSource(first) && second == JournalEntrySource.NIGHTSCOUT) ||
+        (first == JournalEntrySource.NIGHTSCOUT && isCloneJournalSource(second))
+}
+
+internal fun isEarlierJournalRow(
+    firstCreatedAt: Long,
+    firstId: Long,
+    secondCreatedAt: Long,
+    secondId: Long,
+): Boolean = firstCreatedAt < secondCreatedAt ||
+    (firstCreatedAt == secondCreatedAt && firstId <= secondId)
+
+private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
+    nightscoutDeleteRemoteId(source, nsRemoteId)
+
+internal fun nightscoutDeleteRemoteId(source: String, nsRemoteId: String?): String? {
+    val entrySource = JournalEntrySource.fromStorage(source)
+    if (entrySource == JournalEntrySource.AAPS ||
+        entrySource == JournalEntrySource.NIGHTSCOUT ||
+        entrySource == JournalEntrySource.API ||
+        isCloneJournalSource(entrySource)
+    ) return null
+    return nsRemoteId?.takeIf { it.isNotBlank() }
 }
 
 private fun JournalEntryEntity.toModel(): JournalEntry {
