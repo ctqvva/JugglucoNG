@@ -55,6 +55,7 @@ import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
+import tk.glucodata.SensorTypeName
 import tk.glucodata.SensorVendor
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
@@ -137,37 +138,53 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
+/** Leading slot of the sensor card header; the name and reading chip start after it. */
+private val SensorLeadingSize = 32.dp
+private val SensorLeadingGap = 12.dp
+
+/**
+ * Vendor plus concrete model on one line, e.g. "Yuwell · Anytime". The vendor is dropped when
+ * the model name already carries it ("Sibionics 2", "Ottai CGM"), so the line never stutters.
+ */
 @Composable
-private fun SensorVendorBadge(
-    vendor: SensorVendor,
+private fun sensorSubtitleText(vendor: SensorVendor, type: SensorTypeName): String? {
+    val typeLabel = if (type == SensorTypeName.UNKNOWN) null else stringResource(type.labelRes)
+    val vendorLabel = when (vendor) {
+        SensorVendor.UNKNOWN, SensorVendor.NIGHTSCOUT -> null
+        else -> stringResource(vendor.labelRes)
+    }
+    return when {
+        typeLabel == null -> vendorLabel
+        vendorLabel == null || typeLabel.startsWith(vendorLabel, ignoreCase = true) -> typeLabel
+        else -> "$vendorLabel · $typeLabel"
+    }
+}
+
+/** Picks which sensors are drawn on the chart. Only meaningful with more than one sensor. */
+@Composable
+private fun SensorDisplayToggle(
+    selected: Boolean,
+    color: Color,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val vendorName = stringResource(vendor.labelRes)
-    Surface(
+    val description = stringResource(
+        if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
+    )
+    Box(
         modifier = modifier
-            .size(28.dp)
-            .clearAndSetSemantics { contentDescription = vendorName },
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            .size(SensorLeadingSize)
+            .clip(CircleShape)
+            .background(if (selected) color.copy(alpha = 0.16f) else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-        ) {
-            if (vendor == SensorVendor.NIGHTSCOUT) {
-                Icon(
-                    imageVector = Icons.Default.CloudDownload,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-            } else {
-                Text(
-                    text = vendor.badgeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-        }
+        Icon(
+            imageVector = if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+            contentDescription = description,
+            tint = if (selected) color else color.copy(alpha = 0.55f),
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -1284,133 +1301,58 @@ fun SensorCard(
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
                     val statusText = if (isStreaming) stringResource(R.string.enabled_status) else stringResource(R.string.disabled_status)
 
+                    val subtitleText = sensorSubtitleText(sensor.vendor, sensor.sensorType)
+                    val showDisplayToggle = sensorCount > 1
+                    // Leading control plus its gap, so the reading chip below starts on the
+                    // same left edge as the sensor name instead of under the toggle.
+                    val identityInset =
+                        if (showDisplayToggle) SensorLeadingSize + SensorLeadingGap else 0.dp
+
+                    // Identity, streaming state and its control all share one centre line.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (showDisplayToggle) {
+                            SensorDisplayToggle(
+                                selected = sensor.isSelectedForDisplay,
+                                color = sensor.color,
+                                onClick = { viewModel.toggleDisplaySelection(sensor.serial) },
+                            )
+                            Spacer(modifier = Modifier.width(SensorLeadingGap))
+                        }
                         Column(modifier = Modifier.weight(1f)) {
-                            val serialTextStyle = when {
-                                else -> MaterialTheme.typography.titleLarge
-                            }
-                            val enabledTextStyle = when {
-                                else -> MaterialTheme.typography.titleMedium
-                            }
-                            // Title with optional "Active" badge
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SensorVendorBadge(sensor.vendor)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = sensor.displayName.ifBlank { sensor.serial },
-                                        style = serialTextStyle,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        text = stringResource(sensor.sensorType.labelRes),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    )
-                                }
-                                // Toggle Main Sensor Badge
-                                Spacer(modifier = Modifier.width(8.dp))
-                                val isMain = sensor.isActive
-                                val isSelectedForDisplay = sensor.isSelectedForDisplay
-
-                                val badgeColor = if (isSelectedForDisplay) sensor.color else sensor.color.copy(alpha = 0.6f)
-                                val badgeBg = when {
-                                    isMain -> sensor.color.copy(alpha = 0.16f)
-                                    isSelectedForDisplay -> sensor.color.copy(alpha = 0.10f)
-                                    else -> Color.Transparent
-                                }
-                                val badgeBorder = if (isSelectedForDisplay) {
-                                    null
-                                } else {
-                                    androidx.compose.foundation.BorderStroke(1.dp, sensor.color.copy(alpha = 0.3f))
-                                }
-
-                                if (sensorCount > 1) {
-                                    val selectedDescription = stringResource(R.string.sensor_display_selected)
-                                    val selectDescription = stringResource(R.string.sensor_display_select)
-                                    // Multi-sensor: interactive badge with Surface background
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(androidx.compose.foundation.shape.CircleShape)
-                                            .clickable { viewModel.toggleDisplaySelection(sensor.serial) }
-                                            .defaultMinSize(minWidth = 26.dp, minHeight = 26.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Surface(
-                                            color = badgeBg,
-                                            shape = androidx.compose.foundation.shape.CircleShape,
-                                            border = badgeBorder
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSelectedForDisplay) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                                contentDescription = if (isSelectedForDisplay) selectedDescription else selectDescription,
-                                                tint = badgeColor,
-                                                modifier = Modifier
-                                                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                                                    .size(18.dp)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    // Single sensor: slim inline checkmark, no touch target
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = "Active",
-                                        tint = badgeColor,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                            Text(
+                                text = sensor.displayName.ifBlank { sensor.serial },
+                                style = MaterialTheme.typography.titleLarge,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                            subtitleText?.let { subtitle ->
                                 Text(
-                                    text = statusText,
-                                    style = enabledTextStyle,
+                                    text = subtitle,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
-                            // Feature: Detailed Sensor Status
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                val sensorStatusText = when {
-                                    sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
-                                    sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
-                                    else -> null
-                                }
-
-                                currentSnapshot?.let { snapshot ->
-                                    SensorCurrentValueChip(
-                                        snapshot = snapshot,
-                                        accentColor = sensor.color
-                                    )
-                                }
-                                sensorStatusText?.let { status ->
-                                    Text(
-                                        text = status,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                }
-                            }
                         }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isStreaming) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         if (isHandedOff) {
                             IconButton(
@@ -1430,7 +1372,8 @@ fun SensorCard(
                                 )
                             }
                         } else {
-                            // Logic: Show Pause if running, Play if stopped (to resume)
+                            // Show Pause while running, Play once stopped. A paused sensor gets
+                            // the accent container so the way back to streaming is the loud thing.
                             IconButton(
                                 onClick = {
                                     if (isLocallyStreaming) {
@@ -1443,13 +1386,60 @@ fun SensorCard(
                                 },
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceDim.copy(alpha=0.5f), CircleShape)
+                                    .background(
+                                        if (isLocallyStreaming) {
+                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                        } else {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        },
+                                        CircleShape,
+                                    )
                             ) {
                                 Icon(
                                     imageVector = if (isLocallyStreaming) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Toggle Sensor",
+                                    contentDescription = stringResource(
+                                        if (isLocallyStreaming) R.string.sensor_pause_streaming
+                                        else R.string.sensor_resume_streaming
+                                    ),
                                     modifier = Modifier.size(26.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
+                                    tint = if (isLocallyStreaming) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    val sensorStatusText = when {
+                        sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
+                        sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
+                        else -> null
+                    }
+                    if (currentSnapshot != null || sensorStatusText != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = identityInset),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            currentSnapshot?.let { snapshot ->
+                                SensorCurrentValueChip(
+                                    snapshot = snapshot,
+                                    accentColor = sensor.color
+                                )
+                            }
+                            sensorStatusText?.let { status ->
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                             }
                         }

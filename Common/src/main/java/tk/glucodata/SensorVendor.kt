@@ -4,20 +4,19 @@ import tk.glucodata.drivers.ManagedSensorUiFamily
 
 /** Manufacturer identity used by sensor-list presentation. */
 enum class SensorVendor(
-    val badgeText: String,
     val labelRes: Int,
 ) {
-    ABBOTT("AB", R.string.sensor_vendor_abbott),
-    SIBIONICS("SI", R.string.sensor_vendor_sibionics),
-    DEXCOM("DX", R.string.sensor_vendor_dexcom),
-    ROCHE("RO", R.string.sensor_vendor_roche),
-    MICROTECH("MT", R.string.sensor_vendor_microtech),
-    SINOCARE("SC", R.string.sensor_vendor_sinocare),
-    GLUTEC("MQ", R.string.sensor_vendor_glutec),
-    YUWELL("YW", R.string.sensor_vendor_yuwell),
-    OTTAI("OT", R.string.sensor_vendor_ottai),
-    NIGHTSCOUT("", R.string.sensor_type_nightscout),
-    UNKNOWN("?", R.string.unknown),
+    ABBOTT(R.string.sensor_vendor_abbott),
+    SIBIONICS(R.string.sensor_vendor_sibionics),
+    DEXCOM(R.string.sensor_vendor_dexcom),
+    ROCHE(R.string.sensor_vendor_roche),
+    MICROTECH(R.string.sensor_vendor_microtech),
+    SINOCARE(R.string.sensor_vendor_sinocare),
+    GLUTEC(R.string.sensor_vendor_glutec),
+    YUWELL(R.string.sensor_vendor_yuwell),
+    OTTAI(R.string.sensor_vendor_ottai),
+    NIGHTSCOUT(R.string.sensor_type_nightscout),
+    UNKNOWN(R.string.unknown),
     ;
 
     companion object {
@@ -47,7 +46,7 @@ enum class SensorVendor(
     }
 }
 
-/** Concrete sensor family shown beside the vendor badge. */
+/** Concrete sensor family shown on the sensor card's subtitle line. */
 enum class SensorTypeName(
     val labelRes: Int,
 ) {

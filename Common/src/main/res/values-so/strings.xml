@@ -2774,4 +2774,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sensor_pause_streaming">Jooji dareemaha</string>
+    <string name="sensor_resume_streaming">Sii wad dareemaha</string>
 </resources>

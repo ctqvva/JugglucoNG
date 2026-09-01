@@ -2689,4 +2689,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sensor_pause_streaming">Мэдрэгчийг түр зогсоох</string>
+    <string name="sensor_resume_streaming">Мэдрэгчийг үргэлжлүүлэх</string>
 </resources>

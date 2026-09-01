@@ -2602,4 +2602,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sensor_pause_streaming">Sensörü duraklat</string>
+    <string name="sensor_resume_streaming">Sensörü sürdür</string>
 </resources>
