@@ -291,11 +291,11 @@ class SensorViewModel : ViewModel() {
         }
     }
 
-    /** Pins this sensor to a palette slot everywhere it is drawn, or null to go back to automatic. */
-    fun setSensorPaletteColor(serial: String, paletteIndex: Int?) {
+    /** Pins this sensor's colour everywhere it is drawn, or null to go back to automatic. */
+    fun setSensorColor(serial: String, colorArgb: Int?) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                SensorVisuals.setPaletteOverride(serial, paletteIndex)
+                SensorVisuals.setColorOverride(serial, colorArgb)
                 refreshSensorsWithDeviceSync()
                 UiRefreshBus.requestDataRefresh()
             } catch (e: Exception) {

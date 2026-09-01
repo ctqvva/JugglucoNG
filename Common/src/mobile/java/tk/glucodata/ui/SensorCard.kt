@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -206,29 +207,32 @@ private fun SensorModelBadge(
 }
 
 /**
- * Split control: the check decides whether this sensor feeds the rest of the app — chart,
- * notifications, reading row, outputs — and the chart half opens its colour.
+ * The sensor's name lives inside its own control: the check on the left decides whether this
+ * sensor feeds the rest of the app — chart, notifications, reading row, outputs — and the
+ * split-off segment on the right opens its colour.
  */
 @Composable
-private fun SensorSplitControl(
+private fun SensorIdentityControl(
+    name: String,
     selected: Boolean,
+    selectable: Boolean,
     color: Color,
     onToggle: () -> Unit,
     onPickColor: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(
+    Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+        val leadShape = RoundedCornerShape(
+            topStart = 22.dp,
+            bottomStart = 22.dp,
+            topEnd = 6.dp,
+            bottomEnd = 6.dp,
+        )
+        Row(
             modifier = Modifier
-                .size(width = 38.dp, height = 36.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 18.dp,
-                        bottomStart = 18.dp,
-                        topEnd = 6.dp,
-                        bottomEnd = 6.dp,
-                    )
-                )
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(leadShape)
                 .background(
                     if (selected) {
                         color.copy(alpha = 0.18f)
@@ -236,32 +240,52 @@ private fun SensorSplitControl(
                         MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
                     }
                 )
-                .clickable(onClick = onToggle),
-            contentAlignment = Alignment.Center,
+                .then(
+                    if (selectable) {
+                        Modifier.toggleable(
+                            value = selected,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggle() },
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(start = 10.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = if (selected) {
-                    Icons.Rounded.CheckCircle
-                } else {
-                    Icons.Rounded.RadioButtonUnchecked
-                },
-                contentDescription = stringResource(
-                    if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
-                ),
-                tint = if (selected) color else color.copy(alpha = 0.55f),
-                modifier = Modifier.size(20.dp),
+            if (selectable) {
+                Icon(
+                    imageVector = if (selected) {
+                        Icons.Rounded.CheckCircle
+                    } else {
+                        Icons.Rounded.RadioButtonUnchecked
+                    },
+                    contentDescription = stringResource(
+                        if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
+                    ),
+                    tint = if (selected) color else color.copy(alpha = 0.55f),
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            SensorNameText(
+                name = name,
+                muted = selectable && !selected,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
         Spacer(modifier = Modifier.width(2.dp))
         Box(
             modifier = Modifier
-                .size(width = 32.dp, height = 36.dp)
+                .width(40.dp)
+                .fillMaxHeight()
                 .clip(
                     RoundedCornerShape(
                         topStart = 6.dp,
                         bottomStart = 6.dp,
-                        topEnd = 18.dp,
-                        bottomEnd = 18.dp,
+                        topEnd = 22.dp,
+                        bottomEnd = 22.dp,
                     )
                 )
                 .background(color.copy(alpha = 0.12f))
@@ -283,7 +307,11 @@ private fun SensorSplitControl(
  * than ellipsizing the moment the controls beside it need room.
  */
 @Composable
-private fun SensorNameText(name: String, modifier: Modifier = Modifier) {
+private fun SensorNameText(
+    name: String,
+    muted: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val measurer = rememberTextMeasurer()
     val baseStyle = MaterialTheme.typography.titleLarge
     val density = LocalDensity.current
@@ -298,6 +326,11 @@ private fun SensorNameText(name: String, modifier: Modifier = Modifier) {
         Text(
             text = name,
             style = style,
+            color = if (muted) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             maxLines = 1,
             softWrap = false,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -305,66 +338,6 @@ private fun SensorNameText(name: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Palette picker for one sensor's identity colour, shared by every surface that draws it. */
-@Composable
-private fun SensorColorSheet(
-    serial: String,
-    onPick: (Int?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    @OptIn(ExperimentalMaterial3Api::class)
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { CompactSheetDragHandle() },
-    ) {
-        val pinned = remember(serial) { SensorVisuals.paletteOverrideIndex(serial) }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.sensor_color_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                (0 until SensorVisuals.paletteSize).toList().chunked(4).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { index ->
-                            val swatch = Color(SensorVisuals.colorArgbAt(index))
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(swatch)
-                                    .clickable { onPick(index) },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (pinned == index) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(26.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(
-                onClick = { onPick(null) },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.sensor_color_automatic)) }
-        }
-    }
-}
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -925,13 +898,26 @@ fun SensorCard(
     }
 
     if (showColorSheet) {
-        SensorColorSheet(
-            serial = sensor.serial,
-            onPick = { paletteIndex ->
-                viewModel.setSensorPaletteColor(sensor.serial, paletteIndex)
+        val pinnedColor = remember(sensor.serial) {
+            SensorVisuals.colorOverrideArgb(sensor.serial)
+        }
+        ExpressiveColorPickerDialog(
+            title = stringResource(R.string.sensor_color_title),
+            initialColor = sensor.color.toArgb(),
+            showOpacity = false,
+            onDismiss = { showColorSheet = false },
+            onReset = if (pinnedColor != null) {
+                {
+                    viewModel.setSensorColor(sensor.serial, null)
+                    showColorSheet = false
+                }
+            } else {
+                null
+            },
+            onConfirm = { picked ->
+                viewModel.setSensorColor(sensor.serial, picked or 0xFF000000.toInt())
                 showColorSheet = false
             },
-            onDismiss = { showColorSheet = false },
         )
     }
 
@@ -1503,31 +1489,22 @@ fun SensorCard(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
+                        SensorModelBadge(
+                            badge = badge,
+                            vendor = sensor.vendor,
+                            color = sensor.color,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SensorIdentityControl(
+                            name = displayName,
+                            selected = sensor.isSelectedForDisplay,
+                            selectable = canToggleEnabled,
+                            color = sensor.color,
+                            onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
+                            onPickColor = { showColorSheet = true },
                             modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            SensorModelBadge(
-                                badge = badge,
-                                vendor = sensor.vendor,
-                                color = sensor.color,
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            SensorNameText(
-                                name = displayName,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            if (canToggleEnabled) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                SensorSplitControl(
-                                    selected = sensor.isSelectedForDisplay,
-                                    color = sensor.color,
-                                    onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
-                                    onPickColor = { showColorSheet = true },
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         if (isHandedOff) {
                             IconButton(

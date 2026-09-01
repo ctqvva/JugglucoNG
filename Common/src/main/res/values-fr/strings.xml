@@ -2583,5 +2583,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pause_streaming">Mettre le capteur en pause</string>
     <string name="sensor_resume_streaming">Reprendre le capteur</string>
     <string name="sensor_color_title">Couleur du capteur</string>
-    <string name="sensor_color_automatic">Automatique</string>
 </resources>

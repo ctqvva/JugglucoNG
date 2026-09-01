@@ -2616,5 +2616,4 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_pause_streaming">Sensor pausieren</string>
     <string name="sensor_resume_streaming">Sensor fortsetzen</string>
     <string name="sensor_color_title">Sensorfarbe</string>
-    <string name="sensor_color_automatic">Automatisch</string>
 </resources>

@@ -2578,5 +2578,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pause_streaming">Pausar sensor</string>
     <string name="sensor_resume_streaming">Retomar sensor</string>
     <string name="sensor_color_title">Cor do sensor</string>
-    <string name="sensor_color_automatic">Automático</string>
 </resources>

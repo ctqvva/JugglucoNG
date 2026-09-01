@@ -2692,5 +2692,4 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_pause_streaming">Мэдрэгчийг түр зогсоох</string>
     <string name="sensor_resume_streaming">Мэдрэгчийг үргэлжлүүлэх</string>
     <string name="sensor_color_title">Мэдрэгчийн өнгө</string>
-    <string name="sensor_color_automatic">Автомат</string>
 </resources>

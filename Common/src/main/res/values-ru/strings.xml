@@ -2624,5 +2624,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pause_streaming">Приостановить датчик</string>
     <string name="sensor_resume_streaming">Возобновить датчик</string>
     <string name="sensor_color_title">Цвет датчика</string>
-    <string name="sensor_color_automatic">Автоматически</string>
 </resources>

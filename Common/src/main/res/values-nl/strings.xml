@@ -2620,5 +2620,4 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_pause_streaming">Sensor pauzeren</string>
     <string name="sensor_resume_streaming">Sensor hervatten</string>
     <string name="sensor_color_title">Sensorkleur</string>
-    <string name="sensor_color_automatic">Automatisch</string>
 </resources>

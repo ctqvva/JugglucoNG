@@ -40,18 +40,14 @@ object SensorVisuals {
     )
 
     @JvmStatic
-    fun colorArgb(sensorId: String?): Int = palette[colorIndex(sensorId)]
+    fun colorArgb(sensorId: String?): Int =
+        colorOverrideArgb(sensorId) ?: palette[colorIndex(sensorId)]
 
     @JvmStatic
     fun colorArgbAt(index: Int): Int = palette[wrappedPaletteIndex(index)]
 
-    /** How many colours a picker can offer. */
-    @JvmStatic
-    val paletteSize: Int get() = palette.size
-
     @JvmStatic
     fun colorIndex(sensorId: String?): Int {
-        paletteOverrideIndex(sensorId)?.let { return it }
         val normalized = sensorId?.trim().orEmpty()
         if (normalized.isEmpty()) return 0
         val hash = normalized.hashCode()
@@ -63,12 +59,11 @@ object SensorVisuals {
         if (sensorIds.size <= 1) return sensorIds.map(::colorArgb)
 
         val used = BooleanArray(palette.size)
-        // A colour the user picked always wins, so those slots are reserved before
-        // the hash-assigned sensors start claiming what is left.
-        val pinned = sensorIds.map(::paletteOverrideIndex)
-        pinned.filterNotNull().forEach { used[it] = true }
+        // A colour the user picked is not a palette slot, so it neither consumes one
+        // nor competes with the sensors still being assigned automatically.
+        val picked = sensorIds.map(::colorOverrideArgb)
         return sensorIds.mapIndexed { position, sensorId ->
-            pinned[position]?.let { return@mapIndexed colorArgbAt(it) }
+            picked[position]?.let { return@mapIndexed it }
             val baseIndex = colorIndex(sensorId)
             val assignedIndex = if (!used[baseIndex]) {
                 baseIndex
@@ -85,7 +80,7 @@ object SensorVisuals {
      * Cached because the chart drawers call into here per frame.
      */
     @JvmStatic
-    fun paletteOverrideIndex(sensorId: String?): Int? {
+    fun colorOverrideArgb(sensorId: String?): Int? {
         val normalized = normalizedSensorId(sensorId) ?: return null
         val stored = overrides()
         if (stored.isEmpty()) return null
@@ -94,21 +89,21 @@ object SensorVisuals {
             ?.value
     }
 
-    /** Pins [sensorId] to a palette slot, or clears the pin when [paletteIndex] is null. */
+    /** Pins [sensorId] to [colorArgb], or clears the pin when it is null. */
     @JvmStatic
-    fun setPaletteOverride(sensorId: String?, paletteIndex: Int?) {
+    fun setColorOverride(sensorId: String?, colorArgb: Int?) {
         val normalized = normalizedSensorId(sensorId) ?: return
         val updated = overrides()
             .filterKeys { !SensorIdentity.matches(it, normalized) }
             .toMutableMap()
-        if (paletteIndex != null) {
-            updated[normalized] = wrappedPaletteIndex(paletteIndex)
+        if (colorArgb != null) {
+            updated[normalized] = colorArgb or (0xFF shl 24)
         }
         runCatching {
             prefs().edit()
                 .putString(
                     KEY_COLOR_OVERRIDES,
-                    updated.entries.joinToString("\n") { (id, index) -> "$id|$index" },
+                    updated.entries.joinToString("\n") { (id, argb) -> "$id|${argb.toLong() and 0xFFFFFFFFL}" },
                 )
                 .apply()
         }
@@ -131,9 +126,9 @@ object SensorVisuals {
                     val separator = line.lastIndexOf('|')
                     if (separator <= 0) return@mapNotNull null
                     val id = line.substring(0, separator)
-                    val index = line.substring(separator + 1).toIntOrNull()
+                    val argb = line.substring(separator + 1).toLongOrNull()
                         ?: return@mapNotNull null
-                    id to wrappedPaletteIndex(index)
+                    id to argb.toInt()
                 }
                 .toMap()
         }.getOrDefault(emptyMap())

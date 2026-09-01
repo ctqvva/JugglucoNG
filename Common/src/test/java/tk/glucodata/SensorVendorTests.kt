@@ -78,6 +78,7 @@ class SensorVendorTests {
     @Test
     fun unreportedOrOversizedModelsLeaveTheSecondLineBlank() {
         assertEquals("", sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "").model)
+        assertEquals("", sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "").model)
         assertEquals("", sensorBadge(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "Unknown").model)
         // "CT3-Ultrasonic" reduces to its family rather than being cut mid-word.
         assertEquals(
@@ -87,10 +88,21 @@ class SensorVendorTests {
     }
 
     @Test
-    fun badgeDistinguishesTheSibionicsGenerations() {
-        assertEquals("GS1", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS1).model)
-        assertEquals("GS2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2).model)
-        assertEquals("GS3", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS3).model)
+    fun badgeUsesTheSibionicsNameTheWizardAndModelRowUse() {
+        assertEquals(
+            SensorBadge("SIBI", "2"),
+            sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2"),
+        )
+        assertEquals(
+            SensorBadge("SIBI", "GS3"),
+            sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS3, "Sibionics GS3"),
+        )
+        assertEquals(
+            SensorBadge("SIBI", "EU"),
+            sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS1, "Sibionics EU"),
+        )
+        // Natively decoded Sibionics report no model string of their own.
+        assertEquals("2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2).model)
     }
 
     @Test

@@ -52,47 +52,51 @@ data class SensorBadge(val brand: String, val model: String)
 /**
  * Badge lines for a sensor: the product line on top, the concrete model underneath.
  *
- * The model comes from what the device reported over BLE wherever a driver reads it, so an
- * iCan i6 says "i6" rather than inheriting the family's i3. Where a driver has no model to
- * report the second line is simply left blank rather than guessing one.
+ * The model line is whatever the driver reported for this specific device — "Sibionics 2",
+ * "iCan i6", "CT5" — because that is the name the sensor wizard and the Model row already use.
+ * Only when a driver reports nothing does it fall back to the family's own name, and when even
+ * that is unknown the line is left blank rather than inventing a model.
  */
 fun sensorBadge(
     vendor: SensorVendor,
     type: SensorTypeName,
     vendorModel: String = "",
-): SensorBadge = when (vendor) {
-    SensorVendor.ABBOTT -> SensorBadge(
-        "LIBRE",
-        when (type) {
-            SensorTypeName.LIBRE_2 -> "2"
-            SensorTypeName.LIBRE_3 -> "3"
-            else -> ""
-        },
-    )
-    SensorVendor.SIBIONICS -> SensorBadge(
-        "SIBI",
-        when (type) {
-            SensorTypeName.SIBIONICS_GS1 -> "GS1"
-            SensorTypeName.SIBIONICS_2 -> "GS2"
-            SensorTypeName.SIBIONICS_GS3 -> "GS3"
-            else -> ""
-        },
-    )
-    SensorVendor.DEXCOM -> SensorBadge("DEXCOM", "G7")
-    SensorVendor.ROCHE -> SensorBadge("ACCU", "CHEK")
-    SensorVendor.MICROTECH -> SensorBadge("AIDEX", modelToken(vendorModel))
-    SensorVendor.SINOCARE -> SensorBadge("ICAN", modelToken(vendorModel))
-    SensorVendor.GLUTEC -> SensorBadge("GLUTEC", "MQ")
-    SensorVendor.YUWELL -> SensorBadge("ANYTIME", modelToken(vendorModel))
-    SensorVendor.OTTAI -> SensorBadge("OTTAI", "CGM")
-    SensorVendor.NIGHTSCOUT -> SensorBadge("NIGHT", "SCOUT")
-    SensorVendor.UNKNOWN -> SensorBadge("", "")
+): SensorBadge {
+    val reported = modelToken(vendorModel)
+    val model = reported.ifEmpty { fallbackModelToken(type) }
+    return when (vendor) {
+        SensorVendor.ABBOTT -> SensorBadge("LIBRE", model)
+        SensorVendor.SIBIONICS -> SensorBadge("SIBI", model)
+        SensorVendor.DEXCOM -> SensorBadge("DEXCOM", model)
+        SensorVendor.ROCHE -> SensorBadge("ACCU", model)
+        SensorVendor.MICROTECH -> SensorBadge("AIDEX", model)
+        SensorVendor.SINOCARE -> SensorBadge("ICAN", model)
+        SensorVendor.GLUTEC -> SensorBadge("GLUTEC", model)
+        SensorVendor.YUWELL -> SensorBadge("ANYTIME", model)
+        SensorVendor.OTTAI -> SensorBadge("OTTAI", model)
+        SensorVendor.NIGHTSCOUT -> SensorBadge("NIGHT", "SCOUT")
+        SensorVendor.UNKNOWN -> SensorBadge("", "")
+    }
+}
+
+/** Model name for sensors whose driver reports none, e.g. the natively-decoded Libre and Dexcom. */
+private fun fallbackModelToken(type: SensorTypeName): String = when (type) {
+    SensorTypeName.LIBRE_2 -> "2"
+    SensorTypeName.LIBRE_3 -> "3"
+    SensorTypeName.SIBIONICS_GS1 -> "GS1"
+    SensorTypeName.SIBIONICS_2 -> "2"
+    SensorTypeName.SIBIONICS_GS3 -> "GS3"
+    SensorTypeName.DEXCOM_G7 -> "G7"
+    SensorTypeName.ACCUCHEK_SMARTGUIDE -> "CHEK"
+    SensorTypeName.MQ -> "MQ"
+    SensorTypeName.OTTAI_CGM -> "CGM"
+    else -> ""
 }
 
 /**
  * Squeezes a driver's model string into something that fits a badge line: the last word of
- * "iCan i6", the family of "CT3-Ultrasonic". Anything still too long is dropped rather than
- * truncated into nonsense.
+ * "Sibionics 2" or "iCan i6", the family of "CT3-Ultrasonic". Anything still too long is
+ * dropped rather than truncated into nonsense.
  */
 private fun modelToken(vendorModel: String): String {
     val trimmed = vendorModel.trim()
