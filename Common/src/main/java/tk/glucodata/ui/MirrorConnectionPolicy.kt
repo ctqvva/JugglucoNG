@@ -36,6 +36,14 @@ internal fun isCloneEnabled(
     connections: List<MirrorConnectionSnapshot>
 ): Boolean = connections.any { !it.isWearOs && !it.isDeactivated }
 
+internal fun hasActiveCloneReceiver(
+    connections: List<MirrorConnectionSnapshot>
+): Boolean = connections.any { connection ->
+    !connection.isWearOs &&
+        !connection.isDeactivated &&
+        connection.receivesData
+}
+
 internal fun shouldDeleteAnnouncementSender(
     connection: MirrorConnectionSnapshot?,
     ownedByAnnouncement: Boolean
@@ -45,3 +53,14 @@ internal fun shouldDeleteAnnouncementSender(
 
 internal fun mirrorDisplayPort(isIce: Boolean, rawPort: String?): String? =
     rawPort.takeUnless { isIce }
+
+internal fun formatNetworkEndpoint(host: String?, port: Int): String? {
+    val value = host?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    if (port !in 1..65535) return null
+    val displayHost = if (':' in value && !(value.startsWith('[') && value.endsWith(']'))) {
+        "[$value]"
+    } else {
+        value
+    }
+    return "$displayHost:$port"
+}

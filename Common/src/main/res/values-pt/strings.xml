@@ -2598,6 +2598,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Com que frequência o seguidor pergunta ao servidor. É também a idade que um valor pode ter e, portanto, o atraso possível de um alarme baseado num valor seguido. Um seguidor não tem sensor próprio para manter o telemóvel acordado, por isso cada verificação é um despertar.</string>
     <string name="nightscout_follow_interval_doze">Abaixo de 9 minutos, o Android pode ainda assim afastar as verificações enquanto o telemóvel está inativo. Excluir o Juggluco da otimização da bateria mantém o intervalo escolhido.</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">ICE local</string>
+    <string name="clone_transport_turn_ice">ICE TURN</string>
+    <string name="clone_transport_unknown">Conexão desconhecida</string>
+    <string name="mirror_route">Rota</string>
+    <string name="mirror_stun_server">Servidor STUN</string>
+    <string name="mirror_certificate_verification">Verificação do certificado</string>
+    <string name="mirror_app_turn_server">TURN fornecido pelo aplicativo</string>
     <string name="clone_source_turn_description">Clone por TURN</string>
     <string name="clone_source_local_ice_description">Clone por ICE local</string>
 </resources>

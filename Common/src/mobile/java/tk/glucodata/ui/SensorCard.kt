@@ -1497,15 +1497,7 @@ fun SensorCard(
                             ) {
                                 val sensorStatusText = when {
                                     sensor.isCloneSource -> stringResource(
-                                        when (cloneTransport) {
-                                            tk.glucodata.CloneTransport.TURN -> R.string.clone_source_turn_description
-                                            tk.glucodata.CloneTransport.LOCAL_ICE -> R.string.clone_source_local_ice_description
-                                            tk.glucodata.CloneTransport.UNKNOWN, null -> if (cloneHealth.isDisconnected) {
-                                                R.string.status_disconnected
-                                            } else {
-                                                R.string.clone_source_label
-                                            }
-                                        }
+                                        tk.glucodata.CloneTransportPresentation.statusTextRes(cloneTransport)
                                     )
                                     sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
                                     sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus

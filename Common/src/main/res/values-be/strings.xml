@@ -2668,6 +2668,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Як часта падпісчык апытвае сервер. Гэта таксама тое, наколькі старым можа быць значэнне, а значыць і наколькі позна прыйдзе трывога па сачыльным значэнні. У падпісчыка няма свайго сэнсара, які трымаў бы тэлефон абуджаным, таму кожная праверка — гэта абуджэнне.</string>
     <string name="nightscout_follow_interval_doze">Менш за 9 хвілін Android усё роўна можа разводзіць праверкі, пакуль тэлефон бяздзейнічае. Выключэнне Juggluco з аптымізацыі батарэі захоўвае выбраны інтэрвал.</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">Лакальны ICE</string>
+    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_unknown">Падключэнне невядомае</string>
+    <string name="mirror_route">Маршрут</string>
+    <string name="mirror_stun_server">Сервер STUN</string>
+    <string name="mirror_certificate_verification">Праверка сертыфіката</string>
+    <string name="mirror_app_turn_server">TURN ад праграмы</string>
     <string name="clone_source_turn_description">Clone праз TURN</string>
     <string name="clone_source_local_ice_description">Clone праз лакальны ICE</string>
 </resources>

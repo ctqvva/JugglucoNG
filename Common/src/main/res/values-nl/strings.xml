@@ -2640,6 +2640,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_follow_interval_desc">Hoe vaak de volger de server bevraagt. Dat is ook hoe oud een waarde kan zijn, en dus hoe laat een alarm op een gevolgde waarde kan komen. Een volger heeft geen eigen sensor die de telefoon wakker houdt, dus elke controle is een wekmoment.</string>
     <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Juggluco uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">Lokale ICE</string>
+    <string name="clone_transport_turn_ice">TURN-ICE</string>
+    <string name="clone_transport_unknown">Verbinding onbekend</string>
+    <string name="mirror_route">Route</string>
+    <string name="mirror_stun_server">STUN-server</string>
+    <string name="mirror_certificate_verification">Certificaatcontrole</string>
+    <string name="mirror_app_turn_server">Door de app geleverde TURN</string>
     <string name="clone_source_turn_description">Clone via TURN</string>
     <string name="clone_source_local_ice_description">Clone via lokale ICE</string>
 </resources>

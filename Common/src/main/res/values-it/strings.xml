@@ -2587,6 +2587,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Ogni quanto il follower interroga il server. È anche quanto può essere vecchio un valore, e quindi quanto può ritardare un allarme su un valore seguito. Un follower non ha un sensore proprio che tenga sveglio il telefono, quindi ogni controllo è un risveglio.</string>
     <string name="nightscout_follow_interval_doze">Sotto i 9 minuti Android può comunque distanziare i controlli mentre il telefono è inattivo. Escludere Juggluco dall\'ottimizzazione della batteria mantiene l\'intervallo scelto.</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">ICE locale</string>
+    <string name="clone_transport_turn_ice">ICE TURN</string>
+    <string name="clone_transport_unknown">Connessione sconosciuta</string>
+    <string name="mirror_route">Percorso</string>
+    <string name="mirror_stun_server">Server STUN</string>
+    <string name="mirror_certificate_verification">Verifica del certificato</string>
+    <string name="mirror_app_turn_server">TURN fornito dall’app</string>
     <string name="clone_source_turn_description">Clone tramite TURN</string>
     <string name="clone_source_local_ice_description">Clone tramite ICE locale</string>
 </resources>

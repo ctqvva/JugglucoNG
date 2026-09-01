@@ -62,6 +62,22 @@ class MirrorConnectionPolicyTests {
     }
 
     @Test
+    fun backgroundLivenessIsShownOnlyForAnEnabledReceiver() {
+        assertFalse(hasActiveCloneReceiver(listOf(connection(1, receivesData = false))))
+        assertFalse(
+            hasActiveCloneReceiver(
+                listOf(connection(1, receivesData = true, isDeactivated = true))
+            )
+        )
+        assertFalse(
+            hasActiveCloneReceiver(
+                listOf(connection(1, receivesData = true, isWearOs = true))
+            )
+        )
+        assertTrue(hasActiveCloneReceiver(listOf(connection(1, receivesData = true))))
+    }
+
+    @Test
     fun announcementDeletesOnlyItsOwnUnusedSender() {
         val pending = connection(1)
 
@@ -79,5 +95,13 @@ class MirrorConnectionPolicyTests {
     fun iceConnectionsDoNotExposeTheirEncodedLabelAsAPort() {
         assertNull(mirrorDisplayPort(isIce = true, rawPort = "18755"))
         assertEquals("8795", mirrorDisplayPort(isIce = false, rawPort = "8795"))
+    }
+
+    @Test
+    fun networkEndpointsAreReadableAndDoNotConfuseIpv6ColonsWithThePort() {
+        assertEquals("connect.example.test:6789", formatNetworkEndpoint("connect.example.test", 6789))
+        assertEquals("[2001:db8::5]:3478", formatNetworkEndpoint("2001:db8::5", 3478))
+        assertNull(formatNetworkEndpoint("", 3478))
+        assertNull(formatNetworkEndpoint("connect.example.test", 0))
     }
 }

@@ -2597,6 +2597,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
     <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">Lokal ICE</string>
+    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_unknown">Okänd anslutning</string>
+    <string name="mirror_route">Rutt</string>
+    <string name="mirror_stun_server">STUN-server</string>
+    <string name="mirror_certificate_verification">Certifikatverifiering</string>
+    <string name="mirror_app_turn_server">TURN från appen</string>
     <string name="clone_source_turn_description">Clone via TURN</string>
     <string name="clone_source_local_ice_description">Clone via lokal ICE</string>
 </resources>
