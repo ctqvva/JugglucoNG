@@ -1,12 +1,12 @@
 package tk.glucodata
 
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertTrue
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class RendezvousTlsSafetyTests {
     private fun projectRoot(): File {
-        var dir = File(System.getProperty("user.dir")).absoluteFile
+        var dir = File(System.getProperty("user.dir") ?: error("user.dir is unavailable")).absoluteFile
         repeat(8) {
             if (File(dir, "Common/src/main/cpp/net/ICE/ContextHTTPS.cpp").isFile) return dir
             dir = dir.parentFile ?: return@repeat
@@ -41,7 +41,9 @@ class RendezvousTlsSafetyTests {
         assertTrue(https.contains("if(!options.verifyCertificate)"))
         assertTrue(https.contains("SSL_set_verify(ssl,SSL_VERIFY_NONE,nullptr)"))
         assertTrue(https.contains("if(options.verifyCertificate)"))
-        assertTrue(https.contains("!SSL_get_peer_certificateptr||!X509_check_hostptr||!X509_check_ip_ascptr"))
+        assertTrue(https.contains("!SSL_get_peer_certificateptr"))
+        assertTrue(https.contains("!X509_check_hostptr"))
+        assertTrue(https.contains("!X509_check_ip_ascptr"))
         assertTrue(screen.contains("mutableStateOf(if (isAbsent) true else initialIceConfig.useTurnForStun)"))
     }
 }
