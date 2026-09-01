@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
@@ -144,11 +146,45 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
-private val SensorBadgeWidth = 48.dp
+private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
 
 /**
- * Two-line vendor tile: product line over the concrete model the device reported. Fixed width so
+ * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
+ */
+@Composable
+private fun BadgeLabel(
+    text: String,
+    sizes: List<TextUnit>,
+    weight: FontWeight,
+    color: Color,
+    maxWidth: Dp,
+) {
+    val measurer = rememberTextMeasurer()
+    val base = MaterialTheme.typography.labelSmall
+    val density = LocalDensity.current
+    val maxWidthPx = with(density) { maxWidth.roundToPx() }
+    val style = remember(text, sizes, maxWidthPx, base) {
+        val candidates = sizes.map {
+            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp)
+        }
+        candidates.firstOrNull { candidate ->
+            measurer.measure(text, candidate, softWrap = false).size.width <= maxWidthPx
+        } ?: candidates.last()
+    }
+    Text(
+        text = text,
+        style = style,
+        fontWeight = weight,
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+    )
+}
+
+/**
+ * Vendor tile: brand and model on one line where they fit — "SIBI 2", "LIBRE 3" — and stacked
+ * only when they do not, so a one-character model never gets a row of its own. Fixed width so
  * every card's name starts on the same x, tinted with the sensor's colour.
  */
 @Composable
@@ -159,6 +195,7 @@ private fun SensorModelBadge(
     modifier: Modifier = Modifier,
 ) {
     val vendorName = stringResource(vendor.labelRes)
+    val innerWidth = SensorBadgeWidth - 8.dp
     Box(
         modifier = modifier
             .size(width = SensorBadgeWidth, height = SensorBadgeHeight)
@@ -167,42 +204,35 @@ private fun SensorModelBadge(
             .clearAndSetSemantics { contentDescription = vendorName },
         contentAlignment = Alignment.Center,
     ) {
-        if (badge.brand.isEmpty()) {
-            Icon(
+        when {
+            badge.brand.isEmpty() -> Icon(
                 imageVector = Icons.Default.Sensors,
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(20.dp),
             )
-        } else {
-            // One line when there is no distinct model to name, two when there is.
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val stacked = badge.model.isNotEmpty()
-                Text(
+            !badge.stacked -> BadgeLabel(
+                text = badge.inlineText,
+                sizes = listOf(12.sp, 11.sp, 10.sp, 9.sp),
+                weight = FontWeight.Black,
+                color = color,
+                maxWidth = innerWidth,
+            )
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                BadgeLabel(
                     text = badge.brand,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = if (stacked) 9.sp else 11.sp,
-                        lineHeight = if (stacked) 11.sp else 13.sp,
-                        letterSpacing = 0.4.sp,
-                    ),
-                    fontWeight = if (stacked) FontWeight.Bold else FontWeight.Black,
+                    sizes = listOf(9.sp, 8.sp),
+                    weight = FontWeight.Bold,
                     color = color,
-                    maxLines = 1,
-                    softWrap = false,
+                    maxWidth = innerWidth,
                 )
-                if (stacked) {
-                    Text(
-                        text = badge.model,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 14.sp,
-                        ),
-                        fontWeight = FontWeight.Black,
-                        color = color,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
+                BadgeLabel(
+                    text = badge.model,
+                    sizes = listOf(12.sp, 11.sp, 10.sp),
+                    weight = FontWeight.Black,
+                    color = color,
+                    maxWidth = innerWidth,
+                )
             }
         }
     }

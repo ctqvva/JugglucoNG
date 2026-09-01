@@ -46,8 +46,17 @@ enum class SensorVendor(
     }
 }
 
-/** Two stacked lines of the sensor card's badge. A blank [brand] means "draw a glyph instead". */
-data class SensorBadge(val brand: String, val model: String)
+/** The sensor card's badge. A blank [brand] means "draw a glyph instead". */
+data class SensorBadge(val brand: String, val model: String) {
+    /** Brand and model together, for the badges short enough to read on one line. */
+    val inlineText: String get() = if (model.isEmpty()) brand else "$brand $model"
+
+    /**
+     * Whether the two parts have to stack. A one-character model like Sibionics' reads oddly
+     * on a row of its own, so short pairs stay inline and only genuinely long ones split.
+     */
+    val stacked: Boolean get() = model.isNotEmpty() && inlineText.length > 7
+}
 
 /**
  * Badge lines for a sensor: the product line on top, the concrete model underneath.
@@ -67,7 +76,7 @@ fun sensorBadge(
     return when (vendor) {
         SensorVendor.ABBOTT -> SensorBadge("LIBRE", model)
         SensorVendor.SIBIONICS -> SensorBadge("SIBI", model)
-        SensorVendor.DEXCOM -> SensorBadge("DEXCOM", model)
+        SensorVendor.DEXCOM -> SensorBadge("DEX", model)
         SensorVendor.ROCHE -> SensorBadge("ACCU", model)
         SensorVendor.MICROTECH -> SensorBadge("AIDEX", model)
         SensorVendor.SINOCARE -> SensorBadge("ICAN", model)

@@ -76,6 +76,21 @@ class SensorVendorTests {
     }
 
     @Test
+    fun shortBrandAndModelPairsStayOnOneLine() {
+        assertEquals("SIBI 2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").inlineText)
+        assertTrue(!sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").stacked)
+        assertTrue(!sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3).stacked)
+        assertTrue(!sensorBadge(SensorVendor.DEXCOM, SensorTypeName.DEXCOM_G7).stacked)
+        assertTrue(!sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "iCan i6").stacked)
+        // Long pairs still split across two rows.
+        assertTrue(sensorBadge(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "CT5").stacked)
+        assertTrue(sensorBadge(SensorVendor.ROCHE, SensorTypeName.ACCUCHEK_SMARTGUIDE).stacked)
+        assertTrue(sensorBadge(SensorVendor.NIGHTSCOUT, SensorTypeName.NIGHTSCOUT).stacked)
+        // A lone brand has nothing to stack with.
+        assertTrue(!sensorBadge(SensorVendor.OTTAI, SensorTypeName.OTTAI_CGM, "Ottai CGM").stacked)
+    }
+
+    @Test
     fun modelsThatNameNothingCollapseTheBadgeToOneLine() {
         // "Ottai CGM" says Ottai; "CGM" is not a model.
         assertEquals(SensorBadge("OTTAI", ""), sensorBadge(SensorVendor.OTTAI, SensorTypeName.OTTAI_CGM, "Ottai CGM"))
