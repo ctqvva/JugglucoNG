@@ -32,7 +32,7 @@ class AiDexKeyExchange(
     /** True when F001/BOND material came from a provisioned source instead of serial derivation. */
     val usesProvisionedPairingMaterial: Boolean = pairingMaterial != null
 
-    /** F001 challenge. Legacy sensors derive it from the serial; newer sensors may provision it. */
+    /** F001 challenge. Sensors may accept serial-derived or sensor-specific material. */
     val snSecret: ByteArray = pairingMaterial?.secretCopy()
         ?: SerialCrypto.deriveSecret(bareSerial)
 

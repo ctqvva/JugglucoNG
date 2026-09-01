@@ -15,9 +15,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
@@ -28,35 +25,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
-import tk.glucodata.drivers.aidex.AiDexCnCloudClient
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
-import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
 
 enum class AiDexSetupStep {
     SCAN,
-    LOGIN,
+    KEY_MANAGEMENT,
     CONNECTING,
     SUCCESS
-}
-
-private enum class AiDexLoginMethod(val labelRes: Int) {
-    SMS(R.string.ottai_login_sms),
-    PASSWORD(R.string.ottai_login_password),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,10 +93,9 @@ fun AiDexSetupWizard(
             when (step) {
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
-                    signedIn = signedIn,
                     onNavigateToReadiness = onNavigateToReadiness,
-                    onSignIn = { currentStep = AiDexSetupStep.LOGIN },
-                    onDeviceSelected = { selectedName, address, isFGeneration ->
+                    onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
+                    onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
                             if (name.isEmpty()) {
@@ -128,43 +113,10 @@ fun AiDexSetupWizard(
                             // Initiate Connection Logic
                             scope.launch {
                                 try {
-                                    if (isFGeneration &&
-                                        !AiDexProvisioningStore.installSaved(context, name) &&
-                                        AiDexProvisioningStore.hasSession(context)
-                                    ) {
-                                        val result = withContext(Dispatchers.IO) {
-                                            AiDexCnCloudClient.getProvisionedKeys(
-                                                name,
-                                                AiDexProvisioningStore.token(context),
-                                            )
-                                        }
-                                        if (result.code == 800) {
-                                            AiDexProvisioningStore.clearSession(context)
-                                            signedIn = false
-                                        }
-                                        val keys = result.value
-                                        if (keys == null || !withContext(Dispatchers.IO) {
-                                                AiDexProvisioningStore.saveAndInstall(
-                                                    context,
-                                                    name,
-                                                    keys.secret,
-                                                    keys.iv,
-                                                )
-                                            }
-                                        ) {
-                                            val detail = result.error.takeIf(String::isNotBlank)
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.error) +
-                                                    detail?.let { ": $it" }.orEmpty(),
-                                                Toast.LENGTH_LONG,
-                                            ).show()
-                                            currentStep = AiDexSetupStep.SCAN
-                                            return@launch
-                                        }
-                                    }
-
-                                    // Add only after any required F-generation material is ready.
+                                    // Saved material is optional. With none present, the BLE driver
+                                    // always tries the serial-derived key first and reports a
+                                    // missing-key status only if the sensor rejects it.
+                                    AiDexProvisioningStore.installSaved(context, name)
                                     SensorBluetooth.addAiDexSensor(context, name, address)
 
                                     // 2. Wait a bit then show success
@@ -183,13 +135,11 @@ fun AiDexSetupWizard(
                         }
                     }
                 )
-                AiDexSetupStep.LOGIN -> AiDexLoginStep(
+                AiDexSetupStep.KEY_MANAGEMENT -> AiDexKeyManagementScreen(
                     ui = ui,
+                    initialSerial = selectedDeviceName,
                     signedIn = signedIn,
-                    onSignedIn = {
-                        signedIn = true
-                        currentStep = AiDexSetupStep.SCAN
-                    },
+                    onSignedIn = { signedIn = true },
                     onSignedOut = { signedIn = false },
                     onClose = { currentStep = AiDexSetupStep.SCAN },
                 )
@@ -219,17 +169,15 @@ fun AiDexSetupWizard(
 @Composable
 fun AiDexScanStep(
     ui: WizardUiMetrics,
-    signedIn: Boolean,
     onNavigateToReadiness: () -> Unit,
-    onSignIn: () -> Unit,
-    onDeviceSelected: (String, String, Boolean) -> Unit
+    onManageKeys: () -> Unit,
+    onDeviceSelected: (String, String) -> Unit
 ) {
     data class ScanCandidate(
         val address: String,
         val rawName: String,
         val selectionName: String,
         val serial: String?,
-        val isFGeneration: Boolean,
         val isLikelyAiDex: Boolean,
         val detectedViaFf30: Boolean,
     )
@@ -311,7 +259,6 @@ fun AiDexScanStep(
                     rawName = candidate.displayName,
                     selectionName = candidate.selectionName,
                     serial = candidate.serial,
-                    isFGeneration = candidate.isFGeneration,
                     isLikelyAiDex = candidate.isLikelyAiDex,
                     detectedViaFf30 = candidate.detectedViaFf30,
                 )
@@ -319,14 +266,12 @@ fun AiDexScanStep(
                 devices = if (existing == null) {
                     devices + next
                 } else {
-                    val preferNextIdentity = next.isFGeneration && !existing.isFGeneration ||
-                        next.serial != null && existing.serial == null
+                    val preferNextIdentity = next.serial != null && existing.serial == null
                     devices.map { current ->
                         if (current.address != address) current else current.copy(
                             rawName = if (preferNextIdentity) next.rawName else current.rawName,
                             selectionName = if (preferNextIdentity) next.selectionName else current.selectionName,
                             serial = if (preferNextIdentity) next.serial else current.serial,
-                            isFGeneration = current.isFGeneration || next.isFGeneration,
                             isLikelyAiDex = current.isLikelyAiDex || next.isLikelyAiDex,
                             detectedViaFf30 = current.detectedViaFf30 || next.detectedViaFf30,
                         )
@@ -453,7 +398,6 @@ fun AiDexScanStep(
                         onDeviceSelected(
                             device.selectionName,
                             device.address,
-                            device.isFGeneration,
                         )
                     }
                 )
@@ -461,7 +405,7 @@ fun AiDexScanStep(
             }
         }
         TextButton(
-            onClick = onSignIn,
+            onClick = onManageKeys,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 48.dp)
@@ -469,183 +413,9 @@ fun AiDexScanStep(
         ) {
             Text(
                 stringResource(
-                    if (signedIn) R.string.mq_account_status_signed_in
-                    else R.string.mq_account_sign_in_action,
+                    R.string.aidex_key_management_title,
                 ),
             )
-        }
-    }
-}
-
-@Composable
-private fun AiDexLoginStep(
-    ui: WizardUiMetrics,
-    signedIn: Boolean,
-    onSignedIn: () -> Unit,
-    onSignedOut: () -> Unit,
-    onClose: () -> Unit,
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var phone by remember { mutableStateOf(AiDexProvisioningStore.accountLabel(context)) }
-    var code by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var method by remember { mutableStateOf(AiDexLoginMethod.SMS) }
-    var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("") }
-    var statusIsError by remember { mutableStateOf(false) }
-    val normalizedPhone = AiDexCnCloudClient.normalizeCnPhone(phone)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
-        verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
-    ) {
-        Text(stringResource(R.string.aidex_setup_title), style = MaterialTheme.typography.titleLarge)
-
-        if (signedIn) {
-            Text(
-                stringResource(R.string.mq_account_status_signed_in),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            AiDexProvisioningStore.accountLabel(context).takeIf(String::isNotBlank)?.let {
-                Text("+86 $it", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            OutlinedButton(
-                onClick = {
-                    AiDexProvisioningStore.clearSession(context)
-                    onSignedOut()
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.mq_account_sign_out_action))
-            }
-            TextButton(
-                onClick = onClose,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.close))
-            }
-            return@Column
-        }
-
-        ConnectedButtonGroup(
-            options = AiDexLoginMethod.entries.toList(),
-            selectedOption = method,
-            onOptionSelected = {
-                method = it
-                status = ""
-                statusIsError = false
-            },
-            label = { Text(stringResource(it.labelRes)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = phone,
-            onValueChange = {
-                phone = it.filter(Char::isDigit).take(11)
-                status = ""
-            },
-            label = { Text(stringResource(R.string.ottai_phone_hint)) },
-            leadingIcon = { Text("+86") },
-            isError = phone.isNotBlank() && normalizedPhone == null,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        if (method == AiDexLoginMethod.SMS) {
-            OutlinedButton(
-                onClick = {
-                    val validPhone = normalizedPhone ?: return@OutlinedButton
-                    busy = true
-                    status = ""
-                    scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            AiDexCnCloudClient.requestLoginCode(validPhone)
-                        }
-                        busy = false
-                        statusIsError = !result.isSuccess
-                        status = if (result.isSuccess) {
-                            context.getString(R.string.ottai_code_sent_email, "+86 $validPhone")
-                        } else {
-                            result.error
-                        }
-                    }
-                },
-                enabled = !busy && normalizedPhone != null,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.ottai_send_code))
-            }
-            OutlinedTextField(
-                value = code,
-                onValueChange = { code = it.filter(Char::isDigit) },
-                label = { Text(stringResource(R.string.ottai_code_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text(stringResource(R.string.ottai_password_hint)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        if (status.isNotBlank()) {
-            Text(
-                status,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (statusIsError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Button(
-            onClick = {
-                val validPhone = normalizedPhone ?: return@Button
-                busy = true
-                status = ""
-                scope.launch {
-                    val result = withContext(Dispatchers.IO) {
-                        when (method) {
-                            AiDexLoginMethod.SMS -> AiDexCnCloudClient.loginWithCode(validPhone, code)
-                            AiDexLoginMethod.PASSWORD -> AiDexCnCloudClient.loginWithPassword(validPhone, password)
-                        }
-                    }
-                    busy = false
-                    val token = result.value
-                    if (token != null && withContext(Dispatchers.IO) {
-                            AiDexProvisioningStore.saveSession(context, validPhone, token)
-                        }
-                    ) {
-                        password = ""
-                        code = ""
-                        onSignedIn()
-                    } else {
-                        statusIsError = true
-                        status = result.error.ifBlank { context.getString(R.string.ottai_login_fail) }
-                    }
-                }
-            },
-            enabled = !busy && normalizedPhone != null &&
-                (if (method == AiDexLoginMethod.SMS) code.isNotBlank() else password.isNotBlank()),
-            modifier = Modifier.fillMaxWidth().heightIn(min = ui.buttonHeight),
-        ) {
-            if (busy) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                Text(stringResource(R.string.ottai_login_button))
-            }
         }
     }
 }
@@ -654,7 +424,6 @@ private data class AiDexScanDetection(
     val displayName: String,
     val selectionName: String,
     val serial: String?,
-    val isFGeneration: Boolean,
     val isLikelyAiDex: Boolean,
     val detectedViaFf30: Boolean,
 )
@@ -672,13 +441,14 @@ private fun detectAiDexCandidate(
 ): AiDexScanDetection {
     val localName = extractAiDexLocalName(scanRecordBytes)
     val names = linkedSetOf<String>()
-    listOf(deviceName, scanRecordName, localName)
+    listOf(scanRecordName, localName, deviceName)
         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
         .forEach { names.add(it) }
 
-    val fGenerationName = names.firstOrNull(AiDexSerialIdentity::isFGenerationAdvertisement)
-    val serial = fGenerationName?.let(AiDexSerialIdentity::canonicalFromAdvertisement)
-        ?: names.firstNotNullOfOrNull(AiDexSerialIdentity::canonicalFromAdvertisement)
+    val recognizedName = names.firstOrNull {
+        AiDexSerialIdentity.canonicalFromAdvertisement(it) != null
+    }
+    val serial = recognizedName?.let(AiDexSerialIdentity::canonicalFromAdvertisement)
     val nameLooksAiDex = names.any(::looksLikeAiDexFamilyName)
     val hasFf30 = advertisedServiceUuids?.contains(AIDEX_FF30_SERVICE_UUID) == true ||
         scanRecordAdvertises16BitService(scanRecordBytes, 0xFF30)
@@ -687,13 +457,12 @@ private fun detectAiDexCandidate(
             scanRecordAdvertises16BitService(scanRecordBytes, 0x181F) ||
             scanRecordAdvertises16BitService(scanRecordBytes, 0xF000)
     val isLikelyAiDex = serial != null || nameLooksAiDex || hasFf30 || hasPrimaryServiceHint
-    val displayName = fGenerationName ?: names.firstOrNull() ?: address
+    val displayName = recognizedName ?: names.firstOrNull() ?: address
     val selectionName = serial ?: AiDexSerialIdentity.fallbackCanonicalFromAddress(address)
     return AiDexScanDetection(
         displayName = displayName,
         selectionName = selectionName,
         serial = serial,
-        isFGeneration = fGenerationName != null,
         isLikelyAiDex = isLikelyAiDex,
         detectedViaFf30 = hasFf30,
     )

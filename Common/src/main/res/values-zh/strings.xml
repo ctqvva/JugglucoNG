@@ -674,6 +674,14 @@
     <string name="aidex_connected">已连接！</string>
     <string name="aidex_connecting_to">正在连接到 %1$s...</string>
     <string name="aidex_parse_error">AiDex：无法解析“%1$s”中的传感器序列</string>
+    <string name="aidex_key_management_title">AiDex 密钥</string>
+    <string name="aidex_key_management_desc">应用会先尝试本地配对。仅当传感器报告缺少密钥时，才添加该传感器专用的密钥。</string>
+    <string name="aidex_key_missing">缺少配对密钥</string>
+    <string name="aidex_key_rejected">已保存的配对密钥被拒绝；请替换</string>
+    <string name="aidex_key_saved">已保存传感器专用配对密钥</string>
+    <string name="aidex_key_fetch_action">从账户获取密钥</string>
+    <string name="aidex_key_fetch_requires_sign_in">请登录以下载此传感器的密钥。</string>
+    <string name="aidex_key_import_failed">导入失败——不是有效的 AiDex 密钥文件。</string>
     <string name="aidex_searching_sensors">正在搜索传感器...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">通过蓝牙配置 AiDex 或 LinX CGM</string>

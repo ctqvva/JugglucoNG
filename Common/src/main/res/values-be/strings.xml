@@ -653,6 +653,14 @@
     <string name="aidex_connected">Падключана!</string>
     <string name="aidex_connecting_to">Падключэнне да %1$s...</string>
     <string name="aidex_parse_error">AiDex: не ўдалося разабраць паслядоўны нумар датчыка з "%1$s"</string>
+    <string name="aidex_key_management_title">Ключы AiDex</string>
+    <string name="aidex_key_management_desc">Спачатку выконваецца лакальнае спалучэнне. Дадавайце асобны ключ датчыка толькі пасля паведамлення, што ключ адсутнічае.</string>
+    <string name="aidex_key_missing">Ключ спалучэння адсутнічае</string>
+    <string name="aidex_key_rejected">Захаваны ключ спалучэння адхілены; замяніце яго</string>
+    <string name="aidex_key_saved">Асобны ключ спалучэння датчыка захаваны</string>
+    <string name="aidex_key_fetch_action">Атрымаць ключ з акаўнта</string>
+    <string name="aidex_key_fetch_requires_sign_in">Увайдзіце, каб спампаваць ключ гэтага датчыка.</string>
+    <string name="aidex_key_import_failed">Імпарт не ўдаўся — файл ключа AiDex несапраўдны.</string>
     <string name="aidex_searching_sensors">Пошук датчыкаў...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Наладзьце AiDex або LinX CGM праз Bluetooth</string>

@@ -714,6 +714,14 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="aidex_connected">Bağlı!</string>
     <string name="aidex_connecting_to">%1$s\'a bağlanılıyor...</string>
     <string name="aidex_parse_error">AiDex: "%1$s"den sensör serileri ayrıştırılamadı</string>
+    <string name="aidex_key_management_title">AiDex anahtarları</string>
+    <string name="aidex_key_management_desc">Önce yerel eşleştirme denenir. Sensör anahtarın eksik olduğunu bildirdikten sonra sensöre özel anahtar ekleyin.</string>
+    <string name="aidex_key_missing">Eşleştirme anahtarı eksik</string>
+    <string name="aidex_key_rejected">Kaydedilen eşleştirme anahtarı reddedildi; değiştirin</string>
+    <string name="aidex_key_saved">Sensöre özel eşleştirme anahtarı kaydedildi</string>
+    <string name="aidex_key_fetch_action">Hesaptan anahtar al</string>
+    <string name="aidex_key_fetch_requires_sign_in">Bu sensörün anahtarını indirmek için giriş yapın.</string>
+    <string name="aidex_key_import_failed">İçe aktarma başarısız — geçerli bir AiDex anahtar dosyası değil.</string>
     <string name="aidex_searching_sensors">Sensörler aranıyor...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">AiDex veya LinX CGM\'yi Bluetooth aracılığıyla yapılandırma</string>

@@ -38,6 +38,7 @@ import tk.glucodata.Log
 import tk.glucodata.logd
 import tk.glucodata.logi
 import tk.glucodata.Natives
+import tk.glucodata.R
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
@@ -60,6 +61,9 @@ internal fun aiDexDeviceNameMatchesSerial(deviceName: String, serialNumber: Stri
     return deviceName.contains(bareSerial, ignoreCase = true) ||
             deviceName.contains(serialNumber, ignoreCase = true)
 }
+
+internal fun aiDexPairingKeyProblemStatusRes(usedSavedKey: Boolean): Int =
+    if (usedSavedKey) R.string.aidex_key_rejected else R.string.aidex_key_missing
 
 internal fun aiDexExtractLocalName(scanRecord: ByteArray): String? {
     var offset = 0
@@ -315,6 +319,7 @@ class AiDexBleManager(
 
     // -- Key Exchange State --
     private var challengeWritten = false
+    private var pairingKeyProblemStatus: String? = null
     private var bondDataRead = false
     private var keyExchangePendingBond = false
     private var bondStateAtConnection: Int = BluetoothDevice.BOND_NONE
@@ -1936,7 +1941,7 @@ class AiDexBleManager(
             logDisconnectContext(gatt, status, disconnectPhase)
             lastLiveReadingObservedTimeMs = 0L
             lastLiveContinuitySyncBucket = -1L
-            constatstatusstr = "Disconnected"
+            constatstatusstr = pairingKeyProblemStatus ?: "Disconnected"
             connectTime = 0L
             setPhase(Phase.IDLE)
             resetConnectionRuntimeState(reason = "disconnect", resetInvalidSetupCounter = false)
@@ -2828,6 +2833,7 @@ class AiDexBleManager(
     // =========================================================================
 
     private fun startKeyExchange(gatt: BluetoothGatt) {
+        pairingKeyProblemStatus = null
         maybeUseAdvertisedProtocolSerial()
         maybeUseProvisionedPairingMaterial()
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-key-exchange")
@@ -2858,8 +2864,8 @@ class AiDexBleManager(
 
     /**
      * Compatibility for sensors saved by older setup code as `X-<MAC>` after it failed to parse
-     * an F-generation advertisement. This changes only the protocol secret; it deliberately does
-     * not rename storage or native sensor identity while a sensor is active.
+     * a generation-prefixed advertisement. This changes only the protocol secret; it deliberately
+     * does not rename storage or native sensor identity while a sensor is active.
      */
     private fun maybeUseAdvertisedProtocolSerial() {
         val advertisedName = try {
@@ -2905,25 +2911,16 @@ class AiDexBleManager(
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
         if (data.size < 16) {
             Log.w(TAG, "F001 response too short (${data.size} bytes, hex=${AiDexParser.hexString(data)})")
-            val advertisedName = try {
-                mygetDeviceName()
-            } catch (_: Throwable) {
-                null
-            }
             if (
                 data.size == 1 &&
-                (data[0].toInt() and 0xFF) == 0 &&
-                AiDexSerialIdentity.isFGenerationAdvertisement(advertisedName)
+                (data[0].toInt() and 0xFF) == 0
             ) {
-                if (keyExchange.usesProvisionedPairingMaterial) {
-                    Log.e(TAG, "F-generation sensor rejected the provisioned F001 pairing material")
-                } else {
-                    Log.e(
-                        TAG,
-                        "F-generation sensor rejected serial-derived F001 pairing material; " +
-                            "this firmware may require sensor-specific server-provisioned secret/IV"
-                    )
-                }
+                pairingKeyProblemStatus = Applic.getContext().getString(
+                    aiDexPairingKeyProblemStatusRes(keyExchange.usesProvisionedPairingMaterial),
+                )
+                constatstatusstr = pairingKeyProblemStatus.orEmpty()
+                Log.e(TAG, pairingKeyProblemStatus.orEmpty())
+                UiRefreshBus.requestStatusRefresh()
             }
             return
         }
@@ -2941,6 +2938,7 @@ class AiDexBleManager(
         // Extract PAIR key (first 16 bytes of notification)
         val pairKeyData = data.copyOfRange(0, 16)
         keyExchange.onPairKeyReceived(pairKeyData)
+        pairingKeyProblemStatus = null
         Log.i(TAG, "Key exchange: PAIR key received (${AiDexParser.hexString(pairKeyData)})")
 
         // Step 3: Read BOND data from F002

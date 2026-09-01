@@ -662,6 +662,14 @@
     <string name="aidex_connected">Ansluten!</string>
     <string name="aidex_connecting_to">Ansluter till %1$s...</string>
     <string name="aidex_parse_error">AiDex: kunde inte analysera sensorserie från "%1$s"</string>
+    <string name="aidex_key_management_title">AiDex-nycklar</string>
+    <string name="aidex_key_management_desc">Lokal parkoppling provas först. Lägg bara till en sensorspecifik nyckel när sensorn meddelar att en nyckel saknas.</string>
+    <string name="aidex_key_missing">Parkopplingsnyckel saknas</string>
+    <string name="aidex_key_rejected">Sparad parkopplingsnyckel avvisades; ersätt den</string>
+    <string name="aidex_key_saved">Sensorspecifik parkopplingsnyckel sparad</string>
+    <string name="aidex_key_fetch_action">Hämta nyckel från konto</string>
+    <string name="aidex_key_fetch_requires_sign_in">Logga in för att hämta nyckeln till den här sensorn.</string>
+    <string name="aidex_key_import_failed">Importen misslyckades — inte en giltig AiDex-nyckelfil.</string>
     <string name="aidex_searching_sensors">Söker efter sensorer...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Konfigurera AiDex eller LinX CGM via Bluetooth</string>

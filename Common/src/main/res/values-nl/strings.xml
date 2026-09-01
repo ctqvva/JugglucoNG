@@ -751,6 +751,14 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aidex_connected">Verbonden!</string>
     <string name="aidex_connecting_to">Verbinding maken met %1$s...</string>
     <string name="aidex_parse_error">AiDex: kan het sensorserienummer van "%1$s" niet parseren</string>
+    <string name="aidex_key_management_title">AiDex-sleutels</string>
+    <string name="aidex_key_management_desc">Lokale koppeling wordt eerst geprobeerd. Voeg pas een sensorspecifieke sleutel toe wanneer de sensor meldt dat die ontbreekt.</string>
+    <string name="aidex_key_missing">Koppelingssleutel ontbreekt</string>
+    <string name="aidex_key_rejected">Opgeslagen koppelingssleutel geweigerd; vervang deze</string>
+    <string name="aidex_key_saved">Sensorspecifieke koppelingssleutel opgeslagen</string>
+    <string name="aidex_key_fetch_action">Sleutel ophalen uit account</string>
+    <string name="aidex_key_fetch_requires_sign_in">Meld je aan om de sleutel van deze sensor te downloaden.</string>
+    <string name="aidex_key_import_failed">Importeren mislukt — geen geldig AiDex-sleutelbestand.</string>
     <string name="aidex_searching_sensors">Sensoren zoeken...</string>
     <string name="aidex_sensor">Aidex / LinX</string>
     <string name="aidex_sensor_desc">Configureer AiDex of LinX CGM via Bluetooth</string>

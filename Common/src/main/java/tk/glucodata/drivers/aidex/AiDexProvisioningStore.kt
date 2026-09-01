@@ -59,13 +59,36 @@ internal object AiDexProvisioningStore {
         return AiDexNativeFactory.installProvisionedPairingMaterial(serial, secret, iv)
     }
 
+    fun hasSaved(context: Context, serial: String): Boolean = loadSaved(context, serial) != null
+
+    fun exportJson(context: Context, serial: String): String? {
+        val material = loadSaved(context, serial) ?: return null
+        return AiDexPairingMaterialFile.encode(serial, material.secret, material.iv)
+    }
+
+    fun importJson(context: Context, json: String): String? {
+        val parsed = AiDexPairingMaterialFile.decode(json) ?: return null
+        return parsed.serial.takeIf {
+            saveAndInstall(context, parsed.serial, parsed.secret, parsed.iv)
+        }
+    }
+
     /** Restore material before a BLE manager constructs its F001 key-exchange state. */
     fun installSaved(context: Context, serial: String): Boolean {
-        val value = readEncrypted(context, materialKey(serial)).takeIf(String::isNotBlank) ?: return false
-        val json = runCatching { JSONObject(value) }.getOrNull() ?: return false
-        val secret = decodeMaterial(json.optString("secret")) ?: return false
-        val iv = decodeMaterial(json.optString("iv")) ?: return false
-        return AiDexNativeFactory.installProvisionedPairingMaterial(serial, secret, iv)
+        val material = loadSaved(context, serial) ?: return false
+        return AiDexNativeFactory.installProvisionedPairingMaterial(
+            serial,
+            material.secret,
+            material.iv,
+        )
+    }
+
+    fun loadSaved(context: Context, serial: String): AiDexProvisionedKeys? {
+        val value = readEncrypted(context, materialKey(serial)).takeIf(String::isNotBlank) ?: return null
+        val json = runCatching { JSONObject(value) }.getOrNull() ?: return null
+        val secret = decodeMaterial(json.optString("secret")) ?: return null
+        val iv = decodeMaterial(json.optString("iv")) ?: return null
+        return AiDexProvisionedKeys(secret, iv)
     }
 
     private fun prefs(context: Context) =

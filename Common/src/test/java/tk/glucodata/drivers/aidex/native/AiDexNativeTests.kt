@@ -234,6 +234,8 @@ class SerialCryptoTests {
         assertEquals("2222293NWA", SerialCrypto.stripPrefix("AiDEX x-2222293NWA"))
         assertEquals("22222FZXKT", SerialCrypto.stripPrefix("AiDEX F-22222FZXKT"))
         assertEquals("22222FZXKT", SerialCrypto.stripPrefix("F-22222FZXKT"))
+        assertEquals("22222GZXKT", SerialCrypto.stripPrefix("AiDEX G-22222GZXKT"))
+        assertEquals("22222QZXKT", SerialCrypto.stripPrefix("Q-22222QZXKT"))
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("2222267V4E"))
     }
 

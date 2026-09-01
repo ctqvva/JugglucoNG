@@ -31,7 +31,7 @@ internal data class AiDexProvisionedKeys(
 )
 
 /**
- * Minimal client for the official AiDEX CN account and F-generation key endpoint.
+ * Minimal client for the official AiDEX CN account and sensor-specific key endpoint.
  *
  * The vendor API encrypts every JSON request and response with app-embedded RSA keys. Credentials,
  * tokens, and returned pairing material are deliberately excluded from logs.
@@ -46,7 +46,7 @@ internal object AiDexCnCloudClient {
     private const val TIMEOUT_MS = 20_000
 
     /**
-     * The F-generation endpoint mirrors the official app's China-only availability check. The
+     * The sensor-key endpoint mirrors the official app's China-only availability check. The
      * backend also accepts this compatibility routing header, which is required outside China.
      */
     private const val CN_ROUTING_IP = "220.181.38.148"

@@ -2,19 +2,20 @@ package tk.glucodata.drivers.aidex
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiDexManagedSensorIdentityAdapterTests {
 
     @Test
-    fun advertisedFGenerationName_usesCanonicalXIdentity() {
+    fun advertisedGenerationName_usesCanonicalXIdentityRegardlessOfLetter() {
         assertEquals(
             "X-22222FZXKT",
             AiDexSerialIdentity.canonicalFromAdvertisement("AiDEX F-22222FZXKT")
         )
         assertEquals("X-22222FZXKT", AiDexSerialIdentity.canonicalFromAdvertisement("F-22222FZXKT"))
+        assertEquals("X-22222GZXKT", AiDexSerialIdentity.canonicalFromAdvertisement("AiDEX G-22222GZXKT"))
+        assertEquals("X-22222QZXKT", AiDexSerialIdentity.canonicalFromAdvertisement("Q-22222QZXKT"))
         assertEquals(
             "X-2222267V4E",
             AiDexSerialIdentity.canonicalFromAdvertisement("AiDEX sensor X-2222267V4E")
@@ -22,11 +23,11 @@ class AiDexManagedSensorIdentityAdapterTests {
     }
 
     @Test
-    fun fGenerationDetection_requiresExplicitFSeparator() {
-        assertTrue(AiDexSerialIdentity.isFGenerationAdvertisement("AiDEX F-22222FZXKT"))
-        assertTrue(AiDexSerialIdentity.isFGenerationAdvertisement("F-22222FZXKT"))
-        assertFalse(AiDexSerialIdentity.isFGenerationAdvertisement("AiDEX X-22222FZXKT"))
-        assertFalse(AiDexSerialIdentity.isFGenerationAdvertisement("22222FZXKT"))
+    fun bareSerial_stripsAnyAdvertisedGenerationPrefix() {
+        assertEquals("22222FZXKT", AiDexSerialIdentity.bareSerial("AiDEX F-22222FZXKT"))
+        assertEquals("22222GZXKT", AiDexSerialIdentity.bareSerial("G-22222GZXKT"))
+        assertEquals("22222QZXKT", AiDexSerialIdentity.bareSerial("AiDEX Q-22222QZXKT"))
+        assertEquals("ABCDEFGHJK", AiDexSerialIdentity.bareSerial("ABCDEFGHJK"))
     }
 
     @Test

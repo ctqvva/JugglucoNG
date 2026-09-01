@@ -564,6 +564,14 @@
     <string name="aidex_connected">Conectado!</string>
     <string name="aidex_connecting_to">Conectando a %1$s...</string>
     <string name="aidex_parse_error">AiDex: não foi possível analisar a série do sensor de "%1$s"</string>
+    <string name="aidex_key_management_title">Chaves AiDex</string>
+    <string name="aidex_key_management_desc">O emparelhamento local é tentado primeiro. Adicione uma chave específica do sensor apenas depois de o sensor indicar que está em falta.</string>
+    <string name="aidex_key_missing">Chave de emparelhamento em falta</string>
+    <string name="aidex_key_rejected">Chave de emparelhamento guardada rejeitada; substitua-a</string>
+    <string name="aidex_key_saved">Chave de emparelhamento específica do sensor guardada</string>
+    <string name="aidex_key_fetch_action">Obter chave da conta</string>
+    <string name="aidex_key_fetch_requires_sign_in">Inicie sessão para transferir a chave deste sensor.</string>
+    <string name="aidex_key_import_failed">Falha na importação — ficheiro de chave AiDex inválido.</string>
     <string name="aidex_searching_sensors">Procurando sensores...</string>
     <string name="aidex_sensor">AiDex/LinX</string>
     <string name="aidex_sensor_desc">Configurar AiDex ou LinX CGM via Bluetooth</string>

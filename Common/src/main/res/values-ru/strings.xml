@@ -778,6 +778,14 @@
     <string name="aidex_connected">Подключено!</string>
     <string name="aidex_connecting_to">Подключение к %1$s...</string>
     <string name="aidex_parse_error">AiDex: не удалось проанализировать серийный номер датчика из «%1$s».</string>
+    <string name="aidex_key_management_title">Ключи AiDex</string>
+    <string name="aidex_key_management_desc">Сначала выполняется локальное сопряжение. Добавляйте ключ конкретного датчика только после сообщения, что ключ отсутствует.</string>
+    <string name="aidex_key_missing">Ключ сопряжения отсутствует</string>
+    <string name="aidex_key_rejected">Сохранённый ключ сопряжения отклонён; замените его</string>
+    <string name="aidex_key_saved">Ключ сопряжения для датчика сохранён</string>
+    <string name="aidex_key_fetch_action">Получить ключ из аккаунта</string>
+    <string name="aidex_key_fetch_requires_sign_in">Войдите, чтобы загрузить ключ этого датчика.</string>
+    <string name="aidex_key_import_failed">Не удалось импортировать — неверный файл ключа AiDex.</string>
     <string name="aidex_searching_sensors">Ищем датчики...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Настройте AiDex или LinX CGM через Bluetooth</string>
