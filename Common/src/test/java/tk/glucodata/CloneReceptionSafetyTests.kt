@@ -92,10 +92,23 @@ class CloneReceptionSafetyTests {
             .replace(Regex("\\s+"), " ")
         val access = source("Common/src/main/java/tk/glucodata/HistorySyncAccess.kt")
             .replace(Regex("\\s+"), " ")
+        val snapshots = source("Common/src/mobile/java/tk/glucodata/OutboundApiJournalSnapshot.kt")
+            .replace(Regex("\\s+"), " ")
 
         val reconcile = registry.substring(registry.indexOf("fun reconcilePrimaryCloneSensor"))
         assertTrue(reconcile.contains("whileReceptionEnabled"))
         assertTrue(access.contains("return CloneSensorRegistry.whileReceptionEnabled"))
+
+        val importStart = snapshots.indexOf("fun importCloneIobSnapshot")
+        val importEnd = snapshots.indexOf("fun importFromJson", importStart)
+        assertTrue(importStart >= 0 && importEnd > importStart)
+        val importBody = snapshots.substring(importStart, importEnd)
+        assertTrue(importBody.contains("CloneIobSnapshot.update(remote)"))
+        assertTrue(importBody.contains("scheduleCloneIobRefresh(remote.timestampMillis)"))
+        assertFalse(importBody.contains("broadcastIobSnapshot("))
+        assertFalse(importBody.contains("JournalIobAccess.pushWatchserver("))
+        assertFalse(importBody.contains("Notify.showoldglucose()"))
+        assertTrue(snapshots.contains("cloneIobRefreshJob = journalChangedScope.launch"))
     }
 
     @Test
