@@ -551,7 +551,7 @@ object OutboundApiJournalSnapshot {
         foodsById: Map<Long, JournalFoodEntity>
     ): JSONObject {
         val type = JournalEntryType.fromStorage(entryType)
-        val transferId = cloneJournalTransferIdentifier(sourceRecordId, id)
+        val transferId = cloneJournalTransferIdentifier(id)
         val treatment = JournalTreatmentTransfer.buildTreatmentJson(
             entry = this,
             remoteId = transferId,
@@ -592,8 +592,7 @@ object OutboundApiJournalSnapshot {
             CloneTransport.UNKNOWN -> JournalEntrySource.CLONE
         }
 
-    internal fun cloneJournalTransferIdentifier(sourceRecordId: String?, localId: Long): String =
-        sourceRecordId?.takeIf { it.isNotBlank() } ?: "journal:$localId"
+    internal fun cloneJournalTransferIdentifier(localId: Long): String = "journal:$localId"
 
     internal fun JournalEntrySource.isCloneJournalExportSource(): Boolean = when (this) {
         JournalEntrySource.MANUAL,
