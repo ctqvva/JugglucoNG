@@ -959,9 +959,11 @@ fun DashboardCombinedHeader(
                     val heroOwnsAwaitingStatus = resolvedDataState.isAwaitingData &&
                         statusCopy != null &&
                         lifecycleText.isNotEmpty()
-                    val showingStatus = sensorStatus.isNotEmpty() &&
-                        sensorStatus != "Ready" &&
-                        !heroOwnsAwaitingStatus
+                    val showingStatus = shouldShowDashboardSensorStatus(
+                        isFreshData = isFreshData,
+                        sensorStatus = sensorStatus,
+                        heroOwnsAwaitingStatus = heroOwnsAwaitingStatus,
+                    )
                     val mainText = if (showingStatus) sensorStatus else lifecycleText
                     if (mainText.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))

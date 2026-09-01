@@ -1289,19 +1289,22 @@ fun SensorCard(
     val cloneHasRecentData = !sensor.isCloneSource || currentSnapshot?.let { snapshot ->
         abs(cloneHealthNowMillis - snapshot.timeMillis) <= Notify.glucosetimeout
     } == true
-    val cloneTransport = if (sensor.isCloneSource) {
+    val reportedCloneTransport = if (sensor.isCloneSource) {
         tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensor.serial)
     } else {
         null
     }
-    val cloneHasLiveConnection = cloneTransport == tk.glucodata.CloneTransport.LOCAL_ICE ||
-        cloneTransport == tk.glucodata.CloneTransport.TURN
+    val cloneHealth = tk.glucodata.CloneSensorHealthPolicy.resolve(
+        hasRecentData = cloneHasRecentData,
+        transport = reportedCloneTransport,
+    )
+    val cloneTransport = cloneHealth.liveTransport
     // A watch-owned sensor is operational even though this phone's local BLE
     // callback is deliberately paused. A Clone record, however, is only
     // healthy while readings are actually arriving; transport connectivity by
     // itself must not make a silent Clone look enabled.
     val isStreaming = when {
-        sensor.isCloneSource -> cloneHasRecentData && cloneHasLiveConnection
+        sensor.isCloneSource -> cloneHealth.isReceiving
         else -> isLocallyStreaming || isHandedOff
     }
     // Visual Feedback: Darken card when disconnected/paused
@@ -1380,13 +1383,10 @@ fun SensorCard(
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
                     val statusText = when {
                         sensor.isCloneSource && !cloneHasRecentData -> stringResource(R.string.nodata)
-                        sensor.isCloneSource && !cloneHasLiveConnection -> stringResource(R.string.status_disconnected)
                         isStreaming -> stringResource(R.string.enabled_status)
                         else -> stringResource(R.string.disabled_status)
                     }
-                    val statusColor = if (sensor.isCloneSource &&
-                        (!cloneHasRecentData || !cloneHasLiveConnection)
-                    ) {
+                    val statusColor = if (sensor.isCloneSource && !cloneHasRecentData) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MaterialTheme.colorScheme.onSurface
@@ -1500,7 +1500,11 @@ fun SensorCard(
                                         when (cloneTransport) {
                                             tk.glucodata.CloneTransport.TURN -> R.string.clone_source_turn_description
                                             tk.glucodata.CloneTransport.LOCAL_ICE -> R.string.clone_source_local_ice_description
-                                            tk.glucodata.CloneTransport.UNKNOWN, null -> R.string.status_disconnected
+                                            tk.glucodata.CloneTransport.UNKNOWN, null -> if (cloneHealth.isDisconnected) {
+                                                R.string.status_disconnected
+                                            } else {
+                                                R.string.clone_source_label
+                                            }
                                         }
                                     )
                                     sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
