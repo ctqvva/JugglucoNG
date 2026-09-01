@@ -76,6 +76,13 @@ class SensorVendorTests {
     }
 
     @Test
+    fun modelsThatNameNothingCollapseTheBadgeToOneLine() {
+        // "Ottai CGM" says Ottai; "CGM" is not a model.
+        assertEquals(SensorBadge("OTTAI", ""), sensorBadge(SensorVendor.OTTAI, SensorTypeName.OTTAI_CGM, "Ottai CGM"))
+        assertEquals(SensorBadge("GLUTEC", "MQ"), sensorBadge(SensorVendor.GLUTEC, SensorTypeName.MQ, "Glutec CGM"))
+    }
+
+    @Test
     fun unreportedOrOversizedModelsLeaveTheSecondLineBlank() {
         assertEquals("", sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "").model)
         assertEquals("", sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "").model)

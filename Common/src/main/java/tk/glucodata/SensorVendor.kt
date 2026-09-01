@@ -89,21 +89,25 @@ private fun fallbackModelToken(type: SensorTypeName): String = when (type) {
     SensorTypeName.DEXCOM_G7 -> "G7"
     SensorTypeName.ACCUCHEK_SMARTGUIDE -> "CHEK"
     SensorTypeName.MQ -> "MQ"
-    SensorTypeName.OTTAI_CGM -> "CGM"
     else -> ""
 }
 
+/** Words that name no particular model, so the badge is better off with one line than two. */
+private val genericModelWords = setOf("CGM", "SENSOR", "GLUCOSE", "UNKNOWN")
+
 /**
  * Squeezes a driver's model string into something that fits a badge line: the last word of
- * "Sibionics 2" or "iCan i6", the family of "CT3-Ultrasonic". Anything still too long is
- * dropped rather than truncated into nonsense.
+ * "Sibionics 2" or "iCan i6", the family of "CT3-Ultrasonic". Anything still too long, or that
+ * names nothing ("Ottai CGM"), is dropped rather than padding the badge with a second line.
  */
 private fun modelToken(vendorModel: String): String {
     val trimmed = vendorModel.trim()
-    if (trimmed.isEmpty() || trimmed.equals("Unknown", ignoreCase = true)) return ""
+    if (trimmed.isEmpty()) return ""
     val lastWord = trimmed.substringAfterLast(' ').trim()
     val shortened = if (lastWord.length > 6) lastWord.substringBefore('-') else lastWord
-    return if (shortened.length in 1..6) shortened.uppercase() else ""
+    if (shortened.length !in 1..6) return ""
+    val upper = shortened.uppercase()
+    return if (upper in genericModelWords) "" else upper
 }
 
 /** Concrete sensor family, shown as a badge beside the sensor name. */

@@ -175,20 +175,22 @@ private fun SensorModelBadge(
                 modifier = Modifier.size(20.dp),
             )
         } else {
+            // One line when there is no distinct model to name, two when there is.
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val stacked = badge.model.isNotEmpty()
                 Text(
                     text = badge.brand,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 9.sp,
-                        lineHeight = 11.sp,
+                        fontSize = if (stacked) 9.sp else 11.sp,
+                        lineHeight = if (stacked) 11.sp else 13.sp,
                         letterSpacing = 0.4.sp,
                     ),
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = if (stacked) FontWeight.Bold else FontWeight.Black,
                     color = color,
                     maxLines = 1,
                     softWrap = false,
                 )
-                if (badge.model.isNotEmpty()) {
+                if (stacked) {
                     Text(
                         text = badge.model,
                         style = MaterialTheme.typography.labelSmall.copy(

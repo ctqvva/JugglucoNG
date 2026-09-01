@@ -23,7 +23,7 @@ object SensorVisuals {
     const val PEER_TEXT_BLEND = 0.45f
 
     private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val KEY_COLOR_OVERRIDES = "sensor_palette_color_overrides"
+    private const val KEY_COLOR_OVERRIDES = "sensor_color_overrides_argb"
 
     @Volatile
     private var cachedOverrides: Map<String, Int>? = null
@@ -126,9 +126,12 @@ object SensorVisuals {
                     val separator = line.lastIndexOf('|')
                     if (separator <= 0) return@mapNotNull null
                     val id = line.substring(0, separator)
-                    val argb = line.substring(separator + 1).toLongOrNull()
+                    val argb = line.substring(separator + 1).toLongOrNull()?.toInt()
                         ?: return@mapNotNull null
-                    id to argb.toInt()
+                    // A fully transparent entry can only be corrupt data; ignore it rather
+                    // than painting a sensor with an invisible colour.
+                    if ((argb ushr 24) == 0) return@mapNotNull null
+                    id to argb
                 }
                 .toMap()
         }.getOrDefault(emptyMap())
