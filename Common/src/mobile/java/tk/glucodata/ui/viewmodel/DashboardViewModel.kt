@@ -56,10 +56,8 @@ internal object DashboardHistoryCollectionPolicy {
      * Whether to also run the unbounded stream that backs the History browse
      * screen.
      *
-     * This used to be called `usesMergedCrossSensorHistory`, which stopped being
-     * what it means: the dashboard chart is merged across sensors too now. What
-     * still separates the two is the bound — the dashboard queries the visible
-     * window, the History route queries everything.
+     * The dashboard uses its selected-sensor stream. The History route alone
+     * additionally runs the unbounded merged cross-sensor stream.
      */
     fun runsUnboundedHistoryStream(mode: DashboardViewModel.CollectionMode): Boolean =
         mode == DashboardViewModel.CollectionMode.FULL_HISTORY
@@ -272,29 +270,19 @@ class DashboardViewModel(
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
 
-    /**
-     * The chart's line: every sensor that covers the visible window, merged.
-     *
-     * Not the same list as [currentSensorTail], and the difference is the whole
-     * point — see that property.
-     */
+    /** The selected sensor's primary chart line and visible reading rows. */
     private val _glucoseHistory = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
     val glucoseHistory = _glucoseHistory.asStateFlow()
 
     /**
      * The current sensor's own recent readings, never merged with any other.
      *
-     * Deliberately not a UI input. The one thing that needs it is the native
-     * history-recovery check: it asks "is this sensor behind?", and the merged
-     * list the dashboard draws can answer with a *different* sensor's newer
-     * reading, so a live sensor that has gone quiet looks up to date and no
-     * re-sync is requested.
+     * Deliberately not a UI input. It gives the native history-recovery check a
+     * bounded timestamp source without coupling that check to the chart's full
+     * scrollable history.
      *
-     * Everything the user sees — rows, hero, trend, Δ, prediction — reads
-     * [glucoseHistory], as it always has. Repointing those at this list changed
-     * which reading each row showed and how often the list identity churned, and
-     * regressed both. If you are about to wire a visible surface to this, that is
-     * the reason not to.
+     * Everything the user sees reads [glucoseHistory]. This tail is only the
+     * bounded timestamp source for deciding whether native recovery is needed.
      */
     private val _currentSensorTail = MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
 
@@ -1046,11 +1034,8 @@ class DashboardViewModel(
      * Collects the current sensor's own tail, and owns the history-recovery
      * decision that used to ride on the chart's emissions.
      *
-     * Recovery moved here with the data it reasons about. Now that the chart
-     * shows every sensor covering the window, "the newest point in the drawn
-     * list" can belong to a sensor that is not the current one — and asking that
-     * list whether the current sensor is behind would answer no while it sits
-     * silent. This flow is that sensor and only that sensor.
+     * Recovery stays on a bounded sensor-only flow so it remains independent of
+     * chart range and rendering work.
      */
     private fun startCurrentSensorTailCollection(mode: CollectionMode) {
         currentSensorTailJob?.cancel()

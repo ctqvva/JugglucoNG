@@ -340,6 +340,50 @@ class AnytimeCt5Tests {
         )
     }
 
+    @Test
+    fun sparsePendingEnvelopeRepairsNewestRealHoleFirst() {
+        val cached = (7025..7511).toMutableSet().apply {
+            remove(7025)
+            remove(7508)
+            remove(7511)
+        }
+
+        assertEquals(
+            "7025..7511",
+            ct5MissingEnvelope(7025, 7512, cached)!!.toString(),
+        )
+        assertEquals(
+            "7511..7511",
+            ct5NewestMissingRange(7025, 7512, cached, maxRecords = 15)!!.toString(),
+        )
+    }
+
+    @Test
+    fun newestMissingRangeKeepsAContiguousRunAndHonoursBatchLimit() {
+        val cached = (100..140).toMutableSet().apply {
+            (120..137).forEach(::remove)
+        }
+
+        assertEquals(
+            "123..137",
+            ct5NewestMissingRange(100, 141, cached, maxRecords = 15)!!.toString(),
+        )
+
+        cached.addAll(123..137)
+        assertEquals(
+            "120..122",
+            ct5NewestMissingRange(100, 141, cached, maxRecords = 15)!!.toString(),
+        )
+    }
+
+    @Test
+    fun filledPendingEnvelopeDisappears() {
+        val cached = (289..300).toSet()
+
+        assertNull(ct5MissingEnvelope(289, 301, cached))
+        assertNull(ct5NewestMissingRange(289, 301, cached, maxRecords = 15))
+    }
+
     // ---- Reconnect churn -------------------------------------------------
 
     @Test

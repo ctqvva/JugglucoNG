@@ -341,8 +341,10 @@ class AnytimeBleManager(
     @Volatile private var historyEmptyResponsesInARow: Int = 0
     @Volatile private var historyLastPulledId: Int = -1
     @Volatile private var historyPullInFlight: Boolean = false
+    @Volatile private var historyPullInFlightCount: Int = 0
     @Volatile private var historyPullInFlightWasLegacySeries: Boolean = false
     @Volatile private var legacySeriesHistorySupported: Boolean = true
+    @Volatile private var ct5SingleRecordHistoryOnly: Boolean = false
     @Volatile private var historyStopBeforeId: Int = Int.MAX_VALUE
     @Volatile private var historyBackfillReason: String = ""
     @Volatile private var historyBackfillStartedAfterGlucoseId: Int = -1
@@ -747,11 +749,13 @@ class AnytimeBleManager(
         historyLastPulledId = nextId - 1
         historyPullInFlight = true
         val count = historyPullCount(nextId)
+        historyPullInFlightCount = count
         historyPullInFlightWasLegacySeries = count > 1 && !isCt5()
         Log.d(TAG, "Backfill pull next id=$nextId count=$count")
         if (!writeFrame(pullGlucoseFrame(nextId, count), anytimeBackfillWriteTag(count))) {
             clearHistoryPullTimeout()
             historyPullInFlight = false
+            historyPullInFlightCount = 0
             historyPullInFlightWasLegacySeries = false
             handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
         }
@@ -761,16 +765,29 @@ class AnytimeBleManager(
         if (stop || !historyBackfillActive || !historyPullInFlight) return@Runnable
         protocolResponseInFlight = false
         val retryId = (historyLastPulledId + 1).coerceAtLeast(0)
-        Log.w(TAG, "History pull timeout at id=$retryId series=$historyPullInFlightWasLegacySeries")
+        val failedCount = historyPullInFlightCount.coerceAtLeast(1)
+        Log.w(TAG, "History pull timeout at id=$retryId count=$failedCount series=$historyPullInFlightWasLegacySeries")
         if (isCt5()) {
             // Transient by construction: the sensor does not stop supporting 0x37
             // mid-session. Keep the range, back off, and give up only for the rest
             // of this GATT session — never for the manager or the process.
             clearProtocolFrameTimeout()
             flushPendingHistoryRoomImports()
-            val backoffMs = ct5HistoryHealth.onTimeout()
             historyPullInFlight = false
+            historyPullInFlightCount = 0
             historyPullInFlightWasLegacySeries = false
+            if (failedCount > 1) {
+                ct5SingleRecordHistoryOnly = true
+                Log.w(
+                    TAG,
+                    "CT5 $failedCount-record history pull timed out at id=$retryId; " +
+                            "falling back to single-record pulls"
+                )
+                handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+                UiRefreshBus.requestStatusRefresh()
+                return@Runnable
+            }
+            val backoffMs = ct5HistoryHealth.onTimeout()
             if (backoffMs == null) {
                 Log.w(
                     TAG,
@@ -791,6 +808,7 @@ class AnytimeBleManager(
             Log.w(TAG, "Disabling 0x22 batched history for this session; falling back to 0x08 single-record pulls")
         }
         historyPullInFlight = false
+        historyPullInFlightCount = 0
         historyPullInFlightWasLegacySeries = false
         handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
     }
@@ -1284,9 +1302,13 @@ class AnytimeBleManager(
             return
         }
         if (completedReason.startsWith("ct5-gap") || completedReason.startsWith("ct5-reconnect-catchup")) {
-            // The requested repair range is done; nothing is owed to a later connection.
-            clearPendingCt5Gap()
-            handler.postDelayed({ maybeResumeCt5InitialHistory() }, historyBatchDelayMs())
+            // A run is only one contiguous slice of a possibly sparse envelope.
+            // Recompute from cached ids, then repair the next-newest hole before
+            // returning to the optional initial import.
+            val moreGaps = refreshPendingCt5GapFromCache() != null
+            handler.postDelayed({
+                if (!moreGaps || !maybeResumePendingCt5Gap()) maybeResumeCt5InitialHistory()
+            }, historyBatchDelayMs())
             return
         }
         if (isFreshRecentBackfillReason(completedReason)) {
@@ -1411,6 +1433,30 @@ class AnytimeBleManager(
         persistAlgorithmState()
     }
 
+    private fun cachedCt5HistoryIds(): Set<Int> = synchronized(rawAlgorithmWindow) {
+        rawAlgorithmWindow.keys.toHashSet()
+    }
+
+    /** Rebuild the durable envelope from ids that are still genuinely absent. */
+    private fun refreshPendingCt5GapFromCache(): AnytimeIdRange? {
+        if (ct5PendingGapFromId < 0) return null
+        val remaining = ct5MissingEnvelope(
+            pendingFromId = ct5PendingGapFromId,
+            pendingStopBeforeId = ct5PendingGapStopBeforeId,
+            cachedIds = cachedCt5HistoryIds(),
+        )
+        if (remaining == null) {
+            clearPendingCt5Gap()
+            return null
+        }
+        if (remaining.fromId != ct5PendingGapFromId || remaining.stopBeforeId != ct5PendingGapStopBeforeId) {
+            ct5PendingGapFromId = remaining.fromId
+            ct5PendingGapStopBeforeId = remaining.stopBeforeId
+            persistAlgorithmState()
+        }
+        return remaining
+    }
+
     private fun clearPendingCt5Gap() {
         if (ct5PendingGapFromId < 0 && ct5PendingGapStopBeforeId < 0) return
         ct5PendingGapFromId = -1
@@ -1452,16 +1498,19 @@ class AnytimeBleManager(
         }
         // A newer live id proves nothing about the hole, so the stored range
         // stands until ids inside it are actually imported.
-        val remaining = ct5RemainingGap(
-            pendingFromId = ct5PendingGapFromId,
-            pendingStopBeforeId = ct5PendingGapStopBeforeId,
-            highestImportedInRange = -1,
-        ) ?: run {
-            clearPendingCt5Gap()
-            return false
-        }
-        Log.i(TAG, "Resuming CT5 gap repair $remaining")
-        startHistoryBackfill("ct5-gap(resumed)", fromId = remaining.fromId, stopBeforeId = remaining.stopBeforeId)
+        val remaining = refreshPendingCt5GapFromCache() ?: return false
+        val newestMissing = ct5NewestMissingRange(
+            pendingFromId = remaining.fromId,
+            pendingStopBeforeId = remaining.stopBeforeId,
+            cachedIds = cachedCt5HistoryIds(),
+            maxRecords = HISTORY_PULL_SERIES_COUNT,
+        ) ?: return false
+        Log.i(TAG, "Resuming newest CT5 gap $newestMissing from pending envelope $remaining")
+        startHistoryBackfill(
+            "ct5-gap(resumed)",
+            fromId = newestMissing.fromId,
+            stopBeforeId = newestMissing.stopBeforeId,
+        )
         return historyBackfillActive
     }
 
@@ -1505,19 +1554,10 @@ class AnytimeBleManager(
         ct5HighestImportedId = glucoseId
     }
 
-    /** Shrink the outstanding gap as batches land, so an interruption resumes mid-range. */
-    private fun advancePendingCt5GapAfterBatch(maxImportedId: Int) {
+    /** Remove imported ids while retaining older sparse holes in the envelope. */
+    private fun advancePendingCt5GapAfterBatch() {
         if (!isCt5() || ct5PendingGapFromId < 0) return
-        val remaining = ct5GapAfterBatch(
-            pendingFromId = ct5PendingGapFromId,
-            pendingStopBeforeId = ct5PendingGapStopBeforeId,
-            maxImportedId = maxImportedId,
-        )
-        if (remaining == null) {
-            clearPendingCt5Gap()
-            return
-        }
-        ct5PendingGapFromId = remaining.fromId
+        refreshPendingCt5GapFromCache()
     }
 
     private fun advanceCt5InitialHistoryAfterBatch(maxImportedId: Int) {
@@ -1564,6 +1604,7 @@ class AnytimeBleManager(
         if (rememberForReconnect) rememberInterruptedBackfill()
         historyBackfillActive = false
         historyPullInFlight = false
+        historyPullInFlightCount = 0
         historyPullInFlightWasLegacySeries = false
         historyStopBeforeId = Int.MAX_VALUE
         historyBackfillReason = ""
@@ -1880,6 +1921,7 @@ class AnytimeBleManager(
     private fun historyPullCount(nextId: Int): Int {
         // 0x37 carries an explicit count, so a two-record gap asks for two records
         // instead of pulling fifteen and discarding thirteen duplicates.
+        if (isCt5() && ct5SingleRecordHistoryOnly) return 1
         if (!isCt5() && !supportsLegacySeriesHistory()) return 1
         val stopRemaining = (historyStopBeforeId - nextId).coerceAtLeast(1)
         return HISTORY_PULL_SERIES_COUNT.coerceAtMost(stopRemaining)
@@ -2387,6 +2429,7 @@ class AnytimeBleManager(
         if (status != BluetoothGatt.GATT_SUCCESS && completed?.let { isAnytimeBackfillWriteTag(it.tag) } == true) {
             clearHistoryPullTimeout()
             historyPullInFlight = false
+            historyPullInFlightCount = 0
             historyPullInFlightWasLegacySeries = false
             if (historyBackfillActive && phase == Phase.STREAMING) {
                 handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
@@ -2925,6 +2968,7 @@ class AnytimeBleManager(
             if (!push) {
                 clearHistoryPullTimeout()
                 historyPullInFlight = false
+                historyPullInFlightCount = 0
                 historyPullInFlightWasLegacySeries = false
             }
             if (historyBackfillActive) {
@@ -2944,6 +2988,7 @@ class AnytimeBleManager(
         if (!push) {
             clearHistoryPullTimeout()
             historyPullInFlight = false
+            historyPullInFlightCount = 0
             historyPullInFlightWasLegacySeries = false
             records.maxOfOrNull { it.glucoseId }?.let { maxId ->
                 if (maxId > historyLastPulledId) historyLastPulledId = maxId
@@ -3282,6 +3327,7 @@ class AnytimeBleManager(
         }
         if (historyBackfillActive) {
             historyPullInFlight = false
+            historyPullInFlightCount = 0
             clearHistoryPullTimeout()
         }
         if (records.isEmpty()) {
@@ -3346,7 +3392,7 @@ class AnytimeBleManager(
         }
         Log.i(TAG, tally.describe(minId, maxId))
         flushPendingHistoryRoomImports()
-        advancePendingCt5GapAfterBatch(maxId)
+        advancePendingCt5GapAfterBatch()
         advanceCt5InitialHistoryAfterBatch(maxId)
         persistAlgorithmState()
         armNoDataWatchdog()
@@ -3972,6 +4018,7 @@ class AnytimeBleManager(
                 if (isAnytimeBackfillWriteTag(pending.tag)) {
                     clearHistoryPullTimeout()
                     historyPullInFlight = false
+                    historyPullInFlightCount = 0
                     historyPullInFlightWasLegacySeries = false
                     if (historyBackfillActive && phase == Phase.STREAMING) {
                         handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())

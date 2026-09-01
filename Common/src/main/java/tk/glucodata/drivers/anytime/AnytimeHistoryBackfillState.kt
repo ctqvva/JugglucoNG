@@ -316,6 +316,50 @@ internal fun ct5MergeGap(
     return AnytimeIdRange(capped, stopBefore)
 }
 
+/** Smallest envelope that still contains every actually missing id. */
+internal fun ct5MissingEnvelope(
+    pendingFromId: Int,
+    pendingStopBeforeId: Int,
+    cachedIds: Set<Int>,
+): AnytimeIdRange? {
+    if (pendingFromId < 0 || pendingStopBeforeId <= pendingFromId) return null
+    var firstMissing = -1
+    var lastMissing = -1
+    for (id in pendingFromId until pendingStopBeforeId) {
+        if (id !in cachedIds) {
+            if (firstMissing < 0) firstMissing = id
+            lastMissing = id
+        }
+    }
+    if (firstMissing < 0) return null
+    return AnytimeIdRange(firstMissing, lastMissing + 1)
+}
+
+/**
+ * Newest contiguous missing run inside a persisted gap envelope.
+ *
+ * A flaky CT5 can miss one reading every few pushes. Treating those sparse holes
+ * as one continuous range made an old timeout block every fresh repair. Work
+ * backwards so the live edge is repaired first, while the envelope still keeps
+ * the older holes durable for later passes.
+ */
+internal fun ct5NewestMissingRange(
+    pendingFromId: Int,
+    pendingStopBeforeId: Int,
+    cachedIds: Set<Int>,
+    maxRecords: Int,
+): AnytimeIdRange? {
+    if (pendingFromId < 0 || pendingStopBeforeId <= pendingFromId) return null
+    var endInclusive = pendingStopBeforeId - 1
+    while (endInclusive >= pendingFromId && endInclusive in cachedIds) endInclusive--
+    if (endInclusive < pendingFromId) return null
+
+    val oldestAllowed = maxOf(pendingFromId, endInclusive - maxRecords.coerceAtLeast(1) + 1)
+    var start = endInclusive
+    while (start > oldestAllowed && start - 1 !in cachedIds) start--
+    return AnytimeIdRange(start, endInclusive + 1)
+}
+
 /**
  * True when a shared loss-of-signal alarm should be ignored because the current
  * streaming session is too young to have received its next scheduled push.
