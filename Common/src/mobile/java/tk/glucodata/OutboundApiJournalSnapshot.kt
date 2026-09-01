@@ -48,6 +48,8 @@ object OutboundApiJournalSnapshot {
     private val journalChangedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile
     private var journalChangedJob: Job? = null
+    @Volatile
+    private var cloneIobRefreshJob: Job? = null
     private const val JOURNAL_CHANGED_DEBOUNCE_MS = 400L
 
     /**
@@ -195,18 +197,36 @@ object OutboundApiJournalSnapshot {
         }
     }
 
+    private fun scheduleCloneIobRefresh(snapshotTimestampMillis: Long) {
+        cloneIobRefreshJob?.cancel()
+        cloneIobRefreshJob = journalChangedScope.launch {
+            val now = System.currentTimeMillis()
+            val values = runCatching { buildBroadcastIob(now) }.getOrNull()
+            val current = CloneIobSnapshot.fresh(now)
+            if (!CloneSensorRegistry.isReceptionEnabled() ||
+                current?.timestampMillis != snapshotTimestampMillis
+            ) {
+                return@launch
+            }
+            broadcastIobCache = BroadcastIobCache(now, values)
+            JournalIobAccess.pushWatchserver(now)
+            if (values != null) JugglucoSend.rebroadcastIob()
+            Notify.showoldglucose()
+            UiRefreshBus.requestDataRefresh()
+        }
+    }
+
     @Keep
     @JvmStatic
     fun importCloneIobSnapshot(raw: String): Boolean {
         val remote = CloneIobSnapshot.parse(raw) ?: return false
         if (!CloneIobSnapshot.update(remote)) return false
         broadcastIobCache = null
-        val now = System.currentTimeMillis()
-        val values = broadcastIobSnapshot(now)
-        JournalIobAccess.pushWatchserver(now)
-        if (values != null) JugglucoSend.rebroadcastIob()
-        Notify.showoldglucose()
-        UiRefreshBus.requestDataRefresh()
+        // HistorySyncAccess invokes this method while holding the receiver gate
+        // so a late packet cannot commit after Clone has been disabled. Keep
+        // that critical section to the snapshot commit itself: Room queries,
+        // notifications, and UI refreshes must run after the gate is released.
+        scheduleCloneIobRefresh(remote.timestampMillis)
         return true
     }
 
