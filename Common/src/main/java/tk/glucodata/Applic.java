@@ -72,6 +72,8 @@ import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -607,6 +609,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     // @RequiresApi(api = Build.VERSION_CODES.M)
     private static boolean hasonAvailable = false;
+    private static final Set<Network> availableInternetNetworks = ConcurrentHashMap.newKeySet();
     /*
      * public static void sendsettings() {
      * {if(doLog) {Log.i(LOG_ID,"sendsettings");};};
@@ -676,11 +679,15 @@ public class Applic extends Application implements androidx.work.Configuration.P
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(
                     Context.CONNECTIVITY_SERVICE);
-            connectivityManager.registerNetworkCallback((new NetworkRequest.Builder()).build(),
+            connectivityManager.registerNetworkCallback(
+                    (new NetworkRequest.Builder())
+                            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            .build(),
                     new ConnectivityManager.NetworkCallback() {
                         @Override
                         public void onAvailable(Network network) {
                             hasonAvailable = true;
+                            availableInternetNetworks.add(network);
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "network: onAvailable(" + network + ")");
@@ -763,6 +770,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
                         @Override
                         public void onLost(Network network) {
+                            availableInternetNetworks.remove(network);
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "onLost(" + network + ")");
@@ -770,7 +778,17 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                 ;
                             }
                             ;
-                            Natives.networkabsent();
+                            final boolean hasReplacement = NetworkHandoverPolicy.hasUsableReplacement(
+                                    availableInternetNetworks.size(), hasip());
+                            if (hasReplacement) {
+                                // Android reports the old default path as lost after its replacement
+                                // is already available. Keep the replacement ICE path alive and only
+                                // wake state-driven recovery instead of tearing every agent down.
+                                Natives.networkpresent();
+                                Applic.wakemirrors();
+                            } else {
+                                Natives.networkabsent();
+                            }
                             final boolean wearos = useWearos();
                             if (wearos) {
                                 MessageSender.reinit();
