@@ -1843,7 +1843,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
     <string name="mirror_background_liveness">Keep Clone live in background</string>
-    <string name="mirror_background_liveness_desc">Keeps the receiver awake for uninterrupted cloned readings and alerts. Uses more battery.</string>
+    <string name="mirror_background_liveness_desc">Helps the receiver stay responsive and reconnect promptly for cloned readings and alerts in the background. Uses more battery.</string>
     <string name="mirror_no_connections">No connections. Use Quick Pair or tap + to add.</string>
     <string name="mirror_delete_connection_title">Холболтыг устгах уу?</string>
     <string name="mirror_delete_connection_message">%1$s will be removed permanently.</string>
