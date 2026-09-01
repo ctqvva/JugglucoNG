@@ -101,6 +101,7 @@ class AnytimeBleManager(
         /** Bounded retries for a CT5 history timeout within one GATT session. */
         private const val CT5_HISTORY_MAX_TIMEOUTS_PER_CONNECTION = 3
         private const val CT5_HISTORY_RETRY_BACKOFF_MS = 3_000L
+        private const val CT5_GAP_MAX_FAILED_SESSIONS = 3
 
         /** One CT5 reconnect repairs at most this many ids (24 h at 3 min). */
         private const val CT5_MAX_GAP_REPAIR_RECORDS = 480
@@ -277,6 +278,8 @@ class AnytimeBleManager(
     /** Outstanding CT5 gap repair, persisted so a restart resumes it. */
     @Volatile private var ct5PendingGapFromId: Int = -1
     @Volatile private var ct5PendingGapStopBeforeId: Int = -1
+    private val ct5SkippedHistoryIds = linkedSetOf<Int>()
+    private var ct5GapFailureTracker = AnytimeCt5GapFailureTracker(CT5_GAP_MAX_FAILED_SESSIONS)
 
     /**
      * Android allows one outstanding GATT write. An optional history pull must
@@ -291,11 +294,14 @@ class AnytimeBleManager(
         val expectResponse: Boolean,
         val gatt: BluetoothGatt,
         val priority: AnytimeGattWritePriority,
+        val onWritten: (() -> Unit)? = null,
+        val onDropped: (() -> Unit)? = null,
         val enqueuedAtMs: Long = System.currentTimeMillis(),
     )
     private val pendingGattWrites = ArrayList<PendingGattWrite>()
     @Volatile private var activeGattWrite: PendingGattWrite? = null
     @Volatile private var protocolResponseInFlight: Boolean = false
+    @Volatile private var protocolResponseRequestOpcode: Byte = 0
 
     /** Set while a CT5 history batch is being committed, so imports are counted, not logged one by one. */
     @Volatile private var activeHistoryTally: AnytimeCt5HistoryBatchTally? = null
@@ -329,12 +335,6 @@ class AnytimeBleManager(
     @Volatile private var freshPostLiveBackfillStarted: Boolean = false
     @Volatile private var freshOlderBackfillStarted: Boolean = false
     @Volatile private var pendingFreshOlderBackfillStartId: Int = -1
-
-    /** Durable two-pass CT5 import: recent tail first, then all older available records. */
-    @Volatile private var ct5InitialHistoryPhase: Int = CT5_INITIAL_HISTORY_NONE
-    @Volatile private var ct5InitialHistoryRecentStartId: Int = -1
-    @Volatile private var ct5InitialHistoryAnchorExclusive: Int = -1
-    @Volatile private var ct5InitialHistoryNextId: Int = -1
 
     // ---- History backfill loop state ----
     @Volatile private var historyBackfillActive: Boolean = false
@@ -407,11 +407,15 @@ class AnytimeBleManager(
             ct5PendingGapFromId = gap[0]
             ct5PendingGapStopBeforeId = gap[1]
         }
-        AnytimeRegistry.loadCt5InitialHistory(context, id)?.let { plan ->
-            ct5InitialHistoryPhase = plan[0]
-            ct5InitialHistoryRecentStartId = plan[1]
-            ct5InitialHistoryAnchorExclusive = plan[2]
-            ct5InitialHistoryNextId = plan[3]
+        synchronized(ct5SkippedHistoryIds) {
+            ct5SkippedHistoryIds.clear()
+            ct5SkippedHistoryIds.addAll(AnytimeRegistry.loadCt5SkippedHistoryIds(context, id))
+        }
+        AnytimeRegistry.loadCt5GapFailure(context, id)?.let { failure ->
+            ct5GapFailureTracker = AnytimeCt5GapFailureTracker(
+                maxFailedSessions = CT5_GAP_MAX_FAILED_SESSIONS,
+                restored = AnytimeCt5GapFailureSnapshot(failure[0], failure[1], failure[2]),
+            )
         }
         val rawHistory = AnytimeRegistry.loadRawHistory(context, id)
         val rawMaxId = rawHistory.maxOfOrNull { it.glucoseId } ?: -1
@@ -444,7 +448,6 @@ class AnytimeBleManager(
         freshPostLiveBackfillStarted = false
         freshOlderBackfillStarted = false
         pendingFreshOlderBackfillStartId = -1
-        freshPostLiveBackfillStarted = ct5InitialHistoryPhase != CT5_INITIAL_HISTORY_NONE
         lastBatteryVolts = loadCachedBatteryVolts(context, id)
     }
 
@@ -600,14 +603,12 @@ class AnytimeBleManager(
         AnytimeRegistry.saveCt5TempId(ctx, id, ct5TempId)
         AnytimeRegistry.saveCt5HighestImportedId(ctx, id, ct5HighestImportedId)
         AnytimeRegistry.saveCt5PendingGap(ctx, id, ct5PendingGapFromId, ct5PendingGapStopBeforeId)
-        AnytimeRegistry.saveCt5InitialHistory(
+        AnytimeRegistry.saveCt5SkippedHistoryIds(
             ctx,
             id,
-            ct5InitialHistoryPhase,
-            ct5InitialHistoryRecentStartId,
-            ct5InitialHistoryAnchorExclusive,
-            ct5InitialHistoryNextId,
+            synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.toSet() },
         )
+        AnytimeRegistry.saveCt5GapFailure(ctx, id, ct5GapFailureTracker.snapshot())
     }
 
     // ---- Reconnect / watchdog ----
@@ -763,9 +764,10 @@ class AnytimeBleManager(
 
     private val historyPullTimeoutRunnable = Runnable {
         if (stop || !historyBackfillActive || !historyPullInFlight) return@Runnable
-        protocolResponseInFlight = false
+        releaseProtocolResponseSlot()
         val retryId = (historyLastPulledId + 1).coerceAtLeast(0)
         val failedCount = historyPullInFlightCount.coerceAtLeast(1)
+        val retryStopBeforeId = (retryId + failedCount).coerceAtMost(historyStopBeforeId)
         Log.w(TAG, "History pull timeout at id=$retryId count=$failedCount series=$historyPullInFlightWasLegacySeries")
         if (isCt5()) {
             // Transient by construction: the sensor does not stop supporting 0x37
@@ -789,13 +791,18 @@ class AnytimeBleManager(
             }
             val backoffMs = ct5HistoryHealth.onTimeout()
             if (backoffMs == null) {
+                val abandoned = noteCt5GapFailedSession(retryId, retryStopBeforeId)
                 Log.w(
                     TAG,
                     "CT5 history pull timed out at id=$retryId " +
                             "(${ct5HistoryHealth.timeoutCount()} this connection); " +
                             "pausing history until the next GATT session"
                 )
-                stopHistoryBackfill(rememberForReconnect = true)
+                stopHistoryBackfill(rememberForReconnect = !abandoned)
+                if (abandoned) {
+                    val moreGaps = refreshPendingCt5GapFromCache() != null
+                    if (moreGaps) handler.postDelayed(ct5HistorySettleRunnable, historyBatchDelayMs())
+                }
             } else {
                 Log.w(TAG, "CT5 history pull timed out at id=$retryId; retrying in ${backoffMs}ms")
                 handler.postDelayed(historyBackfillRunnable, backoffMs)
@@ -824,9 +831,9 @@ class AnytimeBleManager(
 
     private val protocolFrameTimeoutRunnable = Runnable {
         if (stop) return@Runnable
-        protocolResponseInFlight = false
         val tag = lastProtocolFrameTag
         val elapsed = System.currentTimeMillis() - lastProtocolFrameAtMs
+        releaseProtocolResponseSlot()
         Log.w(TAG, "Protocol timeout after $tag (${elapsed}ms)")
         if (isAnytimeBackfillWriteTag(tag)) {
             historyPullInFlight = false
@@ -933,7 +940,7 @@ class AnytimeBleManager(
                 "Deferring CT5 history backfill ($reason); history is unhealthy on this " +
                         "connection and resumes after the next GATT session"
             )
-            if (!isCt5InitialHistoryReason(reason)) rememberPendingCt5Gap(fromId, stopBeforeId)
+            rememberPendingCt5Gap(fromId, stopBeforeId)
             return
         }
         if (historyBackfillActive) {
@@ -1019,20 +1026,28 @@ class AnytimeBleManager(
         (anchorId - FRESH_AUTO_BACKFILL_RECORDS + 1).coerceAtLeast(0)
 
     private fun maybeStartFreshPostLiveBackfill(anchorId: Int) {
-        if (restoredGlucoseState || freshPostLiveBackfillStarted) return
+        if (restoredGlucoseState || freshPostLiveBackfillStarted || historyBackfillActive) return
         if (anchorId < 0 || !hasUsableHistoryTimeline()) return
         freshPostLiveBackfillStarted = true
         val recentStartId = freshAutoBackfillStartId(anchorId)
         if (isCt5()) {
+            // CT5 Auto glucose is computed by the transmitter. A bounded recent
+            // tail restores the visible gap without rewriting thousands of old
+            // records into SharedPreferences after every batch.
             pendingFreshOlderBackfillStartId = -1
-            val plan = ct5InitialHistoryPlan(anchorId, FRESH_AUTO_BACKFILL_RECORDS) ?: return
-            setCt5InitialHistoryPlan(plan)
+            if (recentStartId >= anchorId + 1) return
             Log.i(
                 TAG,
-                "CT5 initial history plan saved: recent id=$recentStartId..$anchorId first, " +
-                        "then all older available records"
+                "CT5 initial backfill for id=$recentStartId..$anchorId " +
+                        "(newly added sensor, $FRESH_AUTO_BACKFILL_RECORDS most recent records)"
             )
-            if (!historyBackfillActive) handler.postDelayed({ maybeResumeCt5InitialHistory() }, 250L)
+            handler.postDelayed({
+                startHistoryBackfill(
+                    reason = "ct5-initial",
+                    fromId = recentStartId,
+                    stopBeforeId = anchorId + 1,
+                )
+            }, 250L)
             return
         }
         pendingFreshOlderBackfillStartId = recentStartId
@@ -1049,55 +1064,6 @@ class AnytimeBleManager(
             )
         }, 250L)
     }
-
-    private fun currentCt5InitialHistoryPlan(): AnytimeCt5InitialHistoryPlan? {
-        if (ct5InitialHistoryPhase !in CT5_INITIAL_HISTORY_RECENT..CT5_INITIAL_HISTORY_OLDER) return null
-        if (ct5InitialHistoryRecentStartId < 0 ||
-            ct5InitialHistoryAnchorExclusive <= ct5InitialHistoryRecentStartId ||
-            ct5InitialHistoryNextId < 0
-        ) return null
-        return AnytimeCt5InitialHistoryPlan(
-            phase = ct5InitialHistoryPhase,
-            recentStartId = ct5InitialHistoryRecentStartId,
-            anchorExclusive = ct5InitialHistoryAnchorExclusive,
-            nextId = ct5InitialHistoryNextId,
-        )
-    }
-
-    private fun setCt5InitialHistoryPlan(plan: AnytimeCt5InitialHistoryPlan?) {
-        if (plan == null) {
-            ct5InitialHistoryPhase = CT5_INITIAL_HISTORY_NONE
-            ct5InitialHistoryRecentStartId = -1
-            ct5InitialHistoryAnchorExclusive = -1
-            ct5InitialHistoryNextId = -1
-        } else {
-            ct5InitialHistoryPhase = plan.phase
-            ct5InitialHistoryRecentStartId = plan.recentStartId
-            ct5InitialHistoryAnchorExclusive = plan.anchorExclusive
-            ct5InitialHistoryNextId = plan.nextId
-        }
-        persistAlgorithmState()
-    }
-
-    private fun maybeResumeCt5InitialHistory(): Boolean {
-        if (!isCt5() || stop || phase != Phase.STREAMING || historyBackfillActive) return false
-        val plan = currentCt5InitialHistoryPlan() ?: return false
-        if (plan.nextId >= plan.stopBeforeId) {
-            setCt5InitialHistoryPlan(advanceCt5InitialHistoryPhase(plan))
-            return maybeResumeCt5InitialHistory()
-        }
-        val reason = if (plan.phase == CT5_INITIAL_HISTORY_RECENT) {
-            "ct5-initial-recent"
-        } else {
-            "ct5-initial-older"
-        }
-        Log.i(TAG, "Resuming $reason from id=${plan.nextId} stopBefore=${plan.stopBeforeId}")
-        startHistoryBackfill(reason, fromId = plan.nextId, stopBeforeId = plan.stopBeforeId)
-        return historyBackfillActive
-    }
-
-    private fun isCt5InitialHistoryReason(reason: String): Boolean =
-        reason.startsWith("ct5-initial-")
 
     private fun maybeStartPendingFreshOlderBackfill() {
         if (stop || phase != Phase.STREAMING) return
@@ -1242,12 +1208,11 @@ class AnytimeBleManager(
         ct5HighestImportedId = -1
         ct5PendingGapFromId = -1
         ct5PendingGapStopBeforeId = -1
-        ct5InitialHistoryPhase = CT5_INITIAL_HISTORY_NONE
-        ct5InitialHistoryRecentStartId = -1
-        ct5InitialHistoryAnchorExclusive = -1
-        ct5InitialHistoryNextId = -1
+        synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.clear() }
+        ct5GapFailureTracker.clear()
         lastLiveFrameAtMs = 0L
         ct5HistoryHealth.onGattSessionStarted()
+        ct5SingleRecordHistoryOnly = false
         clearProtocolFrameTimeout()
         persistAlgorithmState()
     }
@@ -1290,24 +1255,13 @@ class AnytimeBleManager(
         val completedReason = historyBackfillReason
         stopHistoryBackfill()
 
-        if (isCt5InitialHistoryReason(completedReason)) {
-            val plan = currentCt5InitialHistoryPlan()
-            setCt5InitialHistoryPlan(plan?.let(::advanceCt5InitialHistoryPhase))
-            if (ct5InitialHistoryPhase == CT5_INITIAL_HISTORY_NONE) {
-                Log.i(TAG, "CT5 initial full-history import complete")
-            } else {
-                Log.i(TAG, "CT5 recent history loaded; continuing with older records")
-                handler.postDelayed({ maybeResumeCt5InitialHistory() }, historyBatchDelayMs())
-            }
-            return
-        }
         if (completedReason.startsWith("ct5-gap") || completedReason.startsWith("ct5-reconnect-catchup")) {
             // A run is only one contiguous slice of a possibly sparse envelope.
             // Recompute from cached ids, then repair the next-newest hole before
-            // returning to the optional initial import.
+            // returning to live streaming.
             val moreGaps = refreshPendingCt5GapFromCache() != null
             handler.postDelayed({
-                if (!moreGaps || !maybeResumePendingCt5Gap()) maybeResumeCt5InitialHistory()
+                if (moreGaps) maybeResumePendingCt5Gap()
             }, historyBatchDelayMs())
             return
         }
@@ -1336,12 +1290,7 @@ class AnytimeBleManager(
         interruptedBackfillStopBeforeId = historyStopBeforeId
         // CT5 also persists the range, so a process restart resumes the repair
         // instead of deciding it needs the whole session again.
-        if (!isCt5InitialHistoryReason(interruptedBackfillReason)) {
-            rememberPendingCt5Gap(next, historyStopBeforeId)
-        } else {
-            val plan = currentCt5InitialHistoryPlan()
-            if (plan != null && next > plan.nextId) setCt5InitialHistoryPlan(plan.copy(nextId = next))
-        }
+        rememberPendingCt5Gap(next, historyStopBeforeId)
         Log.i(
             TAG,
             "Remembering interrupted backfill ($interruptedBackfillReason) " +
@@ -1364,16 +1313,49 @@ class AnytimeBleManager(
     }
 
     private fun isWriteInFlight(): Boolean {
-        if (!writeInFlight) return false
-        if (System.currentTimeMillis() - lastWriteStartedAtMs > WRITE_IN_FLIGHT_STALE_MS) {
-            synchronized(pendingGattWrites) {
-                writeInFlight = false
-                activeGattWrite = null
-            }
-            handler.post(drainGattWriteQueueRunnable)
-            return false
-        }
+        return writeInFlight
+    }
+
+    private fun releaseProtocolResponseSlot(responseOpcode: Byte? = null): Boolean {
+        if (!protocolResponseInFlight) return false
+        if (responseOpcode != null &&
+            !anytimeResponseMatchesRequest(protocolResponseRequestOpcode, responseOpcode)
+        ) return false
+        protocolResponseInFlight = false
+        protocolResponseRequestOpcode = 0
+        clearProtocolFrameTimeout()
+        handler.post(drainGattWriteQueueRunnable)
         return true
+    }
+
+    private fun handleDroppedGattWrite(
+        pending: PendingGattWrite,
+        reason: String,
+        recoverControlWrite: Boolean,
+    ) {
+        Log.w(TAG, "Dropping queued TX ${pending.tag}: $reason")
+        if (pending.expectResponse && pending.bytes.isNotEmpty() &&
+            protocolResponseRequestOpcode == pending.bytes[0]
+        ) {
+            releaseProtocolResponseSlot()
+        }
+        notifyGattWriteDropped(pending)
+        if (isAnytimeBackfillWriteTag(pending.tag)) {
+            clearHistoryPullTimeout()
+            historyPullInFlight = false
+            historyPullInFlightCount = 0
+            historyPullInFlightWasLegacySeries = false
+            if (historyBackfillActive && phase == Phase.STREAMING) {
+                handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+            }
+        } else if (recoverControlWrite && !stop) {
+            recoverGattAndReconnect(reason, ACTIVE_SESSION_RECONNECT_DELAY_MS)
+        }
+    }
+
+    private fun notifyGattWriteDropped(pending: PendingGattWrite) {
+        runCatching { pending.onDropped?.invoke() }
+            .onFailure { Log.stack(TAG, "onDropped(${pending.tag})", it) }
     }
 
     /**
@@ -1387,7 +1369,7 @@ class AnytimeBleManager(
         val settledFor = if (since > 0L) now - since else 0L
         val busy = isWriteInFlight() || protocolResponseInFlight
         if (isCt5HistoryLinkSettled(since, now, CT5_HISTORY_LINK_SETTLE_MS, busy)) return true
-        if (!isCt5InitialHistoryReason(reason)) rememberPendingCt5Gap(fromId, stopBeforeId)
+        rememberPendingCt5Gap(fromId, stopBeforeId)
         val why = if (busy) {
             "GATT write slot is busy"
         } else {
@@ -1403,7 +1385,7 @@ class AnytimeBleManager(
     private val ct5HistorySettleRunnable: Runnable = Runnable {
         if (stop || !isCt5() || phase != Phase.STREAMING) return@Runnable
         if (historyBackfillActive) return@Runnable
-        if (!maybeResumePendingCt5Gap()) maybeResumeCt5InitialHistory()
+        maybeResumePendingCt5Gap()
     }
 
     private fun historyBatchDelayMs(): Long =
@@ -1433,8 +1415,42 @@ class AnytimeBleManager(
         persistAlgorithmState()
     }
 
-    private fun cachedCt5HistoryIds(): Set<Int> = synchronized(rawAlgorithmWindow) {
-        rawAlgorithmWindow.keys.toHashSet()
+    private fun cachedCt5HistoryIds(): Set<Int> {
+        val cached = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.keys.toHashSet() }
+        synchronized(ct5SkippedHistoryIds) { cached.addAll(ct5SkippedHistoryIds) }
+        return cached
+    }
+
+    private fun isCt5AutomaticGapReason(reason: String = historyBackfillReason): Boolean =
+        reason.startsWith("ct5-gap") || reason.startsWith("ct5-reconnect-catchup")
+
+    /**
+     * Record one failed GATT session for the exact range. After three sessions,
+     * auto-repair skips those ids so an unavailable transmitter hole cannot
+     * reconnect and retry forever. A manual history request clears the skip set.
+     */
+    private fun noteCt5GapFailedSession(fromId: Int, stopBeforeId: Int): Boolean {
+        if (!isCt5AutomaticGapReason() || fromId < 0 || stopBeforeId <= fromId) return false
+        val range = AnytimeIdRange(fromId, stopBeforeId)
+        val abandoned = ct5GapFailureTracker.onFailedSession(range)
+        if (abandoned != null) {
+            synchronized(ct5SkippedHistoryIds) {
+                for (id in abandoned.fromId until abandoned.stopBeforeId) ct5SkippedHistoryIds.add(id)
+            }
+            Log.w(TAG, "CT5 auto-repair abandoning unavailable range $abandoned after $CT5_GAP_MAX_FAILED_SESSIONS failed GATT sessions")
+        } else {
+            Log.w(TAG, "CT5 auto-repair range $range failed this GATT session; it will retry after reconnect")
+        }
+        persistAlgorithmState()
+        return abandoned != null
+    }
+
+    private fun noteCt5GapProgress(receivedIds: Collection<Int>) {
+        if (receivedIds.isEmpty()) return
+        val hadFailure = ct5GapFailureTracker.snapshot() != null
+        ct5GapFailureTracker.onProgress(receivedIds)
+        val changed = synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.removeAll(receivedIds.toSet()) }
+        if (changed || hadFailure) persistAlgorithmState()
     }
 
     /** Rebuild the durable envelope from ids that are still genuinely absent. */
@@ -1480,11 +1496,15 @@ class AnytimeBleManager(
         ) ?: return
         Log.i(TAG, "CT5 gap detected $gap (have=${ct5HighestKnownId()} live=$liveId)")
         rememberPendingCt5Gap(gap.fromId, gap.stopBeforeId)
-        if (historyBackfillActive && isCt5InitialHistoryReason(historyBackfillReason)) {
-            Log.i(TAG, "Pausing bulk initial history so live gap $gap can be repaired first")
-            stopHistoryBackfill(rememberForReconnect = true)
+        if (historyBackfillActive) {
+            if (historyBackfillReason.startsWith("ct5-initial")) {
+                Log.i(TAG, "Pausing initial recent history so live gap $gap can be repaired first")
+                stopHistoryBackfill(rememberForReconnect = true)
+            } else {
+                return
+            }
         }
-        startHistoryBackfill("ct5-gap", fromId = gap.fromId, stopBeforeId = gap.stopBeforeId)
+        maybeResumePendingCt5Gap()
     }
 
     /** Resume a gap left over from an interrupted repair or a process restart. */
@@ -1545,7 +1565,7 @@ class AnytimeBleManager(
         }
         Log.i(TAG, "CT5 reconnect catch-up $gap (have=${ct5HighestKnownId()} expected=$expectedId)")
         rememberPendingCt5Gap(gap.fromId, gap.stopBeforeId)
-        startHistoryBackfill("ct5-reconnect-catchup", fromId = gap.fromId, stopBeforeId = gap.stopBeforeId)
+        maybeResumePendingCt5Gap()
     }
 
     private fun noteCt5ImportedId(glucoseId: Int) {
@@ -1558,13 +1578,6 @@ class AnytimeBleManager(
     private fun advancePendingCt5GapAfterBatch() {
         if (!isCt5() || ct5PendingGapFromId < 0) return
         refreshPendingCt5GapFromCache()
-    }
-
-    private fun advanceCt5InitialHistoryAfterBatch(maxImportedId: Int) {
-        if (!isCt5InitialHistoryReason(historyBackfillReason)) return
-        val plan = currentCt5InitialHistoryPlan() ?: return
-        val next = (maxImportedId + 1).coerceAtMost(plan.stopBeforeId)
-        if (next > plan.nextId) setCt5InitialHistoryPlan(plan.copy(nextId = next))
     }
 
     // ---- CT5 warm-up ----
@@ -1698,12 +1711,18 @@ class AnytimeBleManager(
     }
 
     private fun clearGattReferences() {
-        synchronized(pendingGattWrites) {
+        val dropped = synchronized(pendingGattWrites) {
+            val writes = ArrayList<PendingGattWrite>(pendingGattWrites.size + 1)
+            activeGattWrite?.let(writes::add)
+            writes.addAll(pendingGattWrites)
             pendingGattWrites.clear()
             activeGattWrite = null
             writeInFlight = false
             protocolResponseInFlight = false
+            protocolResponseRequestOpcode = 0
+            writes
         }
+        dropped.forEach(::notifyGattWriteDropped)
         handler.removeCallbacks(drainGattWriteQueueRunnable)
         primaryService = null
         charNotify = null
@@ -1988,7 +2007,6 @@ class AnytimeBleManager(
         IntArray(4) { ct5Random.nextInt(256) }
 
     private fun armProtocolFrameTimeout(tag: String) {
-        if (phase != Phase.HANDSHAKING) return
         lastProtocolFrameTag = tag
         lastProtocolFrameAtMs = System.currentTimeMillis()
         handler.removeCallbacks(protocolFrameTimeoutRunnable)
@@ -2169,6 +2187,7 @@ class AnytimeBleManager(
                 // A new GATT session clears any "history is unhealthy" state from
                 // the previous one. Nothing about 0x37 is disabled across sessions.
                 ct5HistoryHealth.onGattSessionStarted()
+                ct5SingleRecordHistoryOnly = false
                 val mtuStarted = runCatching { gatt.requestMtu(AnytimeConstants.DEFAULT_MTU) }
                     .onFailure { Log.stack(TAG, "requestMtu", it) }
                     .getOrDefault(false)
@@ -2423,20 +2442,16 @@ class AnytimeBleManager(
             writeInFlight = false
             activeGattWrite.also { activeGattWrite = null }
         }
-        if (status != BluetoothGatt.GATT_SUCCESS && completed?.expectResponse == true) {
-            protocolResponseInFlight = false
-        }
-        if (status != BluetoothGatt.GATT_SUCCESS && completed?.let { isAnytimeBackfillWriteTag(it.tag) } == true) {
-            clearHistoryPullTimeout()
-            historyPullInFlight = false
-            historyPullInFlightCount = 0
-            historyPullInFlightWasLegacySeries = false
-            if (historyBackfillActive && phase == Phase.STREAMING) {
-                handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
-            }
-        } else if (status != BluetoothGatt.GATT_SUCCESS && phase == Phase.HANDSHAKING) {
-            recoverGattAndReconnect("write failed status=$status", ACTIVE_SESSION_RECONNECT_DELAY_MS)
-            return
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            runCatching { completed?.onWritten?.invoke() }
+                .onFailure { Log.stack(TAG, "onWritten(${completed?.tag})", it) }
+        } else if (completed != null) {
+            handleDroppedGattWrite(
+                pending = completed,
+                reason = "write failed status=$status",
+                recoverControlWrite = phase == Phase.HANDSHAKING,
+            )
+            if (phase == Phase.IDLE || stop) return
         }
         handler.post(drainGattWriteQueueRunnable)
     }
@@ -2466,11 +2481,9 @@ class AnytimeBleManager(
         if (stop) return
         if (characteristic.uuid != charNotify?.uuid) return
         if (data.isEmpty()) return
-        lastProtocolFrameAtMs = System.currentTimeMillis()
         val opcode = data[0]
         Log.d(TAG, "RX op=0x%02X bytes=%s".format(opcode.toInt() and 0xFF, data.joinToHex()))
-        protocolResponseInFlight = false
-        clearProtocolFrameTimeout()
+        releaseProtocolResponseSlot(opcode)
         try {
             dispatch(opcode, data)
         } catch (t: Throwable) {
@@ -2650,12 +2663,12 @@ class AnytimeBleManager(
         armPullFallback()
         armNoDataWatchdog()
         armTelemetryCheck(TELEMETRY_CHECK_INTERVAL_MS)
-        // Restored sessions resume any durable repair/import cursor. Fresh CT5
-        // sessions create the cursor after their first real live anchor.
+        // Restored sessions resume any durable repair cursor. Fresh CT5 sessions
+        // start their bounded recent import after the first real live anchor.
         if (isCt5()) {
             handler.postDelayed({
                 if (!stop && phase == Phase.STREAMING && !historyBackfillActive) {
-                    if (!maybeResumePendingCt5Gap() && !maybeResumeCt5InitialHistory()) {
+                    if (!maybeResumePendingCt5Gap()) {
                         maybeStartCt5ReconnectCatchup()
                     }
                 }
@@ -3325,6 +3338,9 @@ class AnytimeBleManager(
                 if (it.isNotEmpty()) ct5VoltagePayload = fallbackVoltage
             }
         }
+        val requestedFromId = (historyLastPulledId + 1).coerceAtLeast(0)
+        val requestedCount = historyPullInFlightCount.coerceAtLeast(1)
+        val requestedStopBeforeId = (requestedFromId + requestedCount).coerceAtMost(historyStopBeforeId)
         if (historyBackfillActive) {
             historyPullInFlight = false
             historyPullInFlightCount = 0
@@ -3336,6 +3352,16 @@ class AnytimeBleManager(
                 historyEmptyResponsesInARow++
                 if (historyEmptyResponsesInARow >= HISTORY_EMPTY_RESPONSES_TO_STOP) {
                     Log.i(TAG, "CT5 backfill caught up at id=$lastGlucoseId")
+                    if (isCt5AutomaticGapReason()) {
+                        ct5HistoryHealth.pauseForThisConnection()
+                        val abandoned = noteCt5GapFailedSession(requestedFromId, requestedStopBeforeId)
+                        flushPendingHistoryRoomImports()
+                        stopHistoryBackfill(rememberForReconnect = !abandoned)
+                        if (abandoned && refreshPendingCt5GapFromCache() != null) {
+                            handler.postDelayed(ct5HistorySettleRunnable, historyBatchDelayMs())
+                        }
+                        return
+                    }
                     markHistoryCaughtUp((historyLastPulledId + 1).coerceAtLeast(0))
                     flushPendingHistoryRoomImports()
                     finishHistoryBackfill()
@@ -3349,6 +3375,7 @@ class AnytimeBleManager(
         historyEmptyResponsesInARow = 0
         // A response proves the pull path still works on this connection.
         ct5HistoryHealth.onSeriesReceived()
+        noteCt5GapProgress(records.map { it.glucoseId })
         records.maxOfOrNull { it.glucoseId }?.let { maxId ->
             if (maxId > historyLastPulledId) historyLastPulledId = maxId
             clearCaughtUpCooldownIfNewerData(maxId)
@@ -3393,7 +3420,6 @@ class AnytimeBleManager(
         Log.i(TAG, tally.describe(minId, maxId))
         flushPendingHistoryRoomImports()
         advancePendingCt5GapAfterBatch()
-        advanceCt5InitialHistoryAfterBatch(maxId)
         persistAlgorithmState()
         armNoDataWatchdog()
         armPullFallback()
@@ -3957,7 +3983,13 @@ class AnytimeBleManager(
 
     // ---- Frame writer ----
 
-    private fun writeFrame(bytes: ByteArray, tag: String, expectResponse: Boolean = true): Boolean {
+    private fun writeFrame(
+        bytes: ByteArray,
+        tag: String,
+        expectResponse: Boolean = true,
+        onWritten: (() -> Unit)? = null,
+        onDropped: (() -> Unit)? = null,
+    ): Boolean {
         if (bytes.isEmpty()) {
             Log.w(TAG, "writeFrame($tag) skipped empty frame")
             return false
@@ -3970,6 +4002,8 @@ class AnytimeBleManager(
             expectResponse = expectResponse,
             gatt = gatt,
             priority = anytimeGattWritePriority(tag, historyBackfillReason),
+            onWritten = onWritten,
+            onDropped = onDropped,
         )
         synchronized(pendingGattWrites) {
             val insertAt = pendingGattWrites.indexOfFirst { it.priority.ordinal > pending.priority.ordinal }
@@ -3983,19 +4017,39 @@ class AnytimeBleManager(
     private val drainGattWriteQueueRunnable = Runnable { drainGattWriteQueue() }
 
     private fun drainGattWriteQueue() {
-        if (stop || isWriteInFlight() || protocolResponseInFlight) return
+        if (stop) return
+        val stale = synchronized(pendingGattWrites) {
+            if (writeInFlight && System.currentTimeMillis() - lastWriteStartedAtMs > WRITE_IN_FLIGHT_STALE_MS) {
+                writeInFlight = false
+                activeGattWrite.also { activeGattWrite = null }
+            } else {
+                null
+            }
+        }
+        if (stale != null) {
+            handleDroppedGattWrite(
+                pending = stale,
+                reason = "write callback timed out",
+                recoverControlWrite = !isAnytimeBackfillWriteTag(stale.tag),
+            )
+            if (phase == Phase.IDLE || stop) return
+        }
+        if (isWriteInFlight() || protocolResponseInFlight) return
         val pending = synchronized(pendingGattWrites) {
             if (activeGattWrite != null || pendingGattWrites.isEmpty()) return
             pendingGattWrites.removeAt(0).also { activeGattWrite = it }
         }
         if (mBluetoothGatt !== pending.gatt) {
             synchronized(pendingGattWrites) { activeGattWrite = null }
+            handleDroppedGattWrite(pending, "GATT session changed", recoverControlWrite = false)
             handler.post(drainGattWriteQueueRunnable)
             return
         }
         val ch = charWrite
         if (ch == null) {
             synchronized(pendingGattWrites) { activeGattWrite = null }
+            handleDroppedGattWrite(pending, "write characteristic unavailable", recoverControlWrite = false)
+            handler.post(drainGattWriteQueueRunnable)
             return
         }
         ch.value = pending.bytes
@@ -4015,20 +4069,11 @@ class AnytimeBleManager(
             Log.w(TAG, "writeCharacteristic(${pending.tag}) busy for ${queuedForMs}ms; retaining queued frame")
             if (queuedForMs >= WRITE_IN_FLIGHT_STALE_MS) {
                 synchronized(pendingGattWrites) { pendingGattWrites.remove(pending) }
-                if (isAnytimeBackfillWriteTag(pending.tag)) {
-                    clearHistoryPullTimeout()
-                    historyPullInFlight = false
-                    historyPullInFlightCount = 0
-                    historyPullInFlightWasLegacySeries = false
-                    if (historyBackfillActive && phase == Phase.STREAMING) {
-                        handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
-                    }
-                } else {
-                    recoverGattAndReconnect(
-                        "writeCharacteristic(${pending.tag}) stayed busy",
-                        ACTIVE_SESSION_RECONNECT_DELAY_MS,
-                    )
-                }
+                handleDroppedGattWrite(
+                    pending,
+                    "writeCharacteristic(${pending.tag}) stayed busy",
+                    recoverControlWrite = !isAnytimeBackfillWriteTag(pending.tag),
+                )
             } else {
                 handler.postDelayed(drainGattWriteQueueRunnable, GATT_WRITE_RETRY_DELAY_MS)
             }
@@ -4044,6 +4089,7 @@ class AnytimeBleManager(
         }
         if (pending.expectResponse) {
             protocolResponseInFlight = true
+            protocolResponseRequestOpcode = pending.bytes[0]
             if (!historyWrite) armProtocolFrameTimeout(pending.tag)
         }
     }
@@ -4118,13 +4164,25 @@ class AnytimeBleManager(
         // as an event for the next algorithm sample, N+1.
         pendingFingerstickTargetGlucoseId = lastGlucoseId + 1
         return if (phase == Phase.STREAMING) {
-            val ok = writeFrame(inputBgFrame(mgdl), "inputBg($mgdl)")
-            if (ok) {
-                setCalibrationStatus(
-                    resId = R.string.anytime_calibration_sent_status,
-                    fallback = "Calibration sent; waiting for sensor",
-                )
-            } else {
+            val ok = writeFrame(
+                bytes = inputBgFrame(mgdl),
+                tag = "inputBg($mgdl)",
+                onWritten = {
+                    setCalibrationStatus(
+                        resId = R.string.anytime_calibration_sent_status,
+                        fallback = "Calibration sent; waiting for sensor",
+                    )
+                },
+                onDropped = {
+                    pendingFingerstickMgdl = -1
+                    pendingFingerstickTargetGlucoseId = -1
+                    setCalibrationStatus(
+                        resId = R.string.anytime_calibration_send_failed_status,
+                        fallback = "Calibration send failed",
+                    )
+                },
+            )
+            if (!ok) {
                 pendingFingerstickMgdl = -1
                 pendingFingerstickTargetGlucoseId = -1
                 setCalibrationStatus(
@@ -4254,8 +4312,7 @@ class AnytimeBleManager(
 
     override fun requestTransmitterReset(): Boolean {
         if (phase != Phase.STREAMING && phase != Phase.HANDSHAKING) return false
-        writeFrame(resetFrame(), "reset(user)")
-        return true
+        return writeFrame(resetFrame(), "reset(user)")
     }
 
     override fun supportsResetAction(): Boolean = isCt5()
@@ -4271,28 +4328,45 @@ class AnytimeBleManager(
         ct5EndCycleRestartPending = true
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
-        val written = writeFrame(frame, "ct5-endCycle(user)", expectResponse = true)
+        val written = writeFrame(
+            bytes = frame,
+            tag = "ct5-endCycle(user)",
+            expectResponse = true,
+            onWritten = {
+                clearRuntimeStateForCt5EndCycle()
+                handler.postDelayed(ct5EndCycleDisconnectRunnable, CT5_END_CYCLE_DISCONNECT_DELAY_MS)
+                Log.i(
+                    TAG,
+                    "CT5 end-cycle command written; restart scheduled after " +
+                            "${CT5_END_CYCLE_RESTART_DELAY_MS}ms"
+                )
+            },
+            onDropped = {
+                ct5EndCycleRestartPending = false
+                constatstatusstr = "Connected"
+                UiRefreshBus.requestStatusRefresh()
+            },
+        )
         if (!written) {
             ct5EndCycleRestartPending = false
             UiRefreshBus.requestStatusRefresh()
             return false
         }
-        clearRuntimeStateForCt5EndCycle()
-        handler.postDelayed(ct5EndCycleDisconnectRunnable, CT5_END_CYCLE_DISCONNECT_DELAY_MS)
-        Log.i(
-            TAG,
-            "CT5 end-cycle command accepted locally; restart scheduled after " +
-                    "${CT5_END_CYCLE_RESTART_DELAY_MS}ms"
-        )
+        Log.i(TAG, "CT5 end-cycle command queued; waiting for GATT write callback")
         return true
     }
 
     override fun requestUnbind(): Boolean {
-        writeFrame(unbindFrame(), "unbind(user)")
-        bound = false
-        persistAlgorithmState()
-        stopHistoryBackfill()
-        return true
+        if (phase != Phase.STREAMING && phase != Phase.HANDSHAKING) return false
+        return writeFrame(
+            bytes = unbindFrame(),
+            tag = "unbind(user)",
+            onWritten = {
+                bound = false
+                persistAlgorithmState()
+                stopHistoryBackfill()
+            },
+        )
     }
 
     override fun isUiEnabled(): Boolean = !stop
@@ -4301,6 +4375,11 @@ class AnytimeBleManager(
         if (phase != Phase.STREAMING) {
             Log.w(TAG, "requestHistoryBackfill ignored — phase=$phase")
             return false
+        }
+        if (isCt5()) {
+            synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.clear() }
+            ct5GapFailureTracker.clear()
+            persistAlgorithmState()
         }
         startHistoryBackfill("user-requested", fromId = 0)
         return true

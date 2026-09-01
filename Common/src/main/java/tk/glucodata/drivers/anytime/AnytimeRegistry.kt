@@ -335,38 +335,44 @@ object AnytimeRegistry {
         editor.apply()
     }
 
-    /** phase, recentStartId, anchorExclusive, nextId; null means no initial import is owed. */
     @JvmStatic
-    fun loadCt5InitialHistory(c: Context, id: String): IntArray? {
-        val p = prefs(c)
-        val phase = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id, 0)
-        val recentStart = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id, -1)
-        val anchorExclusive = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id, -1)
-        val nextId = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id, -1)
-        if (phase !in 1..2 || recentStart < 0 || anchorExclusive <= recentStart || nextId < 0) return null
-        return intArrayOf(phase, recentStart, anchorExclusive, nextId)
-    }
+    fun loadCt5SkippedHistoryIds(c: Context, id: String): Set<Int> =
+        prefs(c).getStringSet(AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + id, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toIntOrNull()?.takeIf { value -> value >= 0 } }
 
     @JvmStatic
-    fun saveCt5InitialHistory(
+    fun saveCt5SkippedHistoryIds(c: Context, id: String, ids: Set<Int>) {
+        val key = AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + id
+        prefs(c).edit().apply {
+            if (ids.isEmpty()) remove(key) else putStringSet(key, ids.mapTo(linkedSetOf()) { it.toString() })
+        }.apply()
+    }
+
+    /** fromId, stopBeforeId, failed GATT sessions; null means no failed range is pending. */
+    internal fun loadCt5GapFailure(c: Context, id: String): IntArray? {
+        val p = prefs(c)
+        val fromId = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id, -1)
+        val stopBeforeId = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id, -1)
+        val count = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id, 0)
+        if (fromId < 0 || stopBeforeId <= fromId || count <= 0) return null
+        return intArrayOf(fromId, stopBeforeId, count)
+    }
+
+    internal fun saveCt5GapFailure(
         c: Context,
         id: String,
-        phase: Int,
-        recentStartId: Int,
-        anchorExclusive: Int,
-        nextId: Int,
+        snapshot: AnytimeCt5GapFailureSnapshot?,
     ) {
         val editor = prefs(c).edit()
-        if (phase !in 1..2 || recentStartId < 0 || anchorExclusive <= recentStartId || nextId < 0) {
-            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id)
-            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id)
-            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id)
-            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id)
+        if (snapshot == null) {
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id)
         } else {
-            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id, phase)
-            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id, recentStartId)
-            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id, anchorExclusive)
-            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id, nextId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id, snapshot.fromId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id, snapshot.stopBeforeId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id, snapshot.failures)
         }
         editor.apply()
     }
@@ -529,10 +535,10 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + sensorId)
-            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + sensorId)
-            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + sensorId)
-            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + sensorId)
-            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + sensorId)
         }.apply()
     }
 

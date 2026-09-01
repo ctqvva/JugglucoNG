@@ -533,40 +533,55 @@ class AnytimeCt5Tests {
     }
 
     @Test
-    fun freshCt5HistoryLoadsRecentTailThenAllOlderRecords() {
-        val recent = ct5InitialHistoryPlan(anchorId = 5064, recentRecords = 24)
+    fun unavailableCt5GapIsAbandonedAfterThreeFailedGattSessions() {
+        val tracker = AnytimeCt5GapFailureTracker(maxFailedSessions = 3)
+        val range = AnytimeIdRange(700, 715)
 
-        assertNotNull(recent)
-        assertEquals(CT5_INITIAL_HISTORY_RECENT, recent!!.phase)
-        assertEquals(5041, recent.nextId)
-        assertEquals(5065, recent.stopBeforeId)
-
-        val older = advanceCt5InitialHistoryPhase(recent.copy(nextId = 5065))
-        assertNotNull(older)
-        assertEquals(CT5_INITIAL_HISTORY_OLDER, older!!.phase)
-        assertEquals(0, older.nextId)
-        assertEquals(5041, older.stopBeforeId)
-        assertNull(advanceCt5InitialHistoryPhase(older.copy(nextId = 5041)))
+        assertNull(tracker.onFailedSession(range))
+        assertNull(tracker.onFailedSession(range))
+        assertEquals(range, tracker.onFailedSession(range))
+        assertNull(tracker.snapshot())
     }
 
     @Test
-    fun shortCt5SessionNeedsOnlyOneInitialHistoryPass() {
-        val recent = ct5InitialHistoryPlan(anchorId = 11, recentRecords = 24)!!
+    fun ct5GapProgressClearsThePersistedFailureBudget() {
+        val tracker = AnytimeCt5GapFailureTracker(maxFailedSessions = 3)
+        val range = AnytimeIdRange(700, 715)
+        tracker.onFailedSession(range)
 
-        assertEquals(0, recent.nextId)
-        assertEquals(12, recent.stopBeforeId)
-        assertNull(advanceCt5InitialHistoryPhase(recent.copy(nextId = 12)))
+        tracker.onProgress(listOf(706))
+
+        assertNull(tracker.snapshot())
+        assertNull(tracker.onFailedSession(range))
+        assertEquals(1, tracker.snapshot()?.failures)
+    }
+
+    @Test
+    fun unsolicitedLivePushDoesNotReleaseAQueuedHistoryResponse() {
+        assertFalse(
+            anytimeResponseMatchesRequest(
+                AnytimeConstants.TX_CT5_PULL_SERIES,
+                AnytimeConstants.RX_CT5_PUSH_GLUCOSE,
+            )
+        )
+        assertTrue(
+            anytimeResponseMatchesRequest(
+                AnytimeConstants.TX_CT5_PULL_SERIES,
+                AnytimeConstants.RX_CT5_SERIES,
+            )
+        )
+        assertTrue(anytimeResponseMatchesRequest(0x04.toByte(), AnytimeConstants.RX_SET_DATE_ACK_A))
     }
 
     @Test
     fun liveAckAndGapRepairOutrankBulkHistoryWrites() {
         assertEquals(
             AnytimeGattWritePriority.LIVE_ACK,
-            anytimeGattWritePriority("ct5-pushAck", "ct5-initial-older"),
+            anytimeGattWritePriority("ct5-pushAck", "ct5-initial"),
         )
         assertEquals(
             AnytimeGattWritePriority.CONTROL,
-            anytimeGattWritePriority("lowPower", "ct5-initial-older"),
+            anytimeGattWritePriority("lowPower", "ct5-initial"),
         )
         assertEquals(
             AnytimeGattWritePriority.GAP_HISTORY,
@@ -574,7 +589,7 @@ class AnytimeCt5Tests {
         )
         assertEquals(
             AnytimeGattWritePriority.BULK_HISTORY,
-            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-initial-older"),
+            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-initial"),
         )
     }
 

@@ -411,6 +411,11 @@ internal class AnytimeCt5HistoryHealth(
     fun isPausedForThisConnection(): Boolean = pausedThisConnection
 
     @Synchronized
+    fun pauseForThisConnection() {
+        pausedThisConnection = true
+    }
+
+    @Synchronized
     fun timeoutCount(): Int = timeoutsThisConnection
 
     /**
@@ -459,41 +464,56 @@ internal class AnytimeCt5HistoryBatchTally {
     }
 }
 
-internal const val CT5_INITIAL_HISTORY_NONE = 0
-internal const val CT5_INITIAL_HISTORY_RECENT = 1
-internal const val CT5_INITIAL_HISTORY_OLDER = 2
+internal data class AnytimeCt5GapFailureSnapshot(
+    val fromId: Int,
+    val stopBeforeId: Int,
+    val failures: Int,
+)
 
-internal data class AnytimeCt5InitialHistoryPlan(
-    val phase: Int,
-    val recentStartId: Int,
-    val anchorExclusive: Int,
-    val nextId: Int,
+/**
+ * Bounds automatic repair of a range the transmitter repeatedly cannot serve.
+ * One failure is recorded only after a GATT session exhausts its own retries.
+ */
+internal class AnytimeCt5GapFailureTracker(
+    private val maxFailedSessions: Int,
+    restored: AnytimeCt5GapFailureSnapshot? = null,
 ) {
-    val stopBeforeId: Int
-        get() = if (phase == CT5_INITIAL_HISTORY_RECENT) anchorExclusive else recentStartId
-}
+    private var snapshot: AnytimeCt5GapFailureSnapshot? = restored
 
-internal fun ct5InitialHistoryPlan(anchorId: Int, recentRecords: Int): AnytimeCt5InitialHistoryPlan? {
-    if (anchorId < 0) return null
-    val anchorExclusive = anchorId + 1
-    val recentStart = (anchorExclusive - recentRecords.coerceAtLeast(1)).coerceAtLeast(0)
-    return AnytimeCt5InitialHistoryPlan(
-        phase = CT5_INITIAL_HISTORY_RECENT,
-        recentStartId = recentStart,
-        anchorExclusive = anchorExclusive,
-        nextId = recentStart,
-    )
-}
-
-internal fun advanceCt5InitialHistoryPhase(plan: AnytimeCt5InitialHistoryPlan): AnytimeCt5InitialHistoryPlan? =
-    when (plan.phase) {
-        CT5_INITIAL_HISTORY_RECENT -> if (plan.recentStartId > 0) {
-            plan.copy(phase = CT5_INITIAL_HISTORY_OLDER, nextId = 0)
+    @Synchronized
+    fun onFailedSession(range: AnytimeIdRange): AnytimeIdRange? {
+        val previous = snapshot
+        val failures = if (previous?.fromId == range.fromId && previous.stopBeforeId == range.stopBeforeId) {
+            previous.failures + 1
         } else {
-            null
+            1
         }
-        CT5_INITIAL_HISTORY_OLDER -> null
-        else -> null
+        snapshot = AnytimeCt5GapFailureSnapshot(range.fromId, range.stopBeforeId, failures)
+        if (failures < maxFailedSessions.coerceAtLeast(1)) return null
+        snapshot = null
+        return range
+    }
+
+    @Synchronized
+    fun onProgress(receivedIds: Collection<Int>) {
+        val current = snapshot ?: return
+        if (receivedIds.any { it in current.fromId until current.stopBeforeId }) snapshot = null
+    }
+
+    @Synchronized fun clear() {
+        snapshot = null
+    }
+
+    @Synchronized fun snapshot(): AnytimeCt5GapFailureSnapshot? = snapshot
+}
+
+/** A response releases only the request it actually answers; live pushes are unsolicited. */
+internal fun anytimeResponseMatchesRequest(requestOpcode: Byte, responseOpcode: Byte): Boolean =
+    when (requestOpcode) {
+        AnytimeConstants.TX_SET_DATE, 0x04.toByte() ->
+            responseOpcode == AnytimeConstants.RX_SET_DATE_ACK_A ||
+                    responseOpcode == AnytimeConstants.RX_SET_DATE_ACK_B
+        else -> requestOpcode == responseOpcode
     }
 
 internal enum class AnytimeGattWritePriority {
