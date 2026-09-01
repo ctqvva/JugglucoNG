@@ -1298,7 +1298,10 @@ fun SensorCard(
         hasRecentData = cloneHasRecentData,
         transport = reportedCloneTransport,
     )
-    val cloneTransport = cloneHealth.liveTransport
+    val cloneTransport = tk.glucodata.CloneTransportPresentation.sensorTransport(
+        cloneHealth.liveTransport,
+        tk.glucodata.CloneSensorRegistry.transportForSensor(sensor.serial),
+    )
     // A watch-owned sensor is operational even though this phone's local BLE
     // callback is deliberately paused. A Clone record, however, is only
     // healthy while readings are actually arriving; transport connectivity by

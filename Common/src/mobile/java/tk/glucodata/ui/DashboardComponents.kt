@@ -359,7 +359,10 @@ fun DashboardCombinedHeader(
             ?: sensorName
     }
     val cloneTransport = remember(refreshRevision, sensorName) {
-        tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName)
+        tk.glucodata.CloneTransportPresentation.sensorTransport(
+            tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName),
+            tk.glucodata.CloneSensorRegistry.transportForSensor(sensorName),
+        )
     }
     val isCloneSource = remember(refreshRevision, sensorName) {
         tk.glucodata.CloneSensorRegistry.isCloneSensor(sensorName)
