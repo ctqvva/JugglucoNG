@@ -37,6 +37,8 @@ Hybrid Clone uses three small network services:
 
 The rendezvous server is signaling only. Glucose data does not pass through
 it. STUN is discovery only. TURN can carry the data stream, but only as a relay.
+For a visual explanation of how the services work together, see
+[ICE, STUN, TURN, and rendezvous in plain language](ice-stun-turn.md).
 
 ## Security and privacy
 
