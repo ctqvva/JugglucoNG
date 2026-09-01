@@ -815,7 +815,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnServer)(
 
 extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
     JNIEnv *env, jclass cl, jstring rendezvousHost, jint rendezvousPort,
-    jboolean useTurnForStun) {
+    jboolean useTurnForStun, jboolean verifyRendezvousCertificate) {
   std::string host;
   if (rendezvousHost) {
     if (const char *value = env->GetStringUTFChars(rendezvousHost, nullptr)) {
@@ -827,7 +827,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
                   rendezvousPort > 0 && rendezvousPort <= 65535
                       ? static_cast<uint16_t>(rendezvousPort)
                       : static_cast<uint16_t>(6789),
-                  useTurnForStun);
+                  useTurnForStun, verifyRendezvousCertificate);
 }
 
 extern "C" JNIEXPORT void JNICALL fromjava(deleteTurnServer)(JNIEnv *env,

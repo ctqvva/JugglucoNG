@@ -31,6 +31,7 @@ using namespace std::literals;
 struct HTTPSRequestOptions {
     int timeoutMilliseconds = 15000;
     std::shared_ptr<const std::atomic_bool> cancelled;
+    bool verifyCertificate = true;
 };
 
 class ContextHTTPS {

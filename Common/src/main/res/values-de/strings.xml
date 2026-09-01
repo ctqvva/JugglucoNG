@@ -980,8 +980,14 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="use_turn_for_stun">TURN-Server für STUN verwenden</string>
     <string name="use_turn_for_stun_summary">Den konfigurierten TURN-Server auch für STUN verwenden</string>
     <string name="rendezvous_server">Rendezvous-Server</string>
-    <string name="rendezvous_host_hint">Leer lassen, um den Standard der App zu verwenden</string>
+    <string name="rendezvous_host_hint">z. B. connect.example.com</string>
     <string name="rendezvous_port">Rendezvous-Port</string>
+    <string name="use_custom_rendezvous_server">Eigenen Rendezvous-Server verwenden</string>
+    <string name="use_custom_rendezvous_server_summary">Andernfalls den Standard der App verwenden</string>
+    <string name="verify_rendezvous_certificate">Rendezvous-Zertifikat prüfen</string>
+    <string name="verify_rendezvous_certificate_summary">Zertifikatskette und Hostnamen prüfen. Nur für einen vertrauenswürdigen selbst signierten Server deaktivieren.</string>
+    <string name="rendezvous_host_required">Hostnamen für den eigenen Rendezvous-Server eingeben</string>
+    <string name="turn_udp_port_default">Standard: 3478 (UDP)</string>
     <string name="turn_required_for_stun">TURN muss konfiguriert sein, bevor es für STUN verwendet werden kann</string>
     <string name="turnservers">TURN-Server</string>
     <string name="unified_reset_desc">Startet den Sensor neu und setzt den Autokalibrierungs-Algorithmus zurück.</string>

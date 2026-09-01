@@ -197,6 +197,7 @@ class CloneReceptionSafetyTests {
 
         assertTrue(generator.contains("const auto iceConfig=currentICEConfig()"))
         assertTrue(generator.contains("insertbool(inserter,\"stun\""))
+        assertTrue(generator.contains("insertbool(inserter,\"cv\",false)"))
         assertTrue(generator.contains("R\"(,\"rv\":"))
 
         val saveConfig = screen.indexOf("CloneIceNetworkConfigStore.save")

@@ -57,6 +57,7 @@
 #include "logs.hpp"
 #include "inout.hpp"
 #include "strsepconcat.hpp"
+
 //#define MAIN 1
 //#define LOGHTTPS
 #ifdef LOGHTTPS
@@ -76,6 +77,14 @@ using namespace std::literals;
 #ifdef __ANDROID_API__
 #define READ_CACERTS 1
 #define DLSYMS_SSL 1
+#endif
+
+#ifndef DLSYMS_SSL
+extern "C" int X509_check_host(X509 *certificate,const char *hostname,
+                                size_t hostnameLength,unsigned int flags,
+                                char **peername);
+extern "C" int X509_check_ip_asc(X509 *certificate,const char *address,
+                                  unsigned int flags);
 #endif
 
 #ifdef DLSYMS_SSL 
@@ -558,6 +567,15 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
     SSL_set_fd(ssl, sock);
     const std::string hostName(host);
     SSL_set_tlsext_host_name2(ssl, hostName.c_str());  // SNI
+    if(!options.verifyCertificate) {
+       #ifdef DLSYMS_SSL
+       if(!SSL_set_verifyptr) {
+          LOGARHTTPS("TLS verification override is unavailable");
+          return {uit,-1};
+          }
+       #endif
+       SSL_set_verify(ssl,SSL_VERIFY_NONE,nullptr);
+       }
 
     LOGARHTTPS("before SSL_connect");
     int conres;
@@ -571,10 +589,38 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
        LOGGERHTTPS("SSL handshake failed: %s\n", mess.c_str());
         return {uit,-1};
        }
-    long verify_result = SSL_get_verify_result(ssl);
-    if (verify_result != X509_V_OK) {
-       LOGGERHTTPS("Certificate verification failed: %s\n", X509_verify_cert_error_string(verify_result)); 
-    }; 
+    if(options.verifyCertificate) {
+       #ifdef DLSYMS_SSL
+       if(!SSL_get_peer_certificateptr||!SSL_get_verify_resultptr||
+          !X509_check_hostptr||!X509_check_ip_ascptr||!X509_freeptr||
+          !X509_verify_cert_error_stringptr) {
+          LOGARHTTPS("Missing TLS hostname verification functions");
+          return {uit,-1};
+          }
+       #endif
+       long verify_result = SSL_get_verify_result(ssl);
+       if (verify_result != X509_V_OK) {
+          LOGGERHTTPS("Certificate verification failed: %s\n", X509_verify_cert_error_string(verify_result));
+          return {uit,-1};
+          }
+       X509 *peerCertificate=SSL_get_peer_certificate(ssl);
+       if(!peerCertificate) {
+          LOGARHTTPS("Rendezvous server did not provide a certificate");
+          return {uit,-1};
+          }
+       destruct freeCertificate{[peerCertificate]{X509_free(peerCertificate);}};
+       in_addr ipv4{};
+       in6_addr ipv6{};
+       const bool isIPAddress=inet_pton(AF_INET,hostName.c_str(),&ipv4)==1||
+                              inet_pton(AF_INET6,hostName.c_str(),&ipv6)==1;
+       const int hostMatches=isIPAddress
+           ?X509_check_ip_asc(peerCertificate,hostName.c_str(),0)
+           :X509_check_host(peerCertificate,hostName.c_str(),hostName.size(),0,nullptr);
+       if(hostMatches!=1) {
+          LOGGERHTTPS("Rendezvous certificate hostname mismatch for %s\n",hostName.c_str());
+          return {uit,-1};
+          }
+       }
     const char closebuf[]{"\r\nConnection: close\r\n\r\n"};
     strsepconcat req {""sv,TYPE , " "sv,path," HTTP/1.1\r\nHost: "sv , host , "\r\nContent-Length: "sv,std::to_string(input.size()), header,closebuf};
 

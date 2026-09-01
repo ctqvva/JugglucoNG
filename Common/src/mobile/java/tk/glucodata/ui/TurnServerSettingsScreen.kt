@@ -44,9 +44,17 @@ fun TurnServerSettingsScreen(navController: NavController) {
     var port by remember { mutableStateOf(if (isAbsent) "3478" else Natives.getTurnPort(0).toString()) }
     var passwordVisible by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(isAbsent) }
-    var useTurnForStun by remember { mutableStateOf(initialIceConfig.useTurnForStun) }
+    var useTurnForStun by remember {
+        mutableStateOf(if (isAbsent) true else initialIceConfig.useTurnForStun)
+    }
     var rendezvousHost by remember { mutableStateOf(initialIceConfig.rendezvousHost) }
     var rendezvousPort by remember { mutableStateOf(initialIceConfig.rendezvousPort.toString()) }
+    var useCustomRendezvous by remember {
+        mutableStateOf(initialIceConfig.rendezvousHost.isNotEmpty())
+    }
+    var verifyRendezvousCertificate by remember {
+        mutableStateOf(initialIceConfig.verifyRendezvousCertificate)
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -107,7 +115,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
             OutlinedTextField(
                 value = port, onValueChange = { port = it },
                 label = { Text(stringResource(R.string.port)) },
-                supportingText = { Text("Standard: 3478 (UDP), 5349 (TLS)") },
+                supportingText = { Text(stringResource(R.string.turn_udp_port_default)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -140,22 +148,44 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 position = CardPosition.SINGLE,
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = rendezvousHost,
-                onValueChange = { rendezvousHost = it },
-                label = { Text(stringResource(R.string.rendezvous_server)) },
-                supportingText = { Text(stringResource(R.string.rendezvous_host_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+            SettingsSwitchItem(
+                title = stringResource(R.string.use_custom_rendezvous_server),
+                subtitle = stringResource(R.string.use_custom_rendezvous_server_summary),
+                checked = useCustomRendezvous,
+                onCheckedChange = { useCustomRendezvous = it },
+                position = CardPosition.SINGLE,
             )
-            OutlinedTextField(
-                value = rendezvousPort,
-                onValueChange = { rendezvousPort = it },
-                label = { Text(stringResource(R.string.rendezvous_port)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
+            AnimatedVisibility(
+                visible = useCustomRendezvous,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = rendezvousHost,
+                        onValueChange = { rendezvousHost = it },
+                        label = { Text(stringResource(R.string.rendezvous_server)) },
+                        supportingText = { Text(stringResource(R.string.rendezvous_host_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = rendezvousPort,
+                        onValueChange = { rendezvousPort = it },
+                        label = { Text(stringResource(R.string.rendezvous_port)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.verify_rendezvous_certificate),
+                        subtitle = stringResource(R.string.verify_rendezvous_certificate_summary),
+                        checked = verifyRendezvousCertificate,
+                        onCheckedChange = { verifyRendezvousCertificate = it },
+                        position = CardPosition.SINGLE,
+                    )
+                }
+            }
 
             // Actions
             Spacer(Modifier.height(24.dp))
@@ -182,7 +212,11 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 Button(
                     onClick = {
                         val cleanTurnHost = host.trim()
-                        val cleanRendezvousHost = rendezvousHost.trim()
+                        val cleanRendezvousHost = if (useCustomRendezvous) {
+                            rendezvousHost.trim()
+                        } else {
+                            ""
+                        }
                         val portNum = port.toIntOrNull()
                         val rendezvousPortNum = if (cleanRendezvousHost.isEmpty()) {
                             CloneIceNetworkConfig.DEFAULT_RENDEZVOUS_PORT
@@ -202,6 +236,14 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             Toast.makeText(context, context.getString(R.string.turn_required_for_stun), Toast.LENGTH_LONG).show()
                             return@Button
                         }
+                        if (useCustomRendezvous && cleanRendezvousHost.isEmpty()) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.rendezvous_host_required),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            return@Button
+                        }
                         val previousTurn = if (Natives.TurnServerNR() > 0) {
                             arrayOf(
                                 Natives.getTurnHost(0).orEmpty(),
@@ -217,6 +259,8 @@ fun TurnServerSettingsScreen(navController: NavController) {
                                 rendezvousHost = cleanRendezvousHost,
                                 rendezvousPort = rendezvousPortNum,
                                 useTurnForStun = useTurnForStun,
+                                verifyRendezvousCertificate = !useCustomRendezvous ||
+                                    verifyRendezvousCertificate,
                             ),
                         )
                         if (!iceSaved) {

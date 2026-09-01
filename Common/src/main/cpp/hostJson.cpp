@@ -93,6 +93,8 @@ std::string mkbackjson(int pos) {
     const auto iceConfig=currentICEConfig();
     inserter=insertbool(inserter,"stun",
                         iceConfig.useTurnForStun&&!turnHostname.empty());
+    if(!iceConfig.verifyRendezvousCertificate)
+      inserter=insertbool(inserter,"cv",false);
     if(iceConfig.rendezvousHost.empty()) {
       inserter=std::format_to(inserter,R"(,"rv":0)");
     }

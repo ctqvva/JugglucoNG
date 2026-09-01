@@ -27,6 +27,7 @@ internal data class HybridQrIceConfig(
     val useTurnForStun: Boolean,
     val rendezvousHost: String,
     val rendezvousPort: Int,
+    val verifyRendezvousCertificate: Boolean,
 )
 
 private fun exactInteger(value: Any?, error: String): Long {
@@ -85,7 +86,8 @@ internal fun parseHybridQrIceConfig(
 ): HybridQrIceConfig? {
     val hasStun = json.has("stun")
     val hasRendezvous = json.has("rv")
-    if (!hasStun && !hasRendezvous) return null
+    val hasCertificateVerification = json.has("cv")
+    if (!hasStun && !hasRendezvous && !hasCertificateVerification) return null
     require(hasStun && hasRendezvous) { "ICE network configuration is incomplete" }
     require(json.optString("ICElabel", "").isNotBlank()) {
         "ICE network configuration requires an ICE label"
@@ -93,6 +95,12 @@ internal fun parseHybridQrIceConfig(
 
     val useTurnForStun = json.get("stun") as? Boolean
         ?: throw IllegalArgumentException("STUN configuration is invalid")
+    val verifyRendezvousCertificate = if (hasCertificateVerification) {
+        json.get("cv") as? Boolean
+            ?: throw IllegalArgumentException("Certificate verification configuration is invalid")
+    } else {
+        true
+    }
     require(!useTurnForStun || turnConfig != null) {
         "TURN-for-STUN requires TURN configuration"
     }
@@ -133,7 +141,12 @@ internal fun parseHybridQrIceConfig(
         }
     }
 
-    return HybridQrIceConfig(useTurnForStun, host, port)
+    return HybridQrIceConfig(
+        useTurnForStun,
+        host,
+        port,
+        verifyRendezvousCertificate,
+    )
 }
 
 internal fun mirrorQrContainsTurnConfig(payload: String): Boolean =

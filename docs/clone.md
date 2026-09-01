@@ -45,8 +45,12 @@ uses authenticated ASCON encryption when that password is present, including
 when packets travel through TURN. TURN therefore does not need TLS to keep the
 glucose payload private from the relay operator.
 
-The rendezvous connection uses HTTPS. Give it a publicly trusted certificate
-for the hostname entered in JugglucoNG.
+The rendezvous connection uses HTTPS. Certificate chain and hostname
+verification are enabled by default. Give the server a publicly trusted
+certificate for the hostname entered in JugglucoNG when possible. A trusted
+self-signed server can be used by disabling certificate verification, but that
+also removes rendezvous server authentication and permits active interception
+of ICE signaling. The Clone data stream remains separately encrypted.
 
 The Hybrid QR is secret. It contains the Clone connection password and, when
 configured, the TURN username and password. Share it directly with the intended
@@ -304,15 +308,21 @@ Adjust `CERT_LINEAGE` if Certbot reports a suffix such as `-0001`.
 Do this on the sender before displaying the Hybrid QR:
 
 1. Open **Settings > Exchange data > Mirror > TURN Server**.
-2. Enter the TURN hostname, UDP port `3478`, username, and password.
-3. Enable **Use TURN server for STUN**.
-4. Enter the same hostname under **Rendezvous server** and port `6789`.
-5. Save, return to the Clone screen, and tap **Share Hybrid QR**.
-6. Scan that Hybrid QR on the receiver and confirm its warning.
+2. Enter the TURN hostname, username, and password. Leave the default UDP port
+   `3478` unless the server uses another port.
+3. Leave **Use TURN server for STUN** enabled. It defaults to on for a new TURN
+   setup.
+4. Enable **Use custom rendezvous server**, enter its hostname, and leave the
+   default port `6789` unless the server uses another port.
+5. Leave **Verify rendezvous certificate** enabled for a publicly trusted
+   certificate. Disable it only for a self-signed server that you trust.
+6. Save, return to the Clone screen, and tap **Share Hybrid QR**.
+7. Scan that Hybrid QR on the receiver and confirm its warning.
 
-The Hybrid QR carries the TURN credentials, the STUN choice, and the rendezvous
-endpoint. The receiver does not need those fields entered manually. Importing
-the QR replaces its existing TURN and Clone ICE service settings.
+The Hybrid QR carries the TURN credentials, the STUN choice, the rendezvous
+endpoint, and its certificate-verification choice. The receiver does not need
+those fields entered manually. Importing the QR replaces its existing TURN and
+Clone ICE service settings.
 
 Older Hybrid QRs without the STUN and rendezvous fields remain valid, but they
 continue to use the app defaults. Generate a new QR after changing any server
