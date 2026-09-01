@@ -2,15 +2,11 @@ package tk.glucodata
 
 object CloneTransportPresentation {
     /**
-     * A sensor's latest imported route remains useful while its ICE connection
-     * is between generations. Connection diagnostics intentionally do not use
-     * this fallback because they report the native state at this instant.
+     * Live Clone surfaces report the current ICE generation. Historical rows
+     * keep their independently persisted route.
      */
     @JvmStatic
-    fun sensorTransport(
-        live: CloneTransport?,
-        lastConfirmed: CloneTransport?,
-    ): CloneTransport? = knownTransport(live) ?: knownTransport(lastConfirmed)
+    fun sensorTransport(live: CloneTransport?): CloneTransport? = knownTransport(live)
 
     private fun knownTransport(transport: CloneTransport?): CloneTransport? =
         transport?.takeIf { it == CloneTransport.LOCAL_ICE || it == CloneTransport.TURN }
