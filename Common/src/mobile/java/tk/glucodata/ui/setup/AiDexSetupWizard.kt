@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,8 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
@@ -404,19 +407,21 @@ fun AiDexScanStep(
                 HorizontalDivider()
             }
         }
-        TextButton(
+        SettingsItem(
+            title = stringResource(R.string.aidex_key_management_title),
+            subtitle = stringResource(R.string.aidex_key_management_entry_desc),
+            showArrow = true,
+            icon = Icons.Default.Key,
+            iconTint = MaterialTheme.colorScheme.primary,
+            position = CardPosition.SINGLE,
             onClick = onManageKeys,
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .padding(horizontal = ui.horizontalPadding),
-        ) {
-            Text(
-                stringResource(
-                    R.string.aidex_key_management_title,
+                .padding(
+                    start = ui.horizontalPadding,
+                    end = ui.horizontalPadding,
+                    bottom = ui.spacerMedium,
                 ),
-            )
-        }
+        )
     }
 }
 

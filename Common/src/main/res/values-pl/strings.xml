@@ -736,8 +736,9 @@
     <string name="aidex_connected">Połączono!</string>
     <string name="aidex_connecting_to">Łączę z %1$s...</string>
     <string name="aidex_parse_error">AiDex: nie można przeanalizować numeru seryjnego czujnika z „%1$s”</string>
-    <string name="aidex_key_management_title">Klucze AiDex</string>
+    <string name="aidex_key_management_title">Klucze i konto</string>
     <string name="aidex_key_management_desc">Najpierw próbowane jest parowanie lokalne. Dodaj klucz właściwy dla czujnika dopiero wtedy, gdy czujnik zgłosi jego brak.</string>
+    <string name="aidex_key_management_entry_desc">Zarządzaj kluczami czujników i kontem AiDex CN</string>
     <string name="aidex_key_missing">Brak klucza parowania</string>
     <string name="aidex_key_rejected">Zapisany klucz parowania został odrzucony; zastąp go</string>
     <string name="aidex_key_saved">Zapisano klucz parowania właściwy dla czujnika</string>

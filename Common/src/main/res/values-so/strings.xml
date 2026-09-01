@@ -1088,8 +1088,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="aidex_setup_title">AiDex / LinX Setup</string>
     <string name="aidex_searching_sensors">Raadinta dareemayaasha...</string>
     <string name="aidex_parse_error">AiDex: waxay kala saari kari wayday taxanaha dareemaha "%1$s"</string>
-    <string name="aidex_key_management_title">Furayaasha AiDex</string>
+    <string name="aidex_key_management_title">Furayaasha iyo akoonka</string>
     <string name="aidex_key_management_desc">Isku-xidhka gudaha ayaa marka hore la tijaabiyaa. Ku dar furaha dareemaha gaarka ah keliya marka dareemuhu sheego in furuhu maqan yahay.</string>
+    <string name="aidex_key_management_entry_desc">Maamul furayaasha dareemayaasha iyo akoonka AiDex CN</string>
     <string name="aidex_key_missing">Furaha isku-xidhka ayaa maqan</string>
     <string name="aidex_key_rejected">Furaha isku-xidhka la kaydiyey waa la diiday; beddel</string>
     <string name="aidex_key_saved">Furaha isku-xidhka dareemaha waa la kaydiyey</string>

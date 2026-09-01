@@ -1155,8 +1155,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_setup_title">AiDex / LinX Setup</string>
     <string name="aidex_searching_sensors">Searching for sensors...</string>
     <string name="aidex_parse_error">AiDex: couldn\'t parse sensor serial from "%1$s"</string>
-    <string name="aidex_key_management_title">AiDex keys</string>
+    <string name="aidex_key_management_title">Keys &amp; account</string>
     <string name="aidex_key_management_desc">Local pairing is tried first. Add a sensor-specific key only after the sensor reports that one is missing.</string>
+    <string name="aidex_key_management_entry_desc">Manage sensor keys and the AiDex CN account</string>
     <string name="aidex_key_missing">Pairing key missing</string>
     <string name="aidex_key_rejected">Saved pairing key rejected; replace it</string>
     <string name="aidex_key_saved">Sensor-specific pairing key saved</string>

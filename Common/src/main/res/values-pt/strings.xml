@@ -564,8 +564,9 @@
     <string name="aidex_connected">Conectado!</string>
     <string name="aidex_connecting_to">Conectando a %1$s...</string>
     <string name="aidex_parse_error">AiDex: não foi possível analisar a série do sensor de "%1$s"</string>
-    <string name="aidex_key_management_title">Chaves AiDex</string>
+    <string name="aidex_key_management_title">Chaves e conta</string>
     <string name="aidex_key_management_desc">O emparelhamento local é tentado primeiro. Adicione uma chave específica do sensor apenas depois de o sensor indicar que está em falta.</string>
+    <string name="aidex_key_management_entry_desc">Gerir chaves dos sensores e a conta AiDex CN</string>
     <string name="aidex_key_missing">Chave de emparelhamento em falta</string>
     <string name="aidex_key_rejected">Chave de emparelhamento guardada rejeitada; substitua-a</string>
     <string name="aidex_key_saved">Chave de emparelhamento específica do sensor guardada</string>

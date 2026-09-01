@@ -674,8 +674,9 @@
     <string name="aidex_connected">Підключено!</string>
     <string name="aidex_connecting_to">Підключення до %1$s...</string>
     <string name="aidex_parse_error">AiDex: не вдалося розібрати серійний номер датчика з "%1$s"</string>
-    <string name="aidex_key_management_title">Ключі AiDex</string>
+    <string name="aidex_key_management_title">Ключі й акаунт</string>
     <string name="aidex_key_management_desc">Спочатку виконується локальне сполучення. Додавайте ключ конкретного сенсора лише після повідомлення, що ключ відсутній.</string>
+    <string name="aidex_key_management_entry_desc">Керування ключами сенсорів і акаунтом AiDex CN</string>
     <string name="aidex_key_missing">Ключ сполучення відсутній</string>
     <string name="aidex_key_rejected">Збережений ключ сполучення відхилено; замініть його</string>
     <string name="aidex_key_saved">Ключ сполучення для сенсора збережено</string>

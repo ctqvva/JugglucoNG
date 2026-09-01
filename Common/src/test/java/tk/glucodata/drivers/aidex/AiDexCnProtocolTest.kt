@@ -27,6 +27,14 @@ class AiDexCnProtocolTest {
     }
 
     @Test
+    fun smsLoginUsesVendorLoginOrRegisterCodeEndpoint() {
+        assertEquals(
+            "/backend/aidex-x/user/sendRegisterPhoneVerificationCode",
+            AiDexCnCloudClient.SEND_PHONE_CODE,
+        )
+    }
+
+    @Test
     fun passwordHashMatchesOfficialLowercaseMd5() {
         assertEquals("5f4dcc3b5aa765d61d8327deb882cf99", AiDexCnProtocol.md5Hex("password"))
     }

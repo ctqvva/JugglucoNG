@@ -537,8 +537,9 @@
     <string name="aidex_connected">Connesso!</string>
     <string name="aidex_connecting_to">Connessione a %1$s...</string>
     <string name="aidex_parse_error">AiDex: impossibile analizzare il seriale del sensore da "%1$s"</string>
-    <string name="aidex_key_management_title">Chiavi AiDex</string>
+    <string name="aidex_key_management_title">Chiavi e account</string>
     <string name="aidex_key_management_desc">Viene tentato prima l’abbinamento locale. Aggiungi una chiave specifica del sensore solo quando il sensore segnala che manca.</string>
+    <string name="aidex_key_management_entry_desc">Gestisci le chiavi dei sensori e l’account AiDex CN</string>
     <string name="aidex_key_missing">Chiave di abbinamento mancante</string>
     <string name="aidex_key_rejected">Chiave di abbinamento salvata rifiutata; sostituirla</string>
     <string name="aidex_key_saved">Chiave di abbinamento specifica del sensore salvata</string>

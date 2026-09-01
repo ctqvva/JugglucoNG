@@ -39,7 +39,7 @@ internal data class AiDexProvisionedKeys(
 internal object AiDexCnCloudClient {
     private const val TAG = "AiDexCnCloud"
     private const val BASE_URL = "https://china.pancares.com"
-    private const val SEND_LOGIN_CODE = "/backend/aidex-x/user/sendLoginPhoneVerificationCode"
+    internal const val SEND_PHONE_CODE = "/backend/aidex-x/user/sendRegisterPhoneVerificationCode"
     private const val LOGIN_WITH_CODE = "/backend/aidex-x/user/loginOrRegisterByVerificationCodeWithPhone"
     private const val LOGIN_WITH_PASSWORD = "/backend/aidex-x/user/loginByPassword"
     private const val GET_SN_CONFIG = "/backend/aidex-x/cgmDevice/getSnConfig"
@@ -61,7 +61,11 @@ internal object AiDexCnCloudClient {
     fun requestLoginCode(phone: String): AiDexCnResult<Unit> {
         val normalized = normalizeCnPhone(phone)
             ?: return AiDexCnResult(error = "Invalid mainland China phone number")
-        val response = post(SEND_LOGIN_CODE, JSONObject().put("phone", normalized))
+        // The vendor's SMS sign-in is a combined login-or-register flow. Its AccountViewModel
+        // requests the registration code before calling loginOrRegisterByVerificationCodeWithPhone;
+        // the separately declared sendLoginPhoneVerificationCode endpoint is not used there and
+        // currently answers with business code 500.
+        val response = post(SEND_PHONE_CODE, JSONObject().put("phone", normalized))
         return if (response.value != null) {
             AiDexCnResult(Unit, code = response.code)
         } else {
@@ -99,7 +103,7 @@ internal object AiDexCnCloudClient {
         val random = ByteArray(8).also(SecureRandom()::nextBytes).toHex()
         val timestamp = System.currentTimeMillis().toString()
         val body = AiDexCnProtocol.signedSnConfigBody(bareSerial, random, timestamp)
-        val response = post(GET_SN_CONFIG, body, token)
+        val response = post(GET_SN_CONFIG, body, token, useCnRouting = true)
         val data = response.value ?: return AiDexCnResult(error = response.error, code = response.code)
         val responseSerial = data.optString("deviceSn")
         if (responseSerial.isNotBlank() &&
@@ -125,7 +129,12 @@ internal object AiDexCnCloudClient {
         }
     }
 
-    private fun post(path: String, body: JSONObject, token: String = ""): AiDexCnResult<JSONObject> {
+    private fun post(
+        path: String,
+        body: JSONObject,
+        token: String = "",
+        useCnRouting: Boolean = false,
+    ): AiDexCnResult<JSONObject> {
         var connection: HttpURLConnection? = null
         return try {
             val envelope = AiDexCnProtocol.encryptEnvelope(body.toString())
@@ -144,7 +153,9 @@ internal object AiDexCnCloudClient {
                     "User-Agent",
                     "android${Build.VERSION.SDK_INT}-${Build.BRAND}-${Build.MODEL},com.microtech.aidexx,1.15.1",
                 )
-                setRequestProperty("X-Forwarded-For", CN_ROUTING_IP)
+                // This compatibility header belongs only to getSnConfig's China availability
+                // gate. Account requests should match the official client and use their real IP.
+                if (useCnRouting) setRequestProperty("X-Forwarded-For", CN_ROUTING_IP)
                 if (token.isNotBlank()) setRequestProperty("x-token", token)
                 outputStream.use { it.write(bytes) }
             }
