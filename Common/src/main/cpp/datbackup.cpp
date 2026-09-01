@@ -129,11 +129,11 @@ int updateone::sendCloneJournalSnapshot() {
     // resending it with every glucose update, but resend after ICE creates a
     // new agent so a restarted receiver is backfilled immediately.
     static std::string lastPayload[maxallhosts];
-    static int lastConnectionIdentity[maxallhosts] = {};
-    const int connectionIdentity = connect->getSenderIdent();
+    static uint64_t lastConnectionGeneration[maxallhosts] = {};
+    const uint64_t connectionGeneration = connect->senderConnectionGeneration();
     if (allindex >= 0 && allindex < maxallhosts &&
         lastPayload[allindex] == json &&
-        lastConnectionIdentity[allindex] == connectionIdentity) {
+        lastConnectionGeneration[allindex] == connectionGeneration) {
         return 2;
     }
     static constexpr std::string_view path = "mirror/journal.json";
@@ -146,7 +146,7 @@ int updateone::sendCloneJournalSnapshot() {
     }
     if (allindex >= 0 && allindex < maxallhosts) {
         lastPayload[allindex] = json;
-        lastConnectionIdentity[allindex] = connectionIdentity;
+        lastConnectionGeneration[allindex] = connectionGeneration;
     }
     return 1;
 }

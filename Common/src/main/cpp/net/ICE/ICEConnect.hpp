@@ -156,6 +156,10 @@ bool isCurrentAgent(juice_agent_t *candidate, uint64_t generation) const {
 uint64_t currentAgentGeneration() const {
         return agentGeneration.load();
         }
+void advanceAgentGeneration() {
+        static std::atomic<uint64_t> nextGeneration{1};
+        agentGeneration.store(nextGeneration.fetch_add(1), std::memory_order_release);
+        }
 bool claimReceiverThread() {
         bool expected=false;
         return receiverThreadRunning.compare_exchange_strong(expected, true);
@@ -174,7 +178,7 @@ void releaseReceiverThread() {
         destruct _{[this]{initrunning.clear();}};
         cancelRendezvous();
         auto wasagent=agent.exchange(nullptr);
-        agentGeneration.fetch_add(1);
+        advanceAgentGeneration();
         if(wasagent) {
             LOGGER("1: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG
@@ -208,7 +212,7 @@ void releaseReceiverThread() {
                 phase=FailedInitAgent;
                 LOGGER("end ICEConnect::newConnection failed allindex=%d, juice_destroy(%p)\n",allindex,theagent);
                 auto current=agent.exchange(nullptr);
-                agentGeneration.fetch_add(1);
+                advanceAgentGeneration();
                 if(current) {
             #ifndef NOLOG
                     juice_set_log_level(JUICE_LOG_LEVEL_VERBOSE);
@@ -246,7 +250,7 @@ void endConnection() override{
         destruct _{[this]{initrunning.clear();}};
         LOGGERICE("%d: ICEConnect::endConnection allindex=%d agent=%p\n",side,allindex,agent.load());
         juice_agent *wasagent=agent.exchange(nullptr);
-        agentGeneration.fetch_add(1);
+        advanceAgentGeneration();
         if(wasagent) {
             LOGGER("endConnection: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG
@@ -413,6 +417,9 @@ virtual  int  getReceiverIdent() const override {
 virtual  int  getSenderIdent() const override {
     return getIdent(); 
     };
+uint64_t senderConnectionGeneration() const override {
+    return currentAgentGeneration();
+    }
 
 
  virtual  bool  isConnectedReceiver() const override {

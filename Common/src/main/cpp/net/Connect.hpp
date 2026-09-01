@@ -116,6 +116,9 @@ bool receiveConnect(passhost_t *hostptr);
  virtual    void  closeSenderConnection() =0;
  virtual  int  getSenderIdent() const =0;
  virtual  int  getReceiverIdent() const =0;
+ virtual uint64_t senderConnectionGeneration() const {
+        return static_cast<uint32_t>(getSenderIdent());
+        }
  virtual  bool  isConnectedReceiver() const =0;
  virtual  bool  isConnectedSender() const =0;
 virtual void setSenderTimeouts()  =0;
