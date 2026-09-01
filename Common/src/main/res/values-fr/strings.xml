@@ -135,6 +135,8 @@
 <string name="name">Nom:</string>
 <string name="carbperunit">Glucides/unité:</string>
 <string name="database">Base de données</string>
+<string name="history_database_incompatible_title">Base de données d’historique incompatible</string>
+<string name="history_database_incompatible_message">Cette version ne peut pas ouvrir la base de données d’historique existante, car sa version ou son schéma est incompatible. Vos données n’ont pas été supprimées. Installez la version qui a créé la base de données, ou une version compatible plus récente, puis redémarrez l’application.</string>
 <string name="search">Chercher</string>
 <string name="trace">Tracer</string>
 <string name="unknown">Inconnu</string>

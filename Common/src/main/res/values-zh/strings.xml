@@ -136,6 +136,8 @@
  <string name="name">名称：</string>
  <string name="carbperunit">单位碳水化合物：</string>
  <string name="database">数据库</string>
+ <string name="history_database_incompatible_title">历史数据库不兼容</string>
+ <string name="history_database_incompatible_message">此版本无法打开现有的历史数据库，因为其版本或架构不兼容。您的数据未被删除。请安装创建该数据库的版本或更新的兼容版本，然后重新启动应用。</string>
  <string name="search">搜索</string>
  <string name="trace">追踪</string>
  <string name="unknown">未知</string>

@@ -135,6 +135,8 @@
  <string name="name">Імя:</string>
  <string name="carbperunit">Вугляводы/адзінка:</string>
  <string name="database">База дадзеных</string>
+ <string name="history_database_incompatible_title">Несумяшчальная база даных гісторыі</string>
+ <string name="history_database_incompatible_message">Гэта зборка не можа адкрыць існуючую базу даных гісторыі, таму што яе версія або схема несумяшчальная. Вашы даныя не былі выдалены. Усталюйце зборку, якая стварыла базу даных, або навейшую сумяшчальную зборку, затым перазапусціце праграму.</string>
  <string name="search">Пошук</string>
  <string name="trace">След</string>
  <string name="unknown">Невядомы</string>

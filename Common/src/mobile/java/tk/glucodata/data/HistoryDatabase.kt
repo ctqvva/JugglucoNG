@@ -58,6 +58,8 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun readingDisplayDao(): ReadingDisplayDao
 
     companion object {
+        private const val DATABASE_NAME = "glucose_history.db"
+
         @Volatile
         private var INSTANCE: HistoryDatabase? = null
 
@@ -409,7 +411,7 @@ abstract class HistoryDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     HistoryDatabase::class.java,
-                    "glucose_history.db"
+                    DATABASE_NAME
                 )
                 .addMigrations(
                     MIGRATION_2_3,
@@ -427,8 +429,24 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_14_15,
                     MIGRATION_15_16
                 )
-                .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
             }
+
+        @JvmStatic
+        fun isCompatibleAtStartup(context: Context): Boolean {
+            if (!context.getDatabasePath(DATABASE_NAME).isFile) return true
+
+            return try {
+                getInstance(context).openHelper.writableDatabase
+                true
+            } catch (error: RuntimeException) {
+                android.util.Log.e(
+                    "HistoryDatabase",
+                    "Existing history database is incompatible with this build",
+                    error
+                )
+                false
+            }
+        }
     }
 }

@@ -132,6 +132,8 @@
   <string name="name">Name:</string>
   <string name="carbperunit">Kohlenhydrate/Einheit:</string>
   <string name="database">Datenbank</string>
+  <string name="history_database_incompatible_title">Inkompatible Verlaufsdatenbank</string>
+  <string name="history_database_incompatible_message">Dieser Build kann die vorhandene Verlaufsdatenbank nicht öffnen, weil ihre Version oder ihr Schema inkompatibel ist. Ihre Daten wurden nicht gelöscht. Installieren Sie den Build, der die Datenbank erstellt hat, oder einen neueren kompatiblen Build, und starten Sie die App anschließend neu.</string>
   <string name="search">Suchen</string>
   <string name="trace">Trace</string>
   <string name="unknown">Unbekannt</string>

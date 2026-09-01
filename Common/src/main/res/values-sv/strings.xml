@@ -131,6 +131,8 @@
   <string name="name">Namn:</string>
   <string name="carbperunit">Kolhydrater/enhet:</string>
   <string name="database">Databas</string>
+  <string name="history_database_incompatible_title">Inkompatibel historikdatabas</string>
+  <string name="history_database_incompatible_message">Den här versionen kan inte öppna den befintliga historikdatabasen eftersom dess version eller schema inte är kompatibelt. Dina data har inte raderats. Installera versionen som skapade databasen, eller en nyare kompatibel version, och starta sedan om appen.</string>
   <string name="search">Sök</string>
   <string name="trace">Spåra</string>
   <string name="unknown">Okänd</string>

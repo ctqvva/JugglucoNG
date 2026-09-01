@@ -136,6 +136,8 @@
  <string name="name">Nome:</string>
  <string name="carbperunit">Carboidrati/unità:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Database della cronologia incompatibile</string>
+ <string name="history_database_incompatible_message">Questa build non può aprire il database della cronologia esistente perché la versione o lo schema non sono compatibili. I dati non sono stati eliminati. Installa la build che ha creato il database, oppure una build compatibile più recente, quindi riavvia l’app.</string>
  <string name="search">Cerca</string>
  <string name="trace">Traccia</string>
  <string name="unknown">Sconosciuto</string>

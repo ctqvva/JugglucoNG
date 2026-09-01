@@ -136,6 +136,8 @@
 <string name="name">Nome:</string>
 <string name="carbperunit">Carboidratos/unidade:</string>
 <string name="database">Banco de dados</string>
+<string name="history_database_incompatible_title">Banco de dados do histórico incompatível</string>
+<string name="history_database_incompatible_message">Esta compilação não consegue abrir o banco de dados do histórico existente porque a versão ou o esquema é incompatível. Seus dados não foram excluídos. Instale a compilação que criou o banco de dados ou uma compilação compatível mais recente e reinicie o aplicativo.</string>
 <string name="search">Pesquisar</string>
 <string name="trace">Rastrear</string>
 <string name="unknown">Desconhecido</string>

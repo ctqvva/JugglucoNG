@@ -137,6 +137,8 @@
  <string name="name">Naam:</string>
  <string name="carbperunit">Koolhydraten/eenheid:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Incompatibele geschiedenisdatabase</string>
+ <string name="history_database_incompatible_message">Deze build kan de bestaande geschiedenisdatabase niet openen omdat de versie of het schema niet compatibel is. Uw gegevens zijn niet verwijderd. Installeer de build die de database heeft gemaakt, of een nieuwere compatibele build, en start de app daarna opnieuw.</string>
  <string name="search">Zoeken</string>
  <string name="trace">Trace</string>
  <string name="unknown">Onbekend</string>

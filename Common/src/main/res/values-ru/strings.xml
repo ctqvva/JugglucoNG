@@ -40,6 +40,8 @@
     <string name="connectwithsensor">Подключение к датчику</string>
     <string name="darkmode">Темная тема</string>
     <string name="database">База данных</string>
+    <string name="history_database_incompatible_title">Несовместимая база данных истории</string>
+    <string name="history_database_incompatible_message">Эта сборка не может открыть существующую базу данных истории, поскольку её версия или схема несовместима. Ваши данные не были удалены. Установите сборку, которая создала базу данных, или более новую совместимую сборку, затем перезапустите приложение.</string>
     <string name="datapresentuntil">"Данные сохраняются на приемнике до тех пор, пока: "</string>
     <string name="date">К дате</string>
     <string name="day_back">День назад</string>
