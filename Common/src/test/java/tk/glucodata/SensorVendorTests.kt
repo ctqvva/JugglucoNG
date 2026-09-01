@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.drivers.ManagedSensorUiFamily
 
@@ -45,6 +46,43 @@ class SensorVendorTests {
         assertEquals(SensorTypeName.AIDEX_LINX, SensorTypeName.fromNativeKind(SensorSourceResolver.SENSOR_KIND_AIDEX))
         assertEquals(SensorTypeName.AIDEX_LINX, SensorTypeName.fromNativeKind(0x100))
         assertEquals(SensorTypeName.UNKNOWN, SensorTypeName.fromNativeKind(-1))
+    }
+
+    @Test
+    fun everyRecognisedTypeHasADistinctBadgeCode() {
+        val codes = SensorTypeName.entries
+            .filter { it != SensorTypeName.UNKNOWN && it != SensorTypeName.NIGHTSCOUT }
+            .map { it.badgeText }
+        assertTrue("blank badge code", codes.none { it.isBlank() })
+        assertEquals(codes.size, codes.toSet().size)
+    }
+
+    @Test
+    fun badgeIsDroppedWhenTheNameAlreadyOpensWithTheModel() {
+        assertEquals(
+            "",
+            sensorBadgeText(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "Anytime5252037585"),
+        )
+        assertEquals(
+            "OTTAI",
+            sensorBadgeText(SensorVendor.OTTAI, SensorTypeName.OTTAI_CGM, "70D07E2552DB"),
+        )
+        assertEquals(
+            "SIBI 2",
+            sensorBadgeText(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "P225043JMV"),
+        )
+    }
+
+    @Test
+    fun badgeFallsBackToTheVendorWhenTheModelIsUnknown() {
+        assertEquals(
+            "AB",
+            sensorBadgeText(SensorVendor.ABBOTT, SensorTypeName.UNKNOWN, "3MH00CTNAQ4"),
+        )
+        assertEquals(
+            "",
+            sensorBadgeText(SensorVendor.UNKNOWN, SensorTypeName.UNKNOWN, "3MH00CTNAQ4"),
+        )
     }
 
     @Test

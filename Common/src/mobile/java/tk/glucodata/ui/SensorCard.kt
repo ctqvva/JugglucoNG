@@ -25,8 +25,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.rounded.Check
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +57,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorTypeName
 import tk.glucodata.SensorVendor
+import tk.glucodata.sensorBadgeText
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
@@ -136,34 +139,13 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
-/** Leading vendor tile of the sensor card header; the name starts after it. */
-private val SensorAvatarSize = 40.dp
-private val SensorAvatarGap = 12.dp
-
 /**
- * Vendor plus concrete model on one line, e.g. "Yuwell · Anytime". The vendor is dropped when
- * the model name already carries it ("Sibionics 2", "Ottai CGM"), so the line never stutters.
+ * Compact model code beside the sensor name, tinted with the sensor's own colour so the badge
+ * also says which coloured line on the chart this card owns.
  */
 @Composable
-private fun sensorSubtitleText(vendor: SensorVendor, type: SensorTypeName): String? {
-    val typeLabel = if (type == SensorTypeName.UNKNOWN) null else stringResource(type.labelRes)
-    val vendorLabel = when (vendor) {
-        SensorVendor.UNKNOWN, SensorVendor.NIGHTSCOUT -> null
-        else -> stringResource(vendor.labelRes)
-    }
-    return when {
-        typeLabel == null -> vendorLabel
-        vendorLabel == null || typeLabel.startsWith(vendorLabel, ignoreCase = true) -> typeLabel
-        else -> "$vendorLabel · $typeLabel"
-    }
-}
-
-/**
- * Vendor monogram tinted with the sensor's own colour, so the tile carries both "who made this"
- * and "which line on the chart is this" without a second coloured element in the header.
- */
-@Composable
-private fun SensorVendorAvatar(
+private fun SensorModelBadge(
+    code: String,
     vendor: SensorVendor,
     color: Color,
     modifier: Modifier = Modifier,
@@ -171,38 +153,43 @@ private fun SensorVendorAvatar(
     val vendorName = stringResource(vendor.labelRes)
     Box(
         modifier = modifier
-            .size(SensorAvatarSize)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(color.copy(alpha = 0.16f))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
             .clearAndSetSemantics { contentDescription = vendorName },
         contentAlignment = Alignment.Center,
     ) {
-        when (vendor) {
-            SensorVendor.NIGHTSCOUT -> Icon(
-                imageVector = Icons.Default.CloudDownload,
+        if (code.isEmpty()) {
+            Icon(
+                imageVector = if (vendor == SensorVendor.NIGHTSCOUT) {
+                    Icons.Default.CloudDownload
+                } else {
+                    Icons.Default.Sensors
+                },
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(16.dp),
             )
-            SensorVendor.UNKNOWN -> Icon(
-                imageVector = Icons.Default.Sensors,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(22.dp),
-            )
-            else -> Text(
-                text = vendor.badgeText,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Black,
+        } else {
+            Text(
+                text = code,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
                 color = color,
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }
 }
 
-/** Draws this sensor on the chart. Only meaningful with more than one sensor. */
+/**
+ * Whether this sensor feeds the rest of the app — chart, notifications, reading row, outputs.
+ * Both states draw the same circle so the off state is as legible as the on state.
+ */
 @Composable
-private fun SensorChartToggle(
+private fun SensorEnabledToggle(
     selected: Boolean,
     color: Color,
     onClick: () -> Unit,
@@ -215,14 +202,24 @@ private fun SensorChartToggle(
         modifier = modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(if (selected) color.copy(alpha = 0.16f) else Color.Transparent)
+            .background(
+                if (selected) {
+                    color.copy(alpha = 0.18f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                }
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Default.ShowChart,
+            imageVector = Icons.Rounded.Check,
             contentDescription = description,
-            tint = if (selected) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            tint = if (selected) {
+                color
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+            },
             modifier = Modifier.size(22.dp),
         )
     }
@@ -1341,41 +1338,58 @@ fun SensorCard(
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
                     val pausedText = stringResource(R.string.disabled_status)
 
-                    val subtitleText = sensorSubtitleText(sensor.vendor, sensor.sensorType)
-                    val showChartToggle = sensorCount > 1
+                    val displayName = sensor.displayName.ifBlank { sensor.serial }
+                    val badgeCode = sensorBadgeText(sensor.vendor, sensor.sensorType, displayName)
+                    val canToggleEnabled = sensorCount > 1
+                    val toggleEnabled = { viewModel.toggleDisplaySelection(sensor.serial) }
 
                     // Identity on the left, the controls that act on it on the right.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SensorVendorAvatar(vendor = sensor.vendor, color = sensor.color)
-                        Spacer(modifier = Modifier.width(SensorAvatarGap))
-                        Column(modifier = Modifier.weight(1f)) {
+                        // The name block is the large touch target for the enable toggle; the
+                        // check beside the pause button is its indicator.
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .then(
+                                    if (canToggleEnabled) {
+                                        Modifier.toggleable(
+                                            value = sensor.isSelectedForDisplay,
+                                            role = Role.Checkbox,
+                                            onValueChange = { toggleEnabled() },
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                text = sensor.displayName.ifBlank { sensor.serial },
+                                text = displayName,
                                 style = MaterialTheme.typography.titleLarge,
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
                             )
-                            subtitleText?.let { subtitle ->
-                                Text(
-                                    text = subtitle,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            if (badgeCode.isNotEmpty() || sensor.vendor == SensorVendor.NIGHTSCOUT) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                SensorModelBadge(
+                                    code = badgeCode,
+                                    vendor = sensor.vendor,
+                                    color = sensor.color,
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        if (showChartToggle) {
-                            SensorChartToggle(
+                        if (canToggleEnabled) {
+                            SensorEnabledToggle(
                                 selected = sensor.isSelectedForDisplay,
                                 color = sensor.color,
-                                onClick = { viewModel.toggleDisplaySelection(sensor.serial) },
+                                onClick = toggleEnabled,
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                         }
