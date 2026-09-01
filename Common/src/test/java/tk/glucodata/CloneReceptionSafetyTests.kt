@@ -109,6 +109,7 @@ class CloneReceptionSafetyTests {
         assertFalse(importBody.contains("JournalIobAccess.pushWatchserver("))
         assertFalse(importBody.contains("Notify.showoldglucose()"))
         assertTrue(snapshots.contains("cloneIobRefreshJob = journalChangedScope.launch"))
+
     }
 
     @Test
@@ -205,6 +206,8 @@ class CloneReceptionSafetyTests {
             .replace(Regex("\\s+"), " ")
         val startup = source("Common/src/main/java/tk/glucodata/Applic.java")
             .replace(Regex("\\s+"), " ")
+        val configStore = source("Common/src/main/java/tk/glucodata/CloneIceNetworkConfig.kt")
+            .replace(Regex("\\s+"), " ")
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
 
@@ -218,7 +221,16 @@ class CloneReceptionSafetyTests {
         assertTrue(saveConfig >= 0 && createHost > saveConfig)
         assertTrue(screen.contains("rollbackNetworkConfiguration()"))
 
-        assertTrue(startup.contains("CloneIceNetworkConfigStore.initialize(this)"))
+        val prepareConfig = startup.indexOf("CloneIceNetworkConfigStore.prepareForNativeStartup(this)")
+        val loadNative = startup.indexOf("numio.setlibrary(this)")
+        val validateConfig = startup.indexOf("CloneIceNetworkConfigStore.initialize(this)")
+        assertTrue(prepareConfig >= 0 && loadNative > prepareConfig && validateConfig > loadNative)
+        val prepareBody = configStore.substring(
+            configStore.indexOf("fun prepareForNativeStartup"),
+            configStore.indexOf("fun initialize"),
+        )
+        assertTrue(prepareBody.contains("applyToNative(load(context))"))
+        assertFalse(prepareBody.contains("TurnServerNR"))
         assertTrue(ice.contains("const auto networkConfig=currentICEConfig()"))
         assertTrue(ice.contains("networkConfig.useTurnForStun&&has_configured_turn"))
         assertTrue(ice.contains("hostname,rendezvousPort"))

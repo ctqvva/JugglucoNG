@@ -79,6 +79,15 @@ object CloneIceNetworkConfigStore {
     }
 
     @JvmStatic
+    fun prepareForNativeStartup(context: Context) {
+        // Startup restores saved ICE hosts inside setlibrary(). Apply the
+        // persisted endpoint first so their constructors never snapshot the
+        // built-in rendezvous service. TURN validity is checked after the
+        // native backup is available by initialize().
+        applyToNative(load(context))
+    }
+
+    @JvmStatic
     fun initialize(context: Context) {
         val stored = load(context)
         if (stored.useTurnForStun && Natives.TurnServerNR() <= 0) {

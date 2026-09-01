@@ -869,6 +869,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     boolean initproc() {
         if (!initproccalled) {
+            // setlibrary() restores and starts saved ICE hosts. Seed their
+            // immutable connection settings before any host is constructed.
+            CloneIceNetworkConfigStore.prepareForNativeStartup(this);
             if (!numio.setlibrary(this))
                 return false;
             // ICE connections can be created by startup services before the
