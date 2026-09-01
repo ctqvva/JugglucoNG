@@ -2604,4 +2604,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_type_nightscout">Nightscout</string>
     <string name="sensor_pause_streaming">Sensörü duraklat</string>
     <string name="sensor_resume_streaming">Sensörü sürdür</string>
+    <string name="sensor_color_title">Sensör rengi</string>
+    <string name="sensor_color_automatic">Otomatik</string>
 </resources>

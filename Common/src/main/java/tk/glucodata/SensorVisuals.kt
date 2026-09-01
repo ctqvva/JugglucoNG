@@ -1,5 +1,6 @@
 package tk.glucodata
 
+import android.content.Context
 import kotlin.math.abs
 
 /**
@@ -21,6 +22,12 @@ object SensorVisuals {
      */
     const val PEER_TEXT_BLEND = 0.45f
 
+    private const val PREFS_NAME = "tk.glucodata_preferences"
+    private const val KEY_COLOR_OVERRIDES = "sensor_palette_color_overrides"
+
+    @Volatile
+    private var cachedOverrides: Map<String, Int>? = null
+
     private val palette = intArrayOf(
         0xFF6750A4.toInt(), // Primary purple
         0xFF00796B.toInt(), // Teal
@@ -38,8 +45,13 @@ object SensorVisuals {
     @JvmStatic
     fun colorArgbAt(index: Int): Int = palette[wrappedPaletteIndex(index)]
 
+    /** How many colours a picker can offer. */
+    @JvmStatic
+    val paletteSize: Int get() = palette.size
+
     @JvmStatic
     fun colorIndex(sensorId: String?): Int {
+        paletteOverrideIndex(sensorId)?.let { return it }
         val normalized = sensorId?.trim().orEmpty()
         if (normalized.isEmpty()) return 0
         val hash = normalized.hashCode()
@@ -51,7 +63,12 @@ object SensorVisuals {
         if (sensorIds.size <= 1) return sensorIds.map(::colorArgb)
 
         val used = BooleanArray(palette.size)
-        return sensorIds.map { sensorId ->
+        // A colour the user picked always wins, so those slots are reserved before
+        // the hash-assigned sensors start claiming what is left.
+        val pinned = sensorIds.map(::paletteOverrideIndex)
+        pinned.filterNotNull().forEach { used[it] = true }
+        return sensorIds.mapIndexed { position, sensorId ->
+            pinned[position]?.let { return@mapIndexed colorArgbAt(it) }
             val baseIndex = colorIndex(sensorId)
             val assignedIndex = if (!used[baseIndex]) {
                 baseIndex
@@ -61,6 +78,67 @@ object SensorVisuals {
             used[assignedIndex] = true
             colorArgbAt(assignedIndex)
         }
+    }
+
+    /**
+     * Colour the user picked for this sensor, or null when it is still hash-assigned.
+     * Cached because the chart drawers call into here per frame.
+     */
+    @JvmStatic
+    fun paletteOverrideIndex(sensorId: String?): Int? {
+        val normalized = normalizedSensorId(sensorId) ?: return null
+        val stored = overrides()
+        if (stored.isEmpty()) return null
+        return stored.entries
+            .firstOrNull { (id, _) -> SensorIdentity.matches(id, normalized) }
+            ?.value
+    }
+
+    /** Pins [sensorId] to a palette slot, or clears the pin when [paletteIndex] is null. */
+    @JvmStatic
+    fun setPaletteOverride(sensorId: String?, paletteIndex: Int?) {
+        val normalized = normalizedSensorId(sensorId) ?: return
+        val updated = overrides()
+            .filterKeys { !SensorIdentity.matches(it, normalized) }
+            .toMutableMap()
+        if (paletteIndex != null) {
+            updated[normalized] = wrappedPaletteIndex(paletteIndex)
+        }
+        runCatching {
+            prefs().edit()
+                .putString(
+                    KEY_COLOR_OVERRIDES,
+                    updated.entries.joinToString("\n") { (id, index) -> "$id|$index" },
+                )
+                .apply()
+        }
+        cachedOverrides = updated
+    }
+
+    private fun normalizedSensorId(sensorId: String?): String? =
+        SensorIdentity.resolveAppSensorId(sensorId)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: sensorId?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun prefs() =
+        Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun overrides(): Map<String, Int> {
+        cachedOverrides?.let { return it }
+        val loaded = runCatching {
+            prefs().getString(KEY_COLOR_OVERRIDES, "").orEmpty()
+                .lineSequence()
+                .mapNotNull { line ->
+                    val separator = line.lastIndexOf('|')
+                    if (separator <= 0) return@mapNotNull null
+                    val id = line.substring(0, separator)
+                    val index = line.substring(separator + 1).toIntOrNull()
+                        ?: return@mapNotNull null
+                    id to wrappedPaletteIndex(index)
+                }
+                .toMap()
+        }.getOrDefault(emptyMap())
+        cachedOverrides = loaded
+        return loaded
     }
 
     @JvmStatic

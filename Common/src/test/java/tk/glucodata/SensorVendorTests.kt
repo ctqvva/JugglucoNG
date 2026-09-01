@@ -49,40 +49,48 @@ class SensorVendorTests {
     }
 
     @Test
-    fun everyRecognisedTypeHasADistinctBadgeCode() {
-        val codes = SensorTypeName.entries
-            .filter { it != SensorTypeName.UNKNOWN && it != SensorTypeName.NIGHTSCOUT }
-            .map { it.badgeText }
-        assertTrue("blank badge code", codes.none { it.isBlank() })
-        assertEquals(codes.size, codes.toSet().size)
+    fun everyRecognisedVendorHasABadgeBrandLine() {
+        val brands = SensorVendor.entries
+            .filter { it != SensorVendor.UNKNOWN }
+            .map { sensorBadge(it, SensorTypeName.UNKNOWN).brand }
+        assertTrue("blank brand line", brands.none { it.isBlank() })
+        // Only a glyph is left when there is nothing to name.
+        assertEquals("", sensorBadge(SensorVendor.UNKNOWN, SensorTypeName.UNKNOWN).brand)
     }
 
     @Test
-    fun badgeIsDroppedWhenTheNameAlreadyOpensWithTheModel() {
+    fun badgeModelLineComesFromTheDeviceNotTheFamilyDefault() {
+        // The family default is i3; an i6 must not inherit it.
         assertEquals(
-            "",
-            sensorBadgeText(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "Anytime5252037585"),
+            SensorBadge("ICAN", "I6"),
+            sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "iCan i6"),
         )
         assertEquals(
-            "OTTAI",
-            sensorBadgeText(SensorVendor.OTTAI, SensorTypeName.OTTAI_CGM, "70D07E2552DB"),
+            SensorBadge("ANYTIME", "CT5"),
+            sensorBadge(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "CT5"),
         )
         assertEquals(
-            "SIBI 2",
-            sensorBadgeText(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "P225043JMV"),
+            SensorBadge("AIDEX", "GX-01S"),
+            sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S"),
         )
     }
 
     @Test
-    fun badgeFallsBackToTheVendorWhenTheModelIsUnknown() {
+    fun unreportedOrOversizedModelsLeaveTheSecondLineBlank() {
+        assertEquals("", sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "").model)
+        assertEquals("", sensorBadge(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "Unknown").model)
+        // "CT3-Ultrasonic" reduces to its family rather than being cut mid-word.
         assertEquals(
-            "AB",
-            sensorBadgeText(SensorVendor.ABBOTT, SensorTypeName.UNKNOWN, "3MH00CTNAQ4"),
+            "CT3",
+            sensorBadge(SensorVendor.YUWELL, SensorTypeName.ANYTIME, "CT3-Ultrasonic").model,
         )
-        assertEquals(
-            "",
-            sensorBadgeText(SensorVendor.UNKNOWN, SensorTypeName.UNKNOWN, "3MH00CTNAQ4"),
-        )
+    }
+
+    @Test
+    fun badgeDistinguishesTheSibionicsGenerations() {
+        assertEquals("GS1", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS1).model)
+        assertEquals("GS2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2).model)
+        assertEquals("GS3", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_GS3).model)
     }
 
     @Test

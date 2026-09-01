@@ -291,6 +291,19 @@ class SensorViewModel : ViewModel() {
         }
     }
 
+    /** Pins this sensor to a palette slot everywhere it is drawn, or null to go back to automatic. */
+    fun setSensorPaletteColor(serial: String, paletteIndex: Int?) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                SensorVisuals.setPaletteOverride(serial, paletteIndex)
+                refreshSensorsWithDeviceSync()
+                UiRefreshBus.requestDataRefresh()
+            } catch (e: Exception) {
+                android.util.Log.e("SensorVM", "Failed to set sensor color: ${e.message}")
+            }
+        }
+    }
+
     fun toggleDisplaySelection(serial: String) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {

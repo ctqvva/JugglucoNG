@@ -2614,4 +2614,6 @@
     <string name="sensor_type_nightscout">Nightscout</string>
     <string name="sensor_pause_streaming">Wstrzymaj czujnik</string>
     <string name="sensor_resume_streaming">Wznów czujnik</string>
+    <string name="sensor_color_title">Kolor czujnika</string>
+    <string name="sensor_color_automatic">Automatycznie</string>
 </resources>

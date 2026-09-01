@@ -2566,4 +2566,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_type_nightscout">Nightscout</string>
     <string name="sensor_pause_streaming">Sospendi sensore</string>
     <string name="sensor_resume_streaming">Riprendi sensore</string>
+    <string name="sensor_color_title">Colore del sensore</string>
+    <string name="sensor_color_automatic">Automatico</string>
 </resources>

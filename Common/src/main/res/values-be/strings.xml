@@ -2647,4 +2647,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_type_nightscout">Nightscout</string>
     <string name="sensor_pause_streaming">Прыпыніць датчык</string>
     <string name="sensor_resume_streaming">Аднавіць датчык</string>
+    <string name="sensor_color_title">Колер датчыка</string>
+    <string name="sensor_color_automatic">Аўтаматычна</string>
 </resources>
