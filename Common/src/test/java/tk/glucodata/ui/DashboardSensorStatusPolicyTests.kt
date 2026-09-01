@@ -9,6 +9,7 @@ class DashboardSensorStatusPolicyTests {
     fun freshDataSuppressesStaleNativeStatus() {
         assertFalse(
             shouldShowDashboardSensorStatus(
+                isCloneSource = true,
                 isFreshData = true,
                 sensorStatus = "Disconnected",
                 heroOwnsAwaitingStatus = false,
@@ -20,6 +21,7 @@ class DashboardSensorStatusPolicyTests {
     fun staleDataMayShowMeaningfulNativeStatus() {
         assertTrue(
             shouldShowDashboardSensorStatus(
+                isCloneSource = true,
                 isFreshData = false,
                 sensorStatus = "Disconnected",
                 heroOwnsAwaitingStatus = false,
@@ -31,9 +33,22 @@ class DashboardSensorStatusPolicyTests {
     fun awaitingHeroKeepsItsMoreUsefulStatus() {
         assertFalse(
             shouldShowDashboardSensorStatus(
+                isCloneSource = true,
                 isFreshData = false,
                 sensorStatus = "Disconnected",
                 heroOwnsAwaitingStatus = true,
+            )
+        )
+    }
+
+    @Test
+    fun freshNonCloneSensorKeepsItsMeaningfulStatus() {
+        assertTrue(
+            shouldShowDashboardSensorStatus(
+                isCloneSource = false,
+                isFreshData = true,
+                sensorStatus = "Calibration required",
+                heroOwnsAwaitingStatus = false,
             )
         )
     }

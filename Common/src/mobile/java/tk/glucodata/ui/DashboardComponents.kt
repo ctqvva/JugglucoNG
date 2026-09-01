@@ -361,6 +361,9 @@ fun DashboardCombinedHeader(
     val cloneTransport = remember(refreshRevision, sensorName) {
         tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName)
     }
+    val isCloneSource = remember(refreshRevision, sensorName) {
+        tk.glucodata.CloneSensorRegistry.isCloneSensor(sensorName)
+    }
     val resolvedDataState = dataState ?: remember(
         resolvedCurrentSnapshot?.timeMillis,
         latestPoint?.timestamp,
@@ -960,6 +963,7 @@ fun DashboardCombinedHeader(
                         statusCopy != null &&
                         lifecycleText.isNotEmpty()
                     val showingStatus = shouldShowDashboardSensorStatus(
+                        isCloneSource = isCloneSource,
                         isFreshData = isFreshData,
                         sensorStatus = sensorStatus,
                         heroOwnsAwaitingStatus = heroOwnsAwaitingStatus,

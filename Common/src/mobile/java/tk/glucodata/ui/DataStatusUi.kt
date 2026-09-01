@@ -34,10 +34,11 @@ internal data class DashboardDataStatusText(
 )
 
 internal fun shouldShowDashboardSensorStatus(
+    isCloneSource: Boolean,
     isFreshData: Boolean,
     sensorStatus: String,
     heroOwnsAwaitingStatus: Boolean,
-): Boolean = !isFreshData &&
+): Boolean = (!isFreshData || !isCloneSource) &&
     sensorStatus.isNotEmpty() &&
     sensorStatus != "Ready" &&
     !heroOwnsAwaitingStatus
