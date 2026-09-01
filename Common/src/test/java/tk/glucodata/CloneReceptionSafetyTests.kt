@@ -116,6 +116,12 @@ class CloneReceptionSafetyTests {
         )
         assertTrue(journalImport.contains("cloneJournalImportMutex.withLock"))
         assertTrue(snapshots.contains("CloneSensorRegistry.whileReceptionEnabled"))
+        val nativeSender = source("Common/src/main/cpp/datbackup.cpp")
+        assertTrue(nativeSender.contains("senderConnectionGeneration()"))
+        assertFalse(nativeSender.contains("lastConnectionIdentity"))
+        val commandLine = source("Common/src/main/cpp/cmdline/main.cpp")
+        assertTrue(commandLine.contains("javaExportCloneJournalSnapshot()"))
+        assertTrue(commandLine.contains("javaImportCloneJournalSnapshot(const char *, int)"))
 
     }
 

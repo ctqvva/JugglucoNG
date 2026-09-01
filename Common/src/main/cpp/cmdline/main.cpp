@@ -1019,6 +1019,11 @@ std::string javaExportCloneIobSnapshot() {
 }
 void javaImportCloneIobSnapshot(const char *) {
 }
+std::string javaExportCloneJournalSnapshot() {
+    return {};
+}
+void javaImportCloneJournalSnapshot(const char *, int) {
+}
     /*
 extern bool hour24clock;
 bool hour24clock=true;
