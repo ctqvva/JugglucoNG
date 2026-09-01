@@ -15,6 +15,8 @@ data class CloneIceNetworkConfig(
 
     companion object {
         const val DEFAULT_RENDEZVOUS_PORT = 6789
+        const val DEFAULT_STUN_HOST = "stun.l.google.com"
+        const val DEFAULT_STUN_PORT = 19302
         const val MAX_HOST_LENGTH = 191
     }
 }

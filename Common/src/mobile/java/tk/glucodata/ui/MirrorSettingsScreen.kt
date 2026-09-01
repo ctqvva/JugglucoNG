@@ -56,6 +56,8 @@ import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.CloneIceNetworkConfig
 import tk.glucodata.CloneIceNetworkConfigStore
+import tk.glucodata.CloneTransport
+import tk.glucodata.CloneTransportPresentation
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.util.DiscoveredMirror
@@ -833,20 +835,22 @@ fun MirrorSettingsScreen(navController: NavController) {
                     }
                 )
             }
-            item(key = "clone_background_liveness") {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.mirror_background_liveness),
-                    subtitle = stringResource(R.string.mirror_background_liveness_desc),
-                    icon = Icons.Filled.BatterySaver,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    checked = backgroundLivenessEnabled,
-                    enabled = !CloneHostTransitionRunner.isRunning(),
-                    position = CardPosition.SINGLE,
-                    onCheckedChange = { enabled ->
-                        backgroundLivenessEnabled = enabled
-                        tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
-                    }
-                )
+            if (hasActiveCloneReceiver(readMirrorConnectionSnapshots())) {
+                item(key = "clone_background_liveness") {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.mirror_background_liveness),
+                        subtitle = stringResource(R.string.mirror_background_liveness_desc),
+                        icon = Icons.Filled.BatterySaver,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        checked = backgroundLivenessEnabled,
+                        enabled = !CloneHostTransitionRunner.isRunning(),
+                        position = CardPosition.SINGLE,
+                        onCheckedChange = { enabled ->
+                            backgroundLivenessEnabled = enabled
+                            tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
+                        }
+                    )
+                }
             }
 
             if (mirrors.isEmpty()) {
@@ -985,8 +989,15 @@ fun MirrorConnectionCard(
                         style = MaterialTheme.typography.titleMedium,
                         color = if (mirror.isDeactivated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else Color.Unspecified
                     )
-                    val sub = if (mirror.isDeactivated) stringResource(R.string.deactivated)
-                    else if (!mirror.port.isNullOrEmpty()) ":${mirror.port}" else null
+                    val sub = if (mirror.isDeactivated) {
+                        stringResource(R.string.deactivated)
+                    } else if (mirror.isIce) {
+                        stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
+                    } else if (!mirror.port.isNullOrEmpty()) {
+                        ":${mirror.port}"
+                    } else {
+                        null
+                    }
                     if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.graphicsLayer { rotationZ = chevronRotation })
@@ -996,6 +1007,10 @@ fun MirrorConnectionCard(
                 Column {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     if (!mirror.isDeactivated) {
+                        if (mirror.isIce) {
+                            CloneConnectionDiagnostics(mirror)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        }
                         AndroidView<TextView>(
                             factory = { ctx -> TextView(ctx).apply { textSize = 13f } },
                             update = { it.text = Html.fromHtml(mirror.status, Html.FROM_HTML_MODE_LEGACY) },
@@ -1058,6 +1073,58 @@ fun MirrorConnectionCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
+    val unknown = stringResource(R.string.unknown)
+    val route = stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
+    val stun = if (mirror.useTurnForStun) {
+        mirror.turnEndpoint?.let { "$it · TURN" } ?: unknown
+    } else {
+        mirror.stunEndpoint ?: unknown
+    }
+    val turn = mirror.turnEndpoint ?: stringResource(R.string.mirror_app_turn_server)
+    val certificateVerification = when (mirror.verifyRendezvousCertificate) {
+        true -> stringResource(R.string.enabled_status)
+        false -> stringResource(R.string.disabled_status)
+        null -> unknown
+    }
+
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        CloneDiagnosticRow(stringResource(R.string.mirror_route), route)
+        CloneDiagnosticRow(
+            stringResource(R.string.rendezvous_server),
+            mirror.rendezvousEndpoint ?: unknown,
+        )
+        CloneDiagnosticRow(stringResource(R.string.mirror_stun_server), stun)
+        CloneDiagnosticRow(stringResource(R.string.turnserver), turn)
+        CloneDiagnosticRow(
+            stringResource(R.string.mirror_certificate_verification),
+            certificateVerification,
+        )
+    }
+}
+
+@Composable
+private fun CloneDiagnosticRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.42f),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(0.58f),
+        )
     }
 }
 
@@ -1463,14 +1530,29 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
 data class MirrorItemData(
     val index: Int, val label: String?, val names: Array<String>?,
     val port: String?, val isDeactivated: Boolean, val status: String,
-    val isWearOs: Boolean
+    val isWearOs: Boolean,
+    val isIce: Boolean,
+    val cloneTransport: CloneTransport?,
+    val rendezvousEndpoint: String?,
+    val stunEndpoint: String?,
+    val turnEndpoint: String?,
+    val useTurnForStun: Boolean,
+    val verifyRendezvousCertificate: Boolean?,
 )
 
 fun getMirrorsList(): List<MirrorItemData> {
     val mirrors = mutableListOf<MirrorItemData>()
+    val iceConfig = CloneIceNetworkConfigStore.load(tk.glucodata.Applic.app)
+    val turnEndpoint = if (Natives.TurnServerNR() > 0) {
+        formatNetworkEndpoint(Natives.getTurnHost(0), Natives.getTurnPort(0))
+    } else {
+        null
+    }
     for (i in 0 until Natives.backuphostNr()) {
-        val isIce = !Natives.getICElabel(i).isNullOrBlank()
+        val iceIdentity = Natives.getICElabel(i)
+        val isIce = !iceIdentity.isNullOrBlank()
         val names = if (isIce) emptyArray() else Natives.getbackupIPs(i) ?: emptyArray()
+        val verification = if (isIce) Natives.getCloneRendezvousCertificateVerification(i) else -1
         mirrors.add(
             MirrorItemData(
                 i,
@@ -1479,7 +1561,28 @@ fun getMirrorsList(): List<MirrorItemData> {
                 mirrorDisplayPort(isIce, Natives.getbackuphostport(i)),
                 Natives.getHostDeactivated(i),
                 Natives.mirrorStatus(i) ?: "",
-                Natives.isWearOS(i)
+                Natives.isWearOS(i),
+                isIce,
+                iceIdentity?.let { CloneTransport.fromCode(Natives.getCloneConnectionTransport(it)) },
+                if (isIce) {
+                    formatNetworkEndpoint(
+                        Natives.getCloneRendezvousHost(i),
+                        Natives.getCloneRendezvousPort(i),
+                    )
+                } else {
+                    null
+                },
+                if (isIce && !iceConfig.useTurnForStun) {
+                    formatNetworkEndpoint(
+                        CloneIceNetworkConfig.DEFAULT_STUN_HOST,
+                        CloneIceNetworkConfig.DEFAULT_STUN_PORT,
+                    )
+                } else {
+                    null
+                },
+                if (isIce) turnEndpoint else null,
+                isIce && iceConfig.useTurnForStun,
+                verification.takeIf { it >= 0 }?.let { it != 0 },
             )
         )
     }

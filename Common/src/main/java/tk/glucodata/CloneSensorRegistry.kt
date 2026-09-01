@@ -312,6 +312,7 @@ object CloneSensorRegistry {
     }
 
     /** Returns the route selected by the sensor's current ICE connection, not its last imported row. */
+    @JvmStatic
     fun liveTransportForSensor(sensorId: String?): CloneTransport? {
         val requested = candidateKeys(sensorId)
         if (requested.isEmpty() || !isCloneSensor(sensorId)) return null

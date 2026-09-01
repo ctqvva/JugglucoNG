@@ -2854,6 +2854,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_restart_warning">End the current transmitter session and start a fresh pairing cycle? Existing glucose history will stay in the app.</string>
     <string name="anytime_history_action">History</string>
     <string name="clone_source_label">Clone</string>
+    <string name="clone_transport_local_ice">Local ICE</string>
+    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_unknown">Connection unknown</string>
+    <string name="mirror_route">Route</string>
+    <string name="mirror_stun_server">STUN server</string>
+    <string name="mirror_certificate_verification">Certificate verification</string>
+    <string name="mirror_app_turn_server">App-provided TURN</string>
     <string name="clone_source_turn_description">Clone via TURN</string>
     <string name="clone_source_local_ice_description">Clone via local ICE</string>
 </resources>

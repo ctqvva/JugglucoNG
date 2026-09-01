@@ -1007,6 +1007,10 @@ public class Notify {
 
     private static String resolveNotificationStatusText(String activeSensorSerial, String fallbackStatus) {
         try {
+            if (CloneSensorRegistry.isCloneSensor(activeSensorSerial)) {
+                final CloneTransport transport = CloneSensorRegistry.liveTransportForSensor(activeSensorSerial);
+                return app.getString(CloneTransportPresentation.statusTextRes(transport));
+            }
             final var managedSnapshot = ManagedSensorRuntime.resolveUiSnapshot(activeSensorSerial, activeSensorSerial);
             if (managedSnapshot != null) {
                 final String detailed = ManagedSensorStatusPolicy.collapseSummaryStatus(managedSnapshot.getDetailedStatus());

@@ -25,6 +25,7 @@
 #include "net/netstuff.hpp"
 #include "mirrorerror.h"
 #include "net/Connect.hpp"
+#include "net/ICE/ICEConnect.hpp"
 extern Connect *connections[];
 extern std::array<int,maxallhosts>   messagesendersockets;
 extern std::array<int,maxallhosts>   messagereceiversockets;
@@ -166,6 +167,41 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getCloneConnectionTransport)(
     }
     env->ReleaseStringUTFChars(connectionIdentity, identity);
     return transport;
+}
+
+extern "C" JNIEXPORT jstring JNICALL fromjava(getCloneRendezvousHost)(
+        JNIEnv *env, jclass, jint allindex) {
+    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        return nullptr;
+    const passhost_t &host = getBackupHosts()[allindex];
+    if (!host.ICE)
+        return nullptr;
+    ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+    if (!connection || connection->rendezvousHost.empty())
+        return nullptr;
+    return env->NewStringUTF(connection->rendezvousHost.c_str());
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousPort)(
+        JNIEnv *, jclass, jint allindex) {
+    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        return 0;
+    const passhost_t &host = getBackupHosts()[allindex];
+    if (!host.ICE)
+        return 0;
+    ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+    return connection ? connection->rendezvousPort : 0;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousCertificateVerification)(
+        JNIEnv *, jclass, jint allindex) {
+    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        return -1;
+    const passhost_t &host = getBackupHosts()[allindex];
+    if (!host.ICE)
+        return -1;
+    ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+    return connection ? (connection->verifyRendezvousCertificate ? 1 : 0) : -1;
 }
 
 extern char servererrorbuf[];
