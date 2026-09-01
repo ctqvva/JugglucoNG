@@ -4,7 +4,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Bounded confirmation wait for selected sensor-pressure-sensitive warnings.
+ * Bounded confirmation wait for detector-backed sensor-pressure warnings.
  *
  * A pressure dip can fire falling alarms on the way down and rising alarms when pressure is
  * released. Falling candidates track their nadir and rising candidates track their peak. A
@@ -94,8 +94,17 @@ internal class CompressionTrendHoldState {
         }
     }
 
-    /** A threshold exit or a broken delta run resolves a held early warning as an artifact. */
-    fun onCandidateCleared(type: AlertType) {
+    /**
+     * A threshold exit on a newer reading resolves a held early warning. Forecast episode
+     * hysteresis may briefly clear and re-enter on scheduler passes of the SAME reading;
+     * that is not new evidence and must not restart the bounded confirmation clock.
+     * Omitting [readingTimeMs] is an explicit force-clear for settings and lifecycle changes.
+     */
+    fun onCandidateCleared(type: AlertType, readingTimeMs: Long? = null) {
+        val candidateReading = holds[type]?.latestReadingTimeMs ?: decidedAtReading[type]
+        if (readingTimeMs != null && candidateReading != null && readingTimeMs <= candidateReading) {
+            return
+        }
         holds.remove(type)
         decidedAtReading.remove(type)
     }

@@ -122,6 +122,47 @@ class CompressionTrendHoldStateTests {
     }
 
     @Test
+    fun sameReadingForecastFlapsDoNotRestartTheBoundedWait() {
+        val state = CompressionTrendHoldState()
+        for (index in 0 until 6) {
+            val readingTime = t0 + index * minute
+            assertEquals(
+                Decision.HOLD,
+                state.onCandidate(
+                    AlertType.PRE_HIGH,
+                    readingTime,
+                    readingTime,
+                    180f + index,
+                    actualLow = false
+                )
+            )
+            state.onCandidateCleared(AlertType.PRE_HIGH, readingTime)
+            assertTrue(state.isHolding(AlertType.PRE_HIGH))
+        }
+        assertEquals(
+            Decision.ALLOW,
+            state.onCandidate(
+                AlertType.PRE_HIGH,
+                t0 + 6 * minute,
+                t0 + 6 * minute,
+                190f,
+                actualLow = false
+            )
+        )
+    }
+
+    @Test
+    fun aNewerReadingWithoutTheForecastStillClearsTheWait() {
+        val state = CompressionTrendHoldState()
+        assertEquals(
+            Decision.HOLD,
+            state.onCandidate(AlertType.PRE_HIGH, t0, t0, 180f, actualLow = false)
+        )
+        state.onCandidateCleared(AlertType.PRE_HIGH, t0 + minute)
+        assertFalse(state.isHolding(AlertType.PRE_HIGH))
+    }
+
+    @Test
     fun actualLowClearsFallingWaitsWithoutTouchingAReboundWait() {
         val state = CompressionTrendHoldState()
         assertEquals(Decision.HOLD,

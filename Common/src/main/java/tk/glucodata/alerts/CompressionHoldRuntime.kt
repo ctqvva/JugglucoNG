@@ -60,6 +60,10 @@ internal object CompressionHoldRuntime {
 
     private val holdState = CompressionHoldState()
     private var lastSuspect: CompressionLowDetector.OngoingSuspect? = null
+    private val trendEvidence = CompressionTrendEvidenceState()
+    private var lastTrendObservationReadingTimeMs = Long.MIN_VALUE
+    private var lastTrendAssessmentReadingTimeMs = Long.MIN_VALUE
+    private var lastTrendSensorId: String? = null
 
     // One hold per low-side episode: once a hold has escalated, the same episode is never
     // held again — otherwise a delivery refused by a rearm cooldown would let a fresh
@@ -196,6 +200,74 @@ internal object CompressionHoldRuntime {
     // --- runtime surface (called by AlertRuntimeManager under its lock) ---
 
     /**
+     * Observe each new reading once so a detector-backed falling suspicion can follow the
+     * trace into a later rebound alarm. This is only a prospective detector pass; absence
+     * of evidence always leaves every selected alarm unchanged.
+     */
+    fun observeTrendReading(
+        readingTimeMs: Long,
+        displayValue: Float,
+        rateMgdlPerMinute: Float,
+        sensorId: String?
+    ) {
+        try {
+            if (!isOptedIn() || isSelfDisabled()) {
+                clearTrendEvidence()
+                return
+            }
+            val knownSensorChanged = lastTrendSensorId != null && sensorId != null &&
+                lastTrendSensorId != sensorId
+            if (knownSensorChanged) clearTrendEvidence()
+            if (readingTimeMs <= 0L || readingTimeMs <= lastTrendObservationReadingTimeMs) return
+            lastTrendObservationReadingTimeMs = readingTimeMs
+            if (sensorId != null) lastTrendSensorId = sensorId
+
+            val suspectRate = loadTuning().suspectDropMgdlPerMinute
+            if (rateMgdlPerMinute.isFinite() && rateMgdlPerMinute <= -suspectRate) {
+                assessAndRecordTrendEvidence(readingTimeMs, displayValue, sensorId)
+            }
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "observeTrendReading", t)
+            clearTrendEvidence()
+        }
+    }
+
+    /** True only when the full live detector, not alarm selection alone, armed the wait. */
+    fun hasTrendEvidence(
+        type: AlertType,
+        readingTimeMs: Long,
+        displayValue: Float,
+        sensorId: String?
+    ): Boolean {
+        try {
+            if (!isOptedIn() || isSelfDisabled()) return false
+            if (type == AlertType.PRE_LOW || type == AlertType.FALLING_FAST) {
+                // A delta/forecast candidate is itself enough reason to run the detector once,
+                // even when the smoothed dashboard rate did not cross the cheap prefilter.
+                assessAndRecordTrendEvidence(readingTimeMs, displayValue, sensorId)
+            }
+            return trendEvidence.qualifies(
+                type = type,
+                sensorId = sensorId,
+                readingTimeMs = readingTimeMs,
+                valueMgdl = toMgdl(displayValue),
+                recoveryWindowMs = loadTuning().recoveryWindowMinutes * MINUTE_MS
+            )
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "hasTrendEvidence", t)
+            clearTrendEvidence()
+            return false
+        }
+    }
+
+    fun clearTrendEvidence() {
+        trendEvidence.clear()
+        lastTrendObservationReadingTimeMs = Long.MIN_VALUE
+        lastTrendAssessmentReadingTimeMs = Long.MIN_VALUE
+        lastTrendSensorId = null
+    }
+
+    /**
      * Gate for an undelivered, unsnoozed LOW or VERY_LOW alarm. True means
      * "withhold this tick".
      * The cue and every log line happen in here; the caller only keeps the episode
@@ -227,6 +299,9 @@ internal object CompressionHoldRuntime {
             val valueMgdl = toMgdl(displayValue)
             val mayStart = !holdState.holding && !episodeSpent
             val suspicion = if (mayStart) assessSuspicion(nowMs, valueMgdl) else null
+            if (suspicion != null) {
+                trendEvidence.record(lastTrendSensorId, nowMs, suspicion)
+            }
             val action = holdState.onLowActive(
                 nowMs = nowMs,
                 valueMgdl = valueMgdl,
@@ -336,8 +411,33 @@ internal object CompressionHoldRuntime {
         AlertStateTracker.resetState(AlertType.SENSOR_PRESSURE)
     }
 
-    private fun assessSuspicion(nowMs: Long, valueMgdl: Float): CompressionLowDetector.OngoingSuspect? {
-        val history = NotificationHistorySource.getDisplayHistory(nowMs - HISTORY_LOOKBACK_MS, false)
+    private fun assessAndRecordTrendEvidence(
+        readingTimeMs: Long,
+        displayValue: Float,
+        sensorId: String?
+    ) {
+        if (readingTimeMs <= 0L || readingTimeMs == lastTrendAssessmentReadingTimeMs) return
+        lastTrendAssessmentReadingTimeMs = readingTimeMs
+        val suspect = assessSuspicion(
+            nowMs = System.currentTimeMillis(),
+            valueMgdl = toMgdl(displayValue),
+            sensorId = sensorId,
+            logMiss = false
+        ) ?: return
+        trendEvidence.record(sensorId, readingTimeMs, suspect)
+    }
+
+    private fun assessSuspicion(
+        nowMs: Long,
+        valueMgdl: Float,
+        sensorId: String? = null,
+        logMiss: Boolean = true
+    ): CompressionLowDetector.OngoingSuspect? {
+        val history = NotificationHistorySource.getDisplayHistory(
+            nowMs - HISTORY_LOOKBACK_MS,
+            false,
+            sensorId
+        )
         if (history.isEmpty()) return null
         val samples = history.map { CompressionLowDetector.Sample(it.timestamp, it.value) }
         val iob = JournalIobAccess.snapshot(nowMs)?.getOrNull(0) ?: Float.NaN
@@ -352,7 +452,7 @@ internal object CompressionHoldRuntime {
             dosePeakPassed = peakPassed,
             tuning = loadTuning()
         )
-        if (suspect == null) {
+        if (suspect == null && logMiss) {
             Log.i(LOG_ID, "No suspicion at ${"%.0f".format(valueMgdl)} mg/dL " +
                 "(iob=$iob, isf=$isf, peakPassed=$peakPassed, samples=${samples.size})")
         }
