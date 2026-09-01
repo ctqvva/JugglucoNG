@@ -151,6 +151,23 @@ object HistorySyncAccess {
             journalSnapshotHolder?.getMethod("importCloneIobSnapshot", String::class.java)
         }.getOrNull()
     }
+    private val exportCloneJournalMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "cloneJournalSnapshotJson",
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val importCloneJournalMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "importCloneJournalSnapshot",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
 
     /** Called only by the native mirror receiver before it imports remote sensor files. */
     @JvmStatic
@@ -182,6 +199,29 @@ object HistorySyncAccess {
                 method.invoke(null, raw) as? Boolean ?: false
             }.onFailure {
                 Log.w(TAG, "importCloneIobSnapshot failed", it)
+            }.getOrDefault(false)
+        } ?: false
+    }
+
+    @JvmStatic
+    fun exportCloneJournalSnapshot(): String {
+        val method = exportCloneJournalMethod ?: return ""
+        return runCatching {
+            method.invoke(null, System.currentTimeMillis()) as? String ?: ""
+        }.onFailure {
+            Log.w(TAG, "exportCloneJournalSnapshot failed", it)
+        }.getOrDefault("")
+    }
+
+    @JvmStatic
+    fun importCloneJournalSnapshot(raw: String?, transportCode: Int): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val method = importCloneJournalMethod ?: return false
+        return CloneSensorRegistry.whileReceptionEnabled {
+            runCatching {
+                method.invoke(null, raw, transportCode) as? Boolean ?: false
+            }.onFailure {
+                Log.w(TAG, "importCloneJournalSnapshot failed", it)
             }.getOrDefault(false)
         } ?: false
     }

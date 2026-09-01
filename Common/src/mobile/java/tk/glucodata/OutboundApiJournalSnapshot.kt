@@ -9,6 +9,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import org.json.JSONArray
@@ -24,6 +26,7 @@ import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
 import tk.glucodata.data.prediction.PredictionModelProfileStore
+import java.util.UUID
 
 object OutboundApiJournalSnapshot {
     private const val PREFS_NAME = "tk.glucodata_preferences"
@@ -31,6 +34,10 @@ object OutboundApiJournalSnapshot {
     private const val DEFAULT_ACTIVE_WINDOW_MS = 24L * 60L * 60L * 1000L
     private const val API_SOURCE_PREFIX = "api"
     private const val JOURNAL_ENABLED_KEY = "dashboard_journal_enabled"
+    private const val CLONE_JOURNAL_ORIGIN_KEY = "clone_journal_origin_v1"
+    private const val CLONE_JOURNAL_WINDOW_MS = 24L * 60L * 60L * 1000L
+    private const val CLONE_JOURNAL_MAX_EVENTS = 128
+    private val cloneJournalImportMutex = Mutex()
 
     @JvmStatic
     fun snapshotJson(timeMillis: Long): String = runBlocking {
@@ -119,18 +126,22 @@ object OutboundApiJournalSnapshot {
             return remote?.asArray()
         }
         val dao = HistoryDatabase.getInstance(app).journalDao()
-        val hasInsulin = dao.countEntriesByType(JournalEntryType.INSULIN.storageValue) > 0
-        val hasCarbs = dao.countEntriesByType(JournalEntryType.CARBS.storageValue) > 0
-        if (!hasInsulin && !hasCarbs) {
-            return remote?.asArray()
-        }
         val presetsById = dao.getInsulinPresets().map { toPresetModel(it) }.associateBy { it.id }
         val maxPresetDurationMs = presetsById.values.maxOfOrNull { it.durationMinutes.coerceAtLeast(0) }
             ?.times(60_000L)
             ?: DEFAULT_ACTIVE_WINDOW_MS
         val startMillis = (atMillis - maxOf(DEFAULT_ACTIVE_WINDOW_MS, maxPresetDurationMs) - 60_000L)
             .coerceAtLeast(0L)
-        val entries = dao.getEntriesBetween(startMillis, atMillis)
+        val entries = dao.getEntriesBetween(startMillis, atMillis).filter { entry ->
+            val source = JournalEntrySource.fromStorage(entry.source)
+            (allowCloneRemote || !source.isCloneSource()) &&
+                (allowNightscoutRemote || source != JournalEntrySource.NIGHTSCOUT)
+        }
+        val hasInsulin = entries.any { it.entryType == JournalEntryType.INSULIN.storageValue }
+        val hasCarbs = entries.any { it.entryType == JournalEntryType.CARBS.storageValue }
+        if (!hasInsulin && !hasCarbs) {
+            return remote?.asArray()
+        }
         val doses = JournalIobCalculator.dosesFromEntities(entries, presetsById)
         val insulin = JournalIobCalculator.compute(doses, atMillis)
         // Insulin delivering / carbs absorbing within the next 30 minutes —
@@ -227,6 +238,30 @@ object OutboundApiJournalSnapshot {
         // that critical section to the snapshot commit itself: Room queries,
         // notifications, and UI refreshes must run after the gate is released.
         scheduleCloneIobRefresh(remote.timestampMillis)
+        return true
+    }
+
+    @Keep
+    @JvmStatic
+    fun cloneJournalSnapshotJson(timeMillis: Long): String = runBlocking {
+        val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+        withContext(Dispatchers.IO) {
+            runCatching { buildCloneJournalSnapshot(atMillis).toString() }
+                .getOrDefault("")
+        }
+    }
+
+    @Keep
+    @JvmStatic
+    fun importCloneJournalSnapshot(raw: String, transportCode: Int): Boolean {
+        val envelope = runCatching { parseCloneJournalEnvelope(raw) }.getOrNull() ?: return false
+        val source = cloneJournalSourceForTransport(transportCode)
+        journalChangedScope.launch {
+            cloneJournalImportMutex.withLock {
+                runCatching { importCloneJournal(envelope, source) }
+                    .onFailure { Log.e("CloneJournal", "Import failed: ${Log.stackline(it)}") }
+            }
+        }
         return true
     }
 
@@ -337,6 +372,81 @@ object OutboundApiJournalSnapshot {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+
+    private suspend fun buildCloneJournalSnapshot(atMillis: Long): JSONObject {
+        val database = HistoryDatabase.getInstance(Applic.app)
+        val dao = database.journalDao()
+        val presetsById = dao.getInsulinPresets().associateBy { it.id }
+        val foodsById = dao.getFoods().associateBy { it.id }
+        val startMillis = (atMillis - CLONE_JOURNAL_WINDOW_MS).coerceAtLeast(0L)
+        val events = JSONArray()
+        dao.getEntriesBetween(startMillis, atMillis)
+            .filter { JournalEntrySource.fromStorage(it.source).isCloneJournalExportSource() }
+            .takeLast(CLONE_JOURNAL_MAX_EVENTS)
+            .forEach { entry -> events.put(entry.toTransferJson(presetsById, foodsById)) }
+        return JSONObject()
+            .put("schema", "tk.glucodata.clone.journal.v1")
+            .put("origin", cloneJournalOriginId())
+            .put("events", events)
+    }
+
+    private data class CloneJournalEnvelope(
+        val sourcePrefix: String,
+        val events: JSONArray,
+    )
+
+    private fun parseCloneJournalEnvelope(raw: String): CloneJournalEnvelope {
+        val root = JSONObject(raw.trim())
+        require(root.optString("schema") == "tk.glucodata.clone.journal.v1")
+        val origin = root.optString("origin").trim()
+        require(origin.length in 1..96 && origin.all { it.isLetterOrDigit() || it == '-' || it == '_' })
+        val events = root.optJSONArray("events") ?: JSONArray()
+        require(events.length() <= CLONE_JOURNAL_MAX_EVENTS)
+        return CloneJournalEnvelope(sourcePrefix = "clone:$origin", events = events)
+    }
+
+    private suspend fun importCloneJournal(
+        envelope: CloneJournalEnvelope,
+        source: JournalEntrySource,
+    ): Int {
+        if (!CloneSensorRegistry.isReceptionEnabled()) return 0
+        val repository = JournalRepository()
+        repository.ensureDefaultInsulinPresets()
+        val presets = repository.getInsulinPresetsSnapshot()
+        var imported = 0
+        for (index in 0 until envelope.events.length()) {
+            val item = envelope.events.optJSONObject(index) ?: continue
+            val parsed = JournalTreatmentTransfer.parseTreatment(
+                context = Applic.app,
+                treatment = item,
+                source = source,
+                sourcePrefix = envelope.sourcePrefix,
+                insulinPresets = presets,
+            ) ?: continue
+            if (parsed.deleteOnly) continue
+            for (input in parsed.inputs) {
+                val committed = CloneSensorRegistry.whileReceptionEnabled {
+                    runBlocking { repository.upsertEntry(input) }
+                } != null
+                if (!committed) return imported
+                imported++
+            }
+        }
+        if (imported > 0) UiRefreshBus.requestDataRefresh()
+        return imported
+    }
+
+    @Synchronized
+    private fun cloneJournalOriginId(): String {
+        val prefs = Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        prefs.getString(CLONE_JOURNAL_ORIGIN_KEY, null)
+            ?.trim()
+            ?.takeIf { it.length in 1..96 && it.all { char -> char.isLetterOrDigit() || char == '-' || char == '_' } }
+            ?.let { return it }
+        val generated = UUID.randomUUID().toString()
+        prefs.edit().putString(CLONE_JOURNAL_ORIGIN_KEY, generated).commit()
+        return generated
+    }
 
     private suspend fun importJournal(raw: String, sourcePrefix: String): Int {
         val trimmed = raw.trim()
@@ -474,6 +584,31 @@ object OutboundApiJournalSnapshot {
             .put("nsUploadedAt", nsUploadedAt)
             .put("nsRemoteId", nsRemoteId)
     }
+
+    internal fun cloneJournalSourceForTransport(transportCode: Int): JournalEntrySource =
+        when (CloneTransport.fromCode(transportCode)) {
+            CloneTransport.LOCAL_ICE -> JournalEntrySource.CLONE_LOCAL_ICE
+            CloneTransport.TURN -> JournalEntrySource.CLONE_TURN
+            CloneTransport.UNKNOWN -> JournalEntrySource.CLONE
+        }
+
+    internal fun JournalEntrySource.isCloneJournalExportSource(): Boolean = when (this) {
+        JournalEntrySource.MANUAL,
+        JournalEntrySource.HEALTH_CONNECT,
+        JournalEntrySource.METER,
+        JournalEntrySource.PEN -> true
+        JournalEntrySource.AAPS,
+        JournalEntrySource.NIGHTSCOUT,
+        JournalEntrySource.API,
+        JournalEntrySource.CLONE,
+        JournalEntrySource.CLONE_LOCAL_ICE,
+        JournalEntrySource.CLONE_TURN -> false
+    }
+
+    private fun JournalEntrySource.isCloneSource(): Boolean =
+        this == JournalEntrySource.CLONE ||
+            this == JournalEntrySource.CLONE_LOCAL_ICE ||
+            this == JournalEntrySource.CLONE_TURN
 
     private fun activeCarbsGrams(entries: List<JournalEntryEntity>, atMillis: Long): Float {
         val prefs = Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)

@@ -36,7 +36,10 @@ enum class JournalEntrySource(val storageValue: String) {
     PEN("pen"),
     AAPS("aaps"),
     NIGHTSCOUT("nightscout"),
-    API("api");
+    API("api"),
+    CLONE("clone"),
+    CLONE_LOCAL_ICE("clone_local_ice"),
+    CLONE_TURN("clone_turn");
 
     companion object {
         fun fromStorage(value: String?): JournalEntrySource {

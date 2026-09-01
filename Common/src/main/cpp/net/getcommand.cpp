@@ -53,6 +53,7 @@ extern void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
 extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 extern void javaImportCloneIobSnapshot(const char *json);
+extern void javaImportCloneJournalSnapshot(const char *json, int transportCode);
 
 //getdata filedata("/data/local/tmp/testdir");
 getdata filedata;
@@ -327,6 +328,7 @@ static bool mergeMirrorPollHoles(std::string_view path, int fp, uint32_t offset,
 static constexpr std::string_view mirrorCalibrationPrefix = "mirror/calibration/";
 static constexpr std::string_view mirrorCalibrationSuffix = ".json";
 static constexpr std::string_view mirrorIobSnapshotPath = "mirror/iob.json";
+static constexpr std::string_view mirrorJournalSnapshotPath = "mirror/journal.json";
 
 static bool isMirrorCalibrationProfilePath(std::string_view name) {
     return name.size() >= (mirrorCalibrationPrefix.size() + mirrorCalibrationSuffix.size()) &&
@@ -1137,6 +1139,12 @@ static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport,
         std::string json = collectFileOncePayload(gegs, payloadStart);
         if (!json.empty()) {
             javaImportCloneIobSnapshot(json.c_str());
+        }
+    }
+    if (namesv == mirrorJournalSnapshotPath) {
+        std::string json = collectFileOncePayload(gegs, payloadStart);
+        if (!json.empty()) {
+            javaImportCloneJournalSnapshot(json.c_str(), cloneTransport);
         }
     }
     if (isMirrorSensorInfoPath(namesv) || isMirrorSensorDataPath(namesv)) {

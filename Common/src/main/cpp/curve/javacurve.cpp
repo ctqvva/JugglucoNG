@@ -112,6 +112,8 @@ static jmethodID jhistoryMarkCloneSensor = nullptr,
                  jhistoryReconcilePrimaryCloneSensor = nullptr,
                  jhistoryExportCloneIobSnapshot = nullptr,
                  jhistoryImportCloneIobSnapshot = nullptr,
+                 jhistoryExportCloneJournalSnapshot = nullptr,
+                 jhistoryImportCloneJournalSnapshot = nullptr,
                  jhistorySyncSensor = nullptr,
                  jhistorySyncRecentSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
@@ -319,6 +321,20 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
                 "(Ljava/lang/String;)Z"))) {
         LOGAR(
             R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneIobSnapshot","(Ljava/lang/String;)Z") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneJournalSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneJournalSnapshot",
+                "()Ljava/lang/String;"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneJournalSnapshot","()Ljava/lang/String;") failed)"
+            "");
+      }
+      if (!(jhistoryImportCloneJournalSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "importCloneJournalSnapshot",
+                "(Ljava/lang/String;I)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneJournalSnapshot","(Ljava/lang/String;I)Z") failed)"
             "");
       }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
@@ -609,6 +625,47 @@ void javaImportCloneIobSnapshot(const char *json) {
   env->DeleteLocalRef(jjson);
   if (env->ExceptionCheck()) {
     LOGAR("javaImportCloneIobSnapshot exception");
+    env->ExceptionClear();
+  }
+}
+
+std::string javaExportCloneJournalSnapshot() {
+  if (!JNIHistorySyncAccess || !jhistoryExportCloneJournalSnapshot) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = (jstring)env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneJournalSnapshot);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneJournalSnapshot exception");
+    env->ExceptionClear();
+    return {};
+  }
+  if (!jjson) {
+    return {};
+  }
+  const char *chars = env->GetStringUTFChars(jjson, nullptr);
+  std::string out = chars ? std::string(chars) : std::string();
+  if (chars) {
+    env->ReleaseStringUTFChars(jjson, chars);
+  }
+  env->DeleteLocalRef(jjson);
+  return out;
+}
+
+void javaImportCloneJournalSnapshot(const char *json, int transportCode) {
+  if (!json || !*json || !JNIHistorySyncAccess ||
+      !jhistoryImportCloneJournalSnapshot) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = env->NewStringUTF(json);
+  env->CallStaticBooleanMethod(JNIHistorySyncAccess,
+                               jhistoryImportCloneJournalSnapshot, jjson,
+                               static_cast<jint>(transportCode));
+  env->DeleteLocalRef(jjson);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaImportCloneJournalSnapshot exception");
     env->ExceptionClear();
   }
 }

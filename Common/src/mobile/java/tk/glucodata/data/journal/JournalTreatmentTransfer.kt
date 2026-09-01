@@ -164,6 +164,13 @@ object JournalTreatmentTransfer {
         val timestamp = treatment.optTreatmentTimestampMillis()
         val baseId = treatment.sourceBaseId(timestamp) ?: return null
         val remoteId = treatment.optRemoteId()
+        val nightscoutRemoteId = when (source) {
+            JournalEntrySource.NIGHTSCOUT -> remoteId
+            JournalEntrySource.CLONE,
+            JournalEntrySource.CLONE_LOCAL_ICE,
+            JournalEntrySource.CLONE_TURN -> treatment.optNonBlankString("nsRemoteId")
+            else -> null
+        }
         val candidateIds = allKinds.map { kind -> sourceRecordId(sourcePrefix, baseId, kind) }
         val isValid = treatment.optBoolean("isValid", true)
         if (!isValid) {
@@ -204,7 +211,7 @@ object JournalTreatmentTransfer {
                     fatGrams = treatment.optPositiveFloat("fat", "fatGrams"),
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_CARBS),
-                    nsRemoteId = remoteId.takeIf { source == JournalEntrySource.NIGHTSCOUT }
+                    nsRemoteId = nightscoutRemoteId
                 )
             )
         }
@@ -226,7 +233,7 @@ object JournalTreatmentTransfer {
                     insulinPresetId = preset?.id,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_INSULIN),
-                    nsRemoteId = remoteId.takeIf { source == JournalEntrySource.NIGHTSCOUT }
+                    nsRemoteId = nightscoutRemoteId
                 )
             )
         }
@@ -247,7 +254,7 @@ object JournalTreatmentTransfer {
                     glucoseValueMgDl = glucoseMgdl,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_FINGERSTICK),
-                    nsRemoteId = remoteId.takeIf { source == JournalEntrySource.NIGHTSCOUT }
+                    nsRemoteId = nightscoutRemoteId
                 )
             )
         }
@@ -263,7 +270,7 @@ object JournalTreatmentTransfer {
                     intensity = treatment.optJournalIntensity(),
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_ACTIVITY),
-                    nsRemoteId = remoteId.takeIf { source == JournalEntrySource.NIGHTSCOUT }
+                    nsRemoteId = nightscoutRemoteId
                 )
             )
         }
@@ -279,7 +286,7 @@ object JournalTreatmentTransfer {
                     note = note ?: eventType,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_NOTE),
-                    nsRemoteId = remoteId.takeIf { source == JournalEntrySource.NIGHTSCOUT }
+                    nsRemoteId = nightscoutRemoteId
                 )
             )
         }

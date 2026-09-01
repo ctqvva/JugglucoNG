@@ -4,7 +4,9 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.R
@@ -35,4 +37,7 @@ internal fun JournalEntrySource.presentation(): JournalSourcePresentation? = whe
     JournalEntrySource.API -> JournalSourcePresentation(Icons.Default.CloudDownload, R.string.journal_source_api)
     JournalEntrySource.HEALTH_CONNECT -> JournalSourcePresentation(Icons.Default.HealthAndSafety, R.string.journal_source_health_connect)
     JournalEntrySource.METER -> JournalSourcePresentation(Icons.Default.WaterDrop, R.string.journal_source_meter)
+    JournalEntrySource.CLONE -> JournalSourcePresentation(Icons.Default.SwapHoriz, R.string.clone_source_label)
+    JournalEntrySource.CLONE_LOCAL_ICE -> JournalSourcePresentation(Icons.Default.SwapHoriz, R.string.clone_source_local_ice_description)
+    JournalEntrySource.CLONE_TURN -> JournalSourcePresentation(Icons.Default.Hub, R.string.clone_source_turn_description)
 }

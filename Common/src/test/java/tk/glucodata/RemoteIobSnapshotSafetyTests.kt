@@ -36,7 +36,11 @@ class RemoteIobSnapshotSafetyTests {
 
         assertTrue(snapshots.contains("@Keep @JvmStatic fun cloneIobSnapshotJson"))
         assertTrue(snapshots.contains("@Keep @JvmStatic fun importCloneIobSnapshot"))
+        assertTrue(snapshots.contains("@Keep @JvmStatic fun cloneJournalSnapshotJson"))
+        assertTrue(snapshots.contains("@Keep @JvmStatic fun importCloneJournalSnapshot"))
         assertTrue(rules.contains("java.lang.String cloneIobSnapshotJson(long);"))
         assertTrue(rules.contains("boolean importCloneIobSnapshot(java.lang.String);"))
+        assertTrue(rules.contains("java.lang.String cloneJournalSnapshotJson(long);"))
+        assertTrue(rules.contains("boolean importCloneJournalSnapshot(java.lang.String,int);"))
     }
 }
