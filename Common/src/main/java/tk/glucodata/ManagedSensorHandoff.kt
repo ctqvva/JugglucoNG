@@ -196,6 +196,11 @@ object ManagedSensorHandoff {
             else -> return
         }
         editor.commit()
+        // Written straight through SharedPreferences, so the in-memory cache in
+        // ManagedCurrentSensor would otherwise keep serving the pre-handoff value.
+        if (prefsName == MAIN_PREFS && key == KEY_MANAGED_CURRENT) {
+            ManagedCurrentSensor.invalidate()
+        }
     }
 
     private fun mergeStringSet(

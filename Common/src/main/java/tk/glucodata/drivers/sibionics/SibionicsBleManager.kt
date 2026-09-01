@@ -106,6 +106,10 @@ class SibionicsBleManager(
         // so a 600 ms debounce just restarts it for the length of the backfill. Wait for
         // the burst to settle instead — nothing displays the result until it ends anyway.
         private const val ALGORITHM_REBUILD_BACKFILL_DEBOUNCE_MS = 3_000L
+        // Ceiling on how long [historyTransferActive] may keep deferring a rebuild. A
+        // sensor that streams backlog forever without ever delivering a current sample
+        // must not postpone the rebuild indefinitely.
+        private const val ALGORITHM_REBUILD_MAX_DEFERRAL_MS = 120_000L
         private const val LOCAL_REBUILD_FORMAT_VERSION = 6
         private const val POST_RESET_DISCARD_TIMEOUT_MS = 15_000L
         private const val RESET_COMFORT_RECHECK_MS = 15L * 60L * 1000L
@@ -139,6 +143,15 @@ class SibionicsBleManager(
         Thread(runnable, "Sibionics-rebuild-$serial").apply { isDaemon = true }
     }
     private val algorithmLock = Any()
+
+    /**
+     * Serialises the two native-mirror callers: [storeAndPublish] on the BLE handler
+     * thread and [rebuildAlgorithmLocally] on [rebuildExecutor]. Both can carry the
+     * whole history, and interleaving them corrupts the backstream/backhistory rewind
+     * cursor. Since the mirror is now one batched JNI call writing into an mmap, the
+     * handler blocks for milliseconds at worst.
+     */
+    private val mirrorLock = Any()
 
     private var service: BluetoothGattService? = null
     private var notifyChar: BluetoothGattCharacteristic? = null
@@ -187,6 +200,15 @@ class SibionicsBleManager(
     @Volatile private var rehydrationExpectedIndex: Int = -1
     @Volatile private var rehydrationTargetIndex: Int = 0
     @Volatile private var lastLiveIndexSeen: Int = -1
+    /**
+     * A backlog transfer is in flight: the last non-empty batch carried no current
+     * sample. Deliberately survives a disconnect, because the transfer resumes on
+     * reconnect rather than finishing — that reconnect gap is what let the debounce
+     * expire and fired the full-history rebuilds. Cleared only by a current sample
+     * or a session reset.
+     */
+    @Volatile private var historyTransferActive: Boolean = false
+    @Volatile private var firstDeferredRebuildMs: Long = 0L
     @Volatile private var lastLiveAlgorithmIndexSeen: Int = -1
     @Volatile private var startTimeMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
@@ -1204,7 +1226,9 @@ class SibionicsBleManager(
         flushAlgorithmCheckpointIfDirty()
         storeAndPublish(emitted)
         maybeScheduleInitialLocalRebuild()
-        updateHistoryStatus(resultHasLive = entries.any { it.isLive })
+        val hasLive = entries.any { it.isLive }
+        if (!hasLive) historyTransferActive = true
+        updateHistoryStatus(resultHasLive = hasLive)
     }
 
     private fun processV120Entries(entries: List<SibionicsProtocol.V120Entry>) {
@@ -1243,7 +1267,9 @@ class SibionicsBleManager(
         flushAlgorithmCheckpointIfDirty()
         storeAndPublish(emitted)
         maybeScheduleInitialLocalRebuild()
-        updateHistoryStatus(resultHasLive = entries.any { isV120Current(it, now) })
+        val hasLive = entries.any { isV120Current(it, now) }
+        if (!hasLive) historyTransferActive = true
+        updateHistoryStatus(resultHasLive = hasLive)
     }
 
     private fun updateChineseHistoryProgress(entries: List<SibionicsProtocol.ChineseEntry>) {
@@ -1279,6 +1305,7 @@ class SibionicsBleManager(
 
     private fun updateHistoryStatus(resultHasLive: Boolean) {
         if (resultHasLive) {
+            historyTransferActive = false
             // Keep high priority through authentication and history recovery. Relax only once
             // the sensor has delivered a current sample, otherwise large V120 history transfers
             // become unnecessarily slow on conservative Android Bluetooth stacks.
@@ -1453,8 +1480,50 @@ class SibionicsBleManager(
         Log.i(SibionicsConstants.TAG, "algorithm rebuild scheduled: $reason generation=$rebuildGeneration")
     }
 
+    /**
+     * A rebuild replays the whole DSP and re-mirrors every reading, so running one
+     * while backlog is still arriving costs the full history each time and buys
+     * nothing — nothing displays the result until the transfer ends.
+     *
+     * Gating on `lastLiveIndexSeen < 0 || algorithmRehydrating` looks equivalent and
+     * is not: a committed rebuild sets `lastLiveIndexSeen` and clears
+     * `algorithmRehydrating`, so every rebuild after the first would run anyway.
+     * That is exactly what happened in the 2026-08-24 capture — three commits of
+     * 128, 1504 and 4867 samples during one transfer, with no rehydration at all.
+     */
+    private fun shouldDeferRebuildForHistoryTransfer(): Boolean {
+        if (!historyTransferActive && !algorithmRehydrating) {
+            firstDeferredRebuildMs = 0L
+            return false
+        }
+        val now = System.currentTimeMillis()
+        if (firstDeferredRebuildMs == 0L) firstDeferredRebuildMs = now
+        val deferredForMs = now - firstDeferredRebuildMs
+        if (!SibionicsSessionPolicy.shouldDeferRebuildForHistoryTransfer(
+                historyTransferActive = historyTransferActive,
+                isRehydrating = algorithmRehydrating,
+                deferredForMs = deferredForMs,
+                maxDeferralMs = ALGORITHM_REBUILD_MAX_DEFERRAL_MS,
+            )
+        ) {
+            Log.i(
+                SibionicsConstants.TAG,
+                "algorithm rebuild deferral cap reached after ${deferredForMs}ms; " +
+                    "rebuilding mid-transfer",
+            )
+            firstDeferredRebuildMs = 0L
+            return false
+        }
+        scheduleAlgorithmRebuild(
+            "history transfer in progress",
+            delayMs = ALGORITHM_REBUILD_BACKFILL_DEBOUNCE_MS,
+        )
+        return true
+    }
+
     private fun rebuildAlgorithmLocally(generation: Long) {
         if (generation != rebuildGeneration) return
+        if (shouldDeferRebuildForHistoryTransfer()) return
         val journal = sampleJournal ?: return
         val selection = algorithmSelection
         val variantSnapshot = variant
@@ -1702,6 +1771,8 @@ class SibionicsBleManager(
         latestReadingTimeMs = 0L
         latestGlucoseMgdl = Float.NaN
         latestRawMgdl = Float.NaN
+        historyTransferActive = false
+        firstDeferredRebuildMs = 0L
         Applic.app?.let { context ->
             SibionicsRegistry.clearStartTimeMs(context, SerialNumber)
             SibionicsRegistry.clearResetMaintenanceState(context, SerialNumber)
@@ -1769,7 +1840,10 @@ class SibionicsBleManager(
     private fun mirrorReadingIntoNative(reading: EmittedReading): Boolean =
         mirrorReadingsIntoNative(listOf(reading))
 
-    private fun mirrorReadingsIntoNative(readings: List<EmittedReading>): Boolean {
+    private fun mirrorReadingsIntoNative(readings: List<EmittedReading>): Boolean =
+        synchronized(mirrorLock) { mirrorReadingsIntoNativeLocked(readings) }
+
+    private fun mirrorReadingsIntoNativeLocked(readings: List<EmittedReading>): Boolean {
         val name = SerialNumber ?: return false
         val validReadings = readings.filter {
             val sampleSec = it.sampleMs / 1000L
@@ -1788,24 +1862,31 @@ class SibionicsBleManager(
                 Log.e(SibionicsConstants.TAG, "native stream capacity unavailable for $name")
                 return@runCatching false
             }
-            var stored = false
-            for (reading in validReadings) {
-                if (Thread.currentThread().isInterrupted) return@runCatching false
-                val temperatureC = reading.temperatureC
-                    .takeIf { it.isFinite() && it > -20f && it < 80f }
-                    ?: 0f
-                val rawMgdl = reading.rawMgdl
-                    .takeIf { it.isFinite() && it > 0f }
-                    ?: reading.glucoseMgdl
-                stored = Natives.addGlucoseStreamWithRawTemp(
-                    reading.sampleMs / 1000L,
-                    reading.glucoseMgdl / 10f,
-                    rawMgdl,
-                    temperatureC,
-                    name,
-                ) || stored
+            // One JNI call for the whole batch. Called per reading, the native
+            // side re-resolved the shell, re-ran seedDirectStreamStateIfMissing
+            // (stat + read + alloc), logged a line and rewound the stream cursor
+            // every time — a 4867-sample rebuild mirror produced 14.6k logcat
+            // writes in a single second and GC'd the app into BLE supervision
+            // timeouts. The batch entry point does all of that once.
+            val timestamps = LongArray(validReadings.size) { validReadings[it].sampleMs / 1000L }
+            val values = FloatArray(validReadings.size) { validReadings[it].glucoseMgdl / 10f }
+            val raws = FloatArray(validReadings.size) {
+                validReadings[it].rawMgdl
+                    .takeIf { raw -> raw.isFinite() && raw > 0f }
+                    ?: validReadings[it].glucoseMgdl
             }
-            stored
+            val temperatures = FloatArray(validReadings.size) {
+                validReadings[it].temperatureC
+                    .takeIf { temp -> temp.isFinite() && temp > -20f && temp < 80f }
+                    ?: 0f
+            }
+            Natives.addGlucoseStreamBatchWithRawTemp(
+                timestamps,
+                values,
+                raws,
+                temperatures,
+                name,
+            ) > 0
         }.onFailure {
             Log.stack(SibionicsConstants.TAG, "mirrorReadingIntoNative", it)
         }.getOrDefault(false)
@@ -1952,6 +2033,8 @@ class SibionicsBleManager(
         historyReceivedCount = 0
         historyTotalCount = 0
         historySeenIndices.clear()
+        historyTransferActive = false
+        firstDeferredRebuildMs = 0L
         autoResetScheduled = false
         Applic.app?.let {
             val snapshot = synchronized(algorithmLock) { algorithm.snapshot() }
