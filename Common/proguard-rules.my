@@ -205,6 +205,8 @@
     public static int importFromJson(java.lang.String);
     public static int importFromJsonForSource(java.lang.String,java.lang.String);
     public static float[] broadcastIobSnapshot(long);
+    public static java.lang.String cloneIobSnapshotJson(long);
+    public static boolean importCloneIobSnapshot(java.lang.String);
 }
 
 #-keep class tk.glucodata.watchface.WatchFaceService

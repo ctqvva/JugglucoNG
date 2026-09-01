@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import android.os.Looper
+import androidx.annotation.Keep
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -162,6 +163,7 @@ object OutboundApiJournalSnapshot {
         )
     }
 
+    @Keep
     @JvmStatic
     fun cloneIobSnapshotJson(timeMillis: Long): String = runBlocking {
         val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
@@ -193,6 +195,7 @@ object OutboundApiJournalSnapshot {
         }
     }
 
+    @Keep
     @JvmStatic
     fun importCloneIobSnapshot(raw: String): Boolean {
         val remote = CloneIobSnapshot.parse(raw) ?: return false
