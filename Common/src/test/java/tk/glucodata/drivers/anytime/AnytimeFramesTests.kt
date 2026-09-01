@@ -245,10 +245,10 @@ class AnytimeFramesTests {
     }
 
     @Test
-    fun ct5UnbindBuildsOfficialEndCycleFrame() {
+    fun ct5EndCycleBuildsOfficialAppFrame() {
         assertEquals(
-            listOf(0x0A, 0x31, 0x32, 0x33, 0x34, 0xD4),
-            AnytimeFrames.Builders.ct5Unbind("1234").map { it.toInt() and 0xFF },
+            listOf(0x58, 0x55, 0xAA, 0x57),
+            AnytimeFrames.Builders.ct5EndCycle().map { it.toInt() and 0xFF },
         )
     }
 

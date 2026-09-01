@@ -394,12 +394,9 @@ object AnytimeFrames {
         fun ct5InputBgMg(mgdl: Int): ByteArray =
             withSum(0x09, (mgdl ushr 8) and 0xFF, mgdl and 0xFF)
 
-        /** CT5 unbind needs the same four-character temp id used during setup. */
+        /** CT5 end-cycle frame used by the shipped Anytime app's live call path. */
         @JvmStatic
-        fun ct5Unbind(tempId: String): ByteArray {
-            val bytes = tempId.take(4).padStart(4, '0').toByteArray(Charsets.US_ASCII)
-            return withSum(0x0A, bytes[0].toInt(), bytes[1].toInt(), bytes[2].toInt(), bytes[3].toInt())
-        }
+        fun ct5EndCycle(): ByteArray = withSum(AnytimeConstants.TX_CT5_END_CYCLE.toInt(), 0x55, 0xAA)
 
         /** CT5 encrypted K/R + temporary id setup. */
         @JvmStatic

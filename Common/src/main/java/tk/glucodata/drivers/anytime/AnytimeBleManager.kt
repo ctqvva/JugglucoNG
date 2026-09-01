@@ -317,6 +317,8 @@ class AnytimeBleManager(
         retryBackoffMs = CT5_HISTORY_RETRY_BACKOFF_MS,
     )
     @Volatile private var ct5EndCycleRestartPending: Boolean = false
+    @Volatile private var ct5EndCycleWriteConfirmed: Boolean = false
+    @Volatile private var ct5EndCycleAccepted: Boolean = false
     @Volatile private var ct5EndCycleInternalDisconnect: Boolean = false
     @Volatile private var ct5EndCycleInternalReconnect: Boolean = false
     private val ct5Random = SecureRandom()
@@ -639,6 +641,8 @@ class AnytimeBleManager(
         if (!ct5EndCycleRestartPending) return@Runnable
         Log.i(TAG, "CT5 end-cycle restart delay elapsed; reconnecting")
         ct5EndCycleRestartPending = false
+        ct5EndCycleWriteConfirmed = false
+        ct5EndCycleAccepted = false
         ct5EndCycleInternalReconnect = true
         try {
             softReconnect()
@@ -652,6 +656,8 @@ class AnytimeBleManager(
             Log.i(TAG, "Cancelling pending CT5 end-cycle restart: $reason")
         }
         ct5EndCycleRestartPending = false
+        ct5EndCycleWriteConfirmed = false
+        ct5EndCycleAccepted = false
         handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
         handler.removeCallbacks(ct5EndCycleReconnectRunnable)
     }
@@ -850,6 +856,15 @@ class AnytimeBleManager(
         if (tag.startsWith("init(after-setDate")) {
             Log.w(TAG, "init ACK timeout after best-effort setDate; keeping GATT alive and waiting for raw push")
             clearProtocolFrameTimeout()
+            return@Runnable
+        }
+        if (tag.startsWith("ct5-endCycle") && ct5EndCycleRestartPending) {
+            Log.e(TAG, "CT5 end-cycle was written but not acknowledged; preserving the existing session")
+            ct5EndCycleRestartPending = false
+            ct5EndCycleWriteConfirmed = false
+            ct5EndCycleAccepted = false
+            constatstatusstr = "End cycle failed"
+            UiRefreshBus.requestStatusRefresh()
             return@Runnable
         }
         if (phase != Phase.HANDSHAKING) return@Runnable
@@ -1963,7 +1978,7 @@ class AnytimeBleManager(
         if (usesSummedFrames()) AnytimeFrames.Builders.resetSummed() else AnytimeFrames.Builders.reset()
 
     private fun unbindFrame(): ByteArray =
-        if (isCt5()) AnytimeFrames.Builders.ct5Unbind(ct5TempId.ifBlank { generateCt5TempId() })
+        if (isCt5()) AnytimeFrames.Builders.ct5EndCycle()
         else if (usesSummedFrames()) AnytimeFrames.Builders.unbindSummed() else AnytimeFrames.Builders.unbind()
 
     private fun setDateFrame(): ByteArray =
@@ -2216,7 +2231,7 @@ class AnytimeBleManager(
                 clearGattCallbacks()
                 runCatching { gatt.close() }
                 clearGattReferences()
-                if (ct5EndCycleRestartPending) {
+                if (ct5EndCycleRestartPending && ct5EndCycleAccepted) {
                     cancelReconnect()
                     handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
                     handler.removeCallbacks(ct5EndCycleReconnectRunnable)
@@ -2226,8 +2241,21 @@ class AnytimeBleManager(
                                 "${CT5_END_CYCLE_RESTART_DELAY_MS}ms"
                     )
                     handler.postDelayed(ct5EndCycleReconnectRunnable, CT5_END_CYCLE_RESTART_DELAY_MS)
-                } else if (!stop) {
-                    scheduleReconnect("GATT disconnect status=$status")
+                } else {
+                    if (ct5EndCycleRestartPending) {
+                        val stage = if (ct5EndCycleWriteConfirmed) {
+                            "after the write but before transmitter acknowledgement"
+                        } else {
+                            "before the command was written"
+                        }
+                        Log.w(TAG, "CT5 end-cycle interrupted $stage; preserving the existing session")
+                        ct5EndCycleRestartPending = false
+                        ct5EndCycleWriteConfirmed = false
+                        ct5EndCycleAccepted = false
+                    }
+                    if (!stop) {
+                        scheduleReconnect("GATT disconnect status=$status")
+                    }
                 }
                 UiRefreshBus.requestStatusRefresh()
             }
@@ -2518,7 +2546,7 @@ class AnytimeBleManager(
                 }
             }
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
-            AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck()
+            AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck(data)
             AnytimeConstants.RX_INPUT_KR_ACK -> handleInputKrAck()
             AnytimeConstants.RX_COMPUTED_GLUCOSE -> handleComputedGlucose(data)
             AnytimeConstants.RX_LOW_POWER_ACK -> Log.d(TAG, "low-power ack")
@@ -2543,7 +2571,8 @@ class AnytimeBleManager(
             AnytimeConstants.RX_INIT -> handleInitResponse()
             AnytimeConstants.RX_LOW_POWER_ACK -> Log.d(TAG, "CT5 low-power ack")
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
-            AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck()
+            AnytimeConstants.RX_UNBIND_ACK,
+            AnytimeConstants.RX_CT5_END_CYCLE_ACK -> handleUnbindAck(data)
             else -> return false
         }
         return true
@@ -2802,15 +2831,24 @@ class AnytimeBleManager(
         persistAlgorithmState()
     }
 
-    private fun handleUnbindAck() {
+    private fun handleUnbindAck(data: ByteArray) {
         if (isCt5() && ct5EndCycleRestartPending) {
-            // Official CT5 unbind is {0x0A, tempId[4], sum} — confirmed against
-            // ProtocolToolsHolder in the shipped CT5 app. (Older RE notes listing
-            // 0x57/0x58 predate that build and do not apply here.)
+            val valid = data.size >= 2 &&
+                    data[0] == AnytimeConstants.RX_CT5_END_CYCLE_ACK &&
+                    AnytimeFrames.verifySum(data)
+            if (!valid) {
+                Log.w(TAG, "Ignoring invalid CT5 end-cycle response: ${data.joinToHex()}")
+                return
+            }
+            if (!ct5EndCycleAccepted) {
+                ct5EndCycleAccepted = true
+                clearRuntimeStateForCt5EndCycle()
+            }
             Log.i(TAG, "CT5 end-cycle accepted by sensor; local bind/session material cleared")
-        } else {
-            Log.i(TAG, "Unbind ack received — closing GATT")
+            handler.postDelayed(ct5EndCycleDisconnectRunnable, CT5_END_CYCLE_DISCONNECT_DELAY_MS)
+            return
         }
+        Log.i(TAG, "Unbind ack received — closing GATT")
         bound = false
         persistAlgorithmState()
         runCatching { mBluetoothGatt?.disconnect() }
@@ -4326,6 +4364,8 @@ class AnytimeBleManager(
         val frame = unbindFrame()
         cancelCt5EndCycleRestart("new CT5 end-cycle request")
         ct5EndCycleRestartPending = true
+        ct5EndCycleWriteConfirmed = false
+        ct5EndCycleAccepted = false
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(
@@ -4333,22 +4373,25 @@ class AnytimeBleManager(
             tag = "ct5-endCycle(user)",
             expectResponse = true,
             onWritten = {
-                clearRuntimeStateForCt5EndCycle()
-                handler.postDelayed(ct5EndCycleDisconnectRunnable, CT5_END_CYCLE_DISCONNECT_DELAY_MS)
+                ct5EndCycleWriteConfirmed = true
                 Log.i(
                     TAG,
-                    "CT5 end-cycle command written; restart scheduled after " +
-                            "${CT5_END_CYCLE_RESTART_DELAY_MS}ms"
+                    "CT5 end-cycle command written; waiting for transmitter acknowledgement"
                 )
             },
             onDropped = {
                 ct5EndCycleRestartPending = false
-                constatstatusstr = "Connected"
+                ct5EndCycleWriteConfirmed = false
+                ct5EndCycleAccepted = false
+                constatstatusstr = "End cycle failed"
                 UiRefreshBus.requestStatusRefresh()
             },
         )
         if (!written) {
             ct5EndCycleRestartPending = false
+            ct5EndCycleWriteConfirmed = false
+            ct5EndCycleAccepted = false
+            constatstatusstr = "End cycle failed"
             UiRefreshBus.requestStatusRefresh()
             return false
         }
@@ -4357,6 +4400,7 @@ class AnytimeBleManager(
     }
 
     override fun requestUnbind(): Boolean {
+        if (isCt5()) return resetSensor()
         if (phase != Phase.STREAMING && phase != Phase.HANDSHAKING) return false
         return writeFrame(
             bytes = unbindFrame(),

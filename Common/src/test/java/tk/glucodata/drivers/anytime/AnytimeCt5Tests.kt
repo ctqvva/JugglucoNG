@@ -597,24 +597,16 @@ class AnytimeCt5Tests {
 
     @Test
     fun endCycleUsesTheOfficialCt5UnbindOpcode() {
-        val frame = AnytimeFrames.Builders.ct5Unbind("4271")
+        val frame = AnytimeFrames.Builders.ct5EndCycle()
 
-        // {0x0A, tempId[4], sum} per ProtocolToolsHolder in the shipped CT5 app.
-        // The 0x58 `unBindRequest_CT5` in older RE notes belongs to a different
-        // build and is not what this firmware answers.
+        // The shipped app's actual CT5 unbind call path uses unBindRequest(),
+        // not the unused temp-id overload in ProtocolToolsHolder.
         assertEquals(
-            listOf(0x0A, 0x34, 0x32, 0x37, 0x31, 0xD8),
+            listOf(0x58, 0x55, 0xAA, 0x57),
             frame.map { it.toInt() and 0xFF },
         )
-        assertEquals(AnytimeConstants.TX_UNBIND, frame[0])
+        assertEquals(AnytimeConstants.TX_CT5_END_CYCLE, frame[0])
         assertTrue(AnytimeFrames.verifySum(frame))
-    }
-
-    @Test
-    fun endCycleFramePadsAShortTemporaryId() {
-        val frame = AnytimeFrames.Builders.ct5Unbind("42")
-
-        assertEquals(listOf(0x0A, 0x30, 0x30, 0x34, 0x32, 0xD0), frame.map { it.toInt() and 0xFF })
     }
 
     // ---- Cipher fallback (unchanged behaviour) --------------------------
