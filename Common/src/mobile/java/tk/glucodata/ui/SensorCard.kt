@@ -27,8 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -138,9 +136,9 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
-/** Leading slot of the sensor card header; the name and reading chip start after it. */
-private val SensorLeadingSize = 32.dp
-private val SensorLeadingGap = 12.dp
+/** Leading vendor tile of the sensor card header; the name starts after it. */
+private val SensorAvatarSize = 40.dp
+private val SensorAvatarGap = 12.dp
 
 /**
  * Vendor plus concrete model on one line, e.g. "Yuwell · Anytime". The vendor is dropped when
@@ -160,9 +158,51 @@ private fun sensorSubtitleText(vendor: SensorVendor, type: SensorTypeName): Stri
     }
 }
 
-/** Picks which sensors are drawn on the chart. Only meaningful with more than one sensor. */
+/**
+ * Vendor monogram tinted with the sensor's own colour, so the tile carries both "who made this"
+ * and "which line on the chart is this" without a second coloured element in the header.
+ */
 @Composable
-private fun SensorDisplayToggle(
+private fun SensorVendorAvatar(
+    vendor: SensorVendor,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val vendorName = stringResource(vendor.labelRes)
+    Box(
+        modifier = modifier
+            .size(SensorAvatarSize)
+            .clip(RoundedCornerShape(12.dp))
+            .background(color.copy(alpha = 0.16f))
+            .clearAndSetSemantics { contentDescription = vendorName },
+        contentAlignment = Alignment.Center,
+    ) {
+        when (vendor) {
+            SensorVendor.NIGHTSCOUT -> Icon(
+                imageVector = Icons.Default.CloudDownload,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp),
+            )
+            SensorVendor.UNKNOWN -> Icon(
+                imageVector = Icons.Default.Sensors,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp),
+            )
+            else -> Text(
+                text = vendor.badgeText,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Black,
+                color = color,
+            )
+        }
+    }
+}
+
+/** Draws this sensor on the chart. Only meaningful with more than one sensor. */
+@Composable
+private fun SensorChartToggle(
     selected: Boolean,
     color: Color,
     onClick: () -> Unit,
@@ -173,17 +213,17 @@ private fun SensorDisplayToggle(
     )
     Box(
         modifier = modifier
-            .size(SensorLeadingSize)
+            .size(40.dp)
             .clip(CircleShape)
             .background(if (selected) color.copy(alpha = 0.16f) else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+            imageVector = Icons.Default.ShowChart,
             contentDescription = description,
-            tint = if (selected) color else color.copy(alpha = 0.55f),
-            modifier = Modifier.size(20.dp),
+            tint = if (selected) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -1299,24 +1339,18 @@ fun SensorCard(
                 )
 
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
-                    val statusText = if (isStreaming) stringResource(R.string.enabled_status) else stringResource(R.string.disabled_status)
+                    val pausedText = stringResource(R.string.disabled_status)
 
                     val subtitleText = sensorSubtitleText(sensor.vendor, sensor.sensorType)
-                    val showDisplayToggle = sensorCount > 1
+                    val showChartToggle = sensorCount > 1
 
-                    // Identity, streaming state and its control all share one centre line.
+                    // Identity on the left, the controls that act on it on the right.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (showDisplayToggle) {
-                            SensorDisplayToggle(
-                                selected = sensor.isSelectedForDisplay,
-                                color = sensor.color,
-                                onClick = { viewModel.toggleDisplaySelection(sensor.serial) },
-                            )
-                            Spacer(modifier = Modifier.width(SensorLeadingGap))
-                        }
+                        SensorVendorAvatar(vendor = sensor.vendor, color = sensor.color)
+                        Spacer(modifier = Modifier.width(SensorAvatarGap))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = sensor.displayName.ifBlank { sensor.serial },
@@ -1337,20 +1371,14 @@ fun SensorCard(
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = statusText,
-                            // Deliberately a step above the connection status below it, so the
-                            // two status lines don't read as one repeated field.
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (isStreaming) {
-                                MaterialTheme.colorScheme.onSurface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        if (showChartToggle) {
+                            SensorChartToggle(
+                                selected = sensor.isSelectedForDisplay,
+                                color = sensor.color,
+                                onClick = { viewModel.toggleDisplaySelection(sensor.serial) },
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
 
                         if (isHandedOff) {
                             IconButton(
@@ -1410,7 +1438,11 @@ fun SensorCard(
                         }
                     }
 
+                    // One status line, not two: a paused sensor's last connection state is stale
+                    // trivia, so the paused label takes the slot instead of sitting in the header
+                    // repeating what the play button already says.
                     val sensorStatusText = when {
+                        !isStreaming -> pausedText
                         sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
                         sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                         else -> null
@@ -1432,7 +1464,11 @@ fun SensorCard(
                                 Text(
                                     text = status,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = if (isStreaming) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
