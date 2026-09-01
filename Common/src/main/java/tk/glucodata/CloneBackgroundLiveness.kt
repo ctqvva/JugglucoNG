@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.PowerManager
 
-/** Optional receiver policy for uninterrupted Clone traffic while Android is asleep. */
+/** Optional receiver policy for improved Clone liveness while Android is asleep. */
 object CloneBackgroundLiveness {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_ENABLED = "clone_background_liveness_v1"

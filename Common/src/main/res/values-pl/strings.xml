@@ -1849,7 +1849,7 @@
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
     <string name="mirror_background_liveness">Utrzymuj Clone aktywny w tle</string>
-    <string name="mirror_background_liveness_desc">Utrzymuje odbiornik aktywny, aby zapewnić nieprzerwane sklonowane odczyty i alerty. Zużywa więcej baterii.</string>
+    <string name="mirror_background_liveness_desc">Pomaga odbiornikowi zachować aktywność i szybko ponownie się łączyć w tle dla sklonowanych odczytów i alertów. Zużywa więcej baterii.</string>
     <string name="mirror_no_connections">Brak połączeń. Użyj szybkiego parowania lub dotknij +.</string>
     <string name="mirror_delete_connection_title">Usunąć połączenie?</string>
     <string name="mirror_delete_connection_message">%1$s zostanie trwale usunięte.</string>

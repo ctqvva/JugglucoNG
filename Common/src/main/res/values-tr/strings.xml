@@ -1842,7 +1842,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Kayıtlı tüm Clone bağlantılarını etkinleştir</string>
     <string name="mirror_background_liveness">Clone\'u arka planda canlı tut</string>
-    <string name="mirror_background_liveness_desc">Kesintisiz klonlanmış ölçümler ve uyarılar için alıcıyı uyanık tutar. Daha fazla pil kullanır.</string>
+    <string name="mirror_background_liveness_desc">Alıcının arka planda etkin kalmasına ve klonlanmış ölçümler ile uyarılar için hızla yeniden bağlanmasına yardımcı olur. Daha fazla pil kullanır.</string>
     <string name="mirror_no_connections">Bağlantı yok. Hızlı eşleştirmeyi kullanın veya + dokunun.</string>
     <string name="mirror_delete_connection_title">Bağlantı silinsin mi?</string>
     <string name="mirror_delete_connection_message">%1$s kalıcı olarak kaldırılacak.</string>

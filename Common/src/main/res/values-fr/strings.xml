@@ -1820,7 +1820,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Activer toutes les connexions Clone enregistrées</string>
     <string name="mirror_background_liveness">Maintenir Clone actif en arrière-plan</string>
-    <string name="mirror_background_liveness_desc">Maintient le récepteur éveillé pour des mesures clonées et des alertes sans interruption. Consomme plus de batterie.</string>
+    <string name="mirror_background_liveness_desc">Aide le récepteur à rester réactif et à se reconnecter rapidement en arrière-plan pour les mesures clonées et les alertes. Consomme plus de batterie.</string>
     <string name="mirror_no_connections">Aucune connexion. Utilisez l’appairage rapide ou touchez +.</string>
     <string name="mirror_delete_connection_title">Supprimer la connexion ?</string>
     <string name="mirror_delete_connection_message">%1$s sera supprimé définitivement.</string>

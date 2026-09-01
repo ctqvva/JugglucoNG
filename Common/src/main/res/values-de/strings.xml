@@ -1939,7 +1939,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle gespeicherten Clone-Verbindungen aktivieren</string>
     <string name="mirror_background_liveness">Clone im Hintergrund aktiv halten</string>
-    <string name="mirror_background_liveness_desc">Hält den Empfänger für unterbrechungsfreie Clone-Werte und Alarme aktiv. Verbraucht mehr Akku.</string>
+    <string name="mirror_background_liveness_desc">Hilft dem Empfänger, im Hintergrund aktiv zu bleiben und sich für Clone-Werte und Alarme schnell wiederzuverbinden. Verbraucht mehr Akku.</string>
     <string name="mirror_no_connections">Keine Verbindungen. Schnell koppeln oder + antippen.</string>
     <string name="mirror_delete_connection_title">Verbindung löschen?</string>
     <string name="mirror_delete_connection_message">%1$s wird dauerhaft entfernt.</string>

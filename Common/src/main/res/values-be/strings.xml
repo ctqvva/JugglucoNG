@@ -1888,7 +1888,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Уключыць усе захаваныя падключэнні Clone</string>
     <string name="mirror_background_liveness">Падтрымліваць Clone у фонавым рэжыме</string>
-    <string name="mirror_background_liveness_desc">Не дае прыёмніку засынаць для бесперапынных кланаваных паказанняў і абвестак. Павялічвае расход батарэі.</string>
+    <string name="mirror_background_liveness_desc">Дапамагае прыёмніку заставацца актыўным у фоне і хутка перападключацца для кланаваных паказанняў і абвестак. Павялічвае расход батарэі.</string>
     <string name="mirror_no_connections">Няма падключэнняў. Выкарыстайце хуткае спалучэнне або націсніце +.</string>
     <string name="mirror_delete_connection_title">Выдаліць падключэнне?</string>
     <string name="mirror_delete_connection_message">%1$s будзе выдалена назаўсёды.</string>

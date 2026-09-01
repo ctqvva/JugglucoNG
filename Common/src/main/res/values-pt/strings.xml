@@ -1815,7 +1815,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Ativar todas as conexões Clone guardadas</string>
     <string name="mirror_background_liveness">Manter o Clone ativo em segundo plano</string>
-    <string name="mirror_background_liveness_desc">Mantém o recetor ativo para leituras clonadas e alertas sem interrupções. Usa mais bateria.</string>
+    <string name="mirror_background_liveness_desc">Ajuda o recetor a manter-se responsivo e a restabelecer rapidamente a ligação em segundo plano para leituras clonadas e alertas. Usa mais bateria.</string>
     <string name="mirror_no_connections">Sem conexões. Use pareamento rápido ou toque em +.</string>
     <string name="mirror_delete_connection_title">Excluir conexão?</string>
     <string name="mirror_delete_connection_message">%1$s será removido permanentemente.</string>

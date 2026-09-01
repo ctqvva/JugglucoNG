@@ -1857,7 +1857,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
     <string name="mirror_background_liveness">Clone actief houden op de achtergrond</string>
-    <string name="mirror_background_liveness_desc">Houdt de ontvanger wakker voor ononderbroken gekloonde waarden en meldingen. Verbruikt meer batterij.</string>
+    <string name="mirror_background_liveness_desc">Helpt de ontvanger op de achtergrond responsief te blijven en snel opnieuw verbinding te maken voor gekloonde waarden en meldingen. Verbruikt meer batterij.</string>
     <string name="mirror_no_connections">Geen verbindingen. Gebruik snel koppelen of tik op +.</string>
     <string name="mirror_delete_connection_title">Verbinding verwijderen?</string>
     <string name="mirror_delete_connection_message">%1$s wordt definitief verwijderd.</string>

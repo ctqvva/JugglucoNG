@@ -1830,7 +1830,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">启用所有已保存的 Clone 连接</string>
     <string name="mirror_background_liveness">让 Clone 在后台保持活动</string>
-    <string name="mirror_background_liveness_desc">保持接收端唤醒，以便持续接收克隆读数和提醒。会消耗更多电量。</string>
+    <string name="mirror_background_liveness_desc">帮助接收端在后台保持响应，并为克隆读数和提醒快速重新连接。会消耗更多电量。</string>
     <string name="mirror_no_connections">没有连接。使用快速配对或点击 + 添加。</string>
     <string name="mirror_delete_connection_title">删除连接？</string>
     <string name="mirror_delete_connection_message">%1$s 将被永久移除。</string>
