@@ -26,4 +26,17 @@ class RemoteIobSnapshotSafetyTests {
         assertTrue(snapshots.contains("allowCloneRemote = false"))
         assertTrue(snapshots.contains("allowNightscoutRemote = false"))
     }
+
+    @Test
+    fun reflectedCloneIobMethodsSurviveReleaseMinification() {
+        val snapshots = source("Common/src/mobile/java/tk/glucodata/OutboundApiJournalSnapshot.kt")
+            .replace(Regex("\\s+"), " ")
+        val rules = source("Common/proguard-rules.my")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(snapshots.contains("@Keep @JvmStatic fun cloneIobSnapshotJson"))
+        assertTrue(snapshots.contains("@Keep @JvmStatic fun importCloneIobSnapshot"))
+        assertTrue(rules.contains("java.lang.String cloneIobSnapshotJson(long);"))
+        assertTrue(rules.contains("boolean importCloneIobSnapshot(java.lang.String);"))
+    }
 }
