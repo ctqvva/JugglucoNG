@@ -46,50 +46,60 @@ class JournalRepository {
     }
 
     suspend fun upsertEntry(input: JournalEntryInput): Long {
-        val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
-        val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
-        val existing = input.id?.let { dao.getEntryById(it) }
-            ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
-            ?: nsRemoteId?.let {
-                dao.getEntryByNightscoutRemoteIdAndType(it, input.type.storageValue)
+        val (id, entity, existing) = database.withTransaction {
+            val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
+            val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
+            val existing = input.id?.let { dao.getEntryById(it) }
+                ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
+                ?: nsRemoteId?.let {
+                    dao.getEntryByNightscoutRemoteIdAndType(it, input.type.storageValue)
+                }
+            val remoteIdentityMatch = existing?.takeIf {
+                it.sourceRecordId != sourceRecordId &&
+                    isSameNightscoutJournalKind(
+                        existingNsRemoteId = it.nsRemoteId,
+                        incomingNsRemoteId = nsRemoteId,
+                        existingEntryType = it.entryType,
+                        incomingEntryType = input.type.storageValue,
+                    )
             }
-        val remoteIdentityMatch = existing?.takeIf {
-            it.sourceRecordId != sourceRecordId &&
-                isSameNightscoutJournalKind(
-                    existingNsRemoteId = it.nsRemoteId,
-                    incomingNsRemoteId = nsRemoteId,
-                    existingEntryType = it.entryType,
-                    incomingEntryType = input.type.storageValue,
+            val cloneIdentityMatch = existing?.takeIf {
+                isSameCloneJournalRecord(
+                    existingSource = it.source,
+                    incomingSource = input.source,
+                    existingSourceRecordId = it.sourceRecordId,
+                    incomingSourceRecordId = sourceRecordId,
                 )
+            }
+            val preservedIdentity = remoteIdentityMatch ?: cloneIdentityMatch
+            val now = System.currentTimeMillis()
+            val entity = JournalEntryEntity(
+                id = existing?.id ?: (input.id ?: 0L),
+                timestamp = input.timestamp,
+                sensorSerial = input.sensorSerial?.takeIf { it.isNotBlank() },
+                entryType = input.type.storageValue,
+                title = input.title.trim(),
+                note = input.note?.trim()?.takeIf { it.isNotBlank() },
+                amount = input.amount,
+                glucoseValueMgDl = input.glucoseValueMgDl,
+                durationMinutes = input.durationMinutes,
+                intensity = input.intensity?.storageValue,
+                insulinPresetId = input.insulinPresetId,
+                // Clone and Nightscout can deliver the same treatment in either
+                // order. Preserve the first observed route and storage identity
+                // instead of changing icons or creating a duplicate later.
+                source = preservedIdentity?.source ?: input.source.storageValue,
+                sourceRecordId = preservedIdentity?.sourceRecordId ?: sourceRecordId,
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+                foodId = input.foodId,
+                proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
+                fatGrams = input.fatGrams?.coerceAtLeast(0f),
+                nsUploadedAt = existing?.nsUploadedAt,
+                nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
+            )
+            Triple(dao.upsertEntry(entity), entity, existing)
         }
-        val now = System.currentTimeMillis()
-        val entity = JournalEntryEntity(
-            id = existing?.id ?: (input.id ?: 0L),
-            timestamp = input.timestamp,
-            sensorSerial = input.sensorSerial?.takeIf { it.isNotBlank() },
-            entryType = input.type.storageValue,
-            title = input.title.trim(),
-            note = input.note?.trim()?.takeIf { it.isNotBlank() },
-            amount = input.amount,
-            glucoseValueMgDl = input.glucoseValueMgDl,
-            durationMinutes = input.durationMinutes,
-            intensity = input.intensity?.storageValue,
-            insulinPresetId = input.insulinPresetId,
-            // Clone and Nightscout can deliver the same treatment in either
-            // order. When their shared Nightscout ID found the row, retain the
-            // first observed provenance and storage identity instead of
-            // oscillating between sources or creating a duplicate.
-            source = remoteIdentityMatch?.source ?: input.source.storageValue,
-            sourceRecordId = remoteIdentityMatch?.sourceRecordId ?: sourceRecordId,
-            createdAt = existing?.createdAt ?: now,
-            updatedAt = now,
-            foodId = input.foodId,
-            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-            fatGrams = input.fatGrams?.coerceAtLeast(0f),
-            nsUploadedAt = existing?.nsUploadedAt,
-            nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
-        )
-        val id = dao.upsertEntry(entity)
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         }
@@ -553,6 +563,23 @@ internal fun isSameNightscoutJournalKind(
 ): Boolean = incomingNsRemoteId != null &&
     existingNsRemoteId == incomingNsRemoteId &&
     existingEntryType == incomingEntryType
+
+internal fun isSameCloneJournalRecord(
+    existingSource: String,
+    incomingSource: JournalEntrySource,
+    existingSourceRecordId: String?,
+    incomingSourceRecordId: String?,
+): Boolean = existingSourceRecordId != null &&
+    existingSourceRecordId == incomingSourceRecordId &&
+    isCloneJournalSource(JournalEntrySource.fromStorage(existingSource)) &&
+    isCloneJournalSource(incomingSource)
+
+private fun isCloneJournalSource(source: JournalEntrySource): Boolean = when (source) {
+    JournalEntrySource.CLONE,
+    JournalEntrySource.CLONE_LOCAL_ICE,
+    JournalEntrySource.CLONE_TURN -> true
+    else -> false
+}
 
 private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? {
     nsRemoteId?.takeIf { it.isNotBlank() }?.let { return it }

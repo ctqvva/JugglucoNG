@@ -36,4 +36,24 @@ class JournalRepositoryIdentityPolicyTests {
             )
         )
     }
+
+    @Test
+    fun existingCloneIngressRouteIsStableForTheSameRecord() {
+        assertTrue(
+            isSameCloneJournalRecord(
+                existingSource = JournalEntrySource.CLONE_LOCAL_ICE.storageValue,
+                incomingSource = JournalEntrySource.CLONE_TURN,
+                existingSourceRecordId = "clone:origin:journal:42:insulin",
+                incomingSourceRecordId = "clone:origin:journal:42:insulin",
+            )
+        )
+        assertFalse(
+            isSameCloneJournalRecord(
+                existingSource = JournalEntrySource.NIGHTSCOUT.storageValue,
+                incomingSource = JournalEntrySource.CLONE_TURN,
+                existingSourceRecordId = "nightscout:server:42:insulin",
+                incomingSourceRecordId = "clone:origin:journal:42:insulin",
+            )
+        )
+    }
 }
