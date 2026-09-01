@@ -111,6 +111,12 @@ class JournalRepository {
                 // order. Preserve the first observed route and storage identity
                 // instead of changing icons or creating a duplicate later.
                 source = preservedIdentity?.source ?: writeIdentity.source.storageValue,
+                originSource = resolveJournalOriginSource(
+                    existingOriginSource = existing?.originSource,
+                    storedSource = writeIdentity.source,
+                    incomingSource = input.source,
+                    incomingOriginSource = input.originSource,
+                ),
                 sourceRecordId = preservedIdentity?.sourceRecordId ?: writeIdentity.sourceRecordId,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
@@ -121,6 +127,9 @@ class JournalRepository {
                 nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
             )
             val rowId = dao.upsertEntry(entity)
+            if (isCloneJournalExportSource(entity.source)) {
+                dao.deleteCloneJournalTombstone(rowId)
+            }
             // A Clone row can arrive before the sender learns its Nightscout ID while
             // the Nightscout follower imports the same treatment independently. Once
             // both identities meet, retain the first local row and remove only the
@@ -128,8 +137,13 @@ class JournalRepository {
             redundantOverlap.forEach { dao.deleteEntryById(it.id) }
             Triple(rowId, entity, existing)
         }
+        val mirroredWrite = isExternalJournalMirrorSource(JournalEntrySource.fromStorage(entity.source))
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
-            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            if (mirroredWrite) {
+                tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+            } else {
+                tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            }
         }
         if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
@@ -137,7 +151,7 @@ class JournalRepository {
         // Every kind of entry, not only the ones that move IOB: a fingerstick or a note is
         // sent to Nightscout too, and nothing else will wake the uploader for it. What came
         // from another system is never sent back, so importing from one does not wake it.
-        if (!isMirroredSource(JournalEntrySource.fromStorage(entity.source))) {
+        if (!mirroredWrite) {
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
             if (!affectsIob(entity.entryType) && !affectsIob(existing?.entryType)) {
                 tk.glucodata.Natives.wakebackup()
@@ -216,6 +230,7 @@ class JournalRepository {
                 existing.copy(
                     timestamp = timestampMillis,
                     source = JournalEntrySource.PEN.storageValue,
+                    originSource = JournalEntrySource.PEN.storageValue,
                     sourceRecordId = id,
                     updatedAt = System.currentTimeMillis()
                 )
@@ -246,10 +261,20 @@ class JournalRepository {
     suspend fun deleteEntry(entryId: Long) {
         var deletedType: String? = null
         var deletedGlucose: Float? = null
+        var cloneDeleteQueued = false
         database.withTransaction {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
             deletedGlucose = existing?.glucoseValueMgDl
+            if (existing != null && isCloneJournalExportSource(existing.source)) {
+                dao.upsertCloneJournalTombstone(
+                    CloneJournalTombstoneEntity(
+                        entryId = existing.id,
+                        deletedAt = System.currentTimeMillis(),
+                    )
+                )
+                cloneDeleteQueued = true
+            }
             val remoteId = existing?.nightscoutDeleteRemoteId()
             if (remoteId != null) {
                 dao.enqueuePendingNightscoutDelete(
@@ -262,7 +287,7 @@ class JournalRepository {
             }
             dao.deleteEntryById(entryId)
         }
-        if (affectsIob(deletedType)) {
+        if (cloneDeleteQueued || affectsIob(deletedType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         }
         if (deletedGlucose != null) {
@@ -270,6 +295,25 @@ class JournalRepository {
         }
         // A deletion queues a tombstone, which is the uploader's to carry out.
         tk.glucodata.NightscoutUploadWake.afterJournalChange()
+    }
+
+    /** Applies sender tombstones without turning a receiver-side delete into outbound work. */
+    suspend fun deleteMirroredCloneEntriesBySourceRecordIds(sourceRecordIds: List<String>): Int {
+        val ids = sourceRecordIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return 0
+        val deleted = database.withTransaction {
+            val rows = dao.getEntriesBySourceRecordIds(ids).filter { row ->
+                isCloneJournalSource(JournalEntrySource.fromStorage(row.source))
+            }
+            rows.forEach { dao.deleteEntryById(it.id) }
+            rows
+        }
+        if (deleted.isEmpty()) return 0
+        tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+        if (deleted.any { it.glucoseValueMgDl != null }) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        return deleted.size
     }
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
@@ -622,11 +666,30 @@ internal fun isExternalJournalMirrorSource(source: JournalEntrySource): Boolean 
         source == JournalEntrySource.API ||
         isCloneJournalSource(source)
 
-private fun isCloneJournalSource(source: JournalEntrySource): Boolean = when (source) {
+internal fun isCloneJournalSource(source: JournalEntrySource): Boolean = when (source) {
     JournalEntrySource.CLONE,
     JournalEntrySource.CLONE_LOCAL_ICE,
     JournalEntrySource.CLONE_TURN -> true
     else -> false
+}
+
+internal fun isCloneJournalExportSource(source: String): Boolean = when (JournalEntrySource.fromStorage(source)) {
+    JournalEntrySource.MANUAL,
+    JournalEntrySource.HEALTH_CONNECT,
+    JournalEntrySource.METER,
+    JournalEntrySource.PEN -> true
+    else -> false
+}
+
+internal fun resolveJournalOriginSource(
+    existingOriginSource: String?,
+    storedSource: JournalEntrySource,
+    incomingSource: JournalEntrySource,
+    incomingOriginSource: JournalEntrySource?,
+): String? = if (isExternalJournalMirrorSource(storedSource)) {
+    incomingOriginSource?.storageValue ?: existingOriginSource
+} else {
+    (incomingOriginSource ?: incomingSource).storageValue
 }
 
 internal data class JournalOverlap(
@@ -699,7 +762,8 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         source = JournalEntrySource.fromStorage(source),
         sourceRecordId = sourceRecordId,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        originSource = originSource?.let(JournalEntrySource::fromStorage),
     )
 }
 

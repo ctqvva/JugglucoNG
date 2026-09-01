@@ -147,4 +147,26 @@ class JournalTreatmentTransferTests {
         assertEquals("clone:test-origin:journal:42:insulin", entry.sourceRecordId)
         assertEquals("remote-treatment-id", entry.nsRemoteId)
     }
+
+    @Test
+    fun cloneTransferCarriesTheSendersUpdatedPenOrigin() {
+        val document = JSONObject()
+            .put("identifier", "journal:42")
+            .put("journalSource", "pen")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 2.5)
+
+        val parsed = JournalTreatmentTransfer.parseTreatment(
+            treatment = document,
+            source = JournalEntrySource.CLONE_TURN,
+            sourcePrefix = "clone:test-origin",
+            insulinPresets = emptyList(),
+            stringResource = { "Insulin" },
+        )
+
+        val entry = parsed!!.inputs.single()
+        assertEquals(JournalEntrySource.CLONE_TURN, entry.source)
+        assertEquals(JournalEntrySource.PEN, entry.originSource)
+    }
 }

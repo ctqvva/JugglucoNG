@@ -2701,9 +2701,10 @@ fun JournalInlineChip(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                entry.source.presentation()?.let { source ->
+                (entry.originSource ?: entry.source).presentation()?.let { source ->
                     // Where the number came from, in the colour of secondary text so it never
-                    // competes with the amount. Manual entries draw nothing here.
+                    // competes with the amount. For mirrored rows this is the sender's
+                    // authoritative origin; the ingress transport remains beside the time.
                     Icon(
                         imageVector = source.icon,
                         contentDescription = stringResource(source.labelRes),

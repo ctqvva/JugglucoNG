@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.data.journal.JournalEntrySource
+import tk.glucodata.data.journal.isCloneJournalExportSource
 
 class CloneJournalSnapshotPolicyTests {
     @Test
@@ -25,18 +26,16 @@ class CloneJournalSnapshotPolicyTests {
 
     @Test
     fun onlyAuthoritativeLocalEntriesAreRebroadcast() {
-        OutboundApiJournalSnapshot.run {
-            assertTrue(JournalEntrySource.MANUAL.isCloneJournalExportSource())
-            assertTrue(JournalEntrySource.PEN.isCloneJournalExportSource())
-            assertTrue(JournalEntrySource.METER.isCloneJournalExportSource())
-            assertTrue(JournalEntrySource.HEALTH_CONNECT.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.NIGHTSCOUT.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.API.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.AAPS.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.CLONE.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.CLONE_LOCAL_ICE.isCloneJournalExportSource())
-            assertFalse(JournalEntrySource.CLONE_TURN.isCloneJournalExportSource())
-        }
+        assertTrue(isCloneJournalExportSource(JournalEntrySource.MANUAL.storageValue))
+        assertTrue(isCloneJournalExportSource(JournalEntrySource.PEN.storageValue))
+        assertTrue(isCloneJournalExportSource(JournalEntrySource.METER.storageValue))
+        assertTrue(isCloneJournalExportSource(JournalEntrySource.HEALTH_CONNECT.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.NIGHTSCOUT.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.API.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.AAPS.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.CLONE.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.CLONE_LOCAL_ICE.storageValue))
+        assertFalse(isCloneJournalExportSource(JournalEntrySource.CLONE_TURN.storageValue))
     }
 
     @Test
@@ -45,5 +44,16 @@ class CloneJournalSnapshotPolicyTests {
             "journal:42",
             OutboundApiJournalSnapshot.cloneJournalTransferIdentifier(localId = 42L),
         )
+    }
+
+    @Test
+    fun deletionTombstoneTargetsEveryPossibleCompoundRecordKind() {
+        val recordIds = tk.glucodata.data.journal.JournalTreatmentTransfer.sourceRecordIdsForBaseId(
+            sourcePrefix = "clone:test-origin",
+            baseId = "journal:42",
+        )
+
+        assertEquals(5, recordIds.size)
+        assertTrue(recordIds.all { it.startsWith("clone:test-origin:journal:42:") })
     }
 }

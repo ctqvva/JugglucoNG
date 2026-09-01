@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import tk.glucodata.data.journal.JournalDao
+import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
@@ -38,6 +39,8 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v17 — per-journal-entry LibreView delivery timestamp
  *   v18 — per-reading glucose source provenance
  *   v19 — stable first-arrival ordering for equivalent replicated readings
+ *   v20 — journal content origin plus durable Clone deletion tombstones;
+ *         also repairs v19 databases produced by earlier Clone test builds
  */
 @Database(
     entities = [
@@ -48,9 +51,10 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
-        JournalPendingDeleteEntity::class
+        JournalPendingDeleteEntity::class,
+        CloneJournalTombstoneEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -464,6 +468,44 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v19 -> v20: preserve journal origin and durable Clone deletion tombstones.
+         *
+         * Earlier Clone test builds also reported version 19, but used that step for
+         * these journal fields instead of the final firstStoredAt migration. Inspecting
+         * the schema makes this safe for both histories without dropping any data.
+         */
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "history_readings", "firstStoredAt")) {
+                    db.execSQL(
+                        "ALTER TABLE history_readings " +
+                            "ADD COLUMN firstStoredAt INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                db.execSQL(
+                    "UPDATE history_readings SET firstStoredAt = id " +
+                        "WHERE firstStoredAt <= 0"
+                )
+                if (!hasColumn(db, "journal_entries", "originSource")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN originSource TEXT")
+                }
+                db.execSQL(
+                    "UPDATE journal_entries SET originSource = source " +
+                        "WHERE originSource IS NULL " +
+                        "AND source IN ('manual', 'health_connect', 'meter', 'pen')"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS clone_journal_tombstones (
+                        entryId INTEGER PRIMARY KEY NOT NULL,
+                        deletedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -488,7 +530,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_15_16,
                     MIGRATION_16_17,
                     MIGRATION_17_18,
-                    MIGRATION_18_19
+                    MIGRATION_18_19,
+                    MIGRATION_19_20
                 )
                 .build().also { INSTANCE = it }
             }

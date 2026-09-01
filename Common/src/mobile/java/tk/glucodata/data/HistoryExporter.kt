@@ -103,7 +103,7 @@ object HistoryExporter {
                         writer.write(
                             "Timestamp,Date,Value,RawValue,CalibratedValue,Unit,SensorSerial,RecordType," +
                                 "JournalId,JournalType,JournalTitle,JournalNote,JournalAmount,JournalGlucoseMgDl," +
-                                "JournalDurationMinutes,JournalIntensity,JournalInsulinPresetId,JournalSource," +
+                                "JournalDurationMinutes,JournalIntensity,JournalInsulinPresetId,JournalSource,JournalOriginSource," +
                                 "JournalSourceRecordId,JournalCreatedAt,JournalUpdatedAt," +
                                 "PresetId,PresetName,PresetOnsetMinutes,PresetDurationMinutes,PresetAccentColor," +
                                 "PresetCurveJson,PresetBuiltIn,PresetArchived,PresetCountsTowardIob," +
@@ -153,6 +153,7 @@ object HistoryExporter {
                                     entry.intensity.orEmpty(),
                                     entry.insulinPresetId ?: "",
                                     entry.source,
+                                    entry.originSource.orEmpty(),
                                     entry.sourceRecordId.orEmpty(),
                                     entry.createdAt,
                                     entry.updatedAt

@@ -25,6 +25,7 @@ import tk.glucodata.data.journal.JournalIobCalculator
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
+import tk.glucodata.data.journal.isCloneJournalExportSource
 import tk.glucodata.data.prediction.PredictionModelProfileStore
 import java.util.UUID
 
@@ -37,6 +38,8 @@ object OutboundApiJournalSnapshot {
     private const val CLONE_JOURNAL_ORIGIN_KEY = "clone_journal_origin_v1"
     private const val CLONE_JOURNAL_WINDOW_MS = 24L * 60L * 60L * 1000L
     private const val CLONE_JOURNAL_MAX_EVENTS = 128
+    private const val CLONE_JOURNAL_TOMBSTONE_WINDOW_MS = 30L * 24L * 60L * 60L * 1000L
+    private const val CLONE_JOURNAL_MAX_TOMBSTONES = 256
     private val cloneJournalImportMutex = Mutex()
 
     @JvmStatic
@@ -57,6 +60,9 @@ object OutboundApiJournalSnapshot {
     private var journalChangedJob: Job? = null
     @Volatile
     private var cloneIobRefreshJob: Job? = null
+    private val journalChangedLock = Any()
+    private var pendingCloneWake = false
+    private var journalRefreshRequested = false
     private const val JOURNAL_CHANGED_DEBOUNCE_MS = 400L
 
     /**
@@ -68,17 +74,43 @@ object OutboundApiJournalSnapshot {
      */
     @JvmStatic
     fun journalChanged() {
+        scheduleJournalChanged(wakeCloneSender = true)
+    }
+
+    /** Refreshes receiver state without advertising the imported change back to its peers. */
+    @JvmStatic
+    fun mirroredJournalChanged() {
+        scheduleJournalChanged(wakeCloneSender = false)
+    }
+
+    private fun scheduleJournalChanged(wakeCloneSender: Boolean) {
         broadcastIobCache = null
-        journalChangedJob?.cancel()
-        journalChangedJob = journalChangedScope.launch {
-            delay(JOURNAL_CHANGED_DEBOUNCE_MS)
-            val now = System.currentTimeMillis()
-            val values = runCatching { buildBroadcastIob(now) }.getOrNull()
-            broadcastIobCache = BroadcastIobCache(now, values)
-            JournalIobAccess.pushWatchserver(now)
-            if (values != null) JugglucoSend.rebroadcastIob()
-            Notify.showoldglucose()
-            Natives.wakebackup()
+        synchronized(journalChangedLock) {
+            pendingCloneWake = pendingCloneWake || wakeCloneSender
+            journalRefreshRequested = true
+            if (journalChangedJob?.isActive == true) return
+            journalChangedJob = journalChangedScope.launch {
+                while (true) {
+                    delay(JOURNAL_CHANGED_DEBOUNCE_MS)
+                    val shouldWakeClone = synchronized(journalChangedLock) {
+                        journalRefreshRequested = false
+                        pendingCloneWake.also { pendingCloneWake = false }
+                    }
+                    val now = System.currentTimeMillis()
+                    val values = runCatching { buildBroadcastIob(now) }.getOrNull()
+                    broadcastIobCache = BroadcastIobCache(now, values)
+                    JournalIobAccess.pushWatchserver(now)
+                    if (values != null) JugglucoSend.rebroadcastIob()
+                    Notify.showoldglucose()
+                    if (shouldWakeClone) Natives.wakebackup()
+                    val repeat = synchronized(journalChangedLock) {
+                        journalRefreshRequested.also { requested ->
+                            if (!requested) journalChangedJob = null
+                        }
+                    }
+                    if (!repeat) break
+                }
+            }
         }
     }
 
@@ -381,18 +413,32 @@ object OutboundApiJournalSnapshot {
         val startMillis = (atMillis - CLONE_JOURNAL_WINDOW_MS).coerceAtLeast(0L)
         val events = JSONArray()
         dao.getEntriesBetween(startMillis, atMillis)
-            .filter { JournalEntrySource.fromStorage(it.source).isCloneJournalExportSource() }
+            .filter { isCloneJournalExportSource(it.source) }
             .takeLast(CLONE_JOURNAL_MAX_EVENTS)
             .forEach { entry -> events.put(entry.toTransferJson(presetsById, foodsById)) }
+        val deleted = JSONArray()
+        dao.getCloneJournalTombstonesSince(
+            (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
+        )
+            .takeLast(CLONE_JOURNAL_MAX_TOMBSTONES)
+            .forEach { tombstone ->
+                deleted.put(
+                    JSONObject()
+                        .put("id", tombstone.entryId)
+                        .put("deletedAt", tombstone.deletedAt)
+                )
+            }
         return JSONObject()
             .put("schema", "tk.glucodata.clone.journal.v1")
             .put("origin", cloneJournalOriginId())
             .put("events", events)
+            .put("deleted", deleted)
     }
 
     private data class CloneJournalEnvelope(
         val sourcePrefix: String,
         val events: JSONArray,
+        val deletedEntryIds: List<Long>,
     )
 
     private fun parseCloneJournalEnvelope(raw: String): CloneJournalEnvelope {
@@ -402,7 +448,20 @@ object OutboundApiJournalSnapshot {
         require(origin.length in 1..96 && origin.all { it.isLetterOrDigit() || it == '-' || it == '_' })
         val events = root.optJSONArray("events") ?: JSONArray()
         require(events.length() <= CLONE_JOURNAL_MAX_EVENTS)
-        return CloneJournalEnvelope(sourcePrefix = "clone:$origin", events = events)
+        val deleted = root.optJSONArray("deleted") ?: JSONArray()
+        require(deleted.length() <= CLONE_JOURNAL_MAX_TOMBSTONES)
+        val deletedEntryIds = buildList {
+            for (index in 0 until deleted.length()) {
+                val id = deleted.optJSONObject(index)?.optLong("id", 0L) ?: 0L
+                require(id > 0L)
+                add(id)
+            }
+        }.distinct()
+        return CloneJournalEnvelope(
+            sourcePrefix = "clone:$origin",
+            events = events,
+            deletedEntryIds = deletedEntryIds,
+        )
     }
 
     private suspend fun importCloneJournal(
@@ -414,6 +473,21 @@ object OutboundApiJournalSnapshot {
         repository.ensureDefaultInsulinPresets()
         val presets = repository.getInsulinPresetsSnapshot()
         var imported = 0
+        val deletedSourceRecordIds = envelope.deletedEntryIds.flatMap { entryId ->
+            JournalTreatmentTransfer.sourceRecordIdsForBaseId(
+                envelope.sourcePrefix,
+                cloneJournalTransferIdentifier(entryId),
+            )
+        }
+        val deleted = if (deletedSourceRecordIds.isNotEmpty()) {
+            CloneSensorRegistry.whileReceptionEnabled {
+                runBlocking {
+                    repository.deleteMirroredCloneEntriesBySourceRecordIds(deletedSourceRecordIds)
+                }
+            } ?: return 0
+        } else {
+            0
+        }
         for (index in 0 until envelope.events.length()) {
             val item = envelope.events.optJSONObject(index) ?: continue
             val parsed = JournalTreatmentTransfer.parseTreatment(
@@ -432,8 +506,8 @@ object OutboundApiJournalSnapshot {
                 imported++
             }
         }
-        if (imported > 0) UiRefreshBus.requestDataRefresh()
-        return imported
+        if (imported > 0 || deleted > 0) UiRefreshBus.requestDataRefresh()
+        return imported + deleted
     }
 
     @Synchronized
@@ -578,7 +652,8 @@ object OutboundApiJournalSnapshot {
             .put("foodId", foodId)
             .put("proteinGrams", finiteOrNull(proteinGrams))
             .put("fatGrams", finiteOrNull(fatGrams))
-            .put("source", source)
+            .put("source", originSource ?: source)
+            .put("journalSource", originSource ?: source)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt)
@@ -593,19 +668,6 @@ object OutboundApiJournalSnapshot {
         }
 
     internal fun cloneJournalTransferIdentifier(localId: Long): String = "journal:$localId"
-
-    internal fun JournalEntrySource.isCloneJournalExportSource(): Boolean = when (this) {
-        JournalEntrySource.MANUAL,
-        JournalEntrySource.HEALTH_CONNECT,
-        JournalEntrySource.METER,
-        JournalEntrySource.PEN -> true
-        JournalEntrySource.AAPS,
-        JournalEntrySource.NIGHTSCOUT,
-        JournalEntrySource.API,
-        JournalEntrySource.CLONE,
-        JournalEntrySource.CLONE_LOCAL_ICE,
-        JournalEntrySource.CLONE_TURN -> false
-    }
 
     private fun JournalEntrySource.isCloneSource(): Boolean =
         this == JournalEntrySource.CLONE ||
