@@ -67,6 +67,15 @@ class ProguardKeepRulesTests {
     }
 
     @Test
+    fun mlKitDynamicComponentsAreKeptForR8FullMode() {
+        val text = activeRules()
+        assertTrue(
+            "ML Kit registrars and their factories must survive AGP 9 full-mode optimization",
+            text.contains("-keep class com.google.mlkit.** { *; }"),
+        )
+    }
+
+    @Test
     fun theKeptCallbackIsStillDeclaredWithThatExactSignature() {
         // A rule that no longer matches the declaration is as good as no rule, and R8 does not
         // warn about a keep rule matching nothing.
