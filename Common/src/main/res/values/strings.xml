@@ -1570,6 +1570,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">Retry scheduled in %1$d min</string>
     <string name="nightscout_status_response_ok">Last response: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Last response: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Last response: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout follower</string>
     <string name="nightscout_follow_status_idle">Nightscout follower idle</string>
@@ -1602,6 +1603,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Use Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">Glucose uploads need api:entries:create and api:entries:update.</string>
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
     <string name="nightscout_follow_url_required">Enter a Nightscout URL first</string>
     <string name="nightscout_mode_upload">Upload</string>

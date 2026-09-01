@@ -358,7 +358,8 @@ static int nightupload(jstring jnightuploadurl,const char *data,int len,bool put
         lastNightUploadConfigError = true;
         return -2;
         }
-    const static jmethodID  upload=getenv()->GetStaticMethodID(nightpostclass,"upload","(Ljava/lang/String;[BLjava/lang/String;Z)I");
+    const static jmethodID upload=getenv()->GetStaticMethodID(
+        nightpostclass,"uploadNative","(Ljava/lang/String;[BLjava/lang/String;Z)I");
     auto env=getenv();
     jbyteArray uit=env->NewByteArray(len);
         env->SetByteArrayRegion(uit, 0, len,(const jbyte *)data);

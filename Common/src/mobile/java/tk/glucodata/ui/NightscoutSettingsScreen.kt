@@ -64,7 +64,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Natives
 import tk.glucodata.NightPost
+import tk.glucodata.NightscoutTokenGrant
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalSyncFailure
 import tk.glucodata.data.journal.JournalSyncStatus
@@ -121,6 +121,13 @@ private fun failureDetail(context: android.content.Context, code: Int): String =
  */
 internal fun nightscoutTestEndpointPath(useV3: Boolean): String =
     if (useV3) "api/v3/status" else "api/v1/status.json"
+
+internal fun nightscoutResponseDetail(body: String): String {
+    return NightscoutTokenGrant.refusalMessage(body)
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .take(240)
+}
 
 private fun applyNightscoutTestAuth(
     connection: java.net.HttpURLConnection,
@@ -176,6 +183,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var isV3 by rememberSaveable { mutableStateOf(Natives.getnightscoutV3()) }
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var lastResponseCode by rememberSaveable { mutableStateOf(0) }
+    var lastResponseBody by rememberSaveable { mutableStateOf("") }
     var lastAttemptTime by rememberSaveable { mutableStateOf(0L) }
     var lastSuccessTime by rememberSaveable { mutableStateOf(0L) }
     var retryMinutes by rememberSaveable { mutableStateOf(0) }
@@ -227,6 +235,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
 
     fun refreshStatus() {
         lastResponseCode = Natives.getnightscoutlastresponsecode()
+        lastResponseBody = NightPost.getLastNativeUploadResponseBody()
         lastAttemptTime = Natives.getnightscoutlastattempttime()
         lastSuccessTime = Natives.getnightscoutlastsuccesstime()
         retryMinutes = Natives.getnightscoutretryminutes()
@@ -336,7 +345,18 @@ fun NightscoutSettingsScreen(navController: NavController) {
         lastResponseCode in 200..299 -> context.getString(R.string.nightscout_status_response_ok, lastResponseCode)
         lastResponseCode == 404 -> context.getString(R.string.nightscout_status_response_404)
         lastResponseCode == 413 -> context.getString(R.string.nightscout_status_response_413)
-        lastResponseCode > 0 -> context.getString(R.string.nightscout_status_response_error, lastResponseCode)
+        lastResponseCode > 0 -> {
+            val detail = nightscoutResponseDetail(lastResponseBody)
+            if (detail.isBlank()) {
+                context.getString(R.string.nightscout_status_response_error, lastResponseCode)
+            } else {
+                context.getString(
+                    R.string.nightscout_status_response_error_detail,
+                    lastResponseCode,
+                    detail
+                )
+            }
+        }
         else -> context.getString(R.string.nightscout_status_waiting)
     }
 
@@ -599,7 +619,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         ) {
                             Text(text = stringResource(R.string.status), style = MaterialTheme.typography.titleMedium)
                             Text(text = uploaderSummary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(text = responseSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                text = responseSummary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Text(
                                 text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
                                 style = MaterialTheme.typography.bodySmall,
@@ -618,18 +642,14 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                         MaterialTheme.colorScheme.error
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
+                                    }
                                 )
                             }
                             if (deviceStatusSummary != null) {
                                 Text(
                                     text = deviceStatusSummary,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -697,6 +717,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_use_v3_api),
+                            subtitle = stringResource(R.string.nightscout_use_v3_api_desc),
                             checked = isV3,
                             onCheckedChange = { isV3 = it },
                             icon = Icons.Default.Api,

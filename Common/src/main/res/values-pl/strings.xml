@@ -1256,6 +1256,7 @@
     <string name="nightscout_url_label">Adres URL Nightscouta</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Skorzystaj z API Nightscout v3</string>
+    <string name="nightscout_use_v3_api_desc">Przesyłanie glukozy wymaga api:entries:create i api:entries:update.</string>
     <string name="nightscout_follow_desc">Utwórz wirtualny czujnik tylko do odczytu z tego adresu URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Najpierw wpisz adres URL Nightscout</string>
     <string name="nightscout_test_testing">Testowanie...</string>
@@ -1448,6 +1449,7 @@
     <string name="nightscout_status_retry_in">Ponowna próba za %1$d min</string>
     <string name="nightscout_status_response_ok">Ostatnia odpowiedź: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Ostatnia odpowiedź: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Ostatnia odpowiedź: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Obserwator Nightscout</string>
     <string name="nightscout_follow_status_idle">Obserwator Nightscout bezczynny</string>

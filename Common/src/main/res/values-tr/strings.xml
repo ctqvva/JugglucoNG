@@ -1249,6 +1249,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_url_label">Gece İzci URL\'si</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Nightscout v3 API\'sini kullanın</string>
+    <string name="nightscout_use_v3_api_desc">Glikoz yüklemeleri api:entries:create ve api:entries:update gerektirir.</string>
     <string name="nightscout_follow_desc">Bu Nightscout URL\'sinden salt okunur sanal sensör oluşturur.</string>
     <string name="nightscout_follow_url_required">Önce bir Nightscout URL\'si girin</string>
     <string name="nightscout_test_testing">Test ediliyor...</string>
@@ -1441,6 +1442,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_status_retry_in">%1$d dk sonra yeniden denenecek</string>
     <string name="nightscout_status_response_ok">Son yanıt: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Son yanıt: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Son yanıt: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout takipçisi</string>
     <string name="nightscout_follow_status_idle">Nightscout takipçisi boşta</string>

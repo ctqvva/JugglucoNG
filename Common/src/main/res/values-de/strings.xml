@@ -1293,6 +1293,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Nightscout-v3-API verwenden</string>
+    <string name="nightscout_use_v3_api_desc">Glukose-Uploads benötigen api:entries:create und api:entries:update.</string>
     <string name="nightscout_follow_desc">Erstellt einen schreibgeschützten virtuellen Sensor aus dieser Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Zuerst eine Nightscout-URL eingeben</string>
     <string name="nightscout_test_testing">Test läuft...</string>
@@ -1487,6 +1488,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_retry_in">Nächster Versuch in %1$d Min.</string>
     <string name="nightscout_status_response_ok">Letzte Antwort: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Letzte Antwort: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Letzte Antwort: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Letzte Antwort: ungültige Nightscout-URL</string>
     <string name="nightscout_follow_title">Nightscout-Follower</string>
     <string name="nightscout_follow_status_idle">Nightscout-Follower bereit</string>
