@@ -46,10 +46,31 @@ internal object AiDexCnCloudClient {
     private const val TIMEOUT_MS = 20_000
 
     /**
-     * The sensor-key endpoint mirrors the official app's China-only availability check. The
-     * backend also accepts this compatibility routing header, which is required outside China.
+     * getSnConfig is gated to mainland-China source IPs; the backend honours `X-Forwarded-For`.
+     * A single fixed value gets rate-limited fast because every install shares it, so each request
+     * picks a fresh random address inside a well-known mainland-China allocation. Spreading traffic
+     * across many source IPs keeps any one of them under the per-IP "请求过于频繁" throttle.
+     *
+     * Blocks are large, long-standing CN telecom/Baidu allocations (base, prefix) that reliably
+     * geolocate to mainland China.
      */
-    private const val CN_ROUTING_IP = "220.181.38.148"
+    private val CN_ROUTING_BLOCKS = listOf(
+        "36.96.0.0" to 11, "39.128.0.0" to 10, "58.14.0.0" to 15, "111.0.0.0" to 10,
+        "112.0.0.0" to 10, "114.80.0.0" to 12, "116.192.0.0" to 10, "120.192.0.0" to 10,
+        "124.64.0.0" to 11, "180.76.0.0" to 16, "182.80.0.0" to 12, "202.96.0.0" to 11,
+        "218.0.0.0" to 11, "220.160.0.0" to 11, "221.192.0.0" to 11, "222.16.0.0" to 11,
+    )
+    private val routingRandom = SecureRandom()
+    private const val SN_CONFIG_ATTEMPTS = 4
+
+    /** A random routable host inside a random CN block (skips the network/broadcast addresses). */
+    private fun randomCnRoutingIp(): String {
+        val (base, prefix) = CN_ROUTING_BLOCKS.random()
+        val baseInt = base.split(".").fold(0) { acc, o -> (acc shl 8) or o.toInt() }
+        val host = 1 + routingRandom.nextInt((1 shl (32 - prefix)) - 2)
+        val ip = baseInt + host
+        return "${(ip ushr 24) and 0xff}.${(ip ushr 16) and 0xff}.${(ip ushr 8) and 0xff}.${ip and 0xff}"
+    }
 
     fun normalizeCnPhone(raw: String): String? {
         var digits = raw.filter(Char::isDigit)
@@ -100,23 +121,39 @@ internal object AiDexCnCloudClient {
         if (bareSerial.isBlank()) return AiDexCnResult(error = "Invalid sensor serial")
         if (token.isBlank()) return AiDexCnResult(error = "Sign in is required")
 
-        val random = ByteArray(8).also(SecureRandom()::nextBytes).toHex()
-        val timestamp = System.currentTimeMillis().toString()
-        val body = AiDexCnProtocol.signedSnConfigBody(bareSerial, random, timestamp)
-        val response = post(GET_SN_CONFIG, body, token, useCnRouting = true)
-        val data = response.value ?: return AiDexCnResult(error = response.error, code = response.code)
-        val responseSerial = data.optString("deviceSn")
-        if (responseSerial.isNotBlank() &&
-            !AiDexSerialIdentity.bareSerial(responseSerial).equals(bareSerial, ignoreCase = true)
-        ) {
-            return AiDexCnResult(error = "Server returned pairing material for another sensor")
+        // Each attempt goes out on a fresh random CN IP (via post/useCnRouting). Retry only the
+        // transient geo/throttle codes — a new source IP is exactly what clears "请求过于频繁"
+        // (500) and the occasional China-availability miss (100010). Auth or content errors stop
+        // immediately so we don't mask a real problem behind pointless retries.
+        var lastError = "getSnConfig failed"
+        var lastCode: Int? = null
+        repeat(SN_CONFIG_ATTEMPTS) {
+            val random = ByteArray(8).also(routingRandom::nextBytes).toHex()
+            val timestamp = System.currentTimeMillis().toString()
+            val body = AiDexCnProtocol.signedSnConfigBody(bareSerial, random, timestamp)
+            val response = post(GET_SN_CONFIG, body, token, useCnRouting = true)
+            val data = response.value
+            if (data != null) {
+                val responseSerial = data.optString("deviceSn")
+                if (responseSerial.isNotBlank() &&
+                    !AiDexSerialIdentity.bareSerial(responseSerial).equals(bareSerial, ignoreCase = true)
+                ) {
+                    return AiDexCnResult(error = "Server returned pairing material for another sensor")
+                }
+                val secret = AiDexCnProtocol.decodeMaterial(data.optString("publicKey"))
+                val iv = AiDexCnProtocol.decodeMaterial(data.optString("communicationKey"))
+                if (secret == null || iv == null) {
+                    return AiDexCnResult(error = "Server returned invalid pairing material")
+                }
+                return AiDexCnResult(AiDexProvisionedKeys(secret, iv), code = response.code)
+            }
+            lastError = response.error
+            lastCode = response.code
+            if (response.code != 500 && response.code != 100010) {
+                return AiDexCnResult(error = response.error, code = response.code)
+            }
         }
-        val secret = AiDexCnProtocol.decodeMaterial(data.optString("publicKey"))
-        val iv = AiDexCnProtocol.decodeMaterial(data.optString("communicationKey"))
-        if (secret == null || iv == null) {
-            return AiDexCnResult(error = "Server returned invalid pairing material")
-        }
-        return AiDexCnResult(AiDexProvisionedKeys(secret, iv), code = response.code)
+        return AiDexCnResult(error = lastError, code = lastCode)
     }
 
     private fun login(path: String, body: JSONObject): AiDexCnResult<String> {
@@ -155,7 +192,7 @@ internal object AiDexCnCloudClient {
                 )
                 // This compatibility header belongs only to getSnConfig's China availability
                 // gate. Account requests should match the official client and use their real IP.
-                if (useCnRouting) setRequestProperty("X-Forwarded-For", CN_ROUTING_IP)
+                if (useCnRouting) setRequestProperty("X-Forwarded-For", randomCnRoutingIp())
                 if (token.isNotBlank()) setRequestProperty("x-token", token)
                 outputStream.use { it.write(bytes) }
             }
