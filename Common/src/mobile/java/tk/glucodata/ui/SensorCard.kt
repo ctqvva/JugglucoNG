@@ -1303,10 +1303,6 @@ fun SensorCard(
 
                     val subtitleText = sensorSubtitleText(sensor.vendor, sensor.sensorType)
                     val showDisplayToggle = sensorCount > 1
-                    // Leading control plus its gap, so the reading chip below starts on the
-                    // same left edge as the sensor name instead of under the toggle.
-                    val identityInset =
-                        if (showDisplayToggle) SensorLeadingSize + SensorLeadingGap else 0.dp
 
                     // Identity, streaming state and its control all share one centre line.
                     Row(
@@ -1343,7 +1339,9 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = statusText,
-                            style = MaterialTheme.typography.labelLarge,
+                            // Deliberately a step above the connection status below it, so the
+                            // two status lines don't read as one repeated field.
+                            style = MaterialTheme.typography.titleMedium,
                             color = if (isStreaming) {
                                 MaterialTheme.colorScheme.onSurface
                             } else {
@@ -1420,9 +1418,7 @@ fun SensorCard(
                     if (currentSnapshot != null || sensorStatusText != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = identityInset),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
