@@ -488,6 +488,52 @@ class AnytimeCt5Tests {
         assertFalse(isCt5HistoryLinkSettled(0L, 1_000_000L, settleMs, false))
     }
 
+    @Test
+    fun freshCt5HistoryLoadsRecentTailThenAllOlderRecords() {
+        val recent = ct5InitialHistoryPlan(anchorId = 5064, recentRecords = 24)
+
+        assertNotNull(recent)
+        assertEquals(CT5_INITIAL_HISTORY_RECENT, recent!!.phase)
+        assertEquals(5041, recent.nextId)
+        assertEquals(5065, recent.stopBeforeId)
+
+        val older = advanceCt5InitialHistoryPhase(recent.copy(nextId = 5065))
+        assertNotNull(older)
+        assertEquals(CT5_INITIAL_HISTORY_OLDER, older!!.phase)
+        assertEquals(0, older.nextId)
+        assertEquals(5041, older.stopBeforeId)
+        assertNull(advanceCt5InitialHistoryPhase(older.copy(nextId = 5041)))
+    }
+
+    @Test
+    fun shortCt5SessionNeedsOnlyOneInitialHistoryPass() {
+        val recent = ct5InitialHistoryPlan(anchorId = 11, recentRecords = 24)!!
+
+        assertEquals(0, recent.nextId)
+        assertEquals(12, recent.stopBeforeId)
+        assertNull(advanceCt5InitialHistoryPhase(recent.copy(nextId = 12)))
+    }
+
+    @Test
+    fun liveAckAndGapRepairOutrankBulkHistoryWrites() {
+        assertEquals(
+            AnytimeGattWritePriority.LIVE_ACK,
+            anytimeGattWritePriority("ct5-pushAck", "ct5-initial-older"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.CONTROL,
+            anytimeGattWritePriority("lowPower", "ct5-initial-older"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.GAP_HISTORY,
+            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-gap(resumed)"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.BULK_HISTORY,
+            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-initial-older"),
+        )
+    }
+
     // ---- End cycle ------------------------------------------------------
 
     @Test

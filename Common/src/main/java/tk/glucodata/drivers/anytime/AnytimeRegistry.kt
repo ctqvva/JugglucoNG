@@ -335,6 +335,42 @@ object AnytimeRegistry {
         editor.apply()
     }
 
+    /** phase, recentStartId, anchorExclusive, nextId; null means no initial import is owed. */
+    @JvmStatic
+    fun loadCt5InitialHistory(c: Context, id: String): IntArray? {
+        val p = prefs(c)
+        val phase = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id, 0)
+        val recentStart = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id, -1)
+        val anchorExclusive = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id, -1)
+        val nextId = p.getInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id, -1)
+        if (phase !in 1..2 || recentStart < 0 || anchorExclusive <= recentStart || nextId < 0) return null
+        return intArrayOf(phase, recentStart, anchorExclusive, nextId)
+    }
+
+    @JvmStatic
+    fun saveCt5InitialHistory(
+        c: Context,
+        id: String,
+        phase: Int,
+        recentStartId: Int,
+        anchorExclusive: Int,
+        nextId: Int,
+    ) {
+        val editor = prefs(c).edit()
+        if (phase !in 1..2 || recentStartId < 0 || anchorExclusive <= recentStartId || nextId < 0) {
+            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id)
+        } else {
+            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + id, phase)
+            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + id, recentStartId)
+            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + id, anchorExclusive)
+            editor.putInt(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + id, nextId)
+        }
+        editor.apply()
+    }
+
     @JvmStatic fun loadCt5TempId(c: Context, id: String): String =
         prefs(c).getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null).orEmpty()
     @JvmStatic fun saveCt5TempId(c: Context, id: String, tempId: String) {
@@ -493,6 +529,10 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX + sensorId)
         }.apply()
     }
 

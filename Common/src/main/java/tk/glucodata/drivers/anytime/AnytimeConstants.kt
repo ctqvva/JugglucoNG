@@ -498,4 +498,11 @@ object AnytimeConstants {
      *  repair survives a process restart instead of being replayed from zero. */
     const val PREF_CT5_GAP_FROM_PREFIX = "anytime_ct5_gap_from_"
     const val PREF_CT5_GAP_STOP_BEFORE_PREFIX = "anytime_ct5_gap_stop_"
+
+    /** Resumable initial full-history import. Recent records are fetched first,
+     *  then the older prefix; every cursor change is persisted. */
+    const val PREF_CT5_INITIAL_HISTORY_PHASE_PREFIX = "anytime_ct5_initial_history_phase_"
+    const val PREF_CT5_INITIAL_HISTORY_RECENT_START_PREFIX = "anytime_ct5_initial_history_recent_start_"
+    const val PREF_CT5_INITIAL_HISTORY_ANCHOR_PREFIX = "anytime_ct5_initial_history_anchor_"
+    const val PREF_CT5_INITIAL_HISTORY_NEXT_PREFIX = "anytime_ct5_initial_history_next_"
 }

@@ -414,3 +414,55 @@ internal class AnytimeCt5HistoryBatchTally {
         if (liveRace > 0) append(", ").append(liveRace).append(" superseded by live")
     }
 }
+
+internal const val CT5_INITIAL_HISTORY_NONE = 0
+internal const val CT5_INITIAL_HISTORY_RECENT = 1
+internal const val CT5_INITIAL_HISTORY_OLDER = 2
+
+internal data class AnytimeCt5InitialHistoryPlan(
+    val phase: Int,
+    val recentStartId: Int,
+    val anchorExclusive: Int,
+    val nextId: Int,
+) {
+    val stopBeforeId: Int
+        get() = if (phase == CT5_INITIAL_HISTORY_RECENT) anchorExclusive else recentStartId
+}
+
+internal fun ct5InitialHistoryPlan(anchorId: Int, recentRecords: Int): AnytimeCt5InitialHistoryPlan? {
+    if (anchorId < 0) return null
+    val anchorExclusive = anchorId + 1
+    val recentStart = (anchorExclusive - recentRecords.coerceAtLeast(1)).coerceAtLeast(0)
+    return AnytimeCt5InitialHistoryPlan(
+        phase = CT5_INITIAL_HISTORY_RECENT,
+        recentStartId = recentStart,
+        anchorExclusive = anchorExclusive,
+        nextId = recentStart,
+    )
+}
+
+internal fun advanceCt5InitialHistoryPhase(plan: AnytimeCt5InitialHistoryPlan): AnytimeCt5InitialHistoryPlan? =
+    when (plan.phase) {
+        CT5_INITIAL_HISTORY_RECENT -> if (plan.recentStartId > 0) {
+            plan.copy(phase = CT5_INITIAL_HISTORY_OLDER, nextId = 0)
+        } else {
+            null
+        }
+        CT5_INITIAL_HISTORY_OLDER -> null
+        else -> null
+    }
+
+internal enum class AnytimeGattWritePriority {
+    LIVE_ACK,
+    CONTROL,
+    GAP_HISTORY,
+    BULK_HISTORY,
+}
+
+internal fun anytimeGattWritePriority(tag: String, historyReason: String): AnytimeGattWritePriority = when {
+    tag == "ct5-pushAck" -> AnytimeGattWritePriority.LIVE_ACK
+    !isAnytimeBackfillWriteTag(tag) -> AnytimeGattWritePriority.CONTROL
+    historyReason.startsWith("ct5-gap") || historyReason.startsWith("ct5-reconnect-catchup") ->
+        AnytimeGattWritePriority.GAP_HISTORY
+    else -> AnytimeGattWritePriority.BULK_HISTORY
+}
