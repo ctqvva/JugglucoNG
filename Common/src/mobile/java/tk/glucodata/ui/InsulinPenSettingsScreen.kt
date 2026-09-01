@@ -19,11 +19,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Contactless
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -32,14 +33,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,8 +58,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
+import tk.glucodata.Applic
 import tk.glucodata.InsulinPen
 import tk.glucodata.InsulinPenManager
+import tk.glucodata.PenDuplicateEntry
+import tk.glucodata.NovoPen.PenImportNotificationPolicy
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalRepository
@@ -61,14 +72,19 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
+import kotlin.math.roundToInt
 
 @Composable
 fun InsulinPenSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val enabled by InsulinPenManager.enabled.collectAsStateWithLifecycle()
+    val backgroundImportEnabled by InsulinPenManager.backgroundImportEnabled.collectAsStateWithLifecycle()
+    val importNotificationDurationMinutes by
+        InsulinPenManager.importNotificationDurationMinutes.collectAsStateWithLifecycle()
     val pens by InsulinPenManager.pens.collectAsStateWithLifecycle()
     val presets by rememberInsulinPresets()
     val journalEnabled = remember(context) {
@@ -80,6 +96,8 @@ fun InsulinPenSettingsScreen(navController: NavController) {
     // copy would keep the dialog showing the old selection.
     var editingSerial by remember { mutableStateOf<String?>(null) }
     var forgetTarget by remember { mutableStateOf<InsulinPen?>(null) }
+    var cleanupTarget by remember { mutableStateOf<Pair<String, List<PenDuplicateEntry>>?>(null) }
+    val scope = rememberCoroutineScope()
     val editing = pens.firstOrNull { it.serial == editingSerial }
     val selectableInsulins = presets.filterNot(JournalInsulinPreset::isArchived)
 
@@ -109,6 +127,96 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     onCheckedChange = InsulinPenManager::setEnabled,
                     icon = Icons.Default.Vaccines,
                 )
+            }
+
+            if (enabled) {
+                item("pen_background") {
+                    Spacer(Modifier.size(16.dp))
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.insulin_pen_background_title),
+                        subtitle = stringResource(R.string.insulin_pen_background_desc),
+                        checked = backgroundImportEnabled,
+                        onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
+                        icon = Icons.Default.Nfc,
+                        position = CardPosition.TOP,
+                    )
+                    var notificationDurationIndex by remember(importNotificationDurationMinutes) {
+                        mutableFloatStateOf(
+                            PenImportNotificationPolicy.sliderIndexForDuration(
+                                importNotificationDurationMinutes,
+                            ),
+                        )
+                    }
+                    val pendingDurationMinutes =
+                        PenImportNotificationPolicy.durationMinutesForSliderIndex(notificationDurationIndex)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = cardShape(CardPosition.MIDDLE),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(R.string.alert_delivery_notification),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    penImportNotificationDurationLabel(pendingDurationMinutes),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Slider(
+                                value = notificationDurationIndex,
+                                onValueChange = { value ->
+                                    notificationDurationIndex = value.roundToInt().toFloat()
+                                },
+                                onValueChangeFinished = {
+                                    InsulinPenManager.setImportNotificationDurationMinutes(
+                                        PenImportNotificationPolicy.durationMinutesForSliderIndex(
+                                            notificationDurationIndex,
+                                        ),
+                                    )
+                                },
+                                valueRange = 0f..PenImportNotificationPolicy.durationOptionsMinutes.lastIndex.toFloat(),
+                                steps = PenImportNotificationPolicy.durationOptionsMinutes.size - 2,
+                            )
+                        }
+                    }
+                    // What the mode cannot do is worth a paragraph, not a row: folded away
+                    // behind "show more" so the switch stays the size of a switch.
+                    var showBackgroundDetails by rememberSaveable { mutableStateOf(false) }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = cardShape(CardPosition.BOTTOM),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                            AnimatedVisibility(visible = showBackgroundDetails) {
+                                Text(
+                                    stringResource(R.string.insulin_pen_background_desc_more),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                                )
+                            }
+                            TextButton(
+                                onClick = { showBackgroundDetails = !showBackgroundDetails },
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (showBackgroundDetails) R.string.show_less else R.string.show_more
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             // Doses become journal entries, so with the journal switched off a scan would
@@ -170,9 +278,29 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                 InsulinPenManager.setInsulin(pen.serial, preset.id, preset.displayName)
             },
             onArmFullRead = { InsulinPenManager.armFullRead(pen.serial) },
+            onCleanup = { duplicates ->
+                editingSerial = null
+                cleanupTarget = pen.serial to duplicates
+            },
             onForget = {
                 editingSerial = null
                 forgetTarget = pen
+            },
+        )
+    }
+
+    cleanupTarget?.let { (serial, duplicates) ->
+        DuplicateCleanupDialog(
+            duplicates = duplicates,
+            onDismiss = { cleanupTarget = null },
+            onConfirm = {
+                cleanupTarget = null
+                scope.launch {
+                    val removed = InsulinPenManager.removeDuplicates(serial)
+                    Applic.Toaster(
+                        Applic.app.getString(R.string.insulin_pen_duplicates_removed, removed)
+                    )
+                }
             },
         )
     }
@@ -197,6 +325,58 @@ fun InsulinPenSettingsScreen(navController: NavController) {
     }
 }
 
+/**
+ * Names every entry it would drop, because this deletes insulin somebody's journal says
+ * was injected. A count alone would ask the reader to trust the matching sight unseen.
+ */
+@Composable
+private fun DuplicateCleanupDialog(
+    duplicates: List<PenDuplicateEntry>,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val timeFormat = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.insulin_pen_cleanup_confirm, duplicates.size)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.insulin_pen_cleanup_desc))
+                Spacer(Modifier.size(4.dp))
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 200.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    items(duplicates, key = PenDuplicateEntry::entryId) { entry ->
+                        Text(
+                            stringResource(
+                                R.string.insulin_pen_units,
+                                formatUnits(entry.units)
+                            ) + " \u00b7 " + timeFormat.format(Date(entry.timestampMillis)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.remove)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun penImportNotificationDurationLabel(minutes: Int): String = when {
+    minutes <= 0 -> stringResource(R.string.off)
+    minutes < 60 -> stringResource(R.string.stats_duration_minutes, minutes)
+    minutes % 60 == 0 -> stringResource(R.string.stats_duration_hours, minutes / 60)
+    else -> stringResource(R.string.stats_duration_hours_minutes, minutes / 60, minutes % 60)
+}
+
 @Composable
 private fun HowToScanCard() {
     Surface(
@@ -216,7 +396,7 @@ private fun HowToScanCard() {
                 shape = RoundedCornerShape(18.dp),
             ) {
                 Icon(
-                    Icons.Default.Contactless,
+                    Icons.Default.Nfc,
                     contentDescription = null,
                     modifier = Modifier.padding(14.dp).size(28.dp),
                 )
@@ -247,8 +427,14 @@ private fun PenDetailSheet(
     onDismiss: () -> Unit,
     onSelected: (JournalInsulinPreset) -> Unit,
     onArmFullRead: () -> Unit,
+    onCleanup: (List<PenDuplicateEntry>) -> Unit,
     onForget: () -> Unit,
 ) {
+    // Worked out against the pen's last read, so the sheet can say how many rather than
+    // sending the reader to a dialog that then finds nothing. Null until the check is in.
+    var duplicates by remember(pen.serial) { mutableStateOf<List<PenDuplicateEntry>?>(null) }
+    LaunchedEffect(pen.serial) { duplicates = InsulinPenManager.findDuplicates(pen.serial) }
+    val found = duplicates.orEmpty()
     StableModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             Text(
@@ -298,6 +484,32 @@ private fun PenDetailSheet(
             }
             Text(
                 stringResource(R.string.insulin_pen_full_read_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+
+            Spacer(Modifier.size(16.dp))
+            OutlinedButton(
+                onClick = { onCleanup(found) },
+                enabled = found.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            ) {
+                Text(
+                    if (found.isEmpty()) {
+                        stringResource(R.string.insulin_pen_cleanup)
+                    } else {
+                        stringResource(R.string.insulin_pen_cleanup_count, found.size)
+                    }
+                )
+            }
+            // Blank until the count is in, rather than claiming there is nothing to remove.
+            Text(
+                when {
+                    duplicates == null -> ""
+                    found.isEmpty() -> stringResource(R.string.insulin_pen_cleanup_none)
+                    else -> stringResource(R.string.insulin_pen_cleanup_desc)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),

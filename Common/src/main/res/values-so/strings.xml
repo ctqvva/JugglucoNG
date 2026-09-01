@@ -1247,6 +1247,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_dismiss_action_summary">Dhaq ama xidh ogeysiisyada digniinta</string>
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
+    <string name="alarm_return_to_previous_app_title">Digniinta ka dib ku noqo abka hore</string>
+    <string name="alarm_return_to_previous_app_summary">Digniin shaashad-buuxa ka dib, ku noqo abka aad isticmaalaysay halkii aad ka furi lahayd JugglucoNG</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
     <string name="retry_constantly">Si joogto ah</string>
     <string name="retry_every">Isku day mid kasta</string>
@@ -1261,6 +1263,14 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="system_default_sound">Codka Habboon ee Nidaamka</string>
     <string name="tap_to_change">Taabo si aad u bedesho</string>
     <string name="threshold_label">Xadka</string>
+    <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
+    <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
+    <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
+    <string name="alert_feature_off">Damman</string>
+    <string name="fall_rate_slanting_down">hoos u janjeera</string>
+    <string name="fall_rate_falling">hoos u dhacaya</string>
+    <string name="fall_rate_falling_fast">si degdeg ah u dhacaya</string>
+    <string name="persistent_high_fall_suppress_label">Aamus marka hoos u dhacayo</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Xogta Mugga/Gariirka</string>
 
@@ -1500,11 +1510,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_response_413">Jawaabtii u dambaysay: HTTP 413, culayska la saaray oo aad u weyn</string>
     <string name="nightscout_status_last_attempt">Isku daygii ugu dambeeyay: %1$s</string>
     <string name="nightscout_status_last_success">Guushii u dambaysay: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Soo rar Insulin/Carbs (Daawaynta)</string>
+    <string name="nightscout_send_amounts_desc">Soo rar Insulin/Carbs (Daawaynta). Token-ka gelitaanka wuxuu u baahan yahay api:treatments:create, api:treatments:update iyo api:treatments:delete.</string>
+    <string name="nightscout_status_treatments_never">Daawaynta: weli waxba lama dirin</string>
+    <string name="nightscout_status_treatments_ok">Daawaynta: markii ugu dambeysay la diray %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Daaweynta: dirista way fashilmaysaa tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Daaweynta: tirtiridda waa la diiday tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">jawaab ma jirto</string>
+    <string name="nightscout_status_iob_no_token">Dirista IOB: waa la booday - weli token Nightscout ma jiro</string>
+    <string name="nightscout_status_iob_rejected">Dirista IOB: waa la diiday (%1$s)</string>
     <string name="nightscout_send_long_insulin">Dir insuliinta muddada dheer</string>
     <string name="nightscout_send_long_insulin_desc">Ku dar insuliinta basal iyo tan aadka u dheer gelinta Nightscout</string>
     <string name="nightscout_receive_amounts">Hesho qaddaro</string>
-    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka</string>
+    <string name="nightscout_receive_amounts_desc">Soo rar Nightscout insulin/carbs joornaalka. Token-ka gelitaanka wuxuu u baahan yahay oggolaanshaha api:treatments:read.</string>
     <string name="nightscout_settings_title">Goobaha Nightscoout</string>
     <string name="nightscout_sync_actions_title">Isku xidh falalka</string>
     <string name="nightscout_url_label">Nightscout URL</string>
@@ -1518,6 +1535,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_test_ok">Ku xidhan - HTTP %1$d</string>
     <string name="nightscout_test_error">Fashilmay - %1$s</string>
     <string name="nightscout_test_testing">Tijaabinta...</string>
+    <string name="nightscout_refresh_token">Cusboonaysii token-ka</string>
+    <string name="nightscout_token_refreshing">Token-ka waa la cusboonaysiinayaa...</string>
+    <string name="nightscout_token_ok">Token-ku wuxuu shaqaynayaa ilaa %1$s - oggolaanshaha: %2$s</string>
+    <string name="nightscout_token_error">Cusboonaysiinta token-ka way fashilantay - %1$s</string>
     <string name="no_active_sensor_selected">Dareem firfircoon lama dooran</string>
     <string name="no_calibrations_to_export">Ma jiro wax qiyaas ah oo la dhoofiyo</string>
     <string name="not_implemented_natively">Aan si asal ah loo hirgelin</string>
@@ -1532,6 +1553,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="preview">Horudhac</string>
     <string name="previous_calibrations">Qalabkii hore</string>
     <string name="show_less">Muuji wax yar</string>
+    <string name="show_more">Muuji wax badan</string>
     <string name="show_all_count">Tus dhammaan %1$d</string>
     <string name="anytime_calibration_target_reading">Akhriska #%1$d</string>
     <string name="anytime_calibration_applied_reading">Codsaday #%1$d</string>
@@ -2500,7 +2522,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_handover_multiple_text">Dareemuhu wuu dhacay, laakiin dhowr dareeme oo beddel ah ayaa shaqaynaya. Wareejinta otomaatiga ah waa la dhaafay; fadlan gacanta ku beddel.</string>
     <string name="sensor_handover_successor_ready">Dareemaha beddelka ah wuu diyaar yahay; wareejinta otomaatiga ah ayaa la wareegaysa marka uu dhaco</string>
     <string name="nightscout_upload_iob">U dir IOB Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout wuxuu markaas muujinayaa qiimahan halkii uu ka isticmaali lahaa xisaabtiisa ku salaysan borofaylka. eIOB iyo COB sidoo kale waxaa lagu diraa meel gaar ah.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout wuxuu markaas muujinayaa qiimahan halkii uu ka isticmaali lahaa xisaabtiisa ku salaysan borofaylka. eIOB iyo COB sidoo kale waxaa lagu diraa meel gaar ah. Token-ka gelitaanka wuxuu u baahan yahay api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Qiimayaasha qalabka xogta diraya (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Ka fur app-ka Ottai ama halkan ka saar dareemahaas si xiriirka loo sii daayo, dabadeed mar kale isku day.</string>
     <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. JugglucoNG kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
@@ -2677,11 +2699,20 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_forget_desc">Qiyaasaha horey ugu jiray xusuus-qorka way sii jiraan.</string>
     <string name="insulin_pen_new_doses">%1$d qiyaas oo cusub</string>
     <string name="insulin_pen_no_new_doses">Qalinka waa la akhriyay. Qiyaas cusub ma jiro.</string>
+    <string name="insulin_pen_duplicates_removed">Waa la tirtiray %1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore</string>
+    <string name="insulin_pen_duplicates_found">%1$d qiyaasood oo laba jibbaaran oo ka hadhay akhrisyadii hore. Kaga saar goobaha qalinka.</string>
+    <string name="insulin_pen_merged_manual">%1$d qiyaas ayaa la mid ah wixii aad horey gacanta u gelisay.</string>
+    <string name="insulin_pen_cleanup">Ka saar qiyaasaha laba jibbaaran</string>
+    <string name="insulin_pen_cleanup_count">Ka saar %1$d qiyaasood oo laba jibbaaran</string>
+    <string name="insulin_pen_cleanup_desc">Noocyadii hore mar kasta oo la akhriyo ayay qiyaas dib u qoraan. Diiwaanka qalanka wuxuu sheegayaa in kuwani ay ahaayeen irbado kali ah.</string>
+    <string name="insulin_pen_cleanup_none">Waxba lagama saarayo. Hal mar akhri qalinka haddii aan la akhrin tan iyo cusboonaysiintii.</string>
+    <string name="insulin_pen_cleanup_confirm">Ma ka saaraa %1$d qiyaasood oo laba jibbaaran?</string>
     <string name="insulin_pen_doses_label">Qiyaasaha</string>
     <string name="insulin_pen_select_all">Dhammaan dooro</string>
     <string name="insulin_pen_select_none">Nadiifi</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Hawo-bixin</string>
+    <string name="insulin_pen_replaces">beddelaya %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d hawo-bixin ayaa la booday</string>
     <string name="insulin_pen_add_doses">Ku dar %1$d qiyaas</string>
     <string name="insulin_pen_doses_added">%1$d qiyaas ayaa xusuus-qorka lagu daray</string>
     <string name="insulin_pens_journal_off">Xusuus-qorka waa la damiyay, sidaas darteed qiyaasaha la soo geliyo meelna kama muuqan doonaan.</string>
@@ -2689,6 +2720,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_full_read_armed">Diyaar — qalinka taabsii taleefanka</string>
     <string name="insulin_pen_full_read_desc">Qalinku wuxuu hayaa qiyaaso bilo ah, akhrintooda dhammaystiran waxay u baahan tahay dhowr ilbiriqsi oo taabasho degan ah. Isticmaal si aad uga gudubto wixii ugu dambeeyay ee la soo geliyay.</string>
     <string name="insulin_pen_read_cut_short">Qalinka ayaa goor hore laga fogeeyay. Ku hay taleefanka ilaa uu gariiro.</string>
+    <string name="insulin_pen_background_title">Gudaha ka soo dejiso</string>
+    <string name="insulin_pen_background_desc">Marka appku furnayn, qalinka la dhigo taleefanka qiyaasihiisa cusub ayaa lagu daraa joornaalka iyada oo aan la weydiin.</string>
+    <string name="insulin_pen_background_desc_more">Hawo-bixinta waa la boodaa. Shaashaddu waa inay shidan tahay, taleefankuna furan yahay — Android ma akhriyo NFC marka shaashaddu damsan tahay. Kaar kasta oo aan taabasho lahayn oo la dhigo taleefanka wuxuu in yar toosiyaa akhristaha, appyada kale ee kaararkuna waxay weydiin karaan appka la isticmaalayo.</string>
+    <string name="insulin_pen_import_channel">Soo dejinta qalinka</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d qiyaas ayaa lagu daray xusuus-qorka</item>
+        <item quantity="other">%d qiyaasood ayaa lagu daray xusuus-qorka</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d qiyaas ayaa la akhriyay — fur app-ka si aad u doorato insulinta</item>
+        <item quantity="other">%d qiyaasood ayaa la akhriyay — fur app-ka si aad u doorato insulinta</item>
+    </plurals>
     <string name="status_watch_reading">Saacaddu waxay akhrinaysaa dareemahan</string>
     <string name="return_sensor_to_phone">Dareemaha ku celi telefoonka</string>
     <string name="wear_prediction_title">Saadaal</string>

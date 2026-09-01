@@ -162,17 +162,17 @@ internal fun buildPredictionSeriesForChart(
 }
 
 /**
- * Single source of truth for the history that downstream non-chart consumers see
- * (hero trend arrow, recent readings, predictive simulation).
+ * Single source of truth for the history every non-chart consumer sees: the trend arrow,
+ * the recent readings and their Δ, the predictive simulation.
  *
- * When data smoothing is on and not restricted to the graph, the recent dashboard
- * consumer tail is smoothed segment-by-segment so the trend, prediction, and
- * reading list reflect the same recent line without reprocessing all stored history.
+ * Takes the window already resolved by [DataSmoothing.localSmoothingMinutes] rather than
+ * the raw switches. Working them out here is what let this series and the one behind the
+ * notification drift apart, and a caller that only has "how many minutes" cannot get the
+ * answer wrong. 0 means the reading is used as measured.
  */
 internal fun buildSmoothedConsumerHistory(
     points: List<GlucosePoint>,
-    smoothingMinutes: Int,
-    smoothOnlyGraph: Boolean,
+    evaluationSmoothingMinutes: Int,
     collapseChunks: Boolean
 ): List<GlucosePoint> {
     if (points.isEmpty()) {
@@ -183,7 +183,7 @@ internal fun buildSmoothedConsumerHistory(
     } else {
         points
     }
-    if (smoothOnlyGraph || smoothingMinutes <= 0) {
+    if (evaluationSmoothingMinutes <= 0) {
         return source
     }
 
@@ -192,7 +192,7 @@ internal fun buildSmoothedConsumerHistory(
         val sourceByTimestamp = segment.associateBy { it.timestamp }
         val smoothed = DataSmoothing.smoothNativePoints(
             segment.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) },
-            smoothingMinutes,
+            evaluationSmoothingMinutes,
             collapseChunks
         )
 
@@ -252,6 +252,15 @@ internal fun buildTrendHistory(consumerHistory: List<GlucosePoint>): List<Glucos
     buildDisplayReadings(consumerHistory, limit = TREND_HISTORY_LIMIT)
 
 /**
+ * A row's measured change: the text it shows, and the same movement as a rate the arrow
+ * beside it can be drawn from.
+ *
+ * The rate is mg/dL per minute, which is what every arrow in the app rotates by, whatever
+ * unit the reading is displayed in.
+ */
+internal data class ReadingDelta(val text: String, val rateMgdlPerMinute: Float)
+
+/**
  * The "Δ" readout of the hero card, anchored at arbitrary points in time: for each
  * anchor timestamp, the delta the hero would have shown when that reading was the
  * newest one. The hero's own readout is the single-anchor case (the newest point),
@@ -267,12 +276,25 @@ internal fun buildTrendHistory(consumerHistory: List<GlucosePoint>): List<Glucos
  * An anchor with no old-enough partner (start of the data, or a gap wider than
  * the pairing rules allow) yields null, never a NaN text.
  */
+
 internal fun readingDeltaTexts(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
     deltaIntervalMinutes: Int
-): List<String?> {
+): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes)
+    .map { it?.text }
+
+/**
+ * The walk itself. One pairing serves both the number and the arrow, so a row cannot show
+ * a rise beside a falling arrow: they are the same two readings, read once.
+ */
+internal fun readingDeltas(
+    anchorTimestamps: List<Long>,
+    history: List<GlucosePoint>,
+    isMmol: Boolean,
+    deltaIntervalMinutes: Int
+): List<ReadingDelta?> {
     if (anchorTimestamps.isEmpty()) return emptyList()
     val newestFirst = history.asReversed()
     val minGap = tk.glucodata.GlucoseDelta.minGapMillis(deltaIntervalMinutes)
@@ -298,7 +320,9 @@ internal fun readingDeltaTexts(
             previous.timestamp, previous.value,
             deltaIntervalMinutes
         )
-        tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
+        val text = tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }
+            ?: return@map null
+        ReadingDelta(text, perMinuteMgdl(delta, isMmol, deltaIntervalMinutes))
     }
 }
 
@@ -314,11 +338,11 @@ internal fun readingDeltaTexts(
  * sensor stored under two names stays one — and every row walks back through its
  * own sensor's bucket only. Rows the app cannot attribute ([isShared]: imported and
  * unknown serials) belong to every bucket, which is what the dashboard's per-sensor
- * history holds as well. Within one bucket the text is exactly [readingDeltaTexts]'s,
+ * history holds as well. Within one bucket the delta is exactly [readingDeltas]'s,
  * gaps included: a row with no old-enough partner is absent.
  *
  * Build one index per [history] (oldest-first, unsmoothed) and ask it per visible
- * window: [textsFor] does a binary search per bucket, not a pass over the data.
+ * window: [deltasFor] does a binary search per bucket, not a pass over the data.
  */
 internal class RowDeltaIndex(
     history: List<GlucosePoint>,
@@ -355,10 +379,14 @@ internal class RowDeltaIndex(
         }
     }
 
-    /** [rows] newest-first, the order the history draws them. */
-    fun textsFor(rows: List<GlucosePoint>, isMmol: Boolean, deltaIntervalMinutes: Int): Map<GlucosePoint, String> {
+    /**
+     * [rows] newest-first, the order the history draws them. The rate rides along with
+     * the text so a history row can point its arrow at the number it prints, the same
+     * way the dashboard's rows do.
+     */
+    fun deltasFor(rows: List<GlucosePoint>, isMmol: Boolean, deltaIntervalMinutes: Int): Map<GlucosePoint, ReadingDelta> {
         if (rows.isEmpty() || historyByKey.isEmpty()) return emptyMap()
-        val texts = HashMap<GlucosePoint, String>()
+        val deltas = HashMap<GlucosePoint, ReadingDelta>()
         rows.groupBy { keyOf(it.sensorSerial) }.forEach { (key, sensorRows) ->
             val bucket = historyByKey[key] ?: return@forEach
             // Nothing newer than the newest row takes part in its walk-back: cut the
@@ -366,21 +394,31 @@ internal class RowDeltaIndex(
             val newest = sensorRows.first().timestamp
             var cut = bucket.binarySearchBy(newest) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
             while (cut < bucket.size && bucket[cut].timestamp == newest) cut++
-            val sensorTexts = readingDeltaTexts(
+            val sensorDeltas = readingDeltas(
                 sensorRows.map { it.timestamp },
                 bucket.subList(0, cut),
                 isMmol,
                 deltaIntervalMinutes
             )
             sensorRows.forEachIndexed { index, row ->
-                sensorTexts.getOrNull(index)?.let { texts[row] = it }
+                sensorDeltas.getOrNull(index)?.let { deltas[row] = it }
             }
         }
-        return texts
+        return deltas
     }
 
     private companion object {
         /** The bucket of the rows no sensor owns; a string no serial can be. */
         const val SHARED = "\u0000shared"
     }
+}
+
+/**
+ * The delta is a change over the configured window, in the unit on screen; an arrow turns by
+ * mg/dL per minute. Same movement, said the way the arrow reads it.
+ */
+private fun perMinuteMgdl(delta: Float, isMmol: Boolean, deltaIntervalMinutes: Int): Float {
+    val minutes = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(deltaIntervalMinutes)
+    val perMinute = delta / minutes
+    return if (isMmol) perMinute * tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else perMinute
 }

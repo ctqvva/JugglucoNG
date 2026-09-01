@@ -15,6 +15,16 @@ object SensorIdentity {
     // per glucose point per frame — which the calibrated-chart draw path does. The mapping only
     // changes when the sensor set / auth material changes, so memoize it and clear on those events.
     private val appSensorIdCache = ConcurrentHashMap<String, String>()
+    // normalized "candidate\u0000expected" -> matches() result. The same reasoning as
+    // appSensorIdCache above, for the one path it did not cover: managedMatches asks
+    // every driver adapter to match live, and those adapters run regexes and registry
+    // lookups. matches() is called per reading per sensor, from resolveAvailableMainSensor,
+    // from dowithglucose, from resolveUiSnapshot and from the notification build, so the
+    // matcher itself has to be memoized, not just the canonical-id lookup underneath it.
+    private val matchCache = ConcurrentHashMap<String, Boolean>()
+    // Ids arrive from many sources (native short names, MACs, advertised names, aliases),
+    // so bound the key space rather than assume it stays as small as the sensor count.
+    private const val MATCH_CACHE_MAX_ENTRIES = 4096
 
     private fun normalized(sensorId: String?): String? {
         return sensorId
@@ -76,6 +86,7 @@ object SensorIdentity {
     fun invalidateCaches() {
         nativeCanonicalCache.clear()
         appSensorIdCache.clear()
+        matchCache.clear()
         ManagedSensorRuntime.clearCaches()
     }
 
@@ -312,6 +323,21 @@ object SensorIdentity {
         if (normalizedCandidate.equals(normalizedExpected, ignoreCase = true)) {
             return true
         }
+        val cacheKey = normalizedCandidate + NULL_SENTINEL + normalizedExpected
+        matchCache[cacheKey]?.let { return it }
+        val result = matchesUncached(normalizedCandidate, normalizedExpected)
+        if (matchCache.size >= MATCH_CACHE_MAX_ENTRIES) matchCache.clear()
+        matchCache[cacheKey] = result
+        return result
+    }
+
+    /**
+     * The identity resolution behind [matches], minus the trivial-equality fast path.
+     * Everything here is a registry or regex lookup whose answer only changes when
+     * [invalidateCaches] is called, which every driver registry already does on a
+     * sensor-set change.
+     */
+    private fun matchesUncached(normalizedCandidate: String, normalizedExpected: String): Boolean {
         if (managedMatches(normalizedCandidate, normalizedExpected)) {
             return true
         }

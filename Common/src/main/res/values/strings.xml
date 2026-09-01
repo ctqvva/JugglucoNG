@@ -1318,6 +1318,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_dismiss_action_summary">Swipe or close alert notifications</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
+    <string name="alarm_return_to_previous_app_title">Return to previous app after alarm</string>
+    <string name="alarm_return_to_previous_app_summary">After a full-screen alarm, go back to the app you were using instead of opening JugglucoNG</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
     <string name="retry_constantly">Constantly</string>
     <string name="retry_every">Retry every</string>
@@ -1332,6 +1334,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="system_default_sound">System Default Sound</string>
     <string name="tap_to_change">Tap to change</string>
     <string name="threshold_label">Threshold</string>
+    <string name="rearm_margin_label">Re-arm margin</string>
+    <string name="rearm_min_interval_label">Minimum time between alarms</string>
+    <string name="pre_high_iob_coverage_label">Insulin coverage</string>
+    <string name="alert_feature_off">Off</string>
+    <string name="fall_rate_slanting_down">slanting down</string>
+    <string name="fall_rate_falling">falling</string>
+    <string name="fall_rate_falling_fast">falling fast</string>
+    <string name="persistent_high_fall_suppress_label">Mute while falling</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volume/Vibration Profile</string>
 
@@ -1571,13 +1581,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Last response: HTTP 413, payload too large</string>
     <string name="nightscout_status_last_attempt">Last attempt: %1$s</string>
     <string name="nightscout_status_last_success">Last success: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Upload Insulin/Carbs (Treatments)</string>
+    <string name="nightscout_send_amounts_desc">Upload Insulin/Carbs (Treatments). The access token needs api:treatments:create, api:treatments:update and api:treatments:delete.</string>
+    <string name="nightscout_status_treatments_never">Treatments: nothing sent yet</string>
+    <string name="nightscout_status_treatments_ok">Treatments: last sent %1$s</string>
+    <string name="nightscout_status_treatments_upload_failing">Treatments: sending has failed since %1$s, last tried %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_delete_failing">Treatments: deletions refused since %1$s, last tried %3$s (%2$s)</string>
+    <string name="nightscout_status_treatments_no_response">no response</string>
+    <string name="nightscout_status_iob_no_token">IOB upload: skipped - no Nightscout token yet</string>
+    <string name="nightscout_status_iob_rejected">IOB upload: rejected (%1$s)</string>
     <string name="nightscout_send_long_insulin">Send long-acting insulin</string>
     <string name="nightscout_send_long_insulin_desc">Include basal and ultra-long insulin treatments in Nightscout uploads</string>
     <string name="nightscout_receive_amounts">Receive amounts</string>
-    <string name="nightscout_receive_amounts_desc">Import Nightscout insulin/carbs into journal</string>
+    <string name="nightscout_receive_amounts_desc">Import Nightscout insulin/carbs into journal. The access token needs the api:treatments:read permission.</string>
     <string name="nightscout_upload_iob">Send IOB to Nightscout</string>
-    <string name="nightscout_upload_iob_desc">Nightscout then shows this value instead of its own calculation from its profile. eIOB and COB are sent along in a separate field.</string>
+    <string name="nightscout_upload_iob_desc">Nightscout then shows this value instead of its own calculation from its profile. eIOB and COB are sent along in a separate field. The access token needs api:devicestatus:create.</string>
     <string name="nightscout_settings_title">Nightscout Settings</string>
     <string name="nightscout_sync_actions_title">Sync actions</string>
     <string name="nightscout_url_label">Nightscout URL</string>
@@ -1591,6 +1608,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_test_ok">Connected - HTTP %1$d</string>
     <string name="nightscout_test_error">Failed - %1$s</string>
     <string name="nightscout_test_testing">Testing...</string>
+    <string name="nightscout_refresh_token">Refresh token</string>
+    <string name="nightscout_token_refreshing">Refreshing token...</string>
+    <string name="nightscout_token_ok">Token valid until %1$s - permissions: %2$s</string>
+    <string name="nightscout_token_error">Token refresh failed - %1$s</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
     <string name="no_calibrations_to_export">No calibrations to export</string>
     <string name="not_implemented_natively">Not implemented natively</string>
@@ -1605,6 +1626,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="preview">Preview</string>
     <string name="previous_calibrations">Previous calibrations</string>
     <string name="show_less">Show less</string>
+    <string name="show_more">Show more</string>
     <string name="show_all_count">Show all %1$d</string>
     <string name="anytime_calibration_target_reading">Reading #%1$d</string>
     <string name="anytime_calibration_applied_reading">Applied #%1$d</string>
@@ -2702,11 +2724,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_forget_desc">Doses already in the journal stay there.</string>
     <string name="insulin_pen_new_doses">%1$d new doses</string>
     <string name="insulin_pen_no_new_doses">Pen read. No new doses.</string>
+    <string name="insulin_pen_duplicates_removed">Removed %1$d duplicate dose(s) left by earlier scans</string>
+    <string name="insulin_pen_duplicates_found">%1$d duplicate doses from earlier scans. Remove them in the pen\'s settings.</string>
+    <string name="insulin_pen_merged_manual">%1$d dose(s) matched what you had already entered by hand.</string>
+    <string name="insulin_pen_cleanup">Remove duplicate doses</string>
+    <string name="insulin_pen_cleanup_count">Remove %1$d duplicate doses</string>
+    <string name="insulin_pen_cleanup_desc">Earlier versions wrote a dose again on every scan. The pen\'s own log says these were single injections.</string>
+    <string name="insulin_pen_cleanup_none">Nothing to remove. Read the pen once if it has not been read since the update.</string>
+    <string name="insulin_pen_cleanup_confirm">Remove %1$d duplicate doses?</string>
     <string name="insulin_pen_doses_label">Doses</string>
     <string name="insulin_pen_select_all">Select all</string>
     <string name="insulin_pen_select_none">Clear</string>
     <string name="insulin_pen_units">%1$s U</string>
-    <string name="insulin_pen_priming">Air shot</string>
+    <string name="insulin_pen_replaces">replaces %1$s</string>
+    <string name="insulin_pen_priming_skipped">%1$d air shot skipped</string>
     <string name="insulin_pen_add_doses">Add %1$d doses</string>
     <string name="insulin_pen_doses_added">%1$d doses added to the journal</string>
     <string name="insulin_pens_journal_off">The journal is switched off, so imported doses would not be shown anywhere.</string>
@@ -2714,6 +2745,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_armed">Ready — hold the pen to the phone</string>
     <string name="insulin_pen_full_read_desc">A pen keeps months of doses and takes several seconds of steady contact to read out. Use this to go back further than the last import.</string>
     <string name="insulin_pen_read_cut_short">The pen moved away too soon. Hold it against the phone until it vibrates.</string>
+    <string name="insulin_pen_background_title">Import in the background</string>
+    <string name="insulin_pen_background_desc">When the app is not open, a pen held to the phone has its new doses added to the journal without asking.</string>
+    <string name="insulin_pen_background_desc_more">Air shots are skipped. The screen has to be on and the phone unlocked — Android does not read NFC with the screen off. Any contactless card held to the phone wakes the reader for a moment, and other card apps may ask which app to use.</string>
+    <string name="insulin_pen_import_channel">Pen imports</string>
+    <plurals name="insulin_pen_imported_count">
+        <item quantity="one">%d dose added to the journal</item>
+        <item quantity="other">%d doses added to the journal</item>
+    </plurals>
+    <plurals name="insulin_pen_review_count">
+        <item quantity="one">%d dose read — open the app to choose the insulin</item>
+        <item quantity="other">%d doses read — open the app to choose the insulin</item>
+    </plurals>
     <string name="status_watch_reading">Watch is reading this sensor</string>
     <string name="return_sensor_to_phone">Return sensor to phone</string>
     <string name="wear_prediction_title">Prediction</string>
