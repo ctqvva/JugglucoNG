@@ -30,6 +30,13 @@
 
 -keep class androidx.wear.watchface.complications.rendering.ComplicationDrawable
 
+# AGP 9 enables R8 full mode. ML Kit 17.3.0/18.3.1 discovers its registrars through manifest
+# metadata, but its consumer rules do not preserve the complete runtime component graph under
+# full-mode optimization. The release build then keeps MlKitInitProvider and BarcodeRegistrar
+# while BarcodeScanning.getClient() receives a null barcode factory and crashes. Keep ML Kit's
+# dynamically registered components until the upstream artifacts provide full-mode-safe rules.
+-keep class com.google.mlkit.** { *; }
+
 # Keep AiDex vendor bridge classes/fields/methods used by libblecomm-lib JNI.
 -keep class com.microtechmd.blecomm.** { *; }
 
