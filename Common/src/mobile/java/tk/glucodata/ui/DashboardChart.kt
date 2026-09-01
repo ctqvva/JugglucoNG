@@ -108,6 +108,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
@@ -869,6 +870,11 @@ fun InteractiveGlucoseChart(
         val logical = SensorIdentity.resolveAppSensorId(primarySerial) ?: primarySerial
         SensorColors.getColor(logical.orEmpty())
     }
+    // A colour the user picked for a sensor replaces the range colouring of its own trace.
+    // Automatic (hash-assigned) colours deliberately do not, or every trace would lose the
+    // low/high banding by default.
+    val primaryPickedColor = tk.glucodata.SensorVisuals.colorOverrideArgb(primarySerial)
+        ?.let { Color(it) }
     val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
         if (graphSmoothingMinutes > 0) renderData else safeData
     }
@@ -2110,6 +2116,11 @@ fun InteractiveGlucoseChart(
             val limitYLow = thresholdY(rangeThresholds.low)
             val limitYVeryLow = thresholdY(rangeThresholds.veryLow)
 
+            val peerPickedColors = peerChartSeries.mapNotNull { series ->
+                tk.glucodata.SensorVisuals.colorOverrideArgb(series.sensorId)
+                    ?.let { series.sensorId to Color(it) }
+            }.toMap()
+
             // Multi-sensor: the primary trace carries a subtle identity tint so
             // it pairs with its (tinted) values, like the peer traces do.
             val primaryLineTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f
@@ -2127,10 +2138,13 @@ fun InteractiveGlucoseChart(
                 primaryIdentityColor,
                 appChartRangeColors,
                 appRangeDark,
+                primaryPickedColor,
                 glucosePaletteRevision
             ) {
                 if (chartHeightPx <= 0f) {
                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                } else if (primaryPickedColor != null) {
+                    SolidColor(primaryPickedColor)
                 } else {
                     fun identityTinted(color: Color): Color =
                         if (primaryLineTintFraction > 0f) {
@@ -2193,6 +2207,7 @@ fun InteractiveGlucoseChart(
                 highOutOfRangeTintBase,
                 lowOutOfRangeTintBase,
                 peerNeutralBase,
+                peerPickedColors,
                 glucosePaletteRevision
             ) {
                 if (chartHeightPx <= 0f) {
@@ -2202,6 +2217,13 @@ fun InteractiveGlucoseChart(
                     val veryLowTint = Color(GlucoseRangeColors.veryLow(isDark))
                     val fadePx = 18f
                     peerChartSeries.associate { series ->
+                        val picked = peerPickedColors[series.sensorId]
+                        if (picked != null) {
+                            // A picked colour is shown as picked: only the peer alpha stays,
+                            // so peers still read as subordinate to the primary trace.
+                            return@associate series.sensorId to
+                                SolidColor(picked.copy(alpha = 0.76f))
+                        }
                         // Tone down the coloring (desaturate toward the neutral
                         // theme token) while keeping the trace clearly visible.
                         val base = androidx.compose.ui.graphics.lerp(series.color, peerNeutralBase, 0.46f)
