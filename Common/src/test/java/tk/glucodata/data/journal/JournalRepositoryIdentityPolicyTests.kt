@@ -141,6 +141,32 @@ class JournalRepositoryIdentityPolicyTests {
         )
     }
 
+    @Test
+    fun editingAMirroredRowCannotTurnItIntoALocalUpload() {
+        val identity = preserveMirroredJournalIdentity(
+            existingSource = JournalEntrySource.CLONE_TURN.storageValue,
+            existingSourceRecordId = "clone:sender:journal:42:insulin",
+            incomingSource = JournalEntrySource.MANUAL,
+            incomingSourceRecordId = null,
+        )
+
+        assertEquals(JournalEntrySource.CLONE_TURN, identity.source)
+        assertEquals("clone:sender:journal:42:insulin", identity.sourceRecordId)
+    }
+
+    @Test
+    fun editingALocalRowUsesTheIncomingIdentity() {
+        val identity = preserveMirroredJournalIdentity(
+            existingSource = JournalEntrySource.MANUAL.storageValue,
+            existingSourceRecordId = null,
+            incomingSource = JournalEntrySource.PEN,
+            incomingSourceRecordId = "pen:dose:12",
+        )
+
+        assertEquals(JournalEntrySource.PEN, identity.source)
+        assertEquals("pen:dose:12", identity.sourceRecordId)
+    }
+
     private fun journalEntity(
         id: Long,
         createdAt: Long,
