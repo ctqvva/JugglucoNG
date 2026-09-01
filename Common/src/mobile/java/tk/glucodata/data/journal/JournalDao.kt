@@ -18,6 +18,9 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE sourceRecordId = :sourceRecordId LIMIT 1")
     suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
 
+    @Query("SELECT * FROM journal_entries WHERE sourceRecordId IN (:sourceRecordIds)")
+    suspend fun getEntriesBySourceRecordIds(sourceRecordIds: List<String>): List<JournalEntryEntity>
+
     @Query(
         "SELECT * FROM journal_entries WHERE nsRemoteId = :nsRemoteId AND entryType = :entryType " +
             "ORDER BY createdAt ASC, id ASC"
@@ -69,6 +72,24 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_entries")
     suspend fun deleteAllEntries()
+
+    @Query("SELECT * FROM clone_journal_tombstones WHERE deletedAt >= :sinceMillis ORDER BY deletedAt ASC, entryId ASC")
+    suspend fun getCloneJournalTombstonesSince(sinceMillis: Long): List<CloneJournalTombstoneEntity>
+
+    @Query("SELECT * FROM clone_journal_tombstones ORDER BY deletedAt ASC, entryId ASC")
+    suspend fun getCloneJournalTombstones(): List<CloneJournalTombstoneEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCloneJournalTombstone(tombstone: CloneJournalTombstoneEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCloneJournalTombstones(tombstones: List<CloneJournalTombstoneEntity>)
+
+    @Query("DELETE FROM clone_journal_tombstones WHERE entryId = :entryId")
+    suspend fun deleteCloneJournalTombstone(entryId: Long)
+
+    @Query("DELETE FROM clone_journal_tombstones")
+    suspend fun deleteAllCloneJournalTombstones()
 
     @Query("SELECT * FROM journal_insulin_presets ORDER BY isArchived ASC, sortOrder ASC, displayName COLLATE NOCASE ASC")
     fun observeInsulinPresets(): Flow<List<JournalInsulinPresetEntity>>

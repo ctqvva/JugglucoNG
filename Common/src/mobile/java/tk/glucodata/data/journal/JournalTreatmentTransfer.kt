@@ -56,7 +56,7 @@ object JournalTreatmentTransfer {
             .put("enteredBy", "JugglucoNG")
             .put("type", type.storageValue)
             .put("journalTitle", entry.title)
-            .put("journalSource", entry.source)
+            .put("journalSource", entry.originSource ?: entry.source)
             .put("updated_at", formatIso8601(entry.updatedAt.takeIf { it > 0L } ?: timestamp))
 
         when (type) {
@@ -188,6 +188,7 @@ object JournalTreatmentTransfer {
             treatment.optNonBlankString("notes", "note"),
             treatment.optNonBlankString("enteredBy", "device", "app")
         )
+        val originSource = treatment.optJournalOriginSource()
         val titleSuffix = treatment.optNonBlankString("journalTitle", "title", "food", "foodType")
             ?: eventType?.takeIf { !it.equals("Note", ignoreCase = true) }
         val inputs = ArrayList<JournalEntryInput>(3)
@@ -211,7 +212,8 @@ object JournalTreatmentTransfer {
                     fatGrams = treatment.optPositiveFloat("fat", "fatGrams"),
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_CARBS),
-                    nsRemoteId = nightscoutRemoteId
+                    nsRemoteId = nightscoutRemoteId,
+                    originSource = originSource,
                 )
             )
         }
@@ -233,7 +235,8 @@ object JournalTreatmentTransfer {
                     insulinPresetId = preset?.id,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_INSULIN),
-                    nsRemoteId = nightscoutRemoteId
+                    nsRemoteId = nightscoutRemoteId,
+                    originSource = originSource,
                 )
             )
         }
@@ -254,7 +257,8 @@ object JournalTreatmentTransfer {
                     glucoseValueMgDl = glucoseMgdl,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_FINGERSTICK),
-                    nsRemoteId = nightscoutRemoteId
+                    nsRemoteId = nightscoutRemoteId,
+                    originSource = originSource,
                 )
             )
         }
@@ -270,7 +274,8 @@ object JournalTreatmentTransfer {
                     intensity = treatment.optJournalIntensity(),
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_ACTIVITY),
-                    nsRemoteId = nightscoutRemoteId
+                    nsRemoteId = nightscoutRemoteId,
+                    originSource = originSource,
                 )
             )
         }
@@ -286,7 +291,8 @@ object JournalTreatmentTransfer {
                     note = note ?: eventType,
                     source = source,
                     sourceRecordId = sourceRecordId(sourcePrefix, baseId, SOURCE_KIND_NOTE),
-                    nsRemoteId = nightscoutRemoteId
+                    nsRemoteId = nightscoutRemoteId,
+                    originSource = originSource,
                 )
             )
         }
@@ -306,8 +312,11 @@ object JournalTreatmentTransfer {
 
     fun sourceRecordIdsForTreatment(treatment: JSONObject, sourcePrefix: String): List<String> {
         val baseId = treatment.sourceBaseId(treatment.optTreatmentTimestampMillis()) ?: return emptyList()
-        return allKinds.map { kind -> sourceRecordId(sourcePrefix, baseId, kind) }
+        return sourceRecordIdsForBaseId(sourcePrefix, baseId)
     }
+
+    fun sourceRecordIdsForBaseId(sourcePrefix: String, baseId: String): List<String> =
+        allKinds.map { kind -> sourceRecordId(sourcePrefix, baseId, kind) }
 
     private fun sourceRecordId(sourcePrefix: String, baseId: String, kind: String): String =
         "$sourcePrefix:$baseId:$kind"
@@ -434,6 +443,11 @@ object JournalTreatmentTransfer {
             JournalEntryType.entries.firstOrNull { it.storageValue == value }?.let { return it }
         }
         return null
+    }
+
+    private fun JSONObject.optJournalOriginSource(): JournalEntrySource? {
+        val value = optNonBlankString("journalSource", "originSource") ?: return null
+        return JournalEntrySource.entries.firstOrNull { it.storageValue == value.lowercase(Locale.US) }
     }
 
     private fun JSONObject.optJournalIntensity(): JournalIntensity? {

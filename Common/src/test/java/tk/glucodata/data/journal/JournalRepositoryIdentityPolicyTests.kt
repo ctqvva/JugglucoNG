@@ -167,6 +167,32 @@ class JournalRepositoryIdentityPolicyTests {
         assertEquals("pen:dose:12", identity.sourceRecordId)
     }
 
+    @Test
+    fun authoritativeOriginCanChangeWhileCloneTransportIdentityStaysStable() {
+        assertEquals(
+            JournalEntrySource.PEN.storageValue,
+            resolveJournalOriginSource(
+                existingOriginSource = JournalEntrySource.MANUAL.storageValue,
+                storedSource = JournalEntrySource.CLONE_TURN,
+                incomingSource = JournalEntrySource.CLONE_TURN,
+                incomingOriginSource = JournalEntrySource.PEN,
+            )
+        )
+    }
+
+    @Test
+    fun legacyCloneUpdateWithoutOriginDoesNotEraseKnownOrigin() {
+        assertEquals(
+            JournalEntrySource.MANUAL.storageValue,
+            resolveJournalOriginSource(
+                existingOriginSource = JournalEntrySource.MANUAL.storageValue,
+                storedSource = JournalEntrySource.CLONE_LOCAL_ICE,
+                incomingSource = JournalEntrySource.CLONE_LOCAL_ICE,
+                incomingOriginSource = null,
+            )
+        )
+    }
+
     private fun journalEntity(
         id: Long,
         createdAt: Long,

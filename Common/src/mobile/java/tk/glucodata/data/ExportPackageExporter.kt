@@ -609,6 +609,7 @@ object ExportPackageExporter {
             .put("proteinGrams", proteinGrams?.toDouble() ?: JSONObject.NULL)
             .put("fatGrams", fatGrams?.toDouble() ?: JSONObject.NULL)
             .put("source", source)
+            .put("originSource", originSource ?: JSONObject.NULL)
             .put("sourceRecordId", sourceRecordId ?: JSONObject.NULL)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
@@ -724,6 +725,7 @@ object ExportPackageExporter {
                         proteinGrams = item.optNullableFloat("proteinGrams"),
                         fatGrams = item.optNullableFloat("fatGrams"),
                         source = item.optString("source", "import"),
+                        originSource = item.optNullableString("originSource"),
                         sourceRecordId = item.optNullableString("sourceRecordId"),
                         createdAt = item.optLong("createdAt", timestamp),
                         updatedAt = item.optLong("updatedAt", timestamp),

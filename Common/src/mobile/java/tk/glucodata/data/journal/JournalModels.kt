@@ -66,7 +66,9 @@ data class JournalEntry(
     val source: JournalEntrySource,
     val sourceRecordId: String?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    /** Where the content originated before it arrived through [source]. */
+    val originSource: JournalEntrySource? = null,
 )
 
 data class JournalEntryInput(
@@ -86,7 +88,9 @@ data class JournalEntryInput(
     val fatGrams: Float? = null,
     val source: JournalEntrySource = JournalEntrySource.MANUAL,
     val sourceRecordId: String? = null,
-    val nsRemoteId: String? = null
+    val nsRemoteId: String? = null,
+    /** Authoritative source supplied by an importer, distinct from its transport. */
+    val originSource: JournalEntrySource? = null,
 )
 
 data class JournalFood(
