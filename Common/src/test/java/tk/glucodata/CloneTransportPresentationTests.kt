@@ -5,28 +5,15 @@ import org.junit.Test
 
 class CloneTransportPresentationTests {
     @Test
-    fun sensorRouteUsesLastConfirmedRouteOnlyWhileLiveRouteIsUnavailable() {
+    fun sensorRouteFollowsTheLiveConnectionState() {
         assertEquals(
             CloneTransport.TURN,
-            CloneTransportPresentation.sensorTransport(
-                CloneTransport.TURN,
-                CloneTransport.LOCAL_ICE,
-            ),
+            CloneTransportPresentation.sensorTransport(CloneTransport.TURN),
         )
-        assertEquals(
-            CloneTransport.LOCAL_ICE,
-            CloneTransportPresentation.sensorTransport(
-                CloneTransport.UNKNOWN,
-                CloneTransport.LOCAL_ICE,
-            ),
-        )
-        assertEquals(
-            CloneTransport.TURN,
-            CloneTransportPresentation.sensorTransport(null, CloneTransport.TURN),
-        )
+        assertEquals(null, CloneTransportPresentation.sensorTransport(CloneTransport.UNKNOWN))
         assertEquals(
             null,
-            CloneTransportPresentation.sensorTransport(CloneTransport.UNKNOWN, null),
+            CloneTransportPresentation.sensorTransport(null),
         )
     }
 

@@ -361,7 +361,6 @@ fun DashboardCombinedHeader(
     val cloneTransport = remember(refreshRevision, sensorName) {
         tk.glucodata.CloneTransportPresentation.sensorTransport(
             tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName),
-            tk.glucodata.CloneSensorRegistry.transportForSensor(sensorName),
         )
     }
     val isCloneSource = remember(refreshRevision, sensorName) {
@@ -915,7 +914,7 @@ fun DashboardCombinedHeader(
                     // 1. Sensor Name (Top Label)
                     if (sensorDisplayName.isNotEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (cloneTransport != null) {
+                            if (isCloneSource) {
                                 CloneSourceMark(
                                     transport = cloneTransport,
                                     showLabel = true,

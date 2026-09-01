@@ -1009,8 +1009,7 @@ public class Notify {
         try {
             if (CloneSensorRegistry.isCloneSensor(activeSensorSerial)) {
                 final CloneTransport transport = CloneTransportPresentation.sensorTransport(
-                        CloneSensorRegistry.liveTransportForSensor(activeSensorSerial),
-                        CloneSensorRegistry.transportForSensor(activeSensorSerial));
+                        CloneSensorRegistry.liveTransportForSensor(activeSensorSerial));
                 return app.getString(CloneTransportPresentation.statusTextRes(transport));
             }
             final var managedSnapshot = ManagedSensorRuntime.resolveUiSnapshot(activeSensorSerial, activeSensorSerial);
