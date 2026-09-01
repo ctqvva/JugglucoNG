@@ -871,6 +871,10 @@ public class Applic extends Application implements androidx.work.Configuration.P
         if (!initproccalled) {
             if (!numio.setlibrary(this))
                 return false;
+            // ICE connections can be created by startup services before the
+            // settings screen exists, so restore user-selected endpoints as
+            // soon as the native library and persisted backup hosts are ready.
+            CloneIceNetworkConfigStore.initialize(this);
             // Native backup hosts are restored before the Java Wear transport.
             // Honour the persisted companion switch immediately, otherwise a
             // disabled Wear host reconnects during every process start.

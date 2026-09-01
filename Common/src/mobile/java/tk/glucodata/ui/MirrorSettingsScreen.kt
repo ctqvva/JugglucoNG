@@ -54,6 +54,8 @@ import com.journeyapps.barcodescanner.ScanOptions
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.CloneIceNetworkConfig
+import tk.glucodata.CloneIceNetworkConfigStore
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.util.DiscoveredMirror
@@ -229,28 +231,74 @@ private fun MirrorQrDialog(
 
 fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
     val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
+    var previousTurnConfig: HybridQrTurnConfig? = null
+    var previousTurnWasPresent = false
+    var previousIceConfig: CloneIceNetworkConfig? = null
+    var turnChanged = false
+    var iceConfigChanged = false
+    var hostCommitted = false
+
+    fun rollbackNetworkConfiguration() {
+        if (turnChanged) {
+            if (previousTurnWasPresent && previousTurnConfig != null) {
+                Natives.setTurnServer(
+                    0,
+                    previousTurnConfig!!.host,
+                    previousTurnConfig!!.port,
+                    previousTurnConfig!!.username,
+                    previousTurnConfig!!.password,
+                )
+            } else {
+                Natives.deleteTurnServer(0)
+            }
+        }
+        if (iceConfigChanged && previousIceConfig != null &&
+            !CloneIceNetworkConfigStore.save(context, previousIceConfig!!)
+        ) {
+            tk.glucodata.Log.e("MirrorSettings", "Could not restore Clone ICE settings")
+        }
+    }
+
     try {
         val json = parseMirrorQrJson(jsonstr)
+        val turnConfig = parseHybridQrTurnConfig(json)
+        val iceConfig = parseHybridQrIceConfig(json, turnConfig)
+        if (turnConfig != null) {
+            previousTurnWasPresent = Natives.TurnServerNR() > 0
+            if (previousTurnWasPresent) {
+                previousTurnConfig = HybridQrTurnConfig(
+                    host = Natives.getTurnHost(0).orEmpty(),
+                    port = Natives.getTurnPort(0),
+                    username = Natives.getTurnUser(0).orEmpty(),
+                    password = Natives.getTurnPassword(0).orEmpty(),
+                )
+            }
+        }
+        if (iceConfig != null) {
+            previousIceConfig = CloneIceNetworkConfigStore.load(context)
+        }
         // A newly scanned connection is active immediately. Open the local
         // receiver gate before native startup so its first authenticated packet
         // cannot race a previously stored global-off state.
         tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
-        val turnConfig = parseHybridQrTurnConfig(json)
-        val previousTurnConfig = if (turnConfig != null && Natives.TurnServerNR() > 0) {
-            HybridQrTurnConfig(
-                host = Natives.getTurnHost(0).orEmpty(),
-                port = Natives.getTurnPort(0),
-                username = Natives.getTurnUser(0).orEmpty(),
-                password = Natives.getTurnPassword(0).orEmpty()
-            )
-        } else {
-            null
-        }
         if (turnConfig != null) {
             Natives.setTurnServer(
                 0, turnConfig.host, turnConfig.port,
                 turnConfig.username, turnConfig.password
             )
+            turnChanged = true
+        }
+        if (iceConfig != null) {
+            val saved = CloneIceNetworkConfigStore.save(
+                context,
+                CloneIceNetworkConfig(
+                    rendezvousHost = iceConfig.rendezvousHost,
+                    rendezvousPort = iceConfig.rendezvousPort,
+                    useTurnForStun = iceConfig.useTurnForStun,
+                ),
+            )
+            if (!saved) throw IllegalStateException("Could not save Clone ICE settings")
+            iceConfigChanged = true
         }
         val iceLabel = json.optString("ICElabel").takeIf { it.isNotEmpty() }
         val namesArray = json.optJSONArray("names")
@@ -272,27 +320,18 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
         )
         if (pos < 0) {
             tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
-            if (turnConfig != null) {
-                if (previousTurnConfig == null) {
-                    Natives.deleteTurnServer(0)
-                } else {
-                    Natives.setTurnServer(
-                        0, previousTurnConfig.host, previousTurnConfig.port,
-                        previousTurnConfig.username, previousTurnConfig.password
-                    )
-                }
-            }
+            rollbackNetworkConfiguration()
             Toast.makeText(context, changeHostErrorMessage(context, pos), Toast.LENGTH_SHORT).show()
             return false
         }
-        if (turnConfig != null) {
-            Natives.resetnetwork()
-        }
+        hostCommitted = true
+        refreshMirrorNetworking(context, reset = turnConfig != null || iceConfig != null)
         Toast.makeText(context, context.getString(R.string.mirrorscansucces), Toast.LENGTH_SHORT).show()
-        tk.glucodata.Applic.wakemirrors()
         return true
-    } catch (_: Exception) {
+    } catch (error: Exception) {
         tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
+        if (!hostCommitted) rollbackNetworkConfiguration()
+        tk.glucodata.Log.stack("MirrorSettings", "Import Clone QR", error)
         Toast.makeText(context, context.getString(R.string.mirror_invalid_qr_data), Toast.LENGTH_SHORT).show()
         return false
     }
@@ -331,6 +370,7 @@ private fun readMirrorConnectionSnapshots(): List<MirrorConnectionSnapshot> =
 
 private fun refreshMirrorNetworking(context: Context, reset: Boolean = true) {
     if (reset) Natives.resetnetwork()
+    tk.glucodata.CloneBackgroundLiveness.sync()
     tk.glucodata.Applic.updateservice(context, Natives.getusebluetooth())
     tk.glucodata.Applic.wakemirrors()
 }
@@ -412,6 +452,9 @@ fun MirrorSettingsScreen(navController: NavController) {
     var editSheetPos by remember { mutableStateOf<Int?>(null) }
     var cloneTransitionDesired by remember {
         mutableStateOf(CloneHostTransitionRunner.desiredEnabled())
+    }
+    var backgroundLivenessEnabled by remember {
+        mutableStateOf(tk.glucodata.CloneBackgroundLiveness.isEnabled())
     }
 
     val latestIsBroadcasting by rememberUpdatedState(isBroadcasting)
@@ -789,6 +832,21 @@ fun MirrorSettingsScreen(navController: NavController) {
                     }
                 )
             }
+            item(key = "clone_background_liveness") {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.mirror_background_liveness),
+                    subtitle = stringResource(R.string.mirror_background_liveness_desc),
+                    icon = Icons.Filled.BatterySaver,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    checked = backgroundLivenessEnabled,
+                    enabled = !CloneHostTransitionRunner.isRunning(),
+                    position = CardPosition.SINGLE,
+                    onCheckedChange = { enabled ->
+                        backgroundLivenessEnabled = enabled
+                        tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
+                    }
+                )
+            }
 
             if (mirrors.isEmpty()) {
                 item(key = "empty_msg") {
@@ -1160,8 +1218,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             Toast.makeText(context, changeHostErrorMessage(context, result), Toast.LENGTH_SHORT).show()
             return false
         }
-        Natives.resetnetwork()
-        tk.glucodata.Applic.wakemirrors()
+        refreshMirrorNetworking(context)
         return true
     }
 

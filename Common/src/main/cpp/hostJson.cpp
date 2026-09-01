@@ -22,6 +22,9 @@
 #include "config.h"
 #if !defined(WEAROS)
 #include "datbackup.hpp"
+#ifdef JUGGLUCO_APP
+#include "net/ICE/ICEConfig.hpp"
+#endif
 #include <algorithm>
 #include <cstdlib>
 #include <mutex>
@@ -69,10 +72,16 @@ std::string mkbackjson(int pos) {
     inserter = std::format_to(inserter, R"({{"ICElabel":"{}")",
                               escape(host.getICEname()));
     inserter = insertbool(inserter, "side", !host.side);
+    #ifdef JUGGLUCO_APP
+    std::string turnHostname;
+    #endif
     {
       const std::lock_guard<std::mutex> lock(turn_server_mutex);
       if (back.NRturnserver && back.turnserver[0].hostname[0]) {
         const auto &turn = back.turnserver[0];
+        #ifdef JUGGLUCO_APP
+        turnHostname=turn.hostname;
+        #endif
         inserter = std::format_to(
             inserter,
             R"(,"turn":["{}",{},"{}","{}"])",
@@ -80,6 +89,22 @@ std::string mkbackjson(int pos) {
             escape(turn.password));
       }
     }
+    #ifdef JUGGLUCO_APP
+    const auto iceConfig=currentICEConfig();
+    inserter=insertbool(inserter,"stun",
+                        iceConfig.useTurnForStun&&!turnHostname.empty());
+    if(iceConfig.rendezvousHost.empty()) {
+      inserter=std::format_to(inserter,R"(,"rv":0)");
+    }
+    else if(!turnHostname.empty()&&iceConfig.rendezvousHost==turnHostname) {
+      inserter=std::format_to(inserter,R"(,"rv":{})",iceConfig.rendezvousPort);
+    }
+    else {
+      inserter=std::format_to(inserter,R"(,"rv":["{}",{}])",
+                              escape(iceConfig.rendezvousHost),
+                              iceConfig.rendezvousPort);
+    }
+    #endif
   } else if (!host.hashostname()) {
     int ipnr = 0;
     if (hasPublicHost) {

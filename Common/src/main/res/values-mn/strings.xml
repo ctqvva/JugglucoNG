@@ -457,6 +457,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="QRmirror">QR-аар дамжуулан Mirror</string>
     <string name="turnservers">TURN серверүүд</string>
     <string name="turnserver">TURN сервер</string>
+    <string name="clone_ice_services">ICE services</string>
+    <string name="use_turn_for_stun">Use TURN server for STUN</string>
+    <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
+    <string name="rendezvous_server">Rendezvous server</string>
+    <string name="rendezvous_host_hint">Leave empty to use the app default</string>
+    <string name="rendezvous_port">Rendezvous port</string>
+    <string name="turn_required_for_stun">TURN must be configured before it can be used for STUN</string>
     <!-- New Strings for Material UI & Language Support -->
     <string name="notification_chart_title">Мэдэгдлийн график</string>
     <string name="notification_chart_desc">Мэдэгдлийн мөрөнд глюкозын графикийг харуулах</string>
@@ -1829,6 +1836,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
+    <string name="mirror_background_liveness">Keep Clone live in background</string>
+    <string name="mirror_background_liveness_desc">Keeps the receiver awake for uninterrupted cloned readings and alerts. Uses more battery.</string>
     <string name="mirror_no_connections">No connections. Use Quick Pair or tap + to add.</string>
     <string name="mirror_delete_connection_title">Холболтыг устгах уу?</string>
     <string name="mirror_delete_connection_message">%1$s will be removed permanently.</string>

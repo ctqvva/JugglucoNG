@@ -32,6 +32,7 @@
 #include "myfdsan.h"
 #include "net/Connect.hpp"
 #include "ICE_data.hpp"
+#include "ICEConfig.hpp"
 #define LOGGERICE(...) LOGGER("ICE: " __VA_ARGS__)
 #define LOGARICE(...) LOGAR("ICE: " __VA_ARGS__)
 extern bool initAgent(juice_agent *agent,int allindex);
@@ -78,11 +79,10 @@ std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
 char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
-int hostindex;
+std::string rendezvousHost;
+uint16_t rendezvousPort;
 
-ICEConnect(int allindex,const passhost_t &host):Connect(allindex),side(host.side),hostindex(hostselect(host.getICEname())) {
-        agent.store(nullptr);
-        }
+ICEConnect(int allindex,const passhost_t &host);
 ~ICEConnect() {
         finish=true;
         endConnectionHere();
@@ -98,6 +98,22 @@ void endConnectionHere() {
         startSending.notify_all();
         startDone.clear();
         startDone.notify_all();
+       }
+bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation) {
+       if(!isCurrentAgent(candidate,generation))
+           return false;
+       bool expected=false;
+       if(!endConnect.compare_exchange_strong(expected,true))
+           return false;
+       isConnected=false;
+       cancelRendezvous();
+       icedata[1].setshutdown();
+       icedata[0].setshutdown();
+       startSending.clear();
+       startSending.notify_all();
+       startDone.clear();
+       startDone.notify_all();
+       return true;
        }
 private:
 //uint32_t initrunning=0;

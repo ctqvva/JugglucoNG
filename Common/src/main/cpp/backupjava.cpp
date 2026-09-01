@@ -20,12 +20,15 @@
 
 #include "datbackup.hpp"
 #include "fromjava.h"
+#include "net/ICE/ICEConfig.hpp"
 #include "net/netstuff.hpp"
 #include <alloca.h>
 #include <cstring>
 #include <jni.h>
 #include <mutex>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 extern jclass JNIString;
 extern jstring myNewStringUTF(JNIEnv *env, const std::string_view str);
@@ -808,6 +811,23 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnServer)(
   auto *data = backup->getupdatedata();
   data->turnserver[0] = replacement;
   data->NRturnserver = replacement.hostname[0] ? 1 : 0;
+}
+
+extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
+    JNIEnv *env, jclass cl, jstring rendezvousHost, jint rendezvousPort,
+    jboolean useTurnForStun) {
+  std::string host;
+  if (rendezvousHost) {
+    if (const char *value = env->GetStringUTFChars(rendezvousHost, nullptr)) {
+      host = value;
+      env->ReleaseStringUTFChars(rendezvousHost, value);
+    }
+  }
+  updateICEConfig(std::move(host),
+                  rendezvousPort > 0 && rendezvousPort <= 65535
+                      ? static_cast<uint16_t>(rendezvousPort)
+                      : static_cast<uint16_t>(6789),
+                  useTurnForStun);
 }
 
 extern "C" JNIEXPORT void JNICALL fromjava(deleteTurnServer)(JNIEnv *env,

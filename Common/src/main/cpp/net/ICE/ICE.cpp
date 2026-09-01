@@ -79,7 +79,36 @@ int hostselect(std::string_view name) {
     LOGGERICE("hostselect(%.*s)=%d %.*s\n",name.data(),name.data(),hash,hostnames[hash].size(),hostnames[hash].data());
     return hash;
     }
-int port{6789};
+static std::mutex ice_config_mutex;
+static ICEConfigSnapshot ice_config;
+
+ICEConfigSnapshot currentICEConfig() {
+    const std::lock_guard<std::mutex> lock(ice_config_mutex);
+    return ice_config;
+    }
+
+void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
+                     bool useTurnForStun) {
+    const std::lock_guard<std::mutex> lock(ice_config_mutex);
+    ice_config.rendezvousHost=std::move(rendezvousHost);
+    ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
+    ice_config.useTurnForStun=useTurnForStun;
+    }
+
+RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
+    auto config=currentICEConfig();
+    if(config.rendezvousHost.empty())
+        config.rendezvousHost=std::string(hostnames[hostselect(label)]);
+    return {std::move(config.rendezvousHost),config.rendezvousPort};
+    }
+
+ICEConnect::ICEConnect(int allindex,const passhost_t &host)
+    :Connect(allindex),side(host.side) {
+    auto endpoint=resolveRendezvousEndpoint(host.getICEname());
+    rendezvousHost=std::move(endpoint.host);
+    rendezvousPort=endpoint.port;
+    agent.store(nullptr);
+    }
 #ifndef LOGGER
 #define LOGGER(...) fprintf(stderr,__VA_ARGS__)
 #endif
@@ -128,6 +157,24 @@ static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
         .timeoutMilliseconds=10000,
         .cancelled=con->currentRendezvousCancellation()
         };
+    }
+
+static void wakeCloneSender(const passhost_t &host,uintptr_t reason);
+
+static void restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
+                                       uint64_t generation,int allindex,
+                                       const char *reason) {
+    if(!con->requestReconnectIfCurrent(agent,generation))
+        return;
+    const passhost_t &host=getBackupHosts()[allindex];
+    LOGGERICE("%s %d: restart rejected negotiation: %s\n",
+              host.getICEname().data(),host.side,reason);
+    wakeCloneSender(host,wakeall|wakereconnect);
+    {
+    std::lock_guard<std::mutex> lock(con->receiveThreadMutex);
+    con->wakeReceiver=true;
+    }
+    con->receiveThreadCon.notify_one();
     }
 const char *juiceErrorString(int error) {
     switch(error) {
@@ -180,7 +227,8 @@ private:
 //static bool gathering_done=false;
 
 static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generation,
-                               std::string commonLabel,bool side,std::string hostname) {
+                               std::string commonLabel,bool side,std::string hostname,
+                               uint16_t rendezvousPort) {
    static std::string_view address{"/address"};
    CreateAgentData addressdata(commonLabel,side,"") ;
    int errors=0;
@@ -190,7 +238,7 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
                 return;
             LOGGERICE("getaddress %s %d\n",commonLabel.data(),side);
             auto [resbody,code]=ContextHTTPS::getContext().getRequest(
-                hostname,port,address,addressdata.getSpan(),{},
+                hostname,rendezvousPort,address,addressdata.getSpan(),{},
                 rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation))
                 return;
@@ -226,6 +274,11 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
                 };
           }
       LOGGERICE("getaddress %s %d: end thread\n",commonLabel.data(),side);
+      ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+      if(!con)
+          return;
+      restartRejectedNegotiation(con,agent,generation,allindex,
+                                 "remote candidate stream unavailable");
      } 
 
 
@@ -239,14 +292,15 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
    const passhost_t &host= getBackupHosts()[allindex];
    const std::string commonLabel(host.getICEname());
    const bool side=host.side;
-   const std::string hostname(hostnames[con->hostindex]);
+   const std::string hostname(con->rendezvousHost);
+   const uint16_t rendezvousPort=con->rendezvousPort;
    static std::string_view address{"/address"};
    CreateAgentData sdpdata(commonLabel,side,sdp) ;
    for(int i=0;i<20;++i) {
        if(!con->isCurrentAgent(agent,generation))
            return;
        auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-           hostname,port,address,
+           hostname,rendezvousPort,address,
            std::span((const char *)sdpdata.data(),sdpdata.size()),{},
            rendezvousRequestOptions(con));
        if(!con->isCurrentAgent(agent,generation))
@@ -257,7 +311,9 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
             }
        if(code==400) {
             LOGGERICE( "putaddress %s %d: failed: %s\n",commonLabel.data(),side, sdp);
-            break;
+            restartRejectedNegotiation(con,agent,generation,allindex,
+                                       "local candidate rejected");
+            return;
             }
       LOGGERICE("putaddress %s %d: ERROR: %s\n",commonLabel.data(),side,  sdp);
       if(!waitForCurrentAgent(con,agent,20))
@@ -276,10 +332,11 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
     const passhost_t &host= getBackupHosts()[allindex];
     const std::string commonLabel(host.getICEname());
     const bool side=host.side;
-    const int hostindex=con->hostindex;
+    const std::string hostname(con->rendezvousHost);
+    const uint16_t rendezvousPort=con->rendezvousPort;
     CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
     std::vector<char> doneBody(body.data(),body.data()+body.size());
-    std::thread th{[allindex,agent,generation,commonLabel,side,hostindex,
+    std::thread th{[allindex,agent,generation,commonLabel,side,hostname,rendezvousPort,
                     doneBody=std::move(doneBody)] {
         LOGGERICE("Gathering done %s %d\n",commonLabel.data(),side);
         ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
@@ -291,7 +348,7 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
             return;
         while(true) {
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                hostnames[hostindex],port,done,doneBody,{},
+                hostname,rendezvousPort,done,doneBody,{},
                 rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation))
                 return;
@@ -462,7 +519,8 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->selectedCloneTransport.store(clone_transport_unknown);
             const std::string commonLabel(host.getICEname());
             const bool side=host.side;
-            const std::string hostname(hostnames[con->hostindex]);
+            const std::string hostname(con->rendezvousHost);
+            const uint16_t rendezvousPort=con->rendezvousPort;
             CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
             std::vector<char> failureBody(body.data(),body.data()+body.size());
 
@@ -476,12 +534,12 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->wakeReceiver=true;
             con->receiveThreadCon.notify_one();
             }
-            std::thread th{[commonLabel,side,hostname,
+            std::thread th{[commonLabel,side,hostname,rendezvousPort,
                             failureBody=std::move(failureBody)] {
                 std::string_view failure{"/failure"sv};
                 for(int i=0;i<3;++i) {
                     auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                        hostname,port,failure,
+                        hostname,rendezvousPort,failure,
                         std::span(failureBody.data(),failureBody.size()));
                     if(code==200) {
                         LOGGERICE("%s %d: OK FAILURE\n",commonLabel.data(),side);
@@ -847,10 +905,19 @@ juice_agent *createAgent(int allindex) {
         servercount=static_cast<int>(usable_turn_servers.size());
         turn_servers=servercount?usable_turn_servers.data():nullptr;
         }
+    const auto networkConfig=currentICEConfig();
+    const bool useConfiguredTurnForStun=
+        networkConfig.useTurnForStun&&has_configured_turn;
+    if(networkConfig.useTurnForStun&&!has_configured_turn)
+        LOGAR("createAgent: TURN-for-STUN requested without a configured TURN server");
+    const char *stunHost=useConfiguredTurnForStun
+        ?configured_turn_host.c_str():"stun.l.google.com";
+    const uint16_t stunPort=useConfiguredTurnForStun
+        ?configured_turn_port:19302;
       juice_config_t config1{
             .concurrency_mode=JUICE_CONCURRENCY_MODE_THREAD,
-            .stun_server_host = "stun.l.google.com",
-            .stun_server_port = 19302,
+            .stun_server_host = stunHost,
+            .stun_server_port = stunPort,
             .turn_servers=(juice_turn_server_t*)  turn_servers,
             .turn_servers_count=servercount,  
             .cb_state_changed = on_state_changed1,
@@ -872,7 +939,8 @@ void   recreateAgents() {
     }
 static std::string_view description="/description";
 
-static bool waitonDescription(juice_agent *agent,int allindex,std::string_view commonLabel,int side,std::string_view hostname) {
+static bool waitonDescription(juice_agent *agent,int allindex,std::string_view commonLabel,int side,
+                              std::string_view hostname,uint16_t rendezvousPort) {
     ICEConnect *con=currentICEConnection(allindex,agent);
     if(!con)
         return false;
@@ -887,7 +955,7 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
         auto [resbody,code]=ContextHTTPS::getContext().getRequest(
-            hostname,port,description,sdpdata.getSpan(),{},
+            hostname,rendezvousPort,description,sdpdata.getSpan(),{},
             rendezvousRequestOptions(con));
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
@@ -915,7 +983,8 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
         }
 //    return false;
     }
-static  bool putDescription(int allindex,juice_agent *agent,std::string_view commonLabel,bool side,std::string_view hostname)  {
+static  bool putDescription(int allindex,juice_agent *agent,std::string_view commonLabel,bool side,
+                            std::string_view hostname,uint16_t rendezvousPort)  {
     ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
     if(const int error=juice_get_local_description(agent, con->sdp, JUICE_MAX_SDP_STRING_LEN);JUICE_ERR_SUCCESS!=error) {
         LOGGERICE("%s %d: juice_get_local_description failed: %s (%d)\n",commonLabel.data(),side,juiceErrorString(error),error);
@@ -933,7 +1002,7 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                 return false;
             LOGGERICE("putdescription: %s %d: Local description:\n%s\n",commonLabel.data(),side, con->sdp);
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                hostname,port,description,
+                hostname,rendezvousPort,description,
                 std::span((const char *)sdpdata.data(),sdpdata.size()),{},
                 rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
@@ -951,6 +1020,10 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                     if(!waitForCurrentAgent(con,agent,1))
                         return false;
                     }
+                }
+             else if(code==400) {
+                LOGGERICE("putdescription: %s %d: generation rejected\n",commonLabel.data(),side);
+                return false;
                 }
              else {
                 LOGGERICE("putdescription: %s %d: Http error\n",commonLabel.data(),side);
@@ -971,7 +1044,8 @@ bool initAgent(juice_agent *agent,int allindex) {
     const passhost_t &host= getBackupHosts()[allindex];
     std::string_view commonLabel=host.getICEname();
     ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-    std::string_view hostname=hostnames[con->hostindex];
+    const std::string hostname=con->rendezvousHost;
+    const uint16_t rendezvousPort=con->rendezvousPort;
     LOGGER("initAgent %s allindex=%d side=%d\n",commonLabel.data(),allindex,host.side);
     int32_t firstfailed=getConnectTime(allindex);
     int32_t now=time(nullptr);
@@ -984,7 +1058,7 @@ bool initAgent(juice_agent *agent,int allindex) {
     bool side=host.side;
     if(side!=givefirst) {
         con->phase=GetDescription;
-        if(!waitonDescription(agent,allindex,commonLabel,side,hostname)) {
+        if(!waitonDescription(agent,allindex,commonLabel,side,hostname,rendezvousPort)) {
            LOGGERICE("initAgent %s %d: waitonDescription failed\n",commonLabel.data(),side);
             return false;
         }
@@ -992,7 +1066,7 @@ bool initAgent(juice_agent *agent,int allindex) {
         return false;
       }
     con->phase=PutDescription;
-    if(!putDescription(allindex,agent, commonLabel, side,hostname)) { 
+    if(!putDescription(allindex,agent, commonLabel, side,hostname,rendezvousPort)) {
         LOGGERICE("initAgent %s %d: putDescription failed\n",commonLabel.data(),side);
         return false;
          }
@@ -1001,11 +1075,11 @@ bool initAgent(juice_agent *agent,int allindex) {
 
     std::jthread receive{getAddressesThread,agent,allindex,
                          con->currentAgentGeneration(),std::string(commonLabel),side,
-                         std::string(hostname)};
+                         hostname,rendezvousPort};
     LOGGERICE("initAgent %s %d: Before juice_gather_candidates\n",commonLabel.data(),side);
     con->phase=GatherCandidates;
     int ret=juice_gather_candidates(agent);
-    if(!stillworking(allindex))
+    if(con->endConnect.load()||!stillworking(allindex))
         return false;
     LOGGERICE("initAgent %s %d: After juice_gather_candidates(%p)=%d\n",commonLabel.data(),side,agent,ret);
     return ret==JUICE_ERR_SUCCESS;
