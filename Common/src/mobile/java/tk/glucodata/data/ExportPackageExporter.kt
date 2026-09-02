@@ -14,6 +14,7 @@ import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
+import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
@@ -611,6 +612,7 @@ object ExportPackageExporter {
             .put("source", source)
             .put("originSource", originSource ?: JSONObject.NULL)
             .put("sourceRecordId", sourceRecordId ?: JSONObject.NULL)
+            .put("recoveryId", recoveryId ?: JSONObject.NULL)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt ?: JSONObject.NULL)
@@ -727,6 +729,9 @@ object ExportPackageExporter {
                         source = item.optString("source", "import"),
                         originSource = item.optNullableString("originSource"),
                         sourceRecordId = item.optNullableString("sourceRecordId"),
+                        recoveryId = CloneJournalIdentity.normalizeRecoveryId(
+                            item.optNullableString("recoveryId")
+                        ) ?: CloneJournalIdentity.newRecoveryId(),
                         createdAt = item.optLong("createdAt", timestamp),
                         updatedAt = item.optLong("updatedAt", timestamp),
                         nsUploadedAt = item.optNullableLong("nsUploadedAt"),

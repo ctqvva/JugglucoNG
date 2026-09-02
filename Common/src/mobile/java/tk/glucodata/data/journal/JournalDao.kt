@@ -18,8 +18,14 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE sourceRecordId = :sourceRecordId LIMIT 1")
     suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
 
+    @Query("SELECT * FROM journal_entries WHERE recoveryId = :recoveryId LIMIT 1")
+    suspend fun getEntryByRecoveryId(recoveryId: String): JournalEntryEntity?
+
     @Query("SELECT * FROM journal_entries WHERE sourceRecordId IN (:sourceRecordIds)")
     suspend fun getEntriesBySourceRecordIds(sourceRecordIds: List<String>): List<JournalEntryEntity>
+
+    @Query("SELECT * FROM journal_entries WHERE recoveryId IN (:recoveryIds)")
+    suspend fun getEntriesByRecoveryIds(recoveryIds: List<String>): List<JournalEntryEntity>
 
     @Query(
         "SELECT * FROM journal_entries WHERE nsRemoteId = :nsRemoteId AND entryType = :entryType " +
@@ -32,6 +38,9 @@ interface JournalDao {
 
     @Query("SELECT * FROM journal_entries ORDER BY timestamp ASC, id ASC")
     suspend fun getEntries(): List<JournalEntryEntity>
+
+    @Query("SELECT * FROM journal_entries WHERE id > :afterId ORDER BY id ASC LIMIT :limit")
+    suspend fun getRecoveryEntriesPage(afterId: Long, limit: Int): List<JournalEntryEntity>
 
     @Query("SELECT * FROM journal_entries WHERE timestamp BETWEEN :startMillis AND :endMillis ORDER BY timestamp ASC, id ASC")
     suspend fun getEntriesBetween(startMillis: Long, endMillis: Long): List<JournalEntryEntity>
@@ -78,6 +87,17 @@ interface JournalDao {
 
     @Query("SELECT * FROM clone_journal_tombstones ORDER BY deletedAt ASC, entryId ASC")
     suspend fun getCloneJournalTombstones(): List<CloneJournalTombstoneEntity>
+
+    @Query(
+        "SELECT * FROM clone_journal_tombstones " +
+            "WHERE deletedAt > :afterDeletedAt OR (deletedAt = :afterDeletedAt AND entryId > :afterEntryId) " +
+            "ORDER BY deletedAt ASC, entryId ASC LIMIT :limit"
+    )
+    suspend fun getRecoveryCloneJournalTombstonesPage(
+        afterDeletedAt: Long,
+        afterEntryId: Long,
+        limit: Int,
+    ): List<CloneJournalTombstoneEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCloneJournalTombstone(tombstone: CloneJournalTombstoneEntity)

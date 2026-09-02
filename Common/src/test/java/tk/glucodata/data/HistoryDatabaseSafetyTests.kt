@@ -43,4 +43,18 @@ class HistoryDatabaseSafetyTests {
                 .contains("if (!Specific.historyDatabaseCompatible(this))")
         )
     }
+
+    @Test
+    fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("version = 21"))
+        assertTrue(source.contains("Migration(20, 21)"))
+        assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
+        assertTrue(source.contains("lower(hex(randomblob(16)))"))
+        assertTrue(source.contains("index_journal_entries_recoveryId"))
+        assertTrue(source.contains("ALTER TABLE clone_journal_tombstones ADD COLUMN recoveryId TEXT"))
+        assertTrue(source.contains("MIGRATION_20_21"))
+        assertFalse(source.contains("DROP TABLE journal_entries"))
+    }
 }

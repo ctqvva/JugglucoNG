@@ -9,4 +9,5 @@ data class CloneJournalTombstoneEntity(
     @PrimaryKey
     val entryId: Long,
     val deletedAt: Long,
+    val recoveryId: String? = null,
 )

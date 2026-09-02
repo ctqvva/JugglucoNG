@@ -8,6 +8,16 @@ internal object CloneJournalIdentity {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val ORIGIN_KEY = "clone_journal_origin_v1"
 
+    fun newRecoveryId(): String = UUID.randomUUID().toString().replace("-", "")
+
+    fun normalizeRecoveryId(value: String?): String? = value
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf(::isValidRecoveryId)
+
+    fun isValidRecoveryId(value: String): Boolean =
+        value.length == 32 && value.all { it in '0'..'9' || it in 'a'..'f' }
+
     @Synchronized
     fun originId(context: Context = Applic.app): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -22,7 +32,7 @@ internal object CloneJournalIdentity {
         return generated
     }
 
-    fun stableEntryId(
+    fun legacyStableEntryId(
         entry: JournalEntryEntity,
         localOrigin: String,
     ): String {
@@ -66,6 +76,12 @@ internal object CloneJournalIdentity {
             sourcePrefix = baseId.substringBeforeLast(":journal:"),
             baseId = "journal:${baseId.substringAfterLast(":journal:")}",
         )
+    }
+
+    fun tombstoneBaseForEntryId(stableEntryId: String, type: JournalEntryType): String? {
+        val suffix = ":${type.storageValue}"
+        if (!stableEntryId.endsWith(suffix)) return null
+        return stableEntryId.removeSuffix(suffix).takeIf(::isValidStableBaseId)
     }
 
     fun localRowId(

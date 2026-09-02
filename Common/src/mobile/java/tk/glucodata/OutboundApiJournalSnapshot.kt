@@ -333,7 +333,9 @@ object OutboundApiJournalSnapshot {
         entries
             .filter { it.timestamp >= eventWindowStart }
             .takeLast(64)
-            .forEach { entry -> events.put(entry.toTransferJson(presetEntitiesById, foodsById)) }
+            .forEach { entry ->
+                events.put(entry.toTransferJson(presetEntitiesById, foodsById, includeRecoveryId = false))
+            }
         return JSONObject()
             .put("schema", "tk.glucodata.journal.snapshot.v2")
             .put("timestamp", atMillis)
@@ -414,7 +416,9 @@ object OutboundApiJournalSnapshot {
         dao.getEntriesBetween(startMillis, atMillis)
             .filter { isCloneJournalExportSource(it.source) }
             .takeLast(CLONE_JOURNAL_MAX_EVENTS)
-            .forEach { entry -> events.put(entry.toTransferJson(presetsById, foodsById)) }
+            .forEach { entry ->
+                events.put(entry.toTransferJson(presetsById, foodsById, includeRecoveryId = true))
+            }
         val deleted = JSONArray()
         dao.getCloneJournalTombstonesSince(
             (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
@@ -424,6 +428,7 @@ object OutboundApiJournalSnapshot {
                 deleted.put(
                     JSONObject()
                         .put("id", tombstone.entryId)
+                        .put("recoveryId", tombstone.recoveryId ?: JSONObject.NULL)
                         .put("deletedAt", tombstone.deletedAt)
                 )
             }
@@ -437,7 +442,12 @@ object OutboundApiJournalSnapshot {
     private data class CloneJournalEnvelope(
         val sourcePrefix: String,
         val events: JSONArray,
-        val deletedEntryIds: List<Long>,
+        val deletedEntries: List<CloneJournalDeletion>,
+    )
+
+    private data class CloneJournalDeletion(
+        val entryId: Long,
+        val recoveryId: String?,
     )
 
     private fun parseCloneJournalEnvelope(raw: String): CloneJournalEnvelope {
@@ -449,17 +459,23 @@ object OutboundApiJournalSnapshot {
         require(events.length() <= CLONE_JOURNAL_MAX_EVENTS)
         val deleted = root.optJSONArray("deleted") ?: JSONArray()
         require(deleted.length() <= CLONE_JOURNAL_MAX_TOMBSTONES)
-        val deletedEntryIds = buildList {
+        val deletedEntries = buildList {
             for (index in 0 until deleted.length()) {
-                val id = deleted.optJSONObject(index)?.optLong("id", 0L) ?: 0L
+                val item = deleted.optJSONObject(index) ?: continue
+                val id = item.optLong("id", 0L)
                 require(id > 0L)
-                add(id)
+                val recoveryText = item.optString("recoveryId", "").trim()
+                val recoveryId = recoveryText.takeIf(String::isNotEmpty)?.let { value ->
+                    CloneJournalIdentity.normalizeRecoveryId(value)
+                        ?: throw IllegalArgumentException("Invalid Clone journal recovery identity")
+                }
+                add(CloneJournalDeletion(id, recoveryId))
             }
-        }.distinct()
+        }.distinctBy { it.entryId to it.recoveryId }
         return CloneJournalEnvelope(
             sourcePrefix = "clone:$origin",
             events = events,
-            deletedEntryIds = deletedEntryIds,
+            deletedEntries = deletedEntries,
         )
     }
 
@@ -472,16 +488,20 @@ object OutboundApiJournalSnapshot {
         repository.ensureDefaultInsulinPresets()
         val presets = repository.getInsulinPresetsSnapshot()
         var imported = 0
-        val deletedSourceRecordIds = envelope.deletedEntryIds.flatMap { entryId ->
+        val deletedSourceRecordIds = envelope.deletedEntries.flatMap { deletion ->
             JournalTreatmentTransfer.sourceRecordIdsForBaseId(
                 envelope.sourcePrefix,
-                cloneJournalTransferIdentifier(entryId),
+                cloneJournalTransferIdentifier(deletion.entryId),
             )
         }
-        val deleted = if (deletedSourceRecordIds.isNotEmpty()) {
+        val deletedRecoveryIds = envelope.deletedEntries.mapNotNull { it.recoveryId }
+        val deleted = if (deletedSourceRecordIds.isNotEmpty() || deletedRecoveryIds.isNotEmpty()) {
             CloneSensorRegistry.whileReceptionEnabled {
                 runBlocking {
-                    repository.deleteMirroredCloneEntriesBySourceRecordIds(deletedSourceRecordIds)
+                    repository.deleteMirroredCloneEntries(
+                        recoveryIds = deletedRecoveryIds,
+                        sourceRecordIds = deletedSourceRecordIds,
+                    )
                 }
             } ?: return 0
         } else {
@@ -609,7 +629,8 @@ object OutboundApiJournalSnapshot {
 
     private fun JournalEntryEntity.toTransferJson(
         presetsById: Map<Long, JournalInsulinPresetEntity>,
-        foodsById: Map<Long, JournalFoodEntity>
+        foodsById: Map<Long, JournalFoodEntity>,
+        includeRecoveryId: Boolean,
     ): JSONObject {
         val type = JournalEntryType.fromStorage(entryType)
         val transferId = cloneJournalTransferIdentifier(id)
@@ -623,7 +644,7 @@ object OutboundApiJournalSnapshot {
             .put("date", timestamp)
             .put("eventType", defaultEventType(type))
             .put("type", type.storageValue)
-        return treatment
+        val result = treatment
             .put("id", id)
             .put("timestamp", timestamp)
             .put("sensorSerial", sensorSerial)
@@ -645,6 +666,10 @@ object OutboundApiJournalSnapshot {
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt)
             .put("nsRemoteId", nsRemoteId)
+        if (includeRecoveryId) {
+            result.put("recoveryId", recoveryId ?: JSONObject.NULL)
+        }
+        return result
     }
 
     internal fun cloneJournalSourceForTransport(transportCode: Int): JournalEntrySource =
