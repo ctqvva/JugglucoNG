@@ -61,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -82,14 +83,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 import tk.glucodata.Applic
 import tk.glucodata.OutboundApi
+import tk.glucodata.OutboundApiInsulinTokens
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
+import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.sms.SmsWatchdog
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
@@ -1109,6 +1114,48 @@ private fun TemplateEditor(
             )
         }
     }
+
+    // Insulin-type tokens are spelled after the user's own preset names, which
+    // may be in any script — chips are the only practical way to enter them.
+    val insulinTokens = insulinTemplateTokens()
+    if (insulinTokens.isNotEmpty()) {
+        SettingsSubsectionTitle(stringResource(R.string.outbound_api_insulin_tokens))
+        Text(
+            text = stringResource(R.string.outbound_api_insulin_tokens_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            insulinTokens.forEach { token ->
+                AssistChip(
+                    onClick = { replaceSelection(token) },
+                    label = { Text(token) }
+                )
+            }
+        }
+    }
+}
+
+/** Tokens for the insulin types the journal currently has active, in display order. */
+@Composable
+private fun insulinTemplateTokens(): List<String> {
+    val tokens by produceState(initialValue = emptyList<String>()) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                OutboundApiInsulinTokens.tokensForNames(
+                    JournalRepository().getInsulinPresetsSnapshot()
+                        .filterNot { it.isArchived }
+                        .sortedBy { it.sortOrder }
+                        .map { it.displayName }
+                )
+            }.getOrDefault(emptyList())
+        }
+    }
+    return tokens
 }
 
 @Composable

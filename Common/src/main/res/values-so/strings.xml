@@ -2197,6 +2197,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="outbound_api_headers_placeholder">Oggolaanshaha: Calaamadda xanbaarsan</string>
     <string name="outbound_api_message_template">Qaabka fariinta</string>
     <string name="outbound_api_template_desc">Taabo calaamada hoose si aad u geliso</string>
+    <string name="outbound_api_insulin_tokens">Noocyada insuliinta</string>
+    <string name="outbound_api_insulin_tokens_desc">Nooc kasta oo insuliin ah oo firfircoon wuxuu leeyahay calaamado qiyaasta ugu dambeysay, waqtigeeda, daqiiqadaha laga soo bilaabo, cutubyada haray iyo wadarta maanta.</string>
     <string name="outbound_api_min_interval">Muddada ugu yar (daqiiqado)</string>
     <string name="outbound_api_min_interval_desc">0 waxay dirtaa akhriska tooska ah ee la aqbalo.</string>
     <string name="outbound_api_trigger">Kicin</string>
