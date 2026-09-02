@@ -209,11 +209,19 @@ class CloneRecoveryPackageIOTests {
                     events += "transaction-end"
                 },
                 beforeVisit = { events += "replace" },
+                afterVisit = { events += "finish-import" },
                 visitor = { events += "import" },
             )
 
             assertEquals(
-                listOf("validate", "transaction-start", "replace", "import", "transaction-end"),
+                listOf(
+                    "validate",
+                    "transaction-start",
+                    "replace",
+                    "import",
+                    "finish-import",
+                    "transaction-end",
+                ),
                 events,
             )
         }
