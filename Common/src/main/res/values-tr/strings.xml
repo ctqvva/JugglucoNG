@@ -1828,7 +1828,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_scan_prompt">Juggluco Mirror QR kodunu tara</string>
     <string name="mirror_connect_device_title">Bu cihaza bağlanılsın mı?</string>
     <string name="mirror_connect_qr_message">Bir Juggluco Mirror QR kodu tarandı. Glikoz verileri uzak cihazla eşitlenecek.</string>
-    <string name="mirror_connect_qr_turn_message">Bu Hibrit QR, bu cihazın TURN sunucusu ayarlarını da değiştirir.</string>
+    <string name="mirror_connect_qr_turn_message">Bu Hibrit QR, bu cihazın Hibrit yapılandırmasını da değiştirir.</string>
     <string name="mirror_connect_action">Bağlan</string>
     <string name="mirror_connect_nearby_title">%1$s cihazına bağlanılsın mı?</string>
     <string name="mirror_connect_nearby_message">%1$s:%2$d adresinde bulundu.\nBu cihaz %3$s cihazından glikoz verisi alacak.</string>

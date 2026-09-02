@@ -1800,7 +1800,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_scan_prompt">Skanna Juggluco Mirror-QR</string>
     <string name="mirror_connect_device_title">Ansluta till den här enheten?</string>
     <string name="mirror_connect_qr_message">En Juggluco Mirror-QR-kod skannades. Detta synkar glukosdata med fjärrenheten.</string>
-    <string name="mirror_connect_qr_turn_message">Denna hybrid-QR ersätter även enhetens TURN-serverinställningar.</string>
+    <string name="mirror_connect_qr_turn_message">Denna hybrid-QR ersätter även enhetens hybridkonfiguration.</string>
     <string name="mirror_connect_action">Anslut</string>
     <string name="mirror_connect_nearby_title">Anslut till %1$s?</string>
     <string name="mirror_connect_nearby_message">Hittad på %1$s:%2$d.\nDen här enheten tar emot glukosdata från %3$s.</string>

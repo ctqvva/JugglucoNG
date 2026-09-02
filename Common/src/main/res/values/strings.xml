@@ -2383,7 +2383,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_scan_prompt">Scan Juggluco Mirror QR</string>
     <string name="mirror_connect_device_title">Connect to this device?</string>
     <string name="mirror_connect_qr_message">A Juggluco Mirror QR code was scanned. This will sync glucose data with the remote device.</string>
-    <string name="mirror_connect_qr_turn_message">This Hybrid QR also replaces this device\'s TURN server settings.</string>
+    <string name="mirror_connect_qr_turn_message">This Hybrid QR also replaces this device\'s Hybrid configuration.</string>
     <string name="mirror_connect_action">Connect</string>
     <string name="mirror_connect_nearby_title">Connect to %1$s?</string>
     <string name="mirror_connect_nearby_message">Found at %1$s:%2$d.\nThis will receive glucose data from %3$s.</string>

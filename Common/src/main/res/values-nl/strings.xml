@@ -1843,7 +1843,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_scan_prompt">Scan Juggluco Mirror QR</string>
     <string name="mirror_connect_device_title">Verbinden met dit apparaat?</string>
     <string name="mirror_connect_qr_message">Er is een Juggluco Mirror QR-code gescand. Hiermee worden glucosegegevens met het externe apparaat gesynchroniseerd.</string>
-    <string name="mirror_connect_qr_turn_message">Deze hybride QR vervangt ook de TURN-serverinstellingen van dit apparaat.</string>
+    <string name="mirror_connect_qr_turn_message">Deze hybride QR vervangt ook de hybride configuratie van dit apparaat.</string>
     <string name="mirror_connect_action">Verbinden</string>
     <string name="mirror_connect_nearby_title">Verbinden met %1$s?</string>
     <string name="mirror_connect_nearby_message">Gevonden op %1$s:%2$d.\nDit apparaat ontvangt glucosegegevens van %3$s.</string>

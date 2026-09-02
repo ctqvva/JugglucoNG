@@ -1847,7 +1847,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_scan_prompt">Сканируйте QR зеркала Juggluco</string>
     <string name="mirror_connect_device_title">Подключиться к этому устройству?</string>
     <string name="mirror_connect_qr_message">Отсканирован QR-код зеркала Juggluco. Данные глюкозы будут синхронизироваться с удаленным устройством.</string>
-    <string name="mirror_connect_qr_turn_message">Этот гибридный QR также заменит настройки TURN-сервера на этом устройстве.</string>
+    <string name="mirror_connect_qr_turn_message">Этот гибридный QR также заменит гибридную конфигурацию на этом устройстве.</string>
     <string name="mirror_connect_action">Подключить</string>
     <string name="mirror_connect_nearby_title">Подключиться к %1$s?</string>
     <string name="mirror_connect_nearby_message">Найдено по адресу %1$s:%2$d.\nЭто устройство будет получать данные глюкозы от %3$s.</string>

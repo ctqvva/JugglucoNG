@@ -1835,7 +1835,7 @@
     <string name="mirror_scan_prompt">Skanuj QR lustra Juggluco</string>
     <string name="mirror_connect_device_title">Połączyć z tym urządzeniem?</string>
     <string name="mirror_connect_qr_message">Zeskanowano kod QR lustra Juggluco. Dane glukozy będą synchronizowane ze zdalnym urządzeniem.</string>
-    <string name="mirror_connect_qr_turn_message">Ten hybrydowy QR zastąpi również ustawienia serwera TURN na tym urządzeniu.</string>
+    <string name="mirror_connect_qr_turn_message">Ten hybrydowy QR zastąpi również konfigurację hybrydową na tym urządzeniu.</string>
     <string name="mirror_connect_action">Połącz</string>
     <string name="mirror_connect_nearby_title">Połączyć z %1$s?</string>
     <string name="mirror_connect_nearby_message">Znaleziono pod %1$s:%2$d.\nTo urządzenie będzie odbierać dane glukozy od %3$s.</string>

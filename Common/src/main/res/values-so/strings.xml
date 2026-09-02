@@ -2124,7 +2124,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mirror_scan_prompt">Sawirka muraayadda Juggluco QR</string>
     <string name="mirror_connect_device_title">Ku xidhnow qalabkan?</string>
     <string name="mirror_connect_qr_message">Koodhka QR ee Juggluco Mirror waa la sawiray. Tani waxay isku dhejin doontaa xogta gulukooska iyo qalabka fog.</string>
-    <string name="mirror_connect_qr_turn_message">QR-kan isku-dhafka ah wuxuu sidoo kale beddelayaa dejimaha adeegaha TURN ee qalabkan.</string>
+    <string name="mirror_connect_qr_turn_message">QR-kan isku-dhafka ah wuxuu sidoo kale beddelayaa habaynta isku-dhafka ah ee qalabkan.</string>
     <string name="mirror_connect_action">Ku xidhnow</string>
     <string name="mirror_connect_nearby_title">Ku xidh %1$s?</string>
     <string name="mirror_connect_nearby_message">Laga helay %1$s:%2$d.\nTani waxay ka heli doontaa xogta gulukooska %3$s.</string>

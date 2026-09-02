@@ -1925,7 +1925,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_scan_prompt">Juggluco-Mirror-QR scannen</string>
     <string name="mirror_connect_device_title">Mit diesem Gerät verbinden?</string>
     <string name="mirror_connect_qr_message">Ein Juggluco-Mirror-QR-Code wurde gescannt. Dadurch werden Glukosedaten mit dem entfernten Gerät synchronisiert.</string>
-    <string name="mirror_connect_qr_turn_message">Dieser Hybrid-QR ersetzt auch die TURN-Servereinstellungen dieses Geräts.</string>
+    <string name="mirror_connect_qr_turn_message">Dieser Hybrid-QR ersetzt auch die Hybrid-Konfiguration dieses Geräts.</string>
     <string name="mirror_connect_action">Verbinden</string>
     <string name="mirror_connect_nearby_title">Mit %1$s verbinden?</string>
     <string name="mirror_connect_nearby_message">Gefunden unter %1$s:%2$d.\nDieses Gerät empfängt Glukosedaten von %3$s.</string>
