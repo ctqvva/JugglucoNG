@@ -438,6 +438,18 @@ public class Natives {
 
         public static native void wakebackup();
 
+        public static native String probeCloneRecovery(int allindex);
+
+        public static native String startCloneRecovery(int allindex, String modeWire,
+                        boolean includeJournal);
+
+        public static native String cancelCloneRecovery(int allindex);
+
+        public static native String cloneRecoveryStatus(int allindex);
+
+        /** Called by the durable Java recovery scheduler after preparation or backoff. */
+        public static native boolean wakeCloneRecovery(String iceLabel);
+
         public static native void wakestreamhereonly();
 
         public static native void wakehereonly();

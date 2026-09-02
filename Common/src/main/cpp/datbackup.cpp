@@ -22,6 +22,485 @@
 #include "datbackup.hpp"
 #include "nums/numdata.hpp"
 #include "net/Connect.hpp"
+#include <limits>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+extern bool javaCloneRecoverySenderBridgeReady();
+extern std::vector<uint8_t> javaProbeCloneRecoveryOutgoing(
+    const char *iceLabel, int64_t connectionGeneration);
+extern std::vector<uint8_t> javaStartCloneRecoveryOutgoing(
+    const char *iceLabel, int64_t connectionGeneration, const char *modeWire,
+    bool includeJournal);
+extern std::vector<uint8_t> javaNextCloneRecoveryOutgoingAction(
+    const char *iceLabel, int64_t connectionGeneration);
+extern int javaReportCloneRecoveryOutgoingResult(
+    const char *iceLabel, int64_t connectionGeneration, const uint8_t *result,
+    size_t resultSize);
+extern std::vector<uint8_t> javaCloneRecoveryOutgoingStatus(
+    const char *iceLabel);
+extern std::vector<uint8_t> javaCancelCloneRecoveryOutgoing(
+    const char *iceLabel);
+extern int javaResumeCloneRecoveryOutgoing(const char *iceLabel,
+                                           int64_t connectionGeneration);
+
+namespace {
+
+constexpr uint8_t cloneRecoveryActionVersion = 1;
+constexpr uint8_t cloneRecoveryResultVersion = 1;
+constexpr size_t cloneRecoveryActionHeaderBytes = 20;
+constexpr size_t cloneRecoveryResultHeaderBytes = 16;
+constexpr size_t cloneRecoveryMaximumPathBytes = 256;
+constexpr uint32_t cloneRecoveryMaximumReadBytes = 64U * 1024U;
+constexpr uint32_t cloneRecoveryMaximumControlBytes = 256U * 1024U;
+constexpr uint32_t cloneRecoveryMaximumChunkBytes = 256U * 1024U;
+constexpr uint64_t cloneRecoveryMaximumPackageBytes = 512ULL * 1024ULL * 1024ULL;
+constexpr std::string_view cloneRecoveryCapabilityPath =
+    "mirror/backfill/capabilities-v1";
+constexpr std::string_view cloneRecoveryJobsPrefix = "mirror/backfill/jobs/";
+constexpr size_t cloneRecoveryJobIdLength = 32;
+
+enum class CloneRecoveryActionKind : uint8_t {
+  probeCapabilities = 1,
+  putManifest = 2,
+  putPackageChunk = 3,
+  putCommit = 4,
+  getStatus = 5,
+  putCancel = 6,
+};
+
+enum class CloneRecoveryResultOutcome : uint8_t {
+  ok = 1,
+  notFound = 2,
+  transportError = 3,
+  rejected = 4,
+};
+
+struct CloneRecoveryActionView {
+  CloneRecoveryActionKind kind{};
+  uint64_t offset = 0;
+  std::string_view path;
+  const uint8_t *payload = nullptr;
+  uint32_t payloadBytes = 0;
+  uint32_t requestedBytes = 0;
+};
+
+struct CloneRecoveryHostBinding {
+  int allindex = -1;
+  int sendindex = -1;
+  std::string iceLabel;
+  Connect *connect = nullptr;
+  crypt_t *crypt = nullptr;
+  uint64_t connectionGeneration = 0;
+};
+
+struct CloneRecoveryCapabilityProgress {
+  uint64_t generation = 0;
+  uint64_t nextOffset = 0;
+  bool confirmed = false;
+};
+
+std::mutex cloneRecoveryCapabilityMutex;
+std::unordered_map<std::string, CloneRecoveryCapabilityProgress>
+    cloneRecoveryCapabilities;
+std::mutex cloneRecoveryResumeMutex;
+std::unordered_map<std::string, uint64_t> cloneRecoveryResumedGenerations;
+
+uint32_t readUint32LittleEndian(const uint8_t *bytes) {
+  return static_cast<uint32_t>(bytes[0]) |
+         (static_cast<uint32_t>(bytes[1]) << 8U) |
+         (static_cast<uint32_t>(bytes[2]) << 16U) |
+         (static_cast<uint32_t>(bytes[3]) << 24U);
+}
+
+uint64_t readUint64LittleEndian(const uint8_t *bytes) {
+  uint64_t value = 0;
+  for (unsigned index = 0; index < 8; ++index) {
+    value |= static_cast<uint64_t>(bytes[index]) << (index * 8U);
+  }
+  return value;
+}
+
+void appendUint32LittleEndian(std::vector<uint8_t> &out, uint32_t value) {
+  for (unsigned index = 0; index < 4; ++index) {
+    out.push_back(static_cast<uint8_t>(value >> (index * 8U)));
+  }
+}
+
+void appendUint64LittleEndian(std::vector<uint8_t> &out, uint64_t value) {
+  for (unsigned index = 0; index < 8; ++index) {
+    out.push_back(static_cast<uint8_t>(value >> (index * 8U)));
+  }
+}
+
+bool isCloneRecoveryJobPath(std::string_view path, std::string_view filename) {
+  const size_t expectedBytes = cloneRecoveryJobsPrefix.size() +
+                               cloneRecoveryJobIdLength + 1U + filename.size();
+  if (path.size() != expectedBytes ||
+      path.substr(0, cloneRecoveryJobsPrefix.size()) !=
+          cloneRecoveryJobsPrefix) {
+    return false;
+  }
+  const std::string_view jobId =
+      path.substr(cloneRecoveryJobsPrefix.size(), cloneRecoveryJobIdLength);
+  for (const char value : jobId) {
+    if (!((value >= '0' && value <= '9') ||
+          (value >= 'a' && value <= 'f'))) {
+      return false;
+    }
+  }
+  const size_t slash = cloneRecoveryJobsPrefix.size() +
+                       cloneRecoveryJobIdLength;
+  return path[slash] == '/' && path.substr(slash + 1U) == filename;
+}
+
+bool validateCloneRecoveryActionPath(CloneRecoveryActionKind kind,
+                                     std::string_view path) {
+  switch (kind) {
+  case CloneRecoveryActionKind::probeCapabilities:
+    return path == cloneRecoveryCapabilityPath;
+  case CloneRecoveryActionKind::putManifest:
+    return isCloneRecoveryJobPath(path, "manifest.json");
+  case CloneRecoveryActionKind::putPackageChunk:
+    return isCloneRecoveryJobPath(path, "package.jsonl.gz");
+  case CloneRecoveryActionKind::putCommit:
+    return isCloneRecoveryJobPath(path, "commit.json");
+  case CloneRecoveryActionKind::getStatus:
+    return isCloneRecoveryJobPath(path, "status.json");
+  case CloneRecoveryActionKind::putCancel:
+    return isCloneRecoveryJobPath(path, "cancel.json");
+  }
+  return false;
+}
+
+bool parseCloneRecoveryAction(const std::vector<uint8_t> &raw,
+                              CloneRecoveryActionView &out) {
+  if (raw.size() < cloneRecoveryActionHeaderBytes ||
+      raw.size() > cloneRecoveryActionHeaderBytes +
+                       cloneRecoveryMaximumPathBytes +
+                       cloneRecoveryMaximumChunkBytes ||
+      raw[0] != cloneRecoveryActionVersion || raw[2] != 0 || raw[3] != 0) {
+    return false;
+  }
+  const uint8_t kindCode = raw[1];
+  if (kindCode < static_cast<uint8_t>(CloneRecoveryActionKind::probeCapabilities) ||
+      kindCode > static_cast<uint8_t>(CloneRecoveryActionKind::putCancel)) {
+    return false;
+  }
+  const uint64_t offset = readUint64LittleEndian(raw.data() + 4);
+  const uint32_t pathBytes = readUint32LittleEndian(raw.data() + 12);
+  const uint32_t payloadBytes = readUint32LittleEndian(raw.data() + 16);
+  if (offset > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) ||
+      pathBytes == 0 || pathBytes > cloneRecoveryMaximumPathBytes ||
+      payloadBytes > cloneRecoveryMaximumChunkBytes ||
+      pathBytes > raw.size() - cloneRecoveryActionHeaderBytes ||
+      payloadBytes > raw.size() - cloneRecoveryActionHeaderBytes - pathBytes ||
+      cloneRecoveryActionHeaderBytes + static_cast<size_t>(pathBytes) +
+              static_cast<size_t>(payloadBytes) !=
+          raw.size()) {
+    return false;
+  }
+  const char *pathStart = reinterpret_cast<const char *>(
+      raw.data() + cloneRecoveryActionHeaderBytes);
+  if (std::char_traits<char>::find(pathStart, pathBytes, '\0')) {
+    return false;
+  }
+  const auto kind = static_cast<CloneRecoveryActionKind>(kindCode);
+  const std::string_view path(pathStart, pathBytes);
+  if (!validateCloneRecoveryActionPath(kind, path)) {
+    return false;
+  }
+  const uint8_t *payload = raw.data() + cloneRecoveryActionHeaderBytes + pathBytes;
+  uint32_t requestedBytes = 0;
+  switch (kind) {
+  case CloneRecoveryActionKind::probeCapabilities:
+  case CloneRecoveryActionKind::getStatus:
+    if (payloadBytes != sizeof(uint32_t)) {
+      return false;
+    }
+    requestedBytes = readUint32LittleEndian(payload);
+    if (requestedBytes == 0 || requestedBytes > cloneRecoveryMaximumReadBytes ||
+        offset > cloneRecoveryMaximumControlBytes ||
+        requestedBytes > cloneRecoveryMaximumControlBytes - offset) {
+      return false;
+    }
+    break;
+  case CloneRecoveryActionKind::putManifest:
+  case CloneRecoveryActionKind::putCommit:
+  case CloneRecoveryActionKind::putCancel:
+    if (offset != 0 || payloadBytes == 0 ||
+        payloadBytes > cloneRecoveryMaximumControlBytes) {
+      return false;
+    }
+    break;
+  case CloneRecoveryActionKind::putPackageChunk:
+    if (payloadBytes == 0 || offset > cloneRecoveryMaximumPackageBytes ||
+        payloadBytes > cloneRecoveryMaximumPackageBytes - offset) {
+      return false;
+    }
+    break;
+  }
+  out = {.kind = kind,
+         .offset = offset,
+         .path = path,
+         .payload = payload,
+         .payloadBytes = payloadBytes,
+         .requestedBytes = requestedBytes};
+  return true;
+}
+
+std::vector<uint8_t>
+encodeCloneRecoveryResult(CloneRecoveryResultOutcome outcome,
+                          uint64_t connectionGeneration,
+                          const uint8_t *payload = nullptr,
+                          uint32_t payloadBytes = 0) {
+  if (connectionGeneration >
+          static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) ||
+      payloadBytes > cloneRecoveryMaximumReadBytes ||
+      (payloadBytes > 0 && !payload) ||
+      (outcome != CloneRecoveryResultOutcome::ok && payloadBytes != 0)) {
+    outcome = CloneRecoveryResultOutcome::rejected;
+    payload = nullptr;
+    payloadBytes = 0;
+  }
+  std::vector<uint8_t> result;
+  result.reserve(cloneRecoveryResultHeaderBytes + payloadBytes);
+  result.push_back(cloneRecoveryResultVersion);
+  result.push_back(static_cast<uint8_t>(outcome));
+  result.push_back(0);
+  result.push_back(0);
+  appendUint64LittleEndian(result, connectionGeneration);
+  appendUint32LittleEndian(result, payloadBytes);
+  if (payloadBytes) {
+    result.insert(result.end(), payload, payload + payloadBytes);
+  }
+  return result;
+}
+
+bool validCloneRecoveryIceLabel(std::string_view label) {
+  if (label.empty() || label.size() > 256) {
+    return false;
+  }
+  for (const unsigned char value : label) {
+    if (value < 0x20 || value == 0x7f) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool bindCloneRecoveryHostByAllIndex(int allindex,
+                                     CloneRecoveryHostBinding &binding,
+                                     bool requireConnected) {
+  if (!backup || allindex < 0 || allindex >= backup->gethostnr()) {
+    return false;
+  }
+  passhost_t &host = backup->getupdatedata()->allhosts[allindex];
+  const int sendindex = host.index;
+  if (host.deactivated || host.wearos || !host.ICE || host.receivedatafrom() ||
+      !host.haspass() || sendindex < 0 ||
+      sendindex >= backup->getupdatedata()->sendnr ||
+      sendindex >= static_cast<int>(backup->con_vars.size())) {
+    return false;
+  }
+  updateone &sender = backup->getupdatedata()->tosend[sendindex];
+  if (sender.allindex != allindex) {
+    return false;
+  }
+  const std::string_view labelView = host.getICEname();
+  if (!validCloneRecoveryIceLabel(labelView)) {
+    return false;
+  }
+  Connect *connect = sender.getConnect();
+  crypt_t *crypt = sender.getcrypt();
+  if (!connect || connect->allindex != allindex || !crypt ||
+      (requireConnected && !connect->isConnectedSender())) {
+    return false;
+  }
+  const uint64_t generation = connect->senderConnectionGeneration();
+  if (generation > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    return false;
+  }
+  binding = {.allindex = allindex,
+             .sendindex = sendindex,
+             .iceLabel = std::string(labelView),
+             .connect = connect,
+             .crypt = crypt,
+             .connectionGeneration = generation};
+  return true;
+}
+
+bool bindCloneRecoveryHostBySendIndex(int sendindex,
+                                      CloneRecoveryHostBinding &binding,
+                                      bool requireConnected) {
+  if (!backup || sendindex < 0 ||
+      sendindex >= backup->getupdatedata()->sendnr) {
+    return false;
+  }
+  const int allindex = backup->getupdatedata()->tosend[sendindex].allindex;
+  return bindCloneRecoveryHostByAllIndex(allindex, binding, requireConnected) &&
+         binding.sendindex == sendindex;
+}
+
+bool bindCloneRecoveryHostByAllIndexSafely(
+    int allindex, CloneRecoveryHostBinding &binding, bool requireConnected) {
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> hostLock(change_host_mutex);
+#endif
+  return bindCloneRecoveryHostByAllIndex(allindex, binding, requireConnected);
+}
+
+bool bindCloneRecoveryHostBySendIndexSafely(
+    int sendindex, CloneRecoveryHostBinding &binding, bool requireConnected) {
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> hostLock(change_host_mutex);
+#endif
+  return bindCloneRecoveryHostBySendIndex(sendindex, binding,
+                                          requireConnected);
+}
+
+bool cloneRecoveryCapabilityConfirmed(const std::string &label,
+                                      uint64_t generation) {
+  const std::lock_guard<std::mutex> lock(cloneRecoveryCapabilityMutex);
+  const auto found = cloneRecoveryCapabilities.find(label);
+  return found != cloneRecoveryCapabilities.end() &&
+         found->second.generation == generation && found->second.confirmed;
+}
+
+bool acceptCloneRecoveryCapabilityPage(const std::string &label,
+                                       uint64_t generation, uint64_t offset,
+                                       uint32_t requestedBytes,
+                                       uint32_t receivedBytes) {
+  const std::lock_guard<std::mutex> lock(cloneRecoveryCapabilityMutex);
+  CloneRecoveryCapabilityProgress &progress = cloneRecoveryCapabilities[label];
+  if (progress.generation != generation || offset == 0) {
+    progress = {.generation = generation, .nextOffset = 0, .confirmed = false};
+  }
+  if (progress.generation != generation || progress.confirmed ||
+      offset != progress.nextOffset || receivedBytes > requestedBytes) {
+    progress.confirmed = false;
+    return false;
+  }
+  progress.nextOffset += receivedBytes;
+  if (receivedBytes < requestedBytes) {
+    progress.confirmed = progress.nextOffset > 0;
+  }
+  return true;
+}
+
+void rejectCloneRecoveryCapability(const std::string &label,
+                                   uint64_t generation) {
+  const std::lock_guard<std::mutex> lock(cloneRecoveryCapabilityMutex);
+  auto found = cloneRecoveryCapabilities.find(label);
+  if (found != cloneRecoveryCapabilities.end() &&
+      found->second.generation == generation) {
+    cloneRecoveryCapabilities.erase(found);
+  }
+}
+
+bool cloneRecoveryGenerationWasResumed(const std::string &label,
+                                       uint64_t generation) {
+  const std::lock_guard<std::mutex> lock(cloneRecoveryResumeMutex);
+  const auto found = cloneRecoveryResumedGenerations.find(label);
+  return found != cloneRecoveryResumedGenerations.end() &&
+         found->second == generation;
+}
+
+void markCloneRecoveryGenerationResumed(const std::string &label,
+                                        uint64_t generation) {
+  const std::lock_guard<std::mutex> lock(cloneRecoveryResumeMutex);
+  cloneRecoveryResumedGenerations[label] = generation;
+}
+
+CloneRecoveryResultOutcome readCloneRecoveryVirtualFile(
+    const CloneRecoveryHostBinding &binding,
+    const CloneRecoveryActionView &action, std::vector<uint8_t> &payload) {
+  if (action.offset > std::numeric_limits<uint32_t>::max()) {
+    return CloneRecoveryResultOutcome::rejected;
+  }
+  const size_t pathBytes = action.path.size() + 1U;
+  if (pathBytes > std::numeric_limits<uint16_t>::max()) {
+    return CloneRecoveryResultOutcome::rejected;
+  }
+  constexpr size_t alignment = alignof(askfile);
+  const size_t commandBytes =
+      ((sizeof(askfile) + pathBytes + alignment - 1U) / alignment) * alignment;
+  if (commandBytes > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return CloneRecoveryResultOutcome::rejected;
+  }
+  std::vector<uint8_t> command(commandBytes, 0);
+  askfile *ask = reinterpret_cast<askfile *>(command.data());
+  ask->com = saskfile;
+  ask->namelen = static_cast<uint16_t>(pathBytes);
+  ask->off = static_cast<uint32_t>(action.offset);
+  ask->len = action.requestedBytes;
+  memcpy(ask->name, action.path.data(), action.path.size());
+  ask->name[action.path.size()] = '\0';
+  if (!binding.connect->s_noacksendcommand(
+          binding.crypt, command.data(), static_cast<int>(commandBytes))) {
+    return CloneRecoveryResultOutcome::transportError;
+  }
+  dataonlyptr response = binding.connect->receivedataonly_s(
+      binding.crypt, static_cast<int>(action.requestedBytes));
+  if (!response) {
+    return CloneRecoveryResultOutcome::transportError;
+  }
+  if (response->len == -1) {
+    return CloneRecoveryResultOutcome::notFound;
+  }
+  if (response->len < 0 ||
+      static_cast<uint32_t>(response->len) > action.requestedBytes) {
+    return CloneRecoveryResultOutcome::rejected;
+  }
+  payload.assign(response->data, response->data + response->len);
+  return CloneRecoveryResultOutcome::ok;
+}
+
+std::string recoveryBytesToString(const std::vector<uint8_t> &bytes) {
+  if (bytes.empty()) {
+    return {};
+  }
+  return std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size());
+}
+
+void wakeCloneRecoverySender(int sendindex) {
+  if (!backup || sendindex < 0 ||
+      sendindex >= static_cast<int>(backup->con_vars.size())) {
+    return;
+  }
+  if (Backup::condvar_t *condition = backup->con_vars[sendindex]) {
+    condition->wakebackup(Backup::wakerecovery);
+  }
+}
+
+bool wakeCloneRecoverySenderForLabel(std::string_view iceLabel) {
+  if (!validCloneRecoveryIceLabel(iceLabel)) {
+    return false;
+  }
+#ifndef TESTMENU
+  /* Host edits take this mutex before replacing indices, connections or
+     sender condition variables. Keep it only through lookup and wake: the
+     Java callback and all transport I/O happen after it is released. */
+  const std::lock_guard<std::mutex> hostLock(change_host_mutex);
+#endif
+  if (!backup) {
+    return false;
+  }
+  const int hostCount = backup->gethostnr();
+  for (int allindex = 0; allindex < hostCount; ++allindex) {
+    CloneRecoveryHostBinding binding;
+    if (bindCloneRecoveryHostByAllIndex(allindex, binding, false) &&
+        binding.iceLabel == iceLabel) {
+      wakeCloneRecoverySender(binding.sendindex);
+      return true;
+    }
+  }
+  return false;
+}
+
+} // namespace
 void receivetimeout(int sock,int secs) ;
 void sendtimeout(int sock,int secs) ;
 extern bool sendResetDevices(crypt_t *pass,const int sock) ;
@@ -60,6 +539,183 @@ uint32_t getConnectTime(const int allindex) {
 uint32_t getConnectTime(const passhost_t *host) {
    return getConnectTime(host-backup->getupdatedata()->allhosts);
    };
+
+int processCloneRecoveryAction(int sendindex) {
+  if (!javaCloneRecoverySenderBridgeReady()) {
+    return 0;
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostBySendIndexSafely(sendindex, binding, true)) {
+    return 0;
+  }
+  if (!cloneRecoveryGenerationWasResumed(binding.iceLabel,
+                                         binding.connectionGeneration)) {
+    const int directive = javaResumeCloneRecoveryOutgoing(
+        binding.iceLabel.c_str(),
+        static_cast<int64_t>(binding.connectionGeneration));
+    if (directive >= 0) {
+      markCloneRecoveryGenerationResumed(binding.iceLabel,
+                                         binding.connectionGeneration);
+    }
+    if (directive != 1) {
+      return 0;
+    }
+  }
+  const std::vector<uint8_t> rawAction =
+      javaNextCloneRecoveryOutgoingAction(
+          binding.iceLabel.c_str(),
+          static_cast<int64_t>(binding.connectionGeneration));
+  if (rawAction.empty()) {
+    return 0;
+  }
+
+  CloneRecoveryActionView action;
+  CloneRecoveryResultOutcome outcome = CloneRecoveryResultOutcome::rejected;
+  std::vector<uint8_t> resultPayload;
+  if (parseCloneRecoveryAction(rawAction, action)) {
+    /* The binding can change while Java chooses the action. Never put a frame
+       on a replacement ICE agent or a host that has been edited meanwhile.
+       Host mutation can delete or shift the raw Connect/crypt objects, so the
+       existing host mutex must also pin them for the bounded transport call. */
+#ifndef TESTMENU
+    const std::lock_guard<std::mutex> transportLifetimeLock(change_host_mutex);
+#endif
+    CloneRecoveryHostBinding current;
+    if (!bindCloneRecoveryHostBySendIndex(sendindex, current, true) ||
+        current.allindex != binding.allindex ||
+        current.iceLabel != binding.iceLabel ||
+        current.connect != binding.connect ||
+        current.crypt != binding.crypt ||
+        current.connectionGeneration != binding.connectionGeneration) {
+      outcome = CloneRecoveryResultOutcome::transportError;
+    } else if (action.kind == CloneRecoveryActionKind::probeCapabilities ||
+               action.kind == CloneRecoveryActionKind::getStatus) {
+      outcome = readCloneRecoveryVirtualFile(current, action, resultPayload);
+      if (action.kind == CloneRecoveryActionKind::probeCapabilities) {
+        if (outcome != CloneRecoveryResultOutcome::ok ||
+            !acceptCloneRecoveryCapabilityPage(
+                current.iceLabel, current.connectionGeneration, action.offset,
+                action.requestedBytes,
+                static_cast<uint32_t>(resultPayload.size()))) {
+          rejectCloneRecoveryCapability(current.iceLabel,
+                                        current.connectionGeneration);
+          if (outcome == CloneRecoveryResultOutcome::ok) {
+            outcome = CloneRecoveryResultOutcome::rejected;
+            resultPayload.clear();
+          }
+        }
+      }
+    } else if (!cloneRecoveryCapabilityConfirmed(
+                   current.iceLabel, current.connectionGeneration)) {
+      outcome = CloneRecoveryResultOutcome::rejected;
+    } else {
+      const bool sent = current.connect->senddata(
+          current.crypt, static_cast<int>(action.offset), action.payload,
+          static_cast<int>(action.payloadBytes), action.path);
+      outcome = sent ? CloneRecoveryResultOutcome::ok
+                     : CloneRecoveryResultOutcome::transportError;
+    }
+  }
+
+  const std::vector<uint8_t> result = encodeCloneRecoveryResult(
+      outcome, binding.connectionGeneration,
+      resultPayload.empty() ? nullptr : resultPayload.data(),
+      static_cast<uint32_t>(resultPayload.size()));
+  return javaReportCloneRecoveryOutgoingResult(
+      binding.iceLabel.c_str(),
+      static_cast<int64_t>(binding.connectionGeneration), result.data(),
+      result.size());
+}
+
+int resumeCloneRecoveryForHost(int allindex, int sendindex) {
+  if (!javaCloneRecoverySenderBridgeReady()) {
+    return 0;
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostByAllIndexSafely(allindex, binding, false) ||
+      binding.sendindex != sendindex) {
+    return 0;
+  }
+  const int directive = javaResumeCloneRecoveryOutgoing(
+      binding.iceLabel.c_str(),
+      static_cast<int64_t>(binding.connectionGeneration));
+  if (directive >= 0) {
+    markCloneRecoveryGenerationResumed(binding.iceLabel,
+                                       binding.connectionGeneration);
+  }
+  return directive;
+}
+
+std::string probeCloneRecoveryForHost(int allindex) {
+  if (!javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostByAllIndexSafely(allindex, binding, false)) {
+    return {};
+  }
+  const std::vector<uint8_t> status = javaProbeCloneRecoveryOutgoing(
+      binding.iceLabel.c_str(),
+      static_cast<int64_t>(binding.connectionGeneration));
+  if (!status.empty()) {
+    wakeCloneRecoverySenderForLabel(binding.iceLabel);
+  }
+  return recoveryBytesToString(status);
+}
+
+std::string startCloneRecoveryForHost(int allindex, std::string_view modeWire,
+                                      bool includeJournal) {
+  if (!javaCloneRecoverySenderBridgeReady() || modeWire.empty() ||
+      modeWire.size() > 64 ||
+      std::char_traits<char>::find(modeWire.data(), modeWire.size(), '\0')) {
+    return {};
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostByAllIndexSafely(allindex, binding, false)) {
+    return {};
+  }
+  const std::string mode(modeWire);
+  const std::vector<uint8_t> status = javaStartCloneRecoveryOutgoing(
+      binding.iceLabel.c_str(),
+      static_cast<int64_t>(binding.connectionGeneration), mode.c_str(),
+      includeJournal);
+  if (!status.empty()) {
+    wakeCloneRecoverySenderForLabel(binding.iceLabel);
+  }
+  return recoveryBytesToString(status);
+}
+
+std::string cancelCloneRecoveryForHost(int allindex) {
+  if (!javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostByAllIndexSafely(allindex, binding, false)) {
+    return {};
+  }
+  const std::vector<uint8_t> status =
+      javaCancelCloneRecoveryOutgoing(binding.iceLabel.c_str());
+  if (!status.empty()) {
+    wakeCloneRecoverySenderForLabel(binding.iceLabel);
+  }
+  return recoveryBytesToString(status);
+}
+
+std::string cloneRecoveryStatusForHost(int allindex) {
+  if (!javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  CloneRecoveryHostBinding binding;
+  if (!bindCloneRecoveryHostByAllIndexSafely(allindex, binding, false)) {
+    return {};
+  }
+  return recoveryBytesToString(
+      javaCloneRecoveryOutgoingStatus(binding.iceLabel.c_str()));
+}
+
+bool wakeCloneRecoveryForLabel(std::string_view iceLabel) {
+  return wakeCloneRecoverySenderForLabel(iceLabel);
+}
 /*
 void deactivateHost(int index,bool deactive) { 
     backup->deactivateHost(index,deactive);

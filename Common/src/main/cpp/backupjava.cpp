@@ -429,6 +429,9 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(isreceiving)(JNIEnv *env,
 extern "C" JNIEXPORT void JNICALL fromjava(deletebackuphost)(JNIEnv *env,
                                                              jclass cl,
                                                              jint pos) {
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   backup->deletehost(pos);
 }
 extern "C" JNIEXPORT jlong JNICALL fromjava(lastuptodate)(JNIEnv *env,
@@ -551,6 +554,9 @@ extern int makeICEBackupSender();
 extern "C" JNIEXPORT jint JNICALL fromjava(makeICESender)(JNIEnv *env,
                                                           jclass cl) {
 #if !defined(WEAROS) && __NDK_MAJOR__ >= 26
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   return makeICEBackupSender();
 #else
   return -1;
@@ -561,6 +567,9 @@ extern int makeICEBackupReceiver();
 extern "C" JNIEXPORT jint JNICALL fromjava(makeICEReceiver)(JNIEnv *env,
                                                             jclass cl) {
 #if !defined(WEAROS) && __NDK_MAJOR__ >= 26
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   return makeICEBackupReceiver();
 #else
   return -1;
@@ -572,6 +581,9 @@ extern "C" JNIEXPORT jint JNICALL fromjava(makeHomeSender)(JNIEnv *env,
                                                            jclass cl) {
 // This calls makeHomeBackupSender which seems to exist in backup.hpp
 #if !defined(WEAROS) && __NDK_MAJOR__ >= 26
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   return makeHomeBackupSender();
 #else
   return -1;
@@ -582,6 +594,9 @@ extern int makeHomeBackupReceiver();
 extern "C" JNIEXPORT jint JNICALL fromjava(makeHomeReceiver)(JNIEnv *env,
                                                              jclass cl) {
 #if !defined(WEAROS) && __NDK_MAJOR__ >= 26
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   return makeHomeBackupReceiver();
 #else
   return -1;
@@ -619,6 +634,66 @@ extern "C" JNIEXPORT void JNICALL fromjava(wakebackup)(JNIEnv *env, jclass cl) {
     backup->wakebackup();
   }
 }
+
+extern std::string probeCloneRecoveryForHost(int allindex);
+extern std::string startCloneRecoveryForHost(int allindex,
+                                             std::string_view modeWire,
+                                             bool includeJournal);
+extern std::string cancelCloneRecoveryForHost(int allindex);
+extern std::string cloneRecoveryStatusForHost(int allindex);
+extern bool wakeCloneRecoveryForLabel(std::string_view iceLabel);
+
+extern "C" JNIEXPORT jstring JNICALL
+fromjava(probeCloneRecovery)(JNIEnv *env, jclass, jint allindex) {
+  return myNewStringUTF(env, probeCloneRecoveryForHost(allindex));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+fromjava(startCloneRecovery)(JNIEnv *env, jclass, jint allindex,
+                             jstring jmodeWire, jboolean includeJournal) {
+  if (!jmodeWire) {
+    return myNewStringUTF(env, std::string_view());
+  }
+  const char *modeWire = env->GetStringUTFChars(jmodeWire, nullptr);
+  if (!modeWire) {
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    return myNewStringUTF(env, std::string_view());
+  }
+  const jsize modeBytes = env->GetStringUTFLength(jmodeWire);
+  const std::string result = startCloneRecoveryForHost(
+      allindex, std::string_view(modeWire, static_cast<size_t>(modeBytes)),
+      includeJournal == JNI_TRUE);
+  env->ReleaseStringUTFChars(jmodeWire, modeWire);
+  return myNewStringUTF(env, result);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+fromjava(cancelCloneRecovery)(JNIEnv *env, jclass, jint allindex) {
+  return myNewStringUTF(env, cancelCloneRecoveryForHost(allindex));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+fromjava(cloneRecoveryStatus)(JNIEnv *env, jclass, jint allindex) {
+  return myNewStringUTF(env, cloneRecoveryStatusForHost(allindex));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(wakeCloneRecovery)(JNIEnv *env, jclass, jstring jiceLabel) {
+  if (!jiceLabel) {
+    return JNI_FALSE;
+  }
+  const char *iceLabel = env->GetStringUTFChars(jiceLabel, nullptr);
+  if (!iceLabel) {
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    return JNI_FALSE;
+  }
+  const jsize labelBytes = env->GetStringUTFLength(jiceLabel);
+  const bool woke = wakeCloneRecoveryForLabel(
+      std::string_view(iceLabel, static_cast<size_t>(labelBytes)));
+  env->ReleaseStringUTFChars(jiceLabel, iceLabel);
+  return woke ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT void JNICALL fromjava(wakehereonly)(JNIEnv *env,
                                                          jclass cl) {
   if (backup) {
@@ -657,6 +732,9 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getbackJson)(JNIEnv *envin,
 extern int makeHomeBackupSender();
 extern "C" JNIEXPORT jint JNICALL fromjava(makeHomeCopy)(JNIEnv *envin,
                                                          jclass cl) {
+#ifndef TESTMENU
+  const std::lock_guard<std::mutex> lock(change_host_mutex);
+#endif
   return makeHomeBackupSender();
 }
 #endif

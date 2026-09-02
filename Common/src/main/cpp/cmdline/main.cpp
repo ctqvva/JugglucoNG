@@ -1024,6 +1024,53 @@ std::string javaExportCloneJournalSnapshot() {
 }
 void javaImportCloneJournalSnapshot(const char *, int) {
 }
+bool javaCloneRecoveryBridgeReady() {
+    return false;
+}
+std::vector<uint8_t> javaExportCloneRecoveryCapabilities() {
+    return {};
+}
+std::vector<uint8_t> javaExportCloneRecoveryStatus(const char *) {
+    return {};
+}
+bool javaReceiveCloneRecoveryManifest(const uint8_t *, size_t) {
+    return false;
+}
+bool javaReceiveCloneRecoveryChunk(const char *, int64_t, const uint8_t *, size_t) {
+    return false;
+}
+bool javaReceiveCloneRecoveryCancel(const uint8_t *, size_t) {
+    return false;
+}
+bool javaReceiveCloneRecoveryCommit(const uint8_t *, size_t, int) {
+    return false;
+}
+bool javaCloneRecoverySenderBridgeReady() {
+    return false;
+}
+std::vector<uint8_t> javaProbeCloneRecoveryOutgoing(const char *, int64_t) {
+    return {};
+}
+std::vector<uint8_t> javaStartCloneRecoveryOutgoing(const char *, int64_t,
+                                                     const char *, bool) {
+    return {};
+}
+std::vector<uint8_t> javaNextCloneRecoveryOutgoingAction(const char *, int64_t) {
+    return {};
+}
+int javaReportCloneRecoveryOutgoingResult(const char *, int64_t,
+                                          const uint8_t *, size_t) {
+    return 0;
+}
+std::vector<uint8_t> javaCloneRecoveryOutgoingStatus(const char *) {
+    return {};
+}
+std::vector<uint8_t> javaCancelCloneRecoveryOutgoing(const char *) {
+    return {};
+}
+int javaResumeCloneRecoveryOutgoing(const char *, int64_t) {
+    return 0;
+}
     /*
 extern bool hour24clock;
 bool hour24clock=true;

@@ -3,10 +3,12 @@
 #include "sensoren.hpp"
 #include "share/logs.hpp"
 #include <jni.h>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <string_view>
 #include <sys/prctl.h>
+#include <vector>
 // #include "curve.hpp"
 // #include "nanovg_gl.h"
 // #include "nanovg_gl_utils.h"
@@ -114,6 +116,19 @@ static jmethodID jhistoryMarkCloneSensor = nullptr,
                  jhistoryImportCloneIobSnapshot = nullptr,
                  jhistoryExportCloneJournalSnapshot = nullptr,
                  jhistoryImportCloneJournalSnapshot = nullptr,
+                 jhistoryExportCloneRecoveryCapabilities = nullptr,
+                 jhistoryReceiveCloneRecoveryManifest = nullptr,
+                 jhistoryReceiveCloneRecoveryChunk = nullptr,
+                 jhistoryExportCloneRecoveryStatus = nullptr,
+                 jhistoryReceiveCloneRecoveryCancel = nullptr,
+                 jhistoryReceiveCloneRecoveryCommit = nullptr,
+                 jhistoryProbeCloneRecoveryOutgoing = nullptr,
+                 jhistoryStartCloneRecoveryOutgoing = nullptr,
+                 jhistoryNextCloneRecoveryOutgoingAction = nullptr,
+                 jhistoryReportCloneRecoveryOutgoingResult = nullptr,
+                 jhistoryCloneRecoveryOutgoingStatus = nullptr,
+                 jhistoryCancelCloneRecoveryOutgoing = nullptr,
+                 jhistoryResumeCloneRecoveryOutgoing = nullptr,
                  jhistorySyncSensor = nullptr,
                  jhistorySyncRecentSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
@@ -335,6 +350,93 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
                 "(Ljava/lang/String;I)Z"))) {
         LOGAR(
             R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneJournalSnapshot","(Ljava/lang/String;I)Z") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneRecoveryCapabilities = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneRecoveryCapabilities", "()[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneRecoveryCapabilities","()[B") failed)"
+            "");
+      }
+      if (!(jhistoryReceiveCloneRecoveryManifest = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "receiveCloneRecoveryManifest", "([B)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"receiveCloneRecoveryManifest","([B)[B") failed)"
+            "");
+      }
+      if (!(jhistoryReceiveCloneRecoveryChunk = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "receiveCloneRecoveryChunk",
+                "(Ljava/lang/String;J[B)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"receiveCloneRecoveryChunk","(Ljava/lang/String;J[B)[B") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneRecoveryStatus = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneRecoveryStatus",
+                "(Ljava/lang/String;)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneRecoveryStatus","(Ljava/lang/String;)[B") failed)"
+            "");
+      }
+      if (!(jhistoryReceiveCloneRecoveryCancel = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "receiveCloneRecoveryCancel", "([B)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"receiveCloneRecoveryCancel","([B)[B") failed)"
+            "");
+      }
+      if (!(jhistoryReceiveCloneRecoveryCommit = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "receiveCloneRecoveryCommit", "([BI)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"receiveCloneRecoveryCommit","([BI)Z") failed)"
+            "");
+      }
+      if (!(jhistoryProbeCloneRecoveryOutgoing = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "probeCloneRecoveryOutgoing",
+                "(Ljava/lang/String;J)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"probeCloneRecoveryOutgoing","(Ljava/lang/String;J)[B") failed)"
+            "");
+      }
+      if (!(jhistoryStartCloneRecoveryOutgoing = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "startCloneRecoveryOutgoing",
+                "(Ljava/lang/String;JLjava/lang/String;Z)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"startCloneRecoveryOutgoing","(Ljava/lang/String;JLjava/lang/String;Z)[B") failed)"
+            "");
+      }
+      if (!(jhistoryNextCloneRecoveryOutgoingAction = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "nextCloneRecoveryOutgoingAction",
+                "(Ljava/lang/String;J)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"nextCloneRecoveryOutgoingAction","(Ljava/lang/String;J)[B") failed)"
+            "");
+      }
+      if (!(jhistoryReportCloneRecoveryOutgoingResult = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "reportCloneRecoveryOutgoingResult",
+                "(Ljava/lang/String;J[B)I"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"reportCloneRecoveryOutgoingResult","(Ljava/lang/String;J[B)I") failed)"
+            "");
+      }
+      if (!(jhistoryCloneRecoveryOutgoingStatus = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "cloneRecoveryOutgoingStatus",
+                "(Ljava/lang/String;)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"cloneRecoveryOutgoingStatus","(Ljava/lang/String;)[B") failed)"
+            "");
+      }
+      if (!(jhistoryCancelCloneRecoveryOutgoing = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "cancelCloneRecoveryOutgoing",
+                "(Ljava/lang/String;)[B"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"cancelCloneRecoveryOutgoing","(Ljava/lang/String;)[B") failed)"
+            "");
+      }
+      if (!(jhistoryResumeCloneRecoveryOutgoing = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "resumeCloneRecoveryOutgoing",
+                "(Ljava/lang/String;J)I"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"resumeCloneRecoveryOutgoing","(Ljava/lang/String;J)I") failed)"
             "");
       }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
@@ -668,6 +770,333 @@ void javaImportCloneJournalSnapshot(const char *json, int transportCode) {
     LOGAR("javaImportCloneJournalSnapshot exception");
     env->ExceptionClear();
   }
+}
+
+bool javaCloneRecoveryBridgeReady() {
+  return JNIHistorySyncAccess && jhistoryExportCloneRecoveryCapabilities &&
+         jhistoryReceiveCloneRecoveryManifest &&
+         jhistoryReceiveCloneRecoveryChunk &&
+         jhistoryExportCloneRecoveryStatus &&
+         jhistoryReceiveCloneRecoveryCancel &&
+         jhistoryReceiveCloneRecoveryCommit;
+}
+
+bool javaCloneRecoverySenderBridgeReady() {
+  return JNIHistorySyncAccess && jhistoryProbeCloneRecoveryOutgoing &&
+         jhistoryStartCloneRecoveryOutgoing &&
+         jhistoryNextCloneRecoveryOutgoingAction &&
+         jhistoryReportCloneRecoveryOutgoingResult &&
+         jhistoryCloneRecoveryOutgoingStatus &&
+         jhistoryCancelCloneRecoveryOutgoing &&
+         jhistoryResumeCloneRecoveryOutgoing;
+}
+
+static jbyteArray newCloneRecoveryByteArray(JNIEnv *env, const uint8_t *bytes,
+                                            size_t size) {
+  if (!bytes || size == 0 ||
+      size > static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+    return nullptr;
+  }
+  jbyteArray result = env->NewByteArray(static_cast<jsize>(size));
+  if (result) {
+    env->SetByteArrayRegion(result, 0, static_cast<jsize>(size),
+                            reinterpret_cast<const jbyte *>(bytes));
+  }
+  return result;
+}
+
+static std::vector<uint8_t> takeCloneRecoveryByteArray(JNIEnv *env,
+                                                       jbyteArray value) {
+  if (!value) {
+    return {};
+  }
+  const jsize size = env->GetArrayLength(value);
+  std::vector<uint8_t> result(size > 0 ? static_cast<size_t>(size) : 0U);
+  if (size > 0) {
+    env->GetByteArrayRegion(value, 0, size,
+                            reinterpret_cast<jbyte *>(result.data()));
+  }
+  env->DeleteLocalRef(value);
+  if (env->ExceptionCheck()) {
+    LOGAR("Clone recovery byte-array bridge exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return result;
+}
+
+static std::vector<uint8_t> callCloneRecoveryOutgoingLabelGeneration(
+    jmethodID method, const char *iceLabel, int64_t connectionGeneration) {
+  if (!method || !iceLabel || !*iceLabel || connectionGeneration < 0 ||
+      !javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jlabel = env->NewStringUTF(iceLabel);
+  if (!jlabel || env->ExceptionCheck()) {
+    env->ExceptionClear();
+    return {};
+  }
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, method, jlabel,
+      static_cast<jlong>(connectionGeneration)));
+  env->DeleteLocalRef(jlabel);
+  if (env->ExceptionCheck()) {
+    LOGAR("Clone recovery outgoing label/generation bridge exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return takeCloneRecoveryByteArray(env, result);
+}
+
+std::vector<uint8_t>
+javaProbeCloneRecoveryOutgoing(const char *iceLabel,
+                               int64_t connectionGeneration) {
+  return callCloneRecoveryOutgoingLabelGeneration(
+      jhistoryProbeCloneRecoveryOutgoing, iceLabel, connectionGeneration);
+}
+
+std::vector<uint8_t>
+javaNextCloneRecoveryOutgoingAction(const char *iceLabel,
+                                    int64_t connectionGeneration) {
+  return callCloneRecoveryOutgoingLabelGeneration(
+      jhistoryNextCloneRecoveryOutgoingAction, iceLabel, connectionGeneration);
+}
+
+std::vector<uint8_t> javaStartCloneRecoveryOutgoing(
+    const char *iceLabel, int64_t connectionGeneration, const char *modeWire,
+    bool includeJournal) {
+  if (!iceLabel || !*iceLabel || !modeWire || !*modeWire ||
+      connectionGeneration < 0 || !javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jlabel = env->NewStringUTF(iceLabel);
+  jstring jmode = env->NewStringUTF(modeWire);
+  if (!jlabel || !jmode || env->ExceptionCheck()) {
+    if (jlabel) env->DeleteLocalRef(jlabel);
+    if (jmode) env->DeleteLocalRef(jmode);
+    env->ExceptionClear();
+    return {};
+  }
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryStartCloneRecoveryOutgoing, jlabel,
+      static_cast<jlong>(connectionGeneration), jmode,
+      static_cast<jboolean>(includeJournal)));
+  env->DeleteLocalRef(jmode);
+  env->DeleteLocalRef(jlabel);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaStartCloneRecoveryOutgoing exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return takeCloneRecoveryByteArray(env, result);
+}
+
+int javaReportCloneRecoveryOutgoingResult(
+    const char *iceLabel, int64_t connectionGeneration, const uint8_t *result,
+    size_t resultSize) {
+  if (!iceLabel || !*iceLabel || connectionGeneration < 0 || !result ||
+      resultSize == 0 || !javaCloneRecoverySenderBridgeReady()) {
+    return 0;
+  }
+  JNIEnv *env = getenv();
+  jstring jlabel = env->NewStringUTF(iceLabel);
+  jbyteArray jresult = newCloneRecoveryByteArray(env, result, resultSize);
+  if (!jlabel || !jresult || env->ExceptionCheck()) {
+    if (jlabel) env->DeleteLocalRef(jlabel);
+    if (jresult) env->DeleteLocalRef(jresult);
+    env->ExceptionClear();
+    return 0;
+  }
+  const jint directive = env->CallStaticIntMethod(
+      JNIHistorySyncAccess, jhistoryReportCloneRecoveryOutgoingResult, jlabel,
+      static_cast<jlong>(connectionGeneration), jresult);
+  env->DeleteLocalRef(jresult);
+  env->DeleteLocalRef(jlabel);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaReportCloneRecoveryOutgoingResult exception");
+    env->ExceptionClear();
+    return 0;
+  }
+  return directive == 1 ? 1 : 0;
+}
+
+static std::vector<uint8_t>
+callCloneRecoveryOutgoingLabel(jmethodID method, const char *iceLabel) {
+  if (!method || !iceLabel || !*iceLabel ||
+      !javaCloneRecoverySenderBridgeReady()) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jlabel = env->NewStringUTF(iceLabel);
+  if (!jlabel || env->ExceptionCheck()) {
+    env->ExceptionClear();
+    return {};
+  }
+  jbyteArray result = static_cast<jbyteArray>(
+      env->CallStaticObjectMethod(JNIHistorySyncAccess, method, jlabel));
+  env->DeleteLocalRef(jlabel);
+  if (env->ExceptionCheck()) {
+    LOGAR("Clone recovery outgoing label bridge exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return takeCloneRecoveryByteArray(env, result);
+}
+
+std::vector<uint8_t> javaCloneRecoveryOutgoingStatus(const char *iceLabel) {
+  return callCloneRecoveryOutgoingLabel(jhistoryCloneRecoveryOutgoingStatus,
+                                        iceLabel);
+}
+
+std::vector<uint8_t> javaCancelCloneRecoveryOutgoing(const char *iceLabel) {
+  return callCloneRecoveryOutgoingLabel(jhistoryCancelCloneRecoveryOutgoing,
+                                        iceLabel);
+}
+
+int javaResumeCloneRecoveryOutgoing(const char *iceLabel,
+                                    int64_t connectionGeneration) {
+  if (!iceLabel || !*iceLabel || connectionGeneration < 0 ||
+      !javaCloneRecoverySenderBridgeReady()) {
+    return -1;
+  }
+  JNIEnv *env = getenv();
+  jstring jlabel = env->NewStringUTF(iceLabel);
+  if (!jlabel || env->ExceptionCheck()) {
+    env->ExceptionClear();
+    return -1;
+  }
+  const jint directive = env->CallStaticIntMethod(
+      JNIHistorySyncAccess, jhistoryResumeCloneRecoveryOutgoing, jlabel,
+      static_cast<jlong>(connectionGeneration));
+  env->DeleteLocalRef(jlabel);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaResumeCloneRecoveryOutgoing exception");
+    env->ExceptionClear();
+    return -1;
+  }
+  return directive == 0 || directive == 1 ? directive : -1;
+}
+
+std::vector<uint8_t> javaExportCloneRecoveryCapabilities() {
+  if (!javaCloneRecoveryBridgeReady()) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneRecoveryCapabilities));
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneRecoveryCapabilities exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return takeCloneRecoveryByteArray(env, result);
+}
+
+std::vector<uint8_t> javaExportCloneRecoveryStatus(const char *jobId) {
+  if (!jobId || !*jobId || !javaCloneRecoveryBridgeReady()) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jjobId = env->NewStringUTF(jobId);
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneRecoveryStatus, jjobId));
+  env->DeleteLocalRef(jjobId);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneRecoveryStatus exception");
+    env->ExceptionClear();
+    return {};
+  }
+  return takeCloneRecoveryByteArray(env, result);
+}
+
+static bool callCloneRecoveryControl(JNIEnv *env, jmethodID method,
+                                     const uint8_t *bytes, size_t size) {
+  if (!method || !bytes || size == 0 || !javaCloneRecoveryBridgeReady()) {
+    return false;
+  }
+  jbyteArray input = newCloneRecoveryByteArray(env, bytes, size);
+  if (!input || env->ExceptionCheck()) {
+    env->ExceptionClear();
+    return false;
+  }
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, method, input));
+  env->DeleteLocalRef(input);
+  if (env->ExceptionCheck()) {
+    LOGAR("Clone recovery control bridge exception");
+    env->ExceptionClear();
+    return false;
+  }
+  const bool accepted = result && env->GetArrayLength(result) > 0;
+  if (result) {
+    env->DeleteLocalRef(result);
+  }
+  return accepted;
+}
+
+bool javaReceiveCloneRecoveryManifest(const uint8_t *bytes, size_t size) {
+  return callCloneRecoveryControl(getenv(), jhistoryReceiveCloneRecoveryManifest,
+                                  bytes, size);
+}
+
+bool javaReceiveCloneRecoveryChunk(const char *jobId, int64_t offset,
+                                   const uint8_t *bytes, size_t size) {
+  if (!jobId || !*jobId || offset < 0 || !bytes || size == 0 ||
+      !javaCloneRecoveryBridgeReady()) {
+    return false;
+  }
+  JNIEnv *env = getenv();
+  jstring jjobId = env->NewStringUTF(jobId);
+  jbyteArray input = newCloneRecoveryByteArray(env, bytes, size);
+  if (!jjobId || !input || env->ExceptionCheck()) {
+    if (jjobId) env->DeleteLocalRef(jjobId);
+    if (input) env->DeleteLocalRef(input);
+    env->ExceptionClear();
+    return false;
+  }
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryReceiveCloneRecoveryChunk, jjobId,
+      static_cast<jlong>(offset), input));
+  env->DeleteLocalRef(input);
+  env->DeleteLocalRef(jjobId);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaReceiveCloneRecoveryChunk exception");
+    env->ExceptionClear();
+    return false;
+  }
+  const bool accepted = result && env->GetArrayLength(result) > 0;
+  if (result) env->DeleteLocalRef(result);
+  return accepted;
+}
+
+bool javaReceiveCloneRecoveryCancel(const uint8_t *bytes, size_t size) {
+  return callCloneRecoveryControl(getenv(), jhistoryReceiveCloneRecoveryCancel,
+                                  bytes, size);
+}
+
+bool javaReceiveCloneRecoveryCommit(const uint8_t *bytes, size_t size,
+                                    int transportCode) {
+  if (!bytes || size == 0 || !javaCloneRecoveryBridgeReady()) {
+    return false;
+  }
+  JNIEnv *env = getenv();
+  jbyteArray input = newCloneRecoveryByteArray(env, bytes, size);
+  if (!input || env->ExceptionCheck()) {
+    env->ExceptionClear();
+    return false;
+  }
+  const bool accepted = env->CallStaticBooleanMethod(
+      JNIHistorySyncAccess, jhistoryReceiveCloneRecoveryCommit, input,
+      static_cast<jint>(transportCode));
+  env->DeleteLocalRef(input);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaReceiveCloneRecoveryCommit exception");
+    env->ExceptionClear();
+    return false;
+  }
+  return accepted;
 }
 
 std::string javaExportCalibrationProfile(const char *serial) {

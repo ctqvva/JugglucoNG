@@ -83,6 +83,97 @@ class CloneHistoryRecoveryProtocolTests {
     }
 
     @Test
+    fun statusRoundTripRetainsEveryPhaseAndManifestBinding() {
+        val manifest = validManifest()
+        CloneRecoveryPhase.entries.forEach { phase ->
+            val accepted = when (phase) {
+                CloneRecoveryPhase.PREPARING -> 0L
+                CloneRecoveryPhase.RECEIVING,
+                CloneRecoveryPhase.CANCELLED,
+                CloneRecoveryPhase.FAILED -> manifest.compressedBytes / 2L
+                CloneRecoveryPhase.VERIFYING,
+                CloneRecoveryPhase.IMPORTING,
+                CloneRecoveryPhase.COMPLETED -> manifest.compressedBytes
+            }
+            val status = CloneHistoryRecoveryProtocol.statusFor(
+                manifest = manifest,
+                phase = phase,
+                acceptedBytes = accepted,
+                error = if (phase == CloneRecoveryPhase.FAILED) "digest mismatch" else null,
+            )
+
+            val decoded = CloneHistoryRecoveryProtocol.decodeStatus(
+                CloneHistoryRecoveryProtocol.encodeStatus(status)
+            )
+
+            assertEquals(status, decoded)
+            CloneHistoryRecoveryProtocol.requireStatusMatchesManifest(decoded, manifest)
+        }
+    }
+
+    @Test
+    fun commitAndCancelRecordsAreVersionedAndBoundToThePackageDigest() {
+        val manifest = validManifest()
+        val commit = CloneRecoveryCommit(
+            protocolVersion = manifest.protocolVersion,
+            jobId = manifest.jobId,
+            sha256 = manifest.sha256,
+        )
+        val cancel = CloneRecoveryCancel(
+            protocolVersion = manifest.protocolVersion,
+            jobId = manifest.jobId,
+            sha256 = manifest.sha256,
+        )
+
+        assertEquals(
+            commit,
+            CloneHistoryRecoveryProtocol.decodeCommit(
+                CloneHistoryRecoveryProtocol.encodeCommit(commit)
+            ),
+        )
+        assertEquals(
+            cancel,
+            CloneHistoryRecoveryProtocol.decodeCancel(
+                CloneHistoryRecoveryProtocol.encodeCancel(cancel)
+            ),
+        )
+        val changedDigest = JSONObject(CloneHistoryRecoveryProtocol.encodeCommit(commit))
+            .put("sha256", "not-a-digest")
+            .toString()
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.decodeCommit(changedDigest)
+        }
+    }
+
+    @Test
+    fun statusFailureReasonAndControlInputAreBounded() {
+        val status = CloneHistoryRecoveryProtocol.statusFor(
+            manifest = validManifest(),
+            phase = CloneRecoveryPhase.FAILED,
+            acceptedBytes = 0L,
+            error = "x",
+        )
+        val oversizedError = JSONObject(CloneHistoryRecoveryProtocol.encodeStatus(status))
+            .put("error", "x".repeat(CloneHistoryRecoveryProtocol.MAXIMUM_STATUS_ERROR_CHARS + 1))
+            .toString()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.decodeStatus(oversizedError)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.decodeStatus(
+                "x".repeat(CloneHistoryRecoveryProtocol.MAXIMUM_CONTROL_BYTES + 1)
+            )
+        }
+        assertEquals(
+            CloneHistoryRecoveryProtocol.MAXIMUM_STATUS_ERROR_CHARS,
+            CloneHistoryRecoveryProtocol.boundedStatusError(
+                "x".repeat(CloneHistoryRecoveryProtocol.MAXIMUM_STATUS_ERROR_CHARS + 100)
+            ).length,
+        )
+    }
+
+    @Test
     fun manifestCannotChangeAConfirmedDestructiveOperation() {
         val request = validRequest()
 
@@ -111,6 +202,18 @@ class CloneHistoryRecoveryProtocolTests {
         assertEquals(
             "mirror/backfill/jobs/$jobId/package.jsonl.gz",
             CloneHistoryRecoveryProtocol.jobPackagePath(jobId),
+        )
+        assertEquals(
+            "mirror/backfill/jobs/$jobId/status.json",
+            CloneHistoryRecoveryProtocol.jobStatusPath(jobId),
+        )
+        assertEquals(
+            "mirror/backfill/jobs/$jobId/commit.json",
+            CloneHistoryRecoveryProtocol.jobCommitPath(jobId),
+        )
+        assertEquals(
+            "mirror/backfill/jobs/$jobId/cancel.json",
+            CloneHistoryRecoveryProtocol.jobCancelPath(jobId),
         )
         assertThrows(IllegalArgumentException::class.java) {
             CloneHistoryRecoveryProtocol.jobPackagePath("../../databases/history")

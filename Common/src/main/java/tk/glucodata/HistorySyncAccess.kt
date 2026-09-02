@@ -2,6 +2,9 @@ package tk.glucodata
 
 import android.util.Log
 import androidx.annotation.Keep
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
 
 @Keep
 object HistorySyncAccess {
@@ -9,6 +12,17 @@ object HistorySyncAccess {
     private const val SYNC_CLASS_NAME = "tk.glucodata.data.HistorySync"
     private const val REPOSITORY_CLASS_NAME = "tk.glucodata.data.HistoryRepository"
     private const val JOURNAL_SNAPSHOT_CLASS_NAME = "tk.glucodata.OutboundApiJournalSnapshot"
+    private const val CLONE_RECOVERY_ACCESS_CLASS_NAME =
+        "tk.glucodata.data.CloneHistoryRecoveryAccess"
+    private const val CLONE_OUTGOING_RECOVERY_ACCESS_CLASS_NAME =
+        "tk.glucodata.data.CloneOutgoingRecoveryAccess"
+    private const val MAXIMUM_RECOVERY_CONTROL_BYTES = 256 * 1024
+    private const val MAXIMUM_RECOVERY_CHUNK_BYTES = 256 * 1024
+    private const val MAXIMUM_RECOVERY_PATH_BYTES = 256
+    private const val MAXIMUM_RECOVERY_ACTION_BYTES =
+        20 + MAXIMUM_RECOVERY_PATH_BYTES + MAXIMUM_RECOVERY_CHUNK_BYTES
+    private const val MAXIMUM_RECOVERY_RESULT_BYTES = 16 + 64 * 1024
+    private const val MAXIMUM_RECOVERY_ICE_LABEL_BYTES = 256
     private const val DEFAULT_AIDEX_SOURCE = 4
 
     private val syncHolder by lazy { runCatching { Class.forName(SYNC_CLASS_NAME) }.getOrNull() }
@@ -168,6 +182,107 @@ object HistorySyncAccess {
             )
         }.getOrNull()
     }
+    private val cloneRecoveryHolder by lazy {
+        runCatching { Class.forName(CLONE_RECOVERY_ACCESS_CLASS_NAME) }.getOrNull()
+    }
+    private val cloneOutgoingRecoveryHolder by lazy {
+        runCatching { Class.forName(CLONE_OUTGOING_RECOVERY_ACCESS_CLASS_NAME) }.getOrNull()
+    }
+    private val cloneRecoveryCapabilitiesMethod by lazy {
+        runCatching { cloneRecoveryHolder?.getMethod("capabilitiesJson") }.getOrNull()
+    }
+    private val cloneRecoveryPreparePushMethod by lazy {
+        runCatching {
+            cloneRecoveryHolder?.getMethod("prepareIncomingPush", String::class.java)
+        }.getOrNull()
+    }
+    private val cloneRecoveryWriteChunkMethod by lazy {
+        runCatching {
+            cloneRecoveryHolder?.getMethod(
+                "writeIncomingChunk",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+                ByteArray::class.java,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryStatusMethod by lazy {
+        runCatching {
+            cloneRecoveryHolder?.getMethod("statusJson", String::class.java)
+        }.getOrNull()
+    }
+    private val cloneRecoveryCancelMethod by lazy {
+        runCatching {
+            cloneRecoveryHolder?.getMethod("cancelIncoming", String::class.java)
+        }.getOrNull()
+    }
+    private val cloneRecoveryCommitMethod by lazy {
+        runCatching {
+            cloneRecoveryHolder?.getMethod(
+                "commitIncomingAsync",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryProbeOutgoingMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod(
+                "probeOutgoing",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryStartOutgoingMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod(
+                "startOutgoingPush",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+                String::class.java,
+                Boolean::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryNextOutgoingActionMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod(
+                "nextOutgoingAction",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryReportOutgoingResultMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod(
+                "reportOutgoingResult",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+                ByteArray::class.java,
+            )
+        }.getOrNull()
+    }
+    private val cloneRecoveryOutgoingStatusMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod("outgoingStatusJson", String::class.java)
+        }.getOrNull()
+    }
+    private val cloneRecoveryCancelOutgoingMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod("cancelOutgoing", String::class.java)
+        }.getOrNull()
+    }
+    private val cloneRecoveryResumeOutgoingMethod by lazy {
+        runCatching {
+            cloneOutgoingRecoveryHolder?.getMethod(
+                "resumeOutgoing",
+                String::class.java,
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
 
     /** Called only by the native mirror receiver before it imports remote sensor files. */
     @JvmStatic
@@ -224,6 +339,201 @@ object HistorySyncAccess {
                 Log.w(TAG, "importCloneJournalSnapshot failed", it)
             }.getOrDefault(false)
         } ?: false
+    }
+
+    @JvmStatic
+    fun exportCloneRecoveryCapabilities(): ByteArray =
+        invokeCloneRecoveryString(cloneRecoveryCapabilitiesMethod)?.toRecoveryBytes()
+            ?: ByteArray(0)
+
+    @JvmStatic
+    fun receiveCloneRecoveryManifest(raw: ByteArray?): ByteArray {
+        val json = decodeRecoveryControl(raw) ?: return ByteArray(0)
+        return invokeCloneRecoveryString(cloneRecoveryPreparePushMethod, json)
+            ?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun receiveCloneRecoveryChunk(
+        jobId: String?,
+        offset: Long,
+        raw: ByteArray?,
+    ): ByteArray {
+        if (jobId.isNullOrBlank() || offset < 0L || raw == null || raw.isEmpty() ||
+            raw.size > CloneHistoryRecoveryProtocol.MAXIMUM_CHUNK_BYTES
+        ) {
+            return ByteArray(0)
+        }
+        return invokeCloneRecoveryString(
+            cloneRecoveryWriteChunkMethod,
+            jobId,
+            offset,
+            raw,
+        )?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun exportCloneRecoveryStatus(jobId: String?): ByteArray {
+        if (jobId.isNullOrBlank()) return ByteArray(0)
+        return invokeCloneRecoveryString(cloneRecoveryStatusMethod, jobId)
+            ?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun receiveCloneRecoveryCancel(raw: ByteArray?): ByteArray {
+        val json = decodeRecoveryControl(raw) ?: return ByteArray(0)
+        return invokeCloneRecoveryString(cloneRecoveryCancelMethod, json)
+            ?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun receiveCloneRecoveryCommit(raw: ByteArray?, transportCode: Int): Boolean {
+        val json = decodeRecoveryControl(raw) ?: return false
+        val method = cloneRecoveryCommitMethod ?: return false
+        return runCatching {
+            method.invoke(null, json, transportCode) as? Boolean ?: false
+        }.onFailure {
+            Log.w(TAG, "Clone recovery commit bridge failed", it)
+        }.getOrDefault(false)
+    }
+
+    @JvmStatic
+    fun probeCloneRecoveryOutgoing(iceLabel: String?, connectionGeneration: Long): ByteArray {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration)) {
+            return ByteArray(0)
+        }
+        return invokeCloneRecoveryString(
+            cloneRecoveryProbeOutgoingMethod,
+            iceLabel!!,
+            connectionGeneration,
+        )?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun startCloneRecoveryOutgoing(
+        iceLabel: String?,
+        connectionGeneration: Long,
+        modeWire: String?,
+        includeJournal: Boolean,
+    ): ByteArray {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration) ||
+            modeWire.isNullOrBlank() || modeWire.length > 64
+        ) {
+            return ByteArray(0)
+        }
+        return invokeCloneRecoveryString(
+            cloneRecoveryStartOutgoingMethod,
+            iceLabel!!,
+            connectionGeneration,
+            modeWire,
+            includeJournal,
+        )?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun nextCloneRecoveryOutgoingAction(
+        iceLabel: String?,
+        connectionGeneration: Long,
+    ): ByteArray {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration)) {
+            return ByteArray(0)
+        }
+        val method = cloneRecoveryNextOutgoingActionMethod ?: return ByteArray(0)
+        return runCatching {
+            (method.invoke(null, iceLabel!!, connectionGeneration) as? ByteArray)
+                ?.takeIf { it.size in 1..MAXIMUM_RECOVERY_ACTION_BYTES }
+                ?: ByteArray(0)
+        }.onFailure {
+            Log.w(TAG, "Clone recovery outgoing action bridge failed", it)
+        }.getOrDefault(ByteArray(0))
+    }
+
+    @JvmStatic
+    fun reportCloneRecoveryOutgoingResult(
+        iceLabel: String?,
+        connectionGeneration: Long,
+        raw: ByteArray?,
+    ): Int {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration) ||
+            raw == null || raw.size !in 1..MAXIMUM_RECOVERY_RESULT_BYTES
+        ) {
+            return 0
+        }
+        val method = cloneRecoveryReportOutgoingResultMethod ?: return 0
+        return runCatching {
+            (method.invoke(null, iceLabel!!, connectionGeneration, raw) as? Int)
+                ?.takeIf { it == 0 || it == 1 } ?: 0
+        }.onFailure {
+            Log.w(TAG, "Clone recovery outgoing result bridge failed", it)
+        }.getOrDefault(0)
+    }
+
+    @JvmStatic
+    fun cloneRecoveryOutgoingStatus(iceLabel: String?): ByteArray {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, 0L)) return ByteArray(0)
+        return invokeCloneRecoveryString(cloneRecoveryOutgoingStatusMethod, iceLabel!!)
+            ?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun cancelCloneRecoveryOutgoing(iceLabel: String?): ByteArray {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, 0L)) return ByteArray(0)
+        return invokeCloneRecoveryString(cloneRecoveryCancelOutgoingMethod, iceLabel!!)
+            ?.toRecoveryBytes() ?: ByteArray(0)
+    }
+
+    @JvmStatic
+    fun resumeCloneRecoveryOutgoing(
+        iceLabel: String?,
+        connectionGeneration: Long,
+    ): Int {
+        if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration)) return -1
+        val method = cloneRecoveryResumeOutgoingMethod ?: return -1
+        return runCatching {
+            (method.invoke(null, iceLabel!!, connectionGeneration) as? Int)
+                ?.takeIf { it == 0 || it == 1 } ?: -1
+        }.onFailure {
+            Log.w(TAG, "Clone recovery outgoing resume bridge failed", it)
+        }.getOrDefault(-1)
+    }
+
+    private fun validCloneRecoveryOutgoingIdentity(
+        iceLabel: String?,
+        connectionGeneration: Long,
+    ): Boolean {
+        if (iceLabel.isNullOrBlank() || connectionGeneration < 0L) return false
+        val bytes = iceLabel.toByteArray(StandardCharsets.UTF_8)
+        return bytes.size in 1..MAXIMUM_RECOVERY_ICE_LABEL_BYTES &&
+            iceLabel.none(Char::isISOControl)
+    }
+
+    private fun invokeCloneRecoveryString(method: java.lang.reflect.Method?, vararg args: Any): String? {
+        method ?: return null
+        return runCatching {
+            (method.invoke(null, *args) as? String)?.takeIf { it.isNotBlank() }
+        }.onFailure {
+            Log.w(TAG, "Clone recovery bridge failed", it)
+        }.getOrNull()
+    }
+
+    private fun decodeRecoveryControl(raw: ByteArray?): String? {
+        if (raw == null || raw.isEmpty() || raw.size > MAXIMUM_RECOVERY_CONTROL_BYTES) {
+            return null
+        }
+        return runCatching {
+            StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(raw))
+                .toString()
+        }.onFailure {
+            Log.w(TAG, "Rejected malformed Clone recovery control record", it)
+        }.getOrNull()
+    }
+
+    private fun String.toRecoveryBytes(): ByteArray {
+        val bytes = toByteArray(StandardCharsets.UTF_8)
+        return bytes.takeIf { it.size <= MAXIMUM_RECOVERY_CONTROL_BYTES } ?: ByteArray(0)
     }
 
     @JvmStatic
