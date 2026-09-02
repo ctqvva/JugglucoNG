@@ -1090,6 +1090,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="aidex_setup_title">AiDex / LinX Setup</string>
     <string name="aidex_searching_sensors">Raadinta dareemayaasha...</string>
     <string name="aidex_parse_error">AiDex: waxay kala saari kari wayday taxanaha dareemaha "%1$s"</string>
+    <string name="aidex_key_management_title">Furayaasha iyo akoonka</string>
+    <string name="aidex_key_management_desc">Isku-xidhka gudaha ayaa marka hore la tijaabiyaa. Ku dar furaha dareemaha gaarka ah keliya marka dareemuhu sheego in furuhu maqan yahay.</string>
+    <string name="aidex_key_management_entry_desc">Maamul furayaasha dareemayaasha iyo akoonka AiDex CN</string>
+    <string name="aidex_key_missing">Furaha isku-xidhka ayaa maqan</string>
+    <string name="aidex_key_rejected">Furaha isku-xidhka la kaydiyey waa la diiday; beddel</string>
+    <string name="aidex_key_saved">Furaha isku-xidhka dareemaha waa la kaydiyey</string>
+    <string name="aidex_key_fetch_action">Furaha ka hel akoonka</string>
+    <string name="aidex_key_fetch_requires_sign_in">Soo gal si aad u soo dejiso furaha dareemahan.</string>
+    <string name="aidex_key_import_failed">Soo dejintu way fashilantay — ma aha fayl fure AiDex oo sax ah.</string>
     <string name="aidex_connecting_to">Ku xidhida %1$s...</string>
     <string name="aidex_connected">Ku xidhan!</string>
     <string name="finish_setup">dhame</string>

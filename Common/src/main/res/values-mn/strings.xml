@@ -898,6 +898,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="aidex_setup_title">AiDex / LinX тохиргоо</string>
     <string name="aidex_searching_sensors">Мэдрэгч хайж байна...</string>
     <string name="aidex_parse_error">AiDex: \"%1$s\"-ээс мэдрэгчийн серийн дугаарыг салгаж чадсангүй</string>
+    <string name="aidex_key_management_title">Түлхүүр ба бүртгэл</string>
+    <string name="aidex_key_management_desc">Эхлээд дотоод хослолтыг оролдоно. Мэдрэгч түлхүүр дутуу гэж мэдээлсний дараа л тухайн мэдрэгчийн түлхүүрийг нэмнэ үү.</string>
+    <string name="aidex_key_management_entry_desc">Мэдрэгчийн түлхүүр болон AiDex CN бүртгэлийг удирдана уу</string>
+    <string name="aidex_key_missing">Хослуулах түлхүүр дутуу</string>
+    <string name="aidex_key_rejected">Хадгалсан хослуулах түлхүүр татгалзагдлаа; солино уу</string>
+    <string name="aidex_key_saved">Мэдрэгчийн хослуулах түлхүүр хадгалагдлаа</string>
+    <string name="aidex_key_fetch_action">Бүртгэлээс түлхүүр авах</string>
+    <string name="aidex_key_fetch_requires_sign_in">Энэ мэдрэгчийн түлхүүрийг татахын тулд нэвтэрнэ үү.</string>
+    <string name="aidex_key_import_failed">Импорт амжилтгүй — хүчинтэй AiDex түлхүүрийн файл биш.</string>
     <string name="aidex_connecting_to">%1$s-д холбогдож байна...</string>
     <string name="aidex_connected">Холбогдлоо!</string>
     <string name="finish_setup">Дуусгах</string>

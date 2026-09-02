@@ -14,6 +14,7 @@ import tk.glucodata.Log
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDpCatalogProvider
+import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 
 /**
  * Factory bridge that SensorBluetooth.java can call without importing from
@@ -45,6 +46,25 @@ object AiDexNativeFactory {
     fun createBleManager(serial: String, dataptr: Long): SuperGattCallback {
         Log.i(TAG, "Creating native AiDexBleManager for $serial (dataptr=$dataptr)")
         return AiDexBleManager(serial, dataptr, 0)
+    }
+
+    /**
+     * Install already-decoded, sensor-specific pairing material for subsequent AiDex key
+     * exchanges in this process. Persistence, when desired, is handled by
+     * [AiDexProvisioningStore]. Callers must supply exactly two decoded 16-byte values. Their
+     * contents are never logged.
+     */
+    @JvmStatic
+    fun installProvisionedPairingMaterial(
+        serial: String,
+        secret: ByteArray,
+        iv: ByteArray,
+    ): Boolean = AiDexPairingMaterialRegistry.install(serial, secret, iv)
+
+    /** Remove process-local provisioned pairing material for a sensor. */
+    @JvmStatic
+    fun clearProvisionedPairingMaterial(serial: String) {
+        AiDexPairingMaterialRegistry.remove(serial)
     }
 
     /**

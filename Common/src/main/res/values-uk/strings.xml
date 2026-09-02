@@ -676,6 +676,15 @@
     <string name="aidex_connected">Підключено!</string>
     <string name="aidex_connecting_to">Підключення до %1$s...</string>
     <string name="aidex_parse_error">AiDex: не вдалося розібрати серійний номер датчика з "%1$s"</string>
+    <string name="aidex_key_management_title">Ключі й акаунт</string>
+    <string name="aidex_key_management_desc">Спочатку виконується локальне сполучення. Додавайте ключ конкретного сенсора лише після повідомлення, що ключ відсутній.</string>
+    <string name="aidex_key_management_entry_desc">Керування ключами сенсорів і акаунтом AiDex CN</string>
+    <string name="aidex_key_missing">Ключ сполучення відсутній</string>
+    <string name="aidex_key_rejected">Збережений ключ сполучення відхилено; замініть його</string>
+    <string name="aidex_key_saved">Ключ сполучення для сенсора збережено</string>
+    <string name="aidex_key_fetch_action">Отримати ключ з облікового запису</string>
+    <string name="aidex_key_fetch_requires_sign_in">Увійдіть, щоб завантажити ключ цього сенсора.</string>
+    <string name="aidex_key_import_failed">Не вдалося імпортувати — недійсний файл ключа AiDex.</string>
     <string name="aidex_searching_sensors">Пошук датчиків...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Налаштуйте AiDex або LinX CGM через Bluetooth</string>

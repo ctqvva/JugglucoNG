@@ -755,6 +755,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_connected">Verbunden!</string>
     <string name="aidex_connecting_to">Verbindung zu %1$s wird hergestellt...</string>
     <string name="aidex_parse_error">AiDex: Sensorseriennummer von „%1$s“ konnte nicht analysiert werden.</string>
+    <string name="aidex_key_management_title">Schlüssel &amp; Konto</string>
+    <string name="aidex_key_management_desc">Zuerst wird die lokale Kopplung versucht. Füge einen sensorspezifischen Schlüssel erst hinzu, wenn der Sensor einen fehlenden Schlüssel meldet.</string>
+    <string name="aidex_key_management_entry_desc">Sensorschlüssel und AiDex-CN-Konto verwalten</string>
+    <string name="aidex_key_missing">Kopplungsschlüssel fehlt</string>
+    <string name="aidex_key_rejected">Gespeicherter Kopplungsschlüssel abgelehnt; bitte ersetzen</string>
+    <string name="aidex_key_saved">Sensorspezifischer Kopplungsschlüssel gespeichert</string>
+    <string name="aidex_key_fetch_action">Schlüssel vom Konto abrufen</string>
+    <string name="aidex_key_fetch_requires_sign_in">Melde dich an, um den Schlüssel dieses Sensors herunterzuladen.</string>
+    <string name="aidex_key_import_failed">Import fehlgeschlagen — keine gültige AiDex-Schlüsseldatei.</string>
     <string name="aidex_searching_sensors">Suche nach Sensoren...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Konfigurieren Sie AiDex oder LinX CGM über Bluetooth</string>

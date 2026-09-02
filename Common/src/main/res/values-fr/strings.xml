@@ -611,6 +611,15 @@
     <string name="aidex_connected">Connecté !</string>
     <string name="aidex_connecting_to">Connexion à %1$s...</string>
     <string name="aidex_parse_error">AiDex : impossible d\'analyser la série du capteur à partir de "%1$s"</string>
+    <string name="aidex_key_management_title">Clés et compte</string>
+    <string name="aidex_key_management_desc">L’appairage local est essayé en premier. Ajoutez une clé propre au capteur uniquement si celui-ci signale qu’elle manque.</string>
+    <string name="aidex_key_management_entry_desc">Gérez les clés des capteurs et le compte AiDex Chine</string>
+    <string name="aidex_key_missing">Clé d’appairage manquante</string>
+    <string name="aidex_key_rejected">Clé d’appairage enregistrée refusée ; remplacez-la</string>
+    <string name="aidex_key_saved">Clé d’appairage propre au capteur enregistrée</string>
+    <string name="aidex_key_fetch_action">Obtenir la clé du compte</string>
+    <string name="aidex_key_fetch_requires_sign_in">Connectez-vous pour télécharger la clé de ce capteur.</string>
+    <string name="aidex_key_import_failed">Échec de l’importation — fichier de clé AiDex non valide.</string>
     <string name="aidex_searching_sensors">Recherche de capteurs...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Configurer AiDex ou LinX CGM via Bluetooth</string>
