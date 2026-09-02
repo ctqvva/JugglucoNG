@@ -489,6 +489,8 @@ object AnytimeConstants {
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
+    const val PREF_CT5_RECOVERY_RANDOM_B_PREFIX = "anytime_ct5_recovery_randomb_"
+    const val PREF_CT5_RECOVERY_TEMP_ID_PREFIX = "anytime_ct5_recovery_tempid_"
 
     /**
      * Highest CT5 glucose id whose computed record we have actually imported.

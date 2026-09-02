@@ -377,15 +377,35 @@ object AnytimeRegistry {
         editor.apply()
     }
 
-    @JvmStatic fun loadCt5TempId(c: Context, id: String): String =
-        prefs(c).getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null).orEmpty()
+    @JvmStatic fun loadCt5TempId(c: Context, id: String): String {
+        val preferences = prefs(c)
+        return preferences.getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null)
+            .orEmpty()
+            .ifBlank {
+                preferences.getString(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id, null).orEmpty()
+            }
+    }
+
     @JvmStatic fun saveCt5TempId(c: Context, id: String, tempId: String) {
-        prefs(c).edit().putString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, tempId.take(4)).apply()
+        val editor = prefs(c).edit()
+        if (tempId.length == 4 && tempId.toByteArray(Charsets.US_ASCII).size == 4) {
+            editor
+                .putString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, tempId)
+                .putString(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id, tempId)
+        } else {
+            editor.remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id)
+        }
+        editor.apply()
     }
 
     @JvmStatic
     fun loadCt5RandomB(c: Context, id: String): IntArray? {
-        val encoded = prefs(c).getString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, null).orEmpty()
+        val preferences = prefs(c)
+        val encoded = preferences.getString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, null)
+            .orEmpty()
+            .ifBlank {
+                preferences.getString(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id, null).orEmpty()
+            }
         if (encoded.length != 8) return null
         val out = IntArray(4)
         for (i in 0 until 4) {
@@ -402,7 +422,19 @@ object AnytimeRegistry {
             return
         }
         val encoded = randomB.joinToString("") { "%02X".format(it and 0xFF) }
-        editor.putString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, encoded).apply()
+        editor
+            .putString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, encoded)
+            .putString(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id, encoded)
+            .apply()
+    }
+
+    /** Forget recovery credentials only after the transmitter acknowledges unbind. */
+    @JvmStatic
+    fun clearCt5RecoveryIdentity(c: Context, id: String) {
+        prefs(c).edit()
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id)
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id)
+            .apply()
     }
 
     @JvmStatic

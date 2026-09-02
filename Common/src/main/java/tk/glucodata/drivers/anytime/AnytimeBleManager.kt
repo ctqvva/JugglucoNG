@@ -1224,6 +1224,7 @@ class AnytimeBleManager(
         ct5HistoryHealth.onGattSessionStarted()
         ct5SingleRecordHistoryOnly = false
         clearProtocolFrameTimeout()
+        Applic.app?.let { AnytimeRegistry.clearCt5RecoveryIdentity(it, SerialNumber) }
         persistAlgorithmState()
     }
 
@@ -4356,15 +4357,19 @@ class AnytimeBleManager(
         return writeFrame(resetFrame(), "reset(user)")
     }
 
-    private fun canEndCt5Cycle(): Boolean =
-        isCt5() &&
-                (phase == Phase.STREAMING || phase == Phase.HANDSHAKING) &&
-                bound &&
-                ct5RandomB?.size == 4 &&
+    private fun hasCt5EndCycleIdentity(): Boolean =
+        ct5RandomB?.size == 4 &&
                 ct5TempId.length == 4 &&
                 ct5TempId.toByteArray(Charsets.US_ASCII).size == 4
 
-    override fun supportsResetAction(): Boolean = canEndCt5Cycle()
+    private fun canEndCt5Cycle(): Boolean =
+        isCt5() &&
+                (phase == Phase.STREAMING || phase == Phase.HANDSHAKING) &&
+                hasCt5EndCycleIdentity()
+
+    // Keep the action visible while a CT5 is connected. Recovery credentials can
+    // outlive the active record specifically so delete/re-add cannot hide it.
+    override fun supportsResetAction(): Boolean = isCt5()
 
     private fun failCt5EndCycle(reason: String) {
         Log.e(TAG, "CT5 end-cycle failed ($reason); preserving the existing session")
@@ -4392,11 +4397,14 @@ class AnytimeBleManager(
     override fun resetSensor(): Boolean {
         if (!isCt5()) return requestTransmitterReset()
         if (!canEndCt5Cycle()) {
+            val reason = if (!hasCt5EndCycleIdentity()) "saved identity unavailable" else "phase=$phase"
             Log.w(
                 TAG,
-                "CT5 end-cycle request ignored — requires authenticated material from a bound session " +
-                        "(phase=$phase bound=$bound randomB=${ct5RandomB?.size ?: 0} tempId=${ct5TempId.length})"
+                "CT5 end-cycle request ignored — $reason " +
+                        "(bound=$bound randomB=${ct5RandomB?.size ?: 0} tempId=${ct5TempId.length})"
             )
+            constatstatusstr = if (!hasCt5EndCycleIdentity()) "End cycle identity unavailable" else "End cycle unavailable"
+            UiRefreshBus.requestStatusRefresh()
             return false
         }
         val randomB = ct5RandomB ?: return false
