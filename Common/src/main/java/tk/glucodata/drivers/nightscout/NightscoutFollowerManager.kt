@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URLEncoder
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.Applic
@@ -39,11 +40,11 @@ class NightscoutFollowerManager(
     companion object {
         private const val TAG = "NightscoutFollower"
         private const val SENSOR_GEN = 0
-        private const val POLL_INTERVAL_MS = 60_000L
         private const val RETRY_INTERVAL_MS = 30_000L
         /** A server that is down overnight must not wake the phone twice a minute until morning. */
         private const val RETRY_BACKOFF_CEILING_MS = 15L * 60_000L
         private const val PROBE_INTERVAL_MS = 59_000L
+        private const val POLL_IN_FLIGHT_TIMEOUT_MS = 60_000L
         private const val DEVICE_STATUS_COUNT = 5
         private const val MMOL_TO_MGDL = 18.0182f
     }
@@ -56,13 +57,15 @@ class NightscoutFollowerManager(
 
     private val handlerThread = HandlerThread("NightscoutFollower-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
-    private val pollRunnable = Runnable { refresh("poll") }
+    private val pollRunnable = Runnable { enqueueRefresh("timer", null) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val probeRunnable = Runnable { reconnect(System.currentTimeMillis()) }
 
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var status: String = localizedString(R.string.nightscout_follow_status_idle, "Nightscout follower idle")
     @Volatile private var consecutiveFailures: Int = 0
+    @Volatile private var nextPollElapsedRealtime: Long = 0L
+    private val refreshQueuedOrRunning = AtomicBoolean(false)
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
@@ -141,13 +144,12 @@ class NightscoutFollowerManager(
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))
-        mainHandler.removeCallbacks(probeRunnable)
-        mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+        armRecoveryProbe()
         return true
     }
 
     override fun close() {
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
         cancelPollAlarm()
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close().
@@ -165,7 +167,7 @@ class NightscoutFollowerManager(
 
     override fun softDisconnect() {
         stop = true
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
         cancelPollAlarm()
         mainHandler.removeCallbacks(probeRunnable)
         NightscoutFollowerDeviceStatus.clear()
@@ -179,16 +181,34 @@ class NightscoutFollowerManager(
 
     override fun reconnect(now: Long): Boolean {
         if (!stop) {
-            if (phase == Phase.IDLE) connectDevice(0)
-            mainHandler.removeCallbacks(probeRunnable)
-            mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+            recoverIfNeeded("probe")
+            armRecoveryProbe()
         }
         return true
     }
 
+    internal fun recoverIfNeeded(reason: String, forceWhenIdle: Boolean = false): Boolean {
+        if (stop || refreshQueuedOrRunning.get()) return false
+        val recover = NightscoutFollowerRecoveryPolicy.shouldRecover(
+            nextPollElapsedRealtime = nextPollElapsedRealtime,
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+            syncing = phase == Phase.SYNCING,
+            force = forceWhenIdle && phase == Phase.IDLE,
+        )
+        if (!recover) return false
+        Log.w(TAG, "Repairing missing or overdue follower poll ($reason)")
+        connectDevice(0)
+        return true
+    }
+
+    private fun armRecoveryProbe() {
+        mainHandler.removeCallbacks(probeRunnable)
+        mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+    }
+
     override fun terminateManagedSensor(wipeData: Boolean) {
         stop = true
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
         mainHandler.removeCallbacks(probeRunnable)
         NightscoutFollowerDeviceStatus.clear()
         if (wipeData) {
@@ -242,9 +262,11 @@ class NightscoutFollowerManager(
         handler.removeCallbacks(pollRunnable)
         if (stop) return
         if (delayMillis <= 0L) {
-            handler.post(pollRunnable)
+            enqueueRefresh("poll", null)
             return
         }
+        val at = SystemClock.elapsedRealtime() + delayMillis
+        nextPollElapsedRealtime = at
         val app = Applic.app
         val alarms = app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         val pending = pollIntent()
@@ -252,7 +274,6 @@ class NightscoutFollowerManager(
             handler.postDelayed(pollRunnable, delayMillis)
             return
         }
-        val at = SystemClock.elapsedRealtime() + delayMillis
         val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
         runCatching {
             if (exact) {
@@ -271,6 +292,16 @@ class NightscoutFollowerManager(
     private fun cancelPollAlarm() {
         val alarms = Applic.app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         pollIntent()?.let { pending -> runCatching { alarms?.cancel(pending) } }
+        nextPollElapsedRealtime = 0L
+    }
+
+    private fun cancelPendingHandlerWork() {
+        handler.removeCallbacksAndMessages(null)
+        // A queued refresh has not changed phase yet. A running one has, and owns the flag
+        // until its finally block, so do not make a second refresh eligible alongside it.
+        if (phase != Phase.SYNCING) {
+            refreshQueuedOrRunning.set(false)
+        }
     }
 
     /**
@@ -280,16 +311,37 @@ class NightscoutFollowerManager(
      */
     internal fun onPollAlarm(wakelock: PowerManager.WakeLock?) {
         if (stop) {
-            runCatching { if (wakelock?.isHeld == true) wakelock.release() }
+            releaseWakelock(wakelock)
             return
         }
-        handler.post {
+        handler.removeCallbacks(pollRunnable)
+        armRecoveryProbe()
+        enqueueRefresh("alarm", wakelock)
+    }
+
+    private fun enqueueRefresh(reason: String, wakelock: PowerManager.WakeLock?) {
+        if (stop || !refreshQueuedOrRunning.compareAndSet(false, true)) {
+            releaseWakelock(wakelock)
+            return
+        }
+        nextPollElapsedRealtime = SystemClock.elapsedRealtime() + POLL_IN_FLIGHT_TIMEOUT_MS
+        val accepted = handler.post {
             try {
-                refresh("alarm")
+                refresh(reason)
             } finally {
-                runCatching { if (wakelock?.isHeld == true) wakelock.release() }
+                refreshQueuedOrRunning.set(false)
+                releaseWakelock(wakelock)
             }
         }
+        if (!accepted) {
+            refreshQueuedOrRunning.set(false)
+            nextPollElapsedRealtime = 0L
+            releaseWakelock(wakelock)
+        }
+    }
+
+    private fun releaseWakelock(wakelock: PowerManager.WakeLock?) {
+        runCatching { if (wakelock?.isHeld == true) wakelock.release() }
     }
 
     private fun refresh(reason: String) {
