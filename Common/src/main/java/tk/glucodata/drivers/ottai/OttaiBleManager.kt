@@ -120,6 +120,10 @@ class OttaiBleManager(
         // flood the ledger. Both rules only ever widen a window — coverage is never traded away.
         private const val HISTORY_GAP_COALESCE_RECORDS = 5
         private const val MAX_HISTORY_GAP_RANGES = 8
+        // Widest hole the live path will ledger on its own. Anything larger is not a dropout
+        // during a live session, it is a store that needs the initial reconciliation, and
+        // enqueueing it here would spend the ledger's bounded attempts on the wrong problem.
+        private const val MAX_LIVE_GAP_RECORDS = 240
         private const val HISTORY_HOLE_MAX_ATTEMPTS = 5
         private const val HISTORY_HOLE_RETRY_DELAY_MS = 5_000L
         private const val MAX_LIVE_POLL_INTERVAL_MS = 60_000L
@@ -335,6 +339,35 @@ class OttaiBleManager(
          * index stays inside some returned window. Hitting [maxRanges] costs redundant records,
          * never coverage.
          */
+        /**
+         * The records a live sample says are missing, or null when nothing is.
+         *
+         * A live frame that lands on `liveDataNo` when the app holds `previousDataNo` is the
+         * sensor telling us, without being asked, that everything between them is gone from
+         * our side. That is a bounded, self-describing hole and the ledger exists to carry
+         * exactly this kind — but before this the only route to the ledger ran through
+         * requestRoomBackfillAfterLive, whose one-shot latches for the whole connection. On a
+         * 2026-08-30 trace the latch closed at 02:10 and the link then stayed up 11.5 hours,
+         * so a hole that opened at 12:10 was never re-requested at all.
+         *
+         * Bounded twice over: [ceiling] rejects a jump to a dataNo the sensor cannot have
+         * reached, and [maxRecords] refuses a span too large to be a live-path hole — that is
+         * the initial reconciliation's job, not this one's.
+         */
+        internal fun liveGapRange(
+            previousDataNo: Int,
+            liveDataNo: Int,
+            ceiling: Int = Int.MAX_VALUE,
+            maxRecords: Int = MAX_LIVE_GAP_RECORDS,
+        ): MissingRange? {
+            // A first-ever sample has nothing to be missing behind it, and a live dataNo past
+            // the ceiling is not a position the sensor can be in.
+            if (previousDataNo < 0 || liveDataNo <= 0 || liveDataNo > ceiling) return null
+            val missing = liveDataNo - previousDataNo - 1
+            if (missing <= 0 || missing > maxRecords) return null
+            return MissingRange(previousDataNo + 1, liveDataNo)
+        }
+
         internal fun missingRanges(
             present: BooleanArray,
             coalesceGap: Int = HISTORY_GAP_COALESCE_RECORDS,
@@ -2985,6 +3018,7 @@ class OttaiBleManager(
                 // independent backstop so the two don't both issue (which would wipe and restart
                 // the in-flight chunk chain via clearPendingHistoryRange).
                 handler.removeCallbacks(initialHistoryRunnable)
+                ledgerLiveGap(previousForHistory, liveDataNo)
                 val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
                 if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
                     val missingBeforeLive = liveDataNo - previousForHistory - 1
@@ -4349,6 +4383,21 @@ class OttaiBleManager(
     // Requested-but-undelivered windows. Added at request time for detected gaps, trimmed only
     // when their data actually arrives, retired by the cross-session attempt cap. Survives
     // disconnects and app restarts via OttaiRegistry (per-sensor pref).
+
+    /**
+     * Put a hole the live path just revealed on the ledger, whatever the one-shot thinks.
+     *
+     * [roomBackfillChecked] guards the *initial* whole-history reconciliation, which is
+     * expensive and belongs once per connection. A hole that opens mid-session is a different
+     * and bounded thing, and gating it behind that latch is why a 16-minute dropout on a link
+     * that never dropped stayed missing for the remaining eleven hours of the session.
+     */
+    private fun ledgerLiveGap(previousDataNo: Int, liveDataNo: Int) {
+        val gap = liveGapRange(previousDataNo, liveDataNo, dataNoCeiling(live = true)) ?: return
+        Log.i(TAG, "live gap ledgered ${gap.start}..<${gap.endExclusive} previous=$previousDataNo live=$liveDataNo")
+        addHistoryHole(gap.start, gap.endExclusive)
+        scheduleHoleRetry()
+    }
 
     private fun addHistoryHole(start: Int, endExclusive: Int) {
         if (endExclusive <= start || start < 0) return
