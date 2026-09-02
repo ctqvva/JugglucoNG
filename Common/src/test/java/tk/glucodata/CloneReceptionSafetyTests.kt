@@ -275,6 +275,36 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun fastLocalConnectionPreservesTheFirstPeerRequest() {
+        val transport = source("Common/src/main/cpp/net/ICE/ICE_data.hpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(transport.contains("void reStarted(bool preservePeerRequest=false)"))
+        assertTrue(transport.contains("if(!preservePeerRequest) certain_try_acquire(doSend)"))
+        assertTrue(connection.contains("const bool preservePeerRequest=isConnected.load()"))
+        assertTrue(connection.contains("icedata[0].reStarted(preservePeerRequest)"))
+        assertTrue(connection.contains("icedata[1].reStarted(preservePeerRequest)"))
+    }
+
+    @Test
+    fun savedLanDiscoverySettingAppliesToExistingCloneConnections() {
+        val config = source("Common/src/main/java/tk/glucodata/CloneIceNetworkConfig.kt")
+            .replace(Regex("\\s+"), " ")
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(config.contains("fun setUseLocalDiscovery(context: Context, enabled: Boolean)"))
+        assertTrue(config.contains("load(context).copy(useLocalDiscovery = enabled)"))
+        assertTrue(screen.contains("CloneIceNetworkConfigStore.setUseLocalDiscovery(context, enabled)"))
+        assertTrue(screen.contains("Natives.resetnetwork()"))
+        assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
+    }
+
+    @Test
     fun cloneDiagnosticsExposeTheWinningSignalingPathSeparatelyFromDataRoute() {
         val status = source("Common/src/main/cpp/mirrorstatus.cpp")
             .replace(Regex("\\s+"), " ")

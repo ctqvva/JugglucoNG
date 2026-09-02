@@ -97,6 +97,7 @@ bool verifyRendezvousCertificate;
 bool useLocalDiscovery;
 
 ICEConnect(int allindex,const passhost_t &host);
+void reloadNetworkConfig(const passhost_t &host);
 ~ICEConnect() {
         finish=true;
         endConnectionHere();
@@ -245,6 +246,7 @@ void releaseReceiverThread() {
         endConnect=false;
         remoteDescriptionSet=false;
         remoteDescriptionWasLocal=false;
+        reloadNetworkConfig(getBackupHosts()[allindex]);
         beginRendezvous();
         if(!prepareRendezvousGeneration()) {
                 phase=FailedInitAgent;
@@ -323,8 +325,12 @@ void endConnection() override{
 #endif
         }
 int  connect(const passhost_t *pass) {
-        icedata[0].reStarted();
-        icedata[1].reStarted();
+        // A fast local negotiation can receive the peer's first ASK before
+        // the sender worker reaches connect(). Do not discard that valid
+        // request while resetting the already-connected transport.
+        const bool preservePeerRequest=isConnected.load();
+        icedata[0].reStarted(preservePeerRequest);
+        icedata[1].reStarted(preservePeerRequest);
         int index=gethostindex(pass);
         if(endConnect)   {
             LOGGERICE("allindex=%d %s %d: ICE::Connect::connect endConnection\n",allindex,pass->getICEname().data(),pass->side);

@@ -111,12 +111,16 @@ RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
 
 ICEConnect::ICEConnect(int allindex,const passhost_t &host)
     :Connect(allindex),side(host.side) {
+    reloadNetworkConfig(host);
+    agent.store(nullptr);
+    }
+
+void ICEConnect::reloadNetworkConfig(const passhost_t &host) {
     auto endpoint=resolveRendezvousEndpoint(host.getICEname());
     rendezvousHost=std::move(endpoint.host);
     rendezvousPort=endpoint.port;
     verifyRendezvousCertificate=endpoint.verifyCertificate;
     useLocalDiscovery=currentICEConfig().useLocalDiscovery;
-    agent.store(nullptr);
     }
 #ifndef LOGGER
 #define LOGGER(...) fprintf(stderr,__VA_ARGS__)
