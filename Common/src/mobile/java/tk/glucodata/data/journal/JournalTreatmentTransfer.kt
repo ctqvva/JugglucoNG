@@ -318,6 +318,12 @@ object JournalTreatmentTransfer {
     fun sourceRecordIdsForBaseId(sourcePrefix: String, baseId: String): List<String> =
         allKinds.map { kind -> sourceRecordId(sourcePrefix, baseId, kind) }
 
+    internal fun sourceRecordIdForBaseId(
+        sourcePrefix: String,
+        baseId: String,
+        type: JournalEntryType,
+    ): String = sourceRecordId(sourcePrefix, baseId, type.storageValue)
+
     private fun sourceRecordId(sourcePrefix: String, baseId: String, kind: String): String =
         "$sourcePrefix:$baseId:$kind"
 

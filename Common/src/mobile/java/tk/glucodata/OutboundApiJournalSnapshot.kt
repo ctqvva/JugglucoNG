@@ -19,6 +19,7 @@ import tk.glucodata.data.HistoryDatabase
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalIobCalculator
@@ -27,7 +28,6 @@ import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
 import tk.glucodata.data.journal.isCloneJournalExportSource
 import tk.glucodata.data.prediction.PredictionModelProfileStore
-import java.util.UUID
 
 object OutboundApiJournalSnapshot {
     private const val PREFS_NAME = "tk.glucodata_preferences"
@@ -35,7 +35,6 @@ object OutboundApiJournalSnapshot {
     private const val DEFAULT_ACTIVE_WINDOW_MS = 24L * 60L * 60L * 1000L
     private const val API_SOURCE_PREFIX = "api"
     private const val JOURNAL_ENABLED_KEY = "dashboard_journal_enabled"
-    private const val CLONE_JOURNAL_ORIGIN_KEY = "clone_journal_origin_v1"
     private const val CLONE_JOURNAL_WINDOW_MS = 24L * 60L * 60L * 1000L
     private const val CLONE_JOURNAL_MAX_EVENTS = 128
     private const val CLONE_JOURNAL_TOMBSTONE_WINDOW_MS = 30L * 24L * 60L * 60L * 1000L
@@ -430,7 +429,7 @@ object OutboundApiJournalSnapshot {
             }
         return JSONObject()
             .put("schema", "tk.glucodata.clone.journal.v1")
-            .put("origin", cloneJournalOriginId())
+            .put("origin", CloneJournalIdentity.originId())
             .put("events", events)
             .put("deleted", deleted)
     }
@@ -508,18 +507,6 @@ object OutboundApiJournalSnapshot {
         }
         if (imported > 0 || deleted > 0) UiRefreshBus.requestDataRefresh()
         return imported + deleted
-    }
-
-    @Synchronized
-    private fun cloneJournalOriginId(): String {
-        val prefs = Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        prefs.getString(CLONE_JOURNAL_ORIGIN_KEY, null)
-            ?.trim()
-            ?.takeIf { it.length in 1..96 && it.all { char -> char.isLetterOrDigit() || char == '-' || char == '_' } }
-            ?.let { return it }
-        val generated = UUID.randomUUID().toString()
-        prefs.edit().putString(CLONE_JOURNAL_ORIGIN_KEY, generated).commit()
-        return generated
     }
 
     private suspend fun importJournal(raw: String, sourcePrefix: String): Int {
