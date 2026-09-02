@@ -292,10 +292,24 @@ object AnytimeRegistry {
         editor.putString(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id, encoded).apply()
     }
 
-    @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int =
-        prefs(c).getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
+    @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int {
+        val preferences = prefs(c)
+        val active = preferences.getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
+        return if (active in 0..255) active else {
+            preferences.getInt(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id, -1)
+        }
+    }
+
     @JvmStatic fun saveCt5CipherKey(c: Context, id: String, key: Int) {
-        prefs(c).edit().putInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, key.coerceIn(-1, 255)).apply()
+        val editor = prefs(c).edit()
+        if (key in 0..255) {
+            editor
+                .putInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, key)
+                .putInt(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id, key)
+        } else {
+            editor.remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id)
+        }
+        editor.apply()
     }
 
     /**
@@ -432,9 +446,60 @@ object AnytimeRegistry {
     @JvmStatic
     fun clearCt5RecoveryIdentity(c: Context, id: String) {
         prefs(c).edit()
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id)
             .remove(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id)
             .remove(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id)
             .apply()
+    }
+
+    /** Returns a portable CT5 session only when every authentication field is available. */
+    @JvmStatic
+    fun exportCt5Credentials(c: Context, id: String): String? {
+        val record = findRecord(c, id) ?: return null
+        val deviceName = loadDeviceName(c, record.sensorId).ifBlank { record.displayName }
+        return AnytimeCt5CredentialFile.encode(
+            sensorId = record.sensorId,
+            address = record.address,
+            deviceName = deviceName,
+            cipherKey = loadCt5CipherKey(c, record.sensorId),
+            randomB = loadCt5RandomB(c, record.sensorId) ?: return null,
+            temporaryId = loadCt5TempId(c, record.sensorId),
+        )
+    }
+
+    /** Validates and installs one CT5 session without importing glucose/history data. */
+    @JvmStatic
+    fun importCt5Credentials(c: Context, jsonText: String): SensorRecord? {
+        val parsed = AnytimeCt5CredentialFile.decode(jsonText) ?: return null
+        ensureSensorRecord(
+            context = c,
+            sensorId = parsed.sensorId,
+            address = parsed.address,
+            displayName = parsed.deviceName,
+        )
+        saveDeviceName(c, parsed.sensorId, parsed.deviceName)
+        saveBound(c, parsed.sensorId, true)
+        saveCt5CipherKey(c, parsed.sensorId, parsed.cipherKey)
+        saveCt5RandomB(c, parsed.sensorId, parsed.randomB)
+        saveCt5TempId(c, parsed.sensorId, parsed.temporaryId)
+        ManagedSensorUiSignals.markDeviceListDirty()
+        return findRecord(c, parsed.sensorId)
+    }
+
+    /** Reload imported state into the current CT5 callback and open a fresh GATT session. */
+    @JvmStatic
+    fun reconnectAfterCt5CredentialImport(c: Context, sensorId: String) {
+        val callback = SensorBluetooth.gattcallbacks.firstOrNull { candidate ->
+            val driver = candidate as? AnytimeDriver ?: return@firstOrNull false
+            SensorIdentity.matches(candidate.SerialNumber, sensorId) ||
+                driver.matchesManagedSensorId(sensorId)
+        }
+        if (callback is AnytimeBleManager) {
+            callback.restoreFromPersistence(c)
+            callback.softReconnect()
+        } else {
+            connectSensor(c, sensorId)
+        }
     }
 
     @JvmStatic

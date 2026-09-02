@@ -25,13 +25,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -53,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,7 +70,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.drivers.anytime.AnytimeAlgorithm
@@ -159,6 +166,15 @@ fun AnytimeSetupWizard(
                     onNavigateToReadiness = onNavigateToReadiness,
                     onQrCodeChanged = { qrCodeContent = normalizeAnytimeQrCode(it) },
                     onShowManualQrEntry = { showManualQrEntry = true },
+                    onCredentialsImported = { record ->
+                        selectedLabel = record.displayName.ifBlank { record.sensorId }
+                        currentStep = AnytimeSetupStep.CONNECTING
+                        scope.launch {
+                            AnytimeRegistry.reconnectAfterCt5CredentialImport(context, record.sensorId)
+                            delay(2000)
+                            currentStep = AnytimeSetupStep.SUCCESS
+                        }
+                    },
                     onDeviceSelected = { candidate ->
                         if (!qrValidation.isAllowed) {
                             Toast.makeText(
@@ -236,6 +252,7 @@ private fun AnytimeScanStep(
     onNavigateToReadiness: () -> Unit,
     onQrCodeChanged: (String) -> Unit,
     onShowManualQrEntry: () -> Unit,
+    onCredentialsImported: (AnytimeRegistry.SensorRecord) -> Unit,
     onDeviceSelected: (AnytimeScanCandidate) -> Unit,
 ) {
     val context = LocalContext.current
@@ -392,6 +409,9 @@ private fun AnytimeScanStep(
                 HorizontalDivider()
             }
             item {
+                AnytimeCt5CredentialsCard(onImported = onCredentialsImported)
+            }
+            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -461,6 +481,138 @@ private fun AnytimeScanStep(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnytimeCt5CredentialsCard(
+    onImported: (AnytimeRegistry.SensorRecord) -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var refreshKey by remember { mutableIntStateOf(0) }
+    var exportRecord by remember { mutableStateOf<AnytimeRegistry.SensorRecord?>(null) }
+    var status by remember { mutableStateOf("") }
+    var statusIsError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(refreshKey) {
+        exportRecord = withContext(Dispatchers.IO) {
+            AnytimeRegistry.persistedRecords(context).firstOrNull { record ->
+                AnytimeRegistry.exportCt5Credentials(context, record.sensorId) != null
+            }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        val record = exportRecord
+        if (uri != null && record != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                val json = AnytimeRegistry.exportCt5Credentials(context, record.sensorId)
+                    ?: return@withContext false
+                runCatching {
+                    context.contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(json.toByteArray(Charsets.UTF_8))
+                    } != null
+                }.getOrDefault(false)
+            }
+            statusIsError = !saved
+            status = context.getString(
+                if (saved) R.string.export_successful else R.string.export_failed,
+            )
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val imported = withContext(Dispatchers.IO) {
+                val json = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                }.getOrNull() ?: return@withContext null
+                AnytimeRegistry.importCt5Credentials(context, json)
+            }
+            if (imported != null) {
+                refreshKey += 1
+                statusIsError = false
+                status = context.getString(R.string.saved)
+                onImported(imported)
+            } else {
+                statusIsError = true
+                status = context.getString(R.string.error)
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "CT5 · ${stringResource(R.string.ottai_saved_credentials_title)}",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            exportRecord?.let { record ->
+                Text(
+                    text = record.displayName.ifBlank { record.sensorId },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (exportRecord != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            exportLauncher.launch("anytime_ct5_${exportRecord?.sensorId.orEmpty()}.json")
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.export))
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.ottai_credentials_replace))
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = {
+                        importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.ottai_credentials_import))
+                }
+            }
+            if (status.isNotBlank()) {
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (statusIsError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }
