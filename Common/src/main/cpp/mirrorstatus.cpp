@@ -161,9 +161,13 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getCloneConnectionTransport)(
         if (!host.ICE || host.getICEname() != identity)
             continue;
         Connect *connection = connections[allindex];
-        if (connection)
-            transport = connection->cloneTransportCode();
-        break;
+        if (!connection)
+            continue;
+        const int candidateTransport=connection->cloneTransportCode();
+        if (candidateTransport != clone_transport_unknown) {
+            transport=candidateTransport;
+            break;
+        }
     }
     env->ReleaseStringUTFChars(connectionIdentity, identity);
     return transport;

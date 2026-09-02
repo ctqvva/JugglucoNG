@@ -171,6 +171,22 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun completedIceAndDuplicateIdentityLookupExposeTheLiveCloneRoute() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val status = source("Common/src/main/cpp/mirrorstatus.cpp")
+            .replace(Regex("\\s+"), " ")
+
+        val completed = ice.substring(
+            ice.indexOf("case JUICE_STATE_COMPLETED:"),
+            ice.indexOf("case JUICE_STATE_FAILED:"),
+        )
+        assertTrue(completed.contains("refreshSelectedCloneTransport(con,agent)"))
+        assertTrue(status.contains("if (candidateTransport != clone_transport_unknown)"))
+        assertTrue(status.contains("transport=candidateTransport; break;"))
+    }
+
+    @Test
     fun rendezvousRequestsAreBoundedAndCancelledWithTheirIceGeneration() {
         val https = source("Common/src/main/cpp/net/ICE/ContextHTTPS.cpp")
             .replace(Regex("\\s+"), " ")
