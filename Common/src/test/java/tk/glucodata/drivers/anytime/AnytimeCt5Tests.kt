@@ -597,12 +597,12 @@ class AnytimeCt5Tests {
 
     @Test
     fun endCycleUsesTheOfficialCt5UnbindOpcode() {
-        val frame = AnytimeFrames.Builders.ct5EndCycle()
+        val frame = AnytimeFrames.Builders.ct5EndCycle("1234")
 
-        // The shipped app's actual CT5 unbind call path uses unBindRequest(),
-        // not the unused temp-id overload in ProtocolToolsHolder.
+        // Current CT5 sends the authenticated four-byte id, not the generic
+        // 0x58/0x55/0xAA frame used by older non-CT5 call paths.
         assertEquals(
-            listOf(0x58, 0x55, 0xAA, 0x57),
+            listOf(0x0A, 0x31, 0x32, 0x33, 0x34, 0xD4),
             frame.map { it.toInt() and 0xFF },
         )
         assertEquals(AnytimeConstants.TX_CT5_END_CYCLE, frame[0])

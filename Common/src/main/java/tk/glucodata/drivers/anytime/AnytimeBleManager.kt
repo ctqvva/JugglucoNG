@@ -859,12 +859,7 @@ class AnytimeBleManager(
             return@Runnable
         }
         if (tag.startsWith("ct5-endCycle") && ct5EndCycleRestartPending) {
-            Log.e(TAG, "CT5 end-cycle was written but not acknowledged; preserving the existing session")
-            ct5EndCycleRestartPending = false
-            ct5EndCycleWriteConfirmed = false
-            ct5EndCycleAccepted = false
-            constatstatusstr = "End cycle failed"
-            UiRefreshBus.requestStatusRefresh()
+            failCt5EndCycle("no response after $tag")
             return@Runnable
         }
         if (phase != Phase.HANDSHAKING) return@Runnable
@@ -1978,7 +1973,7 @@ class AnytimeBleManager(
         if (usesSummedFrames()) AnytimeFrames.Builders.resetSummed() else AnytimeFrames.Builders.reset()
 
     private fun unbindFrame(): ByteArray =
-        if (isCt5()) AnytimeFrames.Builders.ct5EndCycle()
+        if (isCt5()) AnytimeFrames.Builders.ct5EndCycle(ct5TempId)
         else if (usesSummedFrames()) AnytimeFrames.Builders.unbindSummed() else AnytimeFrames.Builders.unbind()
 
     private fun setDateFrame(): ByteArray =
@@ -2244,9 +2239,9 @@ class AnytimeBleManager(
                 } else {
                     if (ct5EndCycleRestartPending) {
                         val stage = if (ct5EndCycleWriteConfirmed) {
-                            "after the write but before transmitter acknowledgement"
+                            "after the authenticated unbind write but before transmitter acknowledgement"
                         } else {
-                            "before the command was written"
+                            "during identity validation"
                         }
                         Log.w(TAG, "CT5 end-cycle interrupted $stage; preserving the existing session")
                         ct5EndCycleRestartPending = false
@@ -2571,8 +2566,7 @@ class AnytimeBleManager(
             AnytimeConstants.RX_INIT -> handleInitResponse()
             AnytimeConstants.RX_LOW_POWER_ACK -> Log.d(TAG, "CT5 low-power ack")
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
-            AnytimeConstants.RX_UNBIND_ACK,
-            AnytimeConstants.RX_CT5_END_CYCLE_ACK -> handleUnbindAck(data)
+            AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck(data)
             else -> return false
         }
         return true
@@ -2834,7 +2828,7 @@ class AnytimeBleManager(
     private fun handleUnbindAck(data: ByteArray) {
         if (isCt5() && ct5EndCycleRestartPending) {
             val valid = data.size >= 2 &&
-                    data[0] == AnytimeConstants.RX_CT5_END_CYCLE_ACK &&
+                    data[0] == AnytimeConstants.RX_UNBIND_ACK &&
                     AnytimeFrames.verifySum(data)
             if (!valid) {
                 Log.w(TAG, "Ignoring invalid CT5 end-cycle response: ${data.joinToHex()}")
@@ -2917,6 +2911,15 @@ class AnytimeBleManager(
                 data[0] == AnytimeConstants.RX_CT5_CHECK_ID &&
                 AnytimeFrames.verifySum(data) &&
                 (data[5].toInt() and 0xFF) == 1
+        if (ct5EndCycleRestartPending) {
+            if (ok) {
+                Log.i(TAG, "CT5 identity check OK for end-cycle; sending authenticated unbind")
+                sendCt5EndCycleUnbind()
+            } else {
+                failCt5EndCycle("identity check rejected")
+            }
+            return
+        }
         if (ok) {
             Log.i(TAG, "CT5 identity check OK")
             ct5ReconnectDateAfterIdentity = true
@@ -4353,15 +4356,50 @@ class AnytimeBleManager(
         return writeFrame(resetFrame(), "reset(user)")
     }
 
-    override fun supportsResetAction(): Boolean = isCt5()
+    private fun canEndCt5Cycle(): Boolean =
+        isCt5() &&
+                (phase == Phase.STREAMING || phase == Phase.HANDSHAKING) &&
+                bound &&
+                ct5RandomB?.size == 4 &&
+                ct5TempId.length == 4 &&
+                ct5TempId.toByteArray(Charsets.US_ASCII).size == 4
+
+    override fun supportsResetAction(): Boolean = canEndCt5Cycle()
+
+    private fun failCt5EndCycle(reason: String) {
+        Log.e(TAG, "CT5 end-cycle failed ($reason); preserving the existing session")
+        ct5EndCycleRestartPending = false
+        ct5EndCycleWriteConfirmed = false
+        ct5EndCycleAccepted = false
+        constatstatusstr = "End cycle failed"
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun sendCt5EndCycleUnbind() {
+        val written = writeFrame(
+            bytes = unbindFrame(),
+            tag = "ct5-endCycle-unbind(user)",
+            expectResponse = true,
+            onWritten = {
+                ct5EndCycleWriteConfirmed = true
+                Log.i(TAG, "CT5 authenticated unbind written; waiting for transmitter acknowledgement")
+            },
+            onDropped = { failCt5EndCycle("authenticated unbind dropped") },
+        )
+        if (!written) failCt5EndCycle("authenticated unbind could not be queued")
+    }
 
     override fun resetSensor(): Boolean {
         if (!isCt5()) return requestTransmitterReset()
-        if (phase != Phase.STREAMING && phase != Phase.HANDSHAKING) {
-            Log.w(TAG, "CT5 end-cycle request ignored — phase=$phase")
+        if (!canEndCt5Cycle()) {
+            Log.w(
+                TAG,
+                "CT5 end-cycle request ignored — requires authenticated material from a bound session " +
+                        "(phase=$phase bound=$bound randomB=${ct5RandomB?.size ?: 0} tempId=${ct5TempId.length})"
+            )
             return false
         }
-        val frame = unbindFrame()
+        val randomB = ct5RandomB ?: return false
         cancelCt5EndCycleRestart("new CT5 end-cycle request")
         ct5EndCycleRestartPending = true
         ct5EndCycleWriteConfirmed = false
@@ -4369,33 +4407,19 @@ class AnytimeBleManager(
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(
-            bytes = frame,
-            tag = "ct5-endCycle(user)",
+            bytes = AnytimeFrames.Builders.ct5CheckId(randomB),
+            tag = "ct5-endCycle-checkID(user)",
             expectResponse = true,
             onWritten = {
-                ct5EndCycleWriteConfirmed = true
-                Log.i(
-                    TAG,
-                    "CT5 end-cycle command written; waiting for transmitter acknowledgement"
-                )
+                Log.i(TAG, "CT5 end-cycle identity check written; waiting for transmitter acknowledgement")
             },
-            onDropped = {
-                ct5EndCycleRestartPending = false
-                ct5EndCycleWriteConfirmed = false
-                ct5EndCycleAccepted = false
-                constatstatusstr = "End cycle failed"
-                UiRefreshBus.requestStatusRefresh()
-            },
+            onDropped = { failCt5EndCycle("identity check dropped") },
         )
         if (!written) {
-            ct5EndCycleRestartPending = false
-            ct5EndCycleWriteConfirmed = false
-            ct5EndCycleAccepted = false
-            constatstatusstr = "End cycle failed"
-            UiRefreshBus.requestStatusRefresh()
+            failCt5EndCycle("identity check could not be queued")
             return false
         }
-        Log.i(TAG, "CT5 end-cycle command queued; waiting for GATT write callback")
+        Log.i(TAG, "CT5 end-cycle identity check queued; waiting for GATT write callback")
         return true
     }
 

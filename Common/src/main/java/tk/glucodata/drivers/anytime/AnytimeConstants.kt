@@ -119,8 +119,8 @@ object AnytimeConstants {
     /** CT5 encrypted QR/KR query. Body: {0x3F, 0x55, 0xAA, sum}. */
     const val TX_CT5_QUERY_SSN: Byte = 0x3F
 
-    /** CT5 end-cycle/unbind request. Body: {0x58, 0x55, 0xAA, sum}. */
-    const val TX_CT5_END_CYCLE: Byte = 0x58
+    /** CT5 end-cycle/unbind request. Body: {0x0A, temporaryId[4], sum}. */
+    const val TX_CT5_END_CYCLE: Byte = TX_UNBIND
 
     // ---- Sensor → phone notification opcodes (RX) ----
 
@@ -147,9 +147,6 @@ object AnytimeConstants {
 
     /** Unbind ack. */
     const val RX_UNBIND_ACK: Byte = 0x0A
-
-    /** CT5 end-cycle/unbind ack used by the shipped Anytime app. */
-    const val RX_CT5_END_CYCLE_ACK: Byte = TX_CT5_END_CYCLE
 
     /** K/R upload ack. */
     const val RX_INPUT_KR_ACK: Byte = 0x0B

@@ -394,9 +394,19 @@ object AnytimeFrames {
         fun ct5InputBgMg(mgdl: Int): ByteArray =
             withSum(0x09, (mgdl ushr 8) and 0xFF, mgdl and 0xFF)
 
-        /** CT5 end-cycle frame used by the shipped Anytime app's live call path. */
+        /** CT5 end-cycle frame: opcode 0x0A + the authenticated four-byte temporary id. */
         @JvmStatic
-        fun ct5EndCycle(): ByteArray = withSum(AnytimeConstants.TX_CT5_END_CYCLE.toInt(), 0x55, 0xAA)
+        fun ct5EndCycle(tempId: String): ByteArray {
+            val id = tempId.toByteArray(Charsets.US_ASCII)
+            require(tempId.length == 4 && id.size == 4) { "CT5 temporary id must be four ASCII bytes" }
+            return withSum(
+                AnytimeConstants.TX_CT5_END_CYCLE.toInt() and 0xFF,
+                id[0].toInt() and 0xFF,
+                id[1].toInt() and 0xFF,
+                id[2].toInt() and 0xFF,
+                id[3].toInt() and 0xFF,
+            )
+        }
 
         /** CT5 encrypted K/R + temporary id setup. */
         @JvmStatic
