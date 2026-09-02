@@ -85,6 +85,10 @@ object CloneIceNetworkConfigStore {
     }
 
     @JvmStatic
+    fun setUseLocalDiscovery(context: Context, enabled: Boolean): Boolean =
+        save(context, load(context).copy(useLocalDiscovery = enabled))
+
+    @JvmStatic
     fun prepareForNativeStartup(context: Context) {
         // Startup restores saved ICE hosts inside setlibrary(). Apply the
         // persisted endpoint first so their constructors never snapshot the

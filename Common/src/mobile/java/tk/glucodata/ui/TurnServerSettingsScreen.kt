@@ -147,7 +147,19 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.clone_local_discovery),
                 subtitle = stringResource(R.string.clone_local_discovery_summary),
                 checked = useLocalDiscovery,
-                onCheckedChange = { useLocalDiscovery = it },
+                onCheckedChange = { enabled ->
+                    if (CloneIceNetworkConfigStore.setUseLocalDiscovery(context, enabled)) {
+                        useLocalDiscovery = enabled
+                        Natives.resetnetwork()
+                        tk.glucodata.Applic.wakemirrors()
+                    } else {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.savefailed),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                },
                 position = CardPosition.SINGLE,
             )
             Spacer(Modifier.height(8.dp))

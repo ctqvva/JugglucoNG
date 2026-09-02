@@ -124,7 +124,7 @@ struct ICE_data {
         askedData=false;
         databuf.clear();
         }
-    void reStarted() {
+    void reStarted(bool preservePeerRequest=false) {
         resetReceive();
         shutdown=false;
         sendShutdown=false;
@@ -136,9 +136,11 @@ struct ICE_data {
         }
         {
         std::lock_guard<std::mutex> lck(doSendMutex);
-        certain_try_acquire(doSend);
+        if(!preservePeerRequest)
+            certain_try_acquire(doSend);
         }
-        LOGGERICE("reStarted side=%d doSend(%p).try_acquire()\n",side,&doSend);
+        LOGGERICE("reStarted side=%d doSend(%p) preservePeerRequest=%d\n",
+                  side,&doSend,preservePeerRequest);
         };
     void reCreated() {
         send_trans_id=0;
