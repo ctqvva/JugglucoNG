@@ -120,6 +120,10 @@ class OttaiBleManager(
         // flood the ledger. Both rules only ever widen a window — coverage is never traded away.
         private const val HISTORY_GAP_COALESCE_RECORDS = 5
         private const val MAX_HISTORY_GAP_RANGES = 8
+        // Widest hole the live path will ledger on its own. Anything larger is not a dropout
+        // during a live session, it is a store that needs the initial reconciliation, and
+        // enqueueing it here would spend the ledger's bounded attempts on the wrong problem.
+        private const val MAX_LIVE_GAP_RECORDS = 240
         private const val HISTORY_HOLE_MAX_ATTEMPTS = 5
         private const val HISTORY_HOLE_RETRY_DELAY_MS = 5_000L
         private const val MAX_LIVE_POLL_INTERVAL_MS = 60_000L
@@ -335,6 +339,35 @@ class OttaiBleManager(
          * index stays inside some returned window. Hitting [maxRanges] costs redundant records,
          * never coverage.
          */
+        /**
+         * The records a live sample says are missing, or null when nothing is.
+         *
+         * A live frame that lands on `liveDataNo` when the app holds `previousDataNo` is the
+         * sensor telling us, without being asked, that everything between them is gone from
+         * our side. That is a bounded, self-describing hole and the ledger exists to carry
+         * exactly this kind — but before this the only route to the ledger ran through
+         * requestRoomBackfillAfterLive, whose one-shot latches for the whole connection. On a
+         * 2026-08-30 trace the latch closed at 02:10 and the link then stayed up 11.5 hours,
+         * so a hole that opened at 12:10 was never re-requested at all.
+         *
+         * Bounded twice over: [ceiling] rejects a jump to a dataNo the sensor cannot have
+         * reached, and [maxRecords] refuses a span too large to be a live-path hole — that is
+         * the initial reconciliation's job, not this one's.
+         */
+        internal fun liveGapRange(
+            previousDataNo: Int,
+            liveDataNo: Int,
+            ceiling: Int = Int.MAX_VALUE,
+            maxRecords: Int = MAX_LIVE_GAP_RECORDS,
+        ): MissingRange? {
+            // A first-ever sample has nothing to be missing behind it, and a live dataNo past
+            // the ceiling is not a position the sensor can be in.
+            if (previousDataNo < 0 || liveDataNo <= 0 || liveDataNo > ceiling) return null
+            val missing = liveDataNo - previousDataNo - 1
+            if (missing <= 0 || missing > maxRecords) return null
+            return MissingRange(previousDataNo + 1, liveDataNo)
+        }
+
         internal fun missingRanges(
             present: BooleanArray,
             coalesceGap: Int = HISTORY_GAP_COALESCE_RECORDS,
@@ -774,6 +807,13 @@ class OttaiBleManager(
     @Volatile private var livePollIntervalMs = 60_000L
     @Volatile private var lastHistoryRequestAtMs = 0L
     @Volatile private var roomBackfillChecked = false
+    // The sensor's BLE record layout (8 or 9), 0 until a payload big enough to prove one has
+    // been seen. A minute live notify is 24 bytes — one 9-byte record plus padding, which is
+    // also two 8-byte records — so it cannot tell the layouts apart and must not be allowed to
+    // choose. See OttaiParser.decisiveRecordSize.
+    @Volatile private var learnedRecordSize = 0
+    // One log line per run of payloads whose own inference disagrees with the held layout.
+    @Volatile private var recordSizeDisagreementLogged = false
     @Volatile private var initialHistoryAttempt = 0
     @Volatile private var pendingHistoryReason: String? = null
     @Volatile private var pendingHistoryNextStart = 0
@@ -1033,6 +1073,7 @@ class OttaiBleManager(
         authKeys = materials.authKeys
         activatedMaxActiveMs = OttaiRegistry.loadAcceptedMaxActive(context, id)
         lastDataNo = OttaiRegistry.loadLastDataNo(context, id)
+        learnedRecordSize = OttaiRegistry.loadRecordSize(context, id)
         synchronized(historyHolesLock) {
             historyHoles.clear()
             OttaiRegistry.loadHistoryHoles(context, id).forEach { (s, e, attempts) ->
@@ -2848,6 +2889,47 @@ class OttaiBleManager(
     private fun appString(resId: Int, fallback: String, vararg args: Any): String =
         runCatching { Applic.app?.getString(resId, *args) }.getOrNull() ?: fallback
 
+    /** The learned layout to frame with, or null while nothing has proved one. */
+    private fun heldRecordSize(): Int? = learnedRecordSize.takeIf { it > 0 }
+
+    /**
+     * Adopt the record layout when a payload is big enough to prove it, and say so when a
+     * payload would have chosen differently.
+     *
+     * The diagnostic is the point of the second half: the 2026-08-30 trace could show that
+     * 112 live frames framed as 8-byte and lost their sample, but not *why* the inference
+     * flipped, because the payloads are encrypted and only the record count reaches the log.
+     * Printing the evidence counts on disagreement makes the next trace answer that directly.
+     * Logged once per run of disagreement so a persistently odd sensor cannot flood the log.
+     */
+    private fun learnRecordSize(payload: ByteArray) {
+        val id = SerialNumber ?: return
+        val decisive = OttaiParser.decisiveRecordSize(payload, materials.deviceVersion)
+        if (decisive != null) {
+            recordSizeDisagreementLogged = false
+            if (decisive != learnedRecordSize) {
+                val previous = learnedRecordSize
+                learnedRecordSize = decisive
+                Applic.app?.let { OttaiRegistry.saveRecordSize(it, id, decisive) }
+                Log.i(TAG, "record size learned=$decisive previous=$previous len=${payload.size}")
+            }
+            return
+        }
+        val held = learnedRecordSize.takeIf { it > 0 } ?: return
+        val wouldChoose = OttaiParser.chooseRecordSize(payload, materials.deviceVersion)
+        if (wouldChoose == held) {
+            recordSizeDisagreementLogged = false
+            return
+        }
+        if (recordSizeDisagreementLogged) return
+        recordSizeDisagreementLogged = true
+        val (nine, eight) = OttaiParser.recordSizeEvidence(payload)
+        Log.i(
+            TAG,
+            "record size held=$held payloadWould=$wouldChoose nine=$nine eight=$eight len=${payload.size}",
+        )
+    }
+
     private fun handleGlucosePayload(cipher: ByteArray, live: Boolean, source: String) {
         if (sessionKeyHex.isBlank()) { Log.w(TAG, "payload before session key"); return }
         if (live && commandStatus >= 4) {
@@ -2864,7 +2946,8 @@ class OttaiBleManager(
             Log.w(TAG, "$kind $source decrypt failed len=${cipher.size} blockMod=${cipher.size % 16}")
             return
         }
-        val records = OttaiParser.frameRecords(payload, materials.deviceVersion)
+        learnRecordSize(payload)
+        val records = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
         if (records.isEmpty()) {
             Log.w(TAG, "$kind $source no records payloadLen=${payload.size} hex=${OttaiCrypto.bytesToHex(payload).take(160)}")
             if (live) {
@@ -2935,6 +3018,7 @@ class OttaiBleManager(
                 // independent backstop so the two don't both issue (which would wipe and restart
                 // the in-flight chunk chain via clearPendingHistoryRange).
                 handler.removeCallbacks(initialHistoryRunnable)
+                ledgerLiveGap(previousForHistory, liveDataNo)
                 val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
                 if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
                     val missingBeforeLive = liveDataNo - previousForHistory - 1
@@ -2966,7 +3050,7 @@ class OttaiBleManager(
             Log.w(TAG, "ended live $source decrypt failed len=${cipher.size}")
             return
         }
-        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion)
+        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
             .map(OttaiParser::parseRecord)
             .maxByOrNull { it.dataNo }
         if (latest == null) {
@@ -4299,6 +4383,21 @@ class OttaiBleManager(
     // Requested-but-undelivered windows. Added at request time for detected gaps, trimmed only
     // when their data actually arrives, retired by the cross-session attempt cap. Survives
     // disconnects and app restarts via OttaiRegistry (per-sensor pref).
+
+    /**
+     * Put a hole the live path just revealed on the ledger, whatever the one-shot thinks.
+     *
+     * [roomBackfillChecked] guards the *initial* whole-history reconciliation, which is
+     * expensive and belongs once per connection. A hole that opens mid-session is a different
+     * and bounded thing, and gating it behind that latch is why a 16-minute dropout on a link
+     * that never dropped stayed missing for the remaining eleven hours of the session.
+     */
+    private fun ledgerLiveGap(previousDataNo: Int, liveDataNo: Int) {
+        val gap = liveGapRange(previousDataNo, liveDataNo, dataNoCeiling(live = true)) ?: return
+        Log.i(TAG, "live gap ledgered ${gap.start}..<${gap.endExclusive} previous=$previousDataNo live=$liveDataNo")
+        addHistoryHole(gap.start, gap.endExclusive)
+        scheduleHoleRetry()
+    }
 
     private fun addHistoryHole(start: Int, endExclusive: Int) {
         if (endExclusive <= start || start < 0) return
