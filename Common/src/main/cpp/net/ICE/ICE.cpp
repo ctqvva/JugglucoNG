@@ -1216,7 +1216,7 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
     while(true) {
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
-        if(con->remoteDescriptionSet.load()) {
+        if(con->remoteDescriptionWasLocal.load()) {
             con->beginRendezvous();
             return true;
             }
@@ -1225,7 +1225,7 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
             rendezvousRequestOptions(con));
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
-        if(con->remoteDescriptionSet.load()) {
+        if(con->remoteDescriptionWasLocal.load()) {
             con->beginRendezvous();
             return true;
             }
@@ -1273,7 +1273,7 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
     while(true) {
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
-            if(con->remoteDescriptionSet.load()) {
+            if(con->remoteDescriptionWasLocal.load()) {
                 con->beginRendezvous();
                 return true;
                 }
@@ -1284,7 +1284,7 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                 rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
-            if(con->remoteDescriptionSet.load()) {
+            if(con->remoteDescriptionWasLocal.load()) {
                 con->beginRendezvous();
                 return true;
                 }
