@@ -2611,4 +2611,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="anytime_credentials_backup">CT5-inloggegevens back-uppen</string>
     <string name="anytime_credentials_backup_warning">Met dit bestand kan de zendersessie worden hersteld nadat de app opnieuw is geïnstalleerd of de sensor is verwijderd. Bewaar het veilig.</string>
     <string name="anytime_history_fetch_warning">De volledige zendergeschiedenis tot de huidige live meting ophalen? Dit kan enkele minuten duren en zorgt voor meer Bluetooth-verkeer. Live metingen blijven doorgaan.</string>
+    <string name="anytime_restart_action">Herstart</string>
+    <string name="anytime_restart_title">Sensor herstarten?</string>
+    <string name="anytime_restart_warning">De huidige transmittersessie beëindigen en een nieuwe koppelcyclus starten? De bestaande glucosegeschiedenis blijft in de app.</string>
+    <string name="anytime_history_action">Historie</string>
 </resources>

@@ -2644,4 +2644,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_credentials_backup">Резервна копія облікових даних CT5</string>
     <string name="anytime_credentials_backup_warning">Цей файл дає змогу відновити сеанс передавача після перевстановлення програми або видалення датчика. Зберігайте його в безпечному місці.</string>
     <string name="anytime_history_fetch_warning">Завантажити повну історію передавача до поточного показання? Це може тривати кілька хвилин і збільшить Bluetooth-трафік. Нові показання надходитимуть далі.</string>
+    <string name="anytime_restart_action">Перезапуск</string>
+    <string name="anytime_restart_title">Перезапустити датчик?</string>
+    <string name="anytime_restart_warning">Завершити поточний сеанс передавача й почати новий цикл сполучення? Наявна історія глюкози залишиться у застосунку.</string>
+    <string name="anytime_history_action">Історія</string>
 </resources>

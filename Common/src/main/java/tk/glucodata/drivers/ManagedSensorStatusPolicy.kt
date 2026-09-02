@@ -91,6 +91,7 @@ object ManagedSensorStatusPolicy {
         sensorRemainingHours: Int = -1,
         sensorAgeHours: Int = -1,
         fallbackDurationDays: Int = 14,
+        allowExpectedEndOverrun: Boolean = false,
         nowMs: Long = System.currentTimeMillis(),
     ): ManagedSensorLifecycleSummary {
         if (startTimeMs <= 0L) {
@@ -122,12 +123,22 @@ object ManagedSensorStatusPolicy {
             else -> windowMs
         }
 
-        val remainingHours = reportedRemainingHours
-            ?: ((endMs - nowMs).coerceAtLeast(0L) / HOUR_MS)
+        val isExpectedEndOverrun = allowExpectedEndOverrun &&
+            expectedEndMs > startTimeMs &&
+            nowMs >= expectedEndMs
+        val remainingHours = if (isExpectedEndOverrun) {
+            -1L
+        } else {
+            reportedRemainingHours ?: ((endMs - nowMs).coerceAtLeast(0L) / HOUR_MS)
+        }
 
         val usedMs = reportedAgeHours
             ?.let { (it * HOUR_MS).coerceIn(0L, totalMs) }
-            ?: (totalMs - (remainingHours * HOUR_MS)).coerceIn(0L, totalMs)
+            ?: if (remainingHours >= 0L) {
+                (totalMs - (remainingHours * HOUR_MS)).coerceIn(0L, totalMs)
+            } else {
+                totalMs
+            }
         val progress = (usedMs.toFloat() / totalMs).coerceIn(0f, 1f)
         // Round the lifetime to the NEAREST whole day, not up. Some sensors carry a small
         // sub-day overage in their reported end (e.g. Ottai's maxActive is 15d + 30min), and
@@ -138,7 +149,11 @@ object ManagedSensorStatusPolicy {
         val computedCurrentDay = reportedAgeHours
             ?.let { (it / 24L) + 1L }
             ?: ((usedMs / DAY_MS) + 1L)
-        val currentDay = computedCurrentDay.coerceIn(1L, totalDays).toInt()
+        val currentDay = if (isExpectedEndOverrun) {
+            computedCurrentDay.coerceAtLeast(totalDays + 1L).toInt()
+        } else {
+            computedCurrentDay.coerceIn(1L, totalDays).toInt()
+        }
 
         return ManagedSensorLifecycleSummary(
             progress = progress,

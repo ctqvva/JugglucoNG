@@ -2607,4 +2607,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="anytime_credentials_backup">CT5-Zugangsdaten sichern</string>
     <string name="anytime_credentials_backup_warning">Mit dieser Datei kann die Sendersitzung nach einer Neuinstallation der App oder dem Entfernen des Sensors wiederhergestellt werden. Bewahre sie sicher auf.</string>
     <string name="anytime_history_fetch_warning">Den vollständigen Senderverlauf bis zum aktuellen Live-Wert abrufen? Dies kann mehrere Minuten dauern und erhöht den Bluetooth-Datenverkehr. Live-Werte werden weiterhin empfangen.</string>
+    <string name="anytime_restart_action">Neustart</string>
+    <string name="anytime_restart_title">Sensor neu starten?</string>
+    <string name="anytime_restart_warning">Die aktuelle Transmittersitzung beenden und einen neuen Kopplungsvorgang starten? Der vorhandene Glukoseverlauf bleibt in der App.</string>
+    <string name="anytime_history_action">Verlauf</string>
 </resources>

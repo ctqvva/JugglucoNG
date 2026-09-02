@@ -541,11 +541,22 @@ fun SensorCard(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text(stringResource(R.string.reset_sensor_title)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (sensor.isAnytime) R.string.anytime_restart_title
+                        else R.string.reset_sensor_title
+                    )
+                )
+            },
             text = {
                 Text(
                     stringResource(
-                        if (sensor.isSibionics2) R.string.reset_sensor_desc else R.string.unified_reset_desc
+                        when {
+                            sensor.isAnytime -> R.string.anytime_restart_warning
+                            sensor.isSibionics2 -> R.string.reset_sensor_desc
+                            else -> R.string.unified_reset_desc
+                        }
                     )
                 )
             },
@@ -553,7 +564,14 @@ fun SensorCard(
                 TextButton(onClick = {
                     viewModel.resetSensor(sensor.serial)
                     showResetDialog = false
-                }) { Text(stringResource(R.string.reset_sensor)) }
+                }) {
+                    Text(
+                        stringResource(
+                            if (sensor.isAnytime) R.string.anytime_restart_action
+                            else R.string.reset_sensor
+                        )
+                    )
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) { Text(stringResource(R.string.cancel)) }
@@ -2500,56 +2518,91 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    FilledTonalIconButton(
+                    FilledTonalButton(
+                        onClick = { showResetDialog = true },
+                        enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_restart_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    FilledTonalButton(
                         onClick = { showAnytimeHistoryDialog = true },
                         enabled = sensor.isVendorConnected,
-                        modifier = Modifier.size(48.dp),
-                        shape = RoundedCornerShape(
-                            topStart = 28.dp,
-                            bottomStart = 28.dp,
-                            topEnd = 4.dp,
-                            bottomEnd = 4.dp,
-                        ),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
                     ) {
                         Icon(
                             imageVector = Icons.Default.History,
-                            contentDescription = stringResource(R.string.streamhistory),
-                            modifier = Modifier.size(20.dp),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_history_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
                     }
-                    FilledTonalIconButton(
+                    FilledTonalButton(
                         onClick = { showAnytimeCredentialBackupDialog = true },
                         enabled = hasExportableCredentials,
-                        modifier = Modifier.size(48.dp),
-                        shape = RoundedCornerShape(
-                            topStart = 4.dp,
-                            bottomStart = 4.dp,
-                            topEnd = 28.dp,
-                            bottomEnd = 28.dp,
-                        ),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Key,
-                            contentDescription = stringResource(R.string.anytime_credentials_backup),
-                            modifier = Modifier.size(20.dp),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.export),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
                     }
                 }
             }
 
-            if (!sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
+            if (!sensor.isAnytime && !sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
                     enabled = sensor.isVendorConnected,

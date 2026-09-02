@@ -55,4 +55,24 @@ class ManagedSensorStatusPolicyTests {
         assertEquals("15 / 15", summary.daysText)
         assertFalse(summary.progress < 0f)
     }
+
+    @Test
+    fun resolveLifecycleSummary_showsExpectedEndOverrunAsExtraDay() {
+        val start = 10_000L
+        val expectedEnd = start + (7_695L * 3L * 60L * 1000L)
+        val summary = ManagedSensorStatusPolicy.resolveLifecycleSummary(
+            startTimeMs = start,
+            officialEndMs = 0L,
+            expectedEndMs = expectedEnd,
+            sensorRemainingHours = -1,
+            sensorAgeHours = (16 * 24) + 16,
+            allowExpectedEndOverrun = true,
+            nowMs = expectedEnd + (15L * 60L * 60L * 1000L),
+        )
+
+        assertEquals("17 / 16", summary.daysText)
+        assertEquals(17, summary.currentDay)
+        assertEquals(-1L, summary.remainingHours)
+        assertEquals(1f, summary.progress)
+    }
 }

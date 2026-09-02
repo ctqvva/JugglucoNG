@@ -2639,4 +2639,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_credentials_backup">Рэзервовая копія ўліковых даных CT5</string>
     <string name="anytime_credentials_backup_warning">Гэты файл дазваляе аднавіць сеанс перадатчыка пасля пераўсталёўкі праграмы або выдалення датчыка. Захоўвайце яго ў бяспечным месцы.</string>
     <string name="anytime_history_fetch_warning">Загрузіць поўную гісторыю перадатчыка да бягучага паказання? Гэта можа заняць некалькі хвілін і павялічыць Bluetooth-трафік. Новыя паказанні будуць паступаць.</string>
+    <string name="anytime_restart_action">Перазапуск</string>
+    <string name="anytime_restart_title">Перазапусціць датчык?</string>
+    <string name="anytime_restart_warning">Завяршыць бягучы сеанс перадатчыка і пачаць новы цыкл спалучэння? Існуючая гісторыя глюкозы застанецца ў праграме.</string>
+    <string name="anytime_history_action">Гісторыя</string>
 </resources>

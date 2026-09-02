@@ -2793,4 +2793,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_credentials_backup">Back up CT5 credentials</string>
     <string name="anytime_credentials_backup_warning">This file can restore the transmitter session after reinstalling the app or removing the sensor. Store it securely.</string>
     <string name="anytime_history_fetch_warning">Fetch the complete transmitter history up to the current live reading? This can take several minutes and increases Bluetooth traffic. Live readings will continue.</string>
+    <string name="anytime_restart_action">Restart</string>
+    <string name="anytime_restart_title">Restart sensor?</string>
+    <string name="anytime_restart_warning">End the current transmitter session and start a fresh pairing cycle? Existing glucose history will stay in the app.</string>
+    <string name="anytime_history_action">History</string>
 </resources>

@@ -900,6 +900,9 @@ class DashboardViewModel(
                     sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
                     sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
                     fallbackDurationDays = fallbackDurationDays,
+                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
+                        managedSnapshot.expectedEndMs > 0L &&
+                        !managedSnapshot.isSensorExpired,
                     nowMs = System.currentTimeMillis()
                 )
                 _sensorProgress.value = lifecycle.progress
@@ -916,6 +919,9 @@ class DashboardViewModel(
                     sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
                     sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
                     fallbackDurationDays = fallbackDurationDays,
+                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
+                        managedSnapshot.expectedEndMs > 0L &&
+                        !managedSnapshot.isSensorExpired,
                     nowMs = System.currentTimeMillis()
                 )
                 _sensorProgress.value = lifecycle.progress
