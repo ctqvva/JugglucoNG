@@ -1,9 +1,10 @@
 package tk.glucodata
 
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -11,7 +12,7 @@ import java.util.zip.GZIPOutputStream
 
 class CloneRecoveryPackageIOTests {
     @Test
-    fun packageRoundTripPreservesRecordsAndUnicode() {
+    fun packageRoundTripPreservesRecordsAndUnicode() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(
                 file = file,
@@ -32,7 +33,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun declaredCategoryCanContainNoRecords() {
+    fun declaredCategoryCanContainNoRecords() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(
                 file = file,
@@ -47,7 +48,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun emptyHistoryPackageRemainsValidForFullReplacement() {
+    fun emptyHistoryPackageRemainsValidForFullReplacement() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(
                 file = file,
@@ -67,7 +68,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun corruptedPackageIsRejectedBeforeVisitorRuns() {
+    fun corruptedPackageIsRejectedBeforeVisitorRuns() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
                 sink.write("glucose", JSONObject().put("timestamp", 1000L))
@@ -78,7 +79,7 @@ class CloneRecoveryPackageIOTests {
             file.writeBytes(bytes)
             var visits = 0
 
-            assertThrows(IllegalArgumentException::class.java) {
+            assertIllegalArgument {
                 CloneRecoveryPackageIO.visitValidated(
                     file = file,
                     manifest = manifest,
@@ -90,7 +91,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun wrongRecordCountIsRejectedBeforeVisitorRuns() {
+    fun wrongRecordCountIsRejectedBeforeVisitorRuns() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
                 sink.write("glucose", JSONObject().put("timestamp", 1000L))
@@ -98,7 +99,7 @@ class CloneRecoveryPackageIOTests {
             val manifest = manifest(stats).copy(recordCounts = mapOf("glucose" to 2L))
             var visits = 0
 
-            assertThrows(IllegalArgumentException::class.java) {
+            assertIllegalArgument {
                 CloneRecoveryPackageIO.visitValidated(
                     file = file,
                     manifest = manifest,
@@ -110,7 +111,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun semanticValidationFinishesBeforeVisitorRuns() {
+    fun semanticValidationFinishesBeforeVisitorRuns() = runBlocking {
         withTempPackage { file ->
             val stats = CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
                 sink.write("glucose", JSONObject().put("timestamp", 0L))
@@ -118,7 +119,7 @@ class CloneRecoveryPackageIOTests {
             }
             var visits = 0
 
-            assertThrows(IllegalArgumentException::class.java) {
+            assertIllegalArgument {
                 CloneRecoveryPackageIO.visitValidated(
                     file = file,
                     manifest = manifest(stats).copy(
@@ -137,7 +138,7 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun malformedUtf8IsRejectedBeforeVisitorRuns() {
+    fun malformedUtf8IsRejectedBeforeVisitorRuns() = runBlocking {
         withTempPackage { file ->
             val raw = byteArrayOf(0xc3.toByte(), '\n'.code.toByte())
             GZIPOutputStream(file.outputStream()).use { it.write(raw) }
@@ -149,7 +150,7 @@ class CloneRecoveryPackageIOTests {
             )
             var visits = 0
 
-            val error = assertThrows(IllegalArgumentException::class.java) {
+            val error = assertIllegalArgument {
                 CloneRecoveryPackageIO.visitValidated(
                     file = file,
                     manifest = manifest(stats).copy(
@@ -164,9 +165,9 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun undeclaredRecordTypeCannotBeWritten() {
+    fun undeclaredRecordTypeCannotBeWritten() = runBlocking {
         withTempPackage { file ->
-            val error = assertThrows(IllegalArgumentException::class.java) {
+            val error = assertIllegalArgument {
                 CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
                     sink.write("journal", JSONObject().put("note", "unexpected"))
                 }
@@ -178,15 +179,43 @@ class CloneRecoveryPackageIOTests {
     }
 
     @Test
-    fun oversizedSingleRecordCannotBeWritten() {
+    fun oversizedSingleRecordCannotBeWritten() = runBlocking {
         withTempPackage { file ->
             val oversized = "x".repeat(CloneHistoryRecoveryProtocol.MAXIMUM_RECORD_BYTES)
 
-            assertThrows(IllegalArgumentException::class.java) {
+            assertIllegalArgument {
                 CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
                     sink.write("glucose", JSONObject().put("value", oversized))
                 }
             }
+        }
+    }
+
+    @Test
+    fun replacementStartsOnlyAfterValidationAndInsideTransaction() = runBlocking {
+        withTempPackage { file ->
+            val stats = CloneRecoveryPackageIO.write(file, setOf("glucose")) { sink ->
+                sink.write("glucose", JSONObject().put("timestamp", 1000L))
+            }
+            val events = mutableListOf<String>()
+
+            CloneRecoveryPackageIO.visitValidated(
+                file = file,
+                manifest = manifest(stats).copy(mode = CloneRecoveryMode.FULL_HISTORY),
+                recordValidator = { events += "validate" },
+                transaction = { operation ->
+                    events += "transaction-start"
+                    operation()
+                    events += "transaction-end"
+                },
+                beforeVisit = { events += "replace" },
+                visitor = { events += "import" },
+            )
+
+            assertEquals(
+                listOf("validate", "transaction-start", "replace", "import", "transaction-end"),
+                events,
+            )
         }
     }
 
@@ -203,12 +232,22 @@ class CloneRecoveryPackageIOTests {
             sha256 = stats.sha256,
         )
 
-    private fun withTempPackage(block: (File) -> Unit) {
+    private suspend fun withTempPackage(block: suspend (File) -> Unit) {
         val directory = Files.createTempDirectory("clone-recovery-package-test").toFile()
         try {
             block(File(directory, "package.jsonl.gz"))
         } finally {
             directory.deleteRecursively()
         }
+    }
+
+    private suspend fun assertIllegalArgument(
+        block: suspend () -> Unit,
+    ): IllegalArgumentException = try {
+        block()
+        fail("Expected IllegalArgumentException")
+        throw AssertionError("unreachable")
+    } catch (error: IllegalArgumentException) {
+        error
     }
 }
