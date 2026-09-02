@@ -88,6 +88,7 @@ data class JournalEntryInput(
     val fatGrams: Float? = null,
     val source: JournalEntrySource = JournalEntrySource.MANUAL,
     val sourceRecordId: String? = null,
+    val recoveryId: String? = null,
     val nsRemoteId: String? = null,
     /** Authoritative source supplied by an importer, distinct from its transport. */
     val originSource: JournalEntrySource? = null,

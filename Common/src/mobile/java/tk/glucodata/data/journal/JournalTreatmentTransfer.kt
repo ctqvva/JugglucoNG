@@ -171,6 +171,13 @@ object JournalTreatmentTransfer {
             JournalEntrySource.CLONE_TURN -> treatment.optNonBlankString("nsRemoteId")
             else -> null
         }
+        val recoveryId = if (isCloneJournalSource(source)) {
+            treatment.optNonBlankString("recoveryId")?.let { value ->
+                CloneJournalIdentity.normalizeRecoveryId(value) ?: return null
+            }
+        } else {
+            null
+        }
         val candidateIds = allKinds.map { kind -> sourceRecordId(sourcePrefix, baseId, kind) }
         val isValid = treatment.optBoolean("isValid", true)
         if (!isValid) {
@@ -297,9 +304,9 @@ object JournalTreatmentTransfer {
             )
         }
 
-        if (inputs.isEmpty()) return null
+        if (inputs.isEmpty() || (recoveryId != null && inputs.size != 1)) return null
         return ParsedTreatment(
-            inputs = inputs,
+            inputs = inputs.map { input -> input.copy(recoveryId = recoveryId) },
             candidateSourceRecordIds = candidateIds,
             remoteId = remoteId
         )

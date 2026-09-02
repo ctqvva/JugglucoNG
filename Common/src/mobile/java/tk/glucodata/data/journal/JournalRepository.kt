@@ -48,20 +48,16 @@ class JournalRepository {
     suspend fun upsertEntry(input: JournalEntryInput): Long {
         val (id, entity, existing) = database.withTransaction {
             val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
+            val recoveryId = CloneJournalIdentity.normalizeRecoveryId(input.recoveryId)
             val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
             val idMatch = input.id?.let { dao.getEntryById(it) }
-            val writeIdentity = preserveMirroredJournalIdentity(
-                existingSource = idMatch?.source,
-                existingSourceRecordId = idMatch?.sourceRecordId,
-                incomingSource = input.source,
-                incomingSourceRecordId = sourceRecordId,
-            )
+            val recoveryMatch = recoveryId?.let { dao.getEntryByRecoveryId(it) }
             val sourceMatch = sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
             val remoteMatches = nsRemoteId?.let {
                 dao.getEntriesByNightscoutRemoteIdAndType(it, input.type.storageValue)
             }.orEmpty()
             val remoteMatch = remoteMatches.firstOrNull()
-            val overlap = if (idMatch == null) {
+            val overlap = if (idMatch == null && recoveryMatch == null) {
                 cloneNightscoutOverlap(
                     sourceMatch = sourceMatch,
                     remoteMatches = remoteMatches,
@@ -72,9 +68,16 @@ class JournalRepository {
                 null
             }
             val existing = idMatch
+                ?: recoveryMatch
                 ?: overlap?.keeper
                 ?: sourceMatch
                 ?: remoteMatch
+            val writeIdentity = preserveMirroredJournalIdentity(
+                existingSource = existing?.source,
+                existingSourceRecordId = existing?.sourceRecordId,
+                incomingSource = input.source,
+                incomingSourceRecordId = sourceRecordId,
+            )
             val redundantOverlap = overlap?.redundantRows.orEmpty()
             val remoteIdentityMatch = existing?.takeIf {
                 it.sourceRecordId != writeIdentity.sourceRecordId &&
@@ -118,6 +121,13 @@ class JournalRepository {
                     incomingOriginSource = input.originSource,
                 ),
                 sourceRecordId = preservedIdentity?.sourceRecordId ?: writeIdentity.sourceRecordId,
+                recoveryId = when {
+                    idMatch != null && recoveryMatch != null && idMatch.id != recoveryMatch.id ->
+                        idMatch.recoveryId ?: CloneJournalIdentity.newRecoveryId()
+                    recoveryId != null -> recoveryId
+                    existing?.recoveryId != null -> existing.recoveryId
+                    else -> CloneJournalIdentity.newRecoveryId()
+                },
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
                 foodId = input.foodId,
@@ -271,6 +281,7 @@ class JournalRepository {
                     CloneJournalTombstoneEntity(
                         entryId = existing.id,
                         deletedAt = System.currentTimeMillis(),
+                        recoveryId = existing.recoveryId,
                     )
                 )
                 cloneDeleteQueued = true
@@ -303,6 +314,32 @@ class JournalRepository {
         if (ids.isEmpty()) return 0
         val deleted = database.withTransaction {
             val rows = dao.getEntriesBySourceRecordIds(ids).filter { row ->
+                isCloneJournalSource(JournalEntrySource.fromStorage(row.source))
+            }
+            rows.forEach { dao.deleteEntryById(it.id) }
+            rows
+        }
+        if (deleted.isEmpty()) return 0
+        tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+        if (deleted.any { it.glucoseValueMgDl != null }) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        return deleted.size
+    }
+
+    /** Applies a Clone deletion using its durable identity, with legacy ids as fallback. */
+    suspend fun deleteMirroredCloneEntries(
+        recoveryIds: List<String>,
+        sourceRecordIds: List<String>,
+    ): Int {
+        val durableIds = recoveryIds.mapNotNull(CloneJournalIdentity::normalizeRecoveryId).distinct()
+        val legacyIds = sourceRecordIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (durableIds.isEmpty() && legacyIds.isEmpty()) return 0
+        val deleted = database.withTransaction {
+            val rows = buildList {
+                if (durableIds.isNotEmpty()) addAll(dao.getEntriesByRecoveryIds(durableIds))
+                if (legacyIds.isNotEmpty()) addAll(dao.getEntriesBySourceRecordIds(legacyIds))
+            }.distinctBy { it.id }.filter { row ->
                 isCloneJournalSource(JournalEntrySource.fromStorage(row.source))
             }
             rows.forEach { dao.deleteEntryById(it.id) }

@@ -1,10 +1,24 @@
 package tk.glucodata.data.journal
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CloneJournalIdentityTests {
+    @Test
+    fun recoveryIdentityIsRandomCanonicalHex() {
+        val first = CloneJournalIdentity.newRecoveryId()
+        val second = CloneJournalIdentity.newRecoveryId()
+
+        assertTrue(CloneJournalIdentity.isValidRecoveryId(first))
+        assertTrue(CloneJournalIdentity.isValidRecoveryId(second))
+        assertNotEquals(first, second)
+        assertEquals(first, CloneJournalIdentity.normalizeRecoveryId(first.uppercase()))
+        assertNull(CloneJournalIdentity.normalizeRecoveryId("test-recovery-id"))
+    }
+
     @Test
     fun locallyAuthoredEntryUsesTheSameIdentityAsLiveClone() {
         val entry = entry(
@@ -16,7 +30,7 @@ class CloneJournalIdentityTests {
 
         assertEquals(
             "clone:test-origin-alpha:journal:42:insulin",
-            CloneJournalIdentity.stableEntryId(entry, "test-origin-alpha"),
+            CloneJournalIdentity.legacyStableEntryId(entry, "test-origin-alpha"),
         )
     }
 
@@ -31,7 +45,7 @@ class CloneJournalIdentityTests {
 
         assertEquals(
             "clone:test-origin-sender:journal:19:carbs",
-            CloneJournalIdentity.stableEntryId(entry, "test-origin-receiver"),
+            CloneJournalIdentity.legacyStableEntryId(entry, "test-origin-receiver"),
         )
     }
 
