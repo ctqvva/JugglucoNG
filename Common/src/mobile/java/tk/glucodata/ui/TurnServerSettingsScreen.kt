@@ -263,17 +263,24 @@ fun TurnServerSettingsScreen(navController: NavController) {
                                 Natives.getTurnPassword(0).orEmpty(),
                             )
                         } else null
+                        val nextTurn = arrayOf(
+                            cleanTurnHost,
+                            portNum.toString(),
+                            user,
+                            password,
+                        )
+                        val nextIceConfig = CloneIceNetworkConfig(
+                            rendezvousHost = cleanRendezvousHost,
+                            rendezvousPort = rendezvousPortNum,
+                            useTurnForStun = useTurnForStun,
+                            verifyRendezvousCertificate = !useCustomRendezvous ||
+                                verifyRendezvousCertificate,
+                            useLocalDiscovery = useLocalDiscovery,
+                        )
                         Natives.setTurnServer(0, cleanTurnHost, portNum, user, password)
                         val iceSaved = CloneIceNetworkConfigStore.save(
                             context,
-                            CloneIceNetworkConfig(
-                                rendezvousHost = cleanRendezvousHost,
-                                rendezvousPort = rendezvousPortNum,
-                                useTurnForStun = useTurnForStun,
-                                verifyRendezvousCertificate = !useCustomRendezvous ||
-                                    verifyRendezvousCertificate,
-                                useLocalDiscovery = useLocalDiscovery,
-                            ),
+                            nextIceConfig,
                         )
                         if (!iceSaved) {
                             if (previousTurn == null) {
@@ -290,7 +297,12 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             Toast.makeText(context, context.getString(R.string.savefailed), Toast.LENGTH_LONG).show()
                             return@Button
                         }
-                        Natives.resetnetwork()
+                        val connectionSettingsChanged =
+                            previousTurn?.contentEquals(nextTurn) != true ||
+                                initialIceConfig.copy(
+                                    useLocalDiscovery = nextIceConfig.useLocalDiscovery,
+                                ) != nextIceConfig
+                        if (connectionSettingsChanged) Natives.resetnetwork()
                         tk.glucodata.Applic.wakemirrors()
                         navController.popBackStack()
                     },

@@ -276,6 +276,22 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun localPeerGenerationChangesKeepTheOffererStable() {
+        val localSignal = source("Common/src/main/cpp/net/ICE/LocalICESignal.cpp")
+            .replace(Regex("\\s+"), " ")
+        val peerChangeStart = localSignal.indexOf("if (peerChanged)")
+        val peerChange = localSignal.substring(
+            peerChangeStart,
+            localSignal.indexOf("if (!echoMatches)", peerChangeStart),
+        )
+
+        assertTrue(peerChange.contains("if (side) {"))
+        assertTrue(peerChange.contains("localICEPeerGenerationChanged(allindex, agent, agentGeneration)"))
+        assertTrue(peerChange.contains("else {"))
+        assertTrue(peerChange.contains("sendSnapshot(generation)"))
+    }
+
+    @Test
     fun rendezvousReceiverStillPublishesItsDescriptionAfterFetchingThePeer() {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
@@ -309,7 +325,7 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun savedLanDiscoverySettingAppliesOnceToExistingCloneConnections() {
+    fun savedLanDiscoverySettingDoesNotInterruptAnExistingCloneConnection() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
@@ -317,8 +333,9 @@ class CloneReceptionSafetyTests {
 
         assertTrue(screen.contains("onCheckedChange = { useLocalDiscovery = it }"))
         val save = screen.lastIndexOf("val iceSaved = CloneIceNetworkConfigStore.save")
-        val reset = screen.indexOf("Natives.resetnetwork()", save)
-        assertTrue(save >= 0 && reset > save)
+        val conditionalReset = screen.indexOf("if (connectionSettingsChanged) Natives.resetnetwork()", save)
+        assertTrue(save >= 0 && conditionalReset > save)
+        assertTrue(screen.contains("initialIceConfig.copy( useLocalDiscovery = nextIceConfig.useLocalDiscovery"))
         assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
     }
 

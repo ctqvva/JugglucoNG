@@ -346,8 +346,17 @@ struct LocalICESignalSession::Impl {
         if (echoMatches)
             authenticatedPeer.store(true, std::memory_order_release);
         if (peerChanged) {
-            LOGARLOCALICE("authenticated peer generation changed");
-            localICEPeerGenerationChanged(allindex, agent, agentGeneration);
+            // Side 0 owns the offer. Let side 1 follow a replacement offer,
+            // but never let both peers answer a generation change by
+            // replacing each other forever. A stable side-0 agent republishes
+            // its snapshot so the new side-1 generation can answer it.
+            if (side) {
+                LOGARLOCALICE("authenticated offerer generation changed");
+                localICEPeerGenerationChanged(allindex, agent, agentGeneration);
+            } else {
+                LOGARLOCALICE("authenticated answerer generation changed; keeping offer stable");
+                sendSnapshot(generation);
+            }
             return;
         }
 
