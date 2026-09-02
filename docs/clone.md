@@ -89,6 +89,8 @@ run again.
 
 **Broadcast on Network** is not required for either QR method. It only enables
 local discovery so nearby devices can find the phone without scanning a QR.
+Changing this option does not replace an already working Clone connection. The
+saved choice is used the next time that connection negotiates.
 
 Use one normal follower path at a time. A brief overlap with Nightscout is
 useful while validating Clone, but leaving both enabled can make duplicated or
