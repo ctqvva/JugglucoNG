@@ -94,7 +94,7 @@ The following deployment runs:
 
 - `jugglucoconnect` as the HTTPS rendezvous service on TCP port 6789
 - coturn as both STUN and TURN on UDP port 3478
-- a small UDP relay range, ports 49160 through 49169
+- a small UDP relay range, ports 49160 through 49199
 
 It assumes the server owns its public IP directly. Replace
 `clone.example.com`, the example IP addresses, username, and password.
@@ -203,7 +203,7 @@ relay-ip=203.0.113.10
 
 listening-port=3478
 min-port=49160
-max-port=49169
+max-port=49199
 
 fingerprint
 lt-cred-mech
@@ -229,6 +229,11 @@ enabled.
 not a ten-minute allocation or connection timeout. Clients can answer the
 stale-nonce challenge and continue.
 
+The 40-port relay range leaves room for old and new allocations to overlap
+during network changes and repeated ICE negotiations. Ten ports can be
+exhausted by this normal churn before coturn releases the older allocations.
+TURN authentication still applies to every allocation in the larger range.
+
 If the public address is not assigned directly to the host, coturn needs a
 different NAT configuration. Set `listening-ip` and `relay-ip` to the private
 host address and add `external-ip=PUBLIC_IP/PRIVATE_IP`.
@@ -240,7 +245,7 @@ With UFW:
 ```sh
 ufw allow 6789/tcp comment 'Clone rendezvous'
 ufw allow 3478/udp comment 'Clone STUN and TURN'
-ufw allow 49160:49169/udp comment 'Clone TURN relay'
+ufw allow 49160:49199/udp comment 'Clone TURN relay'
 ufw status
 ```
 
@@ -350,6 +355,9 @@ re-enable Nightscout.
   differ, or coturn did not load the intended config.
 - **coturn reports a missing config:** check that `turnserver.conf` is a file,
   not a directory, and keep the explicit Compose `command` shown above.
+- **coturn reports `errno=98` followed by `no available ports`:** its relay
+  range is exhausted. Use at least the 40-port range in this guide and make
+  sure the complete range is open in the firewall.
 - **ICE gathers candidates but fails:** check DNS, UDP firewall rules, TURN
   credentials, and whether a VPN blocks UDP.
 - **The same-LAN test works but remote sharing does not:** verify TCP 6789, UDP
