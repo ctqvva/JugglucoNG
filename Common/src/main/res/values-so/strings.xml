@@ -2776,4 +2776,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
     <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
     <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
+    <string name="anytime_credentials_backup">Kaydi aqoonsiyada CT5</string>
+    <string name="anytime_credentials_backup_warning">Faylkan wuxuu soo celin karaa fadhiga gudbiyaha kadib dib-u-rakibidda abka ama ka saarista dareemaha. Si ammaan ah u kaydi.</string>
+    <string name="anytime_history_fetch_warning">Soo qaad taariikhda gudbiyaha oo dhan ilaa akhriska hadda? Tani waxay qaadan kartaa dhowr daqiiqo waxayna kordhinaysaa taraafikada Bluetooth. Akhrisyada tooska ah way sii soconayaan.</string>
+    <string name="anytime_restart_action">Dib u bilow</string>
+    <string name="anytime_restart_title">Dib ma loo bilaabaa dareemaha?</string>
+    <string name="anytime_restart_warning">Ma la dhammeeyaa kulanka gudbiyaha hadda oo la bilaabaa wareeg lammaanayn cusub? Taariikhda gulukooska ee jirta waxay ku sii jiri doontaa abka.</string>
+    <string name="anytime_history_action">Taariikh</string>
 </resources>

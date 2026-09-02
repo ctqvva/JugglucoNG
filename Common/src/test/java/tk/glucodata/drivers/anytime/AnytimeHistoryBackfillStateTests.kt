@@ -8,6 +8,24 @@ import org.junit.Test
 class AnytimeHistoryBackfillStateTests {
 
     @Test
+    fun ct5ProfileHorizonDoesNotStopLiveBoundedHistory() {
+        assertFalse(
+            shouldStopAtProfileHistoryEnd(
+                family = AnytimeConstants.Family.CT5,
+                nextId = 7_903,
+                profileEndNumber = 7_695,
+            )
+        )
+        assertTrue(
+            shouldStopAtProfileHistoryEnd(
+                family = AnytimeConstants.Family.CT4,
+                nextId = 7_695,
+                profileEndNumber = 7_695,
+            )
+        )
+    }
+
+    @Test
     fun caughtUpCooldownSuppressesImmediateSameIdBackfillUntilNewerDataArrives() {
         var nowMs = 10_000L
         val cooldown = AnytimeHistoryCaughtUpCooldown(

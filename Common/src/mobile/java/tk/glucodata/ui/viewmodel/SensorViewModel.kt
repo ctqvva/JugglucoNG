@@ -27,6 +27,7 @@ import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.ManagedSensorUiSignals
 import tk.glucodata.drivers.ManagedSensorUiSnapshot
 import tk.glucodata.drivers.ManagedSensorViewModeStore
+import tk.glucodata.drivers.anytime.AnytimeDriver
 import tk.glucodata.drivers.mq.MQBootstrapClient
 import tk.glucodata.drivers.mq.MQDriver
 import tk.glucodata.drivers.mq.MQRegistry
@@ -973,6 +974,19 @@ class SensorViewModel : ViewModel() {
                 android.util.Log.e("SensorVM", "Battery refresh failed to queue for $serial", it)
             }
             .getOrDefault(false)
+    }
+
+    fun requestAnytimeHistory(serial: String): Boolean {
+        val driver = findGatt(serial) as? AnytimeDriver ?: return false
+        return runCatching { driver.requestHistoryBackfill() }
+            .onFailure {
+                android.util.Log.e("SensorVM", "Anytime history request failed for $serial", it)
+            }
+            .getOrDefault(false)
+            .also {
+                UiRefreshBus.requestStatusRefresh()
+                refreshSensors()
+            }
     }
 
     fun clearCalibration(serial: String) {

@@ -2619,4 +2619,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_follow_interval_title">Naar nieuwe waarden kijken</string>
     <string name="nightscout_follow_interval_desc">Hoe vaak de volger de server bevraagt. Dat is ook hoe oud een waarde kan zijn, en dus hoe laat een alarm op een gevolgde waarde kan komen. Een volger heeft geen eigen sensor die de telefoon wakker houdt, dus elke controle is een wekmoment.</string>
     <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Juggluco uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
+    <string name="anytime_credentials_backup">CT5-inloggegevens back-uppen</string>
+    <string name="anytime_credentials_backup_warning">Met dit bestand kan de zendersessie worden hersteld nadat de app opnieuw is geïnstalleerd of de sensor is verwijderd. Bewaar het veilig.</string>
+    <string name="anytime_history_fetch_warning">De volledige zendergeschiedenis tot de huidige live meting ophalen? Dit kan enkele minuten duren en zorgt voor meer Bluetooth-verkeer. Live metingen blijven doorgaan.</string>
+    <string name="anytime_restart_action">Herstart</string>
+    <string name="anytime_restart_title">Sensor herstarten?</string>
+    <string name="anytime_restart_warning">De huidige transmittersessie beëindigen en een nieuwe koppelcyclus starten? De bestaande glucosegeschiedenis blijft in de app.</string>
+    <string name="anytime_history_action">Historie</string>
 </resources>
