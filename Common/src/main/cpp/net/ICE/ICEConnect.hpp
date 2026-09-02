@@ -79,7 +79,6 @@ std::shared_ptr<std::atomic_bool> generationWatchCancellation{
 std::mutex rendezvousGenerationMutex;
 std::string rendezvousGeneration;
 std::atomic<int> generationWatchCapability{0};
-std::atomic_bool preserveNextRendezvousGeneration{false};
 ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
@@ -154,9 +153,6 @@ void cancelGenerationWatch() {
         }
 bool prepareRendezvousGeneration();
 std::string currentRendezvousGeneration();
-void preserveRendezvousGenerationForPeerRestart() {
-        preserveNextRendezvousGeneration.store(true,std::memory_order_release);
-        }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
         icedata[1].allindex=in;
