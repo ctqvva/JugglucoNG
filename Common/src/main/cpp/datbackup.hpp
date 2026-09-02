@@ -252,6 +252,13 @@ static constexpr const uintptr_t wakestreamsend = 512;
    the native number paths, so whether a dose reached Nightscout depended on a calibration or
    a backup happening to come along. */
 static constexpr const uintptr_t waketreatments = 1024;
+/* Explicit Clone history recovery. Recovery uses the normal per-host sender
+   thread, but gets its own wake reason so a large transfer never masquerades
+   as live glucose work. */
+static constexpr const uintptr_t wakerecovery = 2048;
+
+int processCloneRecoveryAction(int sendindex);
+int resumeCloneRecoveryForHost(int allindex, int sendindex);
 
 class Backup {
 
@@ -269,6 +276,7 @@ public:
   static constexpr const uintptr_t wakereconnect = ::wakereconnect;
   static constexpr const uintptr_t wakestreamsend = ::wakestreamsend;
   static constexpr const uintptr_t waketreatments = ::waketreatments;
+  static constexpr const uintptr_t wakerecovery = ::wakerecovery;
   struct condvar_t {
     uintptr_t dobackup = 0;
     std::mutex backupmutex;
@@ -1217,6 +1225,9 @@ sendindex); extern bool doend(int sendindex); */
 #endif
     }
     uintptr_t current = 0;
+    if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
+      con_vars[sendindex]->wakebackup(wakerecovery);
+    }
     while (true) {
       if (doend(sendindex))
         return;
@@ -1338,6 +1349,15 @@ sendindex); extern bool doend(int sendindex); */
     if (command) {
       if (auto *con = getupdatedata()->tosend[h].getConnect()) {
         con->sendrender(getupdatedata()->tosend[h].getcrypt(), command);
+      }
+    }
+    /* Live numbers, stream updates, scans and normal metadata always run
+       first. Exactly one recovery transaction may follow, then Java decides
+       whether to schedule another wake now or later. */
+    if (current & (wakerecovery | wakereconnect | wakeall)) {
+      if (processCloneRecoveryAction(h) == 1 && h < con_vars.size() &&
+          con_vars[h]) {
+        con_vars[h]->wakebackup(wakerecovery);
       }
     }
   }

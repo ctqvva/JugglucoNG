@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <algorithm>
+#include <limits>
 #include <string.h>
 #include <string>
 #include <string_view>
@@ -54,6 +55,15 @@ extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 extern void javaImportCloneIobSnapshot(const char *json);
 extern void javaImportCloneJournalSnapshot(const char *json, int transportCode);
+extern bool javaCloneRecoveryBridgeReady();
+extern std::vector<uint8_t> javaExportCloneRecoveryCapabilities();
+extern std::vector<uint8_t> javaExportCloneRecoveryStatus(const char *jobId);
+extern bool javaReceiveCloneRecoveryManifest(const uint8_t *bytes, size_t size);
+extern bool javaReceiveCloneRecoveryChunk(const char *jobId, int64_t offset,
+                                          const uint8_t *bytes, size_t size);
+extern bool javaReceiveCloneRecoveryCancel(const uint8_t *bytes, size_t size);
+extern bool javaReceiveCloneRecoveryCommit(const uint8_t *bytes, size_t size,
+                                           int transportCode);
 
 //getdata filedata("/data/local/tmp/testdir");
 getdata filedata;
@@ -329,6 +339,242 @@ static constexpr std::string_view mirrorCalibrationPrefix = "mirror/calibration/
 static constexpr std::string_view mirrorCalibrationSuffix = ".json";
 static constexpr std::string_view mirrorIobSnapshotPath = "mirror/iob.json";
 static constexpr std::string_view mirrorJournalSnapshotPath = "mirror/journal.json";
+static constexpr std::string_view cloneRecoveryPrefix = "mirror/backfill/";
+static constexpr std::string_view cloneRecoveryCapabilityPath =
+    "mirror/backfill/capabilities-v1";
+static constexpr std::string_view cloneRecoveryJobsPrefix =
+    "mirror/backfill/jobs/";
+static constexpr size_t cloneRecoveryJobIdLength = 32;
+static constexpr uint32_t cloneRecoveryMaximumControlBytes = 256U * 1024U;
+static constexpr uint32_t cloneRecoveryMaximumChunkBytes = 256U * 1024U;
+static constexpr uint32_t cloneRecoveryMaximumPackageBytes = 512U * 1024U * 1024U;
+
+enum class CloneRecoveryPathKind {
+    none,
+    invalid,
+    capabilities,
+    manifest,
+    package,
+    status,
+    commit,
+    cancel,
+};
+
+struct ValidatedFileOnce {
+    std::string_view path;
+    const uint8_t *payload = nullptr;
+    size_t payloadBytes = 0;
+    size_t structuredBytes = 0;
+};
+
+static bool isCloneRecoveryNamespace(std::string_view path) {
+    return path.size() >= cloneRecoveryPrefix.size() &&
+           path.substr(0, cloneRecoveryPrefix.size()) == cloneRecoveryPrefix;
+}
+
+static bool isCloneRecoveryJobId(std::string_view jobId) {
+    if (jobId.size() != cloneRecoveryJobIdLength) {
+        return false;
+    }
+    return std::all_of(jobId.begin(), jobId.end(), [](char value) {
+        return (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f');
+    });
+}
+
+static CloneRecoveryPathKind classifyCloneRecoveryPath(std::string_view path) {
+    if (!isCloneRecoveryNamespace(path)) {
+        return CloneRecoveryPathKind::none;
+    }
+    if (path == cloneRecoveryCapabilityPath) {
+        return CloneRecoveryPathKind::capabilities;
+    }
+    if (path.size() <= cloneRecoveryJobsPrefix.size() ||
+        path.substr(0, cloneRecoveryJobsPrefix.size()) != cloneRecoveryJobsPrefix) {
+        return CloneRecoveryPathKind::invalid;
+    }
+    const std::string_view remainder = path.substr(cloneRecoveryJobsPrefix.size());
+    if (remainder.size() <= cloneRecoveryJobIdLength ||
+        !isCloneRecoveryJobId(remainder.substr(0, cloneRecoveryJobIdLength)) ||
+        remainder[cloneRecoveryJobIdLength] != '/') {
+        return CloneRecoveryPathKind::invalid;
+    }
+    const std::string_view filename = remainder.substr(cloneRecoveryJobIdLength + 1);
+    if (filename == "manifest.json") return CloneRecoveryPathKind::manifest;
+    if (filename == "package.jsonl.gz") return CloneRecoveryPathKind::package;
+    if (filename == "status.json") return CloneRecoveryPathKind::status;
+    if (filename == "commit.json") return CloneRecoveryPathKind::commit;
+    if (filename == "cancel.json") return CloneRecoveryPathKind::cancel;
+    return CloneRecoveryPathKind::invalid;
+}
+
+static std::string cloneRecoveryJobId(std::string_view path) {
+    const auto start = cloneRecoveryJobsPrefix.size();
+    if (path.size() < start + cloneRecoveryJobIdLength) {
+        return {};
+    }
+    const std::string_view jobId = path.substr(start, cloneRecoveryJobIdLength);
+    return isCloneRecoveryJobId(jobId) ? std::string(jobId) : std::string();
+}
+
+static bool isAuthenticatedCloneRecovery(const passhost_t *host,
+                                         const crypt_t *ctx,
+                                         CloneRecoveryPathKind kind) {
+    if (kind == CloneRecoveryPathKind::none) {
+        return true;
+    }
+    if (kind == CloneRecoveryPathKind::invalid || !host || !host->haspass() || !ctx) {
+        LOGARTAG("reject unauthenticated or malformed Clone recovery path");
+        return false;
+    }
+    return true;
+}
+
+static bool validateFileOnce(const fileonce_t *command, size_t commandBytes,
+                             ValidatedFileOnce &out) {
+    if (!command || commandBytes < sizeof(fileonce_t) || command->nr == 0 ||
+        command->totlen <= 0 || static_cast<size_t>(command->totlen) != commandBytes) {
+        return false;
+    }
+    const size_t segmentCount = command->nr;
+    if (segmentCount >
+        (commandBytes - sizeof(fileonce_t)) / sizeof(datel)) {
+        return false;
+    }
+    const size_t descriptorBytes = segmentCount * sizeof(datel);
+    const size_t pathOffset = sizeof(fileonce_t) + descriptorBytes;
+    const size_t pathBytes = command->namelen;
+    if (pathBytes == 0 || pathBytes > commandBytes - pathOffset) {
+        return false;
+    }
+    const char *pathStart = reinterpret_cast<const char *>(
+        reinterpret_cast<const uint8_t *>(command) + pathOffset);
+    if (pathStart[pathBytes - 1] != '\0' ||
+        std::char_traits<char>::find(pathStart, pathBytes - 1, '\0')) {
+        return false;
+    }
+    size_t payloadBytes = 0;
+    for (size_t index = 0; index < segmentCount; ++index) {
+        const datel &segment = command->gegs[index];
+        if (segment.off < 0 || segment.len < 0 ||
+            static_cast<uint64_t>(segment.off) + static_cast<uint64_t>(segment.len) >
+                static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) ||
+            static_cast<size_t>(segment.len) >
+                commandBytes - pathOffset - pathBytes - payloadBytes) {
+            return false;
+        }
+        payloadBytes += static_cast<size_t>(segment.len);
+    }
+    out.path = std::string_view(pathStart, pathBytes - 1);
+    out.payload = reinterpret_cast<const uint8_t *>(command) + pathOffset + pathBytes;
+    out.payloadBytes = payloadBytes;
+    out.structuredBytes = pathOffset + pathBytes + payloadBytes;
+    return true;
+}
+
+static bool validateCloneRecoveryRead(CloneRecoveryPathKind kind, uint32_t offset,
+                                      uint32_t length) {
+    switch (kind) {
+    case CloneRecoveryPathKind::capabilities:
+    case CloneRecoveryPathKind::status:
+        return offset <= cloneRecoveryMaximumControlBytes &&
+               length <= cloneRecoveryMaximumControlBytes - offset;
+    default:
+        return false;
+    }
+}
+
+static bool validateCloneRecoveryWrite(CloneRecoveryPathKind kind,
+                                       const fileonce_t *command,
+                                       const ValidatedFileOnce &view) {
+    const size_t expectedWireBytes = (view.structuredBytes + 3U) & ~size_t{3U};
+    if (command->nr != 1 || view.payloadBytes == 0 ||
+        view.payloadBytes != static_cast<size_t>(command->gegs[0].len) ||
+        command->dowith != 0 || expectedWireBytes != static_cast<size_t>(command->totlen)) {
+        return false;
+    }
+    const uint32_t offset = static_cast<uint32_t>(command->gegs[0].off);
+    switch (kind) {
+    case CloneRecoveryPathKind::manifest:
+    case CloneRecoveryPathKind::commit:
+    case CloneRecoveryPathKind::cancel:
+        return offset == 0 && view.payloadBytes <= cloneRecoveryMaximumControlBytes;
+    case CloneRecoveryPathKind::package:
+        return offset <= cloneRecoveryMaximumPackageBytes &&
+               view.payloadBytes <= cloneRecoveryMaximumChunkBytes &&
+               view.payloadBytes <= cloneRecoveryMaximumPackageBytes - offset;
+    default:
+        return false;
+    }
+}
+
+static bool sendCloneRecoveryVirtualFile(Connect *connect, crypt_t *ctx,
+                                         CloneRecoveryPathKind kind,
+                                         std::string_view path, uint32_t offset,
+                                         uint32_t length) {
+    std::vector<uint8_t> content;
+    switch (kind) {
+    case CloneRecoveryPathKind::capabilities:
+        content = javaExportCloneRecoveryCapabilities();
+        break;
+    case CloneRecoveryPathKind::status: {
+        const std::string jobId = cloneRecoveryJobId(path);
+        if (!jobId.empty()) {
+            content = javaExportCloneRecoveryStatus(jobId.c_str());
+        }
+        break;
+    }
+    default:
+        return false;
+    }
+
+    const size_t responseBytes = sizeof(dataonly) + static_cast<size_t>(length);
+    if (responseBytes > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        return false;
+    }
+    const int wireBytes = aligner<alignof(dataonly)>(
+        static_cast<int>(responseBytes));
+    std::unique_ptr<senddata_t[], ardeleter<4, senddata_t>> response(
+        new (std::align_val_t(4), std::nothrow) senddata_t[wireBytes],
+        ardeleter<4, senddata_t>());
+    dataonly *data = reinterpret_cast<dataonly *>(response.get());
+    if (!data) {
+        return false;
+    }
+    memset(data, 0, wireBytes);
+    data->len = -1;
+    if (!content.empty()) {
+        const size_t start = std::min(static_cast<size_t>(offset), content.size());
+        const size_t count = std::min(static_cast<size_t>(length),
+                                      content.size() - start);
+        if (count > 0) {
+            memcpy(data->data, content.data() + start, count);
+        }
+        data->len = static_cast<int32_t>(count);
+    }
+    return connect->r_noacksendcommand(ctx, response.get(), wireBytes);
+}
+
+static bool saveCloneRecoveryVirtualFile(CloneRecoveryPathKind kind,
+                                         const fileonce_t *command,
+                                         const ValidatedFileOnce &view,
+                                         int cloneTransport) {
+    switch (kind) {
+    case CloneRecoveryPathKind::manifest:
+        return javaReceiveCloneRecoveryManifest(view.payload, view.payloadBytes);
+    case CloneRecoveryPathKind::package: {
+        const std::string jobId = cloneRecoveryJobId(view.path);
+        return !jobId.empty() && javaReceiveCloneRecoveryChunk(
+            jobId.c_str(), command->gegs[0].off, view.payload, view.payloadBytes);
+    }
+    case CloneRecoveryPathKind::commit:
+        return javaReceiveCloneRecoveryCommit(view.payload, view.payloadBytes,
+                                              cloneTransport);
+    case CloneRecoveryPathKind::cancel:
+        return javaReceiveCloneRecoveryCancel(view.payload, view.payloadBytes);
+    default:
+        return false;
+    }
+}
 
 static bool isMirrorCalibrationProfilePath(std::string_view name) {
     return name.size() >= (mirrorCalibrationPrefix.size() + mirrorCalibrationSuffix.size()) &&
@@ -593,15 +839,42 @@ extern                bool updateDevices() ;
             extern void wakeupstream();
             wakeupstream();
             break;
-        case saskfile:        
-            {int minlen=sizeof(askfile);
-            addlen(it,minlen);
-            if(it>len)
-                return {it,minlen};
-            struct askfile *ask=reinterpret_cast<struct askfile *>(data);
-            addlen(it,ask->namelen);
-            if(it>ask->len) {
-                return {it,aligner<4>(minlen+ask->namelen)};
+        case saskfile:
+            {
+            const int commandStart = it;
+            const int minimumBytes = sizeof(askfile);
+            if (len - commandStart < minimumBytes) {
+                return {commandStart + minimumBytes, minimumBytes};
+                }
+            const askfile *ask = reinterpret_cast<const askfile *>(data);
+            if (ask->namelen == 0 ||
+                static_cast<uint64_t>(minimumBytes) + ask->namelen >
+                    static_cast<uint64_t>(std::numeric_limits<int>::max())) {
+                LOGARTAG("invalid askfile name length");
+                return {-1,0};
+                }
+            comlen = minimumBytes + ask->namelen;
+            if (len - commandStart < comlen) {
+                return {commandStart + comlen, comlen};
+                }
+            if (ask->name[ask->namelen - 1] != '\0' ||
+                std::char_traits<char>::find(ask->name, ask->namelen - 1, '\0')) {
+                LOGARTAG("unterminated askfile path");
+                return {-1,0};
+                }
+            const std::string_view path(ask->name, ask->namelen - 1);
+            const CloneRecoveryPathKind recoveryKind = classifyCloneRecoveryPath(path);
+            if (!isAuthenticatedCloneRecovery(host, ctx, recoveryKind) ||
+                (recoveryKind != CloneRecoveryPathKind::none &&
+                 (!javaCloneRecoveryBridgeReady() ||
+                  !validateCloneRecoveryRead(recoveryKind, ask->off, ask->len)))) {
+                return {-1,0};
+                }
+            it += comlen;
+            if (recoveryKind != CloneRecoveryPathKind::none) {
+                ret = sendCloneRecoveryVirtualFile(this, ctx, recoveryKind, path,
+                                                   ask->off, ask->len);
+                break;
                 }
             ret=sendfile(ctx,ask->name,ask->off,ask->len);
             };
@@ -623,20 +896,39 @@ extern                bool updateDevices() ;
         case sfileonce:
             {
             LOGARTAG("fileonce");
-            int tolen=offsetof(fileonce_t,nr);
-            const fileonce_t *gegs=reinterpret_cast<const fileonce_t *>(data);
-            if(len>(it+tolen)) {
-                comlen=gegs->totlen;
+            const int commandStart = it;
+            if (len - commandStart < static_cast<int>(sizeof(fileonce_t))) {
+                return {commandStart + static_cast<int>(sizeof(fileonce_t)),
+                        static_cast<int>(sizeof(fileonce_t))};
                 }
-            else {
-                comlen=sizeof(fileonce_t);
+            const fileonce_t *gegs = reinterpret_cast<const fileonce_t *>(data);
+            if (gegs->totlen < static_cast<int32_t>(sizeof(fileonce_t))) {
+                LOGARTAG("invalid fileonce total length");
+                return {-1,0};
                 }
-            addlen(it,comlen);
-            if(it>len) {
-                logprint("too small %d\n",len);
-                return {it,comlen};
+            comlen = gegs->totlen;
+            if (len - commandStart < comlen) {
+                return {commandStart + comlen, comlen};
                 }
-
+            ValidatedFileOnce validated;
+            if (!validateFileOnce(gegs, static_cast<size_t>(comlen), validated)) {
+                LOGARTAG("invalid fileonce structure");
+                return {-1,0};
+                }
+            const CloneRecoveryPathKind recoveryKind =
+                classifyCloneRecoveryPath(validated.path);
+            if (!isAuthenticatedCloneRecovery(host, ctx, recoveryKind) ||
+                (recoveryKind != CloneRecoveryPathKind::none &&
+                 (!javaCloneRecoveryBridgeReady() ||
+                  !validateCloneRecoveryWrite(recoveryKind, gegs, validated)))) {
+                return {-1,0};
+                }
+            it += comlen;
+            if (recoveryKind != CloneRecoveryPathKind::none) {
+                ret = saveCloneRecoveryVirtualFile(recoveryKind, gegs, validated,
+                                                   cloneTransportCode());
+                break;
+                }
             ret=savefileonce(gegs, cloneTransportCode(),
                              cloneConnectionIdentity.c_str());
             } break;
@@ -1175,6 +1467,9 @@ bool Connect::sendfile(crypt_t *pass,const char *filename,uint32_t off,uint32_t 
         sleep(1);
         return false;
         }
+    // The response frame always has the requested wire size, even when the
+    // source file is shorter. Do not send allocator contents in the unused tail.
+    memset(data, 0, totlen);
 extern getdata filedata;
     int fp=filedata.openread(filename),got=-4;
 
