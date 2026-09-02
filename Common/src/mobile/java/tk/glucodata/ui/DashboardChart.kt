@@ -2241,13 +2241,16 @@ fun InteractiveGlucoseChart(
             // Multi-sensor: the primary trace carries a subtle identity tint so
             // it pairs with its (tinted) values, like the peer traces do.
             val primaryLineTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f
+            val appRangeDark = isSystemInDarkTheme()
             val gradientBrush = remember(
                 limitYVeryHigh,
                 limitYHigh,
                 limitYLow,
                 limitYVeryLow,
                 chartHeightPx,
-                chartBandPalette,
+                primaryColor,
+                highOutOfRangeTintBase,
+                lowOutOfRangeTintBase,
                 primaryLineTintFraction,
                 primaryIdentityColor,
                 appChartRangeColors,
@@ -2255,7 +2258,6 @@ fun InteractiveGlucoseChart(
                 primaryPickedColor,
                 peerNeutralBase,
                 glucosePaletteRevision
-                primaryIdentityColor
             ) {
                 if (chartHeightPx <= 0f) {
                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
