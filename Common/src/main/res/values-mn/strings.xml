@@ -2684,4 +2684,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
     <string name="freeze_displayed_values_on">Харуулсан утгыг хадгалж байна</string>
     <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
+    <string name="anytime_credentials_backup">CT5 нэвтрэх мэдээллийг нөөцлөх</string>
+    <string name="anytime_credentials_backup_warning">Энэ файл нь аппыг дахин суулгасны эсвэл мэдрэгчийг устгасны дараа дамжуулагчийн сессийг сэргээх боломжтой. Аюулгүй газар хадгална уу.</string>
+    <string name="anytime_history_fetch_warning">Одоогийн шууд уншилт хүртэл дамжуулагчийн бүтэн түүхийг татах уу? Энэ нь хэдэн минут үргэлжилж, Bluetooth урсгалыг нэмэгдүүлж болно. Шууд уншилтууд үргэлжилнэ.</string>
+    <string name="anytime_restart_action">Эхлүүлэх</string>
+    <string name="anytime_restart_title">Мэдрэгчийг дахин эхлүүлэх үү?</string>
+    <string name="anytime_restart_warning">Дамжуулагчийн одоогийн холболтыг дуусгаж, шинэ хослуулах мөчлөг эхлүүлэх үү? Одоогийн глюкозын түүх апп-д үлдэнэ.</string>
+    <string name="anytime_history_action">Түүх</string>
 </resources>

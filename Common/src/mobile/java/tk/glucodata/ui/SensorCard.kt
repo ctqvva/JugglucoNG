@@ -9,6 +9,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -69,6 +71,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsItem
@@ -258,6 +261,8 @@ fun SensorCard(
     var showAiDexClearDialog by remember { mutableStateOf(false) }
     var showSensorCalibrateDialog by remember { mutableStateOf(false) }
     var showAnytimeClearCalibrationDialog by remember { mutableStateOf(false) }
+    var showAnytimeHistoryDialog by remember { mutableStateOf(false) }
+    var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
@@ -270,6 +275,29 @@ fun SensorCard(
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
     val scope = rememberCoroutineScope() // Fix: Add missing scope
+    var pendingAnytimeCredentialBackup by remember { mutableStateOf<String?>(null) }
+    val anytimeCredentialExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val payload = pendingAnytimeCredentialBackup
+        pendingAnytimeCredentialBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.export_successful else R.string.export_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
 
@@ -277,6 +305,63 @@ fun SensorCard(
     // disconnectSensor (soft). The old soft-disconnect left zombie "is finished" entries —
     // bond/keys preserved, prefs not cleaned, sensor reappeared. terminateSensor calls
     // forgetVendor() + removeAiDexFromPrefs() + finishSensor() + sensorEnded() = full cleanup.
+    if (showAnytimeCredentialBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeCredentialBackupDialog = false },
+            title = { Text(stringResource(R.string.anytime_credentials_backup)) },
+            text = { Text(stringResource(R.string.anytime_credentials_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.anytime.AnytimeRegistry
+                            .exportCt5Credentials(context, sensor.serial)
+                        showAnytimeCredentialBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.export_failed,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAnytimeCredentialBackup = payload
+                            val safeId = sensor.serial.filter(Char::isLetterOrDigit)
+                                .ifBlank { "CT5" }
+                            anytimeCredentialExportLauncher.launch(
+                                "JugglucoNG-Anytime-$safeId.json"
+                            )
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeCredentialBackupDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showAnytimeHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeHistoryDialog = false },
+            title = { Text(stringResource(R.string.streamhistory)) },
+            text = { Text(stringResource(R.string.anytime_history_fetch_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.requestAnytimeHistory(sensor.serial)
+                        showAnytimeHistoryDialog = false
+                    }
+                ) { Text(stringResource(R.string.streamhistory)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeHistoryDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showTerminateDialog) {
         if (sensor.isAidex) {
             AlertDialog(
@@ -456,11 +541,22 @@ fun SensorCard(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text(stringResource(R.string.reset_sensor_title)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (sensor.isAnytime) R.string.anytime_restart_title
+                        else R.string.reset_sensor_title
+                    )
+                )
+            },
             text = {
                 Text(
                     stringResource(
-                        if (sensor.isSibionics2) R.string.reset_sensor_desc else R.string.unified_reset_desc
+                        when {
+                            sensor.isAnytime -> R.string.anytime_restart_warning
+                            sensor.isSibionics2 -> R.string.reset_sensor_desc
+                            else -> R.string.unified_reset_desc
+                        }
                     )
                 )
             },
@@ -468,7 +564,14 @@ fun SensorCard(
                 TextButton(onClick = {
                     viewModel.resetSensor(sensor.serial)
                     showResetDialog = false
-                }) { Text(stringResource(R.string.reset_sensor)) }
+                }) {
+                    Text(
+                        stringResource(
+                            if (sensor.isAnytime) R.string.anytime_restart_action
+                            else R.string.reset_sensor
+                        )
+                    )
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) { Text(stringResource(R.string.cancel)) }
@@ -2408,7 +2511,98 @@ fun SensorCard(
                 }
             }
 
-            if (!sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
+            if (sensor.isAnytime) {
+                val hasExportableCredentials = tk.glucodata.drivers.anytime.AnytimeRegistry
+                    .exportCt5Credentials(context, sensor.serial) != null
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilledTonalButton(
+                        onClick = { showResetDialog = true },
+                        enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_restart_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { showAnytimeHistoryDialog = true },
+                        enabled = sensor.isVendorConnected,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_history_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { showAnytimeCredentialBackupDialog = true },
+                        enabled = hasExportableCredentials,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.export),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            if (!sensor.isAnytime && !sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
                     enabled = sensor.isVendorConnected,

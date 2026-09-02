@@ -2597,4 +2597,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="freeze_displayed_values_desc">Bir ölçüm gösterildiği değeri korur. Kalibrasyon değişiklikleri yalnızca son ölçümleri etkiler.</string>
     <string name="freeze_displayed_values_on">Gösterilen değerler korunuyor</string>
     <string name="freeze_displayed_values_off">Her değişiklikte yeniden hesaplanıyor</string>
+    <string name="anytime_credentials_backup">CT5 kimlik bilgilerini yedekle</string>
+    <string name="anytime_credentials_backup_warning">Bu dosya, uygulama yeniden yüklendikten veya sensör kaldırıldıktan sonra verici oturumunu geri yükleyebilir. Güvenli bir yerde saklayın.</string>
+    <string name="anytime_history_fetch_warning">Mevcut canlı okumaya kadar tüm verici geçmişi alınsın mı? Bu işlem birkaç dakika sürebilir ve Bluetooth trafiğini artırır. Canlı okumalar devam eder.</string>
+    <string name="anytime_restart_action">Yeniden başlat</string>
+    <string name="anytime_restart_title">Sensör yeniden başlatılsın mı?</string>
+    <string name="anytime_restart_warning">Geçerli verici oturumu sonlandırılıp yeni bir eşleştirme döngüsü başlatılsın mı? Mevcut glikoz geçmişi uygulamada kalır.</string>
+    <string name="anytime_history_action">Geçmiş</string>
 </resources>

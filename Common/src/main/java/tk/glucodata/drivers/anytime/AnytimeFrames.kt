@@ -394,11 +394,18 @@ object AnytimeFrames {
         fun ct5InputBgMg(mgdl: Int): ByteArray =
             withSum(0x09, (mgdl ushr 8) and 0xFF, mgdl and 0xFF)
 
-        /** CT5 unbind needs the same four-character temp id used during setup. */
+        /** CT5 end-cycle frame: opcode 0x0A + the authenticated four-byte temporary id. */
         @JvmStatic
-        fun ct5Unbind(tempId: String): ByteArray {
-            val bytes = tempId.take(4).padStart(4, '0').toByteArray(Charsets.US_ASCII)
-            return withSum(0x0A, bytes[0].toInt(), bytes[1].toInt(), bytes[2].toInt(), bytes[3].toInt())
+        fun ct5EndCycle(tempId: String): ByteArray {
+            val id = tempId.toByteArray(Charsets.US_ASCII)
+            require(tempId.length == 4 && id.size == 4) { "CT5 temporary id must be four ASCII bytes" }
+            return withSum(
+                AnytimeConstants.TX_CT5_END_CYCLE.toInt() and 0xFF,
+                id[0].toInt() and 0xFF,
+                id[1].toInt() and 0xFF,
+                id[2].toInt() and 0xFF,
+                id[3].toInt() and 0xFF,
+            )
         }
 
         /** CT5 encrypted K/R + temporary id setup. */

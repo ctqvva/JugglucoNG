@@ -340,6 +340,50 @@ class AnytimeCt5Tests {
         )
     }
 
+    @Test
+    fun sparsePendingEnvelopeRepairsNewestRealHoleFirst() {
+        val cached = (7025..7511).toMutableSet().apply {
+            remove(7025)
+            remove(7508)
+            remove(7511)
+        }
+
+        assertEquals(
+            "7025..7511",
+            ct5MissingEnvelope(7025, 7512, cached)!!.toString(),
+        )
+        assertEquals(
+            "7511..7511",
+            ct5NewestMissingRange(7025, 7512, cached, maxRecords = 15)!!.toString(),
+        )
+    }
+
+    @Test
+    fun newestMissingRangeKeepsAContiguousRunAndHonoursBatchLimit() {
+        val cached = (100..140).toMutableSet().apply {
+            (120..137).forEach(::remove)
+        }
+
+        assertEquals(
+            "123..137",
+            ct5NewestMissingRange(100, 141, cached, maxRecords = 15)!!.toString(),
+        )
+
+        cached.addAll(123..137)
+        assertEquals(
+            "120..122",
+            ct5NewestMissingRange(100, 141, cached, maxRecords = 15)!!.toString(),
+        )
+    }
+
+    @Test
+    fun filledPendingEnvelopeDisappears() {
+        val cached = (289..300).toSet()
+
+        assertNull(ct5MissingEnvelope(289, 301, cached))
+        assertNull(ct5NewestMissingRange(289, 301, cached, maxRecords = 15))
+    }
+
     // ---- Reconnect churn -------------------------------------------------
 
     @Test
@@ -488,28 +532,81 @@ class AnytimeCt5Tests {
         assertFalse(isCt5HistoryLinkSettled(0L, 1_000_000L, settleMs, false))
     }
 
+    @Test
+    fun unavailableCt5GapIsAbandonedAfterThreeFailedGattSessions() {
+        val tracker = AnytimeCt5GapFailureTracker(maxFailedSessions = 3)
+        val range = AnytimeIdRange(700, 715)
+
+        assertNull(tracker.onFailedSession(range))
+        assertNull(tracker.onFailedSession(range))
+        assertEquals(range, tracker.onFailedSession(range))
+        assertNull(tracker.snapshot())
+    }
+
+    @Test
+    fun ct5GapProgressClearsThePersistedFailureBudget() {
+        val tracker = AnytimeCt5GapFailureTracker(maxFailedSessions = 3)
+        val range = AnytimeIdRange(700, 715)
+        tracker.onFailedSession(range)
+
+        tracker.onProgress(listOf(706))
+
+        assertNull(tracker.snapshot())
+        assertNull(tracker.onFailedSession(range))
+        assertEquals(1, tracker.snapshot()?.failures)
+    }
+
+    @Test
+    fun unsolicitedLivePushDoesNotReleaseAQueuedHistoryResponse() {
+        assertFalse(
+            anytimeResponseMatchesRequest(
+                AnytimeConstants.TX_CT5_PULL_SERIES,
+                AnytimeConstants.RX_CT5_PUSH_GLUCOSE,
+            )
+        )
+        assertTrue(
+            anytimeResponseMatchesRequest(
+                AnytimeConstants.TX_CT5_PULL_SERIES,
+                AnytimeConstants.RX_CT5_SERIES,
+            )
+        )
+        assertTrue(anytimeResponseMatchesRequest(0x04.toByte(), AnytimeConstants.RX_SET_DATE_ACK_A))
+    }
+
+    @Test
+    fun liveAckAndGapRepairOutrankBulkHistoryWrites() {
+        assertEquals(
+            AnytimeGattWritePriority.LIVE_ACK,
+            anytimeGattWritePriority("ct5-pushAck", "ct5-initial"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.CONTROL,
+            anytimeGattWritePriority("lowPower", "ct5-initial"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.GAP_HISTORY,
+            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-gap(resumed)"),
+        )
+        assertEquals(
+            AnytimeGattWritePriority.BULK_HISTORY,
+            anytimeGattWritePriority(anytimeBackfillWriteTag(15), "ct5-initial"),
+        )
+    }
+
     // ---- End cycle ------------------------------------------------------
 
     @Test
     fun endCycleUsesTheOfficialCt5UnbindOpcode() {
-        val frame = AnytimeFrames.Builders.ct5Unbind("4271")
+        val frame = AnytimeFrames.Builders.ct5EndCycle("1234")
 
-        // {0x0A, tempId[4], sum} per ProtocolToolsHolder in the shipped CT5 app.
-        // The 0x58 `unBindRequest_CT5` in older RE notes belongs to a different
-        // build and is not what this firmware answers.
+        // Current CT5 sends the authenticated four-byte id, not the generic
+        // 0x58/0x55/0xAA frame used by older non-CT5 call paths.
         assertEquals(
-            listOf(0x0A, 0x34, 0x32, 0x37, 0x31, 0xD8),
+            listOf(0x0A, 0x31, 0x32, 0x33, 0x34, 0xD4),
             frame.map { it.toInt() and 0xFF },
         )
-        assertEquals(AnytimeConstants.TX_UNBIND, frame[0])
+        assertEquals(AnytimeConstants.TX_CT5_END_CYCLE, frame[0])
         assertTrue(AnytimeFrames.verifySum(frame))
-    }
-
-    @Test
-    fun endCycleFramePadsAShortTemporaryId() {
-        val frame = AnytimeFrames.Builders.ct5Unbind("42")
-
-        assertEquals(listOf(0x0A, 0x30, 0x30, 0x34, 0x32, 0xD0), frame.map { it.toInt() and 0xFF })
     }
 
     // ---- Cipher fallback (unchanged behaviour) --------------------------

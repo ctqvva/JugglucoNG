@@ -2769,4 +2769,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
     <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
     <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
+    <string name="anytime_credentials_backup">Kaydi aqoonsiyada CT5</string>
+    <string name="anytime_credentials_backup_warning">Faylkan wuxuu soo celin karaa fadhiga gudbiyaha kadib dib-u-rakibidda abka ama ka saarista dareemaha. Si ammaan ah u kaydi.</string>
+    <string name="anytime_history_fetch_warning">Soo qaad taariikhda gudbiyaha oo dhan ilaa akhriska hadda? Tani waxay qaadan kartaa dhowr daqiiqo waxayna kordhinaysaa taraafikada Bluetooth. Akhrisyada tooska ah way sii soconayaan.</string>
+    <string name="anytime_restart_action">Dib u bilow</string>
+    <string name="anytime_restart_title">Dib ma loo bilaabaa dareemaha?</string>
+    <string name="anytime_restart_warning">Ma la dhammeeyaa kulanka gudbiyaha hadda oo la bilaabaa wareeg lammaanayn cusub? Taariikhda gulukooska ee jirta waxay ku sii jiri doontaa abka.</string>
+    <string name="anytime_history_action">Taariikh</string>
 </resources>
