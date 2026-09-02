@@ -91,6 +91,20 @@ internal object CloneSensorConnectionCodec {
     }
 }
 
+internal object CloneLiveTransportPolicy {
+    private fun CloneTransport.isKnownRoute(): Boolean =
+        this == CloneTransport.LOCAL_ICE || this == CloneTransport.TURN
+
+    fun resolve(
+        mappedTransport: CloneTransport?,
+        connectedTransports: Iterable<CloneTransport>,
+    ): CloneTransport {
+        if (mappedTransport?.isKnownRoute() == true) return mappedTransport
+        return connectedTransports.filter { it.isKnownRoute() }.singleOrNull()
+            ?: CloneTransport.UNKNOWN
+    }
+}
+
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
 object CloneSensorRegistry {
     private const val PREFS_NAME = "tk.glucodata_preferences"
@@ -319,9 +333,35 @@ object CloneSensorRegistry {
         val connectionIdentity = CloneSensorConnectionCodec.connectionForAny(
             prefs()?.getString(KEY_SENSOR_CONNECTIONS, null),
             requested,
-        ) ?: return CloneTransport.UNKNOWN
-        return runCatching {
-            CloneTransport.fromCode(Natives.getCloneConnectionTransport(connectionIdentity))
-        }.getOrDefault(CloneTransport.UNKNOWN)
+        )
+        val mappedTransport = connectionIdentity?.let { identity ->
+            runCatching {
+                CloneTransport.fromCode(Natives.getCloneConnectionTransport(identity))
+            }.getOrDefault(CloneTransport.UNKNOWN)
+        }
+        if (mappedTransport == CloneTransport.LOCAL_ICE || mappedTransport == CloneTransport.TURN) {
+            return mappedTransport
+        }
+
+        // Older Clone registrations and the first metadata packet after a
+        // reconnect can briefly lack the sensor-to-host mapping. If exactly
+        // one active ICE host is connected, its selected route is still an
+        // unambiguous live answer for the sensor card and notification.
+        val connectedTransports = runCatching {
+            buildList {
+                for (index in 0 until Natives.backuphostNr()) {
+                    if (Natives.getHostDeactivated(index)) continue
+                    val identity = Natives.getICElabel(index)?.takeIf { it.isNotBlank() }
+                        ?: continue
+                    val transport = CloneTransport.fromCode(
+                        Natives.getCloneConnectionTransport(identity),
+                    )
+                    if (transport == CloneTransport.LOCAL_ICE || transport == CloneTransport.TURN) {
+                        add(transport)
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+        return CloneLiveTransportPolicy.resolve(mappedTransport, connectedTransports)
     }
 }
