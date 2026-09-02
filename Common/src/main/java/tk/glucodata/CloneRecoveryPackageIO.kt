@@ -117,6 +117,7 @@ internal object CloneRecoveryPackageIO {
         recordValidator: suspend (CloneRecoveryRecord) -> Unit = {},
         transaction: suspend (suspend () -> Unit) -> Unit = { operation -> operation() },
         beforeVisit: suspend () -> Unit = {},
+        afterVisit: suspend () -> Unit = {},
         visitor: suspend (CloneRecoveryRecord) -> Unit,
     ) {
         validate(file, manifest, recordValidator)
@@ -124,6 +125,7 @@ internal object CloneRecoveryPackageIO {
             verifyFile(file, manifest)
             beforeVisit()
             scan(file, manifest, visitor)
+            afterVisit()
         }
     }
 

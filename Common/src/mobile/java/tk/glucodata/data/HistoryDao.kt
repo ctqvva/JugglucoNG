@@ -21,7 +21,15 @@ interface HistoryDao {
     suspend fun insertAll(readings: List<HistoryReading>)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIgnoring(readings: List<HistoryReading>): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDeletedReadings(readings: List<DeletedHistoryReading>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDeletedReadingsForRecovery(
+        readings: List<DeletedHistoryReading>,
+    ): List<Long>
 
     // ── Per-sensor queries (used for dashboard, chart, current reading) ──
 
@@ -124,10 +132,49 @@ interface HistoryDao {
     @Query("SELECT DISTINCT sensorSerial FROM history_readings")
     suspend fun getAllSensorSerials(): List<String>
 
+    @Query(
+        """
+        SELECT * FROM history_readings
+        WHERE id > :afterId
+          AND NOT EXISTS (
+              SELECT 1 FROM history_deleted_readings deleted
+              WHERE deleted.sensorSerial = history_readings.sensorSerial
+                AND deleted.timestamp = history_readings.timestamp
+          )
+        ORDER BY id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecoveryReadingsPage(afterId: Long, limit: Int): List<HistoryReading>
+
+    @Query(
+        """
+        SELECT * FROM history_deleted_readings
+        WHERE deletedAt > :afterDeletedAt
+           OR (deletedAt = :afterDeletedAt AND timestamp > :afterTimestamp)
+           OR (deletedAt = :afterDeletedAt AND timestamp = :afterTimestamp
+               AND sensorSerial > :afterSensorSerial)
+        ORDER BY deletedAt ASC, timestamp ASC, sensorSerial ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecoveryDeletedReadingsPage(
+        afterDeletedAt: Long,
+        afterTimestamp: Long,
+        afterSensorSerial: String,
+        limit: Int,
+    ): List<DeletedHistoryReading>
+
     // ── Cleanup queries ──
 
     @Query("DELETE FROM history_readings WHERE sensorSerial = :serial")
     suspend fun deleteForSensor(serial: String)
+
+    @Query("DELETE FROM history_readings")
+    suspend fun deleteAllReadings()
+
+    @Query("DELETE FROM history_deleted_readings")
+    suspend fun deleteAllDeletedReadings()
 
     @Query("""
         DELETE FROM history_readings
@@ -154,6 +201,18 @@ interface HistoryDao {
     suspend fun getDeletedTimestampsForSensor(
         sensorSerial: String,
         timestamps: List<Long>
+    ): List<Long>
+
+    @Query(
+        """
+        SELECT DISTINCT (timestamp / 60000) * 60000 FROM history_readings
+        WHERE sensorSerial = :sensorSerial
+          AND (timestamp / 60000) * 60000 IN (:minuteTimestamps)
+        """
+    )
+    suspend fun getExistingMinuteTimestampsForSensor(
+        sensorSerial: String,
+        minuteTimestamps: List<Long>,
     ): List<Long>
 
     // Deliberately absent: there is no query here that overwrites a stored
