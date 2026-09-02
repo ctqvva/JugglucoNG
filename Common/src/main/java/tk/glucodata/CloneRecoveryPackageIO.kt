@@ -71,10 +71,10 @@ internal object CloneRecoveryPackageIO {
         internal fun recordCounts(): Map<String, Long> = counts.toMap()
     }
 
-    fun write(
+    suspend fun write(
         file: File,
         declaredRecordTypes: Set<String>,
-        block: (RecordSink) -> Unit,
+        block: suspend (RecordSink) -> Unit,
     ): CloneRecoveryPackageStats {
         val parent = file.parentFile
         require(parent == null || parent.isDirectory || parent.mkdirs()) {
@@ -102,24 +102,29 @@ internal object CloneRecoveryPackageIO {
         }
     }
 
-    fun validate(
+    suspend fun validate(
         file: File,
         manifest: CloneRecoveryManifest,
-        recordValidator: (CloneRecoveryRecord) -> Unit = {},
+        recordValidator: suspend (CloneRecoveryRecord) -> Unit = {},
     ) {
         verifyFile(file, manifest)
         scan(file, manifest, recordValidator)
     }
 
-    fun visitValidated(
+    suspend fun visitValidated(
         file: File,
         manifest: CloneRecoveryManifest,
-        recordValidator: (CloneRecoveryRecord) -> Unit = {},
-        visitor: (CloneRecoveryRecord) -> Unit,
+        recordValidator: suspend (CloneRecoveryRecord) -> Unit = {},
+        transaction: suspend (suspend () -> Unit) -> Unit = { operation -> operation() },
+        beforeVisit: suspend () -> Unit = {},
+        visitor: suspend (CloneRecoveryRecord) -> Unit,
     ) {
         validate(file, manifest, recordValidator)
-        verifyFile(file, manifest)
-        scan(file, manifest, visitor)
+        transaction {
+            verifyFile(file, manifest)
+            beforeVisit()
+            scan(file, manifest, visitor)
+        }
     }
 
     private fun verifyFile(file: File, manifest: CloneRecoveryManifest) {
@@ -133,10 +138,10 @@ internal object CloneRecoveryPackageIO {
         }
     }
 
-    private fun scan(
+    private suspend fun scan(
         file: File,
         manifest: CloneRecoveryManifest,
-        visitor: (CloneRecoveryRecord) -> Unit,
+        visitor: suspend (CloneRecoveryRecord) -> Unit,
     ) {
         val counts = manifest.recordCounts.keys.associateWithTo(linkedMapOf()) { 0L }
         var uncompressedBytes = 0L
