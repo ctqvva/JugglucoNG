@@ -2645,4 +2645,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Вимірювання зберігає значення, яке було показано. Зміни калібрування впливають лише на свіжі вимірювання.</string>
     <string name="freeze_displayed_values_on">Показані значення зберігаються</string>
     <string name="freeze_displayed_values_off">Перерахунок за кожної зміни</string>
+    <string name="nightscout_follow_interval_title">Перевіряти нові значення</string>
+    <string name="nightscout_follow_interval_desc">Як часто підписник опитує сервер. Це водночас і те, наскільки старим може бути значення, а отже і наскільки пізно надійде тривога за відстежуваним значенням. Підписник не має власного сенсора, який тримав би телефон активним, тож кожна перевірка — це пробудження.</string>
+    <string name="nightscout_follow_interval_doze">Менше 9 хвилин Android усе одно може розсувати перевірки, поки телефон бездіяльний. Виключення Juggluco з оптимізації батареї зберігає вибраний інтервал.</string>
 </resources>

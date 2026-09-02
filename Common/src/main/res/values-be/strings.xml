@@ -2640,4 +2640,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Паказанне захоўвае значэнне, з якім яно было паказана. Змены каліброўкі закранаюць толькі свежыя паказанні.</string>
     <string name="freeze_displayed_values_on">Паказаныя значэнні захоўваюцца</string>
     <string name="freeze_displayed_values_off">Пералік пры кожнай змене</string>
+    <string name="nightscout_follow_interval_title">Правяраць новыя значэнні</string>
+    <string name="nightscout_follow_interval_desc">Як часта падпісчык апытвае сервер. Гэта таксама тое, наколькі старым можа быць значэнне, а значыць і наколькі позна прыйдзе трывога па сачыльным значэнні. У падпісчыка няма свайго сэнсара, які трымаў бы тэлефон абуджаным, таму кожная праверка — гэта абуджэнне.</string>
+    <string name="nightscout_follow_interval_doze">Менш за 9 хвілін Android усё роўна можа разводзіць праверкі, пакуль тэлефон бяздзейнічае. Выключэнне Juggluco з аптымізацыі батарэі захоўвае выбраны інтэрвал.</string>
 </resources>

@@ -2607,4 +2607,7 @@
     <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
     <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
     <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
+    <string name="nightscout_follow_interval_title">Sprawdzanie nowych wartości</string>
+    <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
+    <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
 </resources>

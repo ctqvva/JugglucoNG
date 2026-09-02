@@ -2585,4 +2585,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">读数保留当时显示的数值。校准更改仅影响最近的读数。</string>
     <string name="freeze_displayed_values_on">正在保留已显示的数值</string>
     <string name="freeze_displayed_values_off">每次更改后重新计算</string>
+    <string name="nightscout_follow_interval_title">检查新数值</string>
+    <string name="nightscout_follow_interval_desc">跟随者向服务器询问的频率。它同时决定数值可能有多旧，因此也决定基于跟随数值的警报可能有多晚。跟随者没有自己的传感器让手机保持唤醒，所以每次检查都是一次唤醒。</string>
+    <string name="nightscout_follow_interval_doze">低于 9 分钟时，手机闲置期间 Android 仍可能拉长检查间隔。将 Juggluco 排除在电池优化之外可保持所选间隔。</string>
 </resources>

@@ -2684,4 +2684,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
     <string name="freeze_displayed_values_on">Харуулсан утгыг хадгалж байна</string>
     <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
+    <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
+    <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
+    <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
 </resources>

@@ -2569,4 +2569,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Ett värde behåller det som visades. Kalibreringsändringar påverkar bara de senaste värdena.</string>
     <string name="freeze_displayed_values_on">Visade värden behålls</string>
     <string name="freeze_displayed_values_off">Räknas om vid varje ändring</string>
+    <string name="nightscout_follow_interval_title">Leta efter nya värden</string>
+    <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
+    <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
 </resources>
