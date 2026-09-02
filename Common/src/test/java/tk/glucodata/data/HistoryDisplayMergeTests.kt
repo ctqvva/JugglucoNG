@@ -3,6 +3,7 @@ package tk.glucodata.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HistoryDisplayMergeTests {
@@ -194,6 +195,67 @@ class HistoryDisplayMergeTests {
             ),
             merged.map { it.sensorSerial }
         )
+    }
+
+    /**
+     * The 2026-08-30 shape: the live sensor drops sixteen minutes on a link that never went
+     * down, a second sensor streams straight through the hole half a mmol lower, and the
+     * chart's gap rule would have bridged sixteen minutes without comment. Handing the middle
+     * of it to the other sensor turned one invisible dropout into two visible holes with a
+     * fragment between them.
+     */
+    @Test
+    fun mergeReadings_doesNotLetAnotherSensorFillAGapTheChartWouldBridge() {
+        val readings = ArrayList<HistoryReading>()
+        var id = 1L
+        // Preferred sensor: a reading a minute, with 12:11..12:25 missing.
+        for (minute in 0..10) {
+            readings += reading(id++, minute * MINUTE_MS, "sensor-live", 100f, 95f)
+        }
+        for (minute in 26..40) {
+            readings += reading(id++, minute * MINUTE_MS, "sensor-live", 105f, 100f)
+        }
+        // Another sensor streaming throughout, reading lower.
+        for (minute in 0..40) {
+            readings += reading(id++, minute * MINUTE_MS + 30_000L, "sensor-other", 80f, 76f)
+        }
+
+        val merged = HistoryDisplayMerge.mergeReadings(
+            readings = readings.sortedBy { it.timestamp },
+            preferredSerial = "sensor-live"
+        )
+
+        assertEquals(emptyList<String>(), merged.map { it.sensorSerial }.filter { it != "sensor-live" })
+    }
+
+    /**
+     * The other half of the same rule: a hole the chart *would* draw as a hole is exactly where
+     * another sensor's data is worth having. Suppressing it there would trade one wrong picture
+     * for another.
+     */
+    @Test
+    fun mergeReadings_stillLetsAnotherSensorOwnAGenuineOutage() {
+        val readings = ArrayList<HistoryReading>()
+        var id = 1L
+        for (minute in 0..10) {
+            readings += reading(id++, minute * MINUTE_MS, "sensor-live", 100f, 95f)
+        }
+        for (minute in 55..70) {
+            readings += reading(id++, minute * MINUTE_MS, "sensor-live", 105f, 100f)
+        }
+        for (minute in 0..70) {
+            readings += reading(id++, minute * MINUTE_MS + 30_000L, "sensor-other", 80f, 76f)
+        }
+
+        val merged = HistoryDisplayMerge.mergeReadings(
+            readings = readings.sortedBy { it.timestamp },
+            preferredSerial = "sensor-live"
+        )
+
+        val filler = merged.filter { it.sensorSerial == "sensor-other" }
+        assertNotEquals(emptyList<HistoryReading>(), filler)
+        // Only the middle of the outage — the edges stay with the sensor that owns them.
+        assertTrue(filler.all { it.timestamp > 27 * MINUTE_MS && it.timestamp < 38 * MINUTE_MS })
     }
 
     private fun reading(

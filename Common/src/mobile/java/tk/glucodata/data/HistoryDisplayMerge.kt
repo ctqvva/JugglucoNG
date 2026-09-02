@@ -4,7 +4,23 @@ import tk.glucodata.SensorIdentity
 
 internal object HistoryDisplayMerge {
     private const val SENSOR_MINUTE_BUCKET_MS = 60_000L
-    private const val OVERLAP_PADDING_MS = 5L * 60L * 1000L
+    /**
+     * How far past its own rows a sensor keeps ownership of a stretch.
+     *
+     * This is the chart's own gap rule, not a number of its own, and that is the whole point.
+     * The chart connects two readings up to [tk.glucodata.GlucoseChartGap.THRESHOLD_MS] apart;
+     * a hole narrower than that is not drawn as a hole. While this padding was five minutes,
+     * every dropout between ten and seventeen minutes fell in the space between the two rules:
+     * the merge handed the middle of it to a lower-ranked sensor, and the chart — which breaks
+     * the line on a sensor change — drew a line it was about to bridge as two holes with a
+     * fragment between them, at another sensor's calibration.
+     *
+     * A 2026-08-30 trace has it exactly: sixteen minutes missing from the live sensor, filled
+     * by a third sensor reading half a mmol lower, rendered as an outage that was not one.
+     *
+     * So another sensor may only own what the chart would genuinely draw broken.
+     */
+    private const val OVERLAP_PADDING_MS = tk.glucodata.GlucoseChartGap.THRESHOLD_MS
     private const val COVERAGE_SEGMENT_GAP_MS = 15L * 60L * 1000L
 
 
@@ -202,6 +218,14 @@ internal object HistoryDisplayMerge {
      * Rows no sensor owns keep their own rule: they are not a sensor competing
      * for a stretch, they are filler, and they are dropped only where the
      * preferred sensor already has that minute.
+     *
+     * That fixed the case where two sensors alternate minute by minute. The case it left
+     * is the one where they do not: a single sensor cleanly owns the middle of a short
+     * hole in the higher-ranked sensor's stream. The result is not a row of fragments but
+     * one of them — and it was still wrong, because a hole that narrow is not a hole at
+     * all as far as the chart is concerned. See [OVERLAP_PADDING_MS]: ownership now
+     * reaches exactly as far as the chart would bridge, so a lower-ranked sensor gets a
+     * stretch only when leaving it empty would genuinely read as missing data.
      */
     private fun applyPreferredOverlapDominance(
         readings: List<HistoryReading>,
