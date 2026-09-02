@@ -2571,4 +2571,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Une mesure conserve la valeur affichée. Les modifications d\'étalonnage n\'affectent que les mesures récentes.</string>
     <string name="freeze_displayed_values_on">Valeurs affichées conservées</string>
     <string name="freeze_displayed_values_off">Recalcul à chaque modification</string>
+    <string name="anytime_credentials_backup">Sauvegarder les identifiants CT5</string>
+    <string name="anytime_credentials_backup_warning">Ce fichier permet de restaurer la session de l’émetteur après la réinstallation de l’application ou la suppression du capteur. Conservez-le en lieu sûr.</string>
+    <string name="anytime_history_fetch_warning">Récupérer tout l’historique de l’émetteur jusqu’à la mesure actuelle ? Cela peut prendre plusieurs minutes et augmenter le trafic Bluetooth. Les mesures en direct continueront.</string>
 </resources>

@@ -279,6 +279,7 @@ class AnytimeBleManager(
     @Volatile private var ct5PendingGapFromId: Int = -1
     @Volatile private var ct5PendingGapStopBeforeId: Int = -1
     private val ct5SkippedHistoryIds = linkedSetOf<Int>()
+    private val ct5ResolvedHistoryIds = linkedSetOf<Int>()
     private var ct5GapFailureTracker = AnytimeCt5GapFailureTracker(CT5_GAP_MAX_FAILED_SESSIONS)
 
     /**
@@ -412,6 +413,10 @@ class AnytimeBleManager(
         synchronized(ct5SkippedHistoryIds) {
             ct5SkippedHistoryIds.clear()
             ct5SkippedHistoryIds.addAll(AnytimeRegistry.loadCt5SkippedHistoryIds(context, id))
+        }
+        synchronized(ct5ResolvedHistoryIds) {
+            ct5ResolvedHistoryIds.clear()
+            ct5ResolvedHistoryIds.addAll(AnytimeRegistry.loadCt5ResolvedHistoryIds(context, id))
         }
         AnytimeRegistry.loadCt5GapFailure(context, id)?.let { failure ->
             ct5GapFailureTracker = AnytimeCt5GapFailureTracker(
@@ -610,6 +615,11 @@ class AnytimeBleManager(
             id,
             synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.toSet() },
         )
+        AnytimeRegistry.saveCt5ResolvedHistoryIds(
+            ctx,
+            id,
+            synchronized(ct5ResolvedHistoryIds) { ct5ResolvedHistoryIds.toSet() },
+        )
         AnytimeRegistry.saveCt5GapFailure(ctx, id, ct5GapFailureTracker.snapshot())
     }
 
@@ -743,7 +753,7 @@ class AnytimeBleManager(
             finishHistoryBackfill()
             return@Runnable
         }
-        if (nextId >= familyEntry.endNumber) {
+        if (shouldStopAtProfileHistoryEnd(familyEntry.family, nextId, familyEntry.endNumber)) {
             Log.i(TAG, "Backfill complete (lastId=$lastGlucoseId, endNumber=${familyEntry.endNumber})")
             finishHistoryBackfill()
             return@Runnable
@@ -898,6 +908,18 @@ class AnytimeBleManager(
 
     private fun nextBackfillIdSkippingCached(fromId: Int): Int {
         var id = fromId.coerceAtLeast(0)
+        if (isCt5()) {
+            synchronized(ct5ResolvedHistoryIds) {
+                synchronized(ct5SkippedHistoryIds) {
+                    while (id < historyStopBeforeId &&
+                        (id in ct5ResolvedHistoryIds || id in ct5SkippedHistoryIds)
+                    ) {
+                        id++
+                    }
+                }
+            }
+            return id
+        }
         // Avoid re-requesting raw records already restored from AnytimeRegistry.
         // This is the main app-restart speed path: once a full/partial backfill
         // has been cached, reconnect resumes at the first real gap instead of
@@ -1155,6 +1177,7 @@ class AnytimeBleManager(
         ct5PendingGapFromId = -1
         ct5PendingGapStopBeforeId = -1
         synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.clear() }
+        synchronized(ct5ResolvedHistoryIds) { ct5ResolvedHistoryIds.clear() }
         synchronized(pendingNativeRecomputeIds) { pendingNativeRecomputeIds.clear() }
         historyRoomImportBuffer.clear()
         historyCaughtUpCooldown.clear()
@@ -1219,6 +1242,7 @@ class AnytimeBleManager(
         ct5PendingGapFromId = -1
         ct5PendingGapStopBeforeId = -1
         synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.clear() }
+        synchronized(ct5ResolvedHistoryIds) { ct5ResolvedHistoryIds.clear() }
         ct5GapFailureTracker.clear()
         lastLiveFrameAtMs = 0L
         ct5HistoryHealth.onGattSessionStarted()
@@ -1428,6 +1452,7 @@ class AnytimeBleManager(
 
     private fun cachedCt5HistoryIds(): Set<Int> {
         val cached = synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.keys.toHashSet() }
+        synchronized(ct5ResolvedHistoryIds) { cached.addAll(ct5ResolvedHistoryIds) }
         synchronized(ct5SkippedHistoryIds) { cached.addAll(ct5SkippedHistoryIds) }
         return cached
     }
@@ -1460,8 +1485,11 @@ class AnytimeBleManager(
         if (receivedIds.isEmpty()) return
         val hadFailure = ct5GapFailureTracker.snapshot() != null
         ct5GapFailureTracker.onProgress(receivedIds)
+        val resolvedChanged = synchronized(ct5ResolvedHistoryIds) {
+            ct5ResolvedHistoryIds.addAll(receivedIds)
+        }
         val changed = synchronized(ct5SkippedHistoryIds) { ct5SkippedHistoryIds.removeAll(receivedIds.toSet()) }
-        if (changed || hadFailure) persistAlgorithmState()
+        if (resolvedChanged || changed || hadFailure) persistAlgorithmState()
     }
 
     /** Rebuild the durable envelope from ids that are still genuinely absent. */
@@ -3417,6 +3445,10 @@ class AnytimeBleManager(
         historyEmptyResponsesInARow = 0
         // A response proves the pull path still works on this connection.
         ct5HistoryHealth.onSeriesReceived()
+        // Every valid returned id resolves that part of a pending CT5 gap, even
+        // when Room already contained the glucose point. Without caching these
+        // ids, an "all existing" response completed the range and then the gap
+        // scanner immediately requested the exact same ids forever.
         noteCt5GapProgress(records.map { it.glucoseId })
         records.maxOfOrNull { it.glucoseId }?.let { maxId ->
             if (maxId > historyLastPulledId) historyLastPulledId = maxId
@@ -3753,8 +3785,17 @@ class AnytimeBleManager(
         return if (qrDays > 0) qrDays else profile.ratedLifetimeDays
     }
 
+    /**
+     * CT5 has been observed to keep producing valid live records beyond its
+     * nominal 7695-record horizon. Keep the native mirror writable beyond that
+     * point; this changes storage capacity only, not the displayed expectation
+     * and never creates readings.
+     */
+    private fun nativeCapacityLifetimeDays(): Int =
+        if (isCt5()) maxOf(effectiveLifetimeDays(), 32) else effectiveLifetimeDays()
+
     private fun declareNativeLifetime(name: String, startSec: Long) {
-        val days = effectiveLifetimeDays()
+        val days = nativeCapacityLifetimeDays()
         if (days <= 0) return
         val key = "$name:$days"
         if (nativeLifetimeDeclaredFor == key) return
@@ -4457,7 +4498,12 @@ class AnytimeBleManager(
             ct5GapFailureTracker.clear()
             persistAlgorithmState()
         }
-        startHistoryBackfill("user-requested", fromId = 0)
+        val stopBeforeId = (lastGlucoseId + 1).coerceAtLeast(1)
+        startHistoryBackfill(
+            reason = "user-requested",
+            fromId = 0,
+            stopBeforeId = stopBeforeId,
+        )
         return true
     }
 
@@ -4484,19 +4530,26 @@ class AnytimeBleManager(
     }
 
     override fun getStartTimeMs(): Long = sensorStartAtMs
-    override fun getOfficialEndMs(): Long =
-        if (sensorStartAtMs <= 0L) 0L
-        else sensorStartAtMs + effectiveLifetimeDays() * 24L * 60L * 60L * 1000L
-    override fun getExpectedEndMs(): Long = 0L
+    override fun getOfficialEndMs(): Long = when {
+        sensorStartAtMs <= 0L || isCt5() -> 0L
+        else -> sensorStartAtMs + effectiveLifetimeDays() * 24L * 60L * 60L * 1000L
+    }
+    override fun getExpectedEndMs(): Long = when {
+        sensorStartAtMs <= 0L || !isCt5() -> 0L
+        else -> sensorStartAtMs +
+            familyEntry.endNumber.toLong() * profile.readingIntervalMinutes * 60_000L
+    }
     override fun isSensorExpired(): Boolean {
         val end = getOfficialEndMs()
         return end > 0L && System.currentTimeMillis() > end
     }
     override fun getSensorRemainingHours(): Int {
-        val end = getOfficialEndMs()
+        val end = if (isCt5()) getExpectedEndMs() else getOfficialEndMs()
         if (end <= 0L) return -1
         val ms = end - System.currentTimeMillis()
-        if (ms <= 0L) return 0
+        // Past CT5's rated horizon the real end is unknown. Do not call a live
+        // transmitter expired or imply that zero hours remain.
+        if (ms <= 0L) return if (isCt5()) -1 else 0
         return (ms / 3_600_000L).toInt()
     }
     override fun getSensorAgeHours(): Int {

@@ -2555,4 +2555,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Una lettura mantiene il valore mostrato. Le modifiche alla calibrazione riguardano solo le letture recenti.</string>
     <string name="freeze_displayed_values_on">Valori visualizzati mantenuti</string>
     <string name="freeze_displayed_values_off">Ricalcolo a ogni modifica</string>
+    <string name="anytime_credentials_backup">Backup credenziali CT5</string>
+    <string name="anytime_credentials_backup_warning">Questo file può ripristinare la sessione del trasmettitore dopo la reinstallazione dell’app o la rimozione del sensore. Conservalo in modo sicuro.</string>
+    <string name="anytime_history_fetch_warning">Recuperare l’intera cronologia del trasmettitore fino alla lettura attuale? Potrebbero essere necessari alcuni minuti e il traffico Bluetooth aumenterà. Le letture in tempo reale continueranno.</string>
 </resources>

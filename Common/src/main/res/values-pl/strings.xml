@@ -2603,4 +2603,7 @@
     <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
     <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
     <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
+    <string name="anytime_credentials_backup">Kopia danych uwierzytelniających CT5</string>
+    <string name="anytime_credentials_backup_warning">Ten plik pozwala przywrócić sesję nadajnika po ponownej instalacji aplikacji lub usunięciu sensora. Przechowuj go bezpiecznie.</string>
+    <string name="anytime_history_fetch_warning">Pobrać pełną historię nadajnika do bieżącego odczytu? Może to potrwać kilka minut i zwiększyć ruch Bluetooth. Odczyty na żywo będą nadal odbierane.</string>
 </resources>

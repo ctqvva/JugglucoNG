@@ -2565,4 +2565,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">Ett värde behåller det som visades. Kalibreringsändringar påverkar bara de senaste värdena.</string>
     <string name="freeze_displayed_values_on">Visade värden behålls</string>
     <string name="freeze_displayed_values_off">Räknas om vid varje ändring</string>
+    <string name="anytime_credentials_backup">Säkerhetskopiera CT5-uppgifter</string>
+    <string name="anytime_credentials_backup_warning">Filen kan återställa sändarsessionen efter att appen installerats om eller sensorn tagits bort. Förvara den säkert.</string>
+    <string name="anytime_history_fetch_warning">Hämta hela sändarhistoriken fram till den aktuella avläsningen? Det kan ta flera minuter och ökar Bluetooth-trafiken. Liveavläsningar fortsätter.</string>
 </resources>

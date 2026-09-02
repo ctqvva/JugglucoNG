@@ -305,8 +305,9 @@ object AnytimeConstants {
     /**
      * Per-prefix descriptor. `algorithm` is the int the JNI uses to dispatch into
      * the correct chemistry-specific pipeline inside libalgorithm-jni.so.
-     * `endNumber` is the approximate maximum 3-minute record count before the
-     * session ends (vendor tables include a small initialization allowance).
+     * `endNumber` is the vendor's nominal record horizon (vendor tables include
+     * a small initialization allowance). CT5 firmware may continue emitting
+     * live ids beyond this value, so it is not a hard BLE/history boundary.
      */
     data class FamilyEntry(
         val prefix: String,
@@ -507,6 +508,8 @@ object AnytimeConstants {
 
     /** Auto-repair ids the transmitter repeatedly proved it cannot currently serve. */
     const val PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX = "anytime_ct5_skipped_history_ids_"
+    /** CT5 history ids the transmitter returned, including points already present in Room. */
+    const val PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX = "anytime_ct5_resolved_history_ids_"
     const val PREF_CT5_GAP_FAILURE_FROM_PREFIX = "anytime_ct5_gap_failure_from_"
     const val PREF_CT5_GAP_FAILURE_STOP_PREFIX = "anytime_ct5_gap_failure_stop_"
     const val PREF_CT5_GAP_FAILURE_COUNT_PREFIX = "anytime_ct5_gap_failure_count_"

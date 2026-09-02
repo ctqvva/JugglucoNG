@@ -74,6 +74,20 @@ internal fun liveIdLooksRolledBack(
             previousMaxId >= 0 &&
             liveId + rollbackThreshold.coerceAtLeast(0) < previousMaxId
 
+/**
+ * Legacy families use the profile record count as a hard history boundary.
+ * CT5 does not: live ids can continue beyond the vendor's nominal 7695-record
+ * horizon, and a finite CT5 repair is already bounded by its live id.
+ */
+internal fun shouldStopAtProfileHistoryEnd(
+    family: AnytimeConstants.Family,
+    nextId: Int,
+    profileEndNumber: Int,
+): Boolean =
+    family != AnytimeConstants.Family.CT5 &&
+        profileEndNumber > 0 &&
+        nextId >= profileEndNumber
+
 internal data class AnytimePendingHistoryRoomImport(
     val glucoseId: Int,
     val source: AnytimeAlgorithm.Source,

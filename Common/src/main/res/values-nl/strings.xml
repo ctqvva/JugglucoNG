@@ -2608,4 +2608,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="freeze_displayed_values_desc">Een meting behoudt de weergegeven waarde. Kalibratiewijzigingen gelden alleen voor recente metingen.</string>
     <string name="freeze_displayed_values_on">Weergegeven waarden worden behouden</string>
     <string name="freeze_displayed_values_off">Wordt bij elke wijziging herberekend</string>
+    <string name="anytime_credentials_backup">CT5-inloggegevens back-uppen</string>
+    <string name="anytime_credentials_backup_warning">Met dit bestand kan de zendersessie worden hersteld nadat de app opnieuw is geïnstalleerd of de sensor is verwijderd. Bewaar het veilig.</string>
+    <string name="anytime_history_fetch_warning">De volledige zendergeschiedenis tot de huidige live meting ophalen? Dit kan enkele minuten duren en zorgt voor meer Bluetooth-verkeer. Live metingen blijven doorgaan.</string>
 </resources>

@@ -9,6 +9,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -69,6 +71,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsItem
@@ -258,6 +261,8 @@ fun SensorCard(
     var showAiDexClearDialog by remember { mutableStateOf(false) }
     var showSensorCalibrateDialog by remember { mutableStateOf(false) }
     var showAnytimeClearCalibrationDialog by remember { mutableStateOf(false) }
+    var showAnytimeHistoryDialog by remember { mutableStateOf(false) }
+    var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
@@ -270,6 +275,29 @@ fun SensorCard(
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
     val scope = rememberCoroutineScope() // Fix: Add missing scope
+    var pendingAnytimeCredentialBackup by remember { mutableStateOf<String?>(null) }
+    val anytimeCredentialExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val payload = pendingAnytimeCredentialBackup
+        pendingAnytimeCredentialBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.export_successful else R.string.export_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
 
@@ -277,6 +305,63 @@ fun SensorCard(
     // disconnectSensor (soft). The old soft-disconnect left zombie "is finished" entries —
     // bond/keys preserved, prefs not cleaned, sensor reappeared. terminateSensor calls
     // forgetVendor() + removeAiDexFromPrefs() + finishSensor() + sensorEnded() = full cleanup.
+    if (showAnytimeCredentialBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeCredentialBackupDialog = false },
+            title = { Text(stringResource(R.string.anytime_credentials_backup)) },
+            text = { Text(stringResource(R.string.anytime_credentials_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.anytime.AnytimeRegistry
+                            .exportCt5Credentials(context, sensor.serial)
+                        showAnytimeCredentialBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.export_failed,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAnytimeCredentialBackup = payload
+                            val safeId = sensor.serial.filter(Char::isLetterOrDigit)
+                                .ifBlank { "CT5" }
+                            anytimeCredentialExportLauncher.launch(
+                                "JugglucoNG-Anytime-$safeId.json"
+                            )
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeCredentialBackupDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showAnytimeHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeHistoryDialog = false },
+            title = { Text(stringResource(R.string.streamhistory)) },
+            text = { Text(stringResource(R.string.anytime_history_fetch_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.requestAnytimeHistory(sensor.serial)
+                        showAnytimeHistoryDialog = false
+                    }
+                ) { Text(stringResource(R.string.streamhistory)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeHistoryDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showTerminateDialog) {
         if (sensor.isAidex) {
             AlertDialog(
@@ -2403,6 +2488,62 @@ fun SensorCard(
                             text = stringResource(R.string.clear_calibrations_title),
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            if (sensor.isAnytime) {
+                val hasExportableCredentials = tk.glucodata.drivers.anytime.AnytimeRegistry
+                    .exportCt5Credentials(context, sensor.serial) != null
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    FilledTonalIconButton(
+                        onClick = { showAnytimeHistoryDialog = true },
+                        enabled = sensor.isVendorConnected,
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(
+                            topStart = 28.dp,
+                            bottomStart = 28.dp,
+                            topEnd = 4.dp,
+                            bottomEnd = 4.dp,
+                        ),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = stringResource(R.string.streamhistory),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = { showAnytimeCredentialBackupDialog = true },
+                        enabled = hasExportableCredentials,
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(
+                            topStart = 4.dp,
+                            bottomStart = 4.dp,
+                            topEnd = 28.dp,
+                            bottomEnd = 28.dp,
+                        ),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = stringResource(R.string.anytime_credentials_backup),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }

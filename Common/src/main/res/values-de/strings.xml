@@ -2604,4 +2604,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="freeze_displayed_values_desc">Ein Messwert behält den angezeigten Wert. Kalibrierungsänderungen wirken nur auf aktuelle Messwerte.</string>
     <string name="freeze_displayed_values_on">Angezeigte Werte werden behalten</string>
     <string name="freeze_displayed_values_off">Wird bei jeder Änderung neu berechnet</string>
+    <string name="anytime_credentials_backup">CT5-Zugangsdaten sichern</string>
+    <string name="anytime_credentials_backup_warning">Mit dieser Datei kann die Sendersitzung nach einer Neuinstallation der App oder dem Entfernen des Sensors wiederhergestellt werden. Bewahre sie sicher auf.</string>
+    <string name="anytime_history_fetch_warning">Den vollständigen Senderverlauf bis zum aktuellen Live-Wert abrufen? Dies kann mehrere Minuten dauern und erhöht den Bluetooth-Datenverkehr. Live-Werte werden weiterhin empfangen.</string>
 </resources>

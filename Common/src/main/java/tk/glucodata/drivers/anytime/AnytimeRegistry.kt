@@ -363,6 +363,20 @@ object AnytimeRegistry {
         }.apply()
     }
 
+    @JvmStatic
+    fun loadCt5ResolvedHistoryIds(c: Context, id: String): Set<Int> =
+        prefs(c).getStringSet(AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + id, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toIntOrNull()?.takeIf { value -> value >= 0 } }
+
+    @JvmStatic
+    fun saveCt5ResolvedHistoryIds(c: Context, id: String, ids: Set<Int>) {
+        val key = AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + id
+        prefs(c).edit().apply {
+            if (ids.isEmpty()) remove(key) else putStringSet(key, ids.mapTo(linkedSetOf()) { it.toString() })
+        }.apply()
+    }
+
     /** fromId, stopBeforeId, failed GATT sessions; null means no failed range is pending. */
     internal fun loadCt5GapFailure(c: Context, id: String): IntArray? {
         val p = prefs(c)
@@ -633,6 +647,7 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + sensorId)
