@@ -1435,6 +1435,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Nightscout 跟随器</string>
     <string name="nightscout_follow_status_idle">Nightscout 跟随器空闲</string>
     <string name="nightscout_follow_status_following">正在跟随 Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">使用 v3 API 跟随</string>
+    <string name="nightscout_follow_use_v3_api_desc">从 /api/v3 而非 /api/v1 读取。访问令牌需要 api:entries:read、api:treatments:read 和 api:devicestatus:read 权限。角色变更只在下次令牌交换后生效：若 403 持续出现，请重启应用。</string>
     <string name="nightscout_follow_status_syncing">正在刷新 Nightscout</string>
     <string name="nightscout_follow_status_paused">Nightscout 跟随器已暂停</string>
     <string name="nightscout_follow_status_config_needed">输入 Nightscout URL</string>

@@ -1454,6 +1454,8 @@
     <string name="nightscout_follow_title">Obserwator Nightscout</string>
     <string name="nightscout_follow_status_idle">Obserwator Nightscout bezczynny</string>
     <string name="nightscout_follow_status_following">Obserwowanie Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Używaj API v3 do śledzenia</string>
+    <string name="nightscout_follow_use_v3_api_desc">Czyta z /api/v3 zamiast /api/v1. Token dostępu wymaga api:entries:read, api:treatments:read i api:devicestatus:read. Zmienione role działają dopiero przy następnej wymianie tokenu: uruchom ponownie aplikację, jeśli 403 się utrzymuje.</string>
     <string name="nightscout_follow_status_syncing">Odświeżanie Nightscout</string>
     <string name="nightscout_follow_status_paused">Obserwator Nightscout wstrzymany</string>
     <string name="nightscout_follow_status_config_needed">Wprowadź adres URL Nightscout</string>

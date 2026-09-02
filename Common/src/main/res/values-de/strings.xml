@@ -1493,6 +1493,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_title">Nightscout-Follower</string>
     <string name="nightscout_follow_status_idle">Nightscout-Follower bereit</string>
     <string name="nightscout_follow_status_following">Folgt Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">v3-API zum Folgen verwenden</string>
+    <string name="nightscout_follow_use_v3_api_desc">Liest von /api/v3 statt /api/v1. Der Zugriffstoken benötigt api:entries:read, api:treatments:read und api:devicestatus:read. Geänderte Rollen wirken erst mit dem nächsten Token-Austausch: Bei anhaltendem 403 die App neu starten.</string>
     <string name="nightscout_follow_status_syncing">Nightscout wird aktualisiert</string>
     <string name="nightscout_follow_status_paused">Nightscout-Follower pausiert</string>
     <string name="nightscout_follow_status_config_needed">Nightscout-URL eingeben</string>

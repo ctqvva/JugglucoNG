@@ -1433,6 +1433,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Джерело Nightscout</string>
     <string name="nightscout_follow_status_idle">Джерело Nightscout очікує</string>
     <string name="nightscout_follow_status_following">Отримання з Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Використовувати API v3 для стеження</string>
+    <string name="nightscout_follow_use_v3_api_desc">Читає з /api/v3 замість /api/v1. Токен доступу потребує api:entries:read, api:treatments:read і api:devicestatus:read. Змінені ролі діють лише з наступним обміном токенів: перезапустіть застосунок, якщо 403 не зникає.</string>
     <string name="nightscout_follow_status_syncing">Оновлення Nightscout</string>
     <string name="nightscout_follow_status_paused">Джерело Nightscout призупинено</string>
     <string name="nightscout_follow_status_config_needed">Введіть URL Nightscout</string>

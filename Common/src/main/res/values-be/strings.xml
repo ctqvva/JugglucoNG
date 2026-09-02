@@ -1418,6 +1418,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Крыніца Nightscout</string>
     <string name="nightscout_follow_status_idle">Крыніца Nightscout чакае</string>
     <string name="nightscout_follow_status_following">Атрыманне з Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Выкарыстоўваць API v3 для сачэння</string>
+    <string name="nightscout_follow_use_v3_api_desc">Чытаць з /api/v3 замест /api/v1. Токен доступу патрабуе api:entries:read, api:treatments:read і api:devicestatus:read. Змены роляў дзейнічаюць толькі з наступным абменам токенаў, таму перазапусціце праграму, калі 403 захоўваецца.</string>
     <string name="nightscout_follow_status_syncing">Абнаўленне Nightscout</string>
     <string name="nightscout_follow_status_paused">Крыніца Nightscout прыпынена</string>
     <string name="nightscout_follow_status_config_needed">Увядзіце URL Nightscout</string>

@@ -1419,6 +1419,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_title">Nightscout-följare</string>
     <string name="nightscout_follow_status_idle">Nightscout-följare inaktiv</string>
     <string name="nightscout_follow_status_following">Följer Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Använd v3-API för att följa</string>
+    <string name="nightscout_follow_use_v3_api_desc">Läser från /api/v3 i stället för /api/v1. Åtkomsttoken behöver api:entries:read, api:treatments:read och api:devicestatus:read. Ändrade roller börjar gälla först vid nästa tokenutbyte: starta om appen om ett 403 kvarstår.</string>
     <string name="nightscout_follow_status_syncing">Uppdaterar Nightscout</string>
     <string name="nightscout_follow_status_paused">Nightscout-följare pausad</string>
     <string name="nightscout_follow_status_config_needed">Ange Nightscout-URL</string>

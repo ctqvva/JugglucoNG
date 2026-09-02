@@ -1447,6 +1447,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_follow_title">Nightscout takipçisi</string>
     <string name="nightscout_follow_status_idle">Nightscout takipçisi boşta</string>
     <string name="nightscout_follow_status_following">Nightscout takip ediliyor</string>
+    <string name="nightscout_follow_use_v3_api">Takip için v3 API kullan</string>
+    <string name="nightscout_follow_use_v3_api_desc">/api/v1 yerine /api/v3 okur. Erişim belirtecinin api:entries:read, api:treatments:read ve api:devicestatus:read izinleri gerekir. Değişen roller yalnızca sonraki belirteç değişiminde etkili olur: 403 sürerse uygulamayı yeniden başlatın.</string>
     <string name="nightscout_follow_status_syncing">Nightscout yenileniyor</string>
     <string name="nightscout_follow_status_paused">Nightscout takipçisi duraklatıldı</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL adresini girin</string>

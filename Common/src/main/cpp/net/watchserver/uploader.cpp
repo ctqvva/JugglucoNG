@@ -47,6 +47,7 @@ jstring jnightuploadEntries3url=nullptr;
 jstring jnightuploadTreatmentsurl=nullptr;
 jstring jnightuploadTreatments3url=nullptr;
 jstring jnightuploadDevicestatusurl=nullptr;
+jstring jnightuploadDevicestatus3url=nullptr;
 jstring jnightuploadsecret= nullptr;
 jclass nightscoutcalibrationclass=nullptr;
 static int lastNightUploadCode = 0;
@@ -139,9 +140,11 @@ static bool makeuploadurls(JNIEnv *env) {
     const bool entriesv3=makeuploadurl(env,R"(/api/v3/entries)",jnightuploadEntries3url);
     const bool treatmentsv1=makeuploadurl(env,R"(/api/v1/treatments)",jnightuploadTreatmentsurl);
     const bool treatmentsv3=makeuploadurl(env,R"(/api/v3/treatments)",jnightuploadTreatments3url);
-    //devicestatus carries the uploader battery only. A failure here must not hold back glucose,
-    //so it is built but deliberately left out of the readiness check.
+    //devicestatus carries the uploader battery and the journal IOB. A failure here must not hold
+    //back glucose, so both forms are built but deliberately left out of the readiness check: they
+    //can only fail on the same base URL that entries and treatments already gate on.
     makeuploadurl(env,R"(/api/v1/devicestatus)",jnightuploadDevicestatusurl);
+    makeuploadurl(env,R"(/api/v3/devicestatus)",jnightuploadDevicestatus3url);
     return entriesv1&&entriesv3&&treatmentsv1&&treatmentsv3;
     }
 
@@ -389,8 +392,16 @@ int nightuploadTreatments(const char *data,int len) {
 int nightuploadTreatments3(const char *data,int len) {
     return nightupload(jnightuploadTreatments3url,data,len,false);
     }
+//The endpoint follows the configured API version, like entries and treatments do. v1 and v3
+//disagree on more than the path: v3 takes a single document rather than an array and rejects one
+//without an "app" field, so the callers build the matching shape for devicestatusIsV3().
+static bool devicestatusIsV3() {
+    return settings->data()->nightscoutV3 && jnightuploadDevicestatus3url!=nullptr;
+    }
+
 static bool queueNightuploadDevicestatus(const char *data,int len) {
-    if(jnightuploadDevicestatusurl==nullptr || nightpostclass==nullptr)
+    jstring url=devicestatusIsV3()?jnightuploadDevicestatus3url:jnightuploadDevicestatusurl;
+    if(url==nullptr || nightpostclass==nullptr)
         return false;
     auto env=getenv();
     if(env==nullptr)
@@ -418,7 +429,7 @@ static bool queueNightuploadDevicestatus(const char *data,int len) {
     const jboolean queued=env->CallStaticBooleanMethod(
         nightpostclass,
         uploadAsync,
-        jnightuploadDevicestatusurl,
+        url,
         payload,
         jnightuploadsecret,
         JNI_FALSE
@@ -474,11 +485,26 @@ static bool uploadDeviceStatus() {
         return true;
     char buf[256];
     char *ptr=buf;
-    addar(ptr,R"([{"device":"JugglucoNG","created_at":")");
+    const bool v3=devicestatusIsV3();
+    //Same battery document either way; only the wrapper differs. v3 takes the document on its
+    //own and refuses one without "app" ("Bad or missing app field"), where v1 takes an array
+    //and ignores the field.
+    if(v3) {
+        addar(ptr,R"({"app":"JugglucoNG","device":"JugglucoNG","date":)");
+        addjsonint(ptr,(long long)nu*1000LL);
+        addar(ptr,R"(,"utcOffset":0,"created_at":")");
+        }
+    else {
+        addar(ptr,R"([{"device":"JugglucoNG","created_at":")");
+        }
     addNightscoutDateStringGMT(ptr,time(nullptr));
     addar(ptr,R"(","uploader":{"battery":)");
     addjsonint(ptr,battery);
-    addar(ptr,R"(,"type":"PHONE"}}])");
+    //addar takes the literal by array reference, so the two shapes cannot share one call.
+    if(v3)
+        addar(ptr,R"(,"type":"PHONE"}})");
+    else
+        addar(ptr,R"(,"type":"PHONE"}}])");
     *ptr='\0';
     const bool queued=queueNightuploadDevicestatus(buf,ptr-buf);
     LOGGER("Nightscout device-status battery=%d queued=%d\n",battery,queued);

@@ -553,7 +553,9 @@ static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
                 iobStatusLastEiob,
                 iobStatusLastCob))
             return true;
-        final String document=NightscoutIobDeviceStatus.buildDocument(now,values[0],values[1],values[2]);
+        //The endpoint the native side picks follows the same setting, so the document has to
+        //agree with it: v3 takes a single document with an "app" field, v1 an array.
+        final String document=NightscoutIobDeviceStatus.buildDocument(now,values[0],values[1],values[2],Natives.getnightscoutV3());
         if(document==null)
             return true;
         if(uploadDeviceStatusAsync(httpurl,document.getBytes(java.nio.charset.StandardCharsets.UTF_8),secret,false,true)) {
