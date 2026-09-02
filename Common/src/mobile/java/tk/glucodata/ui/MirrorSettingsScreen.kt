@@ -758,14 +758,14 @@ fun MirrorSettingsScreen(navController: NavController) {
                 }
             }
 
-            // ── Relay ────────────────────────────────────────────────
+            // ── Hybrid ───────────────────────────────────────────────
             item(key = "relay_section") {
-                SectionLabel(stringResource(R.string.mirror_relay))
+                SectionLabel(stringResource(R.string.mirror_hybrid))
             }
             item(key = "turn") {
                 SettingsItem(
-                    title = stringResource(R.string.turnserver),
-                    subtitle = stringResource(R.string.mirror_turn_server_desc),
+                    title = stringResource(R.string.hybrid_configuration),
+                    subtitle = stringResource(R.string.hybrid_configuration_summary),
                     icon = Icons.Filled.Cloud,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     showArrow = true,
