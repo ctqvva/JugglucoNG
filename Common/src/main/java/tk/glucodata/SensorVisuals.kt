@@ -1,5 +1,6 @@
 package tk.glucodata
 
+import android.content.Context
 import kotlin.math.abs
 
 /**
@@ -21,6 +22,12 @@ object SensorVisuals {
      */
     const val PEER_TEXT_BLEND = 0.45f
 
+    private const val PREFS_NAME = "tk.glucodata_preferences"
+    private const val KEY_COLOR_OVERRIDES = "sensor_color_overrides_argb"
+
+    @Volatile
+    private var cachedOverrides: Map<String, Int>? = null
+
     private val palette = intArrayOf(
         0xFF6750A4.toInt(), // Primary purple
         0xFF00796B.toInt(), // Teal
@@ -33,7 +40,8 @@ object SensorVisuals {
     )
 
     @JvmStatic
-    fun colorArgb(sensorId: String?): Int = palette[colorIndex(sensorId)]
+    fun colorArgb(sensorId: String?): Int =
+        colorOverrideArgb(sensorId) ?: palette[colorIndex(sensorId)]
 
     @JvmStatic
     fun colorArgbAt(index: Int): Int = palette[wrappedPaletteIndex(index)]
@@ -51,7 +59,11 @@ object SensorVisuals {
         if (sensorIds.size <= 1) return sensorIds.map(::colorArgb)
 
         val used = BooleanArray(palette.size)
-        return sensorIds.map { sensorId ->
+        // A colour the user picked is not a palette slot, so it neither consumes one
+        // nor competes with the sensors still being assigned automatically.
+        val picked = sensorIds.map(::colorOverrideArgb)
+        return sensorIds.mapIndexed { position, sensorId ->
+            picked[position]?.let { return@mapIndexed it }
             val baseIndex = colorIndex(sensorId)
             val assignedIndex = if (!used[baseIndex]) {
                 baseIndex
@@ -61,6 +73,70 @@ object SensorVisuals {
             used[assignedIndex] = true
             colorArgbAt(assignedIndex)
         }
+    }
+
+    /**
+     * Colour the user picked for this sensor, or null when it is still hash-assigned.
+     * Cached because the chart drawers call into here per frame.
+     */
+    @JvmStatic
+    fun colorOverrideArgb(sensorId: String?): Int? {
+        val normalized = normalizedSensorId(sensorId) ?: return null
+        val stored = overrides()
+        if (stored.isEmpty()) return null
+        return stored.entries
+            .firstOrNull { (id, _) -> SensorIdentity.matches(id, normalized) }
+            ?.value
+    }
+
+    /** Pins [sensorId] to [colorArgb], or clears the pin when it is null. */
+    @JvmStatic
+    fun setColorOverride(sensorId: String?, colorArgb: Int?) {
+        val normalized = normalizedSensorId(sensorId) ?: return
+        val updated = overrides()
+            .filterKeys { !SensorIdentity.matches(it, normalized) }
+            .toMutableMap()
+        if (colorArgb != null) {
+            updated[normalized] = colorArgb or (0xFF shl 24)
+        }
+        runCatching {
+            prefs().edit()
+                .putString(
+                    KEY_COLOR_OVERRIDES,
+                    updated.entries.joinToString("\n") { (id, argb) -> "$id|${argb.toLong() and 0xFFFFFFFFL}" },
+                )
+                .apply()
+        }
+        cachedOverrides = updated
+    }
+
+    private fun normalizedSensorId(sensorId: String?): String? =
+        SensorIdentity.resolveAppSensorId(sensorId)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: sensorId?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun prefs() =
+        Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun overrides(): Map<String, Int> {
+        cachedOverrides?.let { return it }
+        val loaded = runCatching {
+            prefs().getString(KEY_COLOR_OVERRIDES, "").orEmpty()
+                .lineSequence()
+                .mapNotNull { line ->
+                    val separator = line.lastIndexOf('|')
+                    if (separator <= 0) return@mapNotNull null
+                    val id = line.substring(0, separator)
+                    val argb = line.substring(separator + 1).toLongOrNull()?.toInt()
+                        ?: return@mapNotNull null
+                    // A fully transparent entry can only be corrupt data; ignore it rather
+                    // than painting a sensor with an invisible colour.
+                    if ((argb ushr 24) == 0) return@mapNotNull null
+                    id to argb
+                }
+                .toMap()
+        }.getOrDefault(emptyMap())
+        cachedOverrides = loaded
+        return loaded
     }
 
     @JvmStatic
