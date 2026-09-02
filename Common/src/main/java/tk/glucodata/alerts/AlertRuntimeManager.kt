@@ -229,8 +229,8 @@ object AlertRuntimeManager {
             ?: return AlertRuntimeEvaluation()
         val condition = activeConditions[type] ?: return AlertRuntimeEvaluation()
 
-        // Coming down fast enough that the alert's own sentence is being disproved as it is
-        // read. It waits rather than resolves: the episode stays open, so a dismissal and
+        // The opted-in alert would be shown beside a downward arrow, contradicting its own
+        // sentence. It waits rather than resolves: the episode stays open, so a dismissal and
         // whatever was queued on it survive, and the moment the fall stops it can speak
         // without waiting out a fresh episode. Anything already repeating stops now.
         if (type == AlertType.HIGH &&
