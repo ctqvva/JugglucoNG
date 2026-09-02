@@ -132,8 +132,7 @@ void ICEConnect::reloadNetworkConfig(const passhost_t &host) {
 const char *juiceErrorString(int error);
 static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
-                                       const char *reason,
-                                       bool preserveRendezvousGeneration);
+                                       const char *reason);
 
 static bool stillworking(int allindex)  {
     ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
@@ -212,7 +211,7 @@ void localICEPeerGenerationChanged(int allindex, juice_agent_t *agent,
     ICEConnect *con=currentICEConnection(allindex,agent);
     if(con)
         restartRejectedNegotiation(con,agent,agentGeneration,allindex,
-                                   "local peer generation changed",true);
+                                   "local peer generation changed");
     }
 
 static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int seconds) {
