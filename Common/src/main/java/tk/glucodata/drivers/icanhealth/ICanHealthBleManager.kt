@@ -164,6 +164,7 @@ class ICanHealthBleManager(
     @Volatile private var historyBackfillAttemptedThisConnection = false
     @Volatile private var shouldRequestAuthenticatedHistoryBackfill = true
     @Volatile private var suppressAutomaticHistoryBackfill = false
+    @Volatile private var nativeLifetimeDeclaredFor: String? = null
     @Volatile private var sawUnsupportedSnHistoryBatch = false
     @Volatile private var awaitingFreshStatusForHistoryBackfill = false
     @Volatile private var historyBackfillPhase = HistoryBackfillPhase.NONE
@@ -1351,6 +1352,7 @@ class ICanHealthBleManager(
             "Services discovered measurement=${charMeasurement != null} status=${charStatus != null} " +
                 "sessionStart=${charSessionStart != null} racp=${charRacp != null} specificOps=${charSpecificOps != null}"
         )
+        dumpGattSurface(gatt)
 
         if (charMeasurement == null) {
             Log.e(TAG, "CGM measurement characteristic missing")
@@ -1374,6 +1376,7 @@ class ICanHealthBleManager(
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         val data = characteristic.value ?: return
+        Log.i(TAG, "WIRE rx notify ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
             ICanHealthConstants.CGM_MEASUREMENT -> handleGlucoseNotification(data)
             ICanHealthConstants.CGM_SPECIFIC_OPS -> handleVendorAuthResponse(data)
@@ -1381,6 +1384,37 @@ class ICanHealthBleManager(
             // Lazy: hex-encodes the whole payload, and this fires per unhandled notification.
             else -> logd(TAG) { "Unhandled notify ${characteristic.uuid}: ${data.toHexString()}" }
         }
+    }
+
+    /** Last four hex digits of a 128-bit BLE UUID: enough to identify it, short enough to scan. */
+    private fun shortUuid(uuid: java.util.UUID): String =
+        uuid.toString().substring(4, 8).uppercase()
+
+    /**
+     * Dump the whole GATT surface once per connection.
+     *
+     * This driver was reverse-engineered from one vendor app against one sensor family, so any
+     * characteristic nobody looked at is somewhere a divergence can hide. Reading the map costs
+     * one log line per characteristic and has already turned up readable characteristics the
+     * driver never touched.
+     */
+    private fun dumpGattSurface(gatt: BluetoothGatt) {
+        runCatching {
+            gatt.services.forEach { service ->
+                Log.i(TAG, "WIRE service ${service.uuid}")
+                service.characteristics.forEach { ch ->
+                    val props = ch.properties
+                    val flags = buildString {
+                        if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) append("R")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) append("W")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) append("w")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) append("N")
+                        if (props and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) append("I")
+                    }
+                    Log.i(TAG, "WIRE   char ${ch.uuid} props=$flags")
+                }
+            }
+        }.onFailure { Log.stack(TAG, "dumpGattSurface", it) }
     }
 
     @Deprecated("Deprecated in Java")
@@ -1399,7 +1433,39 @@ class ICanHealthBleManager(
         }
 
         val data = characteristic.value ?: byteArrayOf()
+        Log.i(TAG, "WIRE rx read ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
+            ICanHealthConstants.CGM_FEATURE -> {
+                if (data.size >= 4) {
+                    val features = (data[0].toInt() and 0xFF) or
+                        ((data[1].toInt() and 0xFF) shl 8) or
+                        ((data[2].toInt() and 0xFF) shl 16)
+                    val typeSample = data[3].toInt() and 0xFF
+                    val crcField = if (data.size >= 6) {
+                        (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+                    } else {
+                        -1
+                    }
+                    Log.i(
+                        TAG,
+                        "cgmFeature=0x${"%06X".format(features)} " +
+                            "e2eCrcSupported=${(features and (1 shl 12)) != 0} " +
+                            "crcField=0x${"%04X".format(crcField)} " +
+                            "calibrationSupported=${(features and 1) != 0} " +
+                            "multiSession=${(features and (1 shl 14)) != 0} " +
+                            "type=0x${"%X".format(typeSample and 0x0F)} " +
+                            "sampleLocation=0x${"%X".format((typeSample ushr 4) and 0x0F)}"
+                    )
+                }
+            }
+
+            ICanHealthConstants.CGM_SESSION_RUN_TIME -> {
+                if (data.size >= 2) {
+                    val hours = (data[0].toInt() and 0xFF) or ((data[1].toInt() and 0xFF) shl 8)
+                    Log.i(TAG, "cgmSessionRunTime=${hours}h (${hours / 24}d ${hours % 24}h)")
+                }
+            }
+
             ICanHealthConstants.MODEL_NUMBER -> {
                 val model = parseDeviceInfoString(data)
                 if (model.isNotEmpty()) {
@@ -2180,7 +2246,18 @@ class ICanHealthBleManager(
             !mActiveDeviceAddress.isNullOrBlank() -> mActiveDeviceAddress?.replace(":", "")
             else -> null
         }
-        return ICanHealthConstants.normalizeStandaloneUserId(source)
+        val resolved = ICanHealthConstants.normalizeStandaloneUserId(source)
+        // The head of that fallback chain is cleared by a remove-and-re-add, so the app can
+        // authenticate under a different identity than last time with nothing in the log saying
+        // so. Record what was chosen and everything it was chosen from.
+        Log.i(
+            TAG,
+            "WIRE authUserId=$resolved from source=$source " +
+                "(recovered=$recoveredAuthUserId configured=$configuredAuthUserId " +
+                "onboarding=$onboardingDeviceSn rawSerial=$rawSerialFromDevice " +
+                "serial=$serialFromDevice sensorId=$SerialNumber addr=$mActiveDeviceAddress)"
+        )
+        return resolved
     }
 
     private fun enqueuePreAuthReads() {
@@ -2193,6 +2270,15 @@ class ICanHealthBleManager(
             disService?.getCharacteristic(ICanHealthConstants.SOFTWARE_REVISION)?.let {
                 enqueueOp(GattOp.Read(ICanHealthConstants.SOFTWARE_REVISION, ICanHealthConstants.DEVICE_INFO_SERVICE))
             }
+        }
+        // Both are readable on every unit seen so far and neither has ever been read. CGM Feature
+        // states which optional CGM behaviours the sensor implements; Session Run Time is the
+        // sensor's own statement of how long it means to last, which beats inferring it.
+        cgmService?.getCharacteristic(ICanHealthConstants.CGM_FEATURE)?.let {
+            enqueueOp(GattOp.Read(ICanHealthConstants.CGM_FEATURE, ICanHealthConstants.CGM_SERVICE))
+        }
+        cgmService?.getCharacteristic(ICanHealthConstants.CGM_SESSION_RUN_TIME)?.let {
+            enqueueOp(GattOp.Read(ICanHealthConstants.CGM_SESSION_RUN_TIME, ICanHealthConstants.CGM_SERVICE))
         }
     }
 
@@ -3539,18 +3625,60 @@ class ICanHealthBleManager(
                 .onFailure { Log.stack(TAG, "ensureNativeDataptr(freedataptr)", it) }
             dataptr = 0L
         }
-        runCatching {
-            Natives.ensureSensorShell(
-                nativeCreationSensorName(canonicalSensorId),
-                resolveNativeShellStartTimeSec()
-            )
-        }.onFailure {
-            Log.stack(TAG, "ensureNativeDataptr(ensureSensorShell)", it)
-        }
+        declareNativeLifetime(
+            nativeCreationSensorName(canonicalSensorId),
+            resolveNativeShellStartTimeSec()
+        )
         val nativeName = resolveExistingNativeSensorName(canonicalSensorId)
             ?: nativeCreationSensorName(canonicalSensorId)
         adoptNativeSensorIfAppropriate(canonicalSensorId, nativeName)
         applyNativeSensorMetadata()
+    }
+
+    /**
+     * Create the native shell already sized for how long an iCan sensor actually runs.
+     *
+     * Poll geometry comes from `info->days` with a 15-day floor, so a sensor rated 15 that keeps
+     * going — which iCan hardware does, out to the 28-day status cap this driver already assumes
+     * everywhere else — walks off the end of its own poll map on day 15: `validPollIndex()` starts
+     * refusing and every live write is dropped, with nothing user-visible to say why.
+     * `pollStorageSize()` documents that failure against Ottai's rating extending to 28/30, and
+     * both Ottai and Anytime declare their duration through `setSensorWearDays` to avoid it. iCan
+     * never did, so every iCan sensor was capped at its rated life while the card promised 28
+     * days.
+     *
+     * Geometry is only recomputed when a shell is constructed, so the capacity has to be
+     * requested here, at creation — an already-open mapping cannot grow.
+     */
+    private fun declareNativeLifetime(name: String, startSec: Long) {
+        val days = resolvedProfile().advisoryExpectedDays
+        if (days <= 0) {
+            runCatching { Natives.ensureSensorShell(name, startSec) }
+                .onFailure { Log.stack(TAG, "ensureNativeDataptr(ensureSensorShell)", it) }
+            return
+        }
+        val key = "$name:$days"
+        val alreadyDeclared = nativeLifetimeDeclaredFor == key
+        val minimumRecords = days * 24 * 60
+        runCatching {
+            if (Natives.ensureSensorShellWithCapacity(name, startSec, minimumRecords) == 0L) {
+                Natives.ensureSensorShell(name, startSec)
+            }
+            if (alreadyDeclared) {
+                return@runCatching
+            }
+            Natives.setSensorWearDays(name, days)
+            if (!Natives.hasSensorStreamCapacity(name, minimumRecords)) {
+                Log.e(
+                    TAG,
+                    "native poll capacity below $minimumRecords for $name; readings past day " +
+                        "${minimumRecords / (24 * 60)} will be dropped instead of stored"
+                )
+            } else {
+                Log.i(TAG, "Declared $days-day native lifetime for $name ($minimumRecords records)")
+            }
+            nativeLifetimeDeclaredFor = key
+        }.onFailure { Log.stack(TAG, "declareNativeLifetime", it) }
     }
 
     private fun nativeCreationSensorName(sensorId: String): String =
@@ -3799,6 +3927,7 @@ class ICanHealthBleManager(
                     drainGattQueue()
                     return
                 }
+                Log.i(TAG, "WIRE tx write ${shortUuid(op.charUuid)} ${op.data.toHexString()}")
                 char.value = op.data
                 char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 if (!gatt.writeCharacteristic(char)) {

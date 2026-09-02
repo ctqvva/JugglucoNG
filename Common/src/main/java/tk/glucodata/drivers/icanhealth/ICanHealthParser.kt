@@ -20,7 +20,10 @@ data class ICanHealthGlucoseReading(
     val glucoseMmolL: Float,     // mmol/L (raw sensor value)
     val glucoseMgdl: Float,      // mg/dL (converted)
     val statusByte: Int,         // Session-varying status
+    /** High nibble of the glucose field. Purpose unknown; constant per sensor. */
     val dataState: Int,
+    /** Unsigned 12-bit glucose value exactly as it came off the wire. */
+    val mantissa: Int = 0,
     val currentValue: Float,
     val temperatureC: Float,
 )
@@ -170,16 +173,14 @@ object ICanHealthParser {
         ) ?: return null
         val directGlucoseEncoding =
             ICanHealthConstants.usesDirectSnHistoryGlucoseEncoding(onboardingDeviceSn)
-        val glucLo = glucoseBytes[0].toInt() and 0xFF
-        val glucHi = glucoseBytes[1].toInt() and 0xFF
-        val dataState = if (directGlucoseEncoding) 0 else (glucHi ushr 4) and 0x0F
-        val glucoseRaw = if (directGlucoseEncoding) {
-            glucLo or (glucHi shl 8)
-        } else {
-            glucLo or ((glucHi and 0x0F) shl 8)
-        }
-        val glucoseMmolL = glucoseRaw / 100.0f
-        val glucoseMgdl = glucoseMmolL * ICanHealthConstants.MMOL_TO_MGDL
+        val field = ICanHealthConstants.decodeGlucoseField(
+            low = glucoseBytes[0].toInt(),
+            high = glucoseBytes[1].toInt(),
+            directGlucoseEncoding = directGlucoseEncoding,
+        )
+        val dataState = field.nibble
+        val glucoseMmolL = field.glucoseMmolL
+        val glucoseMgdl = field.glucoseMgdl
         val currentValue = decodeCurrentValue(
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE],
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE + 1]
@@ -201,12 +202,15 @@ object ICanHealthParser {
             logWarn("parseGlucose: glucose out of range ${glucoseMgdl} mg/dL (seq=$headerSeq)")
         }
 
+        logGlucoseFieldDiagnostics(decrypted, headerSeq, field, temperatureC)
+
         return ICanHealthGlucoseReading(
             sequenceNumber = headerSeq,
             glucoseMmolL = glucoseMmolL,
             glucoseMgdl = glucoseMgdl,
             statusByte = statusByte,
             dataState = dataState,
+            mantissa = field.mantissa,
             currentValue = currentValue,
             temperatureC = temperatureC,
         )
@@ -382,16 +386,14 @@ object ICanHealthParser {
                     )
                 }
                 ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {
-                    val low = decrypted[offset].toInt() and 0xFF
-                    val high = decrypted[offset + 1].toInt() and 0xFF
-                    val dataState = if (directGlucoseEncoding) 0 else (high ushr 4) and 0x0F
-                    val glucoseRaw = if (directGlucoseEncoding) {
-                        low or (high shl 8)
-                    } else {
-                        low or ((high and 0x0F) shl 8)
-                    }
-                    val glucoseMmolL = glucoseRaw / 100.0f
-                    val glucoseMgdl = glucoseMmolL * ICanHealthConstants.MMOL_TO_MGDL
+                    val field = ICanHealthConstants.decodeGlucoseField(
+                        low = decrypted[offset].toInt(),
+                        high = decrypted[offset + 1].toInt(),
+                        directGlucoseEncoding = directGlucoseEncoding,
+                    )
+                    val dataState = field.nibble
+                    val glucoseMmolL = field.glucoseMmolL
+                    val glucoseMgdl = field.glucoseMgdl
                     records += ICanHealthSnHistoryRecord(
                         sequenceNumber = sequenceNumber,
                         subtype = subtype,
@@ -690,16 +692,14 @@ object ICanHealthParser {
                     usesNewBundledCrypto = usesNewBundledCrypto,
                     warmupMinutes = warmupMinutes,
                 ) ?: return null
-                val low = glucoseBytes[0].toInt() and 0xFF
-                val high = glucoseBytes[1].toInt() and 0xFF
-                val dataState = if (directGlucoseEncoding) 0 else (high ushr 4) and 0x0F
-                val glucoseRaw = if (directGlucoseEncoding) {
-                    low or (high shl 8)
-                } else {
-                    low or ((high and 0x0F) shl 8)
-                }
-                val glucoseMmolL = glucoseRaw / 100.0f
-                val glucoseMgdl = glucoseMmolL * ICanHealthConstants.MMOL_TO_MGDL
+                val field = ICanHealthConstants.decodeGlucoseField(
+                    low = glucoseBytes[0].toInt(),
+                    high = glucoseBytes[1].toInt(),
+                    directGlucoseEncoding = directGlucoseEncoding,
+                )
+                val dataState = field.nibble
+                val glucoseMmolL = field.glucoseMmolL
+                val glucoseMgdl = field.glucoseMgdl
                 val currentValue = decodeCurrentValue(decrypted[9], decrypted[10])
                 val temperature = parseLeUnsigned(decrypted, 11) / 10.0f
                 ICanHealthSnHistoryRecord(
@@ -766,6 +766,36 @@ object ICanHealthParser {
         val vendorFormatted = "25${decoded.toString().padStart(5, '0')}"
         return vendorFormatted.toFloatOrNull() ?: Float.NaN
     }
+
+    /**
+     * Dump everything needed to understand one measurement from a single trace.
+     *
+     * The decrypted block is otherwise invisible, which has repeatedly made captures unable to
+     * answer questions about the encoding. Bytes 6..8 come along because the driver parses
+     * nothing from them, and the whole block because the fields it does parse have turned out
+     * not to mean what their names say.
+     */
+    private fun logGlucoseFieldDiagnostics(
+        decrypted: ByteArray,
+        headerSeq: Int,
+        field: ICanHealthGlucoseField,
+        temperatureC: Float,
+    ) {
+        runCatching {
+            Log.i(
+                TAG,
+                "glucose field seq=$headerSeq nibble=${field.nibble} mantissa=${field.mantissa}" +
+                    " -> ${"%.1f".format(field.glucoseMmolL)} mmol/L" +
+                    " (${"%.1f".format(field.glucoseMgdl)} mg/dL)" +
+                    " | flags=0x${"%02X".format(decrypted[1])}" +
+                    " status=${decrypted.copyOfRange(6, minOf(9, decrypted.size)).toHex()}" +
+                    " field11_12=${"%.1f".format(temperatureC)}" +
+                    " block=${decrypted.toHex()}"
+            )
+        }
+    }
+
+    private fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
 
     private fun logWarn(message: String) {
         runCatching { Log.w(TAG, message) }
