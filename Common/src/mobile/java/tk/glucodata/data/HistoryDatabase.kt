@@ -35,6 +35,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         changes stop rewriting the sensor's own stored numbers
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
+ *   v17 — per-journal-entry LibreView delivery timestamp
  */
 @Database(
     entities = [
@@ -47,7 +48,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -389,6 +390,20 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v16 → v17: track LibreView delivery independently from Nightscout delivery.
+         *
+         * The column check also accepts databases created by an installed build of the
+         * original PR branch, where this column briefly occupied version 13.
+         */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "journal_entries", "lvUploadedAt")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN lvUploadedAt INTEGER")
+                }
+            }
+        }
+
         /** What the database actually holds, rather than what its version number implies. */
         private fun hasColumn(db: SupportSQLiteDatabase, table: String, column: String): Boolean {
             val cursor = db.query("PRAGMA table_info(`$table`)")
@@ -427,7 +442,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_12_13,
                     MIGRATION_13_14,
                     MIGRATION_14_15,
-                    MIGRATION_15_16
+                    MIGRATION_15_16,
+                    MIGRATION_16_17
                 )
                 .build().also { INSTANCE = it }
             }
