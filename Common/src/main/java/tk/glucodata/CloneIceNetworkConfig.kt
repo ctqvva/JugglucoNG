@@ -7,6 +7,7 @@ data class CloneIceNetworkConfig(
     val rendezvousPort: Int = DEFAULT_RENDEZVOUS_PORT,
     val useTurnForStun: Boolean = false,
     val verifyRendezvousCertificate: Boolean = true,
+    val useLocalDiscovery: Boolean = true,
 ) {
     init {
         require(rendezvousHost.length <= MAX_HOST_LENGTH)
@@ -27,6 +28,7 @@ object CloneIceNetworkConfigStore {
     private const val KEY_RENDEZVOUS_PORT = "rendezvous_port"
     private const val KEY_USE_TURN_FOR_STUN = "use_turn_for_stun"
     private const val KEY_VERIFY_RENDEZVOUS_CERTIFICATE = "verify_rendezvous_certificate"
+    private const val KEY_USE_LOCAL_DISCOVERY = "use_local_discovery"
 
     @JvmStatic
     fun load(context: Context): CloneIceNetworkConfig {
@@ -51,6 +53,7 @@ object CloneIceNetworkConfigStore {
                 KEY_VERIFY_RENDEZVOUS_CERTIFICATE,
                 true,
             ),
+            useLocalDiscovery = prefs.getBoolean(KEY_USE_LOCAL_DISCOVERY, true),
         )
     }
 
@@ -75,6 +78,7 @@ object CloneIceNetworkConfigStore {
                 KEY_VERIFY_RENDEZVOUS_CERTIFICATE,
                 normalized.verifyRendezvousCertificate,
             )
+            .putBoolean(KEY_USE_LOCAL_DISCOVERY, normalized.useLocalDiscovery)
             .commit()
         if (committed) applyToNative(normalized)
         return committed
@@ -105,6 +109,7 @@ object CloneIceNetworkConfigStore {
             config.rendezvousPort,
             config.useTurnForStun,
             config.verifyRendezvousCertificate,
+            config.useLocalDiscovery,
         )
     }
 }

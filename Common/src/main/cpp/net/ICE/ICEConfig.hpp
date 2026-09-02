@@ -9,11 +9,13 @@ struct ICEConfigSnapshot {
     uint16_t rendezvousPort{6789};
     bool useTurnForStun{false};
     bool verifyRendezvousCertificate{true};
+    bool useLocalDiscovery{true};
 };
 
 ICEConfigSnapshot currentICEConfig();
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
-                     bool useTurnForStun, bool verifyRendezvousCertificate);
+                     bool useTurnForStun, bool verifyRendezvousCertificate,
+                     bool useLocalDiscovery);
 
 struct RendezvousEndpoint {
     std::string host;
