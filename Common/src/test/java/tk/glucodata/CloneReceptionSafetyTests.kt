@@ -275,6 +275,25 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun rendezvousReceiverStillPublishesItsDescriptionAfterFetchingThePeer() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val waitForDescription = ice.substring(
+            ice.indexOf("static bool waitonDescription"),
+            ice.indexOf("static bool putDescription"),
+        )
+        val putDescription = ice.substring(
+            ice.indexOf("static bool putDescription"),
+            ice.indexOf("bool initAgent"),
+        )
+
+        assertTrue(waitForDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
+        assertFalse(waitForDescription.contains("if(con->remoteDescriptionSet.load())"))
+        assertTrue(putDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
+        assertFalse(putDescription.contains("if(con->remoteDescriptionSet.load())"))
+    }
+
+    @Test
     fun fastLocalConnectionPreservesTheFirstPeerRequest() {
         val transport = source("Common/src/main/cpp/net/ICE/ICE_data.hpp")
             .replace(Regex("\\s+"), " ")
