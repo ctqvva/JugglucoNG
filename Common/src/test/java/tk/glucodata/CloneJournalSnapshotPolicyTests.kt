@@ -2,8 +2,12 @@ package tk.glucodata
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONArray
+import org.json.JSONObject
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.isCloneJournalExportSource
 
@@ -55,5 +59,43 @@ class CloneJournalSnapshotPolicyTests {
 
         assertEquals(5, recordIds.size)
         assertTrue(recordIds.all { it.startsWith("clone:test-origin:journal:42:") })
+    }
+
+    @Test
+    fun legacyDeletionWithoutRecoveryIdentityKeepsTheSnapshotValid() {
+        val deleted = JSONArray()
+            .put(JSONObject().put("id", 42L).put("recoveryId", JSONObject.NULL))
+            .put(JSONObject().put("id", 43L))
+        val envelope = OutboundApiJournalSnapshot.parseCloneJournalEnvelope(
+            JSONObject()
+                .put("schema", "tk.glucodata.clone.journal.v1")
+                .put("origin", "test-origin")
+                .put("events", JSONArray())
+                .put("deleted", deleted)
+                .toString()
+        )
+
+        assertEquals(2, envelope.deletedEntries.size)
+        assertNull(envelope.deletedEntries[0].recoveryId)
+        assertNull(envelope.deletedEntries[1].recoveryId)
+    }
+
+    @Test
+    fun malformedDeletionRecoveryIdentityStillRejectsTheSnapshot() {
+        val raw = JSONObject()
+            .put("schema", "tk.glucodata.clone.journal.v1")
+            .put("origin", "test-origin")
+            .put("events", JSONArray())
+            .put(
+                "deleted",
+                JSONArray().put(
+                    JSONObject().put("id", 42L).put("recoveryId", "not-a-recovery-id")
+                )
+            )
+            .toString()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            OutboundApiJournalSnapshot.parseCloneJournalEnvelope(raw)
+        }
     }
 }

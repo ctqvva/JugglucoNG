@@ -285,7 +285,10 @@ object OutboundApiJournalSnapshot {
     @Keep
     @JvmStatic
     fun importCloneJournalSnapshot(raw: String, transportCode: Int): Boolean {
-        val envelope = runCatching { parseCloneJournalEnvelope(raw) }.getOrNull() ?: return false
+        val envelope = runCatching { parseCloneJournalEnvelope(raw) }
+            .onFailure { Log.e("CloneJournal", "Snapshot rejected: ${Log.stackline(it)}") }
+            .getOrNull()
+            ?: return false
         val source = cloneJournalSourceForTransport(transportCode)
         journalChangedScope.launch {
             cloneJournalImportMutex.withLock {
@@ -439,18 +442,18 @@ object OutboundApiJournalSnapshot {
             .put("deleted", deleted)
     }
 
-    private data class CloneJournalEnvelope(
+    internal data class CloneJournalEnvelope(
         val sourcePrefix: String,
         val events: JSONArray,
         val deletedEntries: List<CloneJournalDeletion>,
     )
 
-    private data class CloneJournalDeletion(
+    internal data class CloneJournalDeletion(
         val entryId: Long,
         val recoveryId: String?,
     )
 
-    private fun parseCloneJournalEnvelope(raw: String): CloneJournalEnvelope {
+    internal fun parseCloneJournalEnvelope(raw: String): CloneJournalEnvelope {
         val root = JSONObject(raw.trim())
         require(root.optString("schema") == "tk.glucodata.clone.journal.v1")
         val origin = root.optString("origin").trim()
@@ -464,10 +467,16 @@ object OutboundApiJournalSnapshot {
                 val item = deleted.optJSONObject(index) ?: continue
                 val id = item.optLong("id", 0L)
                 require(id > 0L)
-                val recoveryText = item.optString("recoveryId", "").trim()
-                val recoveryId = recoveryText.takeIf(String::isNotEmpty)?.let { value ->
-                    CloneJournalIdentity.normalizeRecoveryId(value)
-                        ?: throw IllegalArgumentException("Invalid Clone journal recovery identity")
+                val recoveryId = if (!item.has("recoveryId") || item.isNull("recoveryId")) {
+                    null
+                } else {
+                    val recoveryText = item.optString("recoveryId", "").trim()
+                    recoveryText.takeIf(String::isNotEmpty)?.let { value ->
+                        CloneJournalIdentity.normalizeRecoveryId(value)
+                            ?: throw IllegalArgumentException(
+                                "Invalid Clone journal recovery identity"
+                            )
+                    }
                 }
                 add(CloneJournalDeletion(id, recoveryId))
             }

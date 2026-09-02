@@ -71,6 +71,53 @@ class CloneHistoryRecoveryProtocolTests {
     }
 
     @Test
+    fun requestRoundTripRetainsConfirmedOperation() {
+        val request = validRequest()
+
+        val decoded = CloneHistoryRecoveryProtocol.decodeRequest(
+            CloneHistoryRecoveryProtocol.encodeRequest(request),
+        )
+
+        assertEquals(request, decoded)
+        CloneHistoryRecoveryProtocol.requireManifestMatchesRequest(validManifest(), request)
+    }
+
+    @Test
+    fun manifestCannotChangeAConfirmedDestructiveOperation() {
+        val request = validRequest()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.requireManifestMatchesRequest(
+                validManifest().copy(mode = CloneRecoveryMode.FULL_HISTORY),
+                request,
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.requireManifestMatchesRequest(
+                validManifest().copy(categories = CloneRecoveryCategories.GLUCOSE),
+                request,
+            )
+        }
+    }
+
+    @Test
+    fun jobPathsAcceptOnlyProtocolIdentifiers() {
+        val jobId = validManifest().jobId
+
+        assertEquals(
+            "mirror/backfill/jobs/$jobId/manifest.json",
+            CloneHistoryRecoveryProtocol.jobManifestPath(jobId),
+        )
+        assertEquals(
+            "mirror/backfill/jobs/$jobId/package.jsonl.gz",
+            CloneHistoryRecoveryProtocol.jobPackagePath(jobId),
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            CloneHistoryRecoveryProtocol.jobPackagePath("../../databases/history")
+        }
+    }
+
+    @Test
     fun malformedManifestCannotOmitGlucose() {
         val raw = JSONObject(CloneHistoryRecoveryProtocol.encodeManifest(validManifest()))
             .put("categories", CloneRecoveryCategories.JOURNAL)
@@ -169,5 +216,13 @@ class CloneHistoryRecoveryProtocolTests {
             "journal" to 2,
         ),
         sha256 = "a".repeat(64),
+    )
+
+    private fun validRequest(): CloneRecoveryRequest = CloneRecoveryRequest(
+        protocolVersion = CloneHistoryRecoveryProtocol.PROTOCOL_VERSION,
+        jobId = "0123456789abcdef0123456789abcdef",
+        direction = CloneRecoveryDirection.RECOVER_FROM_RECEIVER,
+        mode = CloneRecoveryMode.ONLY_MISSING,
+        categories = CloneRecoveryCategories.GLUCOSE or CloneRecoveryCategories.JOURNAL,
     )
 }

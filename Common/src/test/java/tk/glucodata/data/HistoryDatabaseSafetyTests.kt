@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 21"))
+        assertTrue(source.contains("version = 22"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
@@ -56,5 +56,17 @@ class HistoryDatabaseSafetyTests {
         assertTrue(source.contains("ALTER TABLE clone_journal_tombstones ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("MIGRATION_20_21"))
         assertFalse(source.contains("DROP TABLE journal_entries"))
+    }
+
+    @Test
+    fun recoveredJournalDeletionMigrationIsRegisteredAndNonDestructive() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("Migration(21, 22)"))
+        assertTrue(source.contains("CREATE TABLE IF NOT EXISTS clone_journal_recovery_tombstones"))
+        assertTrue(source.contains("PRIMARY KEY(stableBaseId)"))
+        assertTrue(source.contains("index_clone_journal_recovery_tombstones_recoveryId"))
+        assertTrue(source.contains("MIGRATION_21_22"))
+        assertFalse(source.contains("DROP TABLE clone_journal_tombstones"))
     }
 }
