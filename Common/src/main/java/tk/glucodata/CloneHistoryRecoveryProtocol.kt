@@ -72,6 +72,7 @@ internal object CloneHistoryRecoveryProtocol {
     const val PROTOCOL_VERSION = 1
     const val DEFAULT_CHUNK_BYTES = 64 * 1024
     const val MAXIMUM_CHUNK_BYTES = 256 * 1024
+    const val MAXIMUM_RECORD_BYTES = 512 * 1024
     const val MAXIMUM_COMPRESSED_BYTES = 512L * 1024L * 1024L
     const val MAXIMUM_UNCOMPRESSED_BYTES = 2L * 1024L * 1024L * 1024L
     const val MAXIMUM_RECORD_COUNT = 10_000_000L
@@ -85,6 +86,11 @@ internal object CloneHistoryRecoveryProtocol {
     private val countKeyPattern = Regex("^[a-z][a-z0-9_]{0,47}$")
 
     fun newJobId(): String = UUID.randomUUID().toString().replace("-", "")
+
+    fun validateRecordName(name: String): String {
+        require(countKeyPattern.matches(name)) { "Invalid Clone recovery record category" }
+        return name
+    }
 
     fun localCapabilities(categories: Int): CloneRecoveryCapabilities =
         CloneRecoveryCapabilities(
@@ -151,7 +157,7 @@ internal object CloneHistoryRecoveryProtocol {
             val names = countObject.keys()
             while (names.hasNext()) {
                 val name = names.next()
-                require(countKeyPattern.matches(name)) { "Invalid Clone recovery record category" }
+                validateRecordName(name)
                 put(name, countObject.requireLong(name))
             }
         }
@@ -203,12 +209,12 @@ internal object CloneHistoryRecoveryProtocol {
         require(manifest.compressedBytes in 1..MAXIMUM_COMPRESSED_BYTES) {
             "Clone recovery package is too large"
         }
-        require(manifest.uncompressedBytes in 1..MAXIMUM_UNCOMPRESSED_BYTES) {
+        require(manifest.uncompressedBytes in 0..MAXIMUM_UNCOMPRESSED_BYTES) {
             "Clone recovery payload is too large"
         }
         require(manifest.recordCounts.isNotEmpty()) { "Missing Clone recovery record counts" }
         manifest.recordCounts.forEach { (name, count) ->
-            require(countKeyPattern.matches(name)) { "Invalid Clone recovery record category" }
+            validateRecordName(name)
             require(count in 0..MAXIMUM_RECORD_COUNT) { "Invalid Clone recovery record count" }
         }
         require(digestPattern.matches(manifest.sha256)) { "Invalid Clone recovery digest" }
