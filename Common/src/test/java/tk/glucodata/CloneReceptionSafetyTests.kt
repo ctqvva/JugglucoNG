@@ -289,18 +289,16 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun savedLanDiscoverySettingAppliesToExistingCloneConnections() {
-        val config = source("Common/src/main/java/tk/glucodata/CloneIceNetworkConfig.kt")
-            .replace(Regex("\\s+"), " ")
+    fun savedLanDiscoverySettingAppliesOnceToExistingCloneConnections() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
             .replace(Regex("\\s+"), " ")
 
-        assertTrue(config.contains("fun setUseLocalDiscovery(context: Context, enabled: Boolean)"))
-        assertTrue(config.contains("load(context).copy(useLocalDiscovery = enabled)"))
-        assertTrue(screen.contains("CloneIceNetworkConfigStore.setUseLocalDiscovery(context, enabled)"))
-        assertTrue(screen.contains("Natives.resetnetwork()"))
+        assertTrue(screen.contains("onCheckedChange = { useLocalDiscovery = it }"))
+        val save = screen.lastIndexOf("val iceSaved = CloneIceNetworkConfigStore.save")
+        val reset = screen.indexOf("Natives.resetnetwork()", save)
+        assertTrue(save >= 0 && reset > save)
         assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
     }
 
