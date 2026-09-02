@@ -645,6 +645,13 @@ static int selectedCloneTransportCode(juice_agent *agent) {
         : clone_transport_local_ice;
 }
 
+static void refreshSelectedCloneTransport(ICEConnect *connection,
+                                          juice_agent *agent) {
+    const int transport=selectedCloneTransportCode(agent);
+    if(transport!=clone_transport_unknown)
+        connection->selectedCloneTransport.store(transport);
+}
+
 static void wakeCloneSender(const passhost_t &host,uintptr_t reason) {
     if(!backup||host.index<0||
        static_cast<size_t>(host.index)>=backup->con_vars.size())
@@ -720,7 +727,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             setConnectTime(allindex,0);
             con->setConnected();
             con->connectTime=time(nullptr);
-            con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
+            refreshSelectedCloneTransport(con,agent);
             if(auto local=con->currentLocalSignal())
                 local->markConnected();
             const uint64_t generation=con->currentAgentGeneration();
@@ -755,6 +762,13 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             th.detach();
             diagnostics(agent,host.getICEname().data(),host.side);
             }; break;
+        case JUICE_STATE_COMPLETED:
+            // libjuice reaches COMPLETED immediately after CONNECTED once the
+            // nominated pair settles. The selected addresses can become
+            // queryable between those callbacks, so refresh the route from
+            // the final authoritative state as well.
+            refreshSelectedCloneTransport(con,agent);
+            break;
         case JUICE_STATE_FAILED: {
             con->selectedCloneTransport.store(clone_transport_unknown);
             const std::string commonLabel(host.getICEname());
