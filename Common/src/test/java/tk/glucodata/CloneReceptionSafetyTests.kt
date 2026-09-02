@@ -211,6 +211,26 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun peerGenerationWatchIsBoundedBackwardCompatibleAndNegotiationScoped() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(ice.contains("static constexpr std::string_view path=\"/generation\""))
+        assertTrue(ice.contains(".timeoutMilliseconds=50000"))
+        assertTrue(ice.contains("if(code==400)"))
+        assertTrue(ice.contains("generationWatchCapability.store(-1"))
+        assertTrue(ice.contains("peer generation changed\",true"))
+        assertTrue(ice.contains("con->cancelGenerationWatch(); con->setConnected();"))
+        assertTrue(ice.contains("makerandom(random.data(),random.size())"))
+        assertTrue(connection.contains("generationWatchCancellation"))
+        assertTrue(connection.contains("preserveNextRendezvousGeneration"))
+        assertTrue(connection.contains("cancelGenerationWatch();"))
+        assertFalse(ice.contains("rendezvousGeneration.data()"))
+    }
+
+    @Test
     fun backgroundLivenessIsOptionalAndReceiverScoped() {
         val policy = source("Common/src/main/java/tk/glucodata/CloneBackgroundLiveness.kt")
             .replace(Regex("\\s+"), " ")

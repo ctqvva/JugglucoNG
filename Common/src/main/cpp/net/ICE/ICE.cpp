@@ -39,12 +39,14 @@ constexpr const int givefirst=0;
 #include <string.h>
 #include <algorithm>
 #include <thread>
+#include <array>
 #include <bitset>
 #include <assert.h>
 #include <semaphore>
 #include <condition_variable>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,6 +61,7 @@ using namespace std::literals;
 #include "destruct.hpp"
 #include "PlaceBuf.hpp"
 #include "ICEConnect.hpp"
+#include "net/makerandom.hpp"
 
 extern std::mutex turn_server_mutex;
 
@@ -163,13 +166,38 @@ static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
         };
     }
 
+bool ICEConnect::prepareRendezvousGeneration() {
+    const std::lock_guard<std::mutex> lock(rendezvousGenerationMutex);
+    if(preserveNextRendezvousGeneration.exchange(false,std::memory_order_acq_rel)&&
+       rendezvousGeneration.size()==32)
+        return true;
+    std::array<unsigned char,16> random{};
+    if(!makerandom(random.data(),random.size()))
+        return false;
+    static constexpr char hex[]="0123456789abcdef";
+    rendezvousGeneration.resize(random.size()*2);
+    for(size_t index=0;index<random.size();++index) {
+        rendezvousGeneration[index*2]=hex[random[index]>>4];
+        rendezvousGeneration[index*2+1]=hex[random[index]&0x0f];
+    }
+    return true;
+}
+
+std::string ICEConnect::currentRendezvousGeneration() {
+    const std::lock_guard<std::mutex> lock(rendezvousGenerationMutex);
+    return rendezvousGeneration;
+}
+
 static void wakeCloneSender(const passhost_t &host,uintptr_t reason);
 
-static void restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
+static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
-                                       const char *reason) {
+                                       const char *reason,
+                                       bool preserveRendezvousGeneration=false) {
     if(!con->requestReconnectIfCurrent(agent,generation))
-        return;
+        return false;
+    if(preserveRendezvousGeneration)
+        con->preserveRendezvousGenerationForPeerRestart();
     const passhost_t &host=getBackupHosts()[allindex];
     LOGGERICE("%s %d: restart rejected negotiation: %s\n",
               host.getICEname().data(),host.side,reason);
@@ -179,6 +207,7 @@ static void restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
     con->wakeReceiver=true;
     }
     con->receiveThreadCon.notify_one();
+    return true;
     }
 const char *juiceErrorString(int error) {
     switch(error) {
@@ -229,6 +258,101 @@ private:
     Agent_data *agent;
     };
 //static bool gathering_done=false;
+
+static bool isGenerationToken(std::string_view token) {
+    if(token.size()!=32)
+        return false;
+    return std::all_of(token.begin(),token.end(),[](unsigned char value) {
+        return (value>='0'&&value<='9')||(value>='a'&&value<='f');
+    });
+}
+
+static std::optional<std::string> generationResponseToken(
+        const std::vector<char> &body) {
+    constexpr size_t expected=sizeof(BackDescription)+32+1;
+    if(body.size()!=expected)
+        return std::nullopt;
+    const auto *response=reinterpret_cast<const BackDescription *>(body.data());
+    const std::string_view token(response->description,32);
+    if(response->description[32]!='\0'||!isGenerationToken(token))
+        return std::nullopt;
+    return std::string(token);
+}
+
+static void watchPeerGeneration(
+        juice_agent *agent,int allindex,uint64_t agentGeneration,
+        std::string commonLabel,bool side,std::string hostname,
+        uint16_t rendezvousPort,std::string localGeneration,
+        std::shared_ptr<const std::atomic_bool> cancellation) {
+    static constexpr std::string_view path="/generation";
+    std::string observedPeer;
+    int transientErrors=0;
+    while(true) {
+        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+        if(!con||!con->isCurrentAgent(agent,agentGeneration)||
+           con->endConnect.load()||con->isConnected.load()||
+           (cancellation&&cancellation->load(std::memory_order_acquire)))
+            return;
+        std::string requestGeneration=localGeneration;
+        if(!observedPeer.empty()) {
+            requestGeneration.push_back(':');
+            requestGeneration.append(observedPeer);
+        }
+        CreateAgentData request(commonLabel,side,requestGeneration.data(),
+                                static_cast<int>(requestGeneration.size()));
+        auto [body,code]=ContextHTTPS::getContext().putRequest(
+            hostname,rendezvousPort,path,request.getSpan(),{},
+            {.timeoutMilliseconds=50000,
+             .cancelled=cancellation,
+             .verifyCertificate=con->verifyRendezvousCertificate});
+        if(!con->isCurrentAgent(agent,agentGeneration)||
+           con->endConnect.load()||con->isConnected.load())
+            return;
+        if(code==400) {
+            con->generationWatchCapability.store(-1,std::memory_order_release);
+            LOGARICE("peer generation watch unsupported");
+            return;
+        }
+        if(code!=200) {
+            if(++transientErrors>=3)
+                return;
+            if(!waitForCurrentAgent(con,agent,2))
+                return;
+            continue;
+        }
+        con->generationWatchCapability.store(1,std::memory_order_release);
+        transientErrors=0;
+        const auto peer=generationResponseToken(body);
+        if(!peer)
+            continue;
+        if(observedPeer.empty()) {
+            observedPeer=*peer;
+            continue;
+        }
+        if(*peer==observedPeer)
+            continue;
+        LOGARICE("peer generation changed during negotiation");
+        restartRejectedNegotiation(con,agent,agentGeneration,allindex,
+                                   "peer generation changed",true);
+        return;
+    }
+}
+
+static void startPeerGenerationWatch(
+        ICEConnect *con,juice_agent *agent,int allindex,
+        std::string_view commonLabel,bool side,std::string_view hostname,
+        uint16_t rendezvousPort) {
+    if(con->generationWatchCapability.load(std::memory_order_acquire)<0)
+        return;
+    const std::string localGeneration=con->currentRendezvousGeneration();
+    if(!isGenerationToken(localGeneration))
+        return;
+    const uint64_t agentGeneration=con->currentAgentGeneration();
+    auto cancellation=con->beginGenerationWatch();
+    std::thread(watchPeerGeneration,agent,allindex,agentGeneration,
+                std::string(commonLabel),side,std::string(hostname),
+                rendezvousPort,localGeneration,std::move(cancellation)).detach();
+}
 
 static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generation,
                                std::string commonLabel,bool side,std::string hostname,
@@ -484,6 +608,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             break;
         case JUICE_STATE_CONNECTED: {
             setConnectTime(allindex,0);
+            con->cancelGenerationWatch();
             con->setConnected();
             con->connectTime=time(nullptr);
             con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
@@ -1062,6 +1187,8 @@ bool initAgent(juice_agent *agent,int allindex) {
             setConnectTime(allindex,now);
         }
     bool side=host.side;
+    startPeerGenerationWatch(con,agent,allindex,commonLabel,side,hostname,
+                             rendezvousPort);
     if(side!=givefirst) {
         con->phase=GetDescription;
         if(!waitonDescription(agent,allindex,commonLabel,side,hostname,rendezvousPort)) {

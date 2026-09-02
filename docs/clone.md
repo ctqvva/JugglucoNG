@@ -148,7 +148,7 @@ services:
           create_host_path: false
 
   jugglucoconnect:
-    image: docker.io/pannal/jugglucoconnect-open:285434d
+    image: docker.io/pannal/jugglucoconnect-open:2809ec2
     restart: unless-stopped
     stop_grace_period: 3s
     read_only: true

@@ -73,6 +73,13 @@ std::atomic_bool isConnected{false};
 std::mutex rendezvousMutex;
 std::shared_ptr<std::atomic_bool> rendezvousCancellation{
         std::make_shared<std::atomic_bool>(false)};
+std::mutex generationWatchMutex;
+std::shared_ptr<std::atomic_bool> generationWatchCancellation{
+        std::make_shared<std::atomic_bool>(false)};
+std::mutex rendezvousGenerationMutex;
+std::string rendezvousGeneration;
+std::atomic<int> generationWatchCapability{0};
+std::atomic_bool preserveNextRendezvousGeneration{false};
 ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
@@ -93,6 +100,7 @@ void endConnectionHere() {
        isConnected=false;
        endConnect=true;
        cancelRendezvous();
+       cancelGenerationWatch();
         icedata[1].setshutdown(); 
         icedata[0].setshutdown();
         startSending.clear();
@@ -108,6 +116,7 @@ bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation) {
            return false;
        isConnected=false;
        cancelRendezvous();
+       cancelGenerationWatch();
        icedata[1].setshutdown();
        icedata[0].setshutdown();
        startSending.clear();
@@ -132,6 +141,21 @@ void beginRendezvous() {
         std::lock_guard<std::mutex> lock(rendezvousMutex);
         rendezvousCancellation->store(true,std::memory_order_release);
         rendezvousCancellation=std::make_shared<std::atomic_bool>(false);
+        }
+std::shared_ptr<const std::atomic_bool> beginGenerationWatch() {
+        std::lock_guard<std::mutex> lock(generationWatchMutex);
+        generationWatchCancellation->store(true,std::memory_order_release);
+        generationWatchCancellation=std::make_shared<std::atomic_bool>(false);
+        return generationWatchCancellation;
+        }
+void cancelGenerationWatch() {
+        std::lock_guard<std::mutex> lock(generationWatchMutex);
+        generationWatchCancellation->store(true,std::memory_order_release);
+        }
+bool prepareRendezvousGeneration();
+std::string currentRendezvousGeneration();
+void preserveRendezvousGenerationForPeerRestart() {
+        preserveNextRendezvousGeneration.store(true,std::memory_order_release);
         }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
@@ -177,6 +201,7 @@ void releaseReceiverThread() {
         LOGGER("start newConnection(%d)\n",allindex);
         destruct _{[this]{initrunning.clear();}};
         cancelRendezvous();
+        cancelGenerationWatch();
         auto wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
         if(wasagent) {
@@ -197,12 +222,18 @@ void releaseReceiverThread() {
         isConnected=false;
         endConnect=false;
         beginRendezvous();
+        if(!prepareRendezvousGeneration()) {
+                phase=FailedInitAgent;
+                endConnect=true;
+                return -1;
+                }
         phase=NewConnection;
 
         juice_agent *theagent=createAgent(allindex);
         if(!theagent) {
                 phase=FailedInitAgent;
                 endConnect=true;
+                cancelGenerationWatch();
                 return -1;
                 }
         // Publish the new agent before negotiation begins. libjuice can invoke
@@ -210,6 +241,7 @@ void releaseReceiverThread() {
         agent.store(theagent);
        if(!initAgent(theagent,allindex)) {
                 phase=FailedInitAgent;
+                cancelGenerationWatch();
                 LOGGER("end ICEConnect::newConnection failed allindex=%d, juice_destroy(%p)\n",allindex,theagent);
                 auto current=agent.exchange(nullptr);
                 advanceAgentGeneration();
