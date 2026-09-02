@@ -454,6 +454,8 @@ public class Natives {
 
         public static native void networkpresent();
 
+        public static native void networkhandover();
+
         public static native void networkabsent();
 
         public static native void resetnetwork();
