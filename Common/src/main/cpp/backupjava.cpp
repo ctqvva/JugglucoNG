@@ -33,7 +33,8 @@
 extern jclass JNIString;
 extern jstring myNewStringUTF(JNIEnv *env, const std::string_view str);
 extern bool networkpresent;
-void wakeICEReceiversForNetworkChange(bool resetConnections);
+void wakeICEReceiversForNetworkChange(bool resetConnections,
+                                      bool resetLanSignaledConnections = false);
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(backuphasrestore)(JNIEnv *env,
                                                                  jclass cl) {
@@ -477,6 +478,31 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
 #endif
   LOGAR("end networkpresend");
 }
+
+extern "C" JNIEXPORT void JNICALL fromjava(networkhandover)(JNIEnv *env,
+                                                            jclass cl) {
+  LOGAR("networkhandover");
+  if (backup) {
+    networkpresent = true;
+    backup->notupdatedsettings();
+  } else {
+    networkpresent = true;
+  }
+
+  // A LAN-signaled ICE generation has no guaranteed rendezvous candidate
+  // stream to carry it onto a replacement network. Rebuild only that kind of
+  // generation; remote-signaled connections retain their live path.
+  wakeICEReceiversForNetworkChange(false, true);
+  if (backup)
+    backup->getupdatedata()->wakesender();
+
+  wakeuploader();
+#if !defined(WEAROS) && !defined(TESTMENU)
+  wakeaftermin(0);
+#endif
+  LOGAR("end networkhandover");
+}
+
 void resetnetwork() {
   LOGSTRING("resetnetwork\n");
   if (backup) {

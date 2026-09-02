@@ -781,10 +781,11 @@ public class Applic extends Application implements androidx.work.Configuration.P
                             final boolean hasReplacement = NetworkHandoverPolicy.hasUsableReplacement(
                                     availableInternetNetworks.size(), hasip());
                             if (hasReplacement) {
-                                // Android reports the old default path as lost after its replacement
-                                // is already available. Keep the replacement ICE path alive and only
-                                // wake state-driven recovery instead of tearing every agent down.
-                                Natives.networkpresent();
+                                // Another Internet path is already usable. Preserve remote-signaled
+                                // ICE, but rebuild a LAN-signaled generation because the lost network
+                                // may have carried its private signaling path and can otherwise strand
+                                // the rendezvous fallback.
+                                Natives.networkhandover();
                                 Applic.wakemirrors();
                             } else {
                                 Natives.networkabsent();
