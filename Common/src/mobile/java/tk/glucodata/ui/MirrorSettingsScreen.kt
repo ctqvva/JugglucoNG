@@ -298,6 +298,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
                     rendezvousPort = iceConfig.rendezvousPort,
                     useTurnForStun = iceConfig.useTurnForStun,
                     verifyRendezvousCertificate = iceConfig.verifyRendezvousCertificate,
+                    useLocalDiscovery = iceConfig.useLocalDiscovery,
                 ),
             )
             if (!saved) throw IllegalStateException("Could not save Clone ICE settings")
@@ -1107,6 +1108,13 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
             stringResource(R.string.mirror_certificate_verification),
             certificateVerification,
         )
+        CloneDiagnosticRow(
+            stringResource(R.string.clone_local_discovery),
+            stringResource(
+                if (mirror.useLocalDiscovery) R.string.enabled_status
+                else R.string.disabled_status,
+            ),
+        )
     }
 }
 
@@ -1538,6 +1546,7 @@ data class MirrorItemData(
     val turnEndpoint: String?,
     val useTurnForStun: Boolean,
     val verifyRendezvousCertificate: Boolean?,
+    val useLocalDiscovery: Boolean,
 )
 
 fun getMirrorsList(): List<MirrorItemData> {
@@ -1583,6 +1592,7 @@ fun getMirrorsList(): List<MirrorItemData> {
                 if (isIce) turnEndpoint else null,
                 isIce && iceConfig.useTurnForStun,
                 verification.takeIf { it >= 0 }?.let { it != 0 },
+                isIce && iceConfig.useLocalDiscovery,
             )
         )
     }

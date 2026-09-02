@@ -55,6 +55,9 @@ fun TurnServerSettingsScreen(navController: NavController) {
     var verifyRendezvousCertificate by remember {
         mutableStateOf(initialIceConfig.verifyRendezvousCertificate)
     }
+    var useLocalDiscovery by remember {
+        mutableStateOf(initialIceConfig.useLocalDiscovery)
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -140,6 +143,14 @@ fun TurnServerSettingsScreen(navController: NavController) {
             )
 
             SectionLabel(stringResource(R.string.clone_ice_services))
+            SettingsSwitchItem(
+                title = stringResource(R.string.clone_local_discovery),
+                subtitle = stringResource(R.string.clone_local_discovery_summary),
+                checked = useLocalDiscovery,
+                onCheckedChange = { useLocalDiscovery = it },
+                position = CardPosition.SINGLE,
+            )
+            Spacer(Modifier.height(8.dp))
             SettingsSwitchItem(
                 title = stringResource(R.string.use_turn_for_stun),
                 subtitle = stringResource(R.string.use_turn_for_stun_summary),
@@ -261,6 +272,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
                                 useTurnForStun = useTurnForStun,
                                 verifyRendezvousCertificate = !useCustomRendezvous ||
                                     verifyRendezvousCertificate,
+                                useLocalDiscovery = useLocalDiscovery,
                             ),
                         )
                         if (!iceSaved) {

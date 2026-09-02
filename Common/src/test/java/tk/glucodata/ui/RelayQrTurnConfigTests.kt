@@ -95,7 +95,7 @@ class RelayQrTurnConfigTests {
         val turn = parseHybridQrTurnConfig(json)
 
         assertEquals(
-            HybridQrIceConfig(true, "turn.example.test", 6789, true),
+            HybridQrIceConfig(true, "turn.example.test", 6789, true, true),
             parseHybridQrIceConfig(json, turn),
         )
     }
@@ -107,7 +107,7 @@ class RelayQrTurnConfigTests {
         )
 
         assertEquals(
-            HybridQrIceConfig(false, "connect.example.test", 6789, true),
+            HybridQrIceConfig(false, "connect.example.test", 6789, true, true),
             parseHybridQrIceConfig(json, parseHybridQrTurnConfig(json)),
         )
     }
@@ -119,7 +119,7 @@ class RelayQrTurnConfigTests {
         )
 
         assertEquals(
-            HybridQrIceConfig(false, "", 6789, true),
+            HybridQrIceConfig(false, "", 6789, true, true),
             parseHybridQrIceConfig(json, null),
         )
     }
@@ -131,7 +131,7 @@ class RelayQrTurnConfigTests {
         )
 
         assertEquals(
-            HybridQrIceConfig(false, "connect.example.test", 6789, false),
+            HybridQrIceConfig(false, "connect.example.test", 6789, false, true),
             parseHybridQrIceConfig(json, null),
         )
     }
@@ -140,6 +140,27 @@ class RelayQrTurnConfigTests {
     fun certificateVerificationChoiceMustBeBoolean() {
         val json = parseMirrorQrJson(
             """{"ICElabel":"pair","stun":false,"rv":["connect.example.test",6789],"cv":"false"} MirrorJuggluco"""
+        )
+
+        parseHybridQrIceConfig(json, null)
+    }
+
+    @Test
+    fun hybridQrCanDisableLocalDiscovery() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":0,"ld":false} MirrorJuggluco"""
+        )
+
+        assertEquals(
+            HybridQrIceConfig(false, "", 6789, true, false),
+            parseHybridQrIceConfig(json, null),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun localDiscoveryChoiceMustBeBoolean() {
+        val json = parseMirrorQrJson(
+            """{"ICElabel":"pair","stun":false,"rv":0,"ld":"false"} MirrorJuggluco"""
         )
 
         parseHybridQrIceConfig(json, null)

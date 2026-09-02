@@ -1623,7 +1623,8 @@ public class Natives {
 
         public static native void setCloneICEConfig(String rendezvousHost, int rendezvousPort,
                                                      boolean useTurnForStun,
-                                                     boolean verifyRendezvousCertificate);
+                                                     boolean verifyRendezvousCertificate,
+                                                     boolean useLocalDiscovery);
 
         public static native int TurnServerNR();
 

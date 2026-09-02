@@ -482,6 +482,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="turnservers">U rog Serveryada</string>
     <string name="turnserver">DAAR Server</string>
     <string name="clone_ice_services">ICE services</string>
+    <string name="clone_local_discovery">Find paired Clones on local network</string>
+    <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>

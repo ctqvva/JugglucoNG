@@ -28,6 +28,7 @@ internal data class HybridQrIceConfig(
     val rendezvousHost: String,
     val rendezvousPort: Int,
     val verifyRendezvousCertificate: Boolean,
+    val useLocalDiscovery: Boolean,
 )
 
 private fun exactInteger(value: Any?, error: String): Long {
@@ -87,7 +88,9 @@ internal fun parseHybridQrIceConfig(
     val hasStun = json.has("stun")
     val hasRendezvous = json.has("rv")
     val hasCertificateVerification = json.has("cv")
-    if (!hasStun && !hasRendezvous && !hasCertificateVerification) return null
+    val hasLocalDiscovery = json.has("ld")
+    if (!hasStun && !hasRendezvous && !hasCertificateVerification &&
+        !hasLocalDiscovery) return null
     require(hasStun && hasRendezvous) { "ICE network configuration is incomplete" }
     require(json.optString("ICElabel", "").isNotBlank()) {
         "ICE network configuration requires an ICE label"
@@ -98,6 +101,12 @@ internal fun parseHybridQrIceConfig(
     val verifyRendezvousCertificate = if (hasCertificateVerification) {
         json.get("cv") as? Boolean
             ?: throw IllegalArgumentException("Certificate verification configuration is invalid")
+    } else {
+        true
+    }
+    val useLocalDiscovery = if (hasLocalDiscovery) {
+        json.get("ld") as? Boolean
+            ?: throw IllegalArgumentException("Local discovery configuration is invalid")
     } else {
         true
     }
@@ -146,6 +155,7 @@ internal fun parseHybridQrIceConfig(
         host,
         port,
         verifyRendezvousCertificate,
+        useLocalDiscovery,
     )
 }
 

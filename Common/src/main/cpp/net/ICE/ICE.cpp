@@ -91,12 +91,14 @@ ICEConfigSnapshot currentICEConfig() {
     }
 
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
-                     bool useTurnForStun, bool verifyRendezvousCertificate) {
+                     bool useTurnForStun, bool verifyRendezvousCertificate,
+                     bool useLocalDiscovery) {
     const std::lock_guard<std::mutex> lock(ice_config_mutex);
     ice_config.rendezvousHost=std::move(rendezvousHost);
     ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
     ice_config.useTurnForStun=useTurnForStun;
     ice_config.verifyRendezvousCertificate=verifyRendezvousCertificate;
+    ice_config.useLocalDiscovery=useLocalDiscovery;
     }
 
 RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
@@ -113,6 +115,7 @@ ICEConnect::ICEConnect(int allindex,const passhost_t &host)
     rendezvousHost=std::move(endpoint.host);
     rendezvousPort=endpoint.port;
     verifyRendezvousCertificate=endpoint.verifyCertificate;
+    useLocalDiscovery=currentICEConfig().useLocalDiscovery;
     agent.store(nullptr);
     }
 #ifndef LOGGER
@@ -121,6 +124,12 @@ ICEConnect::ICEConnect(int allindex,const passhost_t &host)
 #define BUFFER_SIZE 4096
 
 #define JUICE_ERR_SUCCESS 0
+
+const char *juiceErrorString(int error);
+static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
+                                       uint64_t generation,int allindex,
+                                       const char *reason,
+                                       bool preserveRendezvousGeneration);
 
 static bool stillworking(int allindex)  {
     ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
@@ -143,6 +152,61 @@ static ICEConnect *currentICEConnection(int allindex, juice_agent_t *agent) {
         return nullptr;
         }
     return con;
+    }
+
+static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
+                                   uint64_t generation,
+                                   std::string_view description,
+                                   bool fromLocalNetwork) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con||!con->isCurrentAgent(agent,generation)||description.empty())
+        return false;
+    bool expected=false;
+    if(!con->remoteDescriptionSet.compare_exchange_strong(expected,true))
+        return true;
+    const std::string terminated(description);
+    const int result=juice_set_remote_description(agent,terminated.c_str());
+    if(result!=JUICE_ERR_SUCCESS) {
+        con->remoteDescriptionSet=false;
+        LOGGERICE("remote description rejected: %s (%d)\n",
+                  juiceErrorString(result),result);
+        return false;
+        }
+    con->remoteDescriptionWasLocal=fromLocalNetwork;
+    if(fromLocalNetwork)
+        con->cancelRendezvous();
+    return true;
+    }
+
+bool applyLocalICEDescription(int allindex, juice_agent_t *agent,
+                              uint64_t agentGeneration,
+                              std::string_view description) {
+    return applyRemoteDescription(allindex,agent,agentGeneration,description,true);
+    }
+
+void applyLocalICECandidate(int allindex, juice_agent_t *agent,
+                            uint64_t agentGeneration,
+                            std::string_view candidate) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con||!con->isCurrentAgent(agent,agentGeneration)||candidate.empty())
+        return;
+    const std::string terminated(candidate);
+    juice_add_remote_candidate(agent,terminated.c_str());
+    }
+
+void applyLocalICEGatheringDone(int allindex, juice_agent_t *agent,
+                                uint64_t agentGeneration) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(con&&con->isCurrentAgent(agent,agentGeneration))
+        juice_set_remote_gathering_done(agent);
+    }
+
+void localICEPeerGenerationChanged(int allindex, juice_agent_t *agent,
+                                   uint64_t agentGeneration) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(con)
+        restartRejectedNegotiation(con,agent,agentGeneration,allindex,
+                                   "local peer generation changed",true);
     }
 
 static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int seconds) {
@@ -439,7 +503,7 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
           }
       LOGGERICE("getaddress %s %d: end thread\n",commonLabel.data(),side);
       ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-      if(!con)
+      if(!con||con->isConnected.load())
           return;
       restartRejectedNegotiation(con,agent,generation,allindex,
                                  "remote candidate stream unavailable");
@@ -458,6 +522,11 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
    const bool side=host.side;
    const std::string hostname(con->rendezvousHost);
    const uint16_t rendezvousPort=con->rendezvousPort;
+   if(auto local=con->currentLocalSignal();
+      local&&local->hasAuthenticatedPeer()) {
+       local->publishCandidate(sdp);
+       return;
+       }
    static std::string_view address{"/address"};
    CreateAgentData sdpdata(commonLabel,side,sdp) ;
    for(int i=0;i<20;++i) {
@@ -498,6 +567,11 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
     const bool side=host.side;
     const std::string hostname(con->rendezvousHost);
     const uint16_t rendezvousPort=con->rendezvousPort;
+    if(auto local=con->currentLocalSignal();
+       local&&local->hasAuthenticatedPeer()) {
+        local->publishGatheringDone();
+        return;
+        }
     CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
     std::vector<char> doneBody(body.data(),body.data()+body.size());
     std::thread th{[allindex,agent,generation,commonLabel,side,hostname,rendezvousPort,
@@ -647,6 +721,8 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->setConnected();
             con->connectTime=time(nullptr);
             con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
+            if(auto local=con->currentLocalSignal())
+                local->markConnected();
             const uint64_t generation=con->currentAgentGeneration();
             struct CONNECTED {
                 static void thread(juice_agent_t *agent,int allindex,uint64_t generation) {
@@ -1120,17 +1196,26 @@ static bool waitonDescription(juice_agent *agent,int allindex,std::string_view c
     while(true) {
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
+        if(con->remoteDescriptionSet.load()) {
+            con->beginRendezvous();
+            return true;
+            }
         auto [resbody,code]=ContextHTTPS::getContext().getRequest(
             hostname,rendezvousPort,description,sdpdata.getSpan(),{},
             rendezvousRequestOptions(con));
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
             return false;
+        if(con->remoteDescriptionSet.load()) {
+            con->beginRendezvous();
+            return true;
+            }
         if(code== 200) {
             if(resbody.size()>= (sizeof(BackDescription )+20)) {
                 const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
                 LOGGERICE("getdescription SUCCESS: %s %d: Remote description in:\n%*.s\n",commonLabel.data(),side,resbody.size()-offsetof(BackDescription,description),other->description);
-                juice_set_remote_description(agent, other->description);
-                return true;
+                if(applyRemoteDescription(allindex,agent,generation,
+                                          other->description,false))
+                    return true;
                 }
              else {
                 LOGGERICE("getdescription failure %s size=%d: getdescription Remote small body in :\n%.*s\n",commonLabel.data(),(int)resbody.size(),(int)resbody.size(),(const char *)resbody.data());
@@ -1157,6 +1242,8 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
         return  false;
         }
      con->sdplen=strlen(con->sdp);
+    if(auto local=con->currentLocalSignal())
+        local->publishDescription({con->sdp,static_cast<size_t>(con->sdplen)});
     CreateAgentData sdpdata(commonLabel,side,con->sdp,con->sdplen);
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("putdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
@@ -1166,6 +1253,10 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
     while(true) {
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
+            if(con->remoteDescriptionSet.load()) {
+                con->beginRendezvous();
+                return true;
+                }
             LOGGERICE("putdescription: %s %d: Local description:\n%s\n",commonLabel.data(),side, con->sdp);
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(
                 hostname,rendezvousPort,description,
@@ -1173,13 +1264,18 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                 rendezvousRequestOptions(con));
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
                 return false;
+            if(con->remoteDescriptionSet.load()) {
+                con->beginRendezvous();
+                return true;
+                }
             if(code==200) {
                 if(resbody.size()>= (sizeof(BackDescription )+20)) {
                     const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
                     LOGGERICE("putdescription %s %d: received Remote in:\n%s\n",commonLabel.data(),side,other->description);
-                    if(side==givefirst)
-                        juice_set_remote_description(agent, other->description);
-                    return true;
+                    if(side!=givefirst||
+                       applyRemoteDescription(allindex,agent,generation,
+                                              other->description,false))
+                        return true;
                     }
                  else {
                     LOGGERICE("putdescription: %s %d: Remote small body in :\n%s\n",commonLabel.data(),side,(const char *)resbody.data());
@@ -1222,6 +1318,11 @@ bool initAgent(juice_agent *agent,int allindex) {
             setConnectTime(allindex,now);
         }
     bool side=host.side;
+    if(con->useLocalDiscovery) {
+        con->replaceLocalSignal(startLocalICESignal(
+            allindex,agent,con->currentAgentGeneration(),commonLabel,side,
+            host.pass,con->currentRendezvousGeneration()));
+        }
     startPeerGenerationWatch(con,agent,allindex,commonLabel,side,hostname,
                              rendezvousPort);
     if(side!=givefirst) {
@@ -1241,9 +1342,12 @@ bool initAgent(juice_agent *agent,int allindex) {
     if(!stillworking(allindex))
         return false;
 
-    std::jthread receive{getAddressesThread,agent,allindex,
-                         con->currentAgentGeneration(),std::string(commonLabel),side,
-                         hostname,rendezvousPort};
+    std::optional<std::jthread> receive;
+    if(!con->remoteDescriptionWasLocal.load()) {
+        receive.emplace(getAddressesThread,agent,allindex,
+                        con->currentAgentGeneration(),std::string(commonLabel),side,
+                        hostname,rendezvousPort);
+        }
     LOGGERICE("initAgent %s %d: Before juice_gather_candidates\n",commonLabel.data(),side);
     con->phase=GatherCandidates;
     int ret=juice_gather_candidates(agent);

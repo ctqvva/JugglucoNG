@@ -977,6 +977,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="trend_unchanged">Der Trend bleibt unverändert.</string>
     <string name="turnserver">TURN-Server</string>
     <string name="clone_ice_services">ICE-Dienste</string>
+    <string name="clone_local_discovery">Gekoppelte Clones im lokalen Netzwerk finden</string>
+    <string name="clone_local_discovery_summary">Bekannte Hybrid-Paare im selben lokalen Netzwerk ohne Rendezvous-Server verbinden. Kopplungsgeheimnisse werden nicht angekündigt.</string>
     <string name="use_turn_for_stun">TURN-Server für STUN verwenden</string>
     <string name="use_turn_for_stun_summary">Den konfigurierten TURN-Server auch für STUN verwenden</string>
     <string name="rendezvous_server">Rendezvous-Server</string>
