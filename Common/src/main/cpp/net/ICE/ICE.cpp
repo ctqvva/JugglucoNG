@@ -168,9 +168,6 @@ static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
 
 bool ICEConnect::prepareRendezvousGeneration() {
     const std::lock_guard<std::mutex> lock(rendezvousGenerationMutex);
-    if(preserveNextRendezvousGeneration.exchange(false,std::memory_order_acq_rel)&&
-       rendezvousGeneration.size()==32)
-        return true;
     std::array<unsigned char,16> random{};
     if(!makerandom(random.data(),random.size()))
         return false;
@@ -192,12 +189,9 @@ static void wakeCloneSender(const passhost_t &host,uintptr_t reason);
 
 static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
-                                       const char *reason,
-                                       bool preserveRendezvousGeneration=false) {
+                                       const char *reason) {
     if(!con->requestReconnectIfCurrent(agent,generation))
         return false;
-    if(preserveRendezvousGeneration)
-        con->preserveRendezvousGenerationForPeerRestart();
     const passhost_t &host=getBackupHosts()[allindex];
     LOGGERICE("%s %d: restart rejected negotiation: %s\n",
               host.getICEname().data(),host.side,reason);
@@ -333,7 +327,7 @@ static void watchPeerGeneration(
             continue;
         LOGARICE("peer generation changed during negotiation");
         restartRejectedNegotiation(con,agent,agentGeneration,allindex,
-                                   "peer generation changed",true);
+                                   "peer generation changed");
         return;
     }
 }
@@ -342,6 +336,11 @@ static void startPeerGenerationWatch(
         ICEConnect *con,juice_agent *agent,int allindex,
         std::string_view commonLabel,bool side,std::string_view hostname,
         uint16_t rendezvousPort) {
+    // Side 0 publishes the stable offer. If side 1 restarts, it can attach to
+    // that offer without invalidating side 0. Only side 1 needs to watch for a
+    // replacement side-0 offer and rebuild its answering agent.
+    if(side==givefirst)
+        return;
     if(con->generationWatchCapability.load(std::memory_order_acquire)<0)
         return;
     const std::string localGeneration=con->currentRendezvousGeneration();

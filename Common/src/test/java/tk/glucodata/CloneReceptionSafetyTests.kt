@@ -221,11 +221,16 @@ class CloneReceptionSafetyTests {
         assertTrue(ice.contains(".timeoutMilliseconds=50000"))
         assertTrue(ice.contains("if(code==400)"))
         assertTrue(ice.contains("generationWatchCapability.store(-1"))
-        assertTrue(ice.contains("peer generation changed\",true"))
+        val startWatch = ice.substring(
+            ice.indexOf("static void startPeerGenerationWatch"),
+            ice.indexOf("static void getAddressesThread"),
+        )
+        assertTrue(startWatch.contains("if(side==givefirst) return;"))
+        assertTrue(ice.contains("peer generation changed\");"))
         assertTrue(ice.contains("con->cancelGenerationWatch(); con->setConnected();"))
         assertTrue(ice.contains("makerandom(random.data(),random.size())"))
         assertTrue(connection.contains("generationWatchCancellation"))
-        assertTrue(connection.contains("preserveNextRendezvousGeneration"))
+        assertFalse(connection.contains("preserveNextRendezvousGeneration"))
         assertTrue(connection.contains("cancelGenerationWatch();"))
         assertFalse(ice.contains("rendezvousGeneration.data()"))
     }
