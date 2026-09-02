@@ -453,6 +453,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clear">Löschen</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-Fehlerverlauf</string>
     <string name="log_enabled_waiting">Protokoll aktiviert. Warte auf Einträge...</string>
     <string name="log_unchecked">Protokoll deaktiviert. Aktivieren zum Starten.</string>
     <string name="error_reading_file">"Fehler beim Lesen der Datei: "</string>
@@ -870,6 +871,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="keep_auto_calibration">Autokalibrierungsdaten behalten</string>
     <string name="keep_data">Sensorinfo behalten</string>
     <string name="last_ble_status">Letzter BLE-Status</string>
+    <string name="last_ble_error">Letzter BLE-Fehler</string>
     <string name="libre_setup_done">Fertig</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Experimentelles Scan-Verhalten für Libre 3 vor dem Koppeln anpassen.</string>

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -57,6 +58,7 @@ import androidx.compose.ui.draw.alpha
 
 import androidx.compose.material.icons.filled.AccessTime
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
@@ -75,6 +77,7 @@ import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.roundToInt
 import java.util.Locale
 
@@ -140,6 +143,17 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
+
+internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? {
+    if (eventAtMs <= 0L) return null
+    val clamped = eventAtMs.coerceAtMost(nowMs)
+    return clamped.takeIf { nowMs - it <= BLE_ERROR_CARD_WINDOW_MS }
+}
+
+internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
+    val age = relativeAge?.toString()?.trim().orEmpty()
+    return if (age.isEmpty()) status else "$status · $age"
+}
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -1248,6 +1262,18 @@ fun SensorCard(
     // Visual Feedback: Darken card when disconnected/paused
     val containerColor = if (isStreaming) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     val contentAlpha = if (isStreaming) 1f else 0.9f
+    var bleErrorNow by remember(sensor.connectionStatusAtMs) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    LaunchedEffect(sensor.connectionStatusAtMs) {
+        while (sensor.connectionStatusAtMs > 0L) {
+            bleErrorNow = System.currentTimeMillis()
+            val remaining = BLE_ERROR_CARD_WINDOW_MS -
+                (bleErrorNow - sensor.connectionStatusAtMs).coerceAtLeast(0L)
+            if (remaining < 0L) break
+            delay(min(60_000L, remaining + 1L).coerceAtLeast(1_000L))
+        }
+    }
 
 
     Card(
@@ -1555,9 +1581,32 @@ fun SensorCard(
                     }
 
                     val connectedStatus = stringResource(R.string.status_connected)
-                    if (sensor.connectionStatus.isNotEmpty() &&
+                    val errorEventAt = bleErrorEventTimeForDisplay(
+                        sensor.connectionStatusAtMs,
+                        bleErrorNow,
+                    )
+                    if (errorEventAt != null &&
+                        sensor.connectionStatus.isNotEmpty() &&
                         !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
                     ) {
+                        DataRow(
+                            stringResource(R.string.last_ble_error),
+                            bleErrorValue(
+                                sensor.connectionStatus,
+                                DateUtils.getRelativeTimeSpanString(
+                                    errorEventAt,
+                                    bleErrorNow,
+                                    DateUtils.MINUTE_IN_MILLIS,
+                                ),
+                            ),
+                        )
+                    } else if (sensor.connectionStatusAtMs <= 0L &&
+                        sensor.connectionStatus.isNotEmpty() &&
+                        !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
+                    ) {
+                        // Managed drivers can publish a current diagnostic status without an
+                        // event timestamp. Keep that live status; only timestamped history ages
+                        // off after the one-hour card window.
                         DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
                     }
                     DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)

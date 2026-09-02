@@ -240,6 +240,7 @@
     <string name="clear">Cancella</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Cronologia errori BLE</string>
     <string name="log_enabled_waiting">Log abilitato. In attesa di voci...</string>
     <string name="log_unchecked">Log disabilitato. Abilita per iniziare.</string>
     <string name="error_reading_file">"Errore lettura file: "</string>
@@ -686,6 +687,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Ultimo errore BLE</string>
     <string name="libre_setup_done">Fatto</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Regola il comportamento sperimentale della scansione Libre 3 prima dell\'associazione.</string>

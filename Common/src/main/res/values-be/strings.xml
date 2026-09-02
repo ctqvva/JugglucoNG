@@ -520,6 +520,7 @@
     <string name="debug_logs_title">Журналы адладкі</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Гісторыя памылак BLE</string>
     <string name="log_enabled_waiting">Журнал уключаны. Чаканне запісаў...</string>
     <string name="log_unchecked">Журнал выключаны. Уключыце для пачатку.</string>
     <string name="error_reading_file">"Памылка чытання файла: "</string>
@@ -768,6 +769,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Апошняя памылка BLE</string>
     <string name="libre_setup_done">Гатова</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Наладзьце эксперыментальныя паводзіны сканавання Libre 3 перад спалучэннем.</string>
