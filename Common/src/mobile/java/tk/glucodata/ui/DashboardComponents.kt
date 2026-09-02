@@ -244,6 +244,7 @@ fun DashboardCombinedHeader(
     valueRangeColorsEnabled: Boolean = false,
     arrowForecastColorsEnabled: Boolean = false,
     showDelta: Boolean = false,
+    matchArrowToDisplayedDelta: Boolean = tk.glucodata.GlucoseDelta.DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA,
     deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES,
     peerReadings: List<tk.glucodata.ui.viewmodel.DashboardViewModel.PeerCurrentReading> = emptyList(),
     onPeerReadingClick: (String) -> Unit = {},
@@ -264,7 +265,7 @@ fun DashboardCombinedHeader(
     val sensorContentColor = if (isExpiring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
     // Advanced Trend
-    val trendResult = remember(history, latestPoint, currentSnapshot) {
+    val regressedTrendResult = remember(history, latestPoint, currentSnapshot) {
         if (history.isNotEmpty()) {
              // Map Kotlin UI points to Native Java points for shared TrendEngine
              val nativeList = history.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) }
@@ -280,18 +281,25 @@ fun DashboardCombinedHeader(
             tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
         }
     }
-    // "Δ" readout: the measured change over the last ~5 minutes — a raw
-    // number to sanity-check the estimated arrow against. Same computation as
-    // the per-row deltas in the readings list, anchored at the newest point.
-    val heroDeltaText = if (showDelta) {
+    // The delta remains an independent readout unless the user asks the arrow to use the
+    // same interval. Without a usable delta, the steadier regression always remains.
+    val heroDelta = if (showDelta) {
         remember(history, isMmol, deltaIntervalMinutes) {
             history.lastOrNull()?.let { newest ->
-                readingDeltaTexts(listOf(newest.timestamp), history, isMmol, deltaIntervalMinutes)
+                readingDeltas(listOf(newest.timestamp), history, isMmol, deltaIntervalMinutes)
                     .first()
             }
         }
     } else {
         null
+    }
+    val heroDeltaText = heroDelta?.text
+    val trendResult = remember(regressedTrendResult, heroDelta, matchArrowToDisplayedDelta) {
+        trendResultForDisplayedDelta(
+            regressedTrendResult,
+            heroDelta?.rateMgdlPerMinute,
+            useDisplayedDelta = matchArrowToDisplayedDelta,
+        )
     }
     val adaptiveMetrics = rememberAdaptiveWindowMetrics()
     val isLandscape = adaptiveMetrics.isLandscape

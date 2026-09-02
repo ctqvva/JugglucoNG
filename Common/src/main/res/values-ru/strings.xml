@@ -2128,6 +2128,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">Передавать тренд приложения</string>
     <string name="broadcast_computed_trend_desc">Использовать тренд приложения вместо тренда датчика</string>
     <string name="dashboard_show_delta_desc">Измеренное изменение в интервале дельта, ниже стрелки тренда.</string>
+    <string name="match_arrow_to_displayed_delta_title">Сопоставлять стрелки с дельтой</string>
+    <string name="match_arrow_to_displayed_delta_desc">Когда показана дельта, использовать тот же интервал для стрелок на панели и в уведомлении</string>
     <string name="dashboard_show_delta_title">Дельта (Δ) на приборной панели</string>
     <string name="delta_alarm_interval_follow">Аналогично показанию Δ (в настоящее время %1$d мин)</string>
     <string name="delta_alarm_interval_label">Окно Дельта</string>

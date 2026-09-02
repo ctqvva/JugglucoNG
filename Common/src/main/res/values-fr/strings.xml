@@ -2079,6 +2079,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">Diffuser la tendance de l’application</string>
     <string name="broadcast_computed_trend_desc">Utiliser la tendance de l’application plutôt que celle du capteur</string>
     <string name="dashboard_show_delta_desc">Changement mesuré sur l\'intervalle delta, sous la flèche de tendance</string>
+    <string name="match_arrow_to_displayed_delta_title">Faire correspondre les flèches au delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">Lorsqu’un delta est affiché, utiliser le même intervalle pour les flèches du tableau de bord et de la notification</string>
     <string name="dashboard_show_delta_title">Delta (Δ) sur le tableau de bord</string>
     <string name="delta_alarm_interval_follow">Comme lecture Δ (actuellement %1$d min)</string>
     <string name="delta_alarm_interval_label">Fenêtre Delta</string>

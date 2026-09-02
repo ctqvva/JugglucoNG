@@ -2088,6 +2088,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">广播应用趋势</string>
     <string name="broadcast_computed_trend_desc">使用应用趋势代替传感器趋势</string>
     <string name="dashboard_show_delta_desc">趋势箭头下方的 Delta 间隔内测得的变化</string>
+    <string name="match_arrow_to_displayed_delta_title">使箭头与 Delta 一致</string>
+    <string name="match_arrow_to_displayed_delta_desc">显示 Delta 时，仪表板和通知箭头使用相同的时间间隔</string>
     <string name="dashboard_show_delta_title">仪表板上的 Delta (Δ)</string>
     <string name="delta_alarm_interval_follow">类似于 Δ 读数（当前为 %1$d 分钟）</string>
     <string name="delta_alarm_interval_label">德尔塔窗</string>

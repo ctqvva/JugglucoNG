@@ -2072,6 +2072,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_title">Sänd appens trend</string>
     <string name="broadcast_computed_trend_desc">Använd appens trend i stället för sensorns</string>
     <string name="dashboard_show_delta_desc">Uppmätt förändring över deltaintervallet, under trendpilen</string>
+    <string name="match_arrow_to_displayed_delta_title">Matcha pilar med delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">När ett delta visas, använd samma intervall för pilarna på instrumentpanelen och i aviseringen</string>
     <string name="dashboard_show_delta_title">Delta (Δ) på instrumentbrädan</string>
     <string name="delta_alarm_interval_follow">Som Δ-avläsning (för närvarande %1$d min)</string>
     <string name="delta_alarm_interval_label">Delta fönster</string>

@@ -351,6 +351,7 @@ fun DisplayAndColorSettingsScreen(
     val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsState()
     val dashboardDeltaEnabled by viewModel.dashboardShowDelta.collectAsState()
     val dashboardRowsDeltaEnabled by viewModel.dashboardRowsShowDelta.collectAsState()
+    val matchArrowToDisplayedDelta by viewModel.matchArrowToDisplayedDelta.collectAsState()
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     var showPreviewWindowDialog by rememberSaveable { mutableStateOf(false) }
     val previewWindowLabel = when (previewWindowMode) {
@@ -425,6 +426,13 @@ fun DisplayAndColorSettingsScreen(
                 subtitle = stringResource(R.string.dashboard_show_delta_desc),
                 checked = dashboardDeltaEnabled,
                 onCheckedChange = { viewModel.setDashboardShowDelta(it) },
+                position = CardPosition.MIDDLE
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.match_arrow_to_displayed_delta_title),
+                subtitle = stringResource(R.string.match_arrow_to_displayed_delta_desc),
+                checked = matchArrowToDisplayedDelta,
+                onCheckedChange = { viewModel.setMatchArrowToDisplayedDelta(it) },
                 position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(

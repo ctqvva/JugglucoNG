@@ -430,6 +430,9 @@ class DashboardViewModel(
     private val _dashboardRowsShowDelta = MutableStateFlow(false)
     val dashboardRowsShowDelta = _dashboardRowsShowDelta.asStateFlow()
 
+    private val _matchArrowToDisplayedDelta = MutableStateFlow(tk.glucodata.GlucoseDelta.DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA)
+    val matchArrowToDisplayedDelta = _matchArrowToDisplayedDelta.asStateFlow()
+
     private val _deltaIntervalMinutes = MutableStateFlow(tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
     val deltaIntervalMinutes = _deltaIntervalMinutes.asStateFlow()
 
@@ -755,6 +758,10 @@ class DashboardViewModel(
         _glucoseAppChartRangeColorsEnabled.value = prefs.getBoolean(APP_CHART_RANGE_COLORS_KEY, false)
         _dashboardShowDelta.value = prefs.getBoolean(DASHBOARD_SHOW_DELTA_KEY, false)
         _dashboardRowsShowDelta.value = prefs.getBoolean(DASHBOARD_ROWS_SHOW_DELTA_KEY, false)
+        _matchArrowToDisplayedDelta.value = prefs.getBoolean(
+            tk.glucodata.GlucoseDelta.MATCH_ARROW_TO_DISPLAYED_DELTA_KEY,
+            tk.glucodata.GlucoseDelta.DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA
+        )
         _deltaIntervalMinutes.value = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(
             prefs.getInt(DELTA_INTERVAL_KEY, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
         )
@@ -1602,6 +1609,14 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(DASHBOARD_ROWS_SHOW_DELTA_KEY, enabled).apply()
         _dashboardRowsShowDelta.value = enabled
+    }
+
+    fun setMatchArrowToDisplayedDelta(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.GlucoseDelta.MATCH_ARROW_TO_DISPLAYED_DELTA_KEY, enabled).apply()
+        _matchArrowToDisplayedDelta.value = enabled
+        refreshNotificationPredictionSurfaces(context)
     }
 
     /**

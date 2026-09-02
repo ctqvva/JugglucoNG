@@ -2290,6 +2290,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="broadcast_computed_trend_title">Gudbi jihada app-ka</string>
     <string name="broadcast_computed_trend_desc">Isticmaal jihada app-ka halkii tan dareemaha</string>
     <string name="dashboard_show_delta_desc">Isbeddel lagu cabbiray inta u dhexaysa delta, ka hooseeya fallaadha isbeddelka</string>
+    <string name="match_arrow_to_displayed_delta_title">Fallaadhaha ku waafaji delta</string>
+    <string name="match_arrow_to_displayed_delta_desc">Marka delta la muujiyo, u isticmaal isla muddada fallaadhaha dashboard-ka iyo ogeysiiska</string>
     <string name="dashboard_show_delta_title">Delta (Δ) ee dashboard-ka</string>
     <string name="delta_alarm_interval_follow">Sida akhrinta Δ (hadda %1$d daq)</string>
     <string name="delta_alarm_interval_label">Daaqadda Delta</string>

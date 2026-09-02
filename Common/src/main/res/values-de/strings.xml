@@ -1721,6 +1721,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_show_delta_desc">Gemessene Änderung über das Delta-Intervall, neben dem Pfeil</string>
     <string name="dashboard_show_delta_title">Delta (Δ) auf dem Dashboard</string>
     <string name="dashboard_show_delta_desc">Gemessene Änderung über das Delta-Intervall, unter dem Trendpfeil</string>
+    <string name="match_arrow_to_displayed_delta_title">Pfeile an Delta anpassen</string>
+    <string name="match_arrow_to_displayed_delta_desc">Wenn ein Delta angezeigt wird, dasselbe Intervall für die Pfeile auf dem Dashboard und in der Benachrichtigung verwenden</string>
     <string name="dashboard_rows_show_delta_title">Delta in der Messwertliste</string>
     <string name="dashboard_rows_show_delta_desc">Änderung neben jedem Messwert anzeigen, im Dashboard und in der Historie</string>
     <string name="delta_interval_title">Delta-Intervall (Δ)</string>

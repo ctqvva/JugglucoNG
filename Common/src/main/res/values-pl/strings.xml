@@ -2107,6 +2107,8 @@
     <string name="broadcast_computed_trend_title">Wysyłaj trend aplikacji</string>
     <string name="broadcast_computed_trend_desc">Używaj trendu aplikacji zamiast trendu czujnika</string>
     <string name="dashboard_show_delta_desc">Zmierzona zmiana w przedziale delta, poniżej strzałki trendu</string>
+    <string name="match_arrow_to_displayed_delta_title">Dopasuj strzałki do delty</string>
+    <string name="match_arrow_to_displayed_delta_desc">Gdy delta jest widoczna, użyj tego samego przedziału dla strzałek na pulpicie i w powiadomieniu</string>
     <string name="dashboard_show_delta_title">Delta (Δ) na desce rozdzielczej</string>
     <string name="delta_alarm_interval_follow">Podobnie jak odczyt Δ (obecnie %1$d min)</string>
     <string name="delta_alarm_interval_label">Okno delty</string>
