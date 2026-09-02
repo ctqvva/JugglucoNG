@@ -774,6 +774,13 @@ class OttaiBleManager(
     @Volatile private var livePollIntervalMs = 60_000L
     @Volatile private var lastHistoryRequestAtMs = 0L
     @Volatile private var roomBackfillChecked = false
+    // The sensor's BLE record layout (8 or 9), 0 until a payload big enough to prove one has
+    // been seen. A minute live notify is 24 bytes — one 9-byte record plus padding, which is
+    // also two 8-byte records — so it cannot tell the layouts apart and must not be allowed to
+    // choose. See OttaiParser.decisiveRecordSize.
+    @Volatile private var learnedRecordSize = 0
+    // One log line per run of payloads whose own inference disagrees with the held layout.
+    @Volatile private var recordSizeDisagreementLogged = false
     @Volatile private var initialHistoryAttempt = 0
     @Volatile private var pendingHistoryReason: String? = null
     @Volatile private var pendingHistoryNextStart = 0
@@ -1033,6 +1040,7 @@ class OttaiBleManager(
         authKeys = materials.authKeys
         activatedMaxActiveMs = OttaiRegistry.loadAcceptedMaxActive(context, id)
         lastDataNo = OttaiRegistry.loadLastDataNo(context, id)
+        learnedRecordSize = OttaiRegistry.loadRecordSize(context, id)
         synchronized(historyHolesLock) {
             historyHoles.clear()
             OttaiRegistry.loadHistoryHoles(context, id).forEach { (s, e, attempts) ->
@@ -2848,6 +2856,47 @@ class OttaiBleManager(
     private fun appString(resId: Int, fallback: String, vararg args: Any): String =
         runCatching { Applic.app?.getString(resId, *args) }.getOrNull() ?: fallback
 
+    /** The learned layout to frame with, or null while nothing has proved one. */
+    private fun heldRecordSize(): Int? = learnedRecordSize.takeIf { it > 0 }
+
+    /**
+     * Adopt the record layout when a payload is big enough to prove it, and say so when a
+     * payload would have chosen differently.
+     *
+     * The diagnostic is the point of the second half: the 2026-08-30 trace could show that
+     * 112 live frames framed as 8-byte and lost their sample, but not *why* the inference
+     * flipped, because the payloads are encrypted and only the record count reaches the log.
+     * Printing the evidence counts on disagreement makes the next trace answer that directly.
+     * Logged once per run of disagreement so a persistently odd sensor cannot flood the log.
+     */
+    private fun learnRecordSize(payload: ByteArray) {
+        val id = SerialNumber ?: return
+        val decisive = OttaiParser.decisiveRecordSize(payload, materials.deviceVersion)
+        if (decisive != null) {
+            recordSizeDisagreementLogged = false
+            if (decisive != learnedRecordSize) {
+                val previous = learnedRecordSize
+                learnedRecordSize = decisive
+                Applic.app?.let { OttaiRegistry.saveRecordSize(it, id, decisive) }
+                Log.i(TAG, "record size learned=$decisive previous=$previous len=${payload.size}")
+            }
+            return
+        }
+        val held = learnedRecordSize.takeIf { it > 0 } ?: return
+        val wouldChoose = OttaiParser.chooseRecordSize(payload, materials.deviceVersion)
+        if (wouldChoose == held) {
+            recordSizeDisagreementLogged = false
+            return
+        }
+        if (recordSizeDisagreementLogged) return
+        recordSizeDisagreementLogged = true
+        val (nine, eight) = OttaiParser.recordSizeEvidence(payload)
+        Log.i(
+            TAG,
+            "record size held=$held payloadWould=$wouldChoose nine=$nine eight=$eight len=${payload.size}",
+        )
+    }
+
     private fun handleGlucosePayload(cipher: ByteArray, live: Boolean, source: String) {
         if (sessionKeyHex.isBlank()) { Log.w(TAG, "payload before session key"); return }
         if (live && commandStatus >= 4) {
@@ -2864,7 +2913,8 @@ class OttaiBleManager(
             Log.w(TAG, "$kind $source decrypt failed len=${cipher.size} blockMod=${cipher.size % 16}")
             return
         }
-        val records = OttaiParser.frameRecords(payload, materials.deviceVersion)
+        learnRecordSize(payload)
+        val records = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
         if (records.isEmpty()) {
             Log.w(TAG, "$kind $source no records payloadLen=${payload.size} hex=${OttaiCrypto.bytesToHex(payload).take(160)}")
             if (live) {
@@ -2966,7 +3016,7 @@ class OttaiBleManager(
             Log.w(TAG, "ended live $source decrypt failed len=${cipher.size}")
             return
         }
-        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion)
+        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
             .map(OttaiParser::parseRecord)
             .maxByOrNull { it.dataNo }
         if (latest == null) {
