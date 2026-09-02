@@ -929,6 +929,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="trend_rising">The trend is rising by %1$s percent.</string>
     <string name="trend_unchanged">The trend remains unchanged.</string>
     <string name="turnserver">TURN sunucusu</string>
+    <string name="hybrid_configuration">Hybrid configuration</string>
+    <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
@@ -1842,6 +1844,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_broadcast_network">Ağda yayınla</string>
     <string name="mirror_broadcast_network_desc">Yakındaki cihazların bu cihazı bulmasına izin ver</string>
     <string name="mirror_relay">Relay</string>
+    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">Uzak bağlantılar için TURN relay</string>
     <string name="mirror_connections">Bağlantılar</string>
     <string name="mirror_clone_master">Clone</string>

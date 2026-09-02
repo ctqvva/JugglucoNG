@@ -335,6 +335,20 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun hybridSettingsNameAllServicesWhileTurnDiagnosticsStaySpecific() {
+        val mirrorSettings = source("Common/src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+        val hybridSettings = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(mirrorSettings.contains("SectionLabel(stringResource(R.string.mirror_hybrid))"))
+        assertTrue(mirrorSettings.contains("title = stringResource(R.string.hybrid_configuration)"))
+        assertTrue(mirrorSettings.contains("subtitle = stringResource(R.string.hybrid_configuration_summary)"))
+        assertTrue(hybridSettings.contains("title = { Text(stringResource(R.string.hybrid_configuration)) }"))
+        assertTrue(mirrorSettings.contains("CloneDiagnosticRow(stringResource(R.string.turnserver), turn)"))
+    }
+
+    @Test
     fun backgroundLivenessIsOptionalAndReceiverScoped() {
         val policy = source("Common/src/main/java/tk/glucodata/CloneBackgroundLiveness.kt")
             .replace(Regex("\\s+"), " ")

@@ -914,6 +914,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="trend_rising">The trend is rising by %1$s percent.</string>
     <string name="trend_unchanged">The trend remains unchanged.</string>
     <string name="turnserver">TURN 服务器</string>
+    <string name="hybrid_configuration">Hybrid configuration</string>
+    <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
@@ -1830,6 +1832,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_broadcast_network">在网络中广播</string>
     <string name="mirror_broadcast_network_desc">允许附近设备发现此设备</string>
     <string name="mirror_relay">中继</string>
+    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">用于远程连接的 TURN 中继</string>
     <string name="mirror_connections">连接</string>
     <string name="mirror_clone_master">Clone</string>

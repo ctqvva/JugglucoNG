@@ -457,6 +457,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="QRmirror">QR-аар дамжуулан Mirror</string>
     <string name="turnservers">TURN серверүүд</string>
     <string name="turnserver">TURN сервер</string>
+    <string name="hybrid_configuration">Hybrid configuration</string>
+    <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
@@ -1843,6 +1845,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirror_broadcast_network">Broadcast on Network</string>
     <string name="mirror_broadcast_network_desc">Let nearby devices discover this device</string>
     <string name="mirror_relay">Relay</string>
+    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">TURN relay for remote connections</string>
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>

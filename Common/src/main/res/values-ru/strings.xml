@@ -939,6 +939,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="streamingnotenabled">" Streaming not enabled"</string>
     <string name="threshold">Threshold</string>
     <string name="turnserver">TURN-сервер</string>
+    <string name="hybrid_configuration">Hybrid configuration</string>
+    <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
@@ -1861,6 +1863,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_broadcast_network">Объявлять в сети</string>
     <string name="mirror_broadcast_network_desc">Позволить ближайшим устройствам найти это устройство</string>
     <string name="mirror_relay">Ретранслятор</string>
+    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">TURN-ретранслятор для удаленных подключений</string>
     <string name="mirror_connections">Соединения</string>
     <string name="mirror_clone_master">Clone</string>

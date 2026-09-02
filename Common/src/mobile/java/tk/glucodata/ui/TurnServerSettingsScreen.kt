@@ -63,7 +63,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.turnserver)) },
+                title = { Text(stringResource(R.string.hybrid_configuration)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

@@ -903,6 +903,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="turn_on_location_permission">Turn on Location permission</string>
     <string name="turn_on_nearby_devices_permission">Turn on NEARBY DEVICES permission</string>
     <string name="turnserver">Serveur TURN</string>
+    <string name="hybrid_configuration">Hybrid configuration</string>
+    <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
@@ -1820,6 +1822,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_broadcast_network">Diffuser sur le réseau</string>
     <string name="mirror_broadcast_network_desc">Permettre aux appareils proches de trouver cet appareil</string>
     <string name="mirror_relay">Relais</string>
+    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">Relais TURN pour les connexions distantes</string>
     <string name="mirror_connections">Connexions</string>
     <string name="mirror_clone_master">Clone</string>
