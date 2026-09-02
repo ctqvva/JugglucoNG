@@ -266,10 +266,12 @@ private fun SensorIdentityControl(
                 .fillMaxHeight()
                 .clip(leadShape)
                 .background(
-                    if (selected) {
-                        color.copy(alpha = 0.18f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                    when {
+                        // Nothing to toggle with one sensor, so the name sits on the same
+                        // quiet surface as the reading chip instead of looking pressable.
+                        !selectable -> MaterialTheme.colorScheme.surfaceContainer
+                        selected -> color.copy(alpha = 0.18f)
+                        else -> MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
                     }
                 )
                 .then(
