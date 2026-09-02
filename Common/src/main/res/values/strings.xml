@@ -487,6 +487,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
+    <string name="clone_lan_discovery_status">LAN discovery</string>
+    <string name="clone_signaling">Signaling</string>
+    <string name="clone_signaling_lan">Local network</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>

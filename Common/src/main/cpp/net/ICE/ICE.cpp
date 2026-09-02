@@ -173,8 +173,10 @@ static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
         return false;
         }
     con->remoteDescriptionWasLocal=fromLocalNetwork;
-    if(fromLocalNetwork)
+    if(fromLocalNetwork) {
         con->cancelRendezvous();
+        con->cancelGenerationWatch();
+        }
     return true;
     }
 

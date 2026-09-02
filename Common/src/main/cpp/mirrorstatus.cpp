@@ -208,6 +208,19 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousCertificateVerifica
     return connection ? (connection->verifyRendezvousCertificate ? 1 : 0) : -1;
 }
 
+extern "C" JNIEXPORT jint JNICALL fromjava(getCloneSignalingSource)(
+        JNIEnv *, jclass, jint allindex) {
+    if (!backup || allindex < 0 || allindex >= backup->gethostnr())
+        return 0;
+    const passhost_t &host = getBackupHosts()[allindex];
+    if (!host.ICE)
+        return 0;
+    ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+    if (!connection || !connection->remoteDescriptionSet.load())
+        return 0;
+    return connection->remoteDescriptionWasLocal.load() ? 1 : 2;
+}
+
 extern char servererrorbuf[];
 extern "C" JNIEXPORT jstring JNICALL   fromjava(serverError)(JNIEnv *envin, jclass cl) {
 	return envin->NewStringUTF(servererrorbuf);

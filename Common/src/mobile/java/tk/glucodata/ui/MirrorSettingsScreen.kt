@@ -1081,6 +1081,13 @@ fun MirrorConnectionCard(
 private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
     val unknown = stringResource(R.string.unknown)
     val route = stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
+    val signaling = stringResource(
+        when (mirror.cloneSignalingSource) {
+            1 -> R.string.clone_signaling_lan
+            2 -> R.string.rendezvous_server
+            else -> R.string.unknown
+        },
+    )
     val stun = if (mirror.useTurnForStun) {
         mirror.turnEndpoint?.let { "$it · TURN" } ?: unknown
     } else {
@@ -1098,6 +1105,7 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         CloneDiagnosticRow(stringResource(R.string.mirror_route), route)
+        CloneDiagnosticRow(stringResource(R.string.clone_signaling), signaling)
         CloneDiagnosticRow(
             stringResource(R.string.rendezvous_server),
             mirror.rendezvousEndpoint ?: unknown,
@@ -1109,7 +1117,7 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
             certificateVerification,
         )
         CloneDiagnosticRow(
-            stringResource(R.string.clone_local_discovery),
+            stringResource(R.string.clone_lan_discovery_status),
             stringResource(
                 if (mirror.useLocalDiscovery) R.string.enabled_status
                 else R.string.disabled_status,
@@ -1547,6 +1555,7 @@ data class MirrorItemData(
     val useTurnForStun: Boolean,
     val verifyRendezvousCertificate: Boolean?,
     val useLocalDiscovery: Boolean,
+    val cloneSignalingSource: Int,
 )
 
 fun getMirrorsList(): List<MirrorItemData> {
@@ -1593,6 +1602,7 @@ fun getMirrorsList(): List<MirrorItemData> {
                 isIce && iceConfig.useTurnForStun,
                 verification.takeIf { it >= 0 }?.let { it != 0 },
                 isIce && iceConfig.useLocalDiscovery,
+                if (isIce) Natives.getCloneSignalingSource(i) else 0,
             )
         )
     }
