@@ -26,6 +26,7 @@ internal class CloneHistoryRecoveryStore(
         mode: CloneRecoveryMode,
         includeJournal: Boolean = false,
         includeHypoClassifications: Boolean = false,
+        jobId: String = CloneHistoryRecoveryProtocol.newJobId(),
     ): CloneRecoveryManifest {
         require(!includeHypoClassifications) {
             "Hypo classification recovery is not available in this build"
@@ -47,7 +48,7 @@ internal class CloneHistoryRecoveryStore(
         }
         return CloneRecoveryManifest(
             protocolVersion = CloneHistoryRecoveryProtocol.PROTOCOL_VERSION,
-            jobId = CloneHistoryRecoveryProtocol.newJobId(),
+            jobId = CloneHistoryRecoveryProtocol.validateJobId(jobId),
             direction = direction,
             mode = mode,
             categories = categories,

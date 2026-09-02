@@ -68,6 +68,14 @@ internal data class CloneRecoveryManifest(
     val sha256: String,
 )
 
+internal data class CloneRecoveryRequest(
+    val protocolVersion: Int,
+    val jobId: String,
+    val direction: CloneRecoveryDirection,
+    val mode: CloneRecoveryMode,
+    val categories: Int,
+)
+
 internal object CloneHistoryRecoveryProtocol {
     const val PROTOCOL_VERSION = 1
     const val DEFAULT_CHUNK_BYTES = 64 * 1024
@@ -80,12 +88,31 @@ internal object CloneHistoryRecoveryProtocol {
     const val CAPABILITY_PATH = "mirror/backfill/capabilities-v1"
     const val CAPABILITY_SCHEMA = "tk.glucodata.clone.recovery.capabilities"
     const val MANIFEST_SCHEMA = "tk.glucodata.clone.recovery.manifest"
+    const val REQUEST_SCHEMA = "tk.glucodata.clone.recovery.request"
+    const val JOB_PATH_PREFIX = "mirror/backfill/jobs"
 
     private val jobIdPattern = Regex("^[a-f0-9]{32}$")
     private val digestPattern = Regex("^[a-f0-9]{64}$")
     private val countKeyPattern = Regex("^[a-z][a-z0-9_]{0,47}$")
 
     fun newJobId(): String = UUID.randomUUID().toString().replace("-", "")
+
+    fun validateJobId(jobId: String): String {
+        require(jobIdPattern.matches(jobId)) { "Invalid Clone recovery job identifier" }
+        return jobId
+    }
+
+    fun jobManifestPath(jobId: String): String =
+        "$JOB_PATH_PREFIX/${validateJobId(jobId)}/manifest.json"
+
+    fun jobPackagePath(jobId: String): String =
+        "$JOB_PATH_PREFIX/${validateJobId(jobId)}/package.jsonl.gz"
+
+    fun jobRequestPath(jobId: String): String =
+        "$JOB_PATH_PREFIX/${validateJobId(jobId)}/request.json"
+
+    fun jobCommitPath(jobId: String): String =
+        "$JOB_PATH_PREFIX/${validateJobId(jobId)}/commit.json"
 
     fun validateRecordName(name: String): String {
         require(countKeyPattern.matches(name)) { "Invalid Clone recovery record category" }
@@ -125,6 +152,32 @@ internal object CloneHistoryRecoveryProtocol {
             maximumChunkBytes = root.requireInt("maximumChunkBytes"),
             maximumCompressedBytes = root.requireLong("maximumCompressedBytes"),
         ).also(::validateCapabilities)
+    }
+
+    fun encodeRequest(request: CloneRecoveryRequest): String {
+        validateRequest(request)
+        return JSONObject()
+            .put("schema", REQUEST_SCHEMA)
+            .put("protocolVersion", request.protocolVersion)
+            .put("jobId", request.jobId)
+            .put("direction", request.direction.wireValue)
+            .put("mode", request.mode.wireValue)
+            .put("categories", request.categories)
+            .toString()
+    }
+
+    fun decodeRequest(raw: String): CloneRecoveryRequest {
+        val root = JSONObject(raw)
+        require(root.optString("schema") == REQUEST_SCHEMA) {
+            "Unsupported Clone recovery request schema"
+        }
+        return CloneRecoveryRequest(
+            protocolVersion = root.requireInt("protocolVersion"),
+            jobId = root.requireString("jobId"),
+            direction = CloneRecoveryDirection.fromWireValue(root.requireString("direction")),
+            mode = CloneRecoveryMode.fromWireValue(root.requireString("mode")),
+            categories = root.requireInt("categories"),
+        ).also(::validateRequest)
     }
 
     fun encodeManifest(manifest: CloneRecoveryManifest): String {
@@ -204,7 +257,7 @@ internal object CloneHistoryRecoveryProtocol {
         require(manifest.protocolVersion == PROTOCOL_VERSION) {
             "Unsupported Clone recovery protocol version"
         }
-        require(jobIdPattern.matches(manifest.jobId)) { "Invalid Clone recovery job identifier" }
+        validateJobId(manifest.jobId)
         CloneRecoveryCategories.validate(manifest.categories)
         require(manifest.compressedBytes in 1..MAXIMUM_COMPRESSED_BYTES) {
             "Clone recovery package is too large"
@@ -218,6 +271,37 @@ internal object CloneHistoryRecoveryProtocol {
             require(count in 0..MAXIMUM_RECORD_COUNT) { "Invalid Clone recovery record count" }
         }
         require(digestPattern.matches(manifest.sha256)) { "Invalid Clone recovery digest" }
+    }
+
+    fun validateRequest(request: CloneRecoveryRequest) {
+        require(request.protocolVersion == PROTOCOL_VERSION) {
+            "Unsupported Clone recovery protocol version"
+        }
+        validateJobId(request.jobId)
+        CloneRecoveryCategories.validate(request.categories)
+    }
+
+    fun requireManifestMatchesRequest(
+        manifest: CloneRecoveryManifest,
+        request: CloneRecoveryRequest,
+    ) {
+        validateManifest(manifest)
+        validateRequest(request)
+        require(manifest.protocolVersion == request.protocolVersion) {
+            "Clone recovery protocol changed after confirmation"
+        }
+        require(manifest.jobId == request.jobId) {
+            "Clone recovery job does not match the confirmed request"
+        }
+        require(manifest.direction == request.direction) {
+            "Clone recovery direction changed after confirmation"
+        }
+        require(manifest.mode == request.mode) {
+            "Clone recovery mode changed after confirmation"
+        }
+        require(manifest.categories == request.categories) {
+            "Clone recovery categories changed after confirmation"
+        }
     }
 
     private fun validateCapabilities(capabilities: CloneRecoveryCapabilities) {

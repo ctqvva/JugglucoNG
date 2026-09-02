@@ -3,6 +3,7 @@ package tk.glucodata.data.journal
 import tk.glucodata.CloneRecoveryMode
 import tk.glucodata.CloneRecoveryPackageIO
 import tk.glucodata.CloneRecoveryRecord
+import tk.glucodata.CloneJournalRecoveryPolicy
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.NightscoutUploadWake
 import tk.glucodata.OutboundApiJournalSnapshot
@@ -59,6 +60,14 @@ internal class CloneJournalRecoveryStore(
         sink: CloneRecoveryPackageIO.RecordSink,
         origin: String,
     ) {
+        exportLocalTombstones(sink, origin)
+        exportRecoveredTombstones(sink)
+    }
+
+    private suspend fun exportLocalTombstones(
+        sink: CloneRecoveryPackageIO.RecordSink,
+        origin: String,
+    ) {
         var afterDeletedAt = 0L
         var afterEntryId = 0L
         while (true) {
@@ -89,6 +98,36 @@ internal class CloneJournalRecoveryStore(
         }
     }
 
+    private suspend fun exportRecoveredTombstones(
+        sink: CloneRecoveryPackageIO.RecordSink,
+    ) {
+        var afterDeletedAt = 0L
+        var afterStableBaseId = ""
+        while (true) {
+            val page = dao.getRecoveryJournalTombstonesPage(
+                afterDeletedAt = afterDeletedAt,
+                afterStableBaseId = afterStableBaseId,
+                limit = PAGE_SIZE,
+            )
+            if (page.isEmpty()) return
+            page.forEach { tombstone ->
+                sink.write(
+                    CloneJournalRecoveryRecords.TOMBSTONE,
+                    CloneJournalRecoveryRecords.encode(
+                        CloneJournalTombstoneRecord(
+                            recoveryId = tombstone.recoveryId,
+                            legacyStableBaseId = tombstone.stableBaseId,
+                            deletedAt = tombstone.deletedAt,
+                        )
+                    ),
+                )
+            }
+            val last = page.last()
+            afterDeletedAt = last.deletedAt
+            afterStableBaseId = last.stableBaseId
+        }
+    }
+
     inner class ImportSession internal constructor(
         private val mode: CloneRecoveryMode,
         private val recoverySource: JournalEntrySource,
@@ -105,7 +144,8 @@ internal class CloneJournalRecoveryStore(
                 """
                 CREATE TEMP TABLE clone_recovery_journal_deletions (
                     recoveryId TEXT,
-                    legacyStableBaseId TEXT NOT NULL PRIMARY KEY
+                    legacyStableBaseId TEXT NOT NULL PRIMARY KEY,
+                    deletedAt INTEGER NOT NULL
                 )
                 """.trimIndent()
             )
@@ -116,6 +156,7 @@ internal class CloneJournalRecoveryStore(
             if (mode == CloneRecoveryMode.FULL_HISTORY) {
                 dao.deleteAllEntries()
                 dao.deleteAllCloneJournalTombstones()
+                dao.deleteAllRecoveryJournalTombstones()
             }
         }
 
@@ -149,16 +190,39 @@ internal class CloneJournalRecoveryStore(
             UiRefreshBus.requestDataRefresh()
         }
 
-        private fun stageTombstone(record: CloneJournalTombstoneRecord) {
+        private suspend fun stageTombstone(record: CloneJournalTombstoneRecord) {
             sqlite.execSQL(
                 "INSERT OR REPLACE INTO temp.clone_recovery_journal_deletions " +
-                    "(recoveryId, legacyStableBaseId) VALUES (?, ?)",
-                arrayOf(record.recoveryId, record.legacyStableBaseId),
+                    "(recoveryId, legacyStableBaseId, deletedAt) VALUES (?, ?, ?)",
+                arrayOf<Any?>(
+                    record.recoveryId,
+                    record.legacyStableBaseId,
+                    record.deletedAt,
+                ),
             )
+            val byStableBase = dao.getRecoveryJournalTombstoneByStableBaseId(
+                record.legacyStableBaseId,
+            )
+            val byRecoveryId = record.recoveryId?.let {
+                dao.getRecoveryJournalTombstoneByRecoveryId(it)
+            }
+            val newestExistingDeletion = sequenceOf(byStableBase, byRecoveryId)
+                .filterNotNull()
+                .maxOfOrNull(CloneJournalRecoveryTombstoneEntity::deletedAt)
+            if (newestExistingDeletion == null || record.deletedAt > newestExistingDeletion) {
+                dao.upsertRecoveryJournalTombstone(
+                    CloneJournalRecoveryTombstoneEntity(
+                        stableBaseId = record.legacyStableBaseId,
+                        recoveryId = record.recoveryId,
+                        deletedAt = record.deletedAt,
+                    )
+                )
+            }
         }
 
         private suspend fun importEntry(record: CloneJournalEntryRecord) {
             if (isDeletedInPackage(record)) return
+            if (durableDeletionBlocks(record)) return
             val incoming = record.entry
             val type = JournalEntryType.fromStorage(incoming.entryType)
             val existing = findExisting(record, type)
@@ -237,11 +301,44 @@ internal class CloneJournalRecoveryStore(
                 record.legacyStableId,
                 JournalEntryType.fromStorage(record.entry.entryType),
             ) ?: return false
-            return sqlite.query(
-                "SELECT 1 FROM temp.clone_recovery_journal_deletions " +
+            val deletedAt = sqlite.query(
+                "SELECT deletedAt FROM temp.clone_recovery_journal_deletions " +
                     "WHERE recoveryId = ? OR legacyStableBaseId = ? LIMIT 1",
                 arrayOf(record.recoveryId, baseId),
-            ).use { cursor -> cursor.moveToFirst() }
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else null
+            } ?: return false
+            return CloneJournalRecoveryPolicy.deletionBlocksIncomingEntry(
+                deletedAt = deletedAt,
+                entryUpdatedAt = record.entry.updatedAt,
+            )
+        }
+
+        /**
+         * Only Missing never deletes an existing local row. This durable marker instead
+         * prevents an older package from importing that row again after it is absent.
+         */
+        private suspend fun durableDeletionBlocks(record: CloneJournalEntryRecord): Boolean {
+            val type = JournalEntryType.fromStorage(record.entry.entryType)
+            val stableBaseId = CloneJournalIdentity.tombstoneBaseForEntryId(
+                record.legacyStableId,
+                type,
+            ) ?: return false
+            val byStableBase = dao.getRecoveryJournalTombstoneByStableBaseId(stableBaseId)
+            val byRecoveryId = dao.getRecoveryJournalTombstoneByRecoveryId(record.recoveryId)
+            val newestDeletion = sequenceOf(byStableBase, byRecoveryId)
+                .filterNotNull()
+                .maxByOrNull(CloneJournalRecoveryTombstoneEntity::deletedAt)
+                ?: return false
+            if (CloneJournalRecoveryPolicy.deletionBlocksIncomingEntry(
+                    deletedAt = newestDeletion.deletedAt,
+                    entryUpdatedAt = record.entry.updatedAt,
+                )
+            ) {
+                return true
+            }
+            dao.deleteRecoveryJournalTombstone(stableBaseId, record.recoveryId)
+            return false
         }
 
         private suspend fun resolvePreset(incoming: JournalInsulinPresetEntity): Long {

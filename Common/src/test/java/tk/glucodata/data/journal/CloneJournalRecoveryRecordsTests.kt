@@ -5,9 +5,11 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import tk.glucodata.CloneRecoveryRecord
+import tk.glucodata.CloneJournalRecoveryPolicy
 
 class CloneJournalRecoveryRecordsTests {
     @Test
@@ -140,6 +142,28 @@ class CloneJournalRecoveryRecordsTests {
         assertIllegalArgument { CloneJournalRecoveryRecords.decodeEntry(unknownField) }
         assertIllegalArgument { CloneJournalRecoveryRecords.decodeEntry(invalidDuration) }
         assertIllegalArgument { CloneJournalRecoveryRecords.decodeEntry(invalidFloat) }
+    }
+
+    @Test
+    fun durableDeletionBlocksOnlyOlderOrEqualRecoveryEntries() {
+        assertTrue(
+            CloneJournalRecoveryPolicy.deletionBlocksIncomingEntry(
+                deletedAt = 2_000_000L,
+                entryUpdatedAt = 1_999_999L,
+            )
+        )
+        assertTrue(
+            CloneJournalRecoveryPolicy.deletionBlocksIncomingEntry(
+                deletedAt = 2_000_000L,
+                entryUpdatedAt = 2_000_000L,
+            )
+        )
+        assertFalse(
+            CloneJournalRecoveryPolicy.deletionBlocksIncomingEntry(
+                deletedAt = 2_000_000L,
+                entryUpdatedAt = 2_000_001L,
+            )
+        )
     }
 
     @Test
