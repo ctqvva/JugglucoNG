@@ -149,6 +149,28 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun startHandshakeCannotTerminateANewerOrNotYetConnectedIceGeneration() {
+        val transport = source("Common/src/main/cpp/net/ICE/ICE_data.cpp")
+            .replace(Regex("\\s+"), " ")
+        val receiveStart = transport.substring(
+            transport.indexOf("case START:"),
+            transport.indexOf("case ASK:"),
+        )
+        val sendStart = transport.substring(
+            transport.indexOf("void ICE_data::sendStart"),
+            transport.indexOf("uint32_t ICE_data::sendpacket"),
+        )
+
+        assertTrue(receiveStart.contains("con->isCurrentAgent(agent)"))
+        assertTrue(sendStart.contains("con->isCurrentAgent(agent,generation)"))
+        assertTrue(sendStart.contains("juice_get_state(agent)"))
+        assertTrue(sendStart.contains("JUICE_STATE_CONNECTED"))
+        assertTrue(sendStart.contains("JUICE_STATE_COMPLETED"))
+        assertTrue(sendStart.contains("requestReconnectIfCurrent(agent,generation)"))
+        assertFalse(sendStart.contains("sendWithError("))
+    }
+
+    @Test
     fun rendezvousRequestsAreBoundedAndCancelledWithTheirIceGeneration() {
         val https = source("Common/src/main/cpp/net/ICE/ContextHTTPS.cpp")
             .replace(Regex("\\s+"), " ")

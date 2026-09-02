@@ -176,8 +176,8 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
    switch(head->com) {
         case START: {
             ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-            if(!con) {
-                LOGGERICE("allindex=%d on_recv START, but con=null\n",allindex);
+            if(!con||!con->isCurrentAgent(agent)) {
+                LOGGERICE("allindex=%d on_recv START, but agent is no longer current\n",allindex);
                 return;
                 }
           if(head->ack) {
@@ -373,11 +373,26 @@ void ICE_data::askdata(juice_agent_t *agent) {
 
 void ICE_data::sendStart(juice_agent_t *agent,ICEConnect *con) {
        LOGGERICE("sendStart allindex=%d side=%d\n",con->allindex,side);
+       const uint64_t generation=con->currentAgentGeneration();
+       if(!con->isCurrentAgent(agent,generation)) {
+            LOGGERICE("defer sendStart allindex=%d side=%d: agent is no longer current\n",con->allindex,side);
+            return;
+            }
+       const juice_state_t initialState=juice_get_state(agent);
+       if(initialState!=JUICE_STATE_CONNECTED&&initialState!=JUICE_STATE_COMPLETED) {
+            LOGGERICE("defer sendStart allindex=%d side=%d: state=%s\n",con->allindex,side,juice_state_to_string(initialState));
+            return;
+            }
        for(int i=0;!con->start_ack&&i<5;++i) {
+            if(!con->isCurrentAgent(agent,generation))
+                    return;
             uint32_t rel_msec=getRelMsec(starttime);
             udp_header  head{.rel_msec=rel_msec,.com=START,.side=side,.ack=false,.trans_id=send_trans_id};
-            if(!sendWithError(agent, reinterpret_cast<const char *>(&head),sizeof(udp_header)))
+            if(!sendRetry(agent, reinterpret_cast<const char *>(&head),sizeof(udp_header))) {
+                    con->requestReconnectIfCurrent(agent,generation);
+                    LOGGERICE("sendStart failed allindex=%d side=%d\n",con->allindex,side);
                     return;
+                    }
             usleep(RTO*100);
             };
        LOGGERICE("end sendStart allindex=%d side=%d start_ack=%d\n",con->allindex,side,con->start_ack);
