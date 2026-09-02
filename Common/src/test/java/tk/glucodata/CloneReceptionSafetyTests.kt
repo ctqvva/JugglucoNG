@@ -254,6 +254,40 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun localSignalingWinnerCancelsRemoteGenerationWatchAndLateResponses() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+        val applyDescription = ice.substring(
+            ice.indexOf("static bool applyRemoteDescription"),
+            ice.indexOf("bool applyLocalICEDescription"),
+        )
+        val generationWatch = ice.substring(
+            ice.indexOf("static void watchPeerGeneration"),
+            ice.indexOf("static void startPeerGenerationWatch"),
+        )
+        val afterGenerationRequest = generationWatch.substring(
+            generationWatch.indexOf("auto [body,code]=ContextHTTPS::getContext().putRequest"),
+            generationWatch.indexOf("if(code==400)"),
+        )
+
+        assertTrue(applyDescription.contains("if(fromLocalNetwork) { con->cancelRendezvous(); con->cancelGenerationWatch(); }"))
+        assertTrue(afterGenerationRequest.contains("cancellation&&cancellation->load(std::memory_order_acquire)"))
+    }
+
+    @Test
+    fun cloneDiagnosticsExposeTheWinningSignalingPathSeparatelyFromDataRoute() {
+        val status = source("Common/src/main/cpp/mirrorstatus.cpp")
+            .replace(Regex("\\s+"), " ")
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(status.contains("getCloneSignalingSource"))
+        assertTrue(status.contains("remoteDescriptionWasLocal.load() ? 1 : 2"))
+        assertTrue(screen.contains("CloneDiagnosticRow(stringResource(R.string.clone_signaling), signaling)"))
+        assertTrue(screen.contains("R.string.clone_lan_discovery_status"))
+    }
+
+    @Test
     fun backgroundLivenessIsOptionalAndReceiverScoped() {
         val policy = source("Common/src/main/java/tk/glucodata/CloneBackgroundLiveness.kt")
             .replace(Regex("\\s+"), " ")
