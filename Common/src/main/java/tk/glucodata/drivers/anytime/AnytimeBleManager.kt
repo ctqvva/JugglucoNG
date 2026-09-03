@@ -320,6 +320,7 @@ class AnytimeBleManager(
     @Volatile private var ct5EndCycleRestartPending: Boolean = false
     @Volatile private var ct5EndCycleWriteConfirmed: Boolean = false
     @Volatile private var ct5EndCycleAccepted: Boolean = false
+    @Volatile private var ct5EndCycleBindProbePending: Boolean = false
     @Volatile private var ct5EndCycleInternalDisconnect: Boolean = false
     @Volatile private var ct5EndCycleInternalReconnect: Boolean = false
     private val ct5Random = SecureRandom()
@@ -653,6 +654,7 @@ class AnytimeBleManager(
         ct5EndCycleRestartPending = false
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
+        ct5EndCycleBindProbePending = false
         ct5EndCycleInternalReconnect = true
         try {
             softReconnect()
@@ -668,6 +670,7 @@ class AnytimeBleManager(
         ct5EndCycleRestartPending = false
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
+        ct5EndCycleBindProbePending = false
         handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
         handler.removeCallbacks(ct5EndCycleReconnectRunnable)
     }
@@ -869,7 +872,14 @@ class AnytimeBleManager(
             return@Runnable
         }
         if (tag.startsWith("ct5-endCycle") && ct5EndCycleRestartPending) {
-            failCt5EndCycle("no response after $tag")
+            // Silence after the unbind is ambiguous: the transmitter may have
+            // ignored the command, or ended the cycle without acknowledging it.
+            // Ask it which, instead of assuming the session survived.
+            if (tag.startsWith("ct5-endCycle-unbind") && !ct5EndCycleBindProbePending) {
+                sendCt5EndCycleBindProbe()
+            } else {
+                failCt5EndCycle("no response after $tag")
+            }
             return@Runnable
         }
         if (phase != Phase.HANDSHAKING) return@Runnable
@@ -2276,6 +2286,7 @@ class AnytimeBleManager(
                         ct5EndCycleRestartPending = false
                         ct5EndCycleWriteConfirmed = false
                         ct5EndCycleAccepted = false
+                        ct5EndCycleBindProbePending = false
                     }
                     if (!stop) {
                         scheduleReconnect("GATT disconnect status=$status")
@@ -2596,6 +2607,7 @@ class AnytimeBleManager(
             AnytimeConstants.RX_LOW_POWER_ACK -> Log.d(TAG, "CT5 low-power ack")
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
             AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck(data)
+            AnytimeConstants.RX_RESET -> handleCt5BindStateResponse(data)
             else -> return false
         }
         return true
@@ -2875,6 +2887,39 @@ class AnytimeBleManager(
         bound = false
         persistAlgorithmState()
         runCatching { mBluetoothGatt?.disconnect() }
+    }
+
+    /**
+     * CT5 0x11 answer. Only the end-cycle probe asks for one, so an unsolicited
+     * frame is logged and otherwise left alone — the CT3-style reset flow does
+     * not apply to CT5 and must not be triggered from here.
+     */
+    private fun handleCt5BindStateResponse(data: ByteArray) {
+        val state = AnytimeFrames.parseCt5BindState(data)
+        if (!ct5EndCycleBindProbePending) {
+            Log.i(TAG, "CT5 bind state (unsolicited): ${state?.isBound ?: "unparsed"}")
+            return
+        }
+        ct5EndCycleBindProbePending = false
+        if (state == null) {
+            Log.w(TAG, "CT5 bind-state answer malformed: ${data.joinToHex()}")
+            failCt5EndCycle("bind-state answer malformed after unacknowledged unbind")
+            return
+        }
+        if (state.isBound) {
+            failCt5EndCycle("transmitter still reports the session as bound after the unbind")
+            return
+        }
+        // The unbind landed; the transmitter simply did not answer it. Treat this
+        // exactly as an ACK, so the session material is cleared once and the same
+        // disconnect/restart sequence runs.
+        val reason = if (state.unbindReason >= 0) " reason=${state.unbindReason}" else ""
+        Log.i(TAG, "CT5 transmitter reports itself unbound$reason — treating the end cycle as accepted")
+        if (!ct5EndCycleAccepted) {
+            ct5EndCycleAccepted = true
+            clearRuntimeStateForCt5EndCycle()
+        }
+        handler.postDelayed(ct5EndCycleDisconnectRunnable, CT5_END_CYCLE_DISCONNECT_DELAY_MS)
     }
 
     private fun handleInputKrAck() {
@@ -4417,8 +4462,32 @@ class AnytimeBleManager(
         ct5EndCycleRestartPending = false
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
+        ct5EndCycleBindProbePending = false
         constatstatusstr = "End cycle failed"
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    /**
+     * After an unbind the transmitter never acknowledged, ask it whether it is
+     * still bound. `{0x11, 0x55, 0xAA, 0x10}` only reads the bind flag, so this
+     * cannot end a cycle that is still running — and its answer is the only
+     * evidence we have that separates "command ignored" from "command obeyed
+     * silently". Losing the answer leaves us exactly where the timeout did, so
+     * every failure path here falls through to the original outcome.
+     */
+    private fun sendCt5EndCycleBindProbe() {
+        ct5EndCycleBindProbePending = true
+        Log.w(
+            TAG,
+            "CT5 authenticated unbind was not acknowledged; asking the transmitter for its bind state"
+        )
+        val written = writeFrame(
+            bytes = AnytimeFrames.Builders.ct5BindStateQuery(),
+            tag = "ct5-endCycle-bindState",
+            expectResponse = true,
+            onDropped = { failCt5EndCycle("bind-state probe dropped after unacknowledged unbind") },
+        )
+        if (!written) failCt5EndCycle("bind-state probe could not be queued after unacknowledged unbind")
     }
 
     private fun sendCt5EndCycleUnbind() {
@@ -4453,6 +4522,7 @@ class AnytimeBleManager(
         ct5EndCycleRestartPending = true
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
+        ct5EndCycleBindProbePending = false
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(

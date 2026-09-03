@@ -609,6 +609,75 @@ class AnytimeCt5Tests {
         assertTrue(AnytimeFrames.verifySum(frame))
     }
 
+    @Test
+    fun bindStateQueryIsTheSharedCt2_5ResetFrame() {
+        // ProtocolTools.reset_request routes CT5 to resetRequest_CT2_5.
+        assertEquals(
+            listOf(0x11, 0x55, 0xAA, 0x10),
+            AnytimeFrames.Builders.ct5BindStateQuery().map { it.toInt() and 0xFF },
+        )
+    }
+
+    @Test
+    fun bindStateReadsTheUnboundFlagAndItsReason() {
+        // byte 2 == 0 is "unbound"; byte 12 == 0x22 makes byte 8 the reason.
+        val unbound = ct5BindStateFrame(boundByte = 0x00, tipByte = 0x22, reasonByte = 0x01)
+
+        val state = AnytimeFrames.parseCt5BindState(unbound)
+
+        assertEquals(false, state?.isBound)
+        assertEquals(1, state?.unbindReason)
+    }
+
+    @Test
+    fun bindStateReportsBoundWhenTheTransmitterKeptTheSession() {
+        val bound = ct5BindStateFrame(boundByte = 0x01, tipByte = 0x00, reasonByte = 0x00)
+
+        val state = AnytimeFrames.parseCt5BindState(bound)
+
+        assertEquals(true, state?.isBound)
+        assertEquals(-1, state?.unbindReason)
+    }
+
+    @Test
+    fun bindStateWithoutTheTipByteDoesNotInventAReason() {
+        val unbound = ct5BindStateFrame(boundByte = 0x00, tipByte = 0x00, reasonByte = 0x01)
+
+        val state = AnytimeFrames.parseCt5BindState(unbound)
+
+        assertEquals(false, state?.isBound)
+        assertEquals(-1, state?.unbindReason)
+    }
+
+    @Test
+    fun bindStateRejectsShortOrCorruptAnswers() {
+        val valid = ct5BindStateFrame(boundByte = 0x00, tipByte = 0x22, reasonByte = 0x00)
+
+        // The vendor's TransmitterReset throws below 14 bytes rather than guessing,
+        // and an unbind we cannot verify must not be reported as successful.
+        assertNull(AnytimeFrames.parseCt5BindState(valid.copyOf(13)))
+
+        val badSum = valid.copyOf()
+        badSum[badSum.lastIndex] = (badSum[badSum.lastIndex] + 1).toByte()
+        assertNull(AnytimeFrames.parseCt5BindState(badSum))
+
+        val wrongOpcode = valid.copyOf()
+        wrongOpcode[0] = 0x0A
+        assertNull(AnytimeFrames.parseCt5BindState(wrongOpcode))
+    }
+
+    /** 14-byte 0x11 answer shaped like the vendor's `TransmitterReset` input. */
+    private fun ct5BindStateFrame(boundByte: Int, tipByte: Int, reasonByte: Int): ByteArray {
+        val frame = ByteArray(14)
+        frame[0] = AnytimeConstants.RX_RESET
+        frame[1] = 0x55
+        frame[2] = boundByte.toByte()
+        frame[8] = reasonByte.toByte()
+        frame[12] = tipByte.toByte()
+        frame[13] = AnytimeFrames.sum(frame, 0, 12)
+        return frame
+    }
+
     // ---- Cipher fallback (unchanged behaviour) --------------------------
 
     @Test
