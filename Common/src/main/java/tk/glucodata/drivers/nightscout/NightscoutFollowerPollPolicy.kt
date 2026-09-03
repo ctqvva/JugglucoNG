@@ -16,8 +16,12 @@ object NightscoutFollowerPollPolicy {
     /** What the picker offers, in minutes. */
     val CHOICES_MINUTES: List<Int> = listOf(1, 2, 5, 10, 15, 30)
 
-    /** Preserve the one-minute cadence followers used before this became configurable. */
-    const val DEFAULT_MINUTES: Int = 1
+    /**
+     * Five minutes: most sources publish on that cadence or slower, and a follower phone has
+     * no sensor of its own keeping it awake, so every poll is a wake-up it pays for. Someone
+     * following a one-minute source, or relying on the follower for alerts, moves it down.
+     */
+    const val DEFAULT_MINUTES: Int = 5
 
     /**
      * A stored or hand-edited value that is not on the list is pulled onto the nearest one.
