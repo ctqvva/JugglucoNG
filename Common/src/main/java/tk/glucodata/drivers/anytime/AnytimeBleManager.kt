@@ -230,6 +230,11 @@ class AnytimeBleManager(
     @Volatile private var lastIwNa: Float = 0f
     @Volatile private var lastIbNa: Float = 0f
     @Volatile private var lastTemperatureC: Float = 0f
+    // Cached from every live frame, glucose or not: a transmitter that has stopped
+    // computing glucose still reports these, and they are the only telemetry left.
+    @Volatile private var lastCeVoltageMv: Int = Int.MIN_VALUE
+    @Volatile private var lastBatteryRaw: Int = Int.MIN_VALUE
+    @Volatile private var lastPolarisationMv: Triple<Int, Int, Int>? = null
     /** Most recent algorithm output — for diagnostics (5 electrode voltages,
      *  IIR-filtered currents, sensitivity coefficient, K_BASE/K_AUTO). */
     @Volatile private var lastAlgorithmResult: AnytimeAlgorithm.Result? = null
@@ -3452,6 +3457,11 @@ class AnytimeBleManager(
         lastIwNa = record.iwNa
         lastIbNa = record.ibNa
         lastTemperatureC = record.temperatureC
+        if (record.ceVoltageMv != Int.MIN_VALUE) lastCeVoltageMv = record.ceVoltageMv
+        if (record.batteryRaw != Int.MIN_VALUE) lastBatteryRaw = record.batteryRaw
+        if (record.weVoltageMv != Int.MIN_VALUE) {
+            lastPolarisationMv = Triple(record.beVoltageMv, record.weVoltageMv, record.reVoltageMv)
+        }
 
         clearStaleRuntimeStateBeforeLiveRecord(record.glucoseId)
         // Anchor the timeline from every live id, warm-up included — waiting for
@@ -4854,6 +4864,11 @@ class AnytimeBleManager(
         if (iw != null) parts += String.format(Locale.getDefault(), "Iw %.2f nA", iw)
         if (ib != null) parts += String.format(Locale.getDefault(), "Ib %.2f nA", ib)
         if (temperature != null) parts += String.format(Locale.getDefault(), "T %.1f°C", temperature)
+        val ce = r?.ceVoltageMv?.takeIf { it != Int.MIN_VALUE } ?: lastCeVoltageMv.takeIf { it != Int.MIN_VALUE }
+        if (ce != null) parts += String.format(Locale.getDefault(), "CE %d mV", ce)
+        val battery = r?.bVoltageMv?.takeIf { it != Int.MIN_VALUE } ?: lastBatteryRaw.takeIf { it != Int.MIN_VALUE }
+        // Raw, deliberately unscaled — see AnytimeComputedRecord.batteryRaw.
+        if (battery != null) parts += String.format(Locale.getDefault(), "Batt %d", battery)
         return parts.joinToString(" · ")
     }
 
