@@ -238,6 +238,7 @@ class AnytimeBleManager(
     /** viewMode 0 shows the transmitter's own glucose only; 1/2/3 all surface raw. */
     private val VIEW_MODE_VENDOR_ONLY = 0
     private val ct5RawScale = AnytimeCt5RawScale()
+    @Volatile private var ct5RawScaleSeedRequested: Boolean = false
     /** Most recent algorithm output — for diagnostics (5 electrode voltages,
      *  IIR-filtered currents, sensitivity coefficient, K_BASE/K_AUTO). */
     @Volatile private var lastAlgorithmResult: AnytimeAlgorithm.Result? = null
@@ -682,6 +683,10 @@ class AnytimeBleManager(
         } finally {
             ct5EndCycleInternalReconnect = false
         }
+    }
+
+    private fun resetCt5RawScaleSeedAttempt() {
+        ct5RawScaleSeedRequested = false
     }
 
     private fun cancelCt5EndCycleRestart(reason: String) {
@@ -2728,6 +2733,8 @@ class AnytimeBleManager(
 
     private fun enterStreaming(reason: String) {
         if (phase == Phase.STREAMING) return
+        // A refused seed pull should be retried on the next connection, not once ever.
+        resetCt5RawScaleSeedAttempt()
         Log.i(TAG, "$reason — entering streaming")
         bound = true
         phase = Phase.STREAMING
@@ -3489,6 +3496,7 @@ class AnytimeBleManager(
             if (record.glucoseId > lastGlucoseId) lastGlucoseId = record.glucoseId
             persistAlgorithmState()
             if (emitCt5RawEstimate(record, now, intervalMs)) return
+            maybeSeedCt5RawScaleFromHistory()
             val remainingMin = ct5WarmupRemainingMs().takeIf { it >= 0L }?.let { (it + 59_999L) / 60_000L } ?: -1L
             Log.i(
                 TAG,
@@ -3618,6 +3626,35 @@ class AnytimeBleManager(
         return true
     }
 
+    /**
+     * Teach the scale from stored history when live learning cannot.
+     *
+     * Live learning only sees readings the transmitter computes, so a sensor that
+     * reached `INFO_COMPLETE_END` before this code existed can never learn anything: by
+     * the time we are watching, there is no glucose left to watch. Its history still
+     * holds thousands of vendor-computed ids though, and a pull works after termination
+     * because the firmware refuses writes, not reads.
+     *
+     * Once per connection, and only while there is no scale at all -- if the pull is
+     * refused because history is unhealthy, the next connection tries again.
+     */
+    private fun maybeSeedCt5RawScaleFromHistory() {
+        if (!isCt5() || ct5RawScaleSeedRequested) return
+        if (ct5RawScale.scale.isFinite()) return
+        if (phase != Phase.STREAMING || historyBackfillActive) return
+        val newest = ct5HighestImportedId
+        if (newest < AnytimeCt5RawScale.MIN_SAMPLES) return
+        ct5RawScaleSeedRequested = true
+        // A margin over the minimum, since ids the sensor errored on teach nothing.
+        val span = AnytimeCt5RawScale.MIN_SAMPLES + (AnytimeCt5RawScale.MIN_SAMPLES / 2)
+        val fromId = (newest - span).coerceAtLeast(0)
+        Log.i(
+            TAG,
+            "CT5 has no current-to-glucose scale; pulling history $fromId..$newest to learn one"
+        )
+        startHistoryBackfill("ct5-scaleSeed", fromId = fromId, stopBeforeId = newest + 1)
+    }
+
     private fun handleCt5Series(data: ByteArray) {
         val key = ct5CipherKey
         if (key !in 0..255) {
@@ -3676,6 +3713,15 @@ class AnytimeBleManager(
         historyEmptyResponsesInARow = 0
         // A response proves the pull path still works on this connection.
         ct5HistoryHealth.onSeriesReceived()
+        // History is the only way a sensor that stopped computing glucose before this
+        // code existed can ever teach us its scale: live learning starts from nothing,
+        // and by then the transmitter has no glucose left to learn from. A pull still
+        // works after INFO_COMPLETE_END -- the firmware refuses writes, not reads.
+        records.forEach { record ->
+            if (record.hasGlucose && record.errorCode == 0) {
+                ct5RawScale.observe(record.iwNa, record.gluMgdl.toFloat())
+            }
+        }
         // Every valid returned id resolves that part of a pending CT5 gap, even
         // when Room already contained the glucose point. Without caching these
         // ids, an "all existing" response completed the range and then the gap
