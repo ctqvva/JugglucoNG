@@ -798,6 +798,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">在扫描期间强制发送 A0 激活命令</string>
     <string name="libre3_nfc_command_switch_receiver">A8 切换接收器</string>
     <string name="libre3_nfc_command_switch_receiver_desc">在扫描期间强制发送 A8 切换接收器命令</string>
+    <string name="libre3_activation_legacy_fallback">无法验证开源 Libre 3 激活方式；正在使用经过验证的方法。</string>
     <string name="libreview_account_ready">账户 ID 已就绪</string>
     <string name="libreview_account_missing">缺少账户 ID</string>
     <string name="libreview_account_missing_desc">输入凭据并为 Libre 3 传感器获取账户 ID</string>

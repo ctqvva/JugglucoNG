@@ -824,6 +824,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libre3_nfc_command_activate_desc">Tarama sırasında A0 Etkinleştir komutunu zorla</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Alıcıyı değiştir</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Tarama sırasında A8 Alıcıyı değiştir komutunu zorla</string>
+    <string name="libre3_activation_legacy_fallback">Açık kaynaklı Libre 3 etkinleştirmesi doğrulanamadı; kanıtlanmış yöntem kullanılıyor.</string>
     <string name="libreview_account_ready">Hesap kimliği hazır</string>
     <string name="libreview_account_missing">Hesap kimliği eksik</string>
     <string name="libreview_account_missing_desc">Libre 3 sensörleri için kimlik bilgilerini girin ve hesap kimliğini isteyin</string>

@@ -699,6 +699,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Forza il comando A0 Attiva durante la scansione</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Cambia ricevitore</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Forza il comando A8 Cambia ricevitore durante la scansione</string>
+    <string name="libre3_activation_legacy_fallback">Non è stato possibile verificare l’attivazione open source di Libre 3; verrà usato il metodo collaudato.</string>
     <string name="libreview_account_ready">ID account pronto</string>
     <string name="libreview_account_missing">ID account mancante</string>
     <string name="libreview_account_missing_desc">Inserisci le credenziali e richiedi l\'ID account per i sensori Libre 3</string>

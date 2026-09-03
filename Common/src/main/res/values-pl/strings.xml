@@ -843,6 +843,7 @@
     <string name="libre3_nfc_command_activate_desc">Wymuś polecenie A0 Aktywuj podczas skanowania</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Przełącz odbiornik</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Wymuś polecenie A8 Przełącz odbiornik podczas skanowania</string>
+    <string name="libre3_activation_legacy_fallback">Nie udało się zweryfikować aktywacji Libre 3 typu open source; używana jest sprawdzona metoda.</string>
     <string name="libreview_account_ready">Identyfikator konta gotowy</string>
     <string name="libreview_account_missing">Brak identyfikatora konta</string>
     <string name="libreview_account_missing_desc">Wprowadź dane logowania i pobierz identyfikator konta dla sensorów Libre 3</string>
