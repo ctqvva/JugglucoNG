@@ -358,6 +358,14 @@ fun DashboardCombinedHeader(
             ?.takeIf { it.isNotBlank() }
             ?: sensorName
     }
+    val cloneTransport = remember(refreshRevision, sensorName) {
+        tk.glucodata.CloneTransportPresentation.sensorTransport(
+            tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensorName),
+        )
+    }
+    val isCloneSource = remember(refreshRevision, sensorName) {
+        tk.glucodata.CloneSensorRegistry.isCloneSensor(sensorName)
+    }
     val resolvedDataState = dataState ?: remember(
         resolvedCurrentSnapshot?.timeMillis,
         latestPoint?.timestamp,
@@ -906,14 +914,23 @@ fun DashboardCombinedHeader(
                     // 1. Sensor Name (Top Label)
                     if (sensorDisplayName.isNotEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = sensorDisplayName,
-                                style = MaterialTheme.typography.labelMedium, // M3 Standard
-                                color = sensorContentColor.copy(alpha = 0.7f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false) // Allow shrinking for dots
-                            )
+                            if (isCloneSource) {
+                                CloneSourceMark(
+                                    transport = cloneTransport,
+                                    showLabel = true,
+                                    tint = sensorContentColor.copy(alpha = 0.7f),
+                                    textStyle = MaterialTheme.typography.labelMedium,
+                                )
+                            } else {
+                                Text(
+                                    text = sensorDisplayName,
+                                    style = MaterialTheme.typography.labelMedium, // M3 Standard
+                                    color = sensorContentColor.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false) // Allow shrinking for dots
+                                )
+                            }
                             
                             // Active Indicators (Dots) - Right of Name
                             // Hidden if only 1 active sensor
@@ -947,9 +964,12 @@ fun DashboardCombinedHeader(
                     val heroOwnsAwaitingStatus = resolvedDataState.isAwaitingData &&
                         statusCopy != null &&
                         lifecycleText.isNotEmpty()
-                    val showingStatus = sensorStatus.isNotEmpty() &&
-                        sensorStatus != "Ready" &&
-                        !heroOwnsAwaitingStatus
+                    val showingStatus = shouldShowDashboardSensorStatus(
+                        isCloneSource = isCloneSource,
+                        isFreshData = isFreshData,
+                        sensorStatus = sensorStatus,
+                        heroOwnsAwaitingStatus = heroOwnsAwaitingStatus,
+                    )
                     val mainText = if (showingStatus) sensorStatus else lifecycleText
                     if (mainText.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))

@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.GlucoseUncertainty
 
 /**
@@ -24,6 +25,7 @@ data class GlucosePoint(
     val rawValue: Float = 0f,
     val rate: Float? = null,
     val sensorSerial: String? = null,
+    val source: String = GlucoseReadingSource.SENSOR,
     val uncertainty: GlucoseUncertainty? = null,
     val sealedDisplayValue: Float? = null,
 )

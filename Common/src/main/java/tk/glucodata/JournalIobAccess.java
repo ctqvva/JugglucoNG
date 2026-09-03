@@ -25,6 +25,8 @@ import android.os.Looper;
 public class JournalIobAccess {
     private static java.lang.reflect.Method snapshotMethod;
     private static boolean snapshotResolved;
+    private static java.lang.reflect.Method nightscoutUploadSnapshotMethod;
+    private static boolean nightscoutUploadSnapshotResolved;
 
     // Feeds the current journal IOB/COB to the native webserver so /pebble
     // polls (GlucoDataHandler's Juggluco IOB support) report the journal
@@ -59,6 +61,24 @@ public class JournalIobAccess {
             return (float[]) snapshotMethod.invoke(null, atMillis);
         } catch (Throwable e) {
             snapshotMethod = null;
+            return null;
+        }
+    }
+
+    /** Local journal-only values for upload; never echoes Clone or follower state. */
+    public static float[] nightscoutUploadSnapshot(long atMillis) {
+        try {
+            if (!nightscoutUploadSnapshotResolved) {
+                nightscoutUploadSnapshotResolved = true;
+                nightscoutUploadSnapshotMethod =
+                        Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
+                                .getMethod("nightscoutUploadIobSnapshot", long.class);
+            }
+            if (nightscoutUploadSnapshotMethod == null)
+                return null;
+            return (float[]) nightscoutUploadSnapshotMethod.invoke(null, atMillis);
+        } catch (Throwable e) {
+            nightscoutUploadSnapshotMethod = null;
             return null;
         }
     }

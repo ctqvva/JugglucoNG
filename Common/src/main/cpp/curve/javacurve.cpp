@@ -108,7 +108,14 @@ jmethodID jdoglucose = nullptr, jupdateDevices = nullptr,
           jbluetoothEnabled = nullptr, jspeak = nullptr, jresetWearOS = nullptr,
           jbluePermission = nullptr;
 static jclass JNIHistorySyncAccess = nullptr;
-static jmethodID jhistorySyncSensor = nullptr,
+static jmethodID jhistoryMarkCloneSensor = nullptr,
+                 jhistoryReconcilePrimaryCloneSensor = nullptr,
+                 jhistoryExportCloneIobSnapshot = nullptr,
+                 jhistoryImportCloneIobSnapshot = nullptr,
+                 jhistoryExportCloneJournalSnapshot = nullptr,
+                 jhistoryImportCloneJournalSnapshot = nullptr,
+                 jhistorySyncSensor = nullptr,
+                 jhistorySyncRecentSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
                  jhistoryMergeFullSyncSensor = nullptr;
 static jclass JNICalibrationProfileAccess = nullptr;
@@ -288,11 +295,60 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     if (cl) {
       JNIHistorySyncAccess = (jclass)env->NewGlobalRef(cl);
       env->DeleteLocalRef(cl);
+      if (!(jhistoryMarkCloneSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "markCloneSensor",
+                "(Ljava/lang/String;ILjava/lang/String;)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;ILjava/lang/String;)Z") failed)"
+            "");
+      }
+      if (!(jhistoryReconcilePrimaryCloneSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "reconcilePrimaryCloneSensor",
+                "(Ljava/lang/String;)V"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"reconcilePrimaryCloneSensor","(Ljava/lang/String;)V") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneIobSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneIobSnapshot",
+                "()Ljava/lang/String;"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneIobSnapshot","()Ljava/lang/String;") failed)"
+            "");
+      }
+      if (!(jhistoryImportCloneIobSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "importCloneIobSnapshot",
+                "(Ljava/lang/String;)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneIobSnapshot","(Ljava/lang/String;)Z") failed)"
+            "");
+      }
+      if (!(jhistoryExportCloneJournalSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "exportCloneJournalSnapshot",
+                "()Ljava/lang/String;"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"exportCloneJournalSnapshot","()Ljava/lang/String;") failed)"
+            "");
+      }
+      if (!(jhistoryImportCloneJournalSnapshot = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "importCloneJournalSnapshot",
+                "(Ljava/lang/String;I)Z"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"importCloneJournalSnapshot","(Ljava/lang/String;I)Z") failed)"
+            "");
+      }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "syncSensorFromNative",
                 "(Ljava/lang/String;Z)V"))) {
         LOGAR(
             R"(GetStaticMethodID(JNIHistorySyncAccess,"syncSensorFromNative","(Ljava/lang/String;Z)V") failed)"
+            "");
+      }
+      if (!(jhistorySyncRecentSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "syncRecentSensorFromNative",
+                "(Ljava/lang/String;J)V"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"syncRecentSensorFromNative","(Ljava/lang/String;J)V") failed)"
             "");
       }
       if (!(jhistoryForceFullSyncSensor = env->GetStaticMethodID(
@@ -432,7 +488,8 @@ bool bluetoothEnabled() {
 int bluePermission() {
   return getenv()->CallStaticIntMethod(JNIApplic, jbluePermission);
 }
-void javaMirrorSyncSensor(const char *serial, bool forceFull) {
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                          const char *cloneConnectionIdentity) {
   if (!serial || !*serial) {
     return;
   }
@@ -442,6 +499,25 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull) {
   }
   JNIEnv *env = getenv();
   jstring jserial = env->NewStringUTF(serial);
+  jstring jconnectionIdentity = env->NewStringUTF(
+      cloneConnectionIdentity ? cloneConnectionIdentity : "");
+  bool accepted = false;
+  if (jhistoryMarkCloneSensor) {
+    accepted = env->CallStaticBooleanMethod(
+        JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+        jserial, cloneTransport, jconnectionIdentity);
+    if (env->ExceptionCheck()) {
+      LOGAR("markCloneSensor exception");
+      env->ExceptionClear();
+      accepted = false;
+    }
+  }
+  if (!accepted) {
+    env->DeleteLocalRef(jconnectionIdentity);
+    env->DeleteLocalRef(jserial);
+    LOGAR("Clone sensor sync rejected while local reception is disabled");
+    return;
+  }
   if (forceFull) {
     if (jhistoryMergeFullSyncSensor) {
       env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMergeFullSyncSensor,
@@ -463,9 +539,133 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull) {
                                 JNI_FALSE);
     }
   }
+  env->DeleteLocalRef(jconnectionIdentity);
   env->DeleteLocalRef(jserial);
   if (env->ExceptionCheck()) {
     LOGAR("javaMirrorSyncSensor exception");
+    env->ExceptionClear();
+  }
+}
+
+void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
+                                int cloneTransport, const char *cloneConnectionIdentity) {
+  if (!serial || !*serial || anchorTimeMs <= 0 || !JNIHistorySyncAccess) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jserial = env->NewStringUTF(serial);
+  jstring jconnectionIdentity = env->NewStringUTF(
+      cloneConnectionIdentity ? cloneConnectionIdentity : "");
+  bool accepted = false;
+  if (jhistoryMarkCloneSensor) {
+    accepted = env->CallStaticBooleanMethod(
+        JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+        jserial, cloneTransport, jconnectionIdentity);
+  }
+  if (!env->ExceptionCheck() && accepted && jhistorySyncRecentSensor) {
+    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistorySyncRecentSensor,
+                              jserial, static_cast<jlong>(anchorTimeMs));
+  }
+  env->DeleteLocalRef(jconnectionIdentity);
+  env->DeleteLocalRef(jserial);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaMirrorSyncRecentSensor exception");
+    env->ExceptionClear();
+  }
+}
+
+void javaMirrorReconcilePrimarySensor(const char *serial) {
+  if (!JNIHistorySyncAccess || !jhistoryReconcilePrimaryCloneSensor)
+    return;
+  JNIEnv *env = getenv();
+  jstring jserial = serial ? env->NewStringUTF(serial) : nullptr;
+  env->CallStaticVoidMethod(JNIHistorySyncAccess,
+                            jhistoryReconcilePrimaryCloneSensor, jserial);
+  if (jserial)
+    env->DeleteLocalRef(jserial);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaMirrorReconcilePrimarySensor exception");
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+  }
+}
+
+std::string javaExportCloneIobSnapshot() {
+  if (!JNIHistorySyncAccess || !jhistoryExportCloneIobSnapshot) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = (jstring)env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneIobSnapshot);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneIobSnapshot exception");
+    env->ExceptionClear();
+    return {};
+  }
+  if (!jjson) {
+    return {};
+  }
+  const char *chars = env->GetStringUTFChars(jjson, nullptr);
+  std::string out = chars ? std::string(chars) : std::string();
+  if (chars) {
+    env->ReleaseStringUTFChars(jjson, chars);
+  }
+  env->DeleteLocalRef(jjson);
+  return out;
+}
+
+void javaImportCloneIobSnapshot(const char *json) {
+  if (!json || !*json || !JNIHistorySyncAccess || !jhistoryImportCloneIobSnapshot) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = env->NewStringUTF(json);
+  env->CallStaticBooleanMethod(JNIHistorySyncAccess,
+                               jhistoryImportCloneIobSnapshot, jjson);
+  env->DeleteLocalRef(jjson);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaImportCloneIobSnapshot exception");
+    env->ExceptionClear();
+  }
+}
+
+std::string javaExportCloneJournalSnapshot() {
+  if (!JNIHistorySyncAccess || !jhistoryExportCloneJournalSnapshot) {
+    return {};
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = (jstring)env->CallStaticObjectMethod(
+      JNIHistorySyncAccess, jhistoryExportCloneJournalSnapshot);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaExportCloneJournalSnapshot exception");
+    env->ExceptionClear();
+    return {};
+  }
+  if (!jjson) {
+    return {};
+  }
+  const char *chars = env->GetStringUTFChars(jjson, nullptr);
+  std::string out = chars ? std::string(chars) : std::string();
+  if (chars) {
+    env->ReleaseStringUTFChars(jjson, chars);
+  }
+  env->DeleteLocalRef(jjson);
+  return out;
+}
+
+void javaImportCloneJournalSnapshot(const char *json, int transportCode) {
+  if (!json || !*json || !JNIHistorySyncAccess ||
+      !jhistoryImportCloneJournalSnapshot) {
+    return;
+  }
+  JNIEnv *env = getenv();
+  jstring jjson = env->NewStringUTF(json);
+  env->CallStaticBooleanMethod(JNIHistorySyncAccess,
+                               jhistoryImportCloneJournalSnapshot, jjson,
+                               static_cast<jint>(transportCode));
+  env->DeleteLocalRef(jjson);
+  if (env->ExceptionCheck()) {
+    LOGAR("javaImportCloneJournalSnapshot exception");
     env->ExceptionClear();
   }
 }
@@ -595,22 +795,9 @@ void callshowsensorinfo(const char *text, SensorGlucoseData *sensorptr) {
 }
 
 void render() {
-  LOGAR("Render");
-  if (jobject curve = getglucosecurve()) {
-    JNIEnv *env = getenv();
-    struct method {
-      jmethodID requestRendermeth;
-      method(JNIEnv *env) {
-        jclass cl = env->FindClass("android/opengl/GLSurfaceView");
-        requestRendermeth = env->GetMethodID(cl, "requestRender", "()V");
-        env->DeleteLocalRef(cl);
-      };
-    };
-    static method meth(env);
-    env->CallVoidMethod(curve, meth.requestRendermeth);
-    env->DeleteLocalRef(curve);
-  }
-  //   onestep();
+  // GlucoseCurve is no longer a GLSurfaceView. Calling its former base-class
+  // method ID is invalid JNI and crashed the ICE receiver on srender.
+  LOGAR("Render ignored: legacy renderer removed");
 }
 #endif
 extern NVGcontext *genVG;

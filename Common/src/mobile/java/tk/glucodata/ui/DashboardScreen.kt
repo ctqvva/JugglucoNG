@@ -168,7 +168,7 @@ import tk.glucodata.ui.journal.JournalInlineChip
 import tk.glucodata.ui.journal.JournalSettingsScreen
 import tk.glucodata.data.journal.JournalIobCalculator
 import tk.glucodata.data.journal.JournalActiveInsulinSummary
-import tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus
+import tk.glucodata.RemoteIobSnapshot
 import tk.glucodata.ui.journal.buildJournalChartMarkers
 import tk.glucodata.ui.journal.journalQuickAddTimestamp
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -443,12 +443,11 @@ fun DashboardScreen(
             JournalIobCalculator.buildActiveInsulinSummary(scopedJournalEntries, journalPresetsById, journalNow)
         }
     }
-    // A fresh devicestatus published by the followed uploader replaces the
-    // locally recomputed IOB/eIOB so both devices show the same numbers; the
-    // journalNow ticker re-evaluates the freshness window, so a stale
-    // document falls back to the local computation on its own.
-    val remoteInsulin = remember(journalEnabled, journalNow) {
-        if (journalEnabled) NightscoutFollowerDeviceStatus.fresh(journalNow) else null
+    // Clone and Nightscout resolve through one precedence policy shared with
+    // notifications and broadcasts. UiRefreshBus makes a received/cleared
+    // snapshot visible immediately; the ticker still retires stale state.
+    val remoteInsulin = remember(journalEnabled, journalNow, predictionCalibrationRefresh) {
+        if (journalEnabled) RemoteIobSnapshot.fresh(journalNow) else null
     }
     val activeInsulinSummary = remember(localInsulinSummary, remoteInsulin) {
         when {

@@ -23,19 +23,32 @@
 #include <stdint.h>
 #include <vector>
 #include <atomic>
+#include <mutex>
 #include <string_view>
 #include "passhost.hpp"
 #include "crypt.h"
 #include "backup.hpp"
 template<int nr> using unique_al= std::unique_ptr<uint8_t[],ardeleter<nr,uint8_t>> ;
+inline constexpr int clone_transport_unknown = 0;
+inline constexpr int clone_transport_local_ice = 1;
+inline constexpr int clone_transport_turn = 2;
+
 class Connect {
 protected:
 public:
-  std::atomic_flag senduprunning{};
+    std::atomic_flag senduprunning{};
     int allindex;
-   bool finish=false;
+    std::atomic_bool finish{false};
     bool receiving=false;
+    std::atomic_bool receiverCommandsEnabled{true};
+    std::mutex receiverCommandsMutex;
     Connect(int index):allindex(index) {}
+    void setReceiverCommandsEnabled(bool enabled) {
+        receiverCommandsEnabled.store(enabled, std::memory_order_release);
+    }
+    void waitForReceiverCommandsIdle() {
+        std::lock_guard<std::mutex> lock(receiverCommandsMutex);
+    }
 
 virtual int setindex(int index) {
         allindex=index; 
@@ -103,11 +116,15 @@ bool receiveConnect(passhost_t *hostptr);
  virtual    void  closeSenderConnection() =0;
  virtual  int  getSenderIdent() const =0;
  virtual  int  getReceiverIdent() const =0;
+ virtual uint64_t senderConnectionGeneration() const {
+        return static_cast<uint32_t>(getSenderIdent());
+        }
  virtual  bool  isConnectedReceiver() const =0;
  virtual  bool  isConnectedSender() const =0;
 virtual void setSenderTimeouts()  =0;
 virtual void setReceiverTimeouts()  =0;
 virtual void endConnection()  =0;
+virtual int cloneTransportCode() const { return clone_transport_unknown; }
 
 template <typename T> bool senddata(crypt_t *pass,const int offset,const T *startin,const T* endin,const std::string_view naar,uint16_t dowith=0,const uint8_t *extra=nullptr, int extralen=0) {
 	const senddata_t *start=reinterpret_cast<const senddata_t*>(startin);	

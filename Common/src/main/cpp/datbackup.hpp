@@ -197,6 +197,8 @@ struct updateone {
   int updateiob();
   int numbertypes();
   int sendCalibrate();
+  int sendCloneIobSnapshot();
+  int sendCloneJournalSnapshot();
 };
 
 #include "maxsendtohost.h"
@@ -1026,6 +1028,16 @@ public:
     return receives;
   }
 
+  // Close the per-connection command gate without waiting for an in-flight
+  // command or tearing down libjuice. The UI uses this as the immediate half
+  // of Clone disable before the blocking teardown runs on a worker thread.
+  void prepareHostDeactivation(int index) {
+    if (index < 0 || index >= getupdatedata()->hostnr)
+      return;
+    if (Connect *connection = connections[index])
+      connection->setReceiverCommandsEnabled(false);
+  }
+
   void deactivateHost(int index, bool deactive) {
     LOGGER("deactivateHost(%d,%d)\n", index, deactive);
     if (index >= getupdatedata()->hostnr)
@@ -1036,8 +1048,16 @@ public:
       return;
     if (host.wearos)
       setBlueMessage(index, false);
+    Connect *connection = connections[index];
+    if (deactive && connection)
+      connection->setReceiverCommandsEnabled(false);
     host.deactivated = deactive;
     if (deactive) {
+      if (host.ICE && connection) {
+        // ICE owns a separate receiver loop and no classic host socket. End
+        // its current agent now; the loop parks on host.deactivated.
+        connection->endConnection();
+      }
       if (host.activereceive) {
         LOGGER("stop active receive     shutdown(%d)\n", hostsocks[index]);
         extern std::vector<condvar_t *> active_receive;
@@ -1064,7 +1084,16 @@ public:
         ::shutdown(sock, SHUT_RDWR);
       }
 
+      // Transport shutdown prevents new input. Waiting here makes the native
+      // disable call a quiescence boundary for a command already in interpret().
+      if (connection)
+        connection->waitForReceiverCommandsIdle();
+
     } else {
+      if (connection)
+        connection->setReceiverCommandsEnabled(true);
+      if (host.ICE)
+        startReceiverThread(index);
       if (host.index >= 0)
         startthread(index, host.index);
       if (host.activereceive) {
@@ -1409,6 +1438,13 @@ sendindex); extern bool doend(int sendindex); */
           } else {
             LOGAR(" no start");
           }
+        }
+        // changeICEhost() starts this companion thread when an ICE entry is
+        // created or edited. Restore the same lifecycle after process startup;
+        // receiver-only Clone entries have no sender index and otherwise stay
+        // at Phase::Start until an unrelated network change wakes them.
+        if (host.ICE && !host.deactivated) {
+          startReceiverThread(i);
         }
       }
 
