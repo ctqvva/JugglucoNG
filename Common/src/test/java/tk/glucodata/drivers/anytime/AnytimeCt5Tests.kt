@@ -610,6 +610,21 @@ class AnytimeCt5Tests {
     }
 
     @Test
+    fun unbindEscalationFramesAreTheVendorsOwn() {
+        // Tried in order after the authenticated frame; both are SDK frames for
+        // families whose commands this firmware already answers.
+        assertEquals(
+            listOf(0x0A, 0x55, 0xAA, 0x09),
+            AnytimeFrames.Builders.unbindSummed().map { it.toInt() and 0xFF },
+        )
+        assertEquals(
+            listOf(0x58, 0x55, 0xAA, 0x57),
+            AnytimeFrames.Builders.unbindGeneric().map { it.toInt() and 0xFF },
+        )
+        assertTrue(AnytimeFrames.verifySum(AnytimeFrames.Builders.unbindGeneric()))
+    }
+
+    @Test
     fun bindStateQueryIsTheSharedCt2_5ResetFrame() {
         // ProtocolTools.reset_request routes CT5 to resetRequest_CT2_5.
         assertEquals(

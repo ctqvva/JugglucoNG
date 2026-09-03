@@ -148,6 +148,9 @@ object AnytimeConstants {
     /** Unbind ack. */
     const val RX_UNBIND_ACK: Byte = 0x0A
 
+    /** Ack for the SDK's family-less `unBindRequest()` — `{0x58, 0x55, 0xAA, 0x57}`. */
+    const val RX_UNBIND_ACK_GENERIC: Byte = 0x58
+
     /** K/R upload ack. */
     const val RX_INPUT_KR_ACK: Byte = 0x0B
 
