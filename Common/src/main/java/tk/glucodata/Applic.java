@@ -609,7 +609,68 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     // @RequiresApi(api = Build.VERSION_CODES.M)
     private static boolean hasonAvailable = false;
-    private static final Set<Network> availableInternetNetworks = ConcurrentHashMap.newKeySet();
+    private static final Set<Long> availableInternetNetworks = ConcurrentHashMap.newKeySet();
+    private static final NetworkHandoverPolicy networkHandoverPolicy = new NetworkHandoverPolicy();
+    private static final Object networkTransitionLock = new Object();
+    private static ScheduledFuture<?> pendingNetworkAbsence;
+    private static long networkAbsenceGeneration;
+    private static final long NETWORK_ABSENCE_GRACE_MILLIS = 1_000L;
+
+    private static long networkId(Network network) {
+        return network.getNetworkHandle();
+    }
+
+    private static void cancelPendingNetworkAbsence() {
+        synchronized (networkTransitionLock) {
+            ++networkAbsenceGeneration;
+            if (pendingNetworkAbsence != null) {
+                pendingNetworkAbsence.cancel(false);
+                pendingNetworkAbsence = null;
+            }
+        }
+    }
+
+    private static void applyNetworkAction(NetworkHandoverPolicy.Action action) {
+        switch (action) {
+            case PRESENT:
+                cancelPendingNetworkAbsence();
+                Natives.networkpresent();
+                Applic.wakemirrors();
+                break;
+            case HANDOVER:
+                cancelPendingNetworkAbsence();
+                Natives.networkhandover();
+                Applic.wakemirrors();
+                break;
+            case DEFER_ABSENCE:
+                synchronized (networkTransitionLock) {
+                    if (pendingNetworkAbsence != null) {
+                        pendingNetworkAbsence.cancel(false);
+                    }
+                    final long generation = ++networkAbsenceGeneration;
+                    pendingNetworkAbsence = scheduler.schedule(() -> {
+                        synchronized (networkTransitionLock) {
+                            if (generation != networkAbsenceGeneration) {
+                                return;
+                            }
+                            pendingNetworkAbsence = null;
+                        }
+                        final long defaultNetwork = networkHandoverPolicy.currentDefaultNetwork();
+                        final boolean defaultStillAvailable = defaultNetwork != 0L
+                                && availableInternetNetworks.contains(defaultNetwork);
+                        applyNetworkAction(networkHandoverPolicy.afterAbsenceGrace(
+                                defaultStillAvailable));
+                    }, NETWORK_ABSENCE_GRACE_MILLIS, TimeUnit.MILLISECONDS);
+                }
+                break;
+            case ABSENT:
+                cancelPendingNetworkAbsence();
+                Natives.networkabsent();
+                break;
+            case NONE:
+                break;
+        }
+    }
     /*
      * public static void sendsettings() {
      * {if(doLog) {Log.i(LOG_ID,"sendsettings");};};
@@ -687,7 +748,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
                         @Override
                         public void onAvailable(Network network) {
                             hasonAvailable = true;
-                            availableInternetNetworks.add(network);
+                            availableInternetNetworks.add(networkId(network));
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "network: onAvailable(" + network + ")");
@@ -698,15 +759,13 @@ public class Applic extends Application implements androidx.work.Configuration.P
                             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                                     .recoverOnNetworkAvailable(Applic.this);
                             final boolean wearos = useWearos();
-                            if (wearos || hasip()) {
+                            if (wearos) {
                                 Natives.networkpresent();
-                                if (wearos) {
-                                    MessageSender.reinit();
-                                    MessageSender.sendnetinfo();
-                                    Applic.scheduler.schedule(() -> {
-                                        resetWearOS();
-                                    }, 20, TimeUnit.SECONDS);
-                                }
+                                MessageSender.reinit();
+                                MessageSender.sendnetinfo();
+                                Applic.scheduler.schedule(() -> {
+                                    resetWearOS();
+                                }, 20, TimeUnit.SECONDS);
                                 Applic.wakemirrors();
                             }
                         }
@@ -739,6 +798,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                             var up = networkCapabilities.getLinkUpstreamBandwidthKbps();
                             var wifi = networkCapabilities.hasTransport(TRANSPORT_WIFI);
                             var blue = networkCapabilities.hasTransport(TRANSPORT_BLUETOOTH);
+                            var validated = networkCapabilities.hasCapability(
+                                    NetworkCapabilities.NET_CAPABILITY_VALIDATED);
                             boolean aware = false;
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                 aware = networkCapabilities.hasTransport(TRANSPORT_WIFI_AWARE);
@@ -749,7 +810,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                             "network: onCapabilitiesChanged(" + network + "downstream " + down
                                                     + " Kbps up=" + up + " Kbps " + (wifi ? "" : "no ") + " wifi, "
                                                     + (blue ? "" : "no ") + " bluetooth, " + (aware ? "" : " no ")
-                                                    + "WIFI aware)");
+                                                    + "WIFI aware, " + (validated ? "" : "not ") + "validated)");
                                 }
                                 ;
                             }
@@ -770,7 +831,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
                         @Override
                         public void onLost(Network network) {
-                            availableInternetNetworks.remove(network);
+                            final long lostNetwork = networkId(network);
+                            availableInternetNetworks.remove(lostNetwork);
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "onLost(" + network + ")");
@@ -778,18 +840,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                 ;
                             }
                             ;
-                            final boolean hasReplacement = NetworkHandoverPolicy.hasUsableReplacement(
-                                    availableInternetNetworks.size(), hasip());
-                            if (hasReplacement) {
-                                // Another Internet path is already usable. Preserve remote-signaled
-                                // ICE, but rebuild a LAN-signaled generation because the lost network
-                                // may have carried its private signaling path and can otherwise strand
-                                // the rendezvous fallback.
-                                Natives.networkhandover();
-                                Applic.wakemirrors();
-                            } else {
-                                Natives.networkabsent();
-                            }
+                            applyNetworkAction(networkHandoverPolicy.onInternetNetworkLost(
+                                    lostNetwork));
                             final boolean wearos = useWearos();
                             if (wearos) {
                                 MessageSender.reinit();
@@ -801,6 +853,28 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                     resetWearOS();
                                 }, 20, TimeUnit.SECONDS);
                             }
+                        }
+                    });
+
+            connectivityManager.registerDefaultNetworkCallback(
+                    new ConnectivityManager.NetworkCallback() {
+                        @Override
+                        public void onAvailable(Network network) {
+                            final long availableNetwork = networkId(network);
+                            if (doLog) {
+                                Log.i(LOG_ID, "default network: onAvailable(" + network + ")");
+                            }
+                            applyNetworkAction(networkHandoverPolicy.onDefaultAvailable(
+                                    availableNetwork));
+                        }
+
+                        @Override
+                        public void onLost(Network network) {
+                            if (doLog) {
+                                Log.i(LOG_ID, "default network: onLost(" + network + ")");
+                            }
+                            applyNetworkAction(networkHandoverPolicy.onDefaultLost(
+                                    networkId(network)));
                         }
                     });
 

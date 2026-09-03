@@ -946,8 +946,8 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
         if (resetConnections ||
             (resetLanSignaledConnections &&
              connection->remoteDescriptionWasLocal.load())) {
-            LOGGERICE("allindex=%d: rebuild LAN-signaled generation after network handover\n",
-                      allindex);
+            LOGGERICE("allindex=%d: rebuild %s generation after network handover\n",
+                      allindex, resetConnections ? "ICE" : "LAN-signaled ICE");
             connection->endConnectionHere();
         }
         {

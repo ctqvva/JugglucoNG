@@ -489,10 +489,10 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkhandover)(JNIEnv *env,
     networkpresent = true;
   }
 
-  // A LAN-signaled ICE generation has no guaranteed rendezvous candidate
-  // stream to carry it onto a replacement network. Rebuild only that kind of
-  // generation; remote-signaled connections retain their live path.
-  wakeICEReceiversForNetworkChange(false, true);
+  // UDP sockets and TURN allocations cannot migrate to a replacement Android
+  // default network. Rebuild every ICE generation when Android selects a new
+  // default path; callbacks for secondary networks do not call this method.
+  wakeICEReceiversForNetworkChange(true);
   if (backup)
     backup->getupdatedata()->wakesender();
 
