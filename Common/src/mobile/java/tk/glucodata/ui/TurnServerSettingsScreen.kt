@@ -200,6 +200,12 @@ fun TurnServerSettingsScreen(navController: NavController) {
 
             // Actions
             Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.hybrid_save_behavior),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (!isAbsent) {
                     OutlinedButton(
@@ -297,12 +303,11 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             Toast.makeText(context, context.getString(R.string.savefailed), Toast.LENGTH_LONG).show()
                             return@Button
                         }
-                        val connectionSettingsChanged =
+                        val serverDetailsChanged =
                             previousTurn?.contentEquals(nextTurn) != true ||
-                                initialIceConfig.copy(
-                                    useLocalDiscovery = nextIceConfig.useLocalDiscovery,
-                                ) != nextIceConfig
-                        if (connectionSettingsChanged) Natives.resetnetwork()
+                                initialIceConfig.rendezvousHost != nextIceConfig.rendezvousHost ||
+                                initialIceConfig.rendezvousPort != nextIceConfig.rendezvousPort
+                        if (serverDetailsChanged) Natives.resetnetwork()
                         tk.glucodata.Applic.wakemirrors()
                         navController.popBackStack()
                     },

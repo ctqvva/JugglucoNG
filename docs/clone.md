@@ -92,6 +92,11 @@ local discovery so nearby devices can find the phone without scanning a QR.
 Changing this option does not replace an already working Clone connection. The
 saved choice is used the next time that connection negotiates.
 
+The other Hybrid transport switches also take effect on the next connection
+attempt. Changing a server address, port, username, password, or which
+rendezvous server is selected reconnects Clone immediately so corrected
+server details do not remain unused.
+
 Use one normal follower path at a time. A brief overlap with Nightscout is
 useful while validating Clone, but leaving both enabled can make duplicated or
 relabelled glucose and treatment history harder to understand because the two

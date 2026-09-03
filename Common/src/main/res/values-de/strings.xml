@@ -978,6 +978,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="turnserver">TURN-Server</string>
     <string name="hybrid_configuration">Hybrid-Konfiguration</string>
     <string name="hybrid_configuration_summary">Lokale Suche, Rendezvous, STUN und TURN</string>
+    <string name="hybrid_save_behavior">Transportoptionen werden beim nächsten Verbindungsversuch wirksam. Änderungen an Serverdaten oder die Auswahl eines anderen Rendezvous-Servers verbinden Clone sofort neu.</string>
     <string name="clone_ice_services">ICE-Dienste</string>
     <string name="clone_local_discovery">Gekoppelte Clones im lokalen Netzwerk finden</string>
     <string name="clone_local_discovery_summary">Bekannte Hybrid-Paare im selben lokalen Netzwerk ohne Rendezvous-Server verbinden. Kopplungsgeheimnisse werden nicht angekündigt.</string>
