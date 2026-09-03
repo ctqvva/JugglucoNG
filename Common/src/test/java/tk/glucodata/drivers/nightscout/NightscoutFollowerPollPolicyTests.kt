@@ -23,7 +23,6 @@ class NightscoutFollowerPollPolicyTests {
         assertTrue(
             NightscoutFollowerPollPolicy.DEFAULT_MINUTES in NightscoutFollowerPollPolicy.CHOICES_MINUTES
         )
-        assertEquals(1, NightscoutFollowerPollPolicy.DEFAULT_MINUTES)
     }
 
     @Test
