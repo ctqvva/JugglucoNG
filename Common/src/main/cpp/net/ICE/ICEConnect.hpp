@@ -215,6 +215,7 @@ void releaseReceiverThread() {
         resetStart();
         wakeReceiver=false;
         selectedCloneTransport.store(clone_transport_unknown);
+        generationWatchCapability.store(0,std::memory_order_release);
         isConnected=false;
         endConnect=false;
         beginRendezvous();

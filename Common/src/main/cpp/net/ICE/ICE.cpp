@@ -284,7 +284,7 @@ static void watchPeerGeneration(
     while(true) {
         ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
         if(!con||!con->isCurrentAgent(agent,agentGeneration)||
-           con->endConnect.load()||con->isConnected.load()||
+           con->endConnect.load()||
            (cancellation&&cancellation->load(std::memory_order_acquire)))
             return;
         std::string requestGeneration=localGeneration;
@@ -300,7 +300,8 @@ static void watchPeerGeneration(
              .cancelled=cancellation,
              .verifyCertificate=con->verifyRendezvousCertificate});
         if(!con->isCurrentAgent(agent,agentGeneration)||
-           con->endConnect.load()||con->isConnected.load())
+           con->endConnect.load()||
+           (cancellation&&cancellation->load(std::memory_order_acquire)))
             return;
         if(code==400) {
             con->generationWatchCapability.store(-1,std::memory_order_release);
@@ -325,22 +326,49 @@ static void watchPeerGeneration(
         }
         if(*peer==observedPeer)
             continue;
-        LOGARICE("peer generation changed during negotiation");
+        LOGARICE("peer generation changed");
         restartRejectedNegotiation(con,agent,agentGeneration,allindex,
                                    "peer generation changed");
         return;
     }
 }
 
+static void publishRendezvousGeneration(
+        juice_agent *agent,int allindex,uint64_t agentGeneration,
+        std::string commonLabel,bool side,std::string hostname,
+        uint16_t rendezvousPort,std::string localGeneration,
+        bool verifyCertificate,
+        std::shared_ptr<const std::atomic_bool> cancellation) {
+    static constexpr std::string_view path="/generation";
+    CreateAgentData request(commonLabel,side,localGeneration.data(),
+                            static_cast<int>(localGeneration.size()));
+    auto [body,code]=ContextHTTPS::getContext().putRequest(
+        hostname,rendezvousPort,path,request.getSpan(),{},
+        {.timeoutMilliseconds=10000,
+         .cancelled=cancellation,
+         .verifyCertificate=verifyCertificate});
+    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    if(!con||!con->isCurrentAgent(agent,agentGeneration)||
+       con->endConnect.load()||
+       (cancellation&&cancellation->load(std::memory_order_acquire)))
+        return;
+    if(code==400) {
+        con->generationWatchCapability.store(-1,std::memory_order_release);
+        LOGARICE("peer generation watch unsupported");
+        return;
+    }
+    if(code==200) {
+        con->generationWatchCapability.store(1,std::memory_order_release);
+        LOGARICE("published rendezvous generation");
+        return;
+    }
+    LOGGERICE("publish rendezvous generation failed code=%d\n",code);
+}
+
 static void startPeerGenerationWatch(
         ICEConnect *con,juice_agent *agent,int allindex,
         std::string_view commonLabel,bool side,std::string_view hostname,
         uint16_t rendezvousPort) {
-    // Side 0 publishes the stable offer. If side 1 restarts, it can attach to
-    // that offer without invalidating side 0. Only side 1 needs to watch for a
-    // replacement side-0 offer and rebuild its answering agent.
-    if(side==givefirst)
-        return;
     if(con->generationWatchCapability.load(std::memory_order_acquire)<0)
         return;
     const std::string localGeneration=con->currentRendezvousGeneration();
@@ -348,9 +376,18 @@ static void startPeerGenerationWatch(
         return;
     const uint64_t agentGeneration=con->currentAgentGeneration();
     auto cancellation=con->beginGenerationWatch();
-    std::thread(watchPeerGeneration,agent,allindex,agentGeneration,
-                std::string(commonLabel),side,std::string(hostname),
-                rendezvousPort,localGeneration,std::move(cancellation)).detach();
+    if(side==givefirst) {
+        std::thread(publishRendezvousGeneration,agent,allindex,agentGeneration,
+                    std::string(commonLabel),side,std::string(hostname),
+                    rendezvousPort,localGeneration,
+                    con->verifyRendezvousCertificate,
+                    std::move(cancellation)).detach();
+        }
+    else {
+        std::thread(watchPeerGeneration,agent,allindex,agentGeneration,
+                    std::string(commonLabel),side,std::string(hostname),
+                    rendezvousPort,localGeneration,std::move(cancellation)).detach();
+        }
 }
 
 static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generation,
@@ -607,7 +644,6 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             break;
         case JUICE_STATE_CONNECTED: {
             setConnectTime(allindex,0);
-            con->cancelGenerationWatch();
             con->setConnected();
             con->connectTime=time(nullptr);
             con->selectedCloneTransport.store(selectedCloneTransportCode(agent));
