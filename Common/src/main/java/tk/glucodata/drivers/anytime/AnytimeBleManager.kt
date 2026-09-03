@@ -324,6 +324,7 @@ class AnytimeBleManager(
     @Volatile private var ct5EndCycleVariantIndex: Int = 0
     @Volatile private var ct5EndCycleReRegisterInFlight: Boolean = false
     @Volatile private var ct5EndCycleReRegisterDone: Boolean = false
+    @Volatile private var ct5EndCycleSsnInFlight: Boolean = false
     @Volatile private var ct5EndCycleInternalDisconnect: Boolean = false
     @Volatile private var ct5EndCycleInternalReconnect: Boolean = false
     private val ct5Random = SecureRandom()
@@ -661,6 +662,7 @@ class AnytimeBleManager(
         ct5EndCycleVariantIndex = 0
         ct5EndCycleReRegisterInFlight = false
         ct5EndCycleReRegisterDone = false
+        ct5EndCycleSsnInFlight = false
         ct5EndCycleInternalReconnect = true
         try {
             softReconnect()
@@ -680,6 +682,7 @@ class AnytimeBleManager(
         ct5EndCycleVariantIndex = 0
         ct5EndCycleReRegisterInFlight = false
         ct5EndCycleReRegisterDone = false
+        ct5EndCycleSsnInFlight = false
         handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
         handler.removeCallbacks(ct5EndCycleReconnectRunnable)
     }
@@ -2299,6 +2302,7 @@ class AnytimeBleManager(
                         ct5EndCycleVariantIndex = 0
                         ct5EndCycleReRegisterInFlight = false
                         ct5EndCycleReRegisterDone = false
+                        ct5EndCycleSsnInFlight = false
                     }
                     if (!stop) {
                         scheduleReconnect("GATT disconnect status=$status")
@@ -3094,6 +3098,14 @@ class AnytimeBleManager(
             persistAlgorithmState()
         } else {
             Log.w(TAG, "CT5 querySSN did not decode with local QR parser; raw='$decoded'")
+        }
+        // During an end cycle this answer exists only to supply K/R for the
+        // re-registration; the ordinary path from here would set parameters and
+        // then start a measurement.
+        if (ct5EndCycleSsnInFlight) {
+            Log.i(TAG, "CT5 end-cycle SSN answered (calibration=${(parsed ?: qr) != null})")
+            sendCt5EndCycleReRegister("ct5-endCycle-querySSN")
+            return
         }
         val calibration = parsed ?: qr
         if (calibration == null) {
@@ -4528,6 +4540,7 @@ class AnytimeBleManager(
         ct5EndCycleVariantIndex = 0
         ct5EndCycleReRegisterInFlight = false
         ct5EndCycleReRegisterDone = false
+        ct5EndCycleSsnInFlight = false
         constatstatusstr = "End cycle failed"
         UiRefreshBus.requestStatusRefresh()
     }
@@ -4592,13 +4605,41 @@ class AnytimeBleManager(
     private fun sendCt5EndCycleReRegister(refusedTag: String) {
         val calibration = qr
         val key = ct5CipherKey
-        if (calibration == null || key !in 0..255) {
+        if (key !in 0..255) {
             failCt5EndCycle(
                 "transmitter still bound after $refusedTag, and the temporary id cannot be " +
-                        "re-registered (calibration=${calibration != null} cipher=$key)"
+                        "re-registered without a session cipher"
             )
             return
         }
+        // No stored K/R is itself evidence for the theory: handleCt5QuerySsnResponse
+        // returns before sending setParameters when it cannot decode a calibration,
+        // which is exactly the interrupted bind that would leave the transmitter
+        // without our id. Ask the transmitter for its own SSN and try again.
+        if (calibration == null) {
+            if (ct5EndCycleSsnInFlight) {
+                failCt5EndCycle(
+                    "transmitter still bound after $refusedTag, and it returned no usable " +
+                            "calibration, so the temporary id cannot be re-registered"
+                )
+                return
+            }
+            ct5EndCycleSsnInFlight = true
+            Log.w(
+                TAG,
+                "CT5 refused every unbind frame and no K/R is stored — asking the transmitter " +
+                        "for its SSN so the temporary id can be re-registered"
+            )
+            val sent = writeFrame(
+                bytes = AnytimeFrames.Builders.ct5QuerySsn(),
+                tag = "ct5-endCycle-querySSN",
+                expectResponse = true,
+                onDropped = { failCt5EndCycle("SSN query dropped during end cycle") },
+            )
+            if (!sent) failCt5EndCycle("SSN query could not be queued during end cycle")
+            return
+        }
+        ct5EndCycleSsnInFlight = false
         ct5EndCycleReRegisterInFlight = true
         ct5EndCycleReRegisterDone = true
         Log.w(
@@ -4658,6 +4699,7 @@ class AnytimeBleManager(
         ct5EndCycleVariantIndex = 0
         ct5EndCycleReRegisterInFlight = false
         ct5EndCycleReRegisterDone = false
+        ct5EndCycleSsnInFlight = false
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(
