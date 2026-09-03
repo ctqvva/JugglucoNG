@@ -167,6 +167,7 @@
  <string name="addsensorenddate">Дадайце дату заканчэння датчыка ў календар</string>
  <string name="enddatesensor">"Дата заканчэння датчыка "</string>
  <string name="open">Адчыніць</string>
+ <string name="copy">Капіраваць</string>
  <string name="share">Падзяліцца</string>
  <string name="withoutsensor">Без сэнсара</string>
  <string name="wronglibrary">Бібліятэка не працуе належным чынам, паспрабуйце іншую</string>

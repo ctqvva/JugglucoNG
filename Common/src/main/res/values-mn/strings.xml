@@ -163,6 +163,7 @@
     <string name="addsensorenddate">Мэдрэгчийн дуусах огноог календарьт нэмэх</string>
     <string name="enddatesensor">"Мэдрэгчийн дуусах огноо "</string>
     <string name="open">Нээх</string>
+    <string name="copy">Хуулах</string>
     <string name="share">Хуваалцах</string>
     <string name="withoutsensor">Мэдрэгчгүй</string>
     <string name="wronglibrary">Library зөв ажиллахгүй байна. Өөрийг туршина уу.</string>

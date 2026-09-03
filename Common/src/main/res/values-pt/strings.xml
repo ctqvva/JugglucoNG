@@ -168,6 +168,7 @@
 <string name="addsensorenddate">Adicionar data de término do sensor à aplicação de calendário</string>
 <string name="enddatesensor">"Sensor de data final "</string>
 <string name="open">Abrir</string>
+<string name="copy">Copiar</string>
 <string name="share">Partilhar</string>
 <string name="withoutsensor">Sem sensor</string>
 <string name="wronglibrary">A biblioteca não está funcionando corretamente, tente outra</string>

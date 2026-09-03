@@ -164,6 +164,7 @@
   <string name="addsensorenddate">Enddatum des Sensors zur Kalender-App hinzufügen</string>
   <string name="enddatesensor">"Sensor-Enddatum "</string>
   <string name="open">Öffnen</string>
+  <string name="copy">Kopieren</string>
   <string name="share">Teilen</string>
   <string name="withoutsensor">Ohne Sensor</string>
   <string name="wronglibrary">Bibliothek funktioniert nicht richtig, versuche es mit einer anderen</string>

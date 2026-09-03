@@ -2078,15 +2078,16 @@ fun SensorCard(
                         }
                     }
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(top = 4.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    // 48dp is the touch target, not the visual height: the row carries no
+                    // padding of its own, so the tappable area stays reachable while the
+                    // collapsed header costs a single line of the card.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .clickable { connectionLogExpanded = !connectionLogExpanded },
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { connectionLogExpanded = !connectionLogExpanded }
+                            .heightIn(min = 48.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(

@@ -167,6 +167,7 @@
  <string name="addsensorenddate">Takvime sensör bitiş tarihi ekle</string>
  <string name="enddatesensor">"Sensör bitiş tarihi"</string>
  <string name="open">Aç</string>
+ <string name="copy">Kopyala</string>
  <string name="share">Paylaş</string>
  <string name="withoutsensor">Sensör olmadan</string>
  <string name="wronglibrary">Kütüphane düzgün çalışmıyor, farklı bir tane deneyin.</string>
