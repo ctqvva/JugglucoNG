@@ -255,7 +255,7 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun localSignalingWinnerCancelsRemoteGenerationWatchAndLateResponses() {
+    fun localSignalingWinnerKeepsPeerGenerationWatchAndRejectsLateResponses() {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
         val applyDescription = ice.substring(
@@ -271,7 +271,9 @@ class CloneReceptionSafetyTests {
             generationWatch.indexOf("if(code==400)"),
         )
 
-        assertTrue(applyDescription.contains("if(fromLocalNetwork) { con->cancelRendezvous(); con->cancelGenerationWatch(); }"))
+        assertTrue(applyDescription.contains("if(fromLocalNetwork) { con->cancelRendezvous(); }"))
+        assertFalse(applyDescription.contains("con->cancelGenerationWatch();"))
+        assertFalse(generationWatch.contains("con->isConnected.load()"))
         assertTrue(afterGenerationRequest.contains("cancellation&&cancellation->load(std::memory_order_acquire)"))
     }
 
