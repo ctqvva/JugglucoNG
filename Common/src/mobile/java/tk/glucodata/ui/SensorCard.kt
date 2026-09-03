@@ -1845,13 +1845,10 @@ fun SensorCard(
                 color = MaterialTheme.colorScheme.surfaceContainer // Tonal separation
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         // Clean Label-Value rows
@@ -2057,8 +2054,8 @@ fun SensorCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { connectionLogExpanded = !connectionLogExpanded }
-                            .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp),
+                            .heightIn(min = ButtonDefaults.MinHeight)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
@@ -2087,7 +2084,7 @@ fun SensorCard(
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut(),
                     ) {
-                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
                             SensorTraceLog(sensor)
                         }
                     }
