@@ -321,6 +321,7 @@ class AnytimeBleManager(
     @Volatile private var ct5EndCycleWriteConfirmed: Boolean = false
     @Volatile private var ct5EndCycleAccepted: Boolean = false
     @Volatile private var ct5EndCycleBindProbePending: Boolean = false
+    @Volatile private var ct5EndCycleVariantIndex: Int = 0
     @Volatile private var ct5EndCycleInternalDisconnect: Boolean = false
     @Volatile private var ct5EndCycleInternalReconnect: Boolean = false
     private val ct5Random = SecureRandom()
@@ -655,6 +656,7 @@ class AnytimeBleManager(
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
+        ct5EndCycleVariantIndex = 0
         ct5EndCycleInternalReconnect = true
         try {
             softReconnect()
@@ -671,6 +673,7 @@ class AnytimeBleManager(
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
+        ct5EndCycleVariantIndex = 0
         handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
         handler.removeCallbacks(ct5EndCycleReconnectRunnable)
     }
@@ -2287,6 +2290,7 @@ class AnytimeBleManager(
                         ct5EndCycleWriteConfirmed = false
                         ct5EndCycleAccepted = false
                         ct5EndCycleBindProbePending = false
+                        ct5EndCycleVariantIndex = 0
                     }
                     if (!stop) {
                         scheduleReconnect("GATT disconnect status=$status")
@@ -2608,6 +2612,7 @@ class AnytimeBleManager(
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
             AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck(data)
             AnytimeConstants.RX_RESET -> handleCt5BindStateResponse(data)
+            AnytimeConstants.RX_UNBIND_ACK_GENERIC -> handleCt5GenericUnbindAck(data)
             else -> return false
         }
         return true
@@ -2890,6 +2895,22 @@ class AnytimeBleManager(
     }
 
     /**
+     * Answer to the family-less `{0x58, …}` unbind. It arrives on the opcode we
+     * asked with, which would otherwise clear the response slot and leave the
+     * end cycle waiting on a timeout that never fires. Unlike the CT5 ACK this
+     * frame has no documented meaning for this firmware, so it is treated as a
+     * prompt to re-read the bind flag rather than as acceptance.
+     */
+    private fun handleCt5GenericUnbindAck(data: ByteArray) {
+        if (!ct5EndCycleRestartPending) {
+            Log.d(TAG, "Ignoring unsolicited 0x58 response: ${data.joinToHex()}")
+            return
+        }
+        Log.i(TAG, "CT5 answered the generic unbind (${data.joinToHex()}); confirming against its bind flag")
+        sendCt5EndCycleBindProbe()
+    }
+
+    /**
      * CT5 0x11 answer. Only the end-cycle probe asks for one, so an unsolicited
      * frame is logged and otherwise left alone — the CT3-style reset flow does
      * not apply to CT5 and must not be triggered from here.
@@ -2907,7 +2928,17 @@ class AnytimeBleManager(
             return
         }
         if (state.isBound) {
-            failCt5EndCycle("transmitter still reports the session as bound after the unbind")
+            val refused = ct5EndCycleVariants().getOrNull(ct5EndCycleVariantIndex)?.first ?: "unbind"
+            ct5EndCycleVariantIndex++
+            if (ct5EndCycleVariantIndex in ct5EndCycleVariants().indices) {
+                Log.w(
+                    TAG,
+                    "CT5 transmitter still bound after $refused; trying the next known unbind frame"
+                )
+                sendCt5EndCycleUnbind()
+            } else {
+                failCt5EndCycle("transmitter still reports the session as bound after $refused (no frames left to try)")
+            }
             return
         }
         // The unbind landed; the transmitter simply did not answer it. Treat this
@@ -4463,6 +4494,7 @@ class AnytimeBleManager(
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
+        ct5EndCycleVariantIndex = 0
         constatstatusstr = "End cycle failed"
         UiRefreshBus.requestStatusRefresh()
     }
@@ -4490,18 +4522,43 @@ class AnytimeBleManager(
         if (!written) failCt5EndCycle("bind-state probe could not be queued after unacknowledged unbind")
     }
 
+    /**
+     * Unbind frames to try, in order, each confirmed against the transmitter's
+     * own bind flag before the next is attempted.
+     *
+     * The authenticated CT5 frame is the vendor's call path and stays first.
+     * The other two are the SDK's own frames for families whose commands this
+     * firmware has already been observed to answer — it replies to the CT2.5
+     * `lowPower` (`0F 55 AA 0E`) and to the CT2.5 `reset` we use as the bind
+     * probe (`11 55 AA 10`) — so they are worth asking before concluding that
+     * the transmitter cannot be unbound at all. None of them writes
+     * calibration or any other durable setting.
+     */
+    private fun ct5EndCycleVariants(): List<Pair<String, ByteArray>> = listOf(
+        "ct5-endCycle-unbind(user)" to unbindFrame(),
+        "ct5-endCycle-unbindCt2_5" to AnytimeFrames.Builders.unbindSummed(),
+        "ct5-endCycle-unbindGeneric" to AnytimeFrames.Builders.unbindGeneric(),
+    )
+
     private fun sendCt5EndCycleUnbind() {
+        val variants = ct5EndCycleVariants()
+        val index = ct5EndCycleVariantIndex
+        if (index !in variants.indices) {
+            failCt5EndCycle("transmitter refused every known unbind frame")
+            return
+        }
+        val (tag, frame) = variants[index]
         val written = writeFrame(
-            bytes = unbindFrame(),
-            tag = "ct5-endCycle-unbind(user)",
+            bytes = frame,
+            tag = tag,
             expectResponse = true,
             onWritten = {
                 ct5EndCycleWriteConfirmed = true
-                Log.i(TAG, "CT5 authenticated unbind written; waiting for transmitter acknowledgement")
+                Log.i(TAG, "CT5 unbind $tag written (${frame.joinToHex()}); waiting for transmitter acknowledgement")
             },
-            onDropped = { failCt5EndCycle("authenticated unbind dropped") },
+            onDropped = { failCt5EndCycle("$tag dropped") },
         )
-        if (!written) failCt5EndCycle("authenticated unbind could not be queued")
+        if (!written) failCt5EndCycle("$tag could not be queued")
     }
 
     override fun resetSensor(): Boolean {
@@ -4523,6 +4580,7 @@ class AnytimeBleManager(
         ct5EndCycleWriteConfirmed = false
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
+        ct5EndCycleVariantIndex = 0
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(

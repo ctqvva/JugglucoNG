@@ -190,6 +190,15 @@ object AnytimeFrames {
         @JvmStatic
         fun unbindSummed(): ByteArray = withSum(0x0A, 0x55, 0xAA)
 
+        /**
+         * `{0x58, 0x55, 0xAA, 0x57}` — the vendor SDK's family-less
+         * `ProtocolToolsHolder.unBindRequest()`, reached by every device whose
+         * `EGattMessage` has no branch of its own. Not the CT5 call path, but
+         * the firmware may still answer it.
+         */
+        @JvmStatic
+        fun unbindGeneric(): ByteArray = withSum(0x58, 0x55, 0xAA)
+
         /** {0x03, year-1900, mon+1, day, hour, min, sec}. */
         @JvmStatic
         @JvmOverloads
