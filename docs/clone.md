@@ -40,6 +40,13 @@ it. STUN is discovery only. TURN can carry the data stream, but only as a relay.
 For a visual explanation of how the services work together, see
 [ICE, STUN, TURN, and rendezvous in plain language](ice-stun-turn.md).
 
+While Hybrid Clone is connected, the receiver keeps a lightweight HTTPS watch
+open with the rendezvous server. If the sender changes networks, that watch
+notifies the receiver about the sender's new ICE generation without waiting
+for the old path to time out. If the server does not support the watch or is
+temporarily unavailable, Clone falls back to normal ICE failure detection and
+rendezvous polling.
+
 ## Security and privacy
 
 Quick Pair generates a random Clone connection password. The Mirror protocol
