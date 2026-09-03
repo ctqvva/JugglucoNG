@@ -1,7 +1,6 @@
 package tk.glucodata.ui
 
 import android.content.Intent
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,12 +26,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.sp
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -209,6 +214,7 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
     }
 
     val verticalScroll = rememberScrollState()
+    val scrollbarColor = MaterialTheme.colorScheme.onSurfaceVariant
     // Follow the tail, the way a person watching a live log expects.
     LaunchedEffect(rendered) { verticalScroll.animateScrollTo(verticalScroll.maxValue) }
 
@@ -219,11 +225,41 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 220.dp)
+                    .drawWithContent {
+                        drawContent()
+                        val maxScroll = verticalScroll.maxValue
+                        if (maxScroll > 0 && maxScroll != Int.MAX_VALUE) {
+                            val trackHeight = size.height
+                            val thumbHeight = (trackHeight * trackHeight / (trackHeight + maxScroll))
+                                .coerceIn(24.dp.toPx().coerceAtMost(trackHeight), trackHeight)
+                            val thumbTop = (trackHeight - thumbHeight) * verticalScroll.value / maxScroll
+                            val width = 4.dp.toPx()
+                            val left = if (layoutDirection == LayoutDirection.Rtl) 0f else size.width - width
+                            val radius = CornerRadius(width / 2)
+                            drawRoundRect(
+                                color = scrollbarColor.copy(alpha = 0.12f),
+                                topLeft = Offset(left, 0f),
+                                size = Size(width, trackHeight),
+                                cornerRadius = radius,
+                            )
+                            drawRoundRect(
+                                color = scrollbarColor.copy(alpha = 0.65f),
+                                topLeft = Offset(left, thumbTop),
+                                size = Size(width, thumbHeight),
+                                cornerRadius = radius,
+                            )
+                        }
+                    }
                     .verticalScroll(verticalScroll)
-                    .horizontalScroll(rememberScrollState()),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    .padding(end = 12.dp),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    letterSpacing = 0.sp,
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                softWrap = false,
+                softWrap = true,
             )
         }
         Row(
