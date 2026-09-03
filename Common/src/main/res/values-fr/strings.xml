@@ -693,6 +693,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="unbind_sensor">Dissocier le capteur</string>
     <string name="unbind_sensor_desc">Libérer son association afin qu\'un autre appareil puisse s\'y connecter.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Impossible de supprimer le capteur. Il est toujours actif. Réessayez.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="duration_can_t_be_negative">"Duration can't be negative: "</string>
     <string name="enable_bluetooth">Enable Bluetooth</string>
@@ -741,6 +742,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="isdisconnected">Disconnected</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Supprimer l’historique de glycémie</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Dernière erreur BLE</string>
@@ -864,6 +866,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="select_export_format">Select Export Format</string>
     <string name="sendfrom">"Send from: "</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Index du capteur</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_not_init">Sensor not initialized. Use \'Scan Sensor\' first.</string>

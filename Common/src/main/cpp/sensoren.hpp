@@ -33,6 +33,8 @@ using namespace std;
 // char sensorid[]="E007-0M0063KNUJ0";
 // #define sensorid "E007-0M0063KNUJ0"xxxxxx
 inline constexpr const int sensornamelen = 16;
+inline constexpr const uint8_t sensorFinished = 1;
+inline constexpr const uint8_t sensorRemovedByUser = 2;
 #include "gltype.hpp"
 class SensorGlucoseData;
 inline constexpr const uint16_t LISTEND = 0xFFFF;
@@ -50,6 +52,20 @@ struct sensor {
   //   uint8_t reserved[4];
   uint16_t next;
   uint16_t prev;
+  bool wasRemovedByUser() const { return finished == sensorRemovedByUser; }
+  void markFinished() {
+    if (!wasRemovedByUser())
+      finished = sensorFinished;
+  }
+  void markRemovedByUser() { finished = sensorRemovedByUser; }
+  bool reactivateFromData() {
+    if (wasRemovedByUser())
+      return false;
+    const bool changed = finished != 0;
+    finished = 0;
+    return changed;
+  }
+  void reactivateExplicitly() { finished = 0; }
   size_t fulllen() const { return strnlen(name, sensornamelen); }
   std::string_view fullname() const { return {name, fulllen()}; }
   const char *shortsensorname_chars() const {
@@ -416,9 +432,9 @@ public:
     if (name.empty()) {
       return nullptr;
     }
-    int ind = sensorindex(name.data());
+    int ind = sensorindex(name);
     if (ind < 0) {
-      ind = sensorindexshort(name.data());
+      ind = sensorindexshort(name);
     }
     if (ind < 0) {
       ind = addsensor(name, minimumPollRecords);
@@ -477,7 +493,7 @@ public:
       sensorlist()[ind].starttime = hist[ind]->getstarttime();
     }
     sensorlist()[ind].present = 1;
-    sensorlist()[ind].finished = 0;
+    sensorlist()[ind].reactivateFromData();
     return hist[ind];
   }
   const sensor *getsensor(const int ind) const { return sensorlist() + ind; }
@@ -523,7 +539,10 @@ public:
            ctime(&tim));
 #endif
 
-    if (sensor *sensgegs = findsensorm(name.data())) {
+    // longsensorname_t is exactly 16 bytes and has no trailing NUL. Keep the
+    // lookup bounded so rescanning a known sensor reuses its existing slot.
+    if (sensor *sensgegs =
+            findsensorm(std::string_view(name.data(), name.size()))) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
@@ -609,7 +628,8 @@ public:
     std::copy_n(pin, 4, name.data() + 12);
     LOGGER("makeDexComSensorindex %s name=%.16s\n", pin, name.data());
     removeunused();
-    if (sensor *sensgegs = findsensorm(name.data())) {
+    if (sensor *sensgegs =
+            findsensorm(std::string_view(name.data(), name.size()))) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
@@ -676,7 +696,7 @@ private:
     LOGGER("AccuChek %.11s %.16s expiration year %.2s month %.2s day %.2s\n",
            accu->name, name.data(), accu->exYear, accu->exMonth, accu->exDay);
 #endif
-    if (sensor *sensgegs = findsensorm(name.data())) {
+    if (sensor *sensgegs = findsensorm(name)) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
@@ -732,7 +752,7 @@ public:
     const auto name = namefromSIgegs(gegsSI.data(), gegsSI.size(), hasnum);
 
     removeunused();
-    if (sensor *sensgegs = findsensorm(name.data())) {
+    if (sensor *sensgegs = findsensorm(name)) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
@@ -768,8 +788,7 @@ public:
     return getSensorData(sensindex);
   }
 #endif
-  const sensor *findsensor(const char *name) const {
-    const std::string_view wanted(name);
+  const sensor *findsensor(const std::string_view wanted) const {
     const sensor *end = sensorlist() + last() + 1;
     const sensor *sens =
         find_if(sensorlist(), end, [wanted](const sensor &sens) -> bool {
@@ -780,8 +799,13 @@ public:
     return sens;
   }
 
-  const sensor *findsensorshort(const char *name) const {
-    const std::string_view wanted(name);
+  const sensor *findsensor(const char *name) const {
+    if (!name)
+      return nullptr;
+    return findsensor(std::string_view(name));
+  }
+
+  const sensor *findsensorshort(const std::string_view wanted) const {
     const sensor *end = sensorlist() + last() + 1;
     const sensor *sens =
         find_if(sensorlist(), end, [wanted](const sensor &sens) -> bool {
@@ -798,9 +822,35 @@ public:
     return sens;
   }
 
+  const sensor *findsensorshort(const char *name) const {
+    if (!name)
+      return nullptr;
+    return findsensorshort(std::string_view(name));
+  }
+
   sensor *findsensorm(const char *name) {
     const sensor *sens = findsensor(name);
     return const_cast<sensor *>(sens);
+  }
+
+  sensor *findsensorm(const std::string_view name) {
+    const sensor *sens = findsensor(name);
+    return const_cast<sensor *>(sens);
+  }
+
+  vector<int> sensorindices(const std::string_view wanted) const {
+    vector<int> out;
+    if (wanted.empty())
+      return out;
+    const bool fullNameOnly = wanted.rfind("X-", 0) == 0;
+    for (int index = 0; index <= last(); ++index) {
+      const sensor &sens = sensorlist()[index];
+      if (sens.fullname() == wanted ||
+          (!fullNameOnly && sens.shortsensorname_view() == wanted)) {
+        out.push_back(index);
+      }
+    }
+    return out;
   }
 
   int sensorindex(const char *name) const {
@@ -810,7 +860,21 @@ public:
     return sens - sensorlist();
   }
 
+  int sensorindex(const std::string_view name) const {
+    const sensor *sens = findsensor(name);
+    if (!sens)
+      return -1;
+    return sens - sensorlist();
+  }
+
   int sensorindexshort(const char *name) const {
+    const sensor *sens = findsensorshort(name);
+    if (!sens)
+      return -1;
+    return sens - sensorlist();
+  }
+
+  int sensorindexshort(const std::string_view name) const {
     const sensor *sens = findsensorshort(name);
     if (!sens)
       return -1;
@@ -1093,12 +1157,18 @@ public:
   }
   void finishsensor(int ind) {
     if (ind >= 0 && ind <= last()) {
-      sensorlist()[ind].finished = 1;
+      sensorlist()[ind].markFinished();
     }
+  }
+  bool removesensor(int ind) {
+    if (ind < 0 || ind > last())
+      return false;
+    sensorlist()[ind].markRemovedByUser();
+    return true;
   }
   void unfinishsensor(int ind) {
     if (ind >= 0 && ind <= last()) {
-      sensorlist()[ind].finished = 0;
+      sensorlist()[ind].reactivateExplicitly();
     }
   }
   template <typename F> bool checkinfo(const int ind, uint32_t nu, F dont) {
@@ -1128,7 +1198,7 @@ public:
         } else {
           LOGGER("%s finished was %d set to 1\n", sensorlist()[ind].name,
                  sensorlist()[ind].finished);
-          sensorlist()[ind].finished = 1;
+          sensorlist()[ind].markFinished();
         }
       }
       sensorlist()[ind].endtime = thishist->lastused();
@@ -1233,7 +1303,7 @@ public:
       LOGGER("sensor %d has no starttime and no readable history; marking inactive\n",
              ind);
       sens.present = 0;
-      sens.finished = 1;
+      sens.markFinished();
       return false;
     }
 
@@ -1253,7 +1323,7 @@ public:
       if (!hist->pollcount() && !hist->scancount()) {
         LOGGER("sensor %d has no starttime and no data; marking inactive\n", ind);
         sens.present = 0;
-        sens.finished = 1;
+        sens.markFinished();
       }
       return false;
     }
@@ -1283,7 +1353,7 @@ public:
           if (!hist) {
             if (!sensor.starttime) {
               sensor.present = 0;
-              sensor.finished = 1;
+              sensor.markFinished();
             } else {
               LOGSTRING("hist==null\n");
             }

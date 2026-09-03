@@ -329,9 +329,8 @@ jlong SiContext::processData(SensorGlucoseData *sens, time_t nowsecs,
           sens->exitResetMode();
         }
         sens->sensorerror = false;
-        if (sensor->finished) {
-          sensor->finished = 0;
-          LOGGER("SIprocess finished=%d\n", sensor->finished);
+        if (sensor->finished && sensor->reactivateFromData()) {
+          LOGSTRING("SIprocess finished becomes 0\n");
           backup->resensordata(sensorindex);
         }
         auto res = glucoseback(eventTime, mgdL, change, sens);

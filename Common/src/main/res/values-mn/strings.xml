@@ -589,6 +589,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Sensor Management Strings -->
     <string name="disconnect_sensor_title">Мэдрэгчийг салгах уу?</string>
     <string name="disconnect_sensor_desc">Энэ нь мэдрэгчийн сессийг бүрмөсөн зогсооно.</string>
+    <string name="disconnect_sensor_failed">Мэдрэгчийг устгаж чадсангүй. Энэ нь идэвхтэй хэвээр байна. Дахин оролдоно уу.</string>
     <string name="disconnect_sensor_aidex_desc">Мэдрэгчийг энэ төхөөрөмжөөс устгана. Түүний түүх боломжтой хэвээр үлдэнэ.</string>
     <string name="unbind_sensor">Мэдрэгчийг хослолтоос салгах</string>
     <string name="unbind_sensor_desc">Хослолыг чөлөөлж, өөр төхөөрөмжид холбох боломжтой болгоно.</string>
@@ -598,6 +599,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wipe_data">Мэдрэгчийн өгөгдлийг цэвэрлэх</string>
     <string name="disconnect">Салгах</string>
     <string name="keep_data">Мэдрэгчийн мэдээллийг үлдээх</string>
+    <string name="remove_sensor_history">Глюкозын түүхийг устгах</string>
     <string name="reconnect_sensor_title">Мэдрэгчийг дахин холбох уу?</string>
     <string name="reconnect_sensor_desc">Энэ нь холболтыг дахин тохируулж, холбогдохыг оролдоно.</string>
     <string name="reconnect">Дахин холбох</string>
@@ -616,6 +618,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="last_ble_status">Сүүлчийн BLE төлөв</string>
     <string name="last_ble_error">Сүүлийн BLE алдаа</string>
     <string name="sensor_address">Хаяг</string>
+    <string name="sensor_index">Мэдрэгчийн индекс</string>
     <string name="sensor_started">Эхэлсэн</string>
     <string name="sensor_ends_officially">Албан ёсоор дуусах</string>
     <string name="sensor_expected_end">Хүлээгдэж буй дуусах хугацаа</string>

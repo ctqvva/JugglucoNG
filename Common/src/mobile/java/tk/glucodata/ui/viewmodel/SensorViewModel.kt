@@ -12,6 +12,7 @@ import tk.glucodata.Applic
 import tk.glucodata.BleErrorEvent
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.MultiSensorSelection
+import tk.glucodata.NativeSensorTermination
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorHandoffUiState
@@ -98,6 +99,7 @@ data class SensorInfo(
     val isSelectedForDisplay: Boolean = false,
     val assignedColorArgb: Int = SensorVisuals.colorArgb(serial),
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
+    val sensorIndex: Int = -1,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -363,6 +365,13 @@ class SensorViewModel : ViewModel() {
                 Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
             SensorHandoffUiState.NONE -> null
         }
+        val sensorIndex = runCatching {
+            if (snapshot.dataptr != 0L) {
+                Natives.getSensorIndexFromDataPtr(snapshot.dataptr)
+            } else {
+                Natives.getSensorIndex(snapshot.serial)
+            }
+        }.getOrDefault(-1)
         return SensorInfo(
             serial = snapshot.serial,
             displayName = snapshot.displayName
@@ -417,6 +426,7 @@ class SensorViewModel : ViewModel() {
             resetCompensationActive = snapshot.resetCompensationActive,
             resetCompensationStatus = snapshot.resetCompensationStatus,
             handoffUiState = handoffUiState,
+            sensorIndex = sensorIndex,
         )
     }
 
@@ -576,6 +586,7 @@ class SensorViewModel : ViewModel() {
                             ?: persistedBleErrors.firstOrNull {
                                 SensorIdentity.matches(it.sensorId, sensorSerial)
                             }.takeIf { isActivelyReceiving }
+                        val sensorIndex = Natives.getSensorIndexFromDataPtr(gatt.dataptr)
                         val currentViewMode = nativeViewMode
                         val isActiveSensor = activeSensorSerial != null && SensorIdentity.matches(sensorSerial, activeSensorSerial)
     
@@ -607,6 +618,7 @@ class SensorViewModel : ViewModel() {
                             detailedStatus = displayStatus,
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
+                            sensorIndex = sensorIndex,
                         )
                     }
                 } catch (e: Exception) {
@@ -835,25 +847,35 @@ class SensorViewModel : ViewModel() {
         }
     }
 
-    // "Disconnect" in UI now maps to "Terminate" (finishSensor) as requested.
-    // Edit 39c: Guard ALL JNI calls with dataptr != 0 check. For AiDex sensors,
-    // route through forgetVendor() which handles vendor stack, BLE bond, and key cleanup
-    // without touching libg.so native code (which crashes with SIGSEGV on null dataptr).
-    // Edit 54a: For both AiDex and legacy, stop BLE processing BEFORE finishSensor()
-    // to prevent race where incoming BLE notification resets finished=0 via processchanged().
-    // Sequence: setPause(true) → disconnect() → finishSensor() → sensorEnded().
-    fun terminateSensor(serial: String, wipeData: Boolean = false) {
-        // Edit 56b: Switch lastsensorname away BEFORE teardown to prevent Notify.java
-        // from calling getdataptr on the finished sensor during the teardown window
-        switchAwayFromSensor(serial)
+    private fun removeNativeSensor(serial: String): Boolean {
+        val result = NativeSensorTermination.removeAndConfirm(serial)
+        if (result != NativeSensorTermination.Result.CONFIRMED) {
+            android.util.Log.e(
+                "SensorViewModel",
+                "Native termination of $serial was not confirmed: $result",
+            )
+        }
+        return result == NativeSensorTermination.Result.CONFIRMED
+    }
+
+    // A sensor leaves the UI only after its durable source of truth has been removed. Bluetooth
+    // transport shutdown is best-effort and cannot skip or masquerade as native termination.
+    fun terminateSensor(serial: String, wipeData: Boolean = false): Boolean {
+        var removed = false
         val gatt = findGatt(serial)
         if (gatt != null) {
-            try {
-                if (gatt is ManagedBluetoothSensorDriver) {
+            if (gatt is ManagedBluetoothSensorDriver) {
+                try {
                     gatt.terminateManagedSensor(wipeData)
                     gatt.removeManagedPersistence(tk.glucodata.Applic.app)
+                    switchAwayFromSensor(serial)
                     SensorBluetooth.sensorEnded(serial)
-                } else if (gatt is tk.glucodata.drivers.aidex.AiDexDriver) {
+                    removed = true
+                } catch (t: Throwable) {
+                    android.util.Log.e("SensorViewModel", "terminateSensor($serial) managed removal failed: ${t.message}", t)
+                }
+            } else if (gatt is tk.glucodata.drivers.aidex.AiDexDriver) {
+                try {
                     // AiDex: never call Sibionics wipe JNI here.
                     // If wipeData=true, forceDeleteSensorDirectory() below handles local AiDex files.
                     if (wipeData) {
@@ -862,110 +884,90 @@ class SensorViewModel : ViewModel() {
                     try { gatt.forgetVendor() } catch (t: Throwable) {
                         android.util.Log.e("SensorVM", "terminateSensor AiDex forgetVendor failed: ${t.message}")
                     }
-                    // Edit 54a: Set finished=1 in native so bluetoothactive() skips this sensor
-                    if (gatt.dataptr != 0L) {
-                        try { gatt.finishSensor() } catch (t: Throwable) {
-                            android.util.Log.e("SensorVM", "terminateSensor AiDex finishSensor failed: ${t.message}")
-                        }
-                    }
                     try { gatt.close() } catch (t: Throwable) {
                         android.util.Log.e("SensorVM", "terminateSensor AiDex close failed: ${t.message}")
                     }
-                    // Edit 56a: Remove from SharedPreferences BEFORE sensorEnded to prevent
-                    // updateDevicers() from re-adding it to gattcallbacks
-                    removeAiDexFromPrefs(serial)
-                    SensorBluetooth.sensorEnded(serial)
-                } else {
-                    // Legacy sensors: native finishSensor path
-                    // Edit 54a: Stop BLE processing first to prevent race
-                    gatt.setPause(true)
-                    gatt.disconnect()
+                    if (removeNativeSensor(gatt.SerialNumber ?: serial)) {
+                        // Remove from SharedPreferences before sensorEnded so updateDevices()
+                        // cannot reconstruct the callback.
+                        removeAiDexFromPrefs(serial)
+                        switchAwayFromSensor(serial)
+                        SensorBluetooth.sensorEnded(serial)
+                        removed = true
+                    }
+                } catch (t: Throwable) {
+                    android.util.Log.e("SensorViewModel", "terminateSensor($serial) AiDex removal failed: ${t.message}", t)
+                }
+            } else {
+                // Closing the GATT transport prevents a late notification from reactivating a
+                // sensor after its native finished flag has been written. It deliberately keeps
+                // dataptr alive until sensorEnded() runs after confirmation.
+                try { gatt.setPause(true) } catch (t: Throwable) {
+                    android.util.Log.e("SensorViewModel", "terminateSensor($serial) pause failed: ${t.message}", t)
+                }
+                try { gatt.closeGattTransport() } catch (t: Throwable) {
+                    android.util.Log.e("SensorViewModel", "terminateSensor($serial) GATT close failed: ${t.message}", t)
+                }
+                try {
                     if (wipeData && gatt.dataptr != 0L) {
                         wipeSibionicsDataIfNeeded(gatt, "terminate/wipe")
                     }
-                    gatt.finishSensor()
-                    SensorBluetooth.sensorEnded(serial)
+                } catch (t: Throwable) {
+                    android.util.Log.e("SensorViewModel", "terminateSensor($serial) data wipe failed: ${t.message}", t)
                 }
-            } catch (t: Throwable) {
-                android.util.Log.e("SensorViewModel", "terminateSensor($serial) crashed: ${t.message}", t)
-                // Still try to clean up
-                try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
+                if (removeNativeSensor(gatt.SerialNumber ?: serial)) {
+                    switchAwayFromSensor(serial)
+                    SensorBluetooth.sensorEnded(serial)
+                    removed = true
+                }
             }
         } else {
-            // A managed record can still exist after a bad restore/update even if
-            // its live callback is gone or has already promoted to another id.
+            // A missing callback must not prevent a native sensor from being finished by name.
+            // If no native record exists, clean up a possible orphaned managed record instead.
             try {
-                ManagedSensorIdentityRegistry.removePersistedSensor(tk.glucodata.Applic.app, serial)
+                val wasPersisted = ManagedSensorIdentityRegistry
+                    .persistedSensorIds(tk.glucodata.Applic.app)
+                    .any { SensorIdentity.matches(it, serial) }
+                if (wasPersisted) {
+                    ManagedSensorIdentityRegistry.removePersistedSensor(tk.glucodata.Applic.app, serial)
+                    val stillPersisted = ManagedSensorIdentityRegistry.persistedSensorIds(tk.glucodata.Applic.app)
+                        .any { SensorIdentity.matches(it, serial) }
+                    if (!stillPersisted) {
+                        switchAwayFromSensor(serial)
+                        try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
+                        removed = true
+                    }
+                } else if (removeNativeSensor(serial)) {
+                    switchAwayFromSensor(serial)
+                    try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
+                    removed = true
+                }
             } catch (t: Throwable) {
-                android.util.Log.e("SensorViewModel", "terminateSensor($serial) managed persistence cleanup failed: ${t.message}", t)
+                android.util.Log.e("SensorViewModel", "terminateSensor($serial) callback-free removal failed: ${t.message}", t)
             }
-            try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
         }
 
-        // Force delete AFTER stopping everything and native wipe, to ensure no recreating happens
-        if (wipeData) {
+        // Delete local files only after the durable sensor record is confirmed inactive.
+        if (removed && wipeData) {
             forceDeleteSensorDirectory(serial)
         }
 
-        refreshSensors()
+        refreshSensorsWithDeviceSync()
+        return removed
     }
 
     // Edit 54b: Also mark sensor finished in native so bluetoothactive() won't return it
     // and cause re-creation in updateDevicers(). Stop BLE processing first to prevent race.
-    fun forgetSensor(serial: String) {
-        // Edit 56b: Switch lastsensorname away first
-        switchAwayFromSensor(serial)
+    fun forgetSensor(serial: String): Boolean {
         val gatt = findGatt(serial)
-        if (gatt != null) {
-            if (gatt is ManagedBluetoothSensorDriver) {
-                try {
-                    gatt.terminateManagedSensor(wipeData = false)
-                    gatt.removeManagedPersistence(tk.glucodata.Applic.app)
-                } catch (t: Throwable) {
-                    android.util.Log.e("SensorViewModel", "forgetSensor($serial) managed teardown crashed: ${t.message}", t)
-                }
-                try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
-                try { SensorBluetooth.startscan() } catch (_: Throwable) {}
-                refreshSensors()
-                return
-            }
-            // Edit 38e: Wrap in try/catch to prevent crashes when GATT or vendor state
-            // is already torn down. The forgetVendor→stopVendor→close chain can crash if
-            // called from the UI thread while native lib is mid-operation.
-            try {
-                // AiDex: stop vendor stack, remove BLE bond, wipe saved AES keys
-                if (gatt is tk.glucodata.drivers.aidex.AiDexDriver) {
-                    gatt.forgetVendor()
-                }
-            } catch (t: Throwable) {
-                android.util.Log.e("SensorViewModel", "forgetSensor($serial) forgetVendor crashed: ${t.message}", t)
-            }
-            // Stop BLE processing and mark finished before removing from Java lists
-            try {
-                gatt.setPause(true)
-                gatt.disconnect()
-                if (gatt.dataptr != 0L) {
-                    gatt.finishSensor()
-                }
-            } catch (t: Throwable) {
-                android.util.Log.e("SensorViewModel", "forgetSensor($serial) finishSensor crashed: ${t.message}", t)
-            }
-            if (gatt !is tk.glucodata.drivers.aidex.AiDexDriver) {
-                clearSibionicsTransmitterBinding(gatt, "forget")
-            }
-            try {
-                gatt.close()
-            } catch (t: Throwable) {
-                android.util.Log.e("SensorViewModel", "forgetSensor($serial) close crashed: ${t.message}", t)
-            }
+        if (gatt != null && gatt !is ManagedBluetoothSensorDriver &&
+            gatt !is tk.glucodata.drivers.aidex.AiDexDriver
+        ) {
+            clearSibionicsTransmitterBinding(gatt, "forget")
         }
-        // Edit 56a: Remove from SharedPreferences BEFORE sensorEnded
-        removeAiDexFromPrefs(serial)
-        // Properly notify system that sensor is ended/removed from list
-        try { SensorBluetooth.sensorEnded(serial) } catch (_: Throwable) {}
-        // Restart scanning so the system can find new sensors
-        try { SensorBluetooth.startscan() } catch (_: Throwable) {}
-        refreshSensors()
+        val removed = terminateSensor(serial, wipeData = false)
+        if (removed) try { SensorBluetooth.startscan() } catch (_: Throwable) {}
+        return removed
     }
 
     fun resetSensor(serial: String, enableBiasCompensation: Boolean = false) {

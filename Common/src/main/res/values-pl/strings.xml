@@ -801,6 +801,7 @@
     <string name="unbind_sensor">Usuń powiązanie czujnika</string>
     <string name="unbind_sensor_desc">Zwolnij powiązanie, aby można było połączyć czujnik z innym urządzeniem.</string>
     <string name="disconnect_sensor_desc">This will permanently stop the sensor session.</string>
+    <string name="disconnect_sensor_failed">Nie udało się usunąć sensora. Nadal jest aktywny. Spróbuj ponownie.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Wpisuj wartości na</string>
@@ -829,6 +830,7 @@
     <string name="isdisconnected">Odłączony</string>
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
+    <string name="remove_sensor_history">Usuń historię glukozy</string>
     <string name="last">"Ostatni: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Ostatni błąd BLE</string>
@@ -924,6 +926,7 @@
     <string name="scan_accuchek">Zeskanuj Accu-Chek</string>
     <string name="scan_caresens_air">Zeskanuj CareSens Air</string>
     <string name="sensor_address">Address</string>
+    <string name="sensor_index">Indeks sensora</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>

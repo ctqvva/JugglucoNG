@@ -326,14 +326,35 @@ public class bluediag {
     MainActivity activity;
     static private int gattselected = 0;
 
+    private void restoreAfterFailedFinish(SuperGattCallback gatt) {
+        try {
+            gatt.setPause(false);
+            gatt.connectDevice(0L);
+        } catch (Throwable throwable) {
+            Log.stack(LOG_ID, "Could not restore " + gatt.SerialNumber + " after failed finish", throwable);
+        }
+    }
+
     void confirmFinish(SuperGattCallback gat) {
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         String serial = gat.SerialNumber;
         builder.setTitle(serial).setMessage(R.string.finishsensormessage)
                 .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
-                        gat.finishSensor();
-                        SensorBluetooth.sensorEnded(serial);
+                        try {
+                            gat.setPause(true);
+                            gat.closeGattTransport();
+                        } catch (Throwable throwable) {
+                            Log.stack(LOG_ID, "Could not finish " + serial, throwable);
+                        }
+                        final NativeSensorTermination.Result result =
+                                NativeSensorTermination.removeAndConfirm(serial);
+                        if (result == NativeSensorTermination.Result.CONFIRMED) {
+                            SensorBluetooth.sensorEnded(serial);
+                        } else {
+                            restoreAfterFailedFinish(gat);
+                            Applic.Toaster(activity.getString(R.string.disconnect_sensor_failed));
+                        }
                         activity.requestRender();
                         activity.doonback();
                         bluediag.start(activity);

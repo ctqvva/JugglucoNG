@@ -467,6 +467,7 @@
     <!-- Sensor Management Strings -->
     <string name="disconnect_sensor_title">Отключить датчик?</string>
     <string name="disconnect_sensor_desc">Это навсегда остановит сессию датчика.</string>
+    <string name="disconnect_sensor_failed">Не удалось удалить датчик. Он остается активным. Повторите попытку.</string>
     <string name="disconnect_sensor_aidex_desc">Сенсор будет удалён с этого устройства. Его история останется доступной.</string>
     <string name="unbind_sensor">Отвязать сенсор</string>
     <string name="unbind_sensor_desc">Освободить сопряжение, чтобы сенсор можно было подключить к другому устройству.</string>
@@ -476,6 +477,7 @@
     <string name="wipe_data">Стереть данные</string>
     <string name="disconnect">Отключить</string>
     <string name="keep_data">Оставить информацию о датчике</string>
+    <string name="remove_sensor_history">Удалить историю глюкозы</string>
 
     <string name="reconnect_sensor_title">Переподключить датчик?</string>
     <string name="reconnect_sensor_desc">Это сбросит соединение и попытается подключиться снова.</string>
@@ -498,6 +500,7 @@
     <string name="last_ble_status">Статус BLE</string>
     <string name="last_ble_error">Последняя ошибка BLE</string>
     <string name="sensor_address">Адрес</string>
+    <string name="sensor_index">Индекс датчика</string>
     <string name="sensor_started">Запущен</string>
     <string name="sensor_ends_officially">Офиц. окончание</string>
     <string name="sensor_expected_end">Ожид. окончание</string>
