@@ -57,18 +57,36 @@ internal class AnytimeCt5RawScale(
         this.scale = scale
     }
 
+    /** True once this sensor has taught us its own scale, rather than the family default. */
+    val isLearned: Boolean get() = scale.isFinite()
+
+    /** The scale in use: this sensor's if known, otherwise the CT5 family figure. */
+    val effectiveScale: Float get() = if (scale.isFinite()) scale else DEFAULT_SCALE
+
     /**
-     * Estimated mg/dL for a current the transmitter did not compute for, or [Float.NaN]
-     * when no scale has been established or the current is not usable.
+     * mg/dL for a current the transmitter did not compute for.
+     *
+     * Never withheld for want of a learned scale. A raw lane exists to show what the
+     * electrode measured, and refusing to convert until a calibration has been learned
+     * leaves the user with a sensor that reports nothing at all -- which is the state a
+     * terminated CT5 is already in. The family default is used until this sensor teaches
+     * us better; it is a real measured figure, not a placeholder.
      */
     fun estimateMgdl(iwNa: Float): Float {
-        val s = scale
-        if (!s.isFinite() || !iwNa.isFinite() || iwNa < MIN_USABLE_IW) return Float.NaN
-        val mgdl = s * iwNa
+        if (!iwNa.isFinite() || iwNa < MIN_USABLE_IW) return Float.NaN
+        val mgdl = effectiveScale * iwNa
         return if (mgdl in MIN_ESTIMATE_MGDL..MAX_ESTIMATE_MGDL) mgdl else Float.NaN
     }
 
     companion object {
+        /**
+         * mg/dL per nA for a CT5 with nothing learned yet. Measured over 1451
+         * vendor-computed readings of a full 17-day life: the settled phase after day 6
+         * runs 12.9-14.9 and the whole-life mean is 13.8. Every sensor's own scale
+         * replaces this as soon as one can be learned.
+         */
+        const val DEFAULT_SCALE = 13.3f
+
         /** ~4 days at the 3-minute cadence, the window the out-of-sample tests used. */
         const val DEFAULT_WINDOW = 2000
 

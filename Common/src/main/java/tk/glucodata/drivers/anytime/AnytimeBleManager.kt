@@ -1619,11 +1619,20 @@ class AnytimeBleManager(
      * the next live push to learn how far behind we are.
      */
     private fun ct5ExpectedCurrentId(): Int {
+        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
+        if (intervalMs <= 0L) return -1
+        // A live frame states the transmitter's current id outright. The clock-derived
+        // estimate below only stands in for ids missed while disconnected, and it runs
+        // away from reality the moment the sensor stops advancing: a CT5 frozen at its
+        // final id after INFO_COMPLETE_END still receives frames, so "expected" climbed
+        // past 8175 forever and the repair hunted 8214..8228, 8229..8243 and onwards --
+        // ids that never existed. Each attempt cost a GATT session and eventually marked
+        // history unhealthy, which blocked every other pull.
+        val liveAgeMs = if (lastLiveFrameAtMs > 0L) System.currentTimeMillis() - lastLiveFrameAtMs else Long.MAX_VALUE
+        if (liveAgeMs in 0..(intervalMs * 2)) return lastGlucoseId
         val startMs = glucoseTimelineStartAtMs.takeIf { it > 0L }
             ?: sensorStartAtMs.takeIf { it > 0L }
             ?: return -1
-        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
-        if (intervalMs <= 0L) return -1
         val elapsed = System.currentTimeMillis() - startMs
         if (elapsed < 0L) return -1
         return (elapsed / intervalMs).toInt()
@@ -3610,12 +3619,12 @@ class AnytimeBleManager(
             TAG,
             String.format(
                 Locale.US,
-                "CT5 estimated id=%d %.0f mg/dL from Iw=%.2fnA (scale %.2f from %d readings, err=%d)",
+                "CT5 raw id=%d %.0f mg/dL from Iw=%.2fnA (scale %.2f %s, err=%d)",
                 record.glucoseId,
                 estimate,
                 record.iwNa,
-                ct5RawScale.scale,
-                ct5RawScale.samples,
+                ct5RawScale.effectiveScale,
+                if (ct5RawScale.isLearned) "learned from ${ct5RawScale.samples} readings" else "CT5 default",
                 record.errorCode,
             ),
         )

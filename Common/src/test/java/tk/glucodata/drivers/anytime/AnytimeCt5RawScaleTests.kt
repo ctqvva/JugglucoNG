@@ -19,11 +19,24 @@ class AnytimeCt5RawScaleTests {
         }
 
     @Test
-    fun noEstimateUntilEnoughOfAWindowHasBeenSeen() {
+    fun rawValuesAreProducedBeforeAnythingHasBeenLearned() {
         val s = scaleFrom(lastGoodPairs, repeats = 4) // 32 samples
 
+        // The learned scale is withheld until a window justifies it...
         assertTrue(s.scale.isNaN())
-        assertTrue("must not guess from a handful of points", s.estimateMgdl(7.0f).isNaN())
+        assertFalse(s.isLearned)
+        // ...but the raw lane still converts, on the family figure. A sensor that
+        // reports nothing at all is the failure this exists to prevent.
+        assertEquals(AnytimeCt5RawScale.DEFAULT_SCALE, s.effectiveScale, 0.001f)
+        assertEquals(7.0f * AnytimeCt5RawScale.DEFAULT_SCALE, s.estimateMgdl(7.0f), 0.5f)
+    }
+
+    @Test
+    fun theSensorsOwnScaleReplacesTheFamilyDefault() {
+        val s = scaleFrom(lastGoodPairs, repeats = 40)
+
+        assertTrue(s.isLearned)
+        assertEquals(13.26f, s.effectiveScale, 0.05f)
     }
 
     @Test
