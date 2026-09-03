@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 
 import androidx.compose.material.icons.filled.AccessTime
+import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.Notify
 import tk.glucodata.R
@@ -159,6 +160,23 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
+
+// Restored from 2ba70d923 + d18e1b57b; the merge of PR #234 dropped these along with the
+// timestamped BLE-error row that used them, but kept BleErrorDetailTests, so
+// the whole mobile unit-test task stopped compiling. The row itself is not
+// restored here — whether the sensor connection log supersedes it is a UI
+// decision, and `connectionStatusAtMs` is still carried by SensorViewModel
+// either way.
+internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? {
+    if (eventAtMs <= 0L) return null
+    val clamped = eventAtMs.coerceAtMost(nowMs)
+    return clamped.takeIf { nowMs - it <= BLE_ERROR_CARD_WINDOW_MS }
+}
+
+internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
+    val age = relativeAge?.toString()?.trim().orEmpty()
+    return if (age.isEmpty()) status else "$status · $age"
+}
 
 private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
