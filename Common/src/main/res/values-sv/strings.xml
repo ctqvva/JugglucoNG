@@ -631,6 +631,10 @@
     <string name="notification_dismiss_action_summary">Svep bort eller stäng aviseringar</string>
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
+    <string name="same_direction_suppression_title">Tyst period efter larm i samma riktning</string>
+    <string name="same_direction_suppression_summary">Efter ett fallande eller stigande larm är andra larm i samma riktning tysta så här länge. Lågt, mycket lågt och mycket högt larmar alltid.</string>
+    <string name="acknowledged_high_coverage_title">Bekräftade stigningslarm täcker ”Högt”</string>
+    <string name="acknowledged_high_coverage_summary">När du avfärdar eller skjuter upp ”Stiger snabbt”, ”Förutspått högt” eller ”Högt” är de andra larmen tysta under tiden ovan. ”Mycket högt” larmar alltid.</string>
     <string name="alarm_return_to_previous_app_title">Återgå till föregående app efter larm</string>
     <string name="alarm_return_to_previous_app_summary">Efter ett helskärmslarm, gå tillbaka till appen du använde i stället för att öppna JugglucoNG</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>

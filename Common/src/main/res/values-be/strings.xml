@@ -621,6 +621,10 @@
     <string name="notification_dismiss_action_summary">Змахванне або закрыццё апавяшчэнняў</string>
     <string name="notification_dismiss_action_dismiss">Закрыць</string>
     <string name="notification_dismiss_action_snooze">Адкласці</string>
+    <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу таго ж кірунку</string>
+    <string name="same_direction_suppression_summary">Пасля сігналу пра падзенне або рост іншыя сігналы таго ж кірунку маўчаць на працягу гэтага часу. Нізкі, вельмі нізкі і вельмі высокі спрацоўваюць заўсёды.</string>
+    <string name="acknowledged_high_coverage_title">Пацверджаныя сігналы росту замяняюць «Высокі»</string>
+    <string name="acknowledged_high_coverage_summary">Пасля адхілення або адкладання сігналу «Хуткі рост», «Прагназаваны высокі» ці «Высокі» іншыя з іх маўчаць на працягу часу вышэй. «Вельмі высокі» спрацоўвае заўсёды.</string>
     <string name="alarm_return_to_previous_app_title">Вяртацца да папярэдняй праграмы пасля сігналу</string>
     <string name="alarm_return_to_previous_app_summary">Пасля поўнаэкраннага сігналу вяртацца да праграмы, якой вы карысталіся, замест адкрыцця JugglucoNG</string>
     <string name="realert_if_not_dismissed">Паўтараць, калі не адхілена</string>

@@ -722,6 +722,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_dismiss_action_summary">Benachrichtigungen wegwischen oder schließen</string>
     <string name="notification_dismiss_action_dismiss">Verwerfen</string>
     <string name="notification_dismiss_action_snooze">Schlummern</string>
+    <string name="same_direction_suppression_title">Ruhezeit nach Alarm gleicher Richtung</string>
+    <string name="same_direction_suppression_summary">Nach einem fallenden oder steigenden Alarm bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
+    <string name="acknowledged_high_coverage_title">Bestätigte Anstiegsalarme decken „Hoch“ ab</string>
+    <string name="acknowledged_high_coverage_summary">Nachdem du „Schnell steigend“, „Hoch vorhergesagt“ oder „Hoch“ verworfen oder pausiert hast, bleiben die anderen für die oben eingestellte Zeit stumm. „Sehr hoch“ meldet sich immer.</string>
     <string name="alarm_return_to_previous_app_title">Nach Alarm zur vorherigen App zurückkehren</string>
     <string name="alarm_return_to_previous_app_summary">Nach einem Vollbild-Alarm zur zuvor geöffneten App zurückkehren, statt JugglucoNG zu öffnen</string>
     <string name="realert_if_not_dismissed">Erneut alarmieren, wenn nicht verworfen</string>

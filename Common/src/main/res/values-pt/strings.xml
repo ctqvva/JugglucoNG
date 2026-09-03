@@ -531,6 +531,10 @@
     <string name="notification_dismiss_action_summary">Deslizar ou fechar notificações</string>
     <string name="notification_dismiss_action_dismiss">Dispensar</string>
     <string name="notification_dismiss_action_snooze">Adiar</string>
+    <string name="same_direction_suppression_title">Período de silêncio após alerta na mesma direção</string>
+    <string name="same_direction_suppression_summary">Após um alerta de descida ou subida, os outros alertas na mesma direção ficam em silêncio durante este tempo. Baixo, muito baixo e muito alto disparam sempre.</string>
+    <string name="acknowledged_high_coverage_title">Alertas de subida confirmados cobrem « Alto »</string>
+    <string name="acknowledged_high_coverage_summary">Depois de dispensar ou adiar « Subida rápida », « Alto previsto » ou « Alto », os outros alertas ficam em silêncio durante o período acima. « Muito alto » dispara sempre.</string>
     <string name="alarm_return_to_previous_app_title">Voltar à app anterior após o alarme</string>
     <string name="alarm_return_to_previous_app_summary">Após um alarme em ecrã inteiro, voltar à app que estava a usar em vez de abrir o JugglucoNG</string>
     <string name="realert_if_not_dismissed">Alertar novamente se nao descartado</string>

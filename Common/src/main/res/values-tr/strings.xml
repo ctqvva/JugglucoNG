@@ -683,6 +683,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_dismiss_action_summary">Bildirimleri kaydirma veya kapatma</string>
     <string name="notification_dismiss_action_dismiss">Kapat</string>
     <string name="notification_dismiss_action_snooze">Ertele</string>
+    <string name="same_direction_suppression_title">Aynı yöndeki alarmdan sonra sessiz süre</string>
+    <string name="same_direction_suppression_summary">Düşüş veya yükseliş alarmından sonra aynı yöndeki diğer alarmlar bu süre boyunca sessiz kalır. Düşük, çok düşük ve çok yüksek her zaman çalar.</string>
+    <string name="acknowledged_high_coverage_title">Onaylanan yükseliş alarmları “Yüksek”i karşılar</string>
+    <string name="acknowledged_high_coverage_summary">“Hızla yükseliyor”, “Yüksek tahmini” veya “Yüksek” alarmını kapattıktan ya da erteledikten sonra diğerleri yukarıdaki süre boyunca sessiz kalır. “Çok yüksek” her zaman çalar.</string>
     <string name="alarm_return_to_previous_app_title">Alarmdan sonra önceki uygulamaya dön</string>
     <string name="alarm_return_to_previous_app_summary">Tam ekran alarmdan sonra JugglucoNG\'yi açmak yerine kullandığınız uygulamaya dönün</string>
     <string name="realert_if_not_dismissed">Kapatilmazsa tekrar uyar</string>

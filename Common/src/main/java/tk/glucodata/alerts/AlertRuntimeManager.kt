@@ -39,6 +39,9 @@ object AlertRuntimeManager {
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
+    // Shared by the standard-glucose and the delta evaluation on purpose: the
+    // quiet period must see both families, or one keeps talking over the other.
+    private val sameDirectionSuppression = SameDirectionAlertSuppression()
 
     private val standardGlucoseAlertTypes = listOf(
         AlertType.VERY_LOW,
@@ -252,6 +255,14 @@ object AlertRuntimeManager {
         if (SnoozeManager.isSnoozed(type)) {
             standardEpisodes.markPendingDelivery(type)
             return AlertRuntimeEvaluation()
+        }
+
+        if (suppressedBySameDirectionAlertLocked(type)) {
+            // Dropped, not deferred: the episode keeps no pending delivery for it.
+            // LOW, VERY_LOW and VERY_HIGH never arrive here. HIGH only does when
+            // acknowledged high coverage is enabled and its earlier alert was seen.
+            standardEpisodes.clearPending(type)
+            return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
 
         val message = buildStandardAlertMessage(type, condition, configs[type])
@@ -663,6 +674,12 @@ object AlertRuntimeManager {
             return
         }
 
+        if (suppressedBySameDirectionAlertLocked(type)) {
+            // Dropped, not deferred: the latch stays consumed, so this run does
+            // not offer the alarm again. A new run after the window fires as usual.
+            return
+        }
+
         val label = Applic.app.getString(type.nameResId)
         val message = "$label ${Notify.glucosestr(glucoseValue)}"
         if (!triggerAlert(type, glucoseValue, currentRateLocked(), message)) {
@@ -671,6 +688,44 @@ object AlertRuntimeManager {
             // with it if the run breaks.
             state.rearmAfterFailedDelivery()
         }
+    }
+
+    /**
+     * Cross-family quiet period: true when another alert of [type]'s direction
+     * fired within the configured window, so [type] must stay quiet. HIGH may
+     * optionally join the rising group, but only after the first alert was
+     * dismissed or snoozed. LOW, VERY_LOW and VERY_HIGH always fire. Every
+     * suppression is logged with the alert that caused it, so a missing
+     * notification stays explainable.
+     */
+    private fun suppressedBySameDirectionAlertLocked(type: AlertType): Boolean {
+        val windowMs = try {
+            AlertRepository.loadSameDirectionSuppressionMinutes() * 60_000L
+        } catch (t: Throwable) {
+            AlertDefaults.SAME_DIRECTION_SUPPRESSION_MINUTES * 60_000L
+        }
+        val acknowledgedHighCoverage = try {
+            AlertRepository.loadAcknowledgedHighCoverageEnabled()
+        } catch (t: Throwable) {
+            AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED
+        }
+        val nowMs = System.currentTimeMillis()
+        val blocker = sameDirectionSuppression.blockedBy(
+            type = type,
+            nowMs = nowMs,
+            windowMs = windowMs,
+            acknowledgedHighCoverage = acknowledgedHighCoverage,
+            isAcknowledged = { alertType ->
+                AlertStateTracker.isDismissed(alertType) || SnoozeManager.isSnoozed(alertType)
+            }
+        ) ?: return false
+        val agoSeconds = ((nowMs - blocker.firedAtMs) / 1000L).coerceAtLeast(0L)
+        Log.i(
+            LOG_ID,
+            "Suppressed ${type.name}: ${blocker.type.name} fired ${agoSeconds}s ago in the same direction " +
+                "(quiet period ${windowMs / 60_000L} min)"
+        )
+        return true
     }
 
     /** Notification text naming the threshold that fired ("... in 3 days" / "... in 6 hours"). */
@@ -692,6 +747,16 @@ object AlertRuntimeManager {
             val triggered = Notify.triggerSupplementalGlucoseAlert(type.id, glucoseValue, rate, message)
             if (triggered) {
                 Log.i(LOG_ID, "Triggered ${type.name}: $message")
+                val acknowledgedHighCoverage = try {
+                    AlertRepository.loadAcknowledgedHighCoverageEnabled()
+                } catch (t: Throwable) {
+                    AlertDefaults.ACKNOWLEDGED_HIGH_COVERAGE_ENABLED
+                }
+                sameDirectionSuppression.onFired(
+                    type,
+                    System.currentTimeMillis(),
+                    acknowledgedHighCoverage
+                )
             }
             return triggered
         } catch (t: Throwable) {

@@ -706,6 +706,10 @@
     <string name="notification_dismiss_action_summary">Przesuniecie lub zamkniecie powiadomien</string>
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
+    <string name="same_direction_suppression_title">Okres ciszy po alarmie w tym samym kierunku</string>
+    <string name="same_direction_suppression_summary">Po alarmie o spadku lub wzroście inne alarmy w tym samym kierunku milczą przez ten czas. Niski, bardzo niski i bardzo wysoki zawsze się włączają.</string>
+    <string name="acknowledged_high_coverage_title">Potwierdzone alarmy wzrostu zastępują „Wysoki”</string>
+    <string name="acknowledged_high_coverage_summary">Po odrzuceniu lub odroczeniu alarmu „Szybki wzrost”, „Przewidywany wysoki” albo „Wysoki” pozostałe alarmy milczą przez ustawiony wyżej czas. „Bardzo wysoki” zawsze się włącza.</string>
     <string name="alarm_return_to_previous_app_title">Po alarmie wróć do poprzedniej aplikacji</string>
     <string name="alarm_return_to_previous_app_summary">Po alarmie pełnoekranowym wróć do używanej aplikacji zamiast otwierać JugglucoNG</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
