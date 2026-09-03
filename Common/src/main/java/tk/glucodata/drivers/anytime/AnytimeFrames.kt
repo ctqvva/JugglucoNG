@@ -81,6 +81,21 @@ data class AnytimeCheckStatus(
 /** 0x11 reset response. byte 2 != 0 ⇒ device was bound. */
 data class AnytimeResetStatus(val isBound: Boolean)
 
+/**
+ * Strict 0x11 bind-state answer, mirroring the vendor SDK's `TransmitterReset`:
+ * it demands 14 bytes before it will read [isBound] at all, and only reads the
+ * unbind reason out of byte 8 when the tip byte 12 is 0x22.
+ *
+ * The transmitter is the only witness to whether an unbind actually landed, so
+ * an under-validated answer here is worse than none — hence the separate,
+ * stricter parse rather than reusing [AnytimeResetStatus].
+ */
+data class AnytimeCt5BindState(
+    val isBound: Boolean,
+    /** `UNBIND_CHARGE`(1) / `UNBIND_OTHER`(0), or -1 when the transmitter did not say. */
+    val unbindReason: Int,
+)
+
 /** Generic frame parsed from a notification. */
 data class AnytimeFrame(
     val opcode: Byte,
@@ -375,6 +390,15 @@ object AnytimeFrames {
         /** CT5 push ACK. */
         @JvmStatic
         fun ct5PushAck(): ByteArray = withSum(AnytimeConstants.TX_CT5_PUSH_ACK.toInt() and 0xFF, 0x55, 0xAA)
+
+        /**
+         * CT5 bind-state query — `{0x11, 0x55, 0xAA, 0x10}`. CT5 shares the
+         * CT2.5 frame here (`ProtocolTools.reset_request` routes CT5 to
+         * `resetRequest_CT2_5`); it reads the transmitter's bind flag and does
+         * not change it. Answer parsed by [parseCt5BindState].
+         */
+        @JvmStatic
+        fun ct5BindStateQuery(): ByteArray = withSum(AnytimeConstants.TX_RESET.toInt() and 0xFF, 0x55, 0xAA)
 
         /** CT5 series-history pull. */
         @JvmStatic
@@ -948,6 +972,27 @@ object AnytimeFrames {
         if (bytes[0] != AnytimeConstants.RX_RESET) return null
         val isBound = (bytes[2].toInt() and 0xFF) != 0
         return AnytimeResetStatus(isBound = isBound)
+    }
+
+    /**
+     * Parse a CT5 0x11 answer the way the vendor's `TransmitterReset` does:
+     * opcode, a valid checksum and a full 14 bytes are all required, because
+     * `isBind()` there throws below that length rather than guessing.
+     */
+    @JvmStatic
+    fun parseCt5BindState(bytes: ByteArray): AnytimeCt5BindState? {
+        if (bytes.size < 14) return null
+        if (bytes[0] != AnytimeConstants.RX_RESET) return null
+        if (!verifySum(bytes)) return null
+        val isBound = (bytes[2].toInt() and 0xFF) != 0
+        // Vendor: the reason byte is only meaningful when the tip byte says 0x22,
+        // and only 0/1 are defined there.
+        val reason = if (!isBound && (bytes[12].toInt() and 0xFF) == 0x22) {
+            (bytes[8].toInt() and 0xFF).takeIf { it == 0 || it == 1 } ?: -1
+        } else {
+            -1
+        }
+        return AnytimeCt5BindState(isBound = isBound, unbindReason = reason)
     }
 
     /** Extract version string from 0x20 formal-version response (best-effort). */
