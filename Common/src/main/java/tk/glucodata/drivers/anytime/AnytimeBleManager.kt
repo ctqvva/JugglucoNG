@@ -322,6 +322,8 @@ class AnytimeBleManager(
     @Volatile private var ct5EndCycleAccepted: Boolean = false
     @Volatile private var ct5EndCycleBindProbePending: Boolean = false
     @Volatile private var ct5EndCycleVariantIndex: Int = 0
+    @Volatile private var ct5EndCycleReRegisterInFlight: Boolean = false
+    @Volatile private var ct5EndCycleReRegisterDone: Boolean = false
     @Volatile private var ct5EndCycleInternalDisconnect: Boolean = false
     @Volatile private var ct5EndCycleInternalReconnect: Boolean = false
     private val ct5Random = SecureRandom()
@@ -657,6 +659,8 @@ class AnytimeBleManager(
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
         ct5EndCycleVariantIndex = 0
+        ct5EndCycleReRegisterInFlight = false
+        ct5EndCycleReRegisterDone = false
         ct5EndCycleInternalReconnect = true
         try {
             softReconnect()
@@ -674,6 +678,8 @@ class AnytimeBleManager(
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
         ct5EndCycleVariantIndex = 0
+        ct5EndCycleReRegisterInFlight = false
+        ct5EndCycleReRegisterDone = false
         handler.removeCallbacks(ct5EndCycleDisconnectRunnable)
         handler.removeCallbacks(ct5EndCycleReconnectRunnable)
     }
@@ -2291,6 +2297,8 @@ class AnytimeBleManager(
                         ct5EndCycleAccepted = false
                         ct5EndCycleBindProbePending = false
                         ct5EndCycleVariantIndex = 0
+                        ct5EndCycleReRegisterInFlight = false
+                        ct5EndCycleReRegisterDone = false
                     }
                     if (!stop) {
                         scheduleReconnect("GATT disconnect status=$status")
@@ -2930,14 +2938,24 @@ class AnytimeBleManager(
         if (state.isBound) {
             val refused = ct5EndCycleVariants().getOrNull(ct5EndCycleVariantIndex)?.first ?: "unbind"
             ct5EndCycleVariantIndex++
-            if (ct5EndCycleVariantIndex in ct5EndCycleVariants().indices) {
-                Log.w(
-                    TAG,
-                    "CT5 transmitter still bound after $refused; trying the next known unbind frame"
+            when {
+                // Second pass. Only the authenticated frame carries the id, so
+                // re-running the others would cost two more timeouts and tell us
+                // nothing we did not already learn on the first pass.
+                ct5EndCycleReRegisterDone -> failCt5EndCycle(
+                    "transmitter still reports the session as bound after $refused, " +
+                            "even with the temporary id freshly re-registered"
                 )
-                sendCt5EndCycleUnbind()
-            } else {
-                failCt5EndCycle("transmitter still reports the session as bound after $refused (no frames left to try)")
+
+                ct5EndCycleVariantIndex in ct5EndCycleVariants().indices -> {
+                    Log.w(
+                        TAG,
+                        "CT5 transmitter still bound after $refused; trying the next known unbind frame"
+                    )
+                    sendCt5EndCycleUnbind()
+                }
+
+                else -> sendCt5EndCycleReRegister(refused)
             }
             return
         }
@@ -3092,6 +3110,19 @@ class AnytimeBleManager(
     private fun handleCt5SetParametersResponse(data: ByteArray) {
         if (data.size != 14 || !AnytimeFrames.verifySum(data)) {
             Log.w(TAG, "Bad CT5 setParameters response: ${data.joinToHex()}")
+            if (ct5EndCycleReRegisterInFlight) {
+                ct5EndCycleReRegisterInFlight = false
+                failCt5EndCycle("temporary id re-registration was answered with a malformed frame")
+            }
+            return
+        }
+        // An end-cycle re-registration must not continue into the bind handshake:
+        // `ct5-init` starts a measurement, which is the opposite of ending one.
+        if (ct5EndCycleReRegisterInFlight) {
+            ct5EndCycleReRegisterInFlight = false
+            Log.i(TAG, "CT5 accepted the re-registered temporary id; retrying the unbind frames")
+            ct5EndCycleVariantIndex = 0
+            sendCt5EndCycleUnbind()
             return
         }
         Log.i(TAG, "CT5 K/R parameters accepted")
@@ -4495,6 +4526,8 @@ class AnytimeBleManager(
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
         ct5EndCycleVariantIndex = 0
+        ct5EndCycleReRegisterInFlight = false
+        ct5EndCycleReRegisterDone = false
         constatstatusstr = "End cycle failed"
         UiRefreshBus.requestStatusRefresh()
     }
@@ -4540,6 +4573,48 @@ class AnytimeBleManager(
         "ct5-endCycle-unbindGeneric" to AnytimeFrames.Builders.unbindGeneric(),
     )
 
+    /**
+     * Last resort before giving up: re-register the temporary id the unbind
+     * authenticates with, then try the frames again.
+     *
+     * `ct5TempId` is generated and persisted in `handleCt5CheckResponse`, at the
+     * moment it is invented — before `setParameters` has carried it to the
+     * transmitter. A bind interrupted between `setID` and `setParameters` leaves
+     * us authenticating forever with an id the transmitter never received, and
+     * `checkID` keeps passing regardless because it only proves randomB.
+     * Re-sending `setParameters` closes that gap, and its 0x38 answer is the
+     * only positive confirmation the transmitter ever gives that it holds this
+     * id.
+     *
+     * K/R are the sensor's own QR values — the same ones written at bind time —
+     * so this re-states the existing calibration rather than changing it.
+     */
+    private fun sendCt5EndCycleReRegister(refusedTag: String) {
+        val calibration = qr
+        val key = ct5CipherKey
+        if (calibration == null || key !in 0..255) {
+            failCt5EndCycle(
+                "transmitter still bound after $refusedTag, and the temporary id cannot be " +
+                        "re-registered (calibration=${calibration != null} cipher=$key)"
+            )
+            return
+        }
+        ct5EndCycleReRegisterInFlight = true
+        ct5EndCycleReRegisterDone = true
+        Log.w(
+            TAG,
+            "CT5 refused every unbind frame; re-registering temporary id '$ct5TempId' " +
+                    "(K=${calibration.k} R=${calibration.r}) before a final attempt"
+        )
+        val written = writeFrame(
+            bytes = AnytimeFrames.Builders.ct5SetParameters(calibration.k, calibration.r, key, ct5TempId),
+            tag = "ct5-endCycle-reRegisterId",
+            expectResponse = true,
+            onDropped = { failCt5EndCycle("temporary id re-registration dropped") },
+        )
+        if (!written) failCt5EndCycle("temporary id re-registration could not be queued")
+    }
+
     private fun sendCt5EndCycleUnbind() {
         val variants = ct5EndCycleVariants()
         val index = ct5EndCycleVariantIndex
@@ -4581,6 +4656,8 @@ class AnytimeBleManager(
         ct5EndCycleAccepted = false
         ct5EndCycleBindProbePending = false
         ct5EndCycleVariantIndex = 0
+        ct5EndCycleReRegisterInFlight = false
+        ct5EndCycleReRegisterDone = false
         constatstatusstr = "Ending cycle"
         UiRefreshBus.requestStatusRefresh()
         val written = writeFrame(

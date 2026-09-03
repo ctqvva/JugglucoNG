@@ -625,6 +625,25 @@ class AnytimeCt5Tests {
     }
 
     @Test
+    fun endCycleReRegistrationRestatesTheSameIdAndCalibration() {
+        // The re-registration exists to close a gap between generating the id and
+        // the transmitter receiving it, so it must carry the id verbatim and must
+        // not disturb the calibration already stored on the transmitter.
+        val frame = AnytimeFrames.Builders.ct5SetParameters(k = 6f, r = 1.5f, cipherKey = key, tempId = "9787")
+        val plain = AnytimeFrames.ct5Encode(frame.copyOfRange(1, frame.size - 1), key)
+
+        assertEquals(AnytimeConstants.TX_CT5_SET_PARAMETERS, frame[0])
+        assertEquals(14, frame.size)
+        assertTrue(AnytimeFrames.verifySum(frame))
+        assertEquals(
+            listOf(0x39, 0x37, 0x38, 0x37),
+            plain.copyOfRange(8, 12).map { it.toInt() and 0xFF },
+        )
+        assertEquals(6, plain[0].toInt() and 0xFF)
+        assertEquals(1, plain[2].toInt() and 0xFF)
+    }
+
+    @Test
     fun bindStateQueryIsTheSharedCt2_5ResetFrame() {
         // ProtocolTools.reset_request routes CT5 to resetRequest_CT2_5.
         assertEquals(
