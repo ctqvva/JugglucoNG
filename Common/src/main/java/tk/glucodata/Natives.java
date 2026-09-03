@@ -388,6 +388,8 @@ public class Natives {
 
         public static native int backuphostNr();
 
+        public static native int activeBackupHostNr();
+
         public static native String[] getbackupIPs(int pos);
 
         public static native boolean getbackupHasHostname(int pos);
@@ -397,6 +399,8 @@ public class Natives {
         public static native String getbackuppassword(int pos);
 
         public static native boolean isWearOS(int pos);
+
+        public static native boolean isBackupHostPending(int pos);
 
         public static native int changebackuphost(int pos, String[] names, int nr, boolean detect, String port,
                         boolean nums, boolean stream, boolean scans, boolean recover, boolean receive,
@@ -1078,6 +1082,10 @@ public class Natives {
         public static native void setnovopenttimeandtype(long time, int type, String serial);
 
         public static native String mirrorStatus(int allindex);
+        public static native int getCloneConnectionTransport(String connectionIdentity);
+        public static native String getCloneRendezvousHost(int allindex);
+        public static native int getCloneRendezvousPort(int allindex);
+        public static native int getCloneRendezvousCertificateVerification(int allindex);
 
         public static native void setWearosdefaults(String jident, boolean galaxy);
 
@@ -1225,6 +1233,8 @@ public class Natives {
         public static native boolean gethidefloatinJuggluco();
 
         public static native boolean getHostDeactivated(int pos);
+
+        public static native void prepareHostDeactivation(int pos);
 
         public static native void setHostDeactivated(int pos, boolean val);
 
@@ -1608,6 +1618,12 @@ public class Natives {
         public static native void setTurnPassword(int pos, String jpassword);
 
         public static native void setTurnPort(int pos, int port);
+
+        public static native void setTurnServer(int pos, String host, int port, String username, String password);
+
+        public static native void setCloneICEConfig(String rendezvousHost, int rendezvousPort,
+                                                     boolean useTurnForStun,
+                                                     boolean verifyRendezvousCertificate);
 
         public static native int TurnServerNR();
 

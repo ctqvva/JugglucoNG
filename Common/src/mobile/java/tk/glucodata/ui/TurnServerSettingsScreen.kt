@@ -28,12 +28,15 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.CloneIceNetworkConfig
+import tk.glucodata.CloneIceNetworkConfigStore
 import tk.glucodata.ui.components.*
 
 @Composable
 fun TurnServerSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val isAbsent = Natives.TurnServerNR() == 0
+    val initialIceConfig = remember { CloneIceNetworkConfigStore.load(context) }
 
     var host by remember { mutableStateOf(if (isAbsent) "" else Natives.getTurnHost(0) ?: "") }
     var user by remember { mutableStateOf(if (isAbsent) "" else Natives.getTurnUser(0) ?: "") }
@@ -41,6 +44,17 @@ fun TurnServerSettingsScreen(navController: NavController) {
     var port by remember { mutableStateOf(if (isAbsent) "3478" else Natives.getTurnPort(0).toString()) }
     var passwordVisible by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(isAbsent) }
+    var useTurnForStun by remember {
+        mutableStateOf(if (isAbsent) true else initialIceConfig.useTurnForStun)
+    }
+    var rendezvousHost by remember { mutableStateOf(initialIceConfig.rendezvousHost) }
+    var rendezvousPort by remember { mutableStateOf(initialIceConfig.rendezvousPort.toString()) }
+    var useCustomRendezvous by remember {
+        mutableStateOf(initialIceConfig.rendezvousHost.isNotEmpty())
+    }
+    var verifyRendezvousCertificate by remember {
+        mutableStateOf(initialIceConfig.verifyRendezvousCertificate)
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -101,7 +115,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
             OutlinedTextField(
                 value = port, onValueChange = { port = it },
                 label = { Text(stringResource(R.string.port)) },
-                supportingText = { Text("Standard: 3478 (UDP), 5349 (TLS)") },
+                supportingText = { Text(stringResource(R.string.turn_udp_port_default)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -125,6 +139,54 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 }
             )
 
+            SectionLabel(stringResource(R.string.clone_ice_services))
+            SettingsSwitchItem(
+                title = stringResource(R.string.use_turn_for_stun),
+                subtitle = stringResource(R.string.use_turn_for_stun_summary),
+                checked = useTurnForStun,
+                onCheckedChange = { useTurnForStun = it },
+                position = CardPosition.SINGLE,
+            )
+            Spacer(Modifier.height(8.dp))
+            SettingsSwitchItem(
+                title = stringResource(R.string.use_custom_rendezvous_server),
+                subtitle = stringResource(R.string.use_custom_rendezvous_server_summary),
+                checked = useCustomRendezvous,
+                onCheckedChange = { useCustomRendezvous = it },
+                position = CardPosition.SINGLE,
+            )
+            AnimatedVisibility(
+                visible = useCustomRendezvous,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = rendezvousHost,
+                        onValueChange = { rendezvousHost = it },
+                        label = { Text(stringResource(R.string.rendezvous_server)) },
+                        supportingText = { Text(stringResource(R.string.rendezvous_host_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = rendezvousPort,
+                        onValueChange = { rendezvousPort = it },
+                        label = { Text(stringResource(R.string.rendezvous_port)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.verify_rendezvous_certificate),
+                        subtitle = stringResource(R.string.verify_rendezvous_certificate_summary),
+                        checked = verifyRendezvousCertificate,
+                        onCheckedChange = { verifyRendezvousCertificate = it },
+                        position = CardPosition.SINGLE,
+                    )
+                }
+            }
+
             // Actions
             Spacer(Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -132,6 +194,13 @@ fun TurnServerSettingsScreen(navController: NavController) {
                     OutlinedButton(
                         onClick = {
                             Natives.deleteTurnServer(0)
+                            val currentIceConfig = CloneIceNetworkConfigStore.load(context)
+                            if (currentIceConfig.useTurnForStun) {
+                                CloneIceNetworkConfigStore.save(
+                                    context,
+                                    currentIceConfig.copy(useTurnForStun = false),
+                                )
+                            }
                             Natives.resetnetwork()
                             tk.glucodata.Applic.wakemirrors()
                             navController.popBackStack()
@@ -142,15 +211,73 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 }
                 Button(
                     onClick = {
+                        val cleanTurnHost = host.trim()
+                        val cleanRendezvousHost = if (useCustomRendezvous) {
+                            rendezvousHost.trim()
+                        } else {
+                            ""
+                        }
                         val portNum = port.toIntOrNull()
-                        if (portNum == null || portNum > 65535) {
+                        val rendezvousPortNum = if (cleanRendezvousHost.isEmpty()) {
+                            CloneIceNetworkConfig.DEFAULT_RENDEZVOUS_PORT
+                        } else {
+                            rendezvousPort.toIntOrNull()
+                        }
+                        if (portNum == null || portNum !in 1..65535 || rendezvousPortNum == null ||
+                            rendezvousPortNum !in 1..65535) {
                             Toast.makeText(context, context.getString(R.string.portrange), Toast.LENGTH_LONG).show()
                             return@Button
                         }
-                        Natives.setTurnPort(0, portNum)
-                        Natives.setTurnHost(0, host)
-                        Natives.setTurnUser(0, user)
-                        Natives.setTurnPassword(0, password)
+                        if (cleanTurnHost.length > 191 || cleanRendezvousHost.length > CloneIceNetworkConfig.MAX_HOST_LENGTH) {
+                            Toast.makeText(context, context.getString(R.string.mirror_host_error_hostname_too_long), Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
+                        if (useTurnForStun && cleanTurnHost.isEmpty()) {
+                            Toast.makeText(context, context.getString(R.string.turn_required_for_stun), Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
+                        if (useCustomRendezvous && cleanRendezvousHost.isEmpty()) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.rendezvous_host_required),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            return@Button
+                        }
+                        val previousTurn = if (Natives.TurnServerNR() > 0) {
+                            arrayOf(
+                                Natives.getTurnHost(0).orEmpty(),
+                                Natives.getTurnPort(0).toString(),
+                                Natives.getTurnUser(0).orEmpty(),
+                                Natives.getTurnPassword(0).orEmpty(),
+                            )
+                        } else null
+                        Natives.setTurnServer(0, cleanTurnHost, portNum, user, password)
+                        val iceSaved = CloneIceNetworkConfigStore.save(
+                            context,
+                            CloneIceNetworkConfig(
+                                rendezvousHost = cleanRendezvousHost,
+                                rendezvousPort = rendezvousPortNum,
+                                useTurnForStun = useTurnForStun,
+                                verifyRendezvousCertificate = !useCustomRendezvous ||
+                                    verifyRendezvousCertificate,
+                            ),
+                        )
+                        if (!iceSaved) {
+                            if (previousTurn == null) {
+                                Natives.deleteTurnServer(0)
+                            } else {
+                                Natives.setTurnServer(
+                                    0,
+                                    previousTurn[0],
+                                    previousTurn[1].toInt(),
+                                    previousTurn[2],
+                                    previousTurn[3],
+                                )
+                            }
+                            Toast.makeText(context, context.getString(R.string.savefailed), Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
                         Natives.resetnetwork()
                         tk.glucodata.Applic.wakemirrors()
                         navController.popBackStack()

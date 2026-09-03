@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -49,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.RemoteIobSnapshot
+import tk.glucodata.UiRefreshBus
 import kotlinx.coroutines.delay
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
@@ -56,7 +59,6 @@ import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalActiveInsulinSummary
 import tk.glucodata.data.journal.JournalIobCalculator
-import tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus
 import tk.glucodata.ui.ChartViewportSnapshot
 import tk.glucodata.ui.DashboardChartSection
 import tk.glucodata.ui.GlucosePoint
@@ -474,10 +476,13 @@ private fun JournalMetricsPanel(
     val localActiveInsulin = remember(entries, presetsById, nowMillis) {
         JournalIobCalculator.buildActiveInsulinSummary(entries, presetsById, nowMillis)
     }
-    // Mirrors the dashboard chip: a fresh devicestatus from the followed
-    // uploader wins over the local recomputation, and the ticker above
-    // retires it once it leaves the freshness window.
-    val remoteInsulin = remember(nowMillis) { NightscoutFollowerDeviceStatus.fresh(nowMillis) }
+    // Mirrors the dashboard chip and every outbound surface. A received or
+    // cleared Clone snapshot updates immediately; the ticker retires stale
+    // remote state on its own.
+    val iobRefreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val remoteInsulin = remember(nowMillis, iobRefreshRevision) {
+        RemoteIobSnapshot.fresh(nowMillis)
+    }
     val activeInsulin = remember(localActiveInsulin, remoteInsulin) {
         when {
             remoteInsulin == null -> localActiveInsulin

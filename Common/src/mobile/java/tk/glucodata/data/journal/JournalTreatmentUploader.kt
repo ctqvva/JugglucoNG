@@ -457,10 +457,13 @@ object JournalTreatmentUploader {
         return preset?.countsTowardIob != false
     }
 
-    private fun isExternalMirrorSource(source: String): Boolean {
+    internal fun isExternalMirrorSource(source: String): Boolean {
         return source == JournalEntrySource.AAPS.storageValue ||
             source == JournalEntrySource.NIGHTSCOUT.storageValue ||
-            source == JournalEntrySource.API.storageValue
+            source == JournalEntrySource.API.storageValue ||
+            source == JournalEntrySource.CLONE.storageValue ||
+            source == JournalEntrySource.CLONE_LOCAL_ICE.storageValue ||
+            source == JournalEntrySource.CLONE_TURN.storageValue
     }
 
     private fun treatmentPostUrl(baseUrl: String, useV3: Boolean): String =

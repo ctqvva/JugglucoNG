@@ -72,6 +72,8 @@ import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -487,7 +489,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
     }
 
     public static void updateservice(Context context, boolean usebluetooth) {
-        final int backupHosts = Natives.backuphostNr();
+        final int backupHosts = Natives.activeBackupHostNr();
         final boolean keepAliveRequired = usebluetooth || backupHosts > 0;
         if (doLog) {
             Log.i(LOG_ID, "updateservice decision bluetooth=" + usebluetooth
@@ -522,7 +524,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         SensorBluetooth.destructor();
-        if (Natives.backuphostNr() <= 0) {
+        if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }
     }
@@ -561,7 +563,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
 
         if (!keeprunning.started) {
-            if (usebluetooth || Natives.backuphostNr() > 0) {
+            if (usebluetooth || Natives.activeBackupHostNr() > 0) {
                 if (keeprunning.start(context)) {
                     if (doLog) {
                         Log.i(LOG_ID, "keeprunning started");
@@ -607,6 +609,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     // @RequiresApi(api = Build.VERSION_CODES.M)
     private static boolean hasonAvailable = false;
+    private static final Set<Network> availableInternetNetworks = ConcurrentHashMap.newKeySet();
     /*
      * public static void sendsettings() {
      * {if(doLog) {Log.i(LOG_ID,"sendsettings");};};
@@ -676,11 +679,15 @@ public class Applic extends Application implements androidx.work.Configuration.P
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(
                     Context.CONNECTIVITY_SERVICE);
-            connectivityManager.registerNetworkCallback((new NetworkRequest.Builder()).build(),
+            connectivityManager.registerNetworkCallback(
+                    (new NetworkRequest.Builder())
+                            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                            .build(),
                     new ConnectivityManager.NetworkCallback() {
                         @Override
                         public void onAvailable(Network network) {
                             hasonAvailable = true;
+                            availableInternetNetworks.add(network);
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "network: onAvailable(" + network + ")");
@@ -763,6 +770,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
                         @Override
                         public void onLost(Network network) {
+                            availableInternetNetworks.remove(network);
                             {
                                 if (doLog) {
                                     Log.i(LOG_ID, "onLost(" + network + ")");
@@ -770,7 +778,17 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                 ;
                             }
                             ;
-                            Natives.networkabsent();
+                            final boolean hasReplacement = NetworkHandoverPolicy.hasUsableReplacement(
+                                    availableInternetNetworks.size(), hasip());
+                            if (hasReplacement) {
+                                // Android reports the old default path as lost after its replacement
+                                // is already available. Keep the replacement ICE path alive and only
+                                // wake state-driven recovery instead of tearing every agent down.
+                                Natives.networkpresent();
+                                Applic.wakemirrors();
+                            } else {
+                                Natives.networkabsent();
+                            }
                             final boolean wearos = useWearos();
                             if (wearos) {
                                 MessageSender.reinit();
@@ -869,8 +887,15 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     boolean initproc() {
         if (!initproccalled) {
+            // setlibrary() restores and starts saved ICE hosts. Seed their
+            // immutable connection settings before any host is constructed.
+            CloneIceNetworkConfigStore.prepareForNativeStartup(this);
             if (!numio.setlibrary(this))
                 return false;
+            // ICE connections can be created by startup services before the
+            // settings screen exists, so restore user-selected endpoints as
+            // soon as the native library and persisted backup hosts are ready.
+            CloneIceNetworkConfigStore.initialize(this);
             // Native backup hosts are restored before the Java Wear transport.
             // Honour the persisted companion switch immediately, otherwise a
             // disabled Wear host reconnects during every process start.

@@ -987,9 +987,21 @@ static void writeMirrorCalibrationFile(const char *serial, const char *json) {
     }
 }
 
-extern void javaMirrorSyncSensor(const char *serial, bool forceFull);
-void javaMirrorSyncSensor(const char *serial, bool forceFull) {
-    LOGGER("javaMirrorSyncSensor(%s,%d)\n", serial ? serial : "(null)", forceFull);
+extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                                 const char *cloneConnectionIdentity);
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport,
+                          const char *cloneConnectionIdentity) {
+    LOGGER("javaMirrorSyncSensor(%s,%d,%d,%s)\n", serial ? serial : "(null)", forceFull,
+           cloneTransport, cloneConnectionIdentity ? cloneConnectionIdentity : "(null)");
+}
+void javaMirrorSyncRecentSensor(const char *serial, int64_t anchorTimeMs,
+                                int cloneTransport, const char *cloneConnectionIdentity) {
+    LOGGER("javaMirrorSyncRecentSensor(%s,%lld,%d,%s)\n", serial ? serial : "(null)",
+           static_cast<long long>(anchorTimeMs), cloneTransport,
+           cloneConnectionIdentity ? cloneConnectionIdentity : "(null)");
+}
+void javaMirrorReconcilePrimarySensor(const char *serial) {
+    LOGGER("javaMirrorReconcilePrimarySensor(%s)\n", serial ? serial : "(null)");
 }
 extern std::string javaExportCalibrationProfile(const char *serial);
 std::string javaExportCalibrationProfile(const char *serial) {
@@ -1001,6 +1013,16 @@ void javaImportMirrorCalibrationProfile(const char *serial, const char *json) {
     LOGGER("javaImportMirrorCalibrationProfile(%s,%zu)\n",
            serial ? serial : "(null)", json ? strlen(json) : 0U);
     writeMirrorCalibrationFile(serial, json);
+}
+std::string javaExportCloneIobSnapshot() {
+    return {};
+}
+void javaImportCloneIobSnapshot(const char *) {
+}
+std::string javaExportCloneJournalSnapshot() {
+    return {};
+}
+void javaImportCloneJournalSnapshot(const char *, int) {
 }
     /*
 extern bool hour24clock;

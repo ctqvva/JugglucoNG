@@ -107,10 +107,8 @@ public static void show(Activity context,View parent) {
                     Applic.argToaster(context,R.string.portrange,Toast.LENGTH_LONG);
                     return;
                     }
-            Natives.setTurnPort(0,portnum);
-            Natives.setTurnHost(0,hostedit.getText().toString());
-            Natives.setTurnUser(0,useredit.getText().toString());
-            Natives.setTurnPassword(0,passedit.getText().toString());
+            Natives.setTurnServer(0,hostedit.getText().toString(),portnum,
+                    useredit.getText().toString(),passedit.getText().toString());
             Natives.resetnetwork();
             Applic.wakemirrors();
             MainActivity.doonback();
