@@ -30,6 +30,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.sp
 import java.io.File
 import java.text.SimpleDateFormat
@@ -214,6 +218,19 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
     }
 
     val verticalScroll = rememberScrollState()
+    val scrollBoundary = remember {
+        object : NestedScrollConnection {
+            // Keep leftover drag distance and fling velocity inside the log at either edge.
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset = Offset(0f, available.y)
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
+                Velocity(0f, available.y)
+        }
+    }
     val scrollbarColor = MaterialTheme.colorScheme.onSurfaceVariant
     // Follow the tail, the way a person watching a live log expects.
     LaunchedEffect(rendered) { verticalScroll.animateScrollTo(verticalScroll.maxValue) }
@@ -250,6 +267,7 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                             )
                         }
                     }
+                    .nestedScroll(scrollBoundary)
                     .verticalScroll(verticalScroll)
                     .padding(end = 12.dp),
                 style = MaterialTheme.typography.bodySmall.copy(
