@@ -325,7 +325,7 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun savedLanDiscoverySettingDoesNotInterruptAnExistingCloneConnection() {
+    fun savedHybridSwitchesWaitForTheNextCloneConnection() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
@@ -333,9 +333,18 @@ class CloneReceptionSafetyTests {
 
         assertTrue(screen.contains("onCheckedChange = { useLocalDiscovery = it }"))
         val save = screen.lastIndexOf("val iceSaved = CloneIceNetworkConfigStore.save")
-        val conditionalReset = screen.indexOf("if (connectionSettingsChanged) Natives.resetnetwork()", save)
+        val conditionalReset = screen.indexOf("if (serverDetailsChanged) Natives.resetnetwork()", save)
         assertTrue(save >= 0 && conditionalReset > save)
-        assertTrue(screen.contains("initialIceConfig.copy( useLocalDiscovery = nextIceConfig.useLocalDiscovery"))
+        val serverComparison = screen.substring(
+            screen.indexOf("val serverDetailsChanged", save),
+            conditionalReset,
+        )
+        assertTrue(serverComparison.contains("previousTurn?.contentEquals(nextTurn)"))
+        assertTrue(serverComparison.contains("initialIceConfig.rendezvousHost != nextIceConfig.rendezvousHost"))
+        assertFalse(serverComparison.contains("useLocalDiscovery"))
+        assertFalse(serverComparison.contains("useTurnForStun"))
+        assertFalse(serverComparison.contains("verifyRendezvousCertificate"))
+        assertTrue(screen.contains("stringResource(R.string.hybrid_save_behavior)"))
         assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
     }
 

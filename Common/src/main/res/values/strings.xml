@@ -486,6 +486,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="turnserver">TURN Server</string>
     <string name="hybrid_configuration">Hybrid configuration</string>
     <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
+    <string name="hybrid_save_behavior">Transport switches take effect on the next connection attempt. Changing server details or selecting another rendezvous server reconnects Clone immediately.</string>
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
