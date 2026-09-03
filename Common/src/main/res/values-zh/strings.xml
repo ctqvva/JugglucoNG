@@ -373,6 +373,7 @@
     <string name="clear">清除</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE 错误历史</string>
     <string name="log_enabled_waiting">日志已启用。等待条目...</string>
     <string name="log_unchecked">日志未选中。启用以开始。</string>
     <string name="error_reading_file">"读取文件错误： "</string>
@@ -785,6 +786,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">上次 BLE 错误</string>
     <string name="libre_setup_done">完成</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">在配对前调整 Libre 3 的实验性扫描行为。</string>

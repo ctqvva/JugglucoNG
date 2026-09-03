@@ -87,6 +87,7 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -117,6 +118,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
@@ -126,6 +129,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -1693,6 +1700,7 @@ fun InteractiveGlucoseChart(
         }
     }
 
+    val activeJournalMarkerPointers = remember { mutableSetOf<PointerId>() }
 
 
 
@@ -1727,6 +1735,7 @@ fun InteractiveGlucoseChart(
                             // FIX: Use requireUnconsumed = true (default) to respect z-order.
                             // This prevents the chart from hijacking touches meant for the floating buttons.
                             val down = awaitFirstDown()
+                            val startedOnJournalMarker = down.id in activeJournalMarkerPointers
                             val gestureStartTime = System.currentTimeMillis()
                             lastInteractionTimestamp = gestureStartTime
                             cancelAutoScroll()
@@ -1850,7 +1859,8 @@ fun InteractiveGlucoseChart(
                             // 1. Previous gesture was a tap (not a scroll)
                             // 2. Short duration since then (<300ms)
                             // 3. Close spatial proximity (<100px)
-                            val isDoubleTapStart = gestureStartTime >= suppressDoubleTapUntil &&
+                            val isDoubleTapStart = !startedOnJournalMarker &&
+                                    gestureStartTime >= suppressDoubleTapUntil &&
                                     lastGestureWasTap &&
                                     (gestureStartTime - lastTapTime < 300) &&
                                     (down.position - lastTapPos).getDistance() < 100.dp.toPx()
@@ -1912,7 +1922,9 @@ fun InteractiveGlucoseChart(
                             var yGestureStartMax = 0f
                             var yGestureAdjustsMax = false
                             var lastPointerCount = 1
-                            val longPressJob = if (onTimelineTap != null && !isDoubleTapStart) {
+                            val longPressJob = if (
+                                onTimelineTap != null && !isDoubleTapStart && !startedOnJournalMarker
+                            ) {
                                 coroutineScope.launch {
                                     kotlinx.coroutines.delay(viewConfiguration.longPressTimeoutMillis.toLong())
                                     if (!longPressTriggered && totalDragDistance < viewConfiguration.touchSlop) {
@@ -1930,7 +1942,9 @@ fun InteractiveGlucoseChart(
                             }
 
                             // Only allow scrubbing if purely single tap start (not double tap sequence)
-                            isScrubbing = if (pointAtTouch != null && !isOneFingerZoom) {
+                            isScrubbing = if (
+                                !startedOnJournalMarker && pointAtTouch != null && !isOneFingerZoom
+                            ) {
                                 val timeDiff = timeAtTouch - pointAtTouch.timestamp
                                 if (timeDiff > 15 * 60 * 1000) false else {
                                     // When calibration is on and is primary, use calibrated value for touch target
@@ -2100,7 +2114,8 @@ fun InteractiveGlucoseChart(
                             }
 
                             // ON UP
-                            val wasTap = totalDragDistance < viewConfiguration.touchSlop
+                            val wasTap = !startedOnJournalMarker &&
+                                totalDragDistance < viewConfiguration.touchSlop
                             longPressJob?.cancel()
                             lastGestureWasTap = wasTap && !isOneFingerZoom && !isScrubbing && !longPressTriggered
 
@@ -3667,6 +3682,7 @@ fun InteractiveGlucoseChart(
                 }
                 JournalMarkerChip(
                     marker = marker,
+                    activePointerIds = activeJournalMarkerPointers,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .zIndex(1.5f)
@@ -4823,13 +4839,13 @@ fun InteractiveGlucoseChart(
 @Composable
 private fun JournalMarkerChip(
     marker: JournalChartMarker,
+    activePointerIds: MutableSet<PointerId>,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val tint = Color(marker.accentColor)
     Surface(
-        modifier = modifier,
-        onClick = onClick,
+        modifier = modifier.journalMarkerInput(activePointerIds, onClick),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, tint.copy(alpha = 0.18f)),
@@ -4863,6 +4879,53 @@ private fun JournalMarkerChip(
         }
     }
 }
+
+private fun Modifier.journalMarkerInput(
+    activePointerIds: MutableSet<PointerId>,
+    activateMarker: () -> Unit
+): Modifier = this
+    .minimumInteractiveComponentSize()
+    .semantics(mergeDescendants = true) {
+        role = Role.Button
+        onClick(action = {
+            activateMarker()
+            true
+        })
+    }
+    .pointerInput(activePointerIds, activateMarker) {
+        awaitEachGesture {
+            val down = awaitFirstDown(
+                requireUnconsumed = false,
+                pass = PointerEventPass.Initial
+            )
+            val gate = JournalMarkerGestureGate(viewConfiguration.touchSlop)
+            activePointerIds.add(down.id)
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    if (change == null) {
+                        gate.cancel()
+                        break
+                    }
+                    gate.observe(
+                        displacementX = change.position.x - down.position.x,
+                        displacementY = change.position.y - down.position.y,
+                        pointerCount = event.changes.size
+                    )
+                    if (!change.pressed) {
+                        if (gate.shouldClick(change.changedToUp())) {
+                            change.consume()
+                            activateMarker()
+                        }
+                        break
+                    }
+                }
+            } finally {
+                activePointerIds.remove(down.id)
+            }
+        }
+    }
 
 /**
  * Countdown next to the clock glyph on the active-insulin chip. Rendered as "2 h 40 min"
