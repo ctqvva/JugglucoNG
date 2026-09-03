@@ -2616,4 +2616,7 @@
     <string name="nightscout_follow_interval_title">Sprawdzanie nowych wartości</string>
     <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
     <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
+    <string name="clone_source_label">Clone</string>
+    <string name="clone_source_turn_description">Clone przez TURN</string>
+    <string name="clone_source_local_ice_description">Clone przez lokalne ICE</string>
 </resources>

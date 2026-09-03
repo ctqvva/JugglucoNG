@@ -45,7 +45,7 @@
 
 extern Backup *backup;
 extern void        processglucosevalue(int sendindex,int newstart=-1);
-extern void javaMirrorSyncSensor(const char *serial, bool forceFull);
+extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 
 //getdata filedata("/data/local/tmp/testdir");
@@ -112,15 +112,15 @@ int alignadd(int was,int bij) {
 //s/it+=comlen/it=alignadd(it,comlen)/g
 extern bool receivelastpos(const lastpos_t *data) ;
 
-static            bool savefileonce(const struct fileonce_t *gegs);
+static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport);
 
-static void mirrorSyncSensor(int sendindex, bool forceFull) {
+static void mirrorSyncSensor(int sendindex, bool forceFull, int cloneTransport) {
     if(sendindex < 0 || !sensors) {
         return;
     }
     if(SensorGlucoseData *hist = sensors->getSensorData(sendindex)) {
         if(const auto *serial = hist->shortsensorname(); serial && serial->data()[0]) {
-            javaMirrorSyncSensor(serial->data(), forceFull);
+            javaMirrorSyncSensor(serial->data(), forceFull, cloneTransport);
         }
     }
 }
@@ -138,12 +138,13 @@ static std::string extractMirrorSensorSerial(std::string_view name) {
     return std::string(rest.substr(0, slash));
 }
 
-static void mirrorSyncSensorForPath(std::string_view path, int sendindex, bool forceFull) {
+static void mirrorSyncSensorForPath(std::string_view path, int sendindex, bool forceFull,
+                                    int cloneTransport) {
     if (std::string serial = extractMirrorSensorSerial(path); !serial.empty()) {
-        javaMirrorSyncSensor(serial.c_str(), forceFull);
+        javaMirrorSyncSensor(serial.c_str(), forceFull, cloneTransport);
         return;
     }
-    mirrorSyncSensor(sendindex, forceFull);
+    mirrorSyncSensor(sendindex, forceFull, cloneTransport);
 }
 
 static std::vector<std::pair<std::string, bool>> pendingMirrorSensorSyncs;
@@ -162,9 +163,9 @@ static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) 
     pendingMirrorSensorSyncs.emplace_back(std::move(serial), forceFull);
 }
 
-static void flushPendingMirrorSensorSyncs() {
+static void flushPendingMirrorSensorSyncs(int cloneTransport) {
     for (const auto &entry : pendingMirrorSensorSyncs) {
-        javaMirrorSyncSensor(entry.first.c_str(), entry.second);
+        javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport);
     }
     pendingMirrorSensorSyncs.clear();
 }
@@ -504,7 +505,7 @@ for(int it=0;it<len;) {
                 }
 extern                bool updateDevices() ;
             ret=updateDevices();
-            flushPendingMirrorSensorSyncs();
+            flushPendingMirrorSensorSyncs(cloneTransportCode());
             LOGGERTAG("updateDevices=%d\n",ret);
             };break;
         case sbackup: 
@@ -574,7 +575,7 @@ extern                bool updateDevices() ;
                 return {it,comlen};
                 }
 
-            ret=savefileonce(gegs);
+            ret=savefileonce(gegs, cloneTransportCode());
             } break;
         default:;
         }
@@ -999,7 +1000,7 @@ static bool startedreceiving() {
 #include        <filesystem>
 #include "strsepconcat.hpp"
 */
-static bool savefileonce(const struct fileonce_t *gegs) {
+static bool savefileonce(const struct fileonce_t *gegs, int cloneTransport) {
     const int nr=gegs->nr;
     const uint8_t *start=reinterpret_cast<const uint8_t*>(&gegs->gegs[nr]);
     const char *name=reinterpret_cast<const char *>(start);
@@ -1031,7 +1032,7 @@ static bool savefileonce(const struct fileonce_t *gegs) {
     if((gegs->dowith&startcalibratedupdate)==startcalibratedupdate) {
         const auto [sendindex,startpos,history]= getcaliinfo(gegs,start);
         setcalibratedstart(sendindex,startpos,history);
-        mirrorSyncSensorForPath(namesv, sendindex, true);
+        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport);
 /*
         int namelen=gegs->namelen-1;
         pathconcat fullpathin{filedata.getbase(),std::string_view(name,namelen)};
@@ -1047,14 +1048,14 @@ static bool savefileonce(const struct fileonce_t *gegs) {
         if((gegs->dowith&streamupdatebit)==streamupdatebit) {
                 const auto [sendindex,startpos]=getstartinfo(gegs,start);
                 processglucosevalue(sendindex,startpos);
-                mirrorSyncSensorForPath(namesv, sendindex, false);
+                mirrorSyncSensorForPath(namesv, sendindex, false, cloneTransport);
 
                 }
         else {
                 if((gegs->dowith&starthistoryupdate)==starthistoryupdate) {
                         const auto [sendindex,startpos]=getstartinfo(gegs,start);
                         sethistorystart(sendindex,startpos);
-                        mirrorSyncSensorForPath(namesv, sendindex, true);
+                        mirrorSyncSensorForPath(namesv, sendindex, true, cloneTransport);
                         }
              }
         }

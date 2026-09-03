@@ -76,6 +76,7 @@ bool endConnect=false;
 bool isConnected=false;
 ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
 std::atomic<juice_agent*> agent;
+std::atomic<int> selectedCloneTransport{clone_transport_unknown};
 char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
 int hostindex;
@@ -107,6 +108,9 @@ virtual int setindex(int in) override{
         icedata[1].allindex=in;
         icedata[0].allindex=in;
         return Connect::setindex(in);
+        }
+int cloneTransportCode() const override {
+        return selectedCloneTransport.load();
         }
 #ifdef RESETAGENT
        bool recreateAgent=false;

@@ -1349,14 +1349,24 @@ fun SensorCard(
                             }
                             // Title with optional "Active" badge
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = sensor.displayName.ifBlank { sensor.serial },
-                                    style = serialTextStyle,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                )
+                                if (sensor.isCloneSource) {
+                                    CloneSourceMark(
+                                        transport = tk.glucodata.CloneSensorRegistry.transportForSensor(sensor.serial),
+                                        showLabel = true,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        iconSize = 18.dp,
+                                        textStyle = serialTextStyle,
+                                    )
+                                } else {
+                                    Text(
+                                        text = sensor.displayName.ifBlank { sensor.serial },
+                                        style = serialTextStyle,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                    )
+                                }
                                 // Toggle Main Sensor Badge
                                 Spacer(modifier = Modifier.width(8.dp))
                                 val isMain = sensor.isActive

@@ -987,9 +987,10 @@ static void writeMirrorCalibrationFile(const char *serial, const char *json) {
     }
 }
 
-extern void javaMirrorSyncSensor(const char *serial, bool forceFull);
-void javaMirrorSyncSensor(const char *serial, bool forceFull) {
-    LOGGER("javaMirrorSyncSensor(%s,%d)\n", serial ? serial : "(null)", forceFull);
+extern void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport);
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport) {
+    LOGGER("javaMirrorSyncSensor(%s,%d,%d)\n", serial ? serial : "(null)", forceFull,
+           cloneTransport);
 }
 extern std::string javaExportCalibrationProfile(const char *serial);
 std::string javaExportCalibrationProfile(const char *serial) {

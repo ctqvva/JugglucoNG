@@ -98,6 +98,7 @@ data class SensorInfo(
     val isSelectedForDisplay: Boolean = false,
     val assignedColorArgb: Int = SensorVisuals.colorArgb(serial),
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
+    val isCloneSource: Boolean = false,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -153,7 +154,10 @@ class SensorViewModel : ViewModel() {
 
     private fun normalizePublishedSensor(sensor: SensorInfo): SensorInfo {
         val resolved = SensorIdentity.resolveAppSensorId(sensor.serial) ?: sensor.serial
-        return if (resolved == sensor.serial) sensor else sensor.copy(serial = resolved)
+        return sensor.copy(
+            serial = resolved,
+            isCloneSource = tk.glucodata.CloneSensorRegistry.isCloneSensor(resolved),
+        )
     }
 
     private fun sensorPriority(sensor: SensorInfo): Int {

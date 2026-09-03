@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import kotlinx.coroutines.delay
 import tk.glucodata.R
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalFood
@@ -269,6 +271,8 @@ fun ReadingRow(
             val timeStyle = MaterialTheme.typography.bodySmall
             val timeColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            val cloneTransport = GlucoseReadingSource.cloneTransport(point.source)
+            val isNightscoutSource = point.source == GlucoseReadingSource.NIGHTSCOUT
             val isRawModeRR = viewMode == 1 || viewMode == 3
             val calibrationSensorId = sensorId?.takeIf { it.isNotBlank() }
             // Recorded value if this reading has one, otherwise the projection —
@@ -306,6 +310,38 @@ fun ReadingRow(
             // chips: keep it tight against the main value (not floating in a
             // wide right-aligned slot) and give it the primary identity tint.
             val primaryTrendColor = if (isMultiSensor) primaryColor.copy(alpha = 0.7f) else tertiaryColor
+
+            @Composable
+            fun ReadingTime() {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = java.text.SimpleDateFormat(
+                            "HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(point.timestamp)),
+                        style = timeStyle,
+                        fontWeight = timeWeight,
+                        color = timeColor
+                    )
+                    if (cloneTransport != null) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        CloneSourceMark(
+                            transport = cloneTransport,
+                            showLabel = false,
+                            tint = timeColor,
+                            iconSize = 13.dp,
+                        )
+                    } else if (isNightscoutSource) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = stringResource(R.string.journal_source_nightscout),
+                            tint = timeColor,
+                            modifier = Modifier.size(13.dp),
+                        )
+                    }
+                }
+            }
 
             @Composable
             fun ReadingValueContent(modifier: Modifier = Modifier) {
@@ -511,15 +547,7 @@ fun ReadingRow(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = java.text.SimpleDateFormat(
-                            "HH:mm",
-                            java.util.Locale.getDefault()
-                        ).format(java.util.Date(point.timestamp)),
-                        style = timeStyle,
-                        fontWeight = timeWeight,
-                        color = timeColor
-                    )
+                    ReadingTime()
 
                     if (showLeadingAction) {
                         Box(
@@ -563,15 +591,7 @@ fun ReadingRow(
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = java.text.SimpleDateFormat(
-                                "HH:mm",
-                                java.util.Locale.getDefault()
-                            ).format(java.util.Date(point.timestamp)),
-                            style = timeStyle,
-                            fontWeight = timeWeight,
-                            color = timeColor
-                        )
+                        ReadingTime()
 
                         if (showLeadingAction) {
                             Box(

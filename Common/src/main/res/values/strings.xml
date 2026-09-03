@@ -2803,4 +2803,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values_desc">A reading keeps the value it was shown as. Calibration changes affect recent readings only.</string>
     <string name="freeze_displayed_values_on">Keeping displayed values</string>
     <string name="freeze_displayed_values_off">Recalculating on every change</string>
+    <string name="clone_source_label">Clone</string>
+    <string name="clone_source_turn_description">Clone via TURN</string>
+    <string name="clone_source_local_ice_description">Clone via local ICE</string>
 </resources>

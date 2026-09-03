@@ -2617,4 +2617,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_interval_title">Neue Werte abrufen</string>
     <string name="nightscout_follow_interval_desc">Wie oft der Follower den Server fragt. Das ist zugleich, wie alt ein Wert sein kann, und damit auch, wie spät ein Alarm auf einen gefolgten Wert kommen kann. Ein Follower hat keinen eigenen Sensor, der das Telefon wach hält, also ist jede Abfrage ein Aufwecken.</string>
     <string name="nightscout_follow_interval_doze">Unter 9 Minuten kann Android die Abfragen im Ruhezustand trotzdem weiter auseinanderziehen. Juggluco von der Akku-Optimierung auszunehmen hält das eingestellte Intervall.</string>
+    <string name="clone_source_label">Clone</string>
+    <string name="clone_source_turn_description">Clone über TURN</string>
+    <string name="clone_source_local_ice_description">Clone über lokales ICE</string>
 </resources>

@@ -2778,4 +2778,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
     <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
     <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
+    <string name="clone_source_label">Clone</string>
+    <string name="clone_source_turn_description">Clone iyada oo loo marayo TURN</string>
+    <string name="clone_source_local_ice_description">Clone iyada oo loo marayo ICE maxalli ah</string>
 </resources>

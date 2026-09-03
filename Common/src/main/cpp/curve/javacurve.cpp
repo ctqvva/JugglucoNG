@@ -108,7 +108,8 @@ jmethodID jdoglucose = nullptr, jupdateDevices = nullptr,
           jbluetoothEnabled = nullptr, jspeak = nullptr, jresetWearOS = nullptr,
           jbluePermission = nullptr;
 static jclass JNIHistorySyncAccess = nullptr;
-static jmethodID jhistorySyncSensor = nullptr,
+static jmethodID jhistoryMarkCloneSensor = nullptr,
+                 jhistorySyncSensor = nullptr,
                  jhistoryForceFullSyncSensor = nullptr,
                  jhistoryMergeFullSyncSensor = nullptr;
 static jclass JNICalibrationProfileAccess = nullptr;
@@ -288,6 +289,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     if (cl) {
       JNIHistorySyncAccess = (jclass)env->NewGlobalRef(cl);
       env->DeleteLocalRef(cl);
+      if (!(jhistoryMarkCloneSensor = env->GetStaticMethodID(
+                JNIHistorySyncAccess, "markCloneSensor",
+                "(Ljava/lang/String;I)V"))) {
+        LOGAR(
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"markCloneSensor","(Ljava/lang/String;I)V") failed)"
+            "");
+      }
       if (!(jhistorySyncSensor = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "syncSensorFromNative",
                 "(Ljava/lang/String;Z)V"))) {
@@ -432,7 +440,7 @@ bool bluetoothEnabled() {
 int bluePermission() {
   return getenv()->CallStaticIntMethod(JNIApplic, jbluePermission);
 }
-void javaMirrorSyncSensor(const char *serial, bool forceFull) {
+void javaMirrorSyncSensor(const char *serial, bool forceFull, int cloneTransport) {
   if (!serial || !*serial) {
     return;
   }
@@ -442,6 +450,14 @@ void javaMirrorSyncSensor(const char *serial, bool forceFull) {
   }
   JNIEnv *env = getenv();
   jstring jserial = env->NewStringUTF(serial);
+  if (jhistoryMarkCloneSensor) {
+    env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMarkCloneSensor,
+                              jserial, cloneTransport);
+    if (env->ExceptionCheck()) {
+      LOGAR("markCloneSensor exception");
+      env->ExceptionClear();
+    }
+  }
   if (forceFull) {
     if (jhistoryMergeFullSyncSensor) {
       env->CallStaticVoidMethod(JNIHistorySyncAccess, jhistoryMergeFullSyncSensor,
