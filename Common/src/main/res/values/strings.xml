@@ -168,6 +168,7 @@
  <string name="addsensorenddate">Add sensor end date to calendar app</string>
  <string name="enddatesensor">"End date sensor "</string>
  <string name="open">Open</string>
+ <string name="copy">Copy</string>
  <string name="share">Share</string>
  <string name="withoutsensor">Without sensor</string>
  <string name="wronglibrary">Library not functioning properly, try a different one</string>

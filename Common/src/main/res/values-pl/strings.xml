@@ -167,6 +167,7 @@
  <string name="addsensorenddate">Dodaj termin zakończenia działania sensora do kalendarza</string>
  <string name="enddatesensor">&quot;Koniec działania sensora &quot;</string>
  <string name="open">Otwórz</string>
+ <string name="copy">Kopiuj</string>
  <string name="share">Udostępnij</string>
  <string name="withoutsensor">Bez sensora</string>
  <string name="wronglibrary">Biblioteka nie działa prawidłowo, spróbuj innej</string>

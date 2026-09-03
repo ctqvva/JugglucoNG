@@ -167,6 +167,7 @@
 <string name="addsensorenddate">Ajouter date de fin de capteur dans le calendrier par l\'appli</string>
 <string name="enddatesensor">"Date de fin du capteur "</string>
 <string name="open">Ouvrir</string>
+<string name="copy">Copier</string>
 <string name="share">Partager</string>
 <string name="withoutsensor">Sans capteur</string>
 <string name="wronglibrary">La librairie ne fonctionne pas correctement, essayez une autre</string>

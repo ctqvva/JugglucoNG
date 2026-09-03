@@ -187,6 +187,7 @@
     <string name="ok">Ок</string>
     <string name="ongoing_description">Текущая программа</string>
     <string name="open">Открыть</string>
+    <string name="copy">Копировать</string>
     <string name="share">Поделиться</string>
     <string name="overlaypermission">Чтобы дать разрешение:</string>
     <string name="parseip">Ошибка при проверке IP-адреса</string>

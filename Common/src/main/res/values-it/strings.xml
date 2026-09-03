@@ -161,6 +161,7 @@
 <string name="addsensorenddate">Aggiungi il sensore e aggiungi la data di fine al calendario</string>
 <string name="enddatesensor">"Data di fine sensore "</string>
 <string name="open">Apri</string>
+<string name="copy">Copia</string>
 <string name="share">Condividi</string>
 <string name="withoutsensor">Senza sensore</string>
 <string name="wronglibrary">Libreria non funzionante, prova con un\'altra</string>

@@ -163,6 +163,7 @@
   <string name="addsensorenddate">Lägg till sensorns slutdatum i kalenderappen</string>
   <string name="enddatesensor">"Sensorns slutdatum "</string>
   <string name="open">Öppna</string>
+  <string name="copy">Kopiera</string>
   <string name="share">Dela</string>
   <string name="withoutsensor">Utan sensor</string>
   <string name="wronglibrary">Programbiblioteket fungerar inte korrekt. Prova ett annat.</string>
