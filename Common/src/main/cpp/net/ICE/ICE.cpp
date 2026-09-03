@@ -213,6 +213,19 @@ void localICEPeerGenerationChanged(int allindex, juice_agent_t *agent,
                                    "local peer generation changed");
     }
 
+void localICEPromotionAvailable(int allindex, juice_agent_t *agent,
+                                uint64_t agentGeneration) {
+    ICEConnect *con=currentICEConnection(allindex,agent);
+    if(!con||!con->isCurrentAgent(agent,agentGeneration)||
+       con->cloneTransportCode()!=clone_transport_turn)
+        return;
+    const passhost_t &host=getBackupHosts()[allindex];
+    if(host.side!=givefirst)
+        return;
+    restartRejectedNegotiation(con,agent,agentGeneration,allindex,
+                               "authenticated LAN promotion available");
+    }
+
 static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int seconds) {
     const int64_t deadline=elapsedRealtimeMilliseconds()+
                            static_cast<int64_t>(std::max(seconds,0))*1000;
@@ -931,7 +944,7 @@ void startReceiverThread(int allindex) {
     }
 
 void wakeICEReceiversForNetworkChange(bool resetConnections,
-                                      bool resetLanSignaledConnections) {
+                                      bool probeLocalFirst) {
     if (!backup)
         return;
     const int hostCount = backup->gethostnr();
@@ -942,11 +955,33 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
         ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
         if (!connection)
             continue;
-        if (resetConnections ||
-            (resetLanSignaledConnections &&
-             connection->remoteDescriptionWasLocal.load())) {
-            LOGGERICE("allindex=%d: rebuild %s generation after network handover\n",
-                      allindex, resetConnections ? "ICE" : "LAN-signaled ICE");
+        bool probing = false;
+        juice_agent_t *agent = connection->agent.load();
+        const uint64_t agentGeneration = connection->currentAgentGeneration();
+        if (resetConnections && probeLocalFirst && agent &&
+            connection->useLocalDiscovery &&
+            connection->cloneTransportCode() == clone_transport_turn) {
+            if (auto local = connection->currentLocalSignal();
+                local && local->requestPromotionProbe()) {
+                probing = true;
+                LOGGERICE("allindex=%d: probe LAN before replacing TURN generation\n",
+                          allindex);
+                std::thread([agent, allindex, agentGeneration] {
+                    ICEConnect *current = static_cast<ICEConnect *>(
+                        connections[allindex]);
+                    if (!current ||
+                        !waitForCurrentAgent(current, agent, 2) ||
+                        current->cloneTransportCode() != clone_transport_turn)
+                        return;
+                    restartRejectedNegotiation(
+                        current, agent, agentGeneration, allindex,
+                        "LAN promotion probe timed out after network handover");
+                }).detach();
+            }
+        }
+        if (resetConnections && !probing) {
+            LOGGERICE("allindex=%d: rebuild ICE generation after network handover\n",
+                      allindex);
             connection->endConnectionHere();
         }
         {

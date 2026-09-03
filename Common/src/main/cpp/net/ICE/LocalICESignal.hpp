@@ -24,6 +24,7 @@ public:
     void publishCandidate(std::string_view candidate);
     void publishGatheringDone();
     void markConnected();
+    bool requestPromotionProbe();
     bool hasAuthenticatedPeer() const;
 
 private:
