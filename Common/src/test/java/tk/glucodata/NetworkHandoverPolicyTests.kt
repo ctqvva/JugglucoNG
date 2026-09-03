@@ -126,7 +126,7 @@ class NetworkHandoverPolicyTests {
     }
 
     @Test
-    fun confirmedHandoverRebuildsEveryIceGeneration() {
+    fun confirmedHandoverProbesTurnBeforeRebuildingIce() {
         val application = source("Common/src/main/java/tk/glucodata/Applic.java")
             .replace(Regex("\\s+"), " ")
         val bridge = source("Common/src/main/cpp/backupjava.cpp")
@@ -139,7 +139,27 @@ class NetworkHandoverPolicyTests {
         assertTrue(handoverCase.contains("Natives.networkhandover();"))
         assertFalse(handoverCase.contains("Natives.networkpresent();"))
         assertTrue(bridge.contains("fromjava(networkhandover)"))
-        assertTrue(bridge.contains("wakeICEReceiversForNetworkChange(true)"))
-        assertTrue(ice.contains("if (resetConnections ||"))
+        assertTrue(bridge.contains("wakeICEReceiversForNetworkChange(true, true)"))
+        assertTrue(bridge.contains("wakeICEReceiversForNetworkChange(true);"))
+        assertTrue(ice.contains("cloneTransportCode() == clone_transport_turn"))
+        assertTrue(ice.contains("local->requestPromotionProbe()"))
+        assertTrue(ice.contains("LAN promotion probe timed out after network handover"))
+        assertTrue(ice.contains("if (resetConnections && !probing)"))
+    }
+
+    @Test
+    fun lanPromotionUsesAnAuthenticatedOffererControlledProbe() {
+        val localSignal = source("Common/src/main/cpp/net/ICE/LocalICESignal.cpp")
+            .replace(Regex("\\s+"), " ")
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(localSignal.contains("PromotionProbe = 5"))
+        assertTrue(localSignal.contains("PromotionAck = 6"))
+        assertTrue(localSignal.contains("promotionProbeToken == data"))
+        assertTrue(localSignal.contains("sendPacket(MessageType::PromotionAck, data, generation)"))
+        assertTrue(localSignal.contains("if (!side) localICEPromotionAvailable"))
+        assertTrue(ice.contains("host.side!=givefirst"))
+        assertTrue(ice.contains("authenticated LAN promotion available"))
     }
 }

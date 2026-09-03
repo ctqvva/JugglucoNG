@@ -34,7 +34,7 @@ extern jclass JNIString;
 extern jstring myNewStringUTF(JNIEnv *env, const std::string_view str);
 extern bool networkpresent;
 void wakeICEReceiversForNetworkChange(bool resetConnections,
-                                      bool resetLanSignaledConnections = false);
+                                      bool probeLocalFirst = false);
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(backuphasrestore)(JNIEnv *env,
                                                                  jclass cl) {
@@ -489,10 +489,11 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkhandover)(JNIEnv *env,
     networkpresent = true;
   }
 
-  // UDP sockets and TURN allocations cannot migrate to a replacement Android
-  // default network. Rebuild every ICE generation when Android selects a new
-  // default path; callbacks for secondary networks do not call this method.
-  wakeICEReceiversForNetworkChange(true);
+  // A live TURN generation gets a brief authenticated LAN probe before it is
+  // replaced. This avoids racing two independently restarted peers when both
+  // devices return to the same Wi-Fi network. Other transports still rebuild
+  // immediately because their sockets cannot follow the new Android default.
+  wakeICEReceiversForNetworkChange(true, true);
   if (backup)
     backup->getupdatedata()->wakesender();
 

@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -37,6 +38,8 @@ void applyLocalICEGatheringDone(int allindex, juice_agent_t *agent,
                                 uint64_t agentGeneration);
 void localICEPeerGenerationChanged(int allindex, juice_agent_t *agent,
                                    uint64_t agentGeneration);
+void localICEPromotionAvailable(int allindex, juice_agent_t *agent,
+                                uint64_t agentGeneration);
 
 namespace {
 
@@ -54,6 +57,8 @@ enum class MessageType : uint8_t {
     Description = 2,
     Candidate = 3,
     GatheringDone = 4,
+    PromotionProbe = 5,
+    PromotionAck = 6,
 };
 
 bool isGenerationToken(std::string_view token) {
@@ -62,6 +67,19 @@ bool isGenerationToken(std::string_view token) {
                return (value >= '0' && value <= '9') ||
                       (value >= 'a' && value <= 'f');
            });
+}
+
+std::optional<std::string> makeProbeToken() {
+    std::array<uint8_t, 16> random{};
+    if (!makerandom(random.data(), random.size()))
+        return std::nullopt;
+    static constexpr char hex[] = "0123456789abcdef";
+    std::string token(random.size() * 2, '0');
+    for (size_t index = 0; index < random.size(); ++index) {
+        token[index * 2] = hex[random[index] >> 4];
+        token[index * 2 + 1] = hex[random[index] & 0x0f];
+    }
+    return token;
 }
 
 uint16_t readUint16(const uint8_t *source) {
@@ -132,6 +150,8 @@ struct LocalICESignalSession::Impl {
     bool localGatheringDone{false};
     std::vector<std::string> pendingRemoteCandidates;
     bool pendingRemoteGatheringDone{false};
+    std::string promotionProbeToken;
+    std::atomic_bool promotionProbeActive{false};
     int socketFd{-1};
     std::jthread receiveThread;
 
@@ -360,6 +380,35 @@ struct LocalICESignalSession::Impl {
             return;
         }
 
+        if (type == MessageType::PromotionProbe) {
+            if (isGenerationToken(data)) {
+                sendPacket(MessageType::PromotionAck, data, generation);
+                // Side 0 owns replacement offers. If side 1 discovers the
+                // shared LAN first, this authenticated request lets side 0
+                // coordinate the new generation instead of both peers racing.
+                if (!side)
+                    localICEPromotionAvailable(allindex, agent,
+                                               agentGeneration);
+            }
+            return;
+        }
+        if (type == MessageType::PromotionAck) {
+            bool matches = false;
+            if (!side && echoMatches && isGenerationToken(data)) {
+                const std::lock_guard<std::mutex> lock(stateMutex);
+                matches = promotionProbeActive.load(std::memory_order_acquire) &&
+                          promotionProbeToken == data;
+                if (matches) {
+                    promotionProbeActive.store(false,
+                                               std::memory_order_release);
+                    promotionProbeToken.clear();
+                }
+            }
+            if (matches)
+                localICEPromotionAvailable(allindex, agent, agentGeneration);
+            return;
+        }
+
         if (type == MessageType::Hello) {
             if (unconfirmedPeerChange)
                 sendPacket(MessageType::Hello, {}, generation);
@@ -494,6 +543,19 @@ void LocalICESignalSession::publishGatheringDone() {
 }
 
 void LocalICESignalSession::markConnected() { impl->connected = true; }
+
+bool LocalICESignalSession::requestPromotionProbe() {
+    const auto token = makeProbeToken();
+    if (!token)
+        return false;
+    {
+        const std::lock_guard<std::mutex> lock(impl->stateMutex);
+        impl->promotionProbeToken = *token;
+        impl->promotionProbeActive.store(true, std::memory_order_release);
+    }
+    impl->sendPacket(MessageType::PromotionProbe, *token);
+    return true;
+}
 
 bool LocalICESignalSession::hasAuthenticatedPeer() const {
     return impl->authenticatedPeer.load(std::memory_order_acquire);
