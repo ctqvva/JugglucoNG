@@ -235,6 +235,9 @@ class AnytimeBleManager(
     @Volatile private var lastCeVoltageMv: Int = Int.MIN_VALUE
     @Volatile private var lastBatteryRaw: Int = Int.MIN_VALUE
     @Volatile private var lastPolarisationMv: Triple<Int, Int, Int>? = null
+    /** viewMode 0 shows the transmitter's own glucose only; 1/2/3 all surface raw. */
+    private val VIEW_MODE_VENDOR_ONLY = 0
+    private val ct5RawScale = AnytimeCt5RawScale()
     /** Most recent algorithm output — for diagnostics (5 electrode voltages,
      *  IIR-filtered currents, sensitivity coefficient, K_BASE/K_AUTO). */
     @Volatile private var lastAlgorithmResult: AnytimeAlgorithm.Result? = null
@@ -415,6 +418,10 @@ class AnytimeBleManager(
         ct5CipherKey = AnytimeRegistry.loadCt5CipherKey(context, id)
         ct5RandomB = AnytimeRegistry.loadCt5RandomB(context, id)
         ct5TempId = AnytimeRegistry.loadCt5TempId(context, id)
+        ct5RawScale.restore(
+            AnytimeRegistry.loadCt5RawScale(context, id),
+            AnytimeRegistry.loadCt5RawScaleSamples(context, id),
+        )
         ct5HighestImportedId = AnytimeRegistry.loadCt5HighestImportedId(context, id)
         AnytimeRegistry.loadCt5PendingGap(context, id)?.let { gap ->
             ct5PendingGapFromId = gap[0]
@@ -618,6 +625,7 @@ class AnytimeBleManager(
         AnytimeRegistry.saveCt5CipherKey(ctx, id, ct5CipherKey)
         AnytimeRegistry.saveCt5RandomB(ctx, id, ct5RandomB)
         AnytimeRegistry.saveCt5TempId(ctx, id, ct5TempId)
+        AnytimeRegistry.saveCt5RawScale(ctx, id, ct5RawScale.scale, ct5RawScale.samples)
         AnytimeRegistry.saveCt5HighestImportedId(ctx, id, ct5HighestImportedId)
         AnytimeRegistry.saveCt5PendingGap(ctx, id, ct5PendingGapFromId, ct5PendingGapStopBeforeId)
         AnytimeRegistry.saveCt5SkippedHistoryIds(
@@ -3470,20 +3478,32 @@ class AnytimeBleManager(
         updateTimelineFromLiveGlucoseId(record.glucoseId, now, intervalMs)
         clearCaughtUpCooldownIfNewerData(record.glucoseId)
 
-        if (!record.hasGlucose) {
+        // Learn the sensor's own current-to-glucose scale while the firmware is still
+        // producing one; that scale is the only thing it adds, and the only thing lost
+        // when it stops.
+        if (record.hasGlucose && record.errorCode == 0) {
+            ct5RawScale.observe(record.iwNa, record.gluMgdl.toFloat())
+        }
+
+        if (!record.hasGlucose || record.errorCode != 0) {
             if (record.glucoseId > lastGlucoseId) lastGlucoseId = record.glucoseId
             persistAlgorithmState()
+            if (emitCt5RawEstimate(record, now, intervalMs)) return
             val remainingMin = ct5WarmupRemainingMs().takeIf { it >= 0L }?.let { (it + 59_999L) / 60_000L } ?: -1L
             Log.i(
                 TAG,
                 String.format(
                     Locale.US,
-                    "CT5 warm-up id=%d (no glucose yet) Iw=%.2fnA Ib=%.2fnA T=%.1fC%s",
+                    "CT5 %s id=%d (no glucose) err=%d Iw=%.2fnA Ib=%.2fnA T=%.1fC%s",
+                    // Calling a terminal record "warm-up" sent us chasing a fresh sensor
+                    // for a fortnight; say which it is.
+                    if (isCt5WarmingUp()) "warm-up" else "no reading",
                     record.glucoseId,
+                    record.errorCode,
                     record.iwNa,
                     record.ibNa,
                     record.temperatureC,
-                    if (remainingMin >= 0L) " ~${remainingMin}min left" else "",
+                    if (isCt5WarmingUp() && remainingMin >= 0L) " ~${remainingMin}min left" else "",
                 ),
             )
             armNoDataWatchdog()
@@ -3503,6 +3523,14 @@ class AnytimeBleManager(
             now
         }
         val result = AnytimeAlgorithm.fromComputedRecord(record, qr, familyEntry)
+            .let { computed ->
+                // The K/R linear model this would otherwise carry is CT3-shaped: with the
+                // K/R this sensor reports over its own SSN it reads 71% high (158 vs the
+                // transmitter's 107 mg/dL). The learned scale reproduces the transmitter
+                // instead, so the raw lane shows something true.
+                val learned = ct5RawScale.estimateMgdl(record.iwNa)
+                if (learned.isFinite()) computed.copy(rawMgdl = learned) else computed
+            }
         val stored = commitReading(result, sampleMs, Applic.app, live = true, history = false)
         noteCt5ImportedId(record.glucoseId)
         if (stored && wasWarmingUp) {
@@ -3514,6 +3542,80 @@ class AnytimeBleManager(
         armPullFallback()
         maybeRunReconnectTelemetryAfterLivePush()
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    /**
+     * Produce a reading from raw current when the transmitter will not.
+     *
+     * A CT5 that has reached `INFO_COMPLETE_END` keeps reporting live current and
+     * temperature but stops computing glucose, so the sensor is physically fine and
+     * entirely unusable. With a scale learned from the transmitter's own earlier output
+     * we can carry on: out of sample that reproduced its glucose to 1.5-4% MARD, and a
+     * concurrent second CGM agreed to 7.5% MARD a day after the firmware quit.
+     *
+     * It is an estimate, so it is offered only where the user asked for raw values --
+     * `viewMode` 0 is the vendor lane alone and stays untouched. It also drifts: the
+     * sensitivity this scale freezes decays about 0.9%/day, and nothing in the frame
+     * reveals by how much, so a fingerstick remains the way to re-anchor it.
+     *
+     * @return true when a reading was stored, so the caller skips its no-reading logging.
+     */
+    private fun emitCt5RawEstimate(
+        record: AnytimeComputedRecord,
+        now: Long,
+        intervalMs: Long,
+    ): Boolean {
+        if (viewModeValue == VIEW_MODE_VENDOR_ONLY) return false
+        // Warm-up genuinely has no glucose to estimate: the electrode has not settled,
+        // and a scale learned from a previous sensor would be a fabrication.
+        if (isCt5WarmingUp()) return false
+        val estimate = ct5RawScale.estimateMgdl(record.iwNa)
+        if (!estimate.isFinite()) return false
+
+        val sampleMs = if (glucoseTimelineStartAtMs > 0L) {
+            glucoseTimelineStartAtMs + record.glucoseId.toLong() * intervalMs
+        } else {
+            now
+        }
+        val result = AnytimeAlgorithm.Result(
+            glucoseId = record.glucoseId,
+            mmol = estimate / 18f,
+            mgdlTimes10 = (estimate * 10f + 0.5f).toInt(),
+            ibNa = record.ibNa,
+            iwNa = record.iwNa,
+            temperatureC = record.temperatureC,
+            trend = 6, // TREND_NONE: an estimated series carries no vendor trend
+            errorCode = 0,
+            warnCode = 0,
+            source = AnytimeAlgorithm.Source.LINEAR,
+            rawMgdl = estimate,
+            beVoltageMv = record.beVoltageMv,
+            weVoltageMv = record.weVoltageMv,
+            reVoltageMv = record.reVoltageMv,
+            ceVoltageMv = record.ceVoltageMv,
+            bVoltageMv = record.batteryRaw,
+        )
+        val stored = commitReading(result, sampleMs, Applic.app, live = true, history = false)
+        if (!stored) return false
+        noteCt5ImportedId(record.glucoseId)
+        Log.i(
+            TAG,
+            String.format(
+                Locale.US,
+                "CT5 estimated id=%d %.0f mg/dL from Iw=%.2fnA (scale %.2f from %d readings, err=%d)",
+                record.glucoseId,
+                estimate,
+                record.iwNa,
+                ct5RawScale.scale,
+                ct5RawScale.samples,
+                record.errorCode,
+            ),
+        )
+        armNoDataWatchdog()
+        armPullFallback()
+        maybeRunReconnectTelemetryAfterLivePush()
+        UiRefreshBus.requestStatusRefresh()
+        return true
     }
 
     private fun handleCt5Series(data: ByteArray) {

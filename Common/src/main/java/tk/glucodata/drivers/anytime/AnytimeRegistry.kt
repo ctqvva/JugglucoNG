@@ -405,6 +405,26 @@ object AnytimeRegistry {
         editor.apply()
     }
 
+    @JvmStatic fun loadCt5RawScale(c: Context, id: String): Float =
+        prefs(c).getFloat(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id, Float.NaN)
+
+    @JvmStatic fun loadCt5RawScaleSamples(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id, 0)
+
+    @JvmStatic fun saveCt5RawScale(c: Context, id: String, scale: Float, samples: Int) {
+        val editor = prefs(c).edit()
+        if (scale.isFinite() && samples > 0) {
+            editor
+                .putFloat(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id, scale)
+                .putInt(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id, samples)
+        } else {
+            editor
+                .remove(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id)
+                .remove(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id)
+        }
+        editor.apply()
+    }
+
     @JvmStatic fun loadCt5TempId(c: Context, id: String): String {
         val preferences = prefs(c)
         return preferences.getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null)
