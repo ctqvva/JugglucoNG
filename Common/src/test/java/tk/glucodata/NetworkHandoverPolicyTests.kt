@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,51 +19,127 @@ class NetworkHandoverPolicyTests {
     private fun source(relative: String): String = File(repoRoot(), relative).readText()
 
     @Test
-    fun replacementNetworkKeepsExistingRecoveryPathAlive() {
-        assertTrue(
-            NetworkHandoverPolicy.hasUsableReplacement(
-                remainingInternetNetworks = 1,
-                hasIpAddress = true,
-            )
+    fun initialDefaultNetworkAnnouncesConnectivity() {
+        val policy = NetworkHandoverPolicy()
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.PRESENT,
+            policy.onDefaultAvailable(network = 1L),
+        )
+        assertEquals(1L, policy.currentIceNetwork())
+    }
+
+    @Test
+    fun repeatedCallbackForSameDefaultPreservesIce() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.PRESENT,
+            policy.onDefaultAvailable(network = 1L),
+        )
+        assertEquals(1L, policy.currentIceNetwork())
+    }
+
+    @Test
+    fun confirmedDefaultChangeStartsImmediateHandover() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.HANDOVER,
+            policy.onDefaultAvailable(network = 2L),
+        )
+        assertEquals(2L, policy.currentIceNetwork())
+    }
+
+    @Test
+    fun lostThenAvailableCallbackOrderBecomesHandover() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.DEFER_ABSENCE,
+            policy.onInternetNetworkLost(network = 1L),
+        )
+        assertEquals(
+            NetworkHandoverPolicy.Action.HANDOVER,
+            policy.onDefaultAvailable(network = 2L),
         )
     }
 
     @Test
-    fun finalNetworkLossStillResetsConnectivity() {
-        assertFalse(
-            NetworkHandoverPolicy.hasUsableReplacement(
-                remainingInternetNetworks = 0,
-                hasIpAddress = false,
-            )
+    fun defaultThenLostCallbackOrderDoesNotRestartTwice() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+        policy.onDefaultAvailable(network = 2L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.NONE,
+            policy.onInternetNetworkLost(network = 1L),
+        )
+        assertEquals(2L, policy.currentIceNetwork())
+    }
+
+    @Test
+    fun actualNetworkAbsenceSurvivesGraceBeforeReset() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+        policy.onInternetNetworkLost(network = 1L)
+        policy.onDefaultLost(network = 1L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.ABSENT,
+            policy.afterAbsenceGrace(defaultNetworkStillAvailable = false),
+        )
+        assertEquals(0L, policy.currentIceNetwork())
+        assertEquals(
+            NetworkHandoverPolicy.Action.PRESENT,
+            policy.onDefaultAvailable(network = 2L),
         )
     }
 
     @Test
-    fun unusableTrackedNetworkDoesNotSuppressReset() {
-        assertFalse(
-            NetworkHandoverPolicy.hasUsableReplacement(
-                remainingInternetNetworks = 1,
-                hasIpAddress = false,
-            )
+    fun delayedDefaultCallbackStillConvertsLossToHandover() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+        policy.onInternetNetworkLost(network = 1L)
+        policy.onDefaultAvailable(network = 2L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.PRESENT,
+            policy.afterAbsenceGrace(defaultNetworkStillAvailable = true),
         )
+        assertEquals(2L, policy.currentIceNetwork())
     }
 
     @Test
-    fun replacementNetworkRebuildsOnlyLanSignaledIceGenerations() {
+    fun lossOfUnrelatedNetworkDoesNothing() {
+        val policy = NetworkHandoverPolicy()
+        policy.onDefaultAvailable(network = 1L)
+
+        assertEquals(
+            NetworkHandoverPolicy.Action.NONE,
+            policy.onInternetNetworkLost(network = 2L),
+        )
+        assertEquals(1L, policy.currentIceNetwork())
+    }
+
+    @Test
+    fun confirmedHandoverRebuildsEveryIceGeneration() {
         val application = source("Common/src/main/java/tk/glucodata/Applic.java")
             .replace(Regex("\\s+"), " ")
         val bridge = source("Common/src/main/cpp/backupjava.cpp")
             .replace(Regex("\\s+"), " ")
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
-        val replacementStart = application.indexOf("if (hasReplacement) {")
-        val replacementEnd = application.indexOf("} else {", replacementStart)
-        assertTrue(replacementStart >= 0 && replacementEnd > replacementStart)
-        val replacementBranch = application.substring(replacementStart, replacementEnd)
-        assertTrue(replacementBranch.contains("Natives.networkhandover();"))
-        assertFalse(replacementBranch.contains("Natives.networkpresent();"))
+        val handoverCase = application.substringAfter("case HANDOVER:").substringBefore("break;")
+        assertTrue(application.contains("registerDefaultNetworkCallback"))
+        assertTrue(application.contains("generation != networkAbsenceGeneration"))
+        assertTrue(handoverCase.contains("Natives.networkhandover();"))
+        assertFalse(handoverCase.contains("Natives.networkpresent();"))
         assertTrue(bridge.contains("fromjava(networkhandover)"))
-        assertTrue(bridge.contains("wakeICEReceiversForNetworkChange(false, true)"))
-        assertTrue(ice.contains("resetLanSignaledConnections && connection->remoteDescriptionWasLocal.load()"))
+        assertTrue(bridge.contains("wakeICEReceiversForNetworkChange(true)"))
+        assertTrue(ice.contains("if (resetConnections ||"))
     }
 }
