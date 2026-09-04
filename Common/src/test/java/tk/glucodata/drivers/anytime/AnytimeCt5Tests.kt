@@ -712,6 +712,48 @@ class AnytimeCt5Tests {
         return frame
     }
 
+    // ---- Timeline anchoring ---------------------------------------------
+
+    @Test
+    fun anAdvancingSensorAnchorsExactlyAsBefore() {
+        // The ordinary case must be untouched: ids advance every cadence, and the anchor
+        // is evaluated before lastGlucoseId moves, so each new id re-anchors.
+        for (id in 1..20) {
+            assertTrue(
+                "id=$id must anchor",
+                shouldReanchorTimeline(liveId = id, previousMaxId = id - 1, haveTimelineStart = true),
+            )
+        }
+    }
+
+    @Test
+    fun aSensorFrozenOnOneIdStopsWalkingTheStart() {
+        // A CT5 past INFO_COMPLETE_END repeats its final id every three minutes forever.
+        assertFalse(shouldReanchorTimeline(liveId = 8175, previousMaxId = 8175, haveTimelineStart = true))
+        // Including across an app restart, since lastGlucoseId is persisted.
+        assertFalse(shouldReanchorTimeline(liveId = 8175, previousMaxId = 8175, haveTimelineStart = true))
+    }
+
+    @Test
+    fun aReactivatedSensorStillAnchorsFromItsOwnFirstId() {
+        // clearStaleRuntimeStateBeforeLiveRecord resets the cursor to -1 on a rollback,
+        // so a fresh sensor is not held hostage by the dead one's ids.
+        assertTrue(shouldReanchorTimeline(liveId = 0, previousMaxId = -1, haveTimelineStart = false))
+        assertTrue(shouldReanchorTimeline(liveId = 3, previousMaxId = -1, haveTimelineStart = true))
+    }
+
+    @Test
+    fun anUnanchoredSessionAnchorsFromWhateverArrivesFirst() {
+        // With no start yet there is nothing to protect, so even a repeat must anchor;
+        // otherwise a restart with no stored start would never establish one.
+        assertTrue(shouldReanchorTimeline(liveId = 8175, previousMaxId = 8175, haveTimelineStart = false))
+    }
+
+    @Test
+    fun anOutOfOrderOlderIdDoesNotDragTheStartBackwards() {
+        assertFalse(shouldReanchorTimeline(liveId = 8100, previousMaxId = 8175, haveTimelineStart = true))
+    }
+
     // ---- Electrode voltages (the six bytes the parser used to drop) ------
 
     @Test

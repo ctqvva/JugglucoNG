@@ -3777,6 +3777,17 @@ class AnytimeBleManager(
 
     private fun updateTimelineFromLiveGlucoseId(glucoseId: Int, sampleMs: Long, intervalMs: Long) {
         if (glucoseId < 0 || intervalMs <= 0L) return
+        // Callers run clearStaleRuntimeStateBeforeLiveRecord first, which resets
+        // lastGlucoseId to -1 on a genuine rollback, so a re-activation still anchors
+        // from its own first id.
+        if (!shouldReanchorTimeline(
+                liveId = glucoseId,
+                previousMaxId = lastGlucoseId,
+                haveTimelineStart = glucoseTimelineStartAtMs > 0L,
+            )
+        ) {
+            return
+        }
         val anchoredStartMs = (sampleMs - glucoseId.toLong() * intervalMs).coerceAtLeast(1L)
         val oldTimelineStart = glucoseTimelineStartAtMs
         val oldSensorStart = sensorStartAtMs
