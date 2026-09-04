@@ -160,22 +160,31 @@ static ICEConnect *currentICEConnection(int allindex, juice_agent_t *agent) {
 static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
                                    uint64_t generation,
                                    std::string_view description,
-                                   bool fromLocalNetwork) {
+                                   bool fromLocalNetwork,
+                                   std::string_view remoteGeneration={}) {
     ICEConnect *con=currentICEConnection(allindex,agent);
     if(!con||!con->isCurrentAgent(agent,generation)||description.empty())
         return false;
     bool expected=false;
     if(!con->remoteDescriptionSet.compare_exchange_strong(expected,true))
-        return true;
+        return false;
+    // Publish the winning signaling channel before handing the description to
+    // libjuice. The rendezvous generation watcher runs concurrently and must
+    // be able to recognize the authenticated LAN generation immediately.
+    con->remoteDescriptionWasLocal=fromLocalNetwork;
+    if(fromLocalNetwork)
+        con->setAcceptedLocalPeerGeneration(remoteGeneration);
     const std::string terminated(description);
     const int result=juice_set_remote_description(agent,terminated.c_str());
     if(result!=JUICE_ERR_SUCCESS) {
+        if(fromLocalNetwork)
+            con->clearAcceptedLocalPeerGeneration();
+        con->remoteDescriptionWasLocal=false;
         con->remoteDescriptionSet=false;
         LOGGERICE("remote description rejected: %s (%d)\n",
                   juiceErrorString(result),result);
         return false;
         }
-    con->remoteDescriptionWasLocal=fromLocalNetwork;
     if(fromLocalNetwork) {
         con->cancelRendezvous();
         }
@@ -184,8 +193,10 @@ static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
 
 bool applyLocalICEDescription(int allindex, juice_agent_t *agent,
                               uint64_t agentGeneration,
-                              std::string_view description) {
-    return applyRemoteDescription(allindex,agent,agentGeneration,description,true);
+                              std::string_view description,
+                              std::string_view remoteGeneration) {
+    return applyRemoteDescription(allindex,agent,agentGeneration,description,
+                                  true,remoteGeneration);
     }
 
 void applyLocalICECandidate(int allindex, juice_agent_t *agent,
@@ -354,6 +365,33 @@ static std::optional<std::string> generationResponseToken(
     return std::string(token);
 }
 
+enum class PeerGenerationUpdate {
+    Observe,
+    Same,
+    AlignWithAuthenticatedLocal,
+    Changed,
+};
+
+static constexpr PeerGenerationUpdate classifyPeerGenerationUpdate(
+        std::string_view observedPeer,
+        std::string_view acceptedLocalPeer,
+        std::string_view reportedPeer) {
+    if(!observedPeer.empty()&&reportedPeer==observedPeer)
+        return PeerGenerationUpdate::Same;
+    if(!acceptedLocalPeer.empty()&&reportedPeer==acceptedLocalPeer)
+        return PeerGenerationUpdate::AlignWithAuthenticatedLocal;
+    if(observedPeer.empty())
+        return PeerGenerationUpdate::Observe;
+    return PeerGenerationUpdate::Changed;
+}
+
+static_assert(classifyPeerGenerationUpdate({}, {}, "a") ==
+              PeerGenerationUpdate::Observe);
+static_assert(classifyPeerGenerationUpdate("old", "new", "new") ==
+              PeerGenerationUpdate::AlignWithAuthenticatedLocal);
+static_assert(classifyPeerGenerationUpdate("old", "new", "other") ==
+              PeerGenerationUpdate::Changed);
+
 static void watchPeerGeneration(
         juice_agent *agent,int allindex,uint64_t agentGeneration,
         std::string commonLabel,bool side,std::string hostname,
@@ -401,16 +439,30 @@ static void watchPeerGeneration(
         const auto peer=generationResponseToken(body);
         if(!peer)
             continue;
-        if(observedPeer.empty()) {
-            observedPeer=*peer;
+        const std::string acceptedLocalPeer=
+            con->currentAcceptedLocalPeerGeneration();
+        // While a LAN description is being applied, its authenticated peer
+        // generation is not yet visible. Ignore this response and let the
+        // next long-poll reconcile against the copied generation token.
+        if(con->remoteDescriptionWasLocal.load()&&acceptedLocalPeer.empty())
             continue;
+        switch(classifyPeerGenerationUpdate(observedPeer,acceptedLocalPeer,
+                                             *peer)) {
+            case PeerGenerationUpdate::Observe:
+                observedPeer=*peer;
+                break;
+            case PeerGenerationUpdate::Same:
+                break;
+            case PeerGenerationUpdate::AlignWithAuthenticatedLocal:
+                observedPeer=*peer;
+                LOGARICE("peer generation watch aligned with authenticated LAN generation");
+                break;
+            case PeerGenerationUpdate::Changed:
+                LOGARICE("peer generation changed");
+                restartRejectedNegotiation(con,agent,agentGeneration,allindex,
+                                           "peer generation changed");
+                return;
         }
-        if(*peer==observedPeer)
-            continue;
-        LOGARICE("peer generation changed");
-        restartRejectedNegotiation(con,agent,agentGeneration,allindex,
-                                   "peer generation changed");
-        return;
     }
 }
 
@@ -539,9 +591,13 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
    const bool side=host.side;
    const std::string hostname(con->rendezvousHost);
    const uint16_t rendezvousPort=con->rendezvousPort;
-   if(auto local=con->currentLocalSignal();
-      local&&local->hasAuthenticatedPeer()) {
-       local->publishCandidate(sdp);
+   // Keep one signaling transport authoritative for the whole ICE
+   // generation. Mixing a rendezvous description with LAN candidates leaves
+   // the rendezvous /address reader waiting for completion even after ICE is
+   // already connected, which in turn delays the Clone receiver handshake.
+   if(con->remoteDescriptionWasLocal.load()) {
+       if(auto local=con->currentLocalSignal())
+           local->publishCandidate(sdp);
        return;
        }
    static std::string_view address{"/address"};
@@ -584,9 +640,12 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
     const bool side=host.side;
     const std::string hostname(con->rendezvousHost);
     const uint16_t rendezvousPort=con->rendezvousPort;
-    if(auto local=con->currentLocalSignal();
-       local&&local->hasAuthenticatedPeer()) {
-        local->publishGatheringDone();
+    // Candidate completion must use the same signaling transport as the
+    // description. Otherwise a rendezvous reader can remain blocked while a
+    // LAN-only completion message is sent to the peer.
+    if(con->remoteDescriptionWasLocal.load()) {
+        if(auto local=con->currentLocalSignal())
+            local->publishGatheringDone();
         return;
         }
     CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
@@ -1240,6 +1299,15 @@ void   recreateAgents() {
     }
 static std::string_view description="/description";
 
+static constexpr bool shouldPublishDescriptionLocally(
+        bool side,bool acceptedOfferLocally) {
+    return side==givefirst||acceptedOfferLocally;
+    }
+
+static_assert(shouldPublishDescriptionLocally(givefirst,false));
+static_assert(shouldPublishDescriptionLocally(!givefirst,true));
+static_assert(!shouldPublishDescriptionLocally(!givefirst,false));
+
 static bool waitonDescription(juice_agent *agent,int allindex,std::string_view commonLabel,int side,
                               std::string_view hostname,uint16_t rendezvousPort) {
     ICEConnect *con=currentICEConnection(allindex,agent);
@@ -1301,8 +1369,14 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
         return  false;
         }
      con->sdplen=strlen(con->sdp);
-    if(auto local=con->currentLocalSignal())
-        local->publishDescription({con->sdp,static_cast<size_t>(con->sdplen)});
+    // Side 0 offers on both signaling transports. Side 1 must answer only on
+    // the transport that delivered the accepted offer, otherwise each peer
+    // can select a different signaling path for the same ICE generation.
+    if(shouldPublishDescriptionLocally(
+           side,con->remoteDescriptionWasLocal.load())) {
+        if(auto local=con->currentLocalSignal())
+            local->publishDescription({con->sdp,static_cast<size_t>(con->sdplen)});
+        }
     CreateAgentData sdpdata(commonLabel,side,con->sdp,con->sdplen);
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("putdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
