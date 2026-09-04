@@ -3493,9 +3493,13 @@ class AnytimeBleManager(
         }
 
         if (!record.hasGlucose || record.errorCode != 0) {
-            if (record.glucoseId > lastGlucoseId) lastGlucoseId = record.glucoseId
+            // Whether this id is new decides everything below, so read it before the cursor
+            // moves: a transmitter still advancing its id is a working sensor having a bad
+            // reading, and a working sensor's bad readings must be dropped, not invented.
+            val idAdvanced = record.glucoseId > lastGlucoseId
+            if (idAdvanced) lastGlucoseId = record.glucoseId
             persistAlgorithmState()
-            if (emitCt5RawEstimate(record, now, intervalMs)) return
+            if (!idAdvanced && emitCt5RawEstimate(record, now, intervalMs)) return
             val remainingMin = ct5WarmupRemainingMs().takeIf { it >= 0L }?.let { (it + 59_999L) / 60_000L } ?: -1L
             Log.i(
                 TAG,
@@ -3572,6 +3576,7 @@ class AnytimeBleManager(
         // No view-mode gate. The estimate is the main-lane value once the transmitter has
         // stopped supplying one, and viewMode only chooses which lane is drawn -- gating on
         // it meant selecting "Auto" silently stopped the sensor producing readings at all.
+        // Callers must only reach here for an id that is not advancing; see the note there.
         // Warm-up genuinely has no glucose to estimate: the electrode has not settled,
         // and a scale learned from a previous sensor would be a fabrication.
         if (isCt5WarmingUp()) return false

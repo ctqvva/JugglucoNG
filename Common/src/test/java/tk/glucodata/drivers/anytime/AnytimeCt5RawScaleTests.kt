@@ -96,6 +96,19 @@ class AnytimeCt5RawScaleTests {
     }
 
     @Test
+    fun theFamilyDefaultIsCloseEnoughForATerminatedSensorButNotAHealthyOne() {
+        // Why estimates are confined to a transmitter whose id has stopped advancing.
+        // Mid-life this sensor ran a scale near 15.2; the family default is 13.3, so
+        // substituting it for a working sensor's own errored reading would be ~13% low.
+        val default = AnytimeCt5RawScale().estimateMgdl(8.0f)
+        val midLifeTruth = 15.2f * 8.0f
+
+        assertEquals(13.3f * 8.0f, default, 0.5f)
+        assertTrue("family default is not a stand-in for a live sensor's own scale",
+            (midLifeTruth - default) / midLifeTruth > 0.10f)
+    }
+
+    @Test
     fun absurdEstimatesAreWithheldRatherThanClamped() {
         val s = scaleFrom(lastGoodPairs, repeats = 40)
 
