@@ -3539,15 +3539,12 @@ class AnytimeBleManager(
         } else {
             now
         }
+        // The raw lane keeps the original K/R linear value. It is not glucose -- it reads
+        // well high with a QR present and about half without one -- but it is a direct,
+        // unsmoothed function of Iw, which makes its drift against the vendor lane a
+        // usable read on the sensor ageing. The scaled estimate belongs in the main lane,
+        // and only once the vendor has stopped supplying one.
         val result = AnytimeAlgorithm.fromComputedRecord(record, qr, familyEntry)
-            .let { computed ->
-                // The K/R linear model this would otherwise carry is CT3-shaped: with the
-                // K/R this sensor reports over its own SSN it reads 71% high (158 vs the
-                // transmitter's 107 mg/dL). The learned scale reproduces the transmitter
-                // instead, so the raw lane shows something true.
-                val learned = ct5RawScale.estimateMgdl(record.iwNa)
-                if (learned.isFinite()) computed.copy(rawMgdl = learned) else computed
-            }
         val stored = commitReading(result, sampleMs, Applic.app, live = true, history = false)
         noteCt5ImportedId(record.glucoseId)
         if (stored && wasWarmingUp) {
@@ -3589,11 +3586,25 @@ class AnytimeBleManager(
         val estimate = ct5RawScale.estimateMgdl(record.iwNa)
         if (!estimate.isFinite()) return false
 
-        val sampleMs = if (glucoseTimelineStartAtMs > 0L) {
-            glucoseTimelineStartAtMs + record.glucoseId.toLong() * intervalMs
-        } else {
-            now
-        }
+        // Never project this from the id. A terminated CT5 repeats one id forever, so
+        // `start + id * interval` only lands near the truth while the timeline start is
+        // walking forward -- and it is exactly that walk which replayed a block of Sep-3
+        // history into Sep-4 evening. The frame arrived now; it is a reading for now.
+        val sampleMs = now
+        val rawLinear = AnytimeAlgorithm.computeLinear(
+            AnytimeRawRecord(
+                indexInPacket = 0,
+                glucoseId = record.glucoseId,
+                ibNa = record.ibNa,
+                iwNa = record.iwNa,
+                temperatureC = record.temperatureC,
+                recordBytes = ByteArray(0),
+            ),
+            qr?.k ?: 0f,
+            qr?.r ?: 0f,
+            familyEntry,
+            qr?.voltageFlag ?: 0,
+        ).rawMgdl
         val result = AnytimeAlgorithm.Result(
             glucoseId = record.glucoseId,
             mmol = estimate / 18f,
@@ -3605,7 +3616,7 @@ class AnytimeBleManager(
             errorCode = 0,
             warnCode = 0,
             source = AnytimeAlgorithm.Source.LINEAR,
-            rawMgdl = estimate,
+            rawMgdl = if (rawLinear.isFinite()) rawLinear else estimate,
             beVoltageMv = record.beVoltageMv,
             weVoltageMv = record.weVoltageMv,
             reVoltageMv = record.reVoltageMv,
