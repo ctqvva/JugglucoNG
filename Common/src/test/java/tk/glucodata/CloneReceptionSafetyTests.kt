@@ -255,7 +255,7 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun localSignalingWinnerKeepsPeerGenerationWatchAndRejectsLateResponses() {
+    fun localSignalingWinnerReconcilesItsGenerationWithTheRemoteWatch() {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
         val applyDescription = ice.substring(
@@ -266,6 +266,8 @@ class CloneReceptionSafetyTests {
             ice.indexOf("static void watchPeerGeneration"),
             ice.indexOf("static void startPeerGenerationWatch"),
         )
+        val localSignal = source("Common/src/main/cpp/net/ICE/LocalICESignal.cpp")
+            .replace(Regex("\\s+"), " ")
         val afterGenerationRequest = generationWatch.substring(
             generationWatch.indexOf("auto [body,code]=ContextHTTPS::getContext().putRequest"),
             generationWatch.indexOf("if(code==400)"),
@@ -275,6 +277,10 @@ class CloneReceptionSafetyTests {
         assertFalse(applyDescription.contains("con->cancelGenerationWatch();"))
         assertFalse(generationWatch.contains("con->isConnected.load()"))
         assertTrue(afterGenerationRequest.contains("cancellation&&cancellation->load(std::memory_order_acquire)"))
+        assertTrue(ice.contains("currentAcceptedLocalPeerGeneration()"))
+        assertTrue(ice.contains("PeerGenerationUpdate::AlignWithAuthenticatedLocal"))
+        assertTrue(ice.contains("peer generation watch aligned with authenticated LAN generation"))
+        assertTrue(localSignal.contains("data, generation"))
     }
 
     @Test

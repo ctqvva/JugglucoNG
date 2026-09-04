@@ -30,7 +30,8 @@
 
 bool applyLocalICEDescription(int allindex, juice_agent_t *agent,
                               uint64_t agentGeneration,
-                              std::string_view description);
+                              std::string_view description,
+                              std::string_view remoteGeneration);
 void applyLocalICECandidate(int allindex, juice_agent_t *agent,
                             uint64_t agentGeneration,
                             std::string_view candidate);
@@ -422,7 +423,7 @@ struct LocalICESignalSession::Impl {
             case MessageType::Description:
                 if (!remoteDescriptionApplied.load() &&
                     applyLocalICEDescription(allindex, agent, agentGeneration,
-                                             data)) {
+                                             data, generation)) {
                     remoteDescriptionApplied = true;
                     applyPendingRemote();
                 }

@@ -80,6 +80,8 @@ std::shared_ptr<std::atomic_bool> generationWatchCancellation{
         std::make_shared<std::atomic_bool>(false)};
 std::mutex rendezvousGenerationMutex;
 std::string rendezvousGeneration;
+std::mutex acceptedLocalPeerGenerationMutex;
+std::string acceptedLocalPeerGeneration;
 std::atomic<int> generationWatchCapability{0};
 std::atomic_bool remoteDescriptionSet{false};
 std::atomic_bool remoteDescriptionWasLocal{false};
@@ -162,6 +164,18 @@ void cancelGenerationWatch() {
         }
 bool prepareRendezvousGeneration();
 std::string currentRendezvousGeneration();
+void setAcceptedLocalPeerGeneration(std::string_view generation) {
+        std::lock_guard<std::mutex> lock(acceptedLocalPeerGenerationMutex);
+        acceptedLocalPeerGeneration.assign(generation);
+        }
+std::string currentAcceptedLocalPeerGeneration() {
+        std::lock_guard<std::mutex> lock(acceptedLocalPeerGenerationMutex);
+        return acceptedLocalPeerGeneration;
+        }
+void clearAcceptedLocalPeerGeneration() {
+        std::lock_guard<std::mutex> lock(acceptedLocalPeerGenerationMutex);
+        acceptedLocalPeerGeneration.clear();
+        }
 std::shared_ptr<LocalICESignalSession> currentLocalSignal() {
         std::lock_guard<std::mutex> lock(localSignalMutex);
         return localSignal;
@@ -246,6 +260,7 @@ void releaseReceiverThread() {
         endConnect=false;
         remoteDescriptionSet=false;
         remoteDescriptionWasLocal=false;
+        clearAcceptedLocalPeerGeneration();
         reloadNetworkConfig(getBackupHosts()[allindex]);
         beginRendezvous();
         if(!prepareRendezvousGeneration()) {
