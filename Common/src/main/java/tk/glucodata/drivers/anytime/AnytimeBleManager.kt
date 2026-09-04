@@ -1623,12 +1623,19 @@ class AnytimeBleManager(
         // history unhealthy, which blocked every other pull.
         val liveAgeMs = if (lastLiveFrameAtMs > 0L) System.currentTimeMillis() - lastLiveFrameAtMs else Long.MAX_VALUE
         if (liveAgeMs in 0..(intervalMs * 2)) return lastGlucoseId
+        // A reconnect asks before the first push of the new session lands, so the clock
+        // estimate is still consulted there. Cap it at the sensor's rated horizon: a
+        // transmitter cannot have produced an id beyond the end of its own cycle, and
+        // asking for one costs a GATT session per range for data that cannot exist.
+        val horizon = profile.endNumber.takeIf { it > 0 } ?: Int.MAX_VALUE
         val startMs = glucoseTimelineStartAtMs.takeIf { it > 0L }
             ?: sensorStartAtMs.takeIf { it > 0L }
             ?: return -1
         val elapsed = System.currentTimeMillis() - startMs
         if (elapsed < 0L) return -1
-        return (elapsed / intervalMs).toInt()
+        // Never below what the transmitter has already shown us: this is a floor for ids
+        // possibly missed while away, not a correction of what it has actually reported.
+        return (elapsed / intervalMs).toInt().coerceAtMost(maxOf(horizon, lastGlucoseId))
     }
 
     /** Targeted catch-up after reconnect; the id currently in flight is left to live. */

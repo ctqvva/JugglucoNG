@@ -109,6 +109,31 @@ class AnytimeCt5RawScaleTests {
     }
 
     @Test
+    fun aRestoredScaleSurvivesTheNextReadingAndTheNextRestart() {
+        val s = AnytimeCt5RawScale().apply { restore(13.26f, samples = 500) }
+
+        // It used to evaporate here: one live reading put the window at 2 samples,
+        // below the threshold, and the scale silently reverted to the family default.
+        s.observe(9.04f, 120f)
+        assertTrue(s.isLearned)
+        assertEquals(13.26f, s.effectiveScale, 0.05f)
+
+        // And it must persist with its real evidence, or the next restart rejects it.
+        assertTrue("persisted sample count must justify a later restore",
+            s.samples >= AnytimeCt5RawScale.MIN_SAMPLES)
+        val roundTripped = AnytimeCt5RawScale().apply { restore(s.scale, s.samples) }
+        assertTrue(roundTripped.isLearned)
+    }
+
+    @Test
+    fun aFullLiveWindowTakesOverFromTheRestoredScale() {
+        val s = AnytimeCt5RawScale(windowSize = 300).apply { restore(13.26f, samples = 500) }
+        repeat(300) { s.observe(10f, 150f) }   // the sensor now reads scale 15
+
+        assertEquals("live evidence must win once there is enough of it", 15f, s.scale, 0.01f)
+    }
+
+    @Test
     fun absurdEstimatesAreWithheldRatherThanClamped() {
         val s = scaleFrom(lastGoodPairs, repeats = 40)
 

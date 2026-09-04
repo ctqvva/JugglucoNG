@@ -25,12 +25,21 @@ internal class AnytimeCt5RawScale(
 ) {
     private val ratios = ArrayDeque<Float>(windowSize)
 
+    /** Held apart from [ratios] so a restart cannot dilute it below the threshold. */
+    private var restoredScale: Float = Float.NaN
+    private var restoredSamples: Int = 0
+
     /** mg/dL per nA, or [Float.NaN] until enough of a window has been seen to trust it. */
     @Volatile
     var scale: Float = Float.NaN
         private set
 
-    val samples: Int get() = ratios.size
+    /**
+     * Evidence behind the current scale. Must not fall back to the live window's size
+     * alone: persisting a restored scale as "1 sample" made the next restart reject it
+     * for having too little evidence, so a learned scale survived exactly one restart.
+     */
+    val samples: Int get() = maxOf(ratios.size, restoredSamples)
 
     /**
      * Feed a reading the transmitter computed itself. Only clean ones: an errored or
@@ -43,18 +52,28 @@ internal class AnytimeCt5RawScale(
         if (ratio !in MIN_PLAUSIBLE_RATIO..MAX_PLAUSIBLE_RATIO) return
         if (ratios.size >= windowSize) ratios.removeFirst()
         ratios.addLast(ratio)
-        scale = if (ratios.size >= MIN_SAMPLES) ratios.sum() / ratios.size else Float.NaN
+        recompute()
     }
 
-    /** Restore a scale learned before a restart, so a frozen sensor is usable immediately. */
+    /**
+     * Restore a scale learned before a restart, so a frozen sensor is usable immediately.
+     *
+     * Deliberately kept out of [ratios]. Seeding the live window with the restored mean
+     * meant the very next reading put the window at two samples, below the threshold, so
+     * the restored scale evaporated on the first frame after every restart -- silently,
+     * because the family default stands in and nothing looks wrong.
+     */
     fun restore(scale: Float, samples: Int) {
         if (!scale.isFinite() || scale !in MIN_PLAUSIBLE_RATIO..MAX_PLAUSIBLE_RATIO) return
         if (samples < MIN_SAMPLES) return
         ratios.clear()
-        // One representative sample: the persisted mean is what matters, and letting live
-        // readings outweigh it as they arrive is the intent.
-        ratios.addLast(scale)
-        this.scale = scale
+        restoredScale = scale
+        restoredSamples = samples
+        recompute()
+    }
+
+    private fun recompute() {
+        scale = if (ratios.size >= MIN_SAMPLES) ratios.sum() / ratios.size else restoredScale
     }
 
     /** True once this sensor has taught us its own scale, rather than the family default. */
