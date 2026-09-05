@@ -111,4 +111,20 @@ class PredictionModelProfileTests {
         assertEquals(42f, restored.parametersAtMinute(480).carbAbsorptionGramsPerHour, 0f)
         assertEquals(4, restored.encode().substringBefore(';').split(',').size)
     }
+    @Test
+    fun unsavedProfileDecodesToTheDisplayedFallbackValues() {
+        // No PROFILE_KEY in prefs means decode(null, fallback): the profile
+        // must carry exactly the fallback values the screen displays. The
+        // PRE_HIGH IOB coverage check relies on this instead of requiring a
+        // saved profile (the model profile screen has no save button).
+        val profile = PredictionModelProfile.decode(
+            null,
+            PredictionModelParameters(
+                carbRatioGramsPerUnit = 10f,
+                insulinSensitivityMgDlPerUnit = 54f
+            )
+        )
+        assertEquals(54f, profile.parametersAtMinute(600).insulinSensitivityMgDlPerUnit, 0f)
+        assertEquals(10f, profile.parametersAtMinute(600).carbRatioGramsPerUnit, 0f)
+    }
 }

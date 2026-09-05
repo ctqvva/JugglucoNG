@@ -159,9 +159,17 @@ fun CalibrationListScreen(
     val expandMasterCalibrationCardOnFirstVisit = remember(calibrationUiPrefs) {
         !calibrationUiPrefs.getBoolean(CalibrationMasterCardSeenPref, false)
     }
-    suspend fun rewriteHistoryIfNeeded() {
-        if (!overwriteSensorValues || currentSensor.isBlank()) return
-        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+    /**
+     * Keeps the display record current after a calibration change.
+     *
+     * Formerly gated on the "overwrite sensor values" switch, which rewrote the
+     * stored readings in place from its own previous output. Recording is
+     * non-destructive and idempotent, so it no longer needs a switch to protect
+     * the data from it.
+     */
+    suspend fun recordDisplayValues() {
+        if (currentSensor.isBlank()) return
+        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
     }
 
     var showImportExportSheet by rememberSaveable { mutableStateOf(false) }
@@ -366,7 +374,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setEnabledForMode(isRawMode, enabled, currentSensor)
                                 if (enabled && overwriteSensorValues && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             },
@@ -377,7 +385,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setApplyToPast(enabled)
                                 if (overwriteSensorValues && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             },
@@ -385,7 +393,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setLockPastHistory(enabled)
                                 if (overwriteSensorValues && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             },
@@ -393,7 +401,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setKeepDisabledHistory(enabled)
                                 if (overwriteSensorValues && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             },
@@ -401,7 +409,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setOverwriteSensorValues(enabled)
                                 if (enabled && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             },
@@ -427,7 +435,7 @@ fun CalibrationListScreen(
                                 CalibrationManager.setWeightMode(mode)
                                 if (overwriteSensorValues && currentSensor.isNotBlank()) {
                                     scope.launch {
-                                        historyRepository.rewriteSensorValuesWithCalibration(currentSensor, isRawMode)
+                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
                                     }
                                 }
                             }
@@ -474,7 +482,7 @@ fun CalibrationListScreen(
                             scope.launch {
                                 val backup = cal
                                 CalibrationManager.deleteCalibration(cal)
-                                rewriteHistoryIfNeeded()
+                                recordDisplayValues()
                                 
                                 val result = snackbarHostState.showCalibrationUndoSnackbar(
                                     message = context.getString(R.string.calibration_deleted),
@@ -490,14 +498,14 @@ fun CalibrationListScreen(
                                         sensorId = backup.sensorId,
                                         isRawMode = backup.isRawMode
                                     )
-                                    rewriteHistoryIfNeeded()
+                                    recordDisplayValues()
                                 }
                             }
                         },
                         onToggleDisable = { 
                             scope.launch { 
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = !cal.isEnabled))
-                                rewriteHistoryIfNeeded()
+                                recordDisplayValues()
                             }
                         }
                     )
@@ -543,7 +551,7 @@ fun CalibrationListScreen(
                             toUpdate.forEach { cal ->
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = false))
                             }
-                            rewriteHistoryIfNeeded()
+                            recordDisplayValues()
                             isSelectionMode = false
                             selectedIds = emptySet()
                         }
@@ -554,7 +562,7 @@ fun CalibrationListScreen(
                             toUpdate.forEach { cal ->
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = true))
                             }
-                            rewriteHistoryIfNeeded()
+                            recordDisplayValues()
                             isSelectionMode = false
                             selectedIds = emptySet()
                         }
@@ -575,7 +583,7 @@ fun CalibrationListScreen(
                                 scope.launch {
                                     val toDelete = calibrations.filter { selectedIds.contains(it.id) }
                                     toDelete.forEach { CalibrationManager.deleteCalibration(it) }
-                                    rewriteHistoryIfNeeded()
+                                    recordDisplayValues()
                                     
                                     val result = snackbarHostState.showCalibrationUndoSnackbar(
                                         message = context.getString(R.string.calibrations_deleted_count, toDelete.size),
@@ -593,7 +601,7 @@ fun CalibrationListScreen(
                                                 isRawMode = cal.isRawMode
                                             )
                                         }
-                                        rewriteHistoryIfNeeded()
+                                        recordDisplayValues()
                                     }
                                     
                                     isSelectionMode = false
@@ -618,7 +626,7 @@ fun CalibrationListScreen(
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
                     disabled.forEach { CalibrationManager.deleteCalibration(it) }
-                    rewriteHistoryIfNeeded()
+                    recordDisplayValues()
                     snackbarHostState.showSnackbar(
                         message = context.getString(R.string.disabled_calibrations_cleared, disabled.size),
                         duration = SnackbarDuration.Short
@@ -630,7 +638,7 @@ fun CalibrationListScreen(
                 scope.launch {
                     val backup = calibrations
                     CalibrationManager.clearAll()
-                    rewriteHistoryIfNeeded()
+                    recordDisplayValues()
                     
                     val result = snackbarHostState.showCalibrationUndoSnackbar(
                         message = context.getString(R.string.all_calibrations_cleared),
@@ -639,7 +647,7 @@ fun CalibrationListScreen(
                     
                     if (result == SnackbarResult.ActionPerformed) {
                         CalibrationManager.restoreAll(backup)
-                        rewriteHistoryIfNeeded()
+                        recordDisplayValues()
                     }
                 }
                 showClearConfirmation = false

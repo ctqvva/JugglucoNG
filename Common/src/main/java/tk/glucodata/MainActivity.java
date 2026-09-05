@@ -498,6 +498,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             return;
         }
+        if (!Specific.historyDatabaseCompatible(this)) {
+            showHistoryDatabaseIncompatible();
+            return;
+        }
         DisplayMetrics metrics = this.getResources().getDisplayMetrics();
         screenheight = metrics.heightPixels;
         screenwidth = metrics.widthPixels;
@@ -531,6 +535,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         ;
     }
 
+    private void showHistoryDatabaseIncompatible() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.history_database_incompatible_title)
+                .setMessage(R.string.history_database_incompatible_message)
+                .setPositiveButton(R.string.ok, (ignoredDialog, ignoredButton) -> finishAndRemoveTask())
+                .setCancelable(false)
+                .create();
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
+    }
+
     static boolean composeUIActive;
 
     private void initComposeUI() {
@@ -555,6 +570,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if (intent == null)
             return;
         final Bundle extras = intent.getExtras();
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            // A screen asked for from outside Compose: a notification carrying a route.
+            // The Compose host navigates once it is composed, so this also works from a
+            // cold start; a relaunch from Recents must not navigate again.
+            final String route = intent.getStringExtra(tk.glucodata.ui.PendingNavigation.EXTRA_ROUTE);
+            if (route != null && !route.isEmpty()) {
+                tk.glucodata.ui.PendingNavigation.request(route);
+                return;
+            }
+        }
         if (extras != null) {
             if (extras.getBoolean(Notify.fromnotification, false)) {
                 {
@@ -761,6 +786,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     boolean active = false;
+
+    /** Started and not stopped: the reader mode is armed and a tag belongs to it. */
+    public static boolean isInForeground() {
+        final MainActivity act = thisone;
+        return act != null && act.active;
+    }
     /*
      * static final class ShowMessage {
      * public String mess;
@@ -986,7 +1017,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             }
                             ;
                         }
-                            tk.glucodata.NovoPen.Scan.onTag(this, tag);
+                            // Reader mode delivers off the main thread; a TECH_DISCOVERED
+                            // intent (the background receiver handing a pen on) arrives on
+                            // it, and a pen read is seconds of I/O — same split as below.
+                            if (Thread.currentThread().equals(Looper.getMainLooper().getThread())) {
+                                new Thread(() -> tk.glucodata.NovoPen.Scan.onTag(this, tag)).start();
+                            } else {
+                                tk.glucodata.NovoPen.Scan.onTag(this, tag);
+                            }
                             // A full pen read takes seconds. Taps that arrived while it
                             // was running are queued on this monitor and would each start
                             // another read of the same pen, so re-arm the guard from now.
