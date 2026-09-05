@@ -23,8 +23,14 @@ object AlertStateTracker {
     // Only a new real firing replaces it; the directional window owns expiry/reversal.
     private val lastFiringAcknowledged = mutableMapOf<AlertType, Boolean>()
     
-    // User explicitly dismissed this alert for the current episode.
-    // It stays suppressed until the condition clears and resetState() is called.
+    // Unknown until this process has evaluated the production episode.
+    private val exportKnown = mutableSetOf<AlertType>()
+
+    @Synchronized
+    fun activeEpisodeForExport(type: AlertType): Boolean? =
+        if (type in exportKnown) lastTriggerTime.containsKey(type) else null
+
+    // User dismissal suppresses this episode until the condition clears.
     private val dismissedAlerts = mutableSetOf<AlertType>()
 
     // Manual tests use the real delivery surface, but must never acknowledge,
@@ -95,6 +101,8 @@ object AlertStateTracker {
         lastFiringAcknowledged[type] = false
         lastTriggerTime[type] = System.currentTimeMillis()
         cooldownUntilTime[type] = lastTriggerTime.getValue(type) + effectiveRearmCooldownMs(config)
+        exportKnown.add(type)
+        tk.glucodata.GluciferSender.requestUpdate()
         SmsWatchdog.onAlertFired(type.id)
         return true
     }
@@ -178,6 +186,7 @@ object AlertStateTracker {
      */
     @Synchronized
     fun resetState(type: AlertType) {
+        val exportChanged = exportKnown.add(type) || lastTriggerTime.containsKey(type)
         if (
             lastTriggerTime.containsKey(type) ||
             dismissedAlerts.contains(type) ||
@@ -191,6 +200,7 @@ object AlertStateTracker {
         lastTriggerTime.remove(type)
         dismissedAlerts.remove(type)
         manualTests.clearPending(type)
+        if (exportChanged) tk.glucodata.GluciferSender.requestUpdate()
         SmsWatchdog.onAlertResolved(type.id)
     }
 }
