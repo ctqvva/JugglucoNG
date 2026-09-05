@@ -70,6 +70,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import tk.glucodata.InsulinPenManager
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
@@ -149,7 +150,16 @@ private fun HistoryRoute(
     val chartSmoothingMinutes by dashboardViewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
     val dataSmoothingCollapseChunks by dashboardViewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
     val dataSmoothingExchangeOnly by dashboardViewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    val dataSmoothingGraphOnly by dashboardViewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val visualSmoothingMinutes = tk.glucodata.DataSmoothing.graphSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
+    val evaluationSmoothingMinutes = tk.glucodata.DataSmoothing.localSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        graphOnly = dataSmoothingGraphOnly,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
     val previewWindowMode by dashboardViewModel.previewWindowMode.collectAsStateWithLifecycle()
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
@@ -185,6 +195,7 @@ private fun HistoryRoute(
         targetLow = targetLow,
         targetHigh = targetHigh,
         graphSmoothingMinutes = visualSmoothingMinutes,
+        evaluationSmoothingMinutes = evaluationSmoothingMinutes,
         collapseSmoothedData = dataSmoothingCollapseChunks,
         previewWindowMode = previewWindowMode,
         calibrations = calibrations,
@@ -302,7 +313,16 @@ private fun JournalRoute(
     val chartSmoothingMinutes by dashboardViewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
     val dataSmoothingCollapseChunks by dashboardViewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
     val dataSmoothingExchangeOnly by dashboardViewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    val dataSmoothingGraphOnly by dashboardViewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val visualSmoothingMinutes = tk.glucodata.DataSmoothing.graphSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
+    val evaluationSmoothingMinutes = tk.glucodata.DataSmoothing.localSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        graphOnly = dataSmoothingGraphOnly,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
     val previewWindowMode by dashboardViewModel.previewWindowMode.collectAsStateWithLifecycle()
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
@@ -689,6 +709,31 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     LaunchedEffect(currentRoute) {
         dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
+    }
+
+    // A screen asked for from outside Compose — a notification's tap — is parked in
+    // PendingNavigation by MainActivity and taken here, so it works from a cold start.
+    // It is placed directly above the dashboard, as a tab tap would place it, so the
+    // bar keeps working: whatever was open is popped (state saved), Back returns to
+    // the dashboard, and the dashboard tab is one tap away.
+    LaunchedEffect(navController) {
+        PendingNavigation.route.collect { route ->
+            if (route != null) {
+                runCatching {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                    }
+                }
+                PendingNavigation.consume()
+            }
+        }
+    }
+
+    // The pen receiver is a manifest component switched by a setting; line it up with
+    // the settings once per start, for an upgrade or a restored backup.
+    LaunchedEffect(Unit) {
+        InsulinPenManager.syncBackgroundReceiver(context)
     }
 
     BackHandler(enabled = currentRoute == "dashboard") {

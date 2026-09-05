@@ -29,26 +29,39 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
  *   v11 — journal food library and macro metadata for carb entries
  *   v12 — per-preset dose-calculation eligibility
- *   v13 — versioned insulin curve evidence and immutable per-dose curve snapshots
+ *   v13 — retry accounting on journal delete tombstones
+ *   v14 — per-reading credible intervals for uncertainty-aware estimators
+ *   v15 — per-reading record of the value actually displayed, so calibration
+ *         changes stop rewriting the sensor's own stored numbers
+ *   v16 — repair step: two branches each shipped a different "v13", so what a
+ *         phone holds at v15 depends on which build it happened to install
+ *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — versioned insulin curve evidence and immutable per-dose curve snapshots
  */
 @Database(
     entities = [
         HistoryReading::class,
         DeletedHistoryReading::class,
+        ReadingUncertainty::class,
+        ReadingDisplay::class,
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 13,
+    version = 18,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
     
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
-    
+    abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
+    abstract fun readingDisplayDao(): ReadingDisplayDao
+
     companion object {
+        private const val DATABASE_NAME = "glucose_history.db"
+
         @Volatile
         private var INSTANCE: HistoryDatabase? = null
 
@@ -240,41 +253,231 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
         private val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE journal_insulin_presets ADD COLUMN curveProfileId TEXT")
                 db.execSQL(
-                    "ALTER TABLE journal_insulin_presets " +
-                        "ADD COLUMN curveModelVersion INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
                 )
                 db.execSQL(
-                    "ALTER TABLE journal_insulin_presets " +
-                        "ADD COLUMN curveEvidence TEXT NOT NULL DEFAULT 'unverified'"
+                    "ALTER TABLE journal_pending_deletes ADD COLUMN lastAttemptAt INTEGER NOT NULL DEFAULT 0"
                 )
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveJsonSnapshot TEXT")
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveProfileId TEXT")
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveModelVersion INTEGER")
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveEvidence TEXT")
-                db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinBodyWeightKg REAL")
-                db.execSQL(
-                    "ALTER TABLE journal_entries " +
-                        "ADD COLUMN insulinCurveWasApproximated INTEGER NOT NULL DEFAULT 0"
-                )
-                // Freeze the curve that every existing insulin entry uses today.
-                // Later preset upgrades must not rewrite historical or active doses.
+            }
+        }
+        /**
+         * v13 → v14: uncertainty lives in its own table rather than as columns
+         * on `history_readings`, which native re-sync rewrites. Nothing is
+         * backfilled: readings written before this have no uncertainty, which
+         * is the truthful answer, and they render as a plain line.
+         */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
-                    UPDATE journal_entries
-                    SET insulinCurveJsonSnapshot = (
-                        SELECT curveJson
-                        FROM journal_insulin_presets
-                        WHERE journal_insulin_presets.id = journal_entries.insulinPresetId
-                    ),
-                    insulinCurveEvidence = 'unverified',
-                    insulinCurveWasApproximated = 1
-                    WHERE entryType = 'insulin' AND insulinPresetId IS NOT NULL
+                    CREATE TABLE IF NOT EXISTS reading_uncertainty (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        lowerMgdl REAL NOT NULL,
+                        upperMgdl REAL NOT NULL,
+                        intervalMass REAL NOT NULL,
+                        confidence REAL,
+                        artifactProbability REAL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
                     """.trimIndent()
                 )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_uncertainty_timestamp " +
+                        "ON reading_uncertainty (timestamp)"
+                )
+            }
+        }
+
+        /**
+         * Additive: the reading's displayed value moves to its own table.
+         *
+         * Nothing is backfilled here. Room migrations run on the database alone,
+         * and deciding which existing rows carry a calibrated value needs the
+         * calibration preferences — so the seeding is done once from
+         * [HistoryRepository.seedDisplayRecordsFromOverwrittenHistory] instead,
+         * where that state is readable.
+         */
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_timestamp " +
+                        "ON reading_display (timestamp)"
+                )
+            }
+        }
+
+        /**
+         * v15 → v16: reconciles a database that passed v13 under a different meaning of it.
+         *
+         * The tombstone retry columns and the uncertainty table were both written as "v13",
+         * on separate branches. A phone runs whichever it met first, and from then on it is
+         * past 13 and can never be handed the other one — so the schema it actually holds
+         * depends on which build it happened to install, and Room finds a column missing
+         * that its entities require.
+         *
+         * This step asks the database what it has rather than assuming a history, and adds
+         * only what is absent. On a phone that took the ordinary path every statement here
+         * is a no-op, and nothing is dropped or rewritten in either case.
+         */
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "journal_pending_deletes", "attempts")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_pending_deletes ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                if (!hasColumn(db, "journal_pending_deletes", "lastAttemptAt")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_pending_deletes ADD COLUMN lastAttemptAt INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                // The other side of the same collision: a phone that took the tombstone
+                // columns as its v13 reaches here by a different route. Both statements are
+                // already IF NOT EXISTS in their own steps; repeating them costs nothing and
+                // covers the ordering this branch cannot know about.
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_uncertainty (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        lowerMgdl REAL NOT NULL,
+                        upperMgdl REAL NOT NULL,
+                        intervalMass REAL NOT NULL,
+                        confidence REAL,
+                        artifactProbability REAL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_uncertainty_timestamp " +
+                        "ON reading_uncertainty (timestamp)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        sensorSerial TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(sensorSerial, timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_timestamp " +
+                        "ON reading_display (timestamp)"
+                )
+            }
+        }
+
+        /**
+         * v16 → v17: track LibreView delivery independently from Nightscout delivery.
+         *
+         * The column check also accepts databases created by an installed build of the
+         * original PR branch, where this column briefly occupied version 13.
+         */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "journal_entries", "lvUploadedAt")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN lvUploadedAt INTEGER")
+                }
+            }
+        }
+
+        /** What the database actually holds, rather than what its version number implies. */
+        private fun hasColumn(db: SupportSQLiteDatabase, table: String, column: String): Boolean {
+            val cursor = db.query("PRAGMA table_info(`$table`)")
+            try {
+                val nameIndex = cursor.getColumnIndex("name")
+                if (nameIndex < 0) return false
+                while (cursor.moveToNext()) {
+                    if (column.equals(cursor.getString(nameIndex), ignoreCase = true)) {
+                        return true
+                    }
+                }
+            } finally {
+                cursor.close()
+            }
+            return false
+        }
+
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val needsSnapshotBackfill = !hasColumn(db, "journal_entries", "insulinCurveJsonSnapshot")
+                if (!hasColumn(db, "journal_insulin_presets", "curveProfileId")) {
+                    db.execSQL("ALTER TABLE journal_insulin_presets ADD COLUMN curveProfileId TEXT")
+                }
+                if (!hasColumn(db, "journal_insulin_presets", "curveModelVersion")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_insulin_presets " +
+                            "ADD COLUMN curveModelVersion INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                if (!hasColumn(db, "journal_insulin_presets", "curveEvidence")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_insulin_presets " +
+                            "ADD COLUMN curveEvidence TEXT NOT NULL DEFAULT 'unverified'"
+                    )
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveJsonSnapshot")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveJsonSnapshot TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveProfileId")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveProfileId TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveModelVersion")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveModelVersion INTEGER")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveEvidence")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveEvidence TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinBodyWeightKg")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinBodyWeightKg REAL")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveWasApproximated")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_entries " +
+                            "ADD COLUMN insulinCurveWasApproximated INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                if (needsSnapshotBackfill) {
+                    // Freeze the curve that every existing insulin entry uses today.
+                    // Later preset upgrades must not rewrite historical or active doses.
+                    db.execSQL(
+                        """
+                        UPDATE journal_entries
+                        SET insulinCurveJsonSnapshot = (
+                            SELECT curveJson
+                            FROM journal_insulin_presets
+                            WHERE journal_insulin_presets.id = journal_entries.insulinPresetId
+                        ),
+                        insulinCurveEvidence = 'unverified',
+                        insulinCurveWasApproximated = 1
+                        WHERE entryType = 'insulin' AND insulinPresetId IS NOT NULL
+                        """.trimIndent()
+                    )
+                }
             }
         }
 
@@ -283,7 +486,7 @@ abstract class HistoryDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     HistoryDatabase::class.java,
-                    "glucose_history.db"
+                    DATABASE_NAME
                 )
                 .addMigrations(
                     MIGRATION_2_3,
@@ -296,10 +499,31 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
-                    MIGRATION_12_13
+                    MIGRATION_12_13,
+                    MIGRATION_13_14,
+                    MIGRATION_14_15,
+                    MIGRATION_15_16,
+                    MIGRATION_16_17,
+                    MIGRATION_17_18
                 )
-                .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
             }
+
+        @JvmStatic
+        fun isCompatibleAtStartup(context: Context): Boolean {
+            if (!context.getDatabasePath(DATABASE_NAME).isFile) return true
+
+            return try {
+                getInstance(context).openHelper.writableDatabase
+                true
+            } catch (error: RuntimeException) {
+                android.util.Log.e(
+                    "HistoryDatabase",
+                    "Existing history database is incompatible with this build",
+                    error
+                )
+                false
+            }
+        }
     }
 }

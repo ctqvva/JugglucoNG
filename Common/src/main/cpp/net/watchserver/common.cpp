@@ -17,6 +17,7 @@ extern jclass JNINightscoutCalibration;
 extern double getdelta(float change);
 extern std::string_view getdeltaname(float rate);
 extern double calibrateONE(const SensorGlucoseData *sens,const ScanData &value);
+extern double calibrateONE(const SensorGlucoseData *sens,const uint32_t time,const double value);
 
 static jclass exportvalueclass=nullptr;
 
@@ -39,13 +40,18 @@ static bool ensureexportvalueclass(JNIEnv *env) {
     return false;
     }
 
-int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
-                        const sensorname_t *sensorname) {
-    if(!sens||!val||!sensorname)
+//Value-based entry point, for outputs whose records are not ScanData: the LibreView
+//history stream carries Glucose records, which live outside the polls array and so have
+//no raw counterpart to look up. Those callers pass rawCurrent=0, which leaves a
+//raw-primary sensor on its auto lane rather than calibrating against a value that is not
+//there.
+int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sensorname,
+                          const uint32_t tim,const int storedMgdl,const int rawCurrent) {
+    if(!sens||!sensorname||storedMgdl<=0)
         return 0;
-    int autoMgdl=val->getmgdL();
+    int autoMgdl=storedMgdl;
     if(settings->data()->DoCalibrate) {
-        if(double calibrated=calibrateONE(sens,*val);!isnan(calibrated))
+        if(double calibrated=calibrateONE(sens,tim,(double)storedMgdl);!isnan(calibrated))
             autoMgdl=(int)round(calibrated);
         }
     auto env=getenv();
@@ -66,7 +72,6 @@ int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
     auto jsensor=env->NewStringUTF(sensornameStr);
     const auto *info=sens->getinfo();
     const int viewMode=info?info->viewMode:0;
-    const int rawCurrent=sens->getRawForPoll(val);
     const int resolved=env->CallStaticIntMethod(
         exportvalueclass,
         exportedValueMethod,
@@ -74,7 +79,7 @@ int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
         viewMode,
         autoMgdl,
         rawCurrent,
-        (jlong)val->gettime()*1000LL
+        (jlong)tim*1000LL
     );
     env->DeleteLocalRef(jsensor);
     if(env->ExceptionCheck()) {
@@ -82,6 +87,14 @@ int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
         return autoMgdl;
         }
     return resolved>0?resolved:autoMgdl;
+    }
+
+int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
+                        const sensorname_t *sensorname) {
+    if(!sens||!val||!sensorname)
+        return 0;
+    return resolveExportedMgdlAt(sens,sensorname,val->gettime(),val->getmgdL(),
+                                 sens->getRawForPoll(val));
     }
 
 const ScanData *makeExportedScan(const SensorGlucoseData *sens,

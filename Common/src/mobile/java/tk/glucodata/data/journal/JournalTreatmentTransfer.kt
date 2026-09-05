@@ -122,6 +122,24 @@ object JournalTreatmentTransfer {
         return json
     }
 
+/**
+     * The same document with the fields v3 will not let a client change taken out.
+     *
+     * v3 answers an update that carries them with 400 "Field date cannot be modified by the
+     * client", and its collection POST rejects a payload with no date. This partial payload
+     * therefore goes to PATCH /treatments/{identifier}; the route identifies the document,
+     * while the body contains only fields the client may change.
+     */
+    fun stripImmutableForUpdate(json: JSONObject): JSONObject = json
+        .apply {
+            remove("date")
+            remove("created_at")
+            remove("utcOffset")
+            // The PATCH route names the document; neither identity field belongs in its body.
+            remove("_id")
+            remove("identifier")
+        }
+
     fun parseTreatment(
         context: Context,
         treatment: JSONObject,

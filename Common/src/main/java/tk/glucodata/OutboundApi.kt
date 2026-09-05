@@ -538,22 +538,14 @@ object OutboundApi {
             DateFormat.SHORT,
             Locale.getDefault()
         ).format(Date(reading.timeMillis))
-        val journal = if (
-            template.contains("{journal") ||
-            template.contains("{iob}") ||
-            template.contains("{cob}")
-        ) {
-            reading.journal
-        } else {
-            JournalSnapshot()
-        }
+        val journal = if (needsJournalSnapshot(template)) reading.journal else JournalSnapshot()
         val effectiveIob = journal.iob.takeIf { it.isFinite() } ?: reading.iob
         val journalEvents = journalEventsJsonArray(journal)
         val effectiveStatus = status
             ?: destination?.rangeStatus(reading.mgdl)
             ?: OutboundApiSettings.TUNNEL_STATUS_IN_RANGE
         val statusEmojiValue = statusEmoji(effectiveStatus)
-        return template
+        val rendered = template
             .replace("{event_id}", reading.eventId)
             .replace("{recipient}", reading.recipient)
             .replace("{value}", reading.displayText)
@@ -593,7 +585,38 @@ object OutboundApi {
             .replace("{test}", reading.test.toString())
             .replace("{status}", effectiveStatus)
             .replace("{status_emoji}", statusEmojiValue)
+        return OutboundApiInsulinTokens.expand(
+            template = rendered,
+            types = OutboundApiInsulinTokens.parse(journal.json),
+            atMillis = reading.timeMillis,
+            formatTime = ::formatTimeOfDay
+        )
     }
+
+    private fun formatTimeOfDay(timeMillis: Long): String =
+        DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date(timeMillis))
+
+    /**
+     * Tokens that need no journal read. Anything else in a template — `{iob}`,
+     * `{cob}`, `{journal…}` or a per-insulin-type token, whose spelling depends
+     * on what the user named their insulin — means the snapshot has to be
+     * loaded, which costs a Room query per send.
+     */
+    private val STATIC_TOKENS = setOf(
+        "event_id", "recipient", "value", "unit", "mgdl", "mmol",
+        "auto", "auto_value", "auto_mgdl", "auto_mmol",
+        "raw", "raw_mgdl", "raw_mmol",
+        "trend", "trend_arrow", "rate_mgdl", "rate_mmol",
+        "timestamp", "time", "sensor", "sensor_gen", "alarm",
+        "test", "status", "status_emoji"
+    )
+
+    private val PLACEHOLDER = Regex("\\{[^{}\\s]+}")
+
+    internal fun needsJournalSnapshot(template: String): Boolean =
+        PLACEHOLDER.findAll(template).any { match ->
+            match.value.removeSurrounding("{", "}") !in STATIC_TOKENS
+        }
 
     internal fun statusEmoji(status: String): String = when (status) {
         OutboundApiSettings.TUNNEL_STATUS_HIGH -> "\uD83D\uDFE1"      // 🟡
@@ -1054,6 +1077,10 @@ class OutboundApiWorker(
                 .put("cob", journal.cob.takeIf { it.isFinite() })
                 .put("journal_cob", journal.cob.takeIf { it.isFinite() })
                 .put("journal_events", journalEvents)
+                .put(
+                    OutboundApiInsulinTokens.JSON_ARRAY,
+                    journal.json?.optJSONArray(OutboundApiInsulinTokens.JSON_ARRAY)
+                )
                 .put("journal", journal.json)
                 .put("message", message)
         }

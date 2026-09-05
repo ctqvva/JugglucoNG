@@ -33,6 +33,7 @@
 #include "settings/settings.hpp"
 #include "SensorGlucoseData.hpp"
 #include "share/serial.hpp"
+#include "destruct.hpp"
 #include "libreview.hpp"
 #ifdef LIBRENUMBERS
 #include "librenumbers.hpp"
@@ -134,14 +135,15 @@ return sprintf(buf,entry, factime,num,stamp, value);
 #define EXTRATIME 0
 #endif
 static_assert(sizeof(long long)==sizeof(int64_t), "");
-static int histel3_2str(const Glucose *el,const int64_t histor,char *buf) {
+static int histel3_2str(const SensorGlucoseData *sens,const Glucose *el,const int64_t histor,char *buf) {
 	char gmttime[25+EXTRATIME];
 	auto tim=el->gettime();
 	int mil=getmmsec();
 	TdatestringGMT(tim,mil,gmttime);
 	char timestr[30+EXTRATIME];
 	Tdatestringlocal(tim,mil,timestr);
-	return historyformat(buf,gmttime,mkhistrecord(histor,el->getid()),timestr,(float)el->getmgdL());
+	return historyformat(buf,gmttime,mkhistrecord(histor,el->getid()),timestr,
+	                     (float)libreviewExportedMgdl(sens,tim,el->getmgdL()));
 	}
 
 
@@ -244,7 +246,7 @@ bool getisviewed(time_t wastime) {
 		}
 	return false;
 	}
-static int addcurrent(char *buf,int64_t histor,const ScanData *el,bool &viewed) {
+static int addcurrent(const SensorGlucoseData *sens,char *buf,int64_t histor,const ScanData *el,bool &viewed) {
 	char gmttime[25+EXTRATIME];
 	auto tim=el->gettime();
 	int mil=getmmsec();
@@ -254,7 +256,8 @@ static int addcurrent(char *buf,int64_t histor,const ScanData *el,bool &viewed) 
 	int64_t recordnum=mkhistrecord(histor,el->getid());
 	viewed=getisviewed(tim) ;
 	const char *isviewed=viewed?"true":"false";
-	return sprintf(buf,onecurrent, trendName[el->tr],isviewed,gmttime,recordnum,timestr,(float)el->getmgdL());
+	return sprintf(buf,onecurrent, trendName[el->tr],isviewed,gmttime,recordnum,timestr,
+	               (float)libreviewExportedMgdl(sens,tim,el->getmgdL(),sens?sens->getRawForPoll(el):0));
 	}
 //uint16_t lastLifeCountReceived;
 
@@ -281,7 +284,7 @@ static int sendallcurrent(uint32_t nu,SensorGlucoseData *sens,char *buf,int *las
 		const ScanData *el=startstream+i;
 		if(el->current(i)) {
 			int64_t histor=libreviewSensorNameID(sens);
-			int wrote=addcurrent(buf,histor,el,viewed);
+			int wrote=addcurrent(sens,buf,histor,el,viewed);
 			return wrote;
 			}
 		}
@@ -305,7 +308,7 @@ int allhistory(SensorGlucoseData *sens,char *buf,uint32_t *lasttime,int *nextnum
 	for(;iter<=endpos;iter++) {
 		const Glucose *gl=sens->getglucose(iter);
 		if(gl->valid()) {
-			pos+=histel3_2str(gl,histor,buf+pos);
+			pos+=histel3_2str(sens,gl,histor,buf+pos);
 			*lasttime=gl->gettime();
 			buf[pos++]=',';
 			}
@@ -405,11 +408,15 @@ LOGGER("numbers.spaceneeded()=%d\n",bytesnumbers);
 #else
 constexpr const int  bytesnumbers=0;
 #endif
+//Journal entries stay pending until this document is answered; the guard releases them on
+//every way out of here that is not a success.
+const int journalbytes=libreviewJournalPrepare(true);
+destruct _journal([] { libreviewJournalDiscard(); });
 	lastsensor=lastlibre3;
 LOGGER("startsensor=%d lastsensor=%d\n",startsensor,lastsensor);
 SensorGlucoseData *lastsensdata=(lastsensor<0)?nullptr:sensors->getSensorData(lastsensor); //TODO later?
 
-	if(bytesnumbers==0&&inhistory<=0) {
+	if(bytesnumbers==0&&journalbytes==0&&inhistory<=0) {
 		if(!hasnewcurrent)
 			return true;
 		}
@@ -424,7 +431,7 @@ const int usertokenlen= settings->data()->tokensize3;
 
 constexpr int restsize=2300;
 
-int totalsize= bytesnumbers+restsize+usertokenlen+incurrent*onecurrentsize+inhistory*onehistorysize+1;
+int totalsize= bytesnumbers+journalbytes+restsize+usertokenlen+incurrent*onecurrentsize+inhistory*onehistorysize+1;
 
 LOGGER("inhistory=%d incurrent=%d totalsize=%d\n",inhistory,incurrent,totalsize);
 char *buf= new(std::nothrow)  char[totalsize];
@@ -468,15 +475,26 @@ if(wrotecurrent>0) {
 	addarray(newline);
 	}
 addarray(afterentries);
+//Journal entries first, then the legacy store's. Each journal entry ends in a comma and
+//writeallfood drops its own last one, so only a journal-only array needs trimming.
+char *foodstart=uitptr;
+uitptr+=libreviewJournalWrite(uitptr,libreviewJournalFood);
 int wrotefood=numbers.writeallfood(uitptr);
-if(wrotefood>0) {
-	uitptr+=wrotefood;
+uitptr+=wrotefood;
+if(uitptr>foodstart) {
+	if(uitptr[-1]==',')
+		--uitptr;
 	addarray(newline);
 	}
 addarray(afterFoodentries);
 
-const int notelen=numbers.writeallnotes(uitptr);
-uitptr+=notelen;
+const int journalnotelen=libreviewJournalWrite(uitptr,libreviewJournalNotes);
+uitptr+=journalnotelen;
+const int nativenotelen=numbers.writeallnotes(uitptr);
+uitptr+=nativenotelen;
+//Both writers end every entry with a comma, so a non-zero total still means one is
+//trailing -- which is what the sensor-start block below decides whether to trim.
+const int notelen=journalnotelen+nativenotelen;
 
 int addsensorlen;
 if(wrotecurrent>0) {
@@ -495,9 +513,13 @@ else {
           }
 	}
 addarray(aftergeneric);
+char *insulinstart=uitptr;
+uitptr+=libreviewJournalWrite(uitptr,libreviewJournalInsulin);
 int wroteinsulin=numbers.writeallinsulin(uitptr);
-if(wroteinsulin>0) {
-	uitptr+=wroteinsulin;
+uitptr+=wroteinsulin;
+if(uitptr>insulinstart) {
+	if(uitptr[-1]==',')
+		--uitptr;
 	addarray(newline);
 	}
 addarray(afterinsulin);
@@ -539,6 +561,7 @@ bool datasend=libresendmeasurements(true,buf,uitlen);
 if(datasend) {
 	LOGSTRING("libresendmeasurements libre3 success\n");
 	numbers.onSuccess();
+	libreviewJournalCommit();
 //	int nextsensor=(wrotecurrent>0)?lastsensor:lastwrote;
 	if(nextsensor>=0) {
 		settings->data()->startlibre3view=nextsensor;

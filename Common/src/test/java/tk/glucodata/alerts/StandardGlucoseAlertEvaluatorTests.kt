@@ -158,8 +158,20 @@ class StandardGlucoseAlertEvaluatorTests {
             isConfigActive = activeConfig,
             wasConditionActive = { true }
         )
-        val recovered = StandardGlucoseAlertEvaluator.resolveActive(
+        // Meaningful recovery = the MEASURED value clears threshold + margin
+        // (3.9 + 1.1 default). 4.2 used to end the episode under the old
+        // 0.2 mmol margin; the rework keeps it alive on purpose.
+        val stillUndecided = StandardGlucoseAlertEvaluator.resolveActive(
             glucoseValue = 4.2f,
+            rate = 0f,
+            configs = configs,
+            alertTypes = listOf(AlertType.PRE_LOW),
+            isMmol = true,
+            isConfigActive = activeConfig,
+            wasConditionActive = { true }
+        )
+        val recovered = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 5.1f,
             rate = 0f,
             configs = configs,
             alertTypes = listOf(AlertType.PRE_LOW),
@@ -169,6 +181,7 @@ class StandardGlucoseAlertEvaluatorTests {
         )
 
         assertTrue(AlertType.PRE_LOW in jitter)
+        assertTrue(AlertType.PRE_LOW in stillUndecided)
         assertTrue(recovered.isEmpty())
     }
 
@@ -197,7 +210,9 @@ class StandardGlucoseAlertEvaluatorTests {
 
         assertTrue(evaluate(4.2f, -1.0f).shouldTryFire(AlertType.PRE_LOW))
         assertFalse(evaluate(4.0f, 0.05f).shouldTryFire(AlertType.PRE_LOW))
-        assertTrue(AlertType.PRE_LOW in evaluate(4.2f, 0f).cleared)
+        // Recovery past threshold + margin (3.9 + 1.1) ends the episode ...
+        assertTrue(AlertType.PRE_LOW in evaluate(5.1f, 0f).cleared)
+        // ... and only then is a fresh entry a fresh episode.
         assertTrue(evaluate(4.2f, -1.0f).shouldTryFire(AlertType.PRE_LOW))
     }
 
@@ -223,11 +238,23 @@ class StandardGlucoseAlertEvaluatorTests {
                 isMmol = true
             )
         )
-        assertFalse(
+        // 8.7 has not recovered past threshold - margin (9.0 - 1.1 = 7.9): the
+        // prediction is undecided and the episode survives.
+        assertTrue(
             ForecastThresholdPolicy.isActive(
                 type = AlertType.PRE_HIGH,
                 currentValue = 8.7f,
                 projectedValue = 8.7f,
+                threshold = 9.0f,
+                wasActive = true,
+                isMmol = true
+            )
+        )
+        assertFalse(
+            ForecastThresholdPolicy.isActive(
+                type = AlertType.PRE_HIGH,
+                currentValue = 7.8f,
+                projectedValue = 7.8f,
                 threshold = 9.0f,
                 wasActive = true,
                 isMmol = true
@@ -280,5 +307,45 @@ class StandardGlucoseAlertEvaluatorTests {
         )
 
         assertTrue(episodes.update(active.keys).shouldTryFire(AlertType.HIGH))
+    }
+
+    @Test
+    fun untrustedRateSilencesForecastsButLeavesThresholdAlertsUntouched() {
+        // Post-reboot window: no TrendVelocityProvider registered yet, the rate
+        // is a two-point fallback slope. A -3 mg/dl/min artifact at 125 mg/dl
+        // projects to 33 over 30 minutes - the forecast must stay silent, while
+        // threshold alerts (which measure the actual value) keep working.
+        val configs = mapOf(
+            AlertType.PRE_LOW to AlertConfig(
+                type = AlertType.PRE_LOW,
+                enabled = true,
+                threshold = 70.2f,
+                forecastMinutes = 30
+            ),
+            AlertType.LOW to AlertConfig(AlertType.LOW, enabled = true, threshold = 130f)
+        )
+
+        val untrusted = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 125f,
+            rate = -3.05f,
+            configs = configs,
+            alertTypes = listOf(AlertType.PRE_LOW, AlertType.LOW),
+            isMmol = false,
+            isConfigActive = activeConfig,
+            forecastRateTrusted = false
+        )
+        val trusted = StandardGlucoseAlertEvaluator.resolveActive(
+            glucoseValue = 125f,
+            rate = -3.05f,
+            configs = configs,
+            alertTypes = listOf(AlertType.PRE_LOW, AlertType.LOW),
+            isMmol = false,
+            isConfigActive = activeConfig,
+            forecastRateTrusted = true
+        )
+
+        assertFalse(AlertType.PRE_LOW in untrusted)
+        assertTrue(AlertType.LOW in untrusted)
+        assertTrue(AlertType.PRE_LOW in trusted)
     }
 }

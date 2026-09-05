@@ -196,6 +196,7 @@ class ICanHealthBleManager(
     @Volatile private var lastHandledLiveSequence = -1
     @Volatile private var lastHandledLiveTimestampMs = 0L
     @Volatile private var lastLiveGapBackfillAtMs = 0L
+    @Volatile private var pendingLiveHistoryGap: ICanHealthSequenceGap? = null
     @Volatile private var historyTzRepairLoadedSensorId: String? = null
     @Volatile private var historyTzRepairPending = false
     @Volatile private var persistedHistoryTailTimestampMs = 0L
@@ -971,16 +972,15 @@ class ICanHealthBleManager(
 
     private fun shouldSkipHistoryOverlap(sequenceNumber: Int, sampleTimeMs: Long): Boolean {
         loadPersistedCoveredEdge()
-        if (!canUseHistoryPastEndedStatusCap()) {
-            val coveredSequence = maxOf(lastHandledLiveSequence, persistedCoveredSequence)
-            if (coveredSequence >= 0 && sequenceNumber >= 0 && sequenceNumber <= coveredSequence) {
-                return true
-            }
-        }
         val coveredTimestampMs = maxOf(persistedHistoryTailTimestampMs, persistedCoveredTimestampMs)
-        return coveredTimestampMs > 0L &&
-            sampleTimeMs > 0L &&
-            sampleTimeMs <= coveredTimestampMs
+        return ICanHealthHistoryPolicy.shouldSkipHistoryOverlap(
+            sequenceNumber = sequenceNumber,
+            sampleTimeMs = sampleTimeMs,
+            coveredSequence = maxOf(lastHandledLiveSequence, persistedCoveredSequence),
+            coveredTimestampMs = coveredTimestampMs,
+            pendingLiveGap = pendingLiveHistoryGap,
+            ignoreCoveredSequence = canUseHistoryPastEndedStatusCap(),
+        )
     }
 
     private fun legacyAuthBypassPrefKeys(sensorId: String = SerialNumber): LinkedHashSet<String> {
@@ -2280,20 +2280,27 @@ class ICanHealthBleManager(
         val anchorTimeMs = resolveSequenceAnchorTimeMs(nowMs)
         val persistedTailSequence = estimatePersistedTailSequence(anchorTimeMs)
         val latestKnownSequence = maxOf(lastHandledLiveSequence, persistedTailSequence ?: -1)
-        if (latestKnownSequence >= readingInterval) {
-            val nextMissingSequence = latestKnownSequence + readingInterval
-            if (currentSequenceNumber >= nextMissingSequence) {
-                return nextMissingSequence
-            }
+        val startSequence = ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
+            readingIntervalMinutes = readingInterval,
+            currentSequence = currentSequenceNumber,
+            latestKnownSequence = latestKnownSequence,
+            pendingLiveGap = pendingLiveHistoryGap,
+        )
+        if (startSequence == null) {
             Log.i(
                 TAG,
                 "Skipping glucose-history read; persisted/local tail already covers current end index (tailSeq=$latestKnownSequence current=$currentSequenceNumber)"
             )
             return null
         }
-        // Cold start / no in-memory tail: mirror the vendor fallback and ask
-        // from the first valid glucose-history slot.
-        return readingInterval
+        pendingLiveHistoryGap?.takeIf { it.startSequence == startSequence }?.let { gap ->
+            Log.i(
+                TAG,
+                "Requesting iCan history to repair live gap ${gap.startSequence}..<${gap.endSequenceExclusive} " +
+                    "(${gap.readingCount} reading(s))"
+            )
+        }
+        return startSequence
     }
 
     private fun resolveCappedEndedHistoryStartSequence(nowMs: Long, readingInterval: Int): Int? {
@@ -2436,8 +2443,9 @@ class ICanHealthBleManager(
         sawUnsupportedSnHistoryBatch = false
         if (importedGlucoseHistory > 0) {
             val cappedHistoryPolling = canUseHistoryPastEndedStatusCap()
+            val liveGapStillPending = pendingLiveHistoryGap != null
             suppressAutomaticHistoryBackfill = false
-            shouldRequestAuthenticatedHistoryBackfill = cappedHistoryPolling
+            shouldRequestAuthenticatedHistoryBackfill = cappedHistoryPolling || liveGapStillPending
             receivedGlucoseThisConnection = true
             lastGlucoseReceiptRealtimeMs = System.currentTimeMillis()
             phase = Phase.STREAMING
@@ -2447,7 +2455,11 @@ class ICanHealthBleManager(
             Log.i(
                 TAG,
                 "Authenticated glucose-history cycle completed with $importedGlucoseHistory imported records" +
-                    if (cappedHistoryPolling) "; capped history polling remains enabled" else ""
+                    when {
+                        liveGapStillPending -> "; live-gap repair remains pending"
+                        cappedHistoryPolling -> "; capped history polling remains enabled"
+                        else -> ""
+                    }
             )
         } else if (unsupportedBatch) {
             suppressAutomaticHistoryBackfill = true
@@ -2658,14 +2670,12 @@ class ICanHealthBleManager(
         if (suppressAutomaticHistoryBackfill || historyBackfillRequested) {
             return
         }
-        val missedReadings = ICanHealthConstants.missedReadingsBetween(
+        val detectedGap = ICanHealthHistoryPolicy.liveGapBetween(
             previousSequence = previousSequence,
             currentSequence = currentSequence,
             readingIntervalMinutes = readingIntervalMinutes(),
-        )
-        if (missedReadings < 1) {
-            return
-        }
+        ) ?: return
+        val missedReadings = detectedGap.readingCount
         val sinceLastMs = nowMs - lastLiveGapBackfillAtMs
         if (lastLiveGapBackfillAtMs > 0L && sinceLastMs < LIVE_GAP_BACKFILL_MIN_INTERVAL_MS) {
             logd(TAG) {
@@ -2675,6 +2685,7 @@ class ICanHealthBleManager(
             return
         }
         lastLiveGapBackfillAtMs = nowMs
+        pendingLiveHistoryGap = pendingLiveHistoryGap?.mergedWith(detectedGap) ?: detectedGap
         historyBackfillAttemptedThisConnection = false
         shouldRequestAuthenticatedHistoryBackfill = true
         Log.i(
@@ -2828,6 +2839,15 @@ class ICanHealthBleManager(
             val lastRecord = ordered.last()
             rememberCoveredEdge(lastRecord.sequenceNumber, lastRecord.timestampMs)
             mirrorHistoryBatchIntoNative(ordered, repairing)
+            val liveGap = pendingLiveHistoryGap
+            if (liveGap != null && liveGap.isFullyCoveredBy(ordered.mapTo(HashSet<Int>()) { it.sequenceNumber })) {
+                pendingLiveHistoryGap = null
+                Log.i(
+                    TAG,
+                    "Filled iCan live gap ${liveGap.startSequence}..<${liveGap.endSequenceExclusive} " +
+                        "(${liveGap.readingCount} reading(s))"
+                )
+            }
             if (repairing) {
                 markHistoryTimezoneRepairApplied()
             }
