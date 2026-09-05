@@ -52,6 +52,9 @@ constexpr size_t plainHeaderLength = 2 + 2 + 2 + tokenLength + tokenLength;
 constexpr size_t maximumPayloadLength = 6144;
 constexpr uint16_t firstLocalPort = 20000;
 constexpr uint16_t localPortCount = 10000;
+constexpr auto snapshotRetryInterval = std::chrono::seconds(1);
+
+enum class SnapshotKind { Handshake, Retry, Reply };
 
 enum class MessageType : uint8_t {
     Hello = 1,
@@ -151,6 +154,7 @@ struct LocalICESignalSession::Impl {
     bool localGatheringDone{false};
     std::vector<std::string> pendingRemoteCandidates;
     bool pendingRemoteGatheringDone{false};
+    std::chrono::steady_clock::time_point nextSnapshot{};
     std::string promotionProbeToken;
     std::atomic_bool promotionProbeActive{false};
     int socketFd{-1};
@@ -266,17 +270,25 @@ struct LocalICESignalSession::Impl {
         }
     }
 
-    void sendSnapshot(std::string_view echo = {}) {
+    void sendSnapshot(std::string_view echo = {},
+                      SnapshotKind kind = SnapshotKind::Handshake) {
         std::string description;
         std::vector<std::string> candidates;
         bool gatheringDone;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
+            const auto now = std::chrono::steady_clock::now();
+            if (kind != SnapshotKind::Handshake && now < nextSnapshot)
+                return;
+            nextSnapshot = now + snapshotRetryInterval;
             description = localDescription;
             candidates = localCandidates;
             gatheringDone = localGatheringDone;
         }
-        sendPacket(MessageType::Hello, {}, echo);
+        // A confirmed retry reply must not solicit another reply, even when
+        // network delay exceeds the retry interval.
+        if (kind != SnapshotKind::Reply)
+            sendPacket(MessageType::Hello, {}, echo);
         if (!description.empty())
             sendPacket(MessageType::Description, description, echo);
         for (const auto &candidate : candidates)
@@ -413,8 +425,13 @@ struct LocalICESignalSession::Impl {
         if (type == MessageType::Hello) {
             if (unconfirmedPeerChange)
                 sendPacket(MessageType::Hello, {}, generation);
-            else if (!echoMatches || !wasConfirmed)
-                sendSnapshot(generation);
+            else
+                // Confirmation proves peer identity, not delivery of its SDP,
+                // candidates or completion. Even a connected peer must answer
+                // retries from a peer still negotiating. Confirmed replies are
+                // rate-limited and do not contain another Hello.
+                sendSnapshot(generation, echoMatches && wasConfirmed
+                    ? SnapshotKind::Reply : SnapshotKind::Handshake);
             return;
         }
         if (!echoMatches)
@@ -434,7 +451,10 @@ struct LocalICESignalSession::Impl {
                                            data);
                 } else {
                     const std::lock_guard<std::mutex> lock(stateMutex);
-                    pendingRemoteCandidates.emplace_back(data);
+                    if (std::find(pendingRemoteCandidates.begin(),
+                                  pendingRemoteCandidates.end(), data) ==
+                        pendingRemoteCandidates.end())
+                        pendingRemoteCandidates.emplace_back(data);
                 }
                 break;
             case MessageType::GatheringDone:
@@ -460,8 +480,10 @@ struct LocalICESignalSession::Impl {
                !stopping.load(std::memory_order_acquire)) {
             const auto now = std::chrono::steady_clock::now();
             if (!connected.load(std::memory_order_acquire) && now >= nextHello) {
-                sendPacket(MessageType::Hello);
-                nextHello = now + std::chrono::seconds(1);
+                // UDP publication can be lost after the Hello handshake has
+                // completed. Retry the saved signaling data, not just identity.
+                sendSnapshot({}, SnapshotKind::Retry);
+                nextHello = now + snapshotRetryInterval;
             }
             pollfd descriptor{socketFd, POLLIN, 0};
             const int result = poll(&descriptor, 1, 250);
