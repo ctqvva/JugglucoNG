@@ -64,27 +64,33 @@ internal fun buildDisplayHistoryForPrediction(
 
     val useRaw = source == PredictionHistorySource.RAW || source == PredictionHistorySource.CALIBRATED_RAW
     val useCalibration = source == PredictionHistorySource.CALIBRATED_AUTO || source == PredictionHistorySource.CALIBRATED_RAW
-    val overwriteSensorValues = tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues()
     val calibrationActiveBySensor = HashMap<String?, Boolean>()
 
     return points.map { point ->
         val baseValue = if (useRaw) point.rawValue else point.value
         val sensorId = point.sensorSerial?.takeIf { it.isNotBlank() }
+        // The prediction extrapolates the line the user is looking at, so it has
+        // to read the same values that line draws — a recorded one included.
+        val sealed = if (useCalibration) {
+            point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+        } else {
+            null
+        }
         val activeCalibration = useCalibration &&
-            !overwriteSensorValues &&
             calibrationActiveBySensor.getOrPut(sensorId) {
                 tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(useRaw, sensorId)
             }
-        val displayValue = if (activeCalibration && baseValue.isFinite() && baseValue > 0.1f) {
-            tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                baseValue,
-                point.timestamp,
-                useRaw,
-                sensorIdOverride = sensorId
-            )
-        } else {
-            baseValue
-        }
+        val displayValue = sealed
+            ?: if (activeCalibration && baseValue.isFinite() && baseValue > 0.1f) {
+                tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
+                    baseValue,
+                    point.timestamp,
+                    useRaw,
+                    sensorIdOverride = sensorId
+                )
+            } else {
+                baseValue
+            }
         point.copy(value = displayValue, rawValue = baseValue)
     }
 }
@@ -205,7 +211,13 @@ internal fun buildSmoothedConsumerHistory(
                     timestamp = point.timestamp,
                     rawValue = point.rawValue,
                     rate = source?.rate,
-                    sensorSerial = source?.sensorSerial
+                    sensorSerial = source?.sensorSerial,
+                    // Smoothing displaces the value, so the interval follows it
+                    // rather than being dropped or left behind around the
+                    // unsmoothed one. The width is the estimator's claim and
+                    // does not change: smoothing makes the line calmer, not the
+                    // sensor more certain.
+                    uncertainty = source?.uncertainty?.shifted(point.value - (source.value))
                 )
             )
         }

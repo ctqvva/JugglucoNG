@@ -688,6 +688,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                 ;
                             }
                             ;
+                            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                                    .recoverOnNetworkAvailable(Applic.this);
                             final boolean wearos = useWearos();
                             if (wearos || hasip()) {
                                 Natives.networkpresent();
@@ -894,6 +896,11 @@ public class Applic extends Application implements androidx.work.Configuration.P
             ;
             libre3init.init();
             SuperGattCallback.initAlarmTalk();
+            // A poll alarm may be the component that starts this process. Restore cloud-only
+            // callbacks before registering network listeners so the receiver and onAvailable
+            // can repair polling without waiting for MainActivity to initialize Bluetooth.
+            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                    .restoreConfiguredFollower(this);
             initialize();
 
             // Load the glucose colour palette + per-band overrides before any

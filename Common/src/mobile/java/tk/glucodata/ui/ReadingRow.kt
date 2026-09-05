@@ -271,24 +271,13 @@ fun ReadingRow(
             val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             val isRawModeRR = viewMode == 1 || viewMode == 3
             val calibrationSensorId = sensorId?.takeIf { it.isNotBlank() }
-            val hasCalibrationRR = !tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(
-                    isRawModeRR,
-                    calibrationSensorId
-                )
-            val calibratedValueRR = if (hasCalibrationRR) {
-                val baseValue = if (isRawModeRR) point.rawValue else point.value
-                if (baseValue.isFinite() && baseValue > 0.1f) {
-                    tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                        baseValue,
-                        point.timestamp,
-                        isRawModeRR,
-                        sensorIdOverride = calibrationSensorId
-                    )
-                } else {
-                    null
-                }
-            } else null
+            // Recorded value if this reading has one, otherwise the projection —
+            // see SealedGlucoseValue for why every surface asks the same way.
+            val calibratedValueRR = SealedGlucoseValue.calibratedFor(
+                point = point,
+                isRawMode = isRawModeRR,
+                sensorId = calibrationSensorId
+            )
             val dvs = getDisplayValues(point, viewMode, unit, calibratedValueRR)
             val primaryBaseColor = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             // Multi-sensor: every sensor's value carries a subtle identity tint
@@ -396,23 +385,11 @@ fun ReadingRow(
                     peerMode,
                     calibrations
                 ) {
-                    if (!tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                        tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModePeer, peerSensorId)
-                    ) {
-                        val baseValue = if (isRawModePeer) peer.rawValue else peer.value
-                        if (baseValue.isFinite() && baseValue > 0.1f) {
-                            tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                                baseValue,
-                                peer.timestamp,
-                                isRawModePeer,
-                                sensorIdOverride = peerSensorId
-                            )
-                        } else {
-                            null
-                        }
-                    } else {
-                        null
-                    }
+                    SealedGlucoseValue.calibratedFor(
+                        point = peer,
+                        isRawMode = isRawModePeer,
+                        sensorId = peerSensorId
+                    )
                 }
                 val peerTrendResult = remember(peer.timestamp, peer.sensorSerial, peerSensorSeries, peerMode, unit) {
                     val nativeList = MultiSensorDisplay.recentWindow(

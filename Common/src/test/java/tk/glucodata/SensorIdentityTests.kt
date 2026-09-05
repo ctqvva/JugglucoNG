@@ -195,4 +195,39 @@ class SensorIdentityTests {
             SensorIdentity.resolveRoomStorageSensorId("8760080A00070000")
         )
     }
+    // --- matches() memoization (regex/registry work off the per-reading path) ---
+
+    @Test
+    fun matches_isStableAcrossRepeatedCalls() {
+        // Distinct ids that do not resolve to each other: the answer must stay false
+        // whether it came from the cache or from a fresh resolution.
+        assertFalse(SensorIdentity.matches("sensor-alpha", "sensor-beta"))
+        assertFalse(SensorIdentity.matches("sensor-alpha", "sensor-beta"))
+        SensorIdentity.invalidateCaches()
+        assertFalse(SensorIdentity.matches("sensor-alpha", "sensor-beta"))
+    }
+
+    @Test
+    fun matches_trivialEqualityStillShortCircuits() {
+        // Must not depend on the cache, and must stay case-insensitive.
+        assertTrue(SensorIdentity.matches("SENSOR-ALPHA", "sensor-alpha"))
+        SensorIdentity.invalidateCaches()
+        assertTrue(SensorIdentity.matches("SENSOR-ALPHA", "sensor-alpha"))
+    }
+
+    @Test
+    fun matches_survivesCacheInvalidation() {
+        assertTrue(SensorIdentity.matches("sensor-alpha", "sensor-alpha"))
+        assertFalse(SensorIdentity.matches("sensor-alpha", "sensor-gamma"))
+        SensorIdentity.invalidateCaches()
+        assertTrue(SensorIdentity.matches("sensor-alpha", "sensor-alpha"))
+        assertFalse(SensorIdentity.matches("sensor-alpha", "sensor-gamma"))
+    }
+
+    @Test
+    fun matches_blankExpectedStillMatchesAnything() {
+        assertTrue(SensorIdentity.matches("sensor-alpha", null))
+        assertTrue(SensorIdentity.matches("sensor-alpha", ""))
+    }
+
 }

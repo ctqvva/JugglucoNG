@@ -142,7 +142,7 @@ fun JournalScreen(
     }
     val sections = remember(filteredEntries, sortedHistory) { buildJournalSections(filteredEntries, sortedHistory) }
     val markers = remember(filteredEntries, presetsById, foodsById, unit, sortedHistory) {
-        buildJournalChartMarkers(filteredEntries, presetsById, unit, sortedHistory, foodsById)
+        buildJournalChartMarkers(filteredEntries, presetsById, unit, foodsById)
     }
     val entriesById = remember(filteredEntries) { filteredEntries.associateBy { it.id } }
     val selectedPointTimestamp = viewportSnapshot?.selectedPoint?.timestamp

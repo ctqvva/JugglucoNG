@@ -41,5 +41,11 @@ data class JournalEntryEntity(
      * Correlates this fact (eaten, injected) with the meal it belongs to. The meal holds the
      * composition; the journal stays the log. Nullable, and never set by the meal itself.
      */
-    val mealId: Long? = null
+    val mealId: Long? = null,
+    /**
+     * When this row last went out to LibreView, so an unchanged entry is not resent on
+     * every upload pass. Tracked separately from [nsUploadedAt] because the two
+     * destinations succeed and fail independently.
+     */
+    val lvUploadedAt: Long? = null
 )

@@ -38,6 +38,8 @@ object CalibrationManager {
     private const val KEY_APPLY_TO_PAST = "calibration_apply_to_past"
     private const val KEY_LOCK_PAST_HISTORY = "calibration_lock_past_history"
     private const val KEY_OVERWRITE_SENSOR_VALUES = "calibration_overwrite_sensor_values"
+    private const val KEY_FREEZE_DISPLAYED_VALUES = "calibration_freeze_displayed_values"
+    private const val KEY_FREEZE_MIGRATED_FROM_OVERWRITE = "calibration_freeze_migrated_from_overwrite"
     private const val KEY_VISUAL_CONTINUITY = "calibration_visual_continuity"
     private const val KEY_CALIBRATE_FROM_JOURNAL = "calibration_from_journal_bg"
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
@@ -194,6 +196,13 @@ object CalibrationManager {
     private val _overwriteSensorValues = MutableStateFlow(false)
     val overwriteSensorValues: StateFlow<Boolean> = _overwriteSensorValues
 
+    /**
+     * Whether a displayed glucose value stops changing once it has stood on
+     * screen — see `tk.glucodata.data.ReadingDisplay`. On by default.
+     */
+    private val _freezeDisplayedValues = MutableStateFlow(true)
+    val freezeDisplayedValues: StateFlow<Boolean> = _freezeDisplayedValues
+
     private val _visualContinuity = MutableStateFlow(true)
     val visualContinuity: StateFlow<Boolean> = _visualContinuity
 
@@ -255,6 +264,7 @@ object CalibrationManager {
         _lockPastHistory.value = prefs.getBoolean(KEY_LOCK_PAST_HISTORY, false)
         _keepDisabledHistory.value = prefs.getBoolean(KEY_KEEP_DISABLED_HISTORY, false)
         _overwriteSensorValues.value = prefs.getBoolean(KEY_OVERWRITE_SENSOR_VALUES, false)
+        _freezeDisplayedValues.value = prefs.getBoolean(KEY_FREEZE_DISPLAYED_VALUES, true)
         _visualContinuity.value = prefs.getBoolean(KEY_VISUAL_CONTINUITY, true)
         _calibrateFromJournal.value = prefs.getBoolean(KEY_CALIBRATE_FROM_JOURNAL, false)
         _weightMode.value = CalibrationWeightMode.fromStorage(
@@ -917,6 +927,51 @@ object CalibrationManager {
     fun shouldOverwriteSensorValues(): Boolean {
         ensureInitialized()
         return _overwriteSensorValues.value
+    }
+
+    fun setFreezeDisplayedValues(enabled: Boolean) {
+        if (_freezeDisplayedValues.value == enabled) return
+        _freezeDisplayedValues.value = enabled
+        if (::prefs.isInitialized) {
+            prefs.edit().putBoolean(KEY_FREEZE_DISPLAYED_VALUES, enabled).apply()
+        }
+        requestUiRefreshAfterCalibrationChange()
+        Log.i(TAG, "Freeze displayed values: $enabled")
+    }
+
+    fun shouldFreezeDisplayedValues(): Boolean {
+        ensureInitialized()
+        return _freezeDisplayedValues.value
+    }
+
+    /**
+     * Retires the old "overwrite sensor values in history DB" switch.
+     *
+     * That switch is what corrupted stores: it rewrote `history_readings.value`
+     * in place from its own previous output, so calibration compounded and the
+     * sensor's own number was destroyed. Its replacement records the displayed
+     * value beside the reading instead. Anyone who had it on wanted their
+     * displayed values kept, so they get the freeze; the destructive behaviour
+     * itself is simply gone, and the old key is cleared so a downgrade cannot
+     * resurrect it.
+     *
+     * Runs once. Returns true if this call performed the migration.
+     */
+    fun migrateOverwriteSensorValuesToFreeze(): Boolean {
+        ensureInitialized()
+        if (!::prefs.isInitialized) return false
+        if (prefs.getBoolean(KEY_FREEZE_MIGRATED_FROM_OVERWRITE, false)) return false
+
+        val hadOverwrite = prefs.getBoolean(KEY_OVERWRITE_SENSOR_VALUES, false)
+        prefs.edit()
+            .putBoolean(KEY_FREEZE_MIGRATED_FROM_OVERWRITE, true)
+            .putBoolean(KEY_FREEZE_DISPLAYED_VALUES, true)
+            .remove(KEY_OVERWRITE_SENSOR_VALUES)
+            .apply()
+        _overwriteSensorValues.value = false
+        _freezeDisplayedValues.value = true
+        Log.i(TAG, "Migrated overwrite-sensor-values ($hadOverwrite) to freeze-displayed-values")
+        return hadOverwrite
     }
 
     fun setVisualContinuity(enabled: Boolean) {

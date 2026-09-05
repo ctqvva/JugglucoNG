@@ -208,7 +208,6 @@ fun buildJournalChartMarkers(
     entries: List<JournalEntry>,
     presetsById: Map<Long, JournalInsulinPreset>,
     unit: String,
-    history: List<GlucosePoint> = emptyList(),
     foodsById: Map<Long, JournalFood> = emptyMap()
 ): List<JournalChartMarker> {
     val isMmol = GlucoseFormatter.isMmol(unit)

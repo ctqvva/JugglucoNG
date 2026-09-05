@@ -132,11 +132,15 @@ fun CalibrationBottomSheet(
         else -> selectedAutoValue.takeIf { it > 0f } ?: selectedRawValue.takeIf { it > 0f }
     } ?: initialValueAuto
 
+    /**
+     * Records what the readings now display as. Non-destructive: the sensor's own
+     * stored values are never touched, and readings already sealed keep the
+     * number they were shown as.
+     */
     fun triggerRewriteOverwrittenHistory(startTimestamp: Long = 0L) {
-        if (!CalibrationManager.shouldOverwriteSensorValues()) return
         if (currentSensor.isBlank()) return
         CoroutineScope(Dispatchers.IO).launch {
-            historyRepository.rewriteSensorValuesWithCalibration(
+            historyRepository.recordCalibratedDisplayValues(
                 sensorSerial = currentSensor,
                 isRawMode = isRawMode,
                 startTimestamp = startTimestamp

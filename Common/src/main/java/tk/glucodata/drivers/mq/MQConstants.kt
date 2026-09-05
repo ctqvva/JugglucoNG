@@ -46,6 +46,17 @@ data class MQVendorEndpoints(
 )
 
 object MQConstants {
+    // Precompiled once. These were built inline on every call, and because
+    // SensorIdentity.matches -> managedMatches asks every driver adapter to
+    // canonicalise both ids, a single identity comparison compiled a fresh
+    // java.util.regex.Pattern (ICU native) per adapter per side. A stuck-main-thread
+    // stack dump landed in Pattern.compile beneath canonicalSensorId, and that path
+    // runs per reading, per sensor, per UI snapshot and per notification build.
+    private val MAC_WITH_COLONS: Regex = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16: Regex = Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16_CASE_SENSITIVE: Regex = Regex("^[0-9A-F]{12,16}$")
+    private val HEX_RUN: Regex = Regex("[0-9A-F]+", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_6_11: Regex = Regex("^[0-9A-F]{6,11}$", RegexOption.IGNORE_CASE)
 
     const val TAG = "MQ"
     const val DEFAULT_DISPLAY_NAME = "Glutec CGM"
@@ -247,8 +258,8 @@ object MQConstants {
         val trimmed = name?.trim().orEmpty()
         if (trimmed.isEmpty()) return false
         if (isProvisionalSensorId(trimmed)) return true
-        return Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed) ||
-            Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)
+        return MAC_WITH_COLONS.matches(trimmed) ||
+            PLAIN_HEX_12_16.matches(trimmed)
     }
 
     @JvmStatic
@@ -264,11 +275,11 @@ object MQConstants {
         val trimmed = sensorId?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
         // BLE MAC address — collapse separators and uppercase.
-        if (Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (MAC_WITH_COLONS.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).replace(":", "")
         }
         // Already a canonical hex id.
-        if (Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (PLAIN_HEX_12_16.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).take(MAX_NATIVE_SENSOR_ID_CHARS)
         }
         return trimmed
@@ -296,14 +307,14 @@ object MQConstants {
         qrCodeContent: String? = null,
     ): String {
         qrCodeContent?.trim().orEmpty().takeIf { it.isNotEmpty() }?.let { qr ->
-            val hex = Regex("[0-9A-F]+", RegexOption.IGNORE_CASE)
+            val hex = HEX_RUN
                 .findAll(qr.uppercase(Locale.US))
                 .joinToString("") { it.value }
             if (hex.length in 12..MAX_NATIVE_SENSOR_ID_CHARS) return hex
         }
         val addressCanonical = canonicalSensorId(address)
         if (addressCanonical.isNotEmpty() &&
-            Regex("^[0-9A-F]{12,16}$").matches(addressCanonical)
+            PLAIN_HEX_12_16_CASE_SENSITIVE.matches(addressCanonical)
         ) {
             return addressCanonical
         }
@@ -331,10 +342,10 @@ object MQConstants {
      * sensor names this way.
      */
     private fun isNativeShortAliasOf(canonical: String, alias: String): Boolean {
-        if (!Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(canonical)) {
+        if (!PLAIN_HEX_12_16.matches(canonical)) {
             return false
         }
-        if (!Regex("^[0-9A-F]{6,11}$", RegexOption.IGNORE_CASE).matches(alias)) {
+        if (!PLAIN_HEX_6_11.matches(alias)) {
             return false
         }
         return canonical.endsWith(alias, ignoreCase = true)

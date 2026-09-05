@@ -496,6 +496,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             return;
         }
+        if (!Specific.historyDatabaseCompatible(this)) {
+            showHistoryDatabaseIncompatible();
+            return;
+        }
         DisplayMetrics metrics = this.getResources().getDisplayMetrics();
         screenheight = metrics.heightPixels;
         screenwidth = metrics.widthPixels;
@@ -527,6 +531,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             Log.i(LOG_ID, "onCreate end");
         }
         ;
+    }
+
+    private void showHistoryDatabaseIncompatible() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.history_database_incompatible_title)
+                .setMessage(R.string.history_database_incompatible_message)
+                .setPositiveButton(R.string.ok, (ignoredDialog, ignoredButton) -> finishAndRemoveTask())
+                .setCancelable(false)
+                .create();
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
     }
 
     static boolean composeUIActive;

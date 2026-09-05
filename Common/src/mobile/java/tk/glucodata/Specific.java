@@ -48,6 +48,10 @@ public class Specific {
 	static void splash(Object act) {
 	}
 
+	static boolean historyDatabaseCompatible(android.content.Context context) {
+		return tk.glucodata.data.HistoryDatabase.isCompatibleAtStartup(context);
+	}
+
 	static void settext(String str) {
 	}
 
