@@ -409,5 +409,7 @@ dependencies {
 
     // Unit tests
     testImplementation 'junit:junit:4.13.2'
+    // Execute recovery migration and rollback checks against SQLite on the JVM.
+    testImplementation 'org.xerial:sqlite-jdbc:3.41.2.2'
     testImplementation 'org.json:json:20260814'
 }

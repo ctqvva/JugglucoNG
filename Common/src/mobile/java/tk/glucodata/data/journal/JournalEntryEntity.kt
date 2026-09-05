@@ -11,7 +11,8 @@ import androidx.room.PrimaryKey
         Index(value = ["entryType"]),
         Index(value = ["insulinPresetId"]),
         Index(value = ["foodId"]),
-        Index(value = ["sourceRecordId"], unique = true)
+        Index(value = ["sourceRecordId"], unique = true),
+        Index(value = ["recoveryId"], unique = true)
     ]
 )
 data class JournalEntryEntity(
@@ -31,7 +32,11 @@ data class JournalEntryEntity(
     val proteinGrams: Float? = null,
     val fatGrams: Float? = null,
     val source: String,
+    /** Authoritative origin on the sending device; [source] remains the ingress transport. */
+    val originSource: String? = null,
     val sourceRecordId: String?,
+    /** Stable across Clone replication, backup restore, and local row-id reuse. */
+    val recoveryId: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
     val nsUploadedAt: Long? = null,

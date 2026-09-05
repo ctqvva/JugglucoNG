@@ -63,6 +63,7 @@ import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.data.HistoryRepository
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
 import tk.glucodata.drivers.sibionics.SibionicsSensitivity
@@ -1245,19 +1246,68 @@ fun SensorCard(
 
     val isLocallyStreaming = sensor.streaming
     val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
-    // A watch-owned sensor is operational even though this phone's local BLE
-    // callback is deliberately paused. Rendering that as Disabled made a
-    // healthy forwarded stream look like a sensor failure.
-    val isStreaming = isLocallyStreaming || isHandedOff
     val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
-    val currentSnapshot = remember(refreshRevision, sensor.serial, sensor.viewMode) {
-        CurrentDisplaySource.resolveCurrent(
+    val latestPersistedReading by remember(sensor.serial) {
+        HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
+    }.collectAsState(initial = null)
+    val currentSnapshot = remember(
+        refreshRevision,
+        sensor.serial,
+        sensor.viewMode,
+        latestPersistedReading,
+    ) {
+        val freshSnapshot = CurrentDisplaySource.resolveCurrent(
             maxAgeMillis = Notify.glucosetimeout,
             preferredSensorId = sensor.serial
         )?.takeIf { snapshot ->
             abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
                 snapshot.primaryStr.isNotBlank()
         }
+        val persistedSnapshot = latestPersistedReading?.let { point ->
+            val value = point.value.takeIf { it.isFinite() && it > 0.1f }
+                ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
+                ?: return@let null
+            CurrentDisplaySource.resolveIncomingReading(
+                liveNumericValue = value,
+                rate = point.rate ?: Float.NaN,
+                targetTimeMillis = point.timestamp,
+                preferredSensorId = sensor.serial,
+                source = "sensor-card-history",
+            )?.takeIf { it.primaryStr.isNotBlank() }
+        }
+        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
+    }
+    var cloneHealthNowMillis by remember(sensor.serial) {
+        mutableStateOf(System.currentTimeMillis())
+    }
+    LaunchedEffect(sensor.serial, sensor.isCloneSource) {
+        while (sensor.isCloneSource) {
+            cloneHealthNowMillis = System.currentTimeMillis()
+            delay(1_000L)
+        }
+    }
+    val cloneHasRecentData = !sensor.isCloneSource || currentSnapshot?.let { snapshot ->
+        abs(cloneHealthNowMillis - snapshot.timeMillis) <= Notify.glucosetimeout
+    } == true
+    val reportedCloneTransport = if (sensor.isCloneSource) {
+        tk.glucodata.CloneSensorRegistry.liveTransportForSensor(sensor.serial)
+    } else {
+        null
+    }
+    val cloneHealth = tk.glucodata.CloneSensorHealthPolicy.resolve(
+        hasRecentData = cloneHasRecentData,
+        transport = reportedCloneTransport,
+    )
+    val cloneTransport = tk.glucodata.CloneTransportPresentation.sensorTransport(
+        cloneHealth.liveTransport,
+    )
+    // A watch-owned sensor is operational even though this phone's local BLE
+    // callback is deliberately paused. A Clone record, however, is only
+    // healthy while readings are actually arriving; transport connectivity by
+    // itself must not make a silent Clone look enabled.
+    val isStreaming = when {
+        sensor.isCloneSource -> cloneHealth.isReceiving
+        else -> isLocallyStreaming || isHandedOff
     }
     // Visual Feedback: Darken card when disconnected/paused
     val containerColor = if (isStreaming) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -1333,7 +1383,16 @@ fun SensorCard(
                 )
 
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
-                    val statusText = if (isStreaming) stringResource(R.string.enabled_status) else stringResource(R.string.disabled_status)
+                    val statusText = when {
+                        sensor.isCloneSource && !cloneHasRecentData -> stringResource(R.string.nodata)
+                        isStreaming -> stringResource(R.string.enabled_status)
+                        else -> stringResource(R.string.disabled_status)
+                    }
+                    val statusColor = if (sensor.isCloneSource && !cloneHasRecentData) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1349,14 +1408,24 @@ fun SensorCard(
                             }
                             // Title with optional "Active" badge
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = sensor.displayName.ifBlank { sensor.serial },
-                                    style = serialTextStyle,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                )
+                                if (sensor.isCloneSource) {
+                                    CloneSourceMark(
+                                        transport = cloneTransport,
+                                        showLabel = true,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        iconSize = 18.dp,
+                                        textStyle = serialTextStyle,
+                                    )
+                                } else {
+                                    Text(
+                                        text = sensor.displayName.ifBlank { sensor.serial },
+                                        style = serialTextStyle,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                    )
+                                }
                                 // Toggle Main Sensor Badge
                                 Spacer(modifier = Modifier.width(8.dp))
                                 val isMain = sensor.isActive
@@ -1414,6 +1483,7 @@ fun SensorCard(
                                 Text(
                                     text = statusText,
                                     style = enabledTextStyle,
+                                    color = statusColor,
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -1428,6 +1498,9 @@ fun SensorCard(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 val sensorStatusText = when {
+                                    sensor.isCloneSource -> stringResource(
+                                        tk.glucodata.CloneTransportPresentation.statusTextRes(cloneTransport)
+                                    )
                                     sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
                                     sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                                     else -> null
@@ -1452,7 +1525,23 @@ fun SensorCard(
                             }
                         }
 
-                        if (isHandedOff) {
+                        if (sensor.isCloneSource) {
+                            val selectedDescription = stringResource(R.string.sensor_display_selected)
+                            val selectDescription = stringResource(R.string.sensor_display_select)
+                            IconButton(
+                                onClick = { viewModel.setMain(sensor.serial) },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                            ) {
+                                Icon(
+                                    imageVector = if (sensor.isSelectedForDisplay) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                    contentDescription = if (sensor.isSelectedForDisplay) selectedDescription else selectDescription,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                        } else if (isHandedOff) {
                             IconButton(
                                 onClick = { viewModel.returnSensorToPhone(sensor.serial) },
                                 modifier = Modifier
@@ -1585,7 +1674,8 @@ fun SensorCard(
                         sensor.connectionStatusAtMs,
                         bleErrorNow,
                     )
-                    if (errorEventAt != null &&
+                    if (!sensor.isCloneSource &&
+                        errorEventAt != null &&
                         sensor.connectionStatus.isNotEmpty() &&
                         !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
                     ) {
@@ -1600,7 +1690,8 @@ fun SensorCard(
                                 ),
                             ),
                         )
-                    } else if (sensor.connectionStatusAtMs <= 0L &&
+                    } else if (!sensor.isCloneSource &&
+                        sensor.connectionStatusAtMs <= 0L &&
                         sensor.connectionStatus.isNotEmpty() &&
                         !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
                     ) {

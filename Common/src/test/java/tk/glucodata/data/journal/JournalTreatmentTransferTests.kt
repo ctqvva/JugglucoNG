@@ -125,4 +125,89 @@ class JournalTreatmentTransferTests {
 
         assertEquals("jng-j-101", parsed!!.inputs.single().nsRemoteId)
     }
+
+    @Test
+    fun cloneTransferKeepsExplicitNightscoutIdentityForCrossSourceDeduplication() {
+        val document = JSONObject()
+            .put("identifier", "journal:42")
+            .put("nsRemoteId", "remote-treatment-id")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 2.5)
+
+        val parsed = JournalTreatmentTransfer.parseTreatment(
+            treatment = document,
+            source = JournalEntrySource.CLONE_TURN,
+            sourcePrefix = "clone:test-origin",
+            insulinPresets = emptyList(),
+            stringResource = { "Insulin" },
+        )
+
+        val entry = parsed!!.inputs.single()
+        assertEquals("clone:test-origin:journal:42:insulin", entry.sourceRecordId)
+        assertEquals("remote-treatment-id", entry.nsRemoteId)
+    }
+
+    @Test
+    fun cloneTransferCarriesDurableRecoveryIdentity() {
+        val recoveryId = "0123456789abcdef0123456789abcdef"
+        val document = JSONObject()
+            .put("identifier", "journal:42")
+            .put("recoveryId", recoveryId)
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 2.5)
+
+        val parsed = JournalTreatmentTransfer.parseTreatment(
+            treatment = document,
+            source = JournalEntrySource.CLONE_TURN,
+            sourcePrefix = "clone:test-origin",
+            insulinPresets = emptyList(),
+            stringResource = { "Insulin" },
+        )
+
+        assertEquals(recoveryId, parsed!!.inputs.single().recoveryId)
+    }
+
+    @Test
+    fun malformedCloneRecoveryIdentityRejectsTheTreatment() {
+        val document = JSONObject()
+            .put("identifier", "journal:42")
+            .put("recoveryId", "not-a-recovery-id")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 2.5)
+
+        val parsed = JournalTreatmentTransfer.parseTreatment(
+            treatment = document,
+            source = JournalEntrySource.CLONE_TURN,
+            sourcePrefix = "clone:test-origin",
+            insulinPresets = emptyList(),
+            stringResource = { "Insulin" },
+        )
+
+        assertEquals(null, parsed)
+    }
+
+    @Test
+    fun cloneTransferCarriesTheSendersUpdatedPenOrigin() {
+        val document = JSONObject()
+            .put("identifier", "journal:42")
+            .put("journalSource", "pen")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 2.5)
+
+        val parsed = JournalTreatmentTransfer.parseTreatment(
+            treatment = document,
+            source = JournalEntrySource.CLONE_TURN,
+            sourcePrefix = "clone:test-origin",
+            insulinPresets = emptyList(),
+            stringResource = { "Insulin" },
+        )
+
+        val entry = parsed!!.inputs.single()
+        assertEquals(JournalEntrySource.CLONE_TURN, entry.source)
+        assertEquals(JournalEntrySource.PEN, entry.originSource)
+    }
 }

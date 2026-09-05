@@ -36,7 +36,10 @@ enum class JournalEntrySource(val storageValue: String) {
     PEN("pen"),
     AAPS("aaps"),
     NIGHTSCOUT("nightscout"),
-    API("api");
+    API("api"),
+    CLONE("clone"),
+    CLONE_LOCAL_ICE("clone_local_ice"),
+    CLONE_TURN("clone_turn");
 
     companion object {
         fun fromStorage(value: String?): JournalEntrySource {
@@ -63,7 +66,9 @@ data class JournalEntry(
     val source: JournalEntrySource,
     val sourceRecordId: String?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    /** Where the content originated before it arrived through [source]. */
+    val originSource: JournalEntrySource? = null,
 )
 
 data class JournalEntryInput(
@@ -83,7 +88,10 @@ data class JournalEntryInput(
     val fatGrams: Float? = null,
     val source: JournalEntrySource = JournalEntrySource.MANUAL,
     val sourceRecordId: String? = null,
-    val nsRemoteId: String? = null
+    val recoveryId: String? = null,
+    val nsRemoteId: String? = null,
+    /** Authoritative source supplied by an importer, distinct from its transport. */
+    val originSource: JournalEntrySource? = null,
 )
 
 data class JournalFood(

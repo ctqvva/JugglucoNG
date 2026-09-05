@@ -18,8 +18,29 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE sourceRecordId = :sourceRecordId LIMIT 1")
     suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
 
+    @Query("SELECT * FROM journal_entries WHERE recoveryId = :recoveryId LIMIT 1")
+    suspend fun getEntryByRecoveryId(recoveryId: String): JournalEntryEntity?
+
+    @Query("SELECT * FROM journal_entries WHERE sourceRecordId IN (:sourceRecordIds)")
+    suspend fun getEntriesBySourceRecordIds(sourceRecordIds: List<String>): List<JournalEntryEntity>
+
+    @Query("SELECT * FROM journal_entries WHERE recoveryId IN (:recoveryIds)")
+    suspend fun getEntriesByRecoveryIds(recoveryIds: List<String>): List<JournalEntryEntity>
+
+    @Query(
+        "SELECT * FROM journal_entries WHERE nsRemoteId = :nsRemoteId AND entryType = :entryType " +
+            "ORDER BY createdAt ASC, id ASC"
+    )
+    suspend fun getEntriesByNightscoutRemoteIdAndType(
+        nsRemoteId: String,
+        entryType: String,
+    ): List<JournalEntryEntity>
+
     @Query("SELECT * FROM journal_entries ORDER BY timestamp ASC, id ASC")
     suspend fun getEntries(): List<JournalEntryEntity>
+
+    @Query("SELECT * FROM journal_entries WHERE id > :afterId ORDER BY id ASC LIMIT :limit")
+    suspend fun getRecoveryEntriesPage(afterId: Long, limit: Int): List<JournalEntryEntity>
 
     @Query("SELECT * FROM journal_entries WHERE timestamp BETWEEN :startMillis AND :endMillis ORDER BY timestamp ASC, id ASC")
     suspend fun getEntriesBetween(startMillis: Long, endMillis: Long): List<JournalEntryEntity>
@@ -60,6 +81,81 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_entries")
     suspend fun deleteAllEntries()
+
+    @Query("SELECT * FROM clone_journal_tombstones WHERE deletedAt >= :sinceMillis ORDER BY deletedAt ASC, entryId ASC")
+    suspend fun getCloneJournalTombstonesSince(sinceMillis: Long): List<CloneJournalTombstoneEntity>
+
+    @Query("SELECT * FROM clone_journal_tombstones ORDER BY deletedAt ASC, entryId ASC")
+    suspend fun getCloneJournalTombstones(): List<CloneJournalTombstoneEntity>
+
+    @Query(
+        "SELECT * FROM clone_journal_tombstones " +
+            "WHERE deletedAt > :afterDeletedAt OR (deletedAt = :afterDeletedAt AND entryId > :afterEntryId) " +
+            "ORDER BY deletedAt ASC, entryId ASC LIMIT :limit"
+    )
+    suspend fun getRecoveryCloneJournalTombstonesPage(
+        afterDeletedAt: Long,
+        afterEntryId: Long,
+        limit: Int,
+    ): List<CloneJournalTombstoneEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCloneJournalTombstone(tombstone: CloneJournalTombstoneEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCloneJournalTombstones(tombstones: List<CloneJournalTombstoneEntity>)
+
+    @Query("DELETE FROM clone_journal_tombstones WHERE entryId = :entryId")
+    suspend fun deleteCloneJournalTombstone(entryId: Long)
+
+    @Query("DELETE FROM clone_journal_tombstones")
+    suspend fun deleteAllCloneJournalTombstones()
+
+    @Query(
+        "SELECT * FROM clone_journal_recovery_tombstones " +
+            "WHERE deletedAt > :afterDeletedAt " +
+            "OR (deletedAt = :afterDeletedAt AND stableBaseId > :afterStableBaseId) " +
+            "ORDER BY deletedAt ASC, stableBaseId ASC LIMIT :limit"
+    )
+    suspend fun getRecoveryJournalTombstonesPage(
+        afterDeletedAt: Long,
+        afterStableBaseId: String,
+        limit: Int,
+    ): List<CloneJournalRecoveryTombstoneEntity>
+
+    @Query(
+        "SELECT * FROM clone_journal_recovery_tombstones " +
+            "WHERE stableBaseId = :stableBaseId LIMIT 1"
+    )
+    suspend fun getRecoveryJournalTombstoneByStableBaseId(
+        stableBaseId: String,
+    ): CloneJournalRecoveryTombstoneEntity?
+
+    @Query(
+        "SELECT * FROM clone_journal_recovery_tombstones " +
+            "WHERE recoveryId = :recoveryId LIMIT 1"
+    )
+    suspend fun getRecoveryJournalTombstoneByRecoveryId(
+        recoveryId: String,
+    ): CloneJournalRecoveryTombstoneEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRecoveryJournalTombstone(
+        tombstone: CloneJournalRecoveryTombstoneEntity,
+    )
+
+    @Query(
+        "DELETE FROM clone_journal_recovery_tombstones " +
+            "WHERE stableBaseId = :stableBaseId " +
+            "OR (:recoveryId IS NOT NULL AND recoveryId = :recoveryId)"
+    )
+    suspend fun deleteRecoveryJournalTombstone(
+        stableBaseId: String,
+        recoveryId: String?,
+    )
+
+    @Query("DELETE FROM clone_journal_recovery_tombstones")
+    suspend fun deleteAllRecoveryJournalTombstones()
 
     @Query("SELECT * FROM journal_insulin_presets ORDER BY isArchived ASC, sortOrder ASC, displayName COLLATE NOCASE ASC")
     fun observeInsulinPresets(): Flow<List<JournalInsulinPresetEntity>>

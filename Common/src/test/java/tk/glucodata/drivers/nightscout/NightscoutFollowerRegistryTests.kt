@@ -17,6 +17,14 @@ import java.net.URL
  */
 class NightscoutFollowerRegistryTests {
 
+    @Test
+    fun followerSensorIdentityRecognizesPersistedHistoryRows() {
+        assertTrue(NightscoutFollowerRegistry.isFollowerSensorId("NSF-EXAMPLE123"))
+        assertTrue(NightscoutFollowerRegistry.isFollowerSensorId(" nsf-example123 "))
+        assertFalse(NightscoutFollowerRegistry.isFollowerSensorId("LOCAL-EXAMPLE123"))
+        assertFalse(NightscoutFollowerRegistry.isFollowerSensorId(null))
+    }
+
     private fun applyAuthToMock(secret: String): Map<String, String> {
         val headers = mutableMapOf<String, String>()
         val connection = object : HttpURLConnection(URL("https://example.com")) {

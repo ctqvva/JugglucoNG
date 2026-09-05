@@ -35,6 +35,9 @@ interface ReadingUncertaintyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(rows: List<ReadingUncertainty>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIgnoring(rows: List<ReadingUncertainty>): List<Long>
+
     @Query(
         "SELECT * FROM reading_uncertainty WHERE sensorSerial IN (:serials) " +
             "AND timestamp >= :startTime ORDER BY timestamp ASC"
@@ -58,6 +61,32 @@ interface ReadingUncertaintyDao {
 
     @Query("DELETE FROM reading_uncertainty WHERE sensorSerial IN (:serials)")
     suspend fun deleteForSensors(serials: List<String>)
+
+    @Query("DELETE FROM reading_uncertainty")
+    suspend fun deleteAll()
+
+    @Query(
+        """
+        SELECT * FROM reading_uncertainty uncertainty
+        WHERE (
+                uncertainty.timestamp > :afterTimestamp
+                OR (uncertainty.timestamp = :afterTimestamp
+                    AND uncertainty.sensorSerial > :afterSensorSerial)
+              )
+          AND EXISTS (
+              SELECT 1 FROM history_readings reading
+              WHERE reading.sensorSerial = uncertainty.sensorSerial
+                AND (reading.timestamp / 60000) * 60000 = uncertainty.timestamp
+          )
+        ORDER BY uncertainty.timestamp ASC, uncertainty.sensorSerial ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecoveryPage(
+        afterTimestamp: Long,
+        afterSensorSerial: String,
+        limit: Int,
+    ): List<ReadingUncertainty>
 
     /**
      * Readings joined to their intervals in one query.
