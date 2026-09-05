@@ -666,6 +666,7 @@ fun DashboardChartSection(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    activeCarbsGrams: Float? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
     forecastDoseRecommendation: ForecastDoseRecommendation? = null,
@@ -711,6 +712,7 @@ fun DashboardChartSection(
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
+                        activeCarbsGrams = activeCarbsGrams,
                         activeInsulinFromRemote = activeInsulinFromRemote,
                         showEiob = showEiob,
                         forecastDoseRecommendation = forecastDoseRecommendation,
@@ -785,6 +787,7 @@ fun InteractiveGlucoseChart(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    activeCarbsGrams: Float? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
     forecastDoseRecommendation: ForecastDoseRecommendation? = null,
@@ -3704,7 +3707,7 @@ fun InteractiveGlucoseChart(
 
             // The suggestion is not about insulin already given, so it must survive an empty
             // board: a meal with nothing dosed for it is exactly when it has something to say.
-            if (activeInsulinSummary != null || forecastDoseRecommendation != null) {
+            if (activeInsulinSummary != null || activeCarbsGrams != null || forecastDoseRecommendation != null) {
                 val summary = activeInsulinSummary
                 val unitsLabel = { units: Float ->
                     if (units % 1f < 0.05f) {
@@ -3846,6 +3849,16 @@ fun InteractiveGlucoseChart(
                                     }
                                 }
                             }
+                        }
+                        activeCarbsGrams?.let { grams ->
+                            Text(
+                                text = stringResource(
+                                    R.string.journal_cob_value,
+                                    stringResource(R.string.unit_carbs_value, unitsLabel(grams))
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                         // The suggestion and, while collapsed, how long the insulin still runs.
                         // Expanded states the end time in full below. With an empty board this

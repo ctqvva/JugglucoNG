@@ -1678,6 +1678,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_metric_activity_today">Activiteit vandaag</string>
     <string name="journal_no_active_insulin">Geen actieve insuline</string>
     <string name="journal_active_now_percent">%1$d%% actief</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s E</string>
     <string name="journal_eiob_display_title">Effectieve IOB (eIOB) tonen</string>

@@ -1645,6 +1645,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_metric_activity_today">Өнөөдрийн идэвх</string>
     <string name="journal_no_active_insulin">Идэвхтэй инсулин байхгүй</string>
     <string name="journal_active_now_percent">%1$d%% идэвхтэй</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
     <string name="journal_eiob_display_title">Үр дүнтэй IOB (eIOB)-г харуулах</string>

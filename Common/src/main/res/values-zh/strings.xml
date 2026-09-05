@@ -1651,6 +1651,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_metric_activity_today">今日活动</string>
     <string name="journal_no_active_insulin">无活跃胰岛素</string>
     <string name="journal_active_now_percent">%1$d%% 活跃</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
     <string name="journal_eiob_display_title">显示有效 IOB (eIOB)</string>

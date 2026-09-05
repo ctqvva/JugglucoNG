@@ -1641,6 +1641,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_metric_activity_today">Activité aujourd’hui</string>
     <string name="journal_no_active_insulin">Aucune insuline active</string>
     <string name="journal_active_now_percent">%1$d%% actif</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
     <string name="journal_eiob_display_title">Afficher l’IOB effectif (eIOB)</string>
