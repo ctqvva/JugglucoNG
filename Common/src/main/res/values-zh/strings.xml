@@ -136,6 +136,8 @@
  <string name="name">名称：</string>
  <string name="carbperunit">单位碳水化合物：</string>
  <string name="database">数据库</string>
+ <string name="history_database_incompatible_title">历史数据库不兼容</string>
+ <string name="history_database_incompatible_message">此版本无法打开现有的历史数据库，因为其版本或架构不兼容。您的数据未被删除。请安装创建该数据库的版本或更新的兼容版本，然后重新启动应用。</string>
  <string name="search">搜索</string>
  <string name="trace">追踪</string>
  <string name="unknown">未知</string>
@@ -371,6 +373,7 @@
     <string name="clear">清除</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE 错误历史</string>
     <string name="log_enabled_waiting">日志已启用。等待条目...</string>
     <string name="log_unchecked">日志未选中。启用以开始。</string>
     <string name="error_reading_file">"读取文件错误： "</string>
@@ -783,6 +786,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">上次 BLE 错误</string>
     <string name="libre_setup_done">完成</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">在配对前调整 Libre 3 的实验性扫描行为。</string>
@@ -1235,6 +1239,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">夜巡网址</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">使用 Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">上传血糖数据需要 api:entries:create 和 api:entries:update。</string>
     <string name="nightscout_follow_desc">从此 Nightscout URL 创建只读虚拟传感器。</string>
     <string name="nightscout_follow_url_required">请先输入 Nightscout URL</string>
     <string name="nightscout_test_testing">正在测试...</string>
@@ -1427,10 +1432,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">将在 %1$d 分钟后重试</string>
     <string name="nightscout_status_response_ok">上次响应：HTTP %1$d</string>
     <string name="nightscout_status_response_error">上次响应：HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">上次响应：HTTP %1$d，%2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout 跟随器</string>
     <string name="nightscout_follow_status_idle">Nightscout 跟随器空闲</string>
     <string name="nightscout_follow_status_following">正在跟随 Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">使用 v3 API 跟随</string>
+    <string name="nightscout_follow_use_v3_api_desc">从 /api/v3 而非 /api/v1 读取。访问令牌需要 api:entries:read、api:treatments:read 和 api:devicestatus:read 权限。角色变更只在下次令牌交换后生效：若 403 持续出现，请重启应用。</string>
     <string name="nightscout_follow_status_syncing">正在刷新 Nightscout</string>
     <string name="nightscout_follow_status_paused">Nightscout 跟随器已暂停</string>
     <string name="nightscout_follow_status_config_needed">输入 Nightscout URL</string>
@@ -1889,6 +1897,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">消息模板</string>
     <string name="outbound_api_template_desc">点按下方令牌即可插入。</string>
+    <string name="outbound_api_insulin_tokens">胰岛素类型</string>
+    <string name="outbound_api_insulin_tokens_desc">每种启用的胰岛素类型都有对应的标记：上次剂量、时间、距今分钟数、剩余单位和今日总量。</string>
     <string name="outbound_api_min_interval">最小间隔（分钟）</string>
     <string name="outbound_api_min_interval_desc">0 会发送每个已接受的实时读数。</string>
     <string name="outbound_api_trigger">触发条件</string>
@@ -2737,4 +2747,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_crop_skip">直接使用</string>
     <string name="meal_product_barcode">条形码（可选）</string>
     <string name="meal_product_barcode_hint">有条形码时，产品会保存供下次扫描，并可发送至 Open Food Facts。</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2（实验性）</string>
+    <string name="sibionics_adaptive_v2_desc">独立的传感器状态估计，并给出可能范围</string>
+    <string name="glucose_likely_range">可能范围</string>
+    <string name="glucose_likely_range_value">可能范围 %1$s–%2$s</string>
+    <string name="glucose_estimated">估计血糖</string>
+    <string name="glucose_uncertainty_elevated">传感器不确定性升高</string>
+    <string name="glucose_possible_artifact">可能存在瞬时传感器伪影</string>
+    <string name="sibionics_uncertainty_ribbon">不确定性色带</string>
+    <string name="sibionics_uncertainty_ribbon_desc">在血糖曲线周围显示可能范围色带</string>
+    <string name="freeze_displayed_values">保留已显示的数值</string>
+    <string name="freeze_displayed_values_desc">读数保留当时显示的数值。校准更改仅影响最近的读数。</string>
+    <string name="freeze_displayed_values_on">正在保留已显示的数值</string>
+    <string name="freeze_displayed_values_off">每次更改后重新计算</string>
+    <string name="nightscout_follow_interval_title">检查新数值</string>
+    <string name="nightscout_follow_interval_desc">跟随者向服务器询问的频率。它同时决定数值可能有多旧，因此也决定基于跟随数值的警报可能有多晚。跟随者没有自己的传感器让手机保持唤醒，所以每次检查都是一次唤醒。</string>
+    <string name="nightscout_follow_interval_doze">低于 9 分钟时，手机闲置期间 Android 仍可能拉长检查间隔。将 Juggluco 排除在电池优化之外可保持所选间隔。</string>
 </resources>

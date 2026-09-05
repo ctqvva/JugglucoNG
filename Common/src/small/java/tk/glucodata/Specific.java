@@ -31,6 +31,7 @@ import android.widget.TextView;
 public class Specific {
 static void start(Object context) { }
 static    void splash(Object act) { }
+static boolean historyDatabaseCompatible(android.content.Context context) { return true; }
 static void initScreen(Object obj) {}
 static void settext(String str) {}
 static void      rmlayout() {}

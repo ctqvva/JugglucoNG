@@ -136,6 +136,8 @@
  <string name="name">Magaca:</string>
  <string name="carbperunit">Carbohydrates/cutub:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Kaydka taariikhda lama jaanqaadi karo</string>
+ <string name="history_database_incompatible_message">Noocan ma furi karo kaydka taariikhda ee jira sababtoo ah noociisa ama qaabkiisa lama jaanqaadi karo. Xogtaada lama tirtirin. Ku rakib noocii sameeyay kaydka xogta ama nooc ka cusub oo la jaanqaadi kara, dabadeed dib u bilow abka.</string>
  <string name="search">Raadi</string>
  <string name="trace">Raad raac</string>
  <string name="unknown">Lama garanayo</string>
@@ -509,6 +511,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clear">Cad</string>
     <string name="trace_log">Raad raac.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Taariikhda khaladaadka BLE</string>
     <string name="log_enabled_waiting">Log waa la furay Sugaya soo gelida...</string>
     <string name="log_unchecked">Log aan la hubin Awood in aad bilowdo</string>
     <string name="error_reading_file">"Cilaad akhriska faylka:"</string>
@@ -653,6 +656,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="enabled_status">Hawl gal</string>
     <string name="disabled_status">Dansan</string>
     <string name="last_ble_status">Heerka BLE ee u dambeeyay</string>
+    <string name="last_ble_error">Ciladdii BLE ee u dambeysay</string>
     <string name="sensor_address">Cinwaanka</string>
     <string name="sensor_started">bilaabay</string>
     <string name="sensor_ends_officially">Si Rasmi Ah U Dhamaatay</string>
@@ -1497,10 +1501,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_retry_in">Isku day in aad isku daydo in la qorsheeyay %1$d daqiiqo</string>
     <string name="nightscout_status_response_ok">Jawaabtii u dambaysay: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Jawaabtii u dambaysay: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Jawaabtii u dambaysay: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Jawaabtii u dambaysay: URL aan sax ahayn Nightscoout</string>
     <string name="nightscout_follow_title">Nightscoout raaca</string>
     <string name="nightscout_follow_status_idle">Nightscoout raaca</string>
     <string name="nightscout_follow_status_following">Ka dib Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Isticmaal API v3 raacitaanka</string>
+    <string name="nightscout_follow_use_v3_api_desc">Waxay ka akhridaa /api/v3 halkii /api/v1. Token-ka gelitaanka wuxuu u baahan yahay api:entries:read, api:treatments:read iyo api:devicestatus:read. Doorarka la beddelay waxay shaqeeyaan oo keliya beddelka token-ka ee xiga: dib u bilow abka haddii 403 sii socoto.</string>
     <string name="nightscout_follow_status_syncing">Nightscout oo soo kicinaysa</string>
     <string name="nightscout_follow_status_paused">Habeenimadii raacdayaashii waa hakad</string>
     <string name="nightscout_follow_status_config_needed">Geli Nightscout URL</string>
@@ -1527,6 +1534,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Isticmaal Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">Soo rarista gulukoosku waxay u baahan tahay api:entries:create iyo api:entries:update.</string>
     <string name="nightscout_follow_desc">Ka samee dareemaha akhriska-kaliya ee URL-kan Nightscout.</string>
     <string name="nightscout_follow_url_required">Geli URL Nightscout marka hore</string>
     <string name="nightscout_mode_upload">Soo rar</string>
@@ -2191,6 +2199,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="outbound_api_headers_placeholder">Oggolaanshaha: Calaamadda xanbaarsan</string>
     <string name="outbound_api_message_template">Qaabka fariinta</string>
     <string name="outbound_api_template_desc">Taabo calaamada hoose si aad u geliso</string>
+    <string name="outbound_api_insulin_tokens">Noocyada insuliinta</string>
+    <string name="outbound_api_insulin_tokens_desc">Nooc kasta oo insuliin ah oo firfircoon wuxuu leeyahay calaamado qiyaasta ugu dambeysay, waqtigeeda, daqiiqadaha laga soo bilaabo, cutubyada haray iyo wadarta maanta.</string>
     <string name="outbound_api_min_interval">Muddada ugu yar (daqiiqado)</string>
     <string name="outbound_api_min_interval_desc">0 waxay dirtaa akhriska tooska ah ee la aqbalo.</string>
     <string name="outbound_api_trigger">Kicin</string>
@@ -2921,4 +2931,20 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_crop_skip">Sidiisa u isticmaal</string>
     <string name="meal_product_barcode">Baarkoodh (ikhtiyaari)</string>
     <string name="meal_product_barcode_hint">Baarkoodh lagu daro, alaabta ayaa loo kaydiyaa iskaanka xiga waxaana loo diri karaa Open Food Facts.</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (tijaabo)</string>
+    <string name="sibionics_adaptive_v2_desc">Qiyaas madaxbannaan oo xaaladda dareemaha leh kala duwanaansho suurtogal ah</string>
+    <string name="glucose_likely_range">Kala duwanaanshaha suurtogalka ah</string>
+    <string name="glucose_likely_range_value">kala duwanaansho suurtogal ah %1$s–%2$s</string>
+    <string name="glucose_estimated">Sonkorta la qiyaasay</string>
+    <string name="glucose_uncertainty_elevated">Hubanti la\'aanta dareemaha waa sare</string>
+    <string name="glucose_possible_artifact">Waxaa suurtogal ah cilad dareeme oo ku meel gaar ah</string>
+    <string name="sibionics_uncertainty_ribbon">Xarigga hubanti-la\'aanta</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
+    <string name="freeze_displayed_values">Hay qiimaha la tusay</string>
+    <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
+    <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
+    <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
+    <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
+    <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
+    <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
 </resources>

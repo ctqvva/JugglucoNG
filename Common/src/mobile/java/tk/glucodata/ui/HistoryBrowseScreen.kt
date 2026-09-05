@@ -502,7 +502,7 @@ fun HistoryBrowseScreen(
         ).orEmpty()
     }
     val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit, activeHistory) {
-        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, activeHistory, journalFoodsById)
+        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, journalFoodsById)
     }
     val journalEntriesById = remember(filteredJournalEntries) { filteredJournalEntries.associateBy { it.id } }
 

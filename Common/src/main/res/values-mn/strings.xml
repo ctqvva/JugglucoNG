@@ -131,6 +131,8 @@
     <string name="name">Нэр:</string>
     <string name="carbperunit">Нэгж дэх нүүрс ус:</string>
     <string name="database">Өгөгдлийн сан</string>
+    <string name="history_database_incompatible_title">Түүхийн өгөгдлийн сан нийцэхгүй байна</string>
+    <string name="history_database_incompatible_message">Энэ хувилбар одоо байгаа түүхийн өгөгдлийн сангийн хувилбар эсвэл бүтэц нийцэхгүй тул нээж чадахгүй. Таны өгөгдөл устгагдаагүй. Өгөгдлийн санг үүсгэсэн хувилбар эсвэл түүнээс шинэ нийцтэй хувилбарыг суулгаад аппыг дахин эхлүүлнэ үү.</string>
     <string name="search">Хайх</string>
     <string name="trace">Мөрдөх</string>
     <string name="unknown">Тодорхойгүй</string>
@@ -483,6 +485,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clear">Цэвэрлэх</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE алдааны түүх</string>
     <string name="log_enabled_waiting">Лог идэвхжсэн. Бичилтүүдийг хүлээж байна...</string>
     <string name="log_unchecked">Лог сонгогдоогүй. Эхлүүлэхийн тулд идэвхжүүлнэ үү.</string>
     <string name="error_reading_file">"Файлыг уншихад алдаа гарлаа: "</string>
@@ -611,6 +614,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="enabled_status">Идэвхжсэн</string>
     <string name="disabled_status">Идэвхгүй болгосон</string>
     <string name="last_ble_status">Сүүлчийн BLE төлөв</string>
+    <string name="last_ble_error">Сүүлийн BLE алдаа</string>
     <string name="sensor_address">Хаяг</string>
     <string name="sensor_started">Эхэлсэн</string>
     <string name="sensor_ends_officially">Албан ёсоор дуусах</string>
@@ -1224,10 +1228,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_retry_in">%1$d мин дараа дахин оролдохоор товлосон</string>
     <string name="nightscout_status_response_ok">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Сүүлчийн хариу: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Сүүлчийн хариу: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Сүүлчийн хариу: буруу Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout дагагч</string>
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
     <string name="nightscout_follow_status_following">Nightscout-ийг дагаж байна</string>
+    <string name="nightscout_follow_use_v3_api">Дагахдаа v3 API ашиглах</string>
+    <string name="nightscout_follow_use_v3_api_desc">/api/v1-ийн оронд /api/v3-аас уншина. Хандалтын токенд api:entries:read, api:treatments:read, api:devicestatus:read шаардлагатай. Өөрчилсөн эрх зөвхөн дараагийн токен солилцоонд хүчинтэй тул 403 үргэлжилвэл аппыг дахин эхлүүлнэ үү.</string>
     <string name="nightscout_follow_status_syncing">Nightscout-ийг шинэчилж байна</string>
     <string name="nightscout_follow_status_paused">Nightscout дагагч түр зогссон</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL-г оруулна уу</string>
@@ -1252,6 +1259,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Nightscout v3 API ашиглах</string>
+    <string name="nightscout_use_v3_api_desc">Глюкозын байршуулалтад api:entries:create болон api:entries:update хэрэгтэй.</string>
     <string name="nightscout_follow_desc">Энэ Nightscout URL-аас зөвхөн унших боломжтой виртуал мэдрэгч үүсгэх.</string>
     <string name="nightscout_follow_url_required">Эхлээд Nightscout URL-г оруулна уу</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
@@ -1896,6 +1904,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Message template</string>
     <string name="outbound_api_template_desc">Tap a token below to insert it.</string>
+    <string name="outbound_api_insulin_tokens">Инсулины төрлүүд</string>
+    <string name="outbound_api_insulin_tokens_desc">Идэвхтэй инсулины төрөл бүр сүүлийн тун, түүний цаг, түүнээс хойших минут, үлдсэн нэгж, өнөөдрийн нийлбэрийн токентой.</string>
     <string name="outbound_api_min_interval">Minimum interval (minutes)</string>
     <string name="outbound_api_min_interval_desc">0 sends every accepted live reading.</string>
     <string name="outbound_api_trigger">Trigger</string>
@@ -2836,4 +2846,20 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_crop_skip">Байгаагаар ашиглах</string>
     <string name="meal_product_barcode">Баркод (заавал биш)</string>
     <string name="meal_product_barcode_hint">Баркодтой бол бүтээгдэхүүн дараагийн сканд хадгалагдаж, Open Food Facts руу илгээж болно.</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (туршилтын)</string>
+    <string name="sibionics_adaptive_v2_desc">Мэдрэгчийн төлөвийн бие даасан үнэлгээ, магадлалт мужтай</string>
+    <string name="glucose_likely_range">Магадлалт муж</string>
+    <string name="glucose_likely_range_value">магадлалт муж %1$s–%2$s</string>
+    <string name="glucose_estimated">Тооцоолсон глюкоз</string>
+    <string name="glucose_uncertainty_elevated">Мэдрэгчийн тодорхойгүй байдал өндөр</string>
+    <string name="glucose_possible_artifact">Мэдрэгчийн түр зуурын гажилт байж болзошгүй</string>
+    <string name="sibionics_uncertainty_ribbon">Тодорхойгүйн зурвас</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Глюкозын шугамын эргэн тойронд магадлалт мужийн зурвасыг харуулах</string>
+    <string name="freeze_displayed_values">Харуулсан утгыг хадгалах</string>
+    <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
+    <string name="freeze_displayed_values_on">Харуулсан утгыг хадгалж байна</string>
+    <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
+    <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
+    <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
+    <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
 </resources>
