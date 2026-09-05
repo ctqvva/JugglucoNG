@@ -241,6 +241,7 @@ fun JournalScreen(
                             JournalFloatingActionMenu(
                                 visible = true,
                                 selectedTimestamp = actionTimestamp,
+                                onDismissRequest = { clearChartAction() },
                                 viewportSnapshot = viewportSnapshot,
                                 menuTopOffset = 40.dp,
                                 menuItemSpacing = 6.dp,
