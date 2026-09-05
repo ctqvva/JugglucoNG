@@ -1033,6 +1033,8 @@ std::vector<uint8_t> javaExportCloneRecoveryCapabilities() {
 std::vector<uint8_t> javaExportCloneRecoveryStatus(const char *) {
     return {};
 }
+bool javaReceiveCloneRecoveryRequest(const uint8_t *, size_t) { return false; }
+bool javaReadCloneRecoveryPullFile(const char *, bool, int64_t, int, std::vector<uint8_t> &) { return false; }
 bool javaReceiveCloneRecoveryManifest(const uint8_t *, size_t) {
     return false;
 }
@@ -1052,7 +1054,7 @@ std::vector<uint8_t> javaProbeCloneRecoveryOutgoing(const char *, int64_t) {
     return {};
 }
 std::vector<uint8_t> javaStartCloneRecoveryOutgoing(const char *, int64_t,
-                                                     const char *, bool) {
+                                                     const char *, bool, bool) {
     return {};
 }
 std::vector<uint8_t> javaNextCloneRecoveryOutgoingAction(const char *, int64_t) {

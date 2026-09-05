@@ -27,6 +27,7 @@ internal enum class CloneHistoryRecoveryBlocker {
 internal data class CloneHistoryRecoverySelection(
     val mode: CloneRecoveryMode = CloneRecoveryMode.ONLY_MISSING,
     val includeJournal: Boolean = false,
+    val recoverFromReceiver: Boolean = false,
 ) {
     fun categories(remoteCapabilities: CloneRecoveryCapabilities): Int =
         CloneRecoveryCategories.GLUCOSE or

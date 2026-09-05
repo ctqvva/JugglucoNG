@@ -399,9 +399,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
       }
       if (!(jhistoryStartCloneRecoveryOutgoing = env->GetStaticMethodID(
                 JNIHistorySyncAccess, "startCloneRecoveryOutgoing",
-                "(Ljava/lang/String;JLjava/lang/String;Z)[B"))) {
+                "(Ljava/lang/String;JLjava/lang/String;ZZ)[B"))) {
         LOGAR(
-            R"(GetStaticMethodID(JNIHistorySyncAccess,"startCloneRecoveryOutgoing","(Ljava/lang/String;JLjava/lang/String;Z)[B") failed)"
+            R"(GetStaticMethodID(JNIHistorySyncAccess,"startCloneRecoveryOutgoing","(Ljava/lang/String;JLjava/lang/String;ZZ)[B") failed)"
             "");
       }
       if (!(jhistoryNextCloneRecoveryOutgoingAction = env->GetStaticMethodID(
@@ -865,7 +865,7 @@ javaNextCloneRecoveryOutgoingAction(const char *iceLabel,
 
 std::vector<uint8_t> javaStartCloneRecoveryOutgoing(
     const char *iceLabel, int64_t connectionGeneration, const char *modeWire,
-    bool includeJournal) {
+    bool includeJournal, bool recoverFromReceiver) {
   if (!iceLabel || !*iceLabel || !modeWire || !*modeWire ||
       connectionGeneration < 0 || !javaCloneRecoverySenderBridgeReady()) {
     return {};
@@ -882,7 +882,7 @@ std::vector<uint8_t> javaStartCloneRecoveryOutgoing(
   jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
       JNIHistorySyncAccess, jhistoryStartCloneRecoveryOutgoing, jlabel,
       static_cast<jlong>(connectionGeneration), jmode,
-      static_cast<jboolean>(includeJournal)));
+      static_cast<jboolean>(includeJournal), static_cast<jboolean>(recoverFromReceiver)));
   env->DeleteLocalRef(jmode);
   env->DeleteLocalRef(jlabel);
   if (env->ExceptionCheck()) {
@@ -1034,6 +1034,37 @@ static bool callCloneRecoveryControl(JNIEnv *env, jmethodID method,
     env->DeleteLocalRef(result);
   }
   return accepted;
+}
+
+bool javaReceiveCloneRecoveryRequest(const uint8_t *bytes, size_t size) {
+  if (!javaCloneRecoveryBridgeReady()) return false;
+  JNIEnv *env = getenv();
+  jmethodID method = env->GetStaticMethodID(JNIHistorySyncAccess, "receiveCloneRecoveryRequest", "([B)Z");
+  if (!method || env->ExceptionCheck()) { env->ExceptionClear(); return false; }
+  jbyteArray input = newCloneRecoveryByteArray(env, bytes, size);
+  if (!input) return false;
+  const jboolean result = env->CallStaticBooleanMethod(JNIHistorySyncAccess, method, input);
+  env->DeleteLocalRef(input);
+  if (env->ExceptionCheck()) { env->ExceptionClear(); return false; }
+  return result == JNI_TRUE;
+}
+
+bool javaReadCloneRecoveryPullFile(const char *jobId, bool packageChunk, int64_t offset,
+                                   int maximumBytes, std::vector<uint8_t> &out) {
+  if (!jobId || !javaCloneRecoveryBridgeReady()) return false;
+  JNIEnv *env = getenv();
+  jmethodID method = env->GetStaticMethodID(JNIHistorySyncAccess, "readCloneRecoveryPullFile", "(Ljava/lang/String;ZJI)[B");
+  if (!method || env->ExceptionCheck()) { env->ExceptionClear(); return false; }
+  jstring label = env->NewStringUTF(jobId);
+  if (!label) { if (env->ExceptionCheck()) env->ExceptionClear(); return false; }
+  jbyteArray result = static_cast<jbyteArray>(env->CallStaticObjectMethod(JNIHistorySyncAccess,
+      method, label, static_cast<jboolean>(packageChunk), static_cast<jlong>(offset),
+      static_cast<jint>(maximumBytes)));
+  env->DeleteLocalRef(label);
+  if (env->ExceptionCheck()) { env->ExceptionClear(); if (result) env->DeleteLocalRef(result); return false; }
+  if (!result) return false;
+  out = takeCloneRecoveryByteArray(env, result);
+  return out.size() <= static_cast<size_t>(maximumBytes);
 }
 
 bool javaReceiveCloneRecoveryManifest(const uint8_t *bytes, size_t size) {

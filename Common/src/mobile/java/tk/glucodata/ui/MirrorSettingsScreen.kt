@@ -1041,7 +1041,7 @@ fun MirrorConnectionCard(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                         ) {
-                            Text(stringResource(R.string.clone_history_send))
+                            Text(stringResource(R.string.clone_history_recovery))
                         }
                     }
                     Row(

@@ -55,6 +55,9 @@ extern void javaMirrorReconcilePrimarySensor(const char *serial);
 extern void javaImportMirrorCalibrationProfile(const char *serial, const char *json);
 extern void javaImportCloneIobSnapshot(const char *json);
 extern void javaImportCloneJournalSnapshot(const char *json, int transportCode);
+extern bool javaReceiveCloneRecoveryRequest(const uint8_t *bytes, size_t size);
+extern bool javaReadCloneRecoveryPullFile(const char *jobId, bool packageChunk, int64_t offset,
+                                         int maximumBytes, std::vector<uint8_t> &out);
 extern bool javaCloneRecoveryBridgeReady();
 extern std::vector<uint8_t> javaExportCloneRecoveryCapabilities();
 extern std::vector<uint8_t> javaExportCloneRecoveryStatus(const char *jobId);
@@ -353,6 +356,7 @@ enum class CloneRecoveryPathKind {
     none,
     invalid,
     capabilities,
+    request,
     manifest,
     package,
     status,
@@ -399,6 +403,7 @@ static CloneRecoveryPathKind classifyCloneRecoveryPath(std::string_view path) {
         return CloneRecoveryPathKind::invalid;
     }
     const std::string_view filename = remainder.substr(cloneRecoveryJobIdLength + 1);
+    if (filename == "request.json") return CloneRecoveryPathKind::request;
     if (filename == "manifest.json") return CloneRecoveryPathKind::manifest;
     if (filename == "package.jsonl.gz") return CloneRecoveryPathKind::package;
     if (filename == "status.json") return CloneRecoveryPathKind::status;
@@ -476,8 +481,12 @@ static bool validateCloneRecoveryRead(CloneRecoveryPathKind kind, uint32_t offse
     switch (kind) {
     case CloneRecoveryPathKind::capabilities:
     case CloneRecoveryPathKind::status:
-        return offset <= cloneRecoveryMaximumControlBytes &&
+    case CloneRecoveryPathKind::manifest:
+        return length <= 64U * 1024U && offset <= cloneRecoveryMaximumControlBytes &&
                length <= cloneRecoveryMaximumControlBytes - offset;
+    case CloneRecoveryPathKind::package:
+        return length > 0 && length <= 64U * 1024U && offset <= cloneRecoveryMaximumPackageBytes &&
+               length <= cloneRecoveryMaximumPackageBytes - offset;
     default:
         return false;
     }
@@ -494,6 +503,7 @@ static bool validateCloneRecoveryWrite(CloneRecoveryPathKind kind,
     }
     const uint32_t offset = static_cast<uint32_t>(command->gegs[0].off);
     switch (kind) {
+    case CloneRecoveryPathKind::request:
     case CloneRecoveryPathKind::manifest:
     case CloneRecoveryPathKind::commit:
     case CloneRecoveryPathKind::cancel:
@@ -512,6 +522,8 @@ static bool sendCloneRecoveryVirtualFile(Connect *connect, crypt_t *ctx,
                                          std::string_view path, uint32_t offset,
                                          uint32_t length) {
     std::vector<uint8_t> content;
+    bool paged = false;
+    bool found = false;
     switch (kind) {
     case CloneRecoveryPathKind::capabilities:
         content = javaExportCloneRecoveryCapabilities();
@@ -521,6 +533,14 @@ static bool sendCloneRecoveryVirtualFile(Connect *connect, crypt_t *ctx,
         if (!jobId.empty()) {
             content = javaExportCloneRecoveryStatus(jobId.c_str());
         }
+        break;
+    }
+    case CloneRecoveryPathKind::manifest:
+    case CloneRecoveryPathKind::package: {
+        const std::string jobId = cloneRecoveryJobId(path);
+        found = !jobId.empty() && javaReadCloneRecoveryPullFile(jobId.c_str(),
+            kind == CloneRecoveryPathKind::package, offset, length, content);
+        paged = true;
         break;
     }
     default:
@@ -542,8 +562,8 @@ static bool sendCloneRecoveryVirtualFile(Connect *connect, crypt_t *ctx,
     }
     memset(data, 0, wireBytes);
     data->len = -1;
-    if (!content.empty()) {
-        const size_t start = std::min(static_cast<size_t>(offset), content.size());
+    if (paged ? found : !content.empty()) {
+        const size_t start = paged ? 0 : std::min(static_cast<size_t>(offset), content.size());
         const size_t count = std::min(static_cast<size_t>(length),
                                       content.size() - start);
         if (count > 0) {
@@ -559,6 +579,8 @@ static bool saveCloneRecoveryVirtualFile(CloneRecoveryPathKind kind,
                                          const ValidatedFileOnce &view,
                                          int cloneTransport) {
     switch (kind) {
+    case CloneRecoveryPathKind::request:
+        return javaReceiveCloneRecoveryRequest(view.payload, view.payloadBytes);
     case CloneRecoveryPathKind::manifest:
         return javaReceiveCloneRecoveryManifest(view.payload, view.payloadBytes);
     case CloneRecoveryPathKind::package: {

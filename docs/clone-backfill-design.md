@@ -1,7 +1,28 @@
 # Clone history recovery design
 
-Status: design proposal. The current Clone implementation does not provide this
-recovery workflow yet.
+Status: both transfer directions are implemented for glucose and journal history
+on authenticated phone-to-phone Hybrid ICE connections. Only missing is the
+default; Full History requires a separate confirmation. Hypo classification and
+optional meal-provider recovery remain design work. The sections below describe
+the intended contract, including those unfinished providers.
+
+The receiver advertises reverse recovery through the optional `supportsPull`
+capability. A missing flag means send-only support. Reverse recovery writes an
+immutable request, waits for an asynchronous export, and reads the manifest and
+package in bounded pages of at most 64 KiB. The sender imports the downloaded
+package locally without changing the normal Clone connection roles.
+
+Both import paths write a job receipt in the same Room transaction as the
+records. If the process dies after that transaction commits, retrying the job
+keeps later live records instead of repeating Full History replacement. SQLite
+unit tests cover rollback, receipt failures, duplicate jobs, and replay after
+commit. Native sanitizer checks cover action frames and read bounds. Physical
+phone transfer, process-kill, and live-glucose timing checks remain outstanding.
+
+Receiver exports remain in private staging for resume and expire after 24 hours
+without activity. Cleanup runs hourly while the recovery service is active.
+Cancelling a pull stops the local download; its remote export can remain until
+expiry.
 
 ## Purpose
 

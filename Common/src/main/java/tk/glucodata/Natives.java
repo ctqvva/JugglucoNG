@@ -441,7 +441,7 @@ public class Natives {
         public static native String probeCloneRecovery(int allindex);
 
         public static native String startCloneRecovery(int allindex, String modeWire,
-                        boolean includeJournal);
+                        boolean includeJournal, boolean recoverFromReceiver);
 
         public static native String cancelCloneRecovery(int allindex);
 
