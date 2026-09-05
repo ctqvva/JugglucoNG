@@ -2171,6 +2171,17 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="haptic_profile_steady">Deggan</string>
     <string name="haptic_profile_strong">Xoog badan</string>
     <string name="haptic_profile_escalating">Sii kordhaya</string>
+    <string name="glucifer_delivery_failed">Dirista Glucifer HA way fashilantay; isku day kale ayaa sugaya</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA ma xaqiijin xogta; isku day kale ayaa sugaya</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">U dir xogta la doortay Home Assistant</string>
+    <string name="glucifer_glucose_required">Gulukoosta iyo waqtiga cabbirka mar walba waa la diraa. Hoos ka dooro xog kasta iyo digniin kasta oo dheeraad ah.</string>
+    <string name="glucifer_delta">Isbeddelka gulukoosta (5 daqiiqo)</string>
+    <string name="glucifer_rate">Xawaaraha isbeddelka</string>
+    <string name="glucifer_raw">Gulukoosta ceeriin</string>
+    <string name="glucifer_auto">Gulukoosta si toos ah loo saxay</string>
+    <string name="glucifer_sensor_id">Aqoonsiga dareemaha</string>
+    <string name="glucifer_sensor_generation">Jiilka dareemaha</string>
     <string name="outbound_api_title">Goobaha API</string>
     <string name="outbound_api_desc">Gaarsiinta chatbot, webhook iyo SMS degdeg ah oo ku salaysan hordhac</string>
     <string name="outbound_api_settings_title">Goobaha API</string>

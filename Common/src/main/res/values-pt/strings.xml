@@ -1854,6 +1854,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_steady">Constante</string>
     <string name="haptic_profile_strong">Forte</string>
     <string name="haptic_profile_escalating">Crescente</string>
+    <string name="glucifer_delivery_failed">Falha no envio para o Glucifer HA; nova tentativa pendente</string>
+    <string name="glucifer_not_acknowledged">O Glucifer HA não confirmou os dados; nova tentativa pendente</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Enviar dados selecionados para o Home Assistant</string>
+    <string name="glucifer_glucose_required">A glicose e a hora da medição são sempre enviadas. Escolha abaixo cada campo e alerta adicional.</string>
+    <string name="glucifer_delta">Variação da glicose (5 min)</string>
+    <string name="glucifer_rate">Taxa de variação</string>
+    <string name="glucifer_raw">Glicose bruta</string>
+    <string name="glucifer_auto">Glicose calibrada automaticamente</string>
+    <string name="glucifer_sensor_id">Identificador do sensor</string>
+    <string name="glucifer_sensor_generation">Geração do sensor</string>
     <string name="outbound_api_title">Destinos de API</string>
     <string name="outbound_api_desc">Entrega para chatbots, webhooks e SMS de emergência baseada em predefinições</string>
     <string name="outbound_api_settings_title">Destinos de API</string>

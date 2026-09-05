@@ -1929,6 +1929,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_steady">Рівна</string>
     <string name="haptic_profile_strong">Сильна</string>
     <string name="haptic_profile_escalating">Наростальна</string>
+    <string name="glucifer_delivery_failed">Помилка надсилання до Glucifer HA; очікується повторна спроба</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA не підтвердив дані; очікується повторна спроба</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Надсилати вибрані дані до Home Assistant</string>
+    <string name="glucifer_glucose_required">Глюкоза та час вимірювання надсилаються завжди. Нижче виберіть кожне додаткове поле та сповіщення.</string>
+    <string name="glucifer_delta">Зміна глюкози (5 хв)</string>
+    <string name="glucifer_rate">Швидкість зміни</string>
+    <string name="glucifer_raw">Необроблена глюкоза</string>
+    <string name="glucifer_auto">Автоматично відкалібрована глюкоза</string>
+    <string name="glucifer_sensor_id">Ідентифікатор сенсора</string>
+    <string name="glucifer_sensor_generation">Покоління сенсора</string>
     <string name="outbound_api_title">Призначення API</string>
     <string name="outbound_api_desc">Доставка до чат-ботів, webhook і екстрених SMS на основі пресетів</string>
     <string name="outbound_api_settings_title">Призначення API</string>

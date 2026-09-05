@@ -1853,6 +1853,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_steady">Jämn</string>
     <string name="haptic_profile_strong">Stark</string>
     <string name="haptic_profile_escalating">Eskalerande</string>
+    <string name="glucifer_delivery_failed">Leverans till Glucifer HA misslyckades; nytt försök väntar</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA bekräftade inte data; nytt försök väntar</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Skicka valda data till Home Assistant</string>
+    <string name="glucifer_glucose_required">Glukos och mättid skickas alltid. Välj varje ytterligare datafält och larm nedan.</string>
+    <string name="glucifer_delta">Glukosförändring (5 min)</string>
+    <string name="glucifer_rate">Förändringshastighet</string>
+    <string name="glucifer_raw">Råa glukosvärden</string>
+    <string name="glucifer_auto">Automatiskt kalibrerat glukos</string>
+    <string name="glucifer_sensor_id">Sensoridentifierare</string>
+    <string name="glucifer_sensor_generation">Sensorgeneration</string>
     <string name="outbound_api_title">API-mål</string>
     <string name="outbound_api_desc">Presetbaserad leverans till chattbotar, webhooks och nöd-SMS</string>
     <string name="outbound_api_settings_title">API-mål</string>

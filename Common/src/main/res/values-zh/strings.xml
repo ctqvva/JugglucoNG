@@ -1869,6 +1869,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_steady">稳定</string>
     <string name="haptic_profile_strong">强烈</string>
     <string name="haptic_profile_escalating">递增</string>
+    <string name="glucifer_delivery_failed">Glucifer HA 发送失败；等待重试</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA 未确认数据；等待重试</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">向 Home Assistant 发送所选数据</string>
+    <string name="glucifer_glucose_required">始终发送葡萄糖和测量时间。请在下方逐项选择其他数据和警报。</string>
+    <string name="glucifer_delta">葡萄糖变化（5 分钟）</string>
+    <string name="glucifer_rate">变化速率</string>
+    <string name="glucifer_raw">原始葡萄糖</string>
+    <string name="glucifer_auto">自动校准的葡萄糖</string>
+    <string name="glucifer_sensor_id">传感器标识</string>
+    <string name="glucifer_sensor_generation">传感器代次</string>
     <string name="outbound_api_title">API 目标</string>
     <string name="outbound_api_desc">基于预设的聊天机器人、Webhook 和紧急短信发送</string>
     <string name="outbound_api_settings_title">API 目标</string>

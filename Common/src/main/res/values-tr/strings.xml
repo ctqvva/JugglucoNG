@@ -1881,6 +1881,17 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="haptic_profile_steady">Sabit</string>
     <string name="haptic_profile_strong">Güçlü</string>
     <string name="haptic_profile_escalating">Artan</string>
+    <string name="glucifer_delivery_failed">Glucifer HA aktarımı başarısız; yeniden deneme bekleniyor</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA verileri onaylamadı; yeniden deneme bekleniyor</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Seçilen verileri Home Assistant sistemine gönder</string>
+    <string name="glucifer_glucose_required">Glikoz ve ölçüm zamanı her zaman gönderilir. Aşağıdan her ek veri alanını ve alarmı seçin.</string>
+    <string name="glucifer_delta">Glikoz değişimi (5 dk)</string>
+    <string name="glucifer_rate">Değişim hızı</string>
+    <string name="glucifer_raw">Ham glikoz</string>
+    <string name="glucifer_auto">Otomatik kalibre edilmiş glikoz</string>
+    <string name="glucifer_sensor_id">Sensör kimliği</string>
+    <string name="glucifer_sensor_generation">Sensör nesli</string>
     <string name="outbound_api_title">API hedefleri</string>
     <string name="outbound_api_desc">Ön ayarlı sohbet botu, webhook ve acil SMS gönderimi</string>
     <string name="outbound_api_settings_title">API hedefleri</string>

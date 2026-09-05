@@ -1888,6 +1888,17 @@
     <string name="haptic_profile_steady">Stałe</string>
     <string name="haptic_profile_strong">Silne</string>
     <string name="haptic_profile_escalating">Narastające</string>
+    <string name="glucifer_delivery_failed">Wysyłanie do Glucifer HA nie powiodło się; oczekiwanie na ponowienie</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA nie potwierdził danych; oczekiwanie na ponowienie</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Wysyłaj wybrane dane do Home Assistant</string>
+    <string name="glucifer_glucose_required">Glukoza i czas pomiaru są zawsze wysyłane. Poniżej wybierz każde dodatkowe pole i alarm.</string>
+    <string name="glucifer_delta">Zmiana glukozy (5 min)</string>
+    <string name="glucifer_rate">Tempo zmian</string>
+    <string name="glucifer_raw">Surowa glukoza</string>
+    <string name="glucifer_auto">Glukoza kalibrowana automatycznie</string>
+    <string name="glucifer_sensor_id">Identyfikator sensora</string>
+    <string name="glucifer_sensor_generation">Generacja sensora</string>
     <string name="outbound_api_title">Miejsca docelowe API</string>
     <string name="outbound_api_desc">Dostarczanie do chatbotów, webhooków i SMS alarmowych oparte na presetach</string>
     <string name="outbound_api_settings_title">Miejsca docelowe API</string>

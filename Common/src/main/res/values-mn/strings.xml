@@ -1876,6 +1876,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="haptic_profile_steady">Steady</string>
     <string name="haptic_profile_strong">Strong</string>
     <string name="haptic_profile_escalating">Escalating</string>
+    <string name="glucifer_delivery_failed">Glucifer HA руу илгээж чадсангүй; дахин оролдоно</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA өгөгдлийг баталгаажуулсангүй; дахин оролдоно</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Сонгосон өгөгдлийг Home Assistant руу илгээх</string>
+    <string name="glucifer_glucose_required">Глюкоз болон хэмжилтийн цагийг үргэлж илгээнэ. Доороос нэмэлт талбар, сэрэмжлүүлэг бүрийг сонгоно уу.</string>
+    <string name="glucifer_delta">Глюкозын өөрчлөлт (5 мин)</string>
+    <string name="glucifer_rate">Өөрчлөлтийн хурд</string>
+    <string name="glucifer_raw">Түүхий глюкоз</string>
+    <string name="glucifer_auto">Автоматаар тохируулсан глюкоз</string>
+    <string name="glucifer_sensor_id">Мэдрэгчийн таних дугаар</string>
+    <string name="glucifer_sensor_generation">Мэдрэгчийн үе</string>
     <string name="outbound_api_title">API destinations</string>
     <string name="outbound_api_desc">Урьдчилсан тохиргоонд суурилсан чатбот, webhook болон яаралтай SMS хүргэлт</string>
     <string name="outbound_api_settings_title">API destinations</string>

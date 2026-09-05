@@ -1896,6 +1896,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="haptic_profile_steady">Gelijkmatig</string>
     <string name="haptic_profile_strong">Sterk</string>
     <string name="haptic_profile_escalating">Oplopend</string>
+    <string name="glucifer_delivery_failed">Verzenden naar Glucifer HA mislukt; nieuwe poging volgt</string>
+    <string name="glucifer_not_acknowledged">Glucifer HA heeft de gegevens niet bevestigd; nieuwe poging volgt</string>
+    <string name="glucifer_title" translatable="false">Glucifer HA</string>
+    <string name="glucifer_description">Geselecteerde gegevens naar Home Assistant sturen</string>
+    <string name="glucifer_glucose_required">Glucose en meettijd worden altijd verzonden. Kies hieronder elk extra gegevensveld en alarm.</string>
+    <string name="glucifer_delta">Glucoseverschil (5 min)</string>
+    <string name="glucifer_rate">Veranderingssnelheid</string>
+    <string name="glucifer_raw">Ruwe glucose</string>
+    <string name="glucifer_auto">Automatisch gekalibreerde glucose</string>
+    <string name="glucifer_sensor_id">Sensoridentificatie</string>
+    <string name="glucifer_sensor_generation">Sensorgeneratie</string>
     <string name="outbound_api_title">API-bestemmingen</string>
     <string name="outbound_api_desc">Preset-gebaseerde chatbot-, webhook- en nood-sms-bezorging</string>
     <string name="outbound_api_settings_title">API-bestemmingen</string>

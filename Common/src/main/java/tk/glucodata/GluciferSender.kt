@@ -1,0 +1,181 @@
+package tk.glucodata
+
+import android.content.Context
+import android.os.BatteryManager
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URL
+import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import tk.glucodata.alerts.AlertStateTracker
+import tk.glucodata.alerts.AlertType
+
+/** One bounded sender queue, independent of other API destinations and sensor callbacks. */
+object GluciferSender {
+    private const val PREFS = "glucifer_sender"
+    private val started = AtomicBoolean(false)
+    private val queued = AtomicBoolean(false)
+    private val tests = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    internal fun requestTest(destinationId: String) {
+        tests.add(destinationId)
+        requestUpdate()
+    }
+    private val executor = Executors.newSingleThreadScheduledExecutor { r ->
+        Thread(r, "GluciferSend").apply { isDaemon = true }
+    }
+
+    @JvmStatic
+    fun ensureRunning(context: Context) {
+        if (!OutboundApiSettings.load(context).destinations.any { it.isGlucifer() && it.isReady() }) return
+        if (started.compareAndSet(false, true)) {
+            executor.scheduleWithFixedDelay({ cycle() }, 0, 15, TimeUnit.SECONDS)
+        }
+        requestUpdate()
+    }
+
+    @JvmStatic
+    fun requestUpdate() {
+        if (!started.get() || !queued.compareAndSet(false, true)) return
+        executor.schedule({
+            queued.set(false)
+            cycle()
+        }, 300, TimeUnit.MILLISECONDS)
+    }
+
+    internal fun validUrl(value: String): Boolean = runCatching {
+        val uri = URI(value.trim())
+        uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank() &&
+            uri.userInfo == null && uri.fragment == null &&
+            uri.path.contains("/api/webhook/") && uri.path.substringAfter("/api/webhook/").isNotBlank()
+    }.getOrDefault(false)
+
+    private fun cycle() {
+        val context = Applic.app ?: return
+        val config = OutboundApiSettings.load(context)
+        config.destinations.filter { it.isGlucifer() && it.isReady() }.forEach { destination ->
+            try {
+                send(context, destination)
+            } catch (_: Exception) {
+                // Exceptions can contain a secret endpoint URL; retain only a fixed status.
+                OutboundApiSettings.recordAttempt(context, destination.id, -1, context.getString(R.string.glucifer_delivery_failed))
+            }
+        }
+    }
+
+    private fun send(context: Context, destination: OutboundApiSettings.Destination) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val key = destination.id
+        val previous = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val oldPayload = previous?.optJSONObject("payload")
+        val current = OutboundApi.currentReadingOrNull()
+        val oldGlucose = oldPayload?.optJSONObject("glucose")
+        val time = current?.timeMillis ?: oldGlucose?.optLong("time_ms") ?: return
+        val mgdl = current?.mgdl ?: oldGlucose?.optInt("mgdl") ?: return
+        if (time <= 0 || mgdl <= 0) return
+        // A brief source transition must not replace the receiver's newer glucose.
+        if (oldGlucose != null && time < oldGlucose.optLong("time_ms")) return
+        val now = System.currentTimeMillis()
+        val sequence = (oldPayload?.optLong("sequence") ?: 0L) + 1
+        val availableAlerts = AlertType.entries.map { "alert:" + it.name.lowercase(Locale.ROOT) }.toSet()
+        val selected = destination.gluciferFields.intersect(GluciferPayload.supported)
+            .filter { !it.startsWith("alert:") || it in availableAlerts }.toSet()
+        val values = optionalValues(context, current, selected, now)
+        val states = AlertType.entries.associate { type ->
+            type.name.lowercase(Locale.ROOT) to AlertStateTracker.activeEpisodeForExport(type)
+        }
+        val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states)
+        val pending = previous?.optBoolean("pending", false) == true
+        val force = tests.remove(destination.id)
+        val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force, now) ?: return
+        val record = JSONObject().put("payload", payload).put("pending", true)
+        // Persist sequence and retry body together before exposing the snapshot on the wire.
+        if (!prefs.edit().putString(key, record.toString()).commit()) return
+        // Re-read after snapshot creation so a disabled or edited destination cancels old work.
+        val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
+        if (!latest.isGlucifer() || !latest.isReady() || latest.url != destination.url ||
+            latest.gluciferFields != destination.gluciferFields) return
+        val result = post(destination.resolvedUrl(), payload.toString())
+        if (result.first in 200..299 && GluciferPayload.acknowledged(
+                result.second, destination.id, payload.getLong("sequence"))) {
+            prefs.edit().putString(key, record.put("pending", false).toString()).apply()
+            OutboundApiSettings.recordSuccess(context, destination.id, result.first)
+        } else {
+            OutboundApiSettings.recordAttempt(context, destination.id, result.first,
+                context.getString(R.string.glucifer_not_acknowledged))
+        }
+    }
+
+    private fun optionalValues(
+        context: Context, reading: OutboundApi.Reading?, selected: Set<String>, now: Long
+    ): Map<String, Any?> {
+        val values = mutableMapOf<String, Any?>()
+        if (reading != null) {
+            if ("trend" in selected) values["trend"] = reading.trendName.takeIf { it.isNotBlank() }
+            if ("rate_mgdl_min" in selected) values["rate_mgdl_min"] = reading.trendRateMgdlPerMinute
+            if ("raw_mgdl" in selected) values["raw_mgdl"] = reading.rawGlucoseMgdl
+            if ("auto_mgdl" in selected) values["auto_mgdl"] = reading.autoMgdl.takeIf { it > 0 }
+            if ("sensor_id" in selected) values["sensor_id"] = reading.sensorId.takeIf { it.isNotBlank() }
+            if ("sensor_generation" in selected) values["sensor_generation"] = reading.sensorGen
+            if ("delta_mgdl" in selected) values["delta_mgdl"] = delta(reading)
+        }
+        if ("iob_u" in selected || "cob_g" in selected) {
+            val journal = OutboundApi.loadJournalSnapshot(now)
+            if ("iob_u" in selected) values["iob_u"] = journal.iob
+            if ("cob_g" in selected) values["cob_g"] = journal.cob
+        }
+        if ("battery_percent" in selected) {
+            val battery = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            values["battery_percent"] = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                ?.takeIf { it in 0..100 }
+        }
+        return values
+    }
+
+    private fun delta(reading: OutboundApi.Reading): Float? = runCatching {
+        val points = NotificationHistorySource.getDisplayHistory(
+            reading.timeMillis - 15 * 60_000L, Applic.unit == 1, reading.sensorId
+        )
+        val previous = points.lastOrNull {
+            reading.timeMillis - it.timestamp >= GlucoseDelta.minGapMillis(5)
+        } ?: return null
+        val raw = CurrentDisplaySource.resolveViewModeForSensor(reading.sensorId) in setOf(1, 3)
+        fun value(point: GlucosePoint) = if (raw && point.rawValue > 0) point.rawValue else point.value
+        val previousMgdl = value(previous) * if (Applic.unit == 1) 18.0182f else 1f
+        GlucoseDelta.delta(reading.timeMillis, reading.mgdl.toFloat(), previous.timestamp, previousMgdl, 5)
+            .takeIf { it.isFinite() }
+    }.getOrNull()
+
+    internal fun post(url: String, body: String): Pair<Int, String> {
+        require(validUrl(url))
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            instanceFollowRedirects = false
+            connectTimeout = 5_000
+            readTimeout = 5_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+        }
+        return try {
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.use {
+                val buffer = ByteArray(8192)
+                var count = 0
+                while (count < buffer.size) {
+                    val read = it.read(buffer, count, buffer.size - count)
+                    if (read < 0) break
+                    count += read
+                }
+                String(buffer, 0, count, Charsets.UTF_8)
+            }.orEmpty()
+            status to text
+        } finally {
+            connection.disconnect()
+        }
+    }
+}

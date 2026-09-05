@@ -481,6 +481,7 @@ private fun DestinationEditor(
     onChangePreset: (String) -> Unit
 ) {
     val preset = destination.normalizedPreset()
+    val isGlucifer = destination.isGlucifer()
     val isCustom = preset == OutboundApiSettings.PRESET_CUSTOM_JSON
     val isVk = preset == OutboundApiSettings.PRESET_GLUCO_WATCH_VK ||
         preset == OutboundApiSettings.PRESET_VK_MESSAGES
@@ -589,12 +590,23 @@ private fun DestinationEditor(
                 Text(stringResource(R.string.outbound_api_url_template_help))
             }
         },
+        visualTransformation = if (isGlucifer && !showSecret) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = {
+            if (isGlucifer) IconButton(onClick = { onShowSecretChange(!showSecret) }) {
+                Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = null)
+            }
+        },
         leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Uri,
             imeAction = ImeAction.Next
         )
     )
+
+    if (isGlucifer) {
+        GluciferFields(destination, onChange)
+        return
+    }
 
     OutlinedTextField(
         value = destination.headers,
@@ -1302,6 +1314,12 @@ private data class PresetSpec(
 private fun destinationPresetSpecs(): List<PresetSpec> =
     listOf(
         PresetSpec(
+            id = OutboundApiSettings.PRESET_GLUCIFER,
+            titleRes = R.string.glucifer_title,
+            descriptionRes = R.string.glucifer_description,
+            icon = Icons.Filled.CloudUpload
+        ),
+        PresetSpec(
             id = OutboundApiSettings.PRESET_CUSTOM_JSON,
             titleRes = R.string.outbound_api_preset_custom_json,
             descriptionRes = R.string.outbound_api_preset_custom_json_desc,
@@ -1335,6 +1353,7 @@ private fun destinationPresetSpecs(): List<PresetSpec> =
 
 private fun presetTitle(preset: String): Int =
     when (preset) {
+        OutboundApiSettings.PRESET_GLUCIFER -> R.string.glucifer_title
         OutboundApiSettings.PRESET_TELEGRAM_BOT -> R.string.outbound_api_preset_telegram
         OutboundApiSettings.PRESET_GLUCO_WATCH_VK -> R.string.outbound_api_preset_gluco_watch_vk
         OutboundApiSettings.PRESET_VK_MESSAGES -> R.string.outbound_api_preset_vk
@@ -1438,3 +1457,39 @@ private val templateTokens = listOf(
     "{status}",
     "{status_emoji}"
 )
+
+@Composable
+private fun GluciferFields(
+    destination: OutboundApiSettings.Destination,
+    onChange: (OutboundApiSettings.Destination) -> Unit
+) {
+    Text(stringResource(R.string.glucifer_glucose_required), style = MaterialTheme.typography.bodyMedium)
+    val fields = listOf(
+        "trend" to R.string.stats_trend,
+        "delta_mgdl" to R.string.glucifer_delta,
+        "rate_mgdl_min" to R.string.glucifer_rate,
+        "raw_mgdl" to R.string.glucifer_raw,
+        "auto_mgdl" to R.string.glucifer_auto,
+        "iob_u" to R.string.notification_show_iob_title,
+        "cob_g" to R.string.notification_show_cob_title,
+        "battery_percent" to R.string.battery,
+        "sensor_id" to R.string.glucifer_sensor_id,
+        "sensor_generation" to R.string.glucifer_sensor_generation
+    ) + tk.glucodata.alerts.AlertType.entries.mapNotNull { type ->
+        val key = type.name.lowercase(Locale.ROOT)
+        if (key in tk.glucodata.GluciferPayload.alerts) "alert:$key" to type.nameResId else null
+    }
+    fields.forEach { (key, label) ->
+        val enabled = key in destination.gluciferFields
+        Row(
+            modifier = Modifier.fillMaxWidth().toggleable(value = enabled, role = Role.Switch) {
+                onChange(destination.copy(gluciferFields =
+                    if (it) destination.gluciferFields + key else destination.gluciferFields - key))
+            }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(stringResource(label), modifier = Modifier.weight(1f))
+            StyledSwitch(checked = enabled, onCheckedChange = null)
+        }
+    }
+}
