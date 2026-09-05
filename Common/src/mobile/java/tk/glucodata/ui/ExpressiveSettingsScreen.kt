@@ -70,6 +70,8 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
+import tk.glucodata.data.ScheduledBackupSettings
+import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.theme.labelLargeExpressive
@@ -165,6 +167,13 @@ fun ExpressiveSettingsScreen(
     var showFactoryResetDialog by remember { mutableStateOf(false) }
     var isClearing by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showScheduledBackupDialog by remember { mutableStateOf(false) }
+    var scheduledBackupConfig by remember {
+        mutableStateOf(ScheduledBackupSettings.load(context))
+    }
+    LaunchedEffect(Unit) {
+        ScheduledBackupWorker.initialize(context)
+    }
     var pendingSettingsImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingExportPackageImportUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -601,26 +610,25 @@ fun ExpressiveSettingsScreen(
                 onResult = { uri ->
                     if (uri != null) {
                         scope.launch {
-                            if (tk.glucodata.data.SettingsExporter.isSettingsExport(context, uri)) {
-                                withContext(Dispatchers.Main) {
-                                    pendingSettingsImportUri = uri
+                            when (tk.glucodata.data.ExportPackageExporter.detectImportFileType(context, uri)) {
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.SETTINGS -> {
+                                    withContext(Dispatchers.Main) { pendingSettingsImportUri = uri }
                                 }
-                            } else if (tk.glucodata.data.ExportPackageExporter.isExportPackage(context, uri)) {
-                                withContext(Dispatchers.Main) {
-                                    pendingExportPackageImportUri = uri
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.EXPORT_PACKAGE -> {
+                                    withContext(Dispatchers.Main) { pendingExportPackageImportUri = uri }
                                 }
-                            } else {
-                                // Show loading? For now just toast result
-                                val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
-                                withContext(Dispatchers.Main) {
-                                    val msg = if (result.success)
-                                        context.getString(R.string.imported_readings_count, result.successCount)
-                                    else
-                                        context.getString(
-                                            R.string.import_failed_with_error,
-                                            result.errorMessage ?: context.getString(R.string.unknown_error)
-                                        )
-                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                tk.glucodata.data.ExportPackageExporter.ImportFileType.OTHER -> {
+                                    val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
+                                    withContext(Dispatchers.Main) {
+                                        val msg = if (result.success)
+                                            context.getString(R.string.imported_readings_count, result.successCount)
+                                        else
+                                            context.getString(
+                                                R.string.import_failed_with_error,
+                                                result.errorMessage ?: context.getString(R.string.unknown_error)
+                                            )
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             }
                         }
@@ -632,6 +640,15 @@ fun ExpressiveSettingsScreen(
                     iconTint = dataColor,
                     position = CardPosition.TOP,
                     onOpen = { navController.navigate("settings/app-updates") }
+                )
+
+                SettingsItem(
+                    title = stringResource(R.string.scheduled_backup_title),
+                    subtitle = scheduledBackupSummary(scheduledBackupConfig),
+                    icon = Icons.Default.Backup,
+                    iconTint = dataColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showScheduledBackupDialog = true }
                 )
 
                 SettingsItem(
@@ -653,6 +670,8 @@ fun ExpressiveSettingsScreen(
                         importLauncher.launch(
                             arrayOf(
                                 "application/json",
+                                "application/gzip",
+                                "application/zstd",
                                 "text/*",
                                 "text/csv",
                                 "text/tab-separated-values",
@@ -802,6 +821,14 @@ fun ExpressiveSettingsScreen(
         ExportDataSettingsSheet(
             onDismiss = { showExportDialog = false },
             sheetState = sheetState
+        )
+    }
+    if (showScheduledBackupDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ScheduledBackupSettingsSheet(
+            onDismiss = { showScheduledBackupDialog = false },
+            sheetState = sheetState,
+            onConfigurationChanged = { scheduledBackupConfig = it }
         )
     }
     pendingSettingsImportUri?.let { uri ->

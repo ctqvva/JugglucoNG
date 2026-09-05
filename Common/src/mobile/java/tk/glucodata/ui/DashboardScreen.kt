@@ -642,8 +642,8 @@ fun DashboardScreen(
     ) { uri ->
         if (uri != null) {
             coroutineScope.launch {
-                when {
-                    tk.glucodata.data.ExportPackageExporter.isExportPackage(context, uri) -> {
+                when (tk.glucodata.data.ExportPackageExporter.detectImportFileType(context, uri)) {
+                    tk.glucodata.data.ExportPackageExporter.ImportFileType.EXPORT_PACKAGE -> {
                         tk.glucodata.data.ExportPackageExporter.importHistoryFromPackage(context, uri)
                             .onSuccess { outcome ->
                                 if (outcome == null || outcome.readings == 0) {
@@ -658,11 +658,11 @@ fun DashboardScreen(
                                 toast(context.getString(R.string.import_failed_with_error, throwable.localizedMessage ?: ""))
                             }
                     }
-                    tk.glucodata.data.SettingsExporter.isSettingsExport(context, uri) -> {
+                    tk.glucodata.data.ExportPackageExporter.ImportFileType.SETTINGS -> {
                         // A valid JugglucoNG settings export contains no glucose data
                         toast(context.getString(R.string.import_no_glucose))
                     }
-                    else -> {
+                    tk.glucodata.data.ExportPackageExporter.ImportFileType.OTHER -> {
                         val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
                         when {
                             result.success && result.successCount > 0 -> {
@@ -1308,6 +1308,8 @@ fun DashboardScreen(
                     importLauncher.launch(
                         arrayOf(
                             "application/json",
+                            "application/gzip",
+                            "application/zstd",
                             "text/csv",
                             "text/comma-separated-values",
                             "text/tab-separated-values",
