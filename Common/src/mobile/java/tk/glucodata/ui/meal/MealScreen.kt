@@ -511,6 +511,7 @@ fun MealScreen(
         JournalEditorSheetHost(
             dashboardViewModel = dashboardViewModel,
             request = request,
+            onOpenMeal = { journalRequest = null },
             onDismiss = { journalRequest = null }
         )
     }
