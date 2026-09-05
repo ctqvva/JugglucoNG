@@ -135,6 +135,8 @@
 <string name="name">Nom:</string>
 <string name="carbperunit">Glucides/unité:</string>
 <string name="database">Base de données</string>
+<string name="history_database_incompatible_title">Base de données d’historique incompatible</string>
+<string name="history_database_incompatible_message">Cette version ne peut pas ouvrir la base de données d’historique existante, car sa version ou son schéma est incompatible. Vos données n’ont pas été supprimées. Installez la version qui a créé la base de données, ou une version compatible plus récente, puis redémarrez l’application.</string>
 <string name="search">Chercher</string>
 <string name="trace">Tracer</string>
 <string name="unknown">Inconnu</string>
@@ -328,6 +330,7 @@
     <string name="clear">Effacer</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Historique des erreurs BLE</string>
     <string name="log_enabled_waiting">Journal activé. En attente d\'entrées...</string>
     <string name="log_unchecked">Journal désactivé. Activer pour commencer.</string>
     <string name="error_reading_file">"Erreur de lecture du fichier : "</string>
@@ -740,6 +743,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Dernière erreur BLE</string>
     <string name="libre_setup_done">Terminé</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Ajustez le comportement expérimental du scan Libre 3 avant l\'appairage.</string>
@@ -1225,6 +1229,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">URL de Nightscout</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Utiliser l\'API Nightscout v3</string>
+    <string name="nightscout_use_v3_api_desc">L\'envoi de la glycémie nécessite api:entries:create et api:entries:update.</string>
     <string name="nightscout_follow_desc">Crée un capteur virtuel en lecture seule à partir de cette URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Saisissez d\'abord une URL Nightscout</string>
     <string name="nightscout_test_testing">Test...</string>
@@ -1417,10 +1422,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">Nouvelle tentative dans %1$d min</string>
     <string name="nightscout_status_response_ok">Dernière réponse : HTTP %1$d</string>
     <string name="nightscout_status_response_error">Dernière réponse : HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Dernière réponse : HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Suivi Nightscout</string>
     <string name="nightscout_follow_status_idle">Suivi Nightscout inactif</string>
     <string name="nightscout_follow_status_following">Suivi de Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Utiliser l\'API v3 pour le suivi</string>
+    <string name="nightscout_follow_use_v3_api_desc">Lit /api/v3 au lieu de /api/v1. Le jeton d\'accès requiert api:entries:read, api:treatments:read et api:devicestatus:read. Les rôles modifiés ne prennent effet qu\'au prochain échange de jeton : redémarrez l\'application si un 403 persiste.</string>
     <string name="nightscout_follow_status_syncing">Actualisation de Nightscout</string>
     <string name="nightscout_follow_status_paused">Suivi Nightscout en pause</string>
     <string name="nightscout_follow_status_config_needed">Saisir l’URL Nightscout</string>
@@ -1879,6 +1887,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Modèle de message</string>
     <string name="outbound_api_template_desc">Touchez un jeton ci-dessous pour l’insérer.</string>
+    <string name="outbound_api_insulin_tokens">Types d’insuline</string>
+    <string name="outbound_api_insulin_tokens_desc">Chaque type d’insuline actif dispose de jetons pour sa dernière dose, son heure, les minutes écoulées, les unités restantes et le total du jour.</string>
     <string name="outbound_api_min_interval">Intervalle minimal (minutes)</string>
     <string name="outbound_api_min_interval_desc">0 envoie chaque valeur en direct acceptée.</string>
     <string name="outbound_api_trigger">Déclencheur</string>
@@ -2580,4 +2590,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (expérimental)</string>
+    <string name="sibionics_adaptive_v2_desc">Estimation indépendante de l\'état du capteur avec plage probable</string>
+    <string name="glucose_likely_range">Plage probable</string>
+    <string name="glucose_likely_range_value">plage probable %1$s–%2$s</string>
+    <string name="glucose_estimated">Glycémie estimée</string>
+    <string name="glucose_uncertainty_elevated">Incertitude du capteur élevée</string>
+    <string name="glucose_possible_artifact">Possible artefact transitoire du capteur</string>
+    <string name="sibionics_uncertainty_ribbon">Bande d\'incertitude</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Afficher la bande de plage probable autour de la courbe de glycémie</string>
+    <string name="freeze_displayed_values">Conserver les valeurs affichées</string>
+    <string name="freeze_displayed_values_desc">Une mesure conserve la valeur affichée. Les modifications d\'étalonnage n\'affectent que les mesures récentes.</string>
+    <string name="freeze_displayed_values_on">Valeurs affichées conservées</string>
+    <string name="freeze_displayed_values_off">Recalcul à chaque modification</string>
+    <string name="nightscout_follow_interval_title">Rechercher de nouvelles valeurs</string>
+    <string name="nightscout_follow_interval_desc">À quelle fréquence le suiveur interroge le serveur. C\'est aussi l\'âge que peut avoir une valeur, et donc le retard possible d\'une alarme déclenchée sur une valeur suivie. Un suiveur n\'a pas de capteur à lui pour garder le téléphone éveillé, donc chaque interrogation est un réveil.</string>
+    <string name="nightscout_follow_interval_doze">En dessous de 9 minutes, Android peut malgré tout espacer les interrogations lorsque le téléphone est inactif. Exclure Juggluco de l\'optimisation de la batterie préserve l\'intervalle choisi.</string>
 </resources>

@@ -135,6 +135,8 @@
  <string name="name">Nazwa:</string>
  <string name="carbperunit">Węglowodany/jedn.:</string>
  <string name="database">Baza danych</string>
+ <string name="history_database_incompatible_title">Niezgodna baza danych historii</string>
+ <string name="history_database_incompatible_message">Ta kompilacja nie może otworzyć istniejącej bazy danych historii, ponieważ jej wersja lub schemat są niezgodne. Dane nie zostały usunięte. Zainstaluj kompilację, która utworzyła bazę danych, albo nowszą zgodną kompilację, a następnie uruchom aplikację ponownie.</string>
  <string name="search">Szukaj</string>
  <string name="trace">Ślad</string>
  <string name="unknown">Nieznany</string>
@@ -439,6 +441,7 @@
     <string name="clear">Wyczyść</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Historia błędów BLE</string>
     <string name="log_enabled_waiting">Log włączony. Oczekiwanie...</string>
     <string name="log_unchecked">Log wyłączony. Włącz, aby rozpocząć.</string>
     <string name="error_reading_file">"Błąd odczytu pliku: "</string>
@@ -828,6 +831,7 @@
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Ostatni: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Ostatni błąd BLE</string>
     <string name="libre_setup_done">Gotowe</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Dostosuj eksperymentalne zachowanie skanowania Libre 3 przed parowaniem.</string>
@@ -1254,6 +1258,7 @@
     <string name="nightscout_url_label">Adres URL Nightscouta</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Skorzystaj z API Nightscout v3</string>
+    <string name="nightscout_use_v3_api_desc">Przesyłanie glukozy wymaga api:entries:create i api:entries:update.</string>
     <string name="nightscout_follow_desc">Utwórz wirtualny czujnik tylko do odczytu z tego adresu URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Najpierw wpisz adres URL Nightscout</string>
     <string name="nightscout_test_testing">Testowanie...</string>
@@ -1446,10 +1451,13 @@
     <string name="nightscout_status_retry_in">Ponowna próba za %1$d min</string>
     <string name="nightscout_status_response_ok">Ostatnia odpowiedź: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Ostatnia odpowiedź: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Ostatnia odpowiedź: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Obserwator Nightscout</string>
     <string name="nightscout_follow_status_idle">Obserwator Nightscout bezczynny</string>
     <string name="nightscout_follow_status_following">Obserwowanie Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Używaj API v3 do śledzenia</string>
+    <string name="nightscout_follow_use_v3_api_desc">Czyta z /api/v3 zamiast /api/v1. Token dostępu wymaga api:entries:read, api:treatments:read i api:devicestatus:read. Zmienione role działają dopiero przy następnej wymianie tokenu: uruchom ponownie aplikację, jeśli 403 się utrzymuje.</string>
     <string name="nightscout_follow_status_syncing">Odświeżanie Nightscout</string>
     <string name="nightscout_follow_status_paused">Obserwator Nightscout wstrzymany</string>
     <string name="nightscout_follow_status_config_needed">Wprowadź adres URL Nightscout</string>
@@ -1908,6 +1916,8 @@
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Szablon wiadomości</string>
     <string name="outbound_api_template_desc">Dotknij tokenu poniżej, aby go wstawić.</string>
+    <string name="outbound_api_insulin_tokens">Rodzaje insuliny</string>
+    <string name="outbound_api_insulin_tokens_desc">Każdy aktywny rodzaj insuliny ma tokeny dla ostatniej dawki, jej godziny, minut od podania, pozostałych jednostek i dzisiejszej sumy.</string>
     <string name="outbound_api_min_interval">Minimalny interwał (minuty)</string>
     <string name="outbound_api_min_interval_desc">0 wysyła każdy zaakceptowany bieżący odczyt.</string>
     <string name="outbound_api_trigger">Wyzwalacz</string>
@@ -2612,4 +2622,20 @@
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (eksperymentalny)</string>
+    <string name="sibionics_adaptive_v2_desc">Niezależna ocena stanu czujnika z prawdopodobnym zakresem</string>
+    <string name="glucose_likely_range">Prawdopodobny zakres</string>
+    <string name="glucose_likely_range_value">prawdopodobny zakres %1$s–%2$s</string>
+    <string name="glucose_estimated">Szacowana glikemia</string>
+    <string name="glucose_uncertainty_elevated">Podwyższona niepewność czujnika</string>
+    <string name="glucose_possible_artifact">Możliwy przejściowy artefakt czujnika</string>
+    <string name="sibionics_uncertainty_ribbon">Pasmo niepewności</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Pokaż pasmo prawdopodobnego zakresu wokół linii glikemii</string>
+    <string name="freeze_displayed_values">Zachowuj wyświetlone wartości</string>
+    <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
+    <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
+    <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
+    <string name="nightscout_follow_interval_title">Sprawdzanie nowych wartości</string>
+    <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
+    <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
 </resources>

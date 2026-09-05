@@ -1,13 +1,20 @@
 package tk.glucodata.drivers.nightscout
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
 import java.net.HttpURLConnection
 import java.net.URLEncoder
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.Applic
@@ -27,16 +34,20 @@ class NightscoutFollowerManager(
     serial: String,
     private val url: String,
     private val secret: String,
+    @Volatile private var useV3: Boolean = false,
     dataptr: Long,
 ) : SuperGattCallback(serial, dataptr, SENSOR_GEN), ManagedBluetoothSensorDriver {
 
     companion object {
         private const val TAG = "NightscoutFollower"
         private const val SENSOR_GEN = 0
-        private const val POLL_INTERVAL_MS = 60_000L
         private const val RETRY_INTERVAL_MS = 30_000L
+        /** A server that is down overnight must not wake the phone twice a minute until morning. */
+        private const val RETRY_BACKOFF_CEILING_MS = 15L * 60_000L
         private const val PROBE_INTERVAL_MS = 59_000L
+        private const val POLL_IN_FLIGHT_TIMEOUT_MS = 60_000L
         private const val DEVICE_STATUS_COUNT = 5
+        private const val REFRESH_ERROR_LOG_INTERVAL_MS = 5L * 60_000L
         private const val MMOL_TO_MGDL = 18.0182f
     }
 
@@ -48,12 +59,15 @@ class NightscoutFollowerManager(
 
     private val handlerThread = HandlerThread("NightscoutFollower-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
-    private val pollRunnable = Runnable { refresh("poll") }
+    private val pollRunnable = Runnable { enqueueRefresh("timer", null) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val probeRunnable = Runnable { reconnect(System.currentTimeMillis()) }
 
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var status: String = localizedString(R.string.nightscout_follow_status_idle, "Nightscout follower idle")
+    @Volatile private var consecutiveFailures: Int = 0
+    @Volatile private var nextPollElapsedRealtime: Long = 0L
+    private val refreshQueuedOrRunning = AtomicBoolean(false)
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
@@ -83,6 +97,15 @@ class NightscoutFollowerManager(
 
     override fun matchesManagedSensorId(sensorId: String?): Boolean =
         NightscoutFollowerRegistry.matchesSensorId(SerialNumber, sensorId)
+
+    /** Apply the persisted follower API choice to an already-running virtual sensor. */
+    internal fun updateApiVersion(useV3: Boolean) {
+        if (this.useV3 == useV3) return
+        this.useV3 = useV3
+        // A cached token belongs to the previous authentication mode/credentials. The next
+        // immediate refresh must negotiate from the newly selected mode instead.
+        NightscoutFollowerV3.clearToken()
+    }
 
     override fun mygetDeviceName(): String = localizedString(R.string.nightscout_follow_title, "Nightscout follower")
 
@@ -132,13 +155,13 @@ class NightscoutFollowerManager(
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))
-        mainHandler.removeCallbacks(probeRunnable)
-        mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+        armRecoveryProbe()
         return true
     }
 
     override fun close() {
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
+        cancelPollAlarm()
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close().
             // Quit the HandlerThread so it doesn't outlive the sensor object.
@@ -155,7 +178,8 @@ class NightscoutFollowerManager(
 
     override fun softDisconnect() {
         stop = true
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
+        cancelPollAlarm()
         mainHandler.removeCallbacks(probeRunnable)
         NightscoutFollowerDeviceStatus.clear()
         setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_paused, "Nightscout follower paused"))
@@ -168,16 +192,34 @@ class NightscoutFollowerManager(
 
     override fun reconnect(now: Long): Boolean {
         if (!stop) {
-            if (phase == Phase.IDLE) connectDevice(0)
-            mainHandler.removeCallbacks(probeRunnable)
-            mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+            recoverIfNeeded("probe")
+            armRecoveryProbe()
         }
         return true
     }
 
+    internal fun recoverIfNeeded(reason: String, forceWhenIdle: Boolean = false): Boolean {
+        if (stop || refreshQueuedOrRunning.get()) return false
+        val recover = NightscoutFollowerRecoveryPolicy.shouldRecover(
+            nextPollElapsedRealtime = nextPollElapsedRealtime,
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+            syncing = phase == Phase.SYNCING,
+            force = forceWhenIdle && phase == Phase.IDLE,
+        )
+        if (!recover) return false
+        Log.w(TAG, "Repairing missing or overdue follower poll ($reason)")
+        connectDevice(0)
+        return true
+    }
+
+    private fun armRecoveryProbe() {
+        mainHandler.removeCallbacks(probeRunnable)
+        mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+    }
+
     override fun terminateManagedSensor(wipeData: Boolean) {
         stop = true
-        handler.removeCallbacksAndMessages(null)
+        cancelPendingHandlerWork()
         mainHandler.removeCallbacks(probeRunnable)
         NightscoutFollowerDeviceStatus.clear()
         if (wipeData) {
@@ -198,11 +240,119 @@ class NightscoutFollowerManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
+    /** What the user asked for, read fresh so a change applies from the next poll on. */
+    private fun pollIntervalMillis(): Long =
+        NightscoutFollowerPollPolicy.intervalMillis(
+            NightscoutFollowerRegistry.loadPollMinutes(Applic.app)
+        )
+
+    private fun pollIntent(): PendingIntent? {
+        val app = Applic.app ?: return null
+        val intent = Intent(app, NightscoutFollowerPollReceiver::class.java).apply {
+            action = NightscoutFollowerPollReceiver.ACTION_POLL
+            putExtra(NightscoutFollowerPollReceiver.EXTRA_SERIAL, SerialNumber)
+        }
+        return PendingIntent.getBroadcast(
+            app,
+            SerialNumber.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * The next poll is an alarm, not a delayed message. A handler measures in uptime, which
+     * stops while the phone sleeps, so on a follower phone (nothing else wakes it: no sensor,
+     * no bluetooth) the minute became however long the phone was left alone. An alarm wakes
+     * the device for it.
+     *
+     * An immediate poll stays on the handler: there is nothing to wake for, and it keeps the
+     * connect and reconnect paths as responsive as they were.
+     */
     private fun scheduleRefresh(delayMillis: Long) {
         handler.removeCallbacks(pollRunnable)
-        if (!stop) {
+        if (stop) return
+        if (delayMillis <= 0L) {
+            enqueueRefresh("poll", null)
+            return
+        }
+        val at = SystemClock.elapsedRealtime() + delayMillis
+        nextPollElapsedRealtime = at
+        val app = Applic.app
+        val alarms = app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        val pending = pollIntent()
+        if (alarms == null || pending == null) {
+            handler.postDelayed(pollRunnable, delayMillis)
+            return
+        }
+        val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
+        runCatching {
+            if (exact) {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending)
+            } else {
+                // Without the exact-alarm permission this is the strongest thing left, and it
+                // still wakes the device; only its timing is the system's to choose.
+                alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pending)
+            }
+        }.onFailure {
+            Log.w(TAG, "Poll alarm refused, falling back to an in-process timer: ${it.message}")
             handler.postDelayed(pollRunnable, delayMillis)
         }
+    }
+
+    private fun cancelPollAlarm() {
+        val alarms = Applic.app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        pollIntent()?.let { pending -> runCatching { alarms?.cancel(pending) } }
+        nextPollElapsedRealtime = 0L
+    }
+
+    private fun cancelPendingHandlerWork() {
+        handler.removeCallbacksAndMessages(null)
+        // A queued refresh has not changed phase yet. A running one has, and owns the flag
+        // until its finally block, so do not make a second refresh eligible alongside it.
+        if (phase != Phase.SYNCING) {
+            refreshQueuedOrRunning.set(false)
+        }
+    }
+
+    /**
+     * Called from the alarm. The receiver's wakelock is handed over here because the fetch
+     * runs on this driver's thread and outlives onReceive; whatever happens, it is released
+     * once, after the poll has scheduled its successor.
+     */
+    internal fun onPollAlarm(wakelock: PowerManager.WakeLock?) {
+        if (stop) {
+            releaseWakelock(wakelock)
+            return
+        }
+        handler.removeCallbacks(pollRunnable)
+        armRecoveryProbe()
+        enqueueRefresh("alarm", wakelock)
+    }
+
+    private fun enqueueRefresh(reason: String, wakelock: PowerManager.WakeLock?) {
+        if (stop || !refreshQueuedOrRunning.compareAndSet(false, true)) {
+            releaseWakelock(wakelock)
+            return
+        }
+        nextPollElapsedRealtime = SystemClock.elapsedRealtime() + POLL_IN_FLIGHT_TIMEOUT_MS
+        val accepted = handler.post {
+            try {
+                refresh(reason)
+            } finally {
+                refreshQueuedOrRunning.set(false)
+                releaseWakelock(wakelock)
+            }
+        }
+        if (!accepted) {
+            refreshQueuedOrRunning.set(false)
+            nextPollElapsedRealtime = 0L
+            releaseWakelock(wakelock)
+        }
+    }
+
+    private fun releaseWakelock(wakelock: PowerManager.WakeLock?) {
+        runCatching { if (wakelock?.isHeld == true) wakelock.release() }
     }
 
     private fun refresh(reason: String) {
@@ -217,9 +367,14 @@ class NightscoutFollowerManager(
             val readings = fetched.latestReadings
             importRemoteTreatments()
             refreshRemoteDeviceStatus()
+            // Any completed refresh ends the previous failure episode, even when the server
+            // legitimately has no readings yet. The next failure should get the prompt first
+            // retry and a fresh diagnostic instead of inheriting stale backoff state.
+            consecutiveFailures = 0
+            refreshErrorLog.reset()
             if (readings.isEmpty()) {
                 setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_no_readings, "No Nightscout readings yet"))
-                scheduleRefresh(POLL_INTERVAL_MS)
+                scheduleRefresh(pollIntervalMillis())
                 return
             }
             if (!fetched.historyImported) {
@@ -239,11 +394,28 @@ class NightscoutFollowerManager(
                 ),
             )
             UiRefreshBus.requestDataRefresh()
-            scheduleRefresh(POLL_INTERVAL_MS)
+            scheduleRefresh(pollIntervalMillis())
         } catch (t: Throwable) {
-            Log.stack(TAG, "refresh($reason)", t)
+            // The poll retries every 30s, far faster than a stuck server recovers, so an
+            // unchanged failure used to write a stack trace every half minute.
+            val message = "refresh($reason): ${t.message}"
+            val repeats = refreshErrorLog.suppressedSince(message, System.currentTimeMillis())
+            if (repeats == 0) {
+                Log.stack(TAG, "refresh($reason)", t)
+            } else if (repeats > 0) {
+                Log.w(TAG, "$message (repeated ${repeats + 1}x)")
+            }
             setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_sync_failed, "Nightscout sync failed"))
-            scheduleRefresh(RETRY_INTERVAL_MS)
+            // The first retry stays quick, since most failures are a moment without network.
+            // One that keeps failing doubles its way up to the ceiling instead: a poll now
+            // wakes the phone rather than waiting until something else does, so an unreachable
+            // server would otherwise cost a wake-up every thirty seconds all night. The retry
+            // never waits longer than the interval the user asked for.
+            consecutiveFailures = (consecutiveFailures + 1).coerceAtMost(9)
+            val backoff = (RETRY_INTERVAL_MS shl (consecutiveFailures - 1))
+                .coerceAtMost(RETRY_BACKOFF_CEILING_MS)
+                .coerceAtMost(pollIntervalMillis().coerceAtLeast(RETRY_INTERVAL_MS))
+            scheduleRefresh(backoff)
         }
     }
 
@@ -337,6 +509,7 @@ class NightscoutFollowerManager(
             baseUrl = NightscoutFollowerRegistry.normalizeUrl(url),
             lowerBoundMs = lowerBoundMs,
             beforeExclusiveMs = beforeExclusiveMs,
+            useV3 = useV3,
         )
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
@@ -344,7 +517,7 @@ class NightscoutFollowerManager(
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            NightscoutFollowerRegistry.applyAuth(this, secret)
+            applyFollowerAuth(this)
         }
         try {
             val code = connection.responseCode
@@ -353,9 +526,9 @@ class NightscoutFollowerManager(
                 ?.use { it.readText() }
                 .orEmpty()
             if (code !in 200..299) {
-                throw IllegalStateException("Nightscout HTTP $code: ${body.take(160)}")
+                throw IllegalStateException(failureText("entries", code, endpoint, body))
             }
-            val array = JSONArray(body)
+            val array = JSONArray(NightscoutFollowerV3.arrayBody(body))
             val readings = ArrayList<VirtualGlucoseSensorBridge.Reading>(array.length())
             for (index in 0 until array.length()) {
                 parseEntry(array.optJSONObject(index))?.let(readings::add)
@@ -411,14 +584,19 @@ class NightscoutFollowerManager(
     }
 
     private fun fetchDeviceStatusJson(): String {
-        val endpoint = "${NightscoutFollowerRegistry.normalizeUrl(url)}/api/v1/devicestatus.json?count=$DEVICE_STATUS_COUNT"
+        val baseUrl = NightscoutFollowerRegistry.normalizeUrl(url)
+        val endpoint = if (useV3) {
+            NightscoutFollowerV3.deviceStatusUrl(baseUrl, DEVICE_STATUS_COUNT)
+        } else {
+            "$baseUrl/api/v1/devicestatus.json?count=$DEVICE_STATUS_COUNT"
+        }
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            NightscoutFollowerRegistry.applyAuth(this, secret)
+            applyFollowerAuth(this)
         }
         try {
             val code = connection.responseCode
@@ -428,9 +606,9 @@ class NightscoutFollowerManager(
                 .orEmpty()
             if (code == 404) return "[]"
             if (code !in 200..299) {
-                throw IllegalStateException("Nightscout devicestatus HTTP $code: ${body.take(160)}")
+                throw IllegalStateException(failureText("devicestatus", code, endpoint, body))
             }
-            return body
+            return NightscoutFollowerV3.arrayBody(body)
         } finally {
             connection.disconnect()
         }
@@ -440,6 +618,7 @@ class NightscoutFollowerManager(
         return fetchJournalJson(
             endpoint = NightscoutFollowerJournalEndpoints.treatments(
                 NightscoutFollowerRegistry.normalizeUrl(url),
+                useV3 = useV3,
             ),
             label = "treatments",
         )
@@ -449,9 +628,45 @@ class NightscoutFollowerManager(
         return fetchJournalJson(
             endpoint = NightscoutFollowerJournalEndpoints.fingersticks(
                 NightscoutFollowerRegistry.normalizeUrl(url),
+                useV3 = useV3,
             ),
             label = "finger-stick entries",
         )
+    }
+
+    /**
+     * v3 wants the bearer token exchanged from the access token; anything else, and any v1
+     * follower, keeps the existing header logic. Falling back rather than sending a header
+     * known to be wrong is what keeps a v1 follower behaving exactly as before.
+     */
+    private val refreshErrorLog = RepeatedFollowerError(REFRESH_ERROR_LOG_INTERVAL_MS)
+
+    private fun applyFollowerAuth(connection: HttpURLConnection) {
+        val bearer = if (useV3) {
+            NightscoutFollowerV3.authorizationHeader(
+                NightscoutFollowerRegistry.normalizeUrl(url),
+                secret,
+                System.currentTimeMillis(),
+            )
+        } else {
+            null
+        }
+        if (bearer != null) {
+            connection.setRequestProperty("Authorization", bearer)
+        } else {
+            NightscoutFollowerRegistry.applyAuth(connection, secret)
+        }
+    }
+
+    /**
+     * Names what was refused, where, and in the server's own words. A follower read needs
+     * api:entries:read, api:treatments:read and api:devicestatus:read; a token missing one
+     * answers "Missing permission ...", which is the sentence that stops this looking like a
+     * server problem.
+     */
+    private fun failureText(label: String, code: Int, endpoint: String, body: String): String {
+        val path = runCatching { URL(endpoint).path }.getOrNull()?.takeIf { it.isNotBlank() } ?: endpoint
+        return "Nightscout $label HTTP $code ($path): ${NightscoutFollowerV3.serverMessage(body)}"
     }
 
     private fun fetchJournalJson(endpoint: String, label: String): String {
@@ -461,7 +676,7 @@ class NightscoutFollowerManager(
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            NightscoutFollowerRegistry.applyAuth(this, secret)
+            applyFollowerAuth(this)
         }
         try {
             val code = connection.responseCode
@@ -471,9 +686,9 @@ class NightscoutFollowerManager(
                 .orEmpty()
             if (code == 404) return "[]"
             if (code !in 200..299) {
-                throw IllegalStateException("Nightscout $label HTTP $code: ${body.take(160)}")
+                throw IllegalStateException(failureText(label, code, endpoint, body))
             }
-            return body
+            return NightscoutFollowerV3.arrayBody(body)
         } finally {
             connection.disconnect()
         }
@@ -501,11 +716,13 @@ class NightscoutFollowerManager(
 internal object NightscoutFollowerJournalEndpoints {
     private const val JOURNAL_COUNT = 512
 
-    fun treatments(baseUrl: String): String =
-        "$baseUrl/api/v1/treatments.json?count=$JOURNAL_COUNT"
+    fun treatments(baseUrl: String, useV3: Boolean = false): String =
+        if (useV3) NightscoutFollowerV3.treatmentsUrl(baseUrl, JOURNAL_COUNT)
+        else "$baseUrl/api/v1/treatments.json?count=$JOURNAL_COUNT"
 
-    fun fingersticks(baseUrl: String): String =
-        "$baseUrl/api/v1/entries/mbg.json?count=$JOURNAL_COUNT"
+    fun fingersticks(baseUrl: String, useV3: Boolean = false): String =
+        if (useV3) NightscoutFollowerV3.entriesUrl(baseUrl, JOURNAL_COUNT, "mbg", null, null)
+        else "$baseUrl/api/v1/entries/mbg.json?count=$JOURNAL_COUNT"
 }
 
 internal object NightscoutFollowerHistoryPaging {
@@ -523,7 +740,11 @@ internal object NightscoutFollowerHistoryPaging {
         baseUrl: String,
         lowerBoundMs: Long?,
         beforeExclusiveMs: Long?,
+        useV3: Boolean = false,
     ): String {
+        if (useV3) {
+            return NightscoutFollowerV3.entriesUrl(baseUrl, PAGE_COUNT, "sgv", lowerBoundMs, beforeExclusiveMs)
+        }
         val parameters = buildList {
             add("count=$PAGE_COUNT")
             if (lowerBoundMs != null) {

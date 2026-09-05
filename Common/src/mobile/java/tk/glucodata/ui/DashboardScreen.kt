@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -386,6 +387,10 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         tk.glucodata.data.calibration.CalibrationManager.init(context)
         tk.glucodata.data.calibration.CalibrationManager.loadCalibrations()
+        // Retires the old "overwrite sensor values" switch and, for stores that
+        // ran with it on, records what was already displayed before anything
+        // else can move it — see HistoryRepository.
+        tk.glucodata.data.HistoryRepository(context).seedDisplayRecordsFromOverwrittenHistory()
         // Journal BG entries can arrive while the app is not running — a meter
         // handing over its stored readings, a Nightscout pull — so the derived
         // calibrations are re-paired once here rather than only on a live edit.
@@ -421,11 +426,14 @@ fun DashboardScreen(
     val scopedJournalEntries = remember(journalEnabled, journalEntries) {
         if (!journalEnabled) emptyList() else journalEntries
     }
-    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit, glucoseHistory) {
+    // Deliberately not keyed on glucoseHistory: the markers do not depend on it,
+    // and keying on it rebuilt the list — and so recomposed the chart — on every
+    // new reading, once a minute, for an identical result.
+    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit) {
         if (!journalEnabled || scopedJournalEntries.isEmpty()) {
             emptyList()
         } else {
-            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, glucoseHistory, journalFoodsById)
+            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, journalFoodsById)
         }
     }
     val localInsulinSummary = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalNow) {
@@ -1033,12 +1041,16 @@ fun DashboardScreen(
             val maxChartBoostPx = with(density) { maxChartBoostDp.toPx() }
 
             val chartBoostState = rememberSaveable { mutableFloatStateOf(0f) }
+            val chartExpansionGestureGate = remember { DashboardChartExpansionGestureGate() }
 
             val scope = rememberCoroutineScope()
 
             val nestedScrollConnection = remember(maxChartBoostPx, middleChartBoostPx, listState) {
                 object : NestedScrollConnection {
                     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        if (source == NestedScrollSource.UserInput) {
+                            chartExpansionGestureGate.onDirectScrollDelta(available.y)
+                        }
                         // Dragging UP (scroll delta < 0): Shrink chart first.
                         // 100% absorption means chart shrinks EXACTLY as finger moves, keeping top fixed.
                         // Once boost hits 0, remainders pass to the list for uninterrupted scrolling.
@@ -1061,6 +1073,9 @@ fun DashboardScreen(
                         // Removing artificial damping so it feels completely free, not restrictive or jiggly.
                         val currentBoostPx = chartBoostState.floatValue * maxChartBoostPx
                         if (
+                            chartExpansionGestureGate.allowsExpansion(
+                                directUserInput = source == NestedScrollSource.UserInput
+                            ) &&
                             available.y > 0 &&
                             maxChartBoostPx > 0f &&
                             listState.firstVisibleItemIndex == 0 &&
@@ -1259,22 +1274,13 @@ fun DashboardScreen(
                 predictionCalibrationRefresh,
                 calibrationRevision
             ) {
-                if (latestPoint != null &&
-                    !tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                    tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeHero, calibrationSensorId)
-                ) {
-                    val baseValue = if (isRawModeHero) latestPoint.rawValue else latestPoint.value
-                    if (baseValue.isFinite() && baseValue > 0.1f) {
-                        tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                            baseValue,
-                            latestPoint.timestamp,
-                            isRawModeHero,
-                            sensorIdOverride = calibrationSensorId
-                        )
-                    } else {
-                        null
-                    }
-                } else null
+                latestPoint?.let { point ->
+                    SealedGlucoseValue.calibratedFor(
+                        point = point,
+                        isRawMode = isRawModeHero,
+                        sensorId = calibrationSensorId
+                    )
+                }
             }
 
         // --- LAYOUT LOGIC ---
@@ -1596,6 +1602,26 @@ fun DashboardScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .pointerInput(listState, chartExpansionGestureGate) {
+                        awaitEachGesture {
+                            awaitFirstDown(
+                                requireUnconsumed = false,
+                                pass = PointerEventPass.Initial
+                            )
+                            chartExpansionGestureGate.onGestureStarted(
+                                startedAtTop = listState.firstVisibleItemIndex == 0 &&
+                                    listState.firstVisibleItemScrollOffset == 0,
+                                chartExpanded = chartBoostState.floatValue > 0f
+                            )
+                            try {
+                                do {
+                                    val event = awaitPointerEvent(PointerEventPass.Final)
+                                } while (event.changes.any { it.pressed })
+                            } finally {
+                                chartExpansionGestureGate.onGestureEnded()
+                            }
+                        }
+                    }
                     .nestedScroll(nestedScrollConnection)
                     .padding(padding),
                 state = listState,

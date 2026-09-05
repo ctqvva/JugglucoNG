@@ -2,6 +2,9 @@ package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -61,6 +64,36 @@ fun cardShape(position: CardPosition, radius: Dp = 12.dp): RoundedCornerShape {
     }
 }
 
+/**
+ * [cardShape] for a row whose position changes at runtime, because the group it
+ * belongs to grows or shrinks. Without this the row snaps between a rounded and
+ * a square edge in a single frame while the neighbour beside it is still sliding
+ * open, which reads as a glitch rather than as one group re-forming.
+ */
+@Composable
+fun animatedCardShape(position: CardPosition, radius: Dp = 12.dp): RoundedCornerShape {
+    val spec = spring<Dp>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
+    val topTarget = when (position) {
+        CardPosition.SINGLE, CardPosition.TOP -> radius
+        CardPosition.MIDDLE, CardPosition.BOTTOM -> 4.dp
+    }
+    val bottomTarget = when (position) {
+        CardPosition.SINGLE, CardPosition.BOTTOM -> radius
+        CardPosition.TOP, CardPosition.MIDDLE -> 4.dp
+    }
+    val top by animateDpAsState(topTarget, spec, label = "cardTopRadius")
+    val bottom by animateDpAsState(bottomTarget, spec, label = "cardBottomRadius")
+    return RoundedCornerShape(
+        topStart = top,
+        topEnd = top,
+        bottomStart = bottom,
+        bottomEnd = bottom
+    )
+}
+
 @Composable
 fun SettingsItem(
     title: String,
@@ -70,14 +103,15 @@ fun SettingsItem(
     icon: ImageVector? = null,
     iconTint: Color? = null, // Added tint
     trailingContent: (@Composable () -> Unit)? = null,
-    position: CardPosition = CardPosition.SINGLE, 
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick ?: {},
         enabled = onClick != null,
         modifier = modifier.fillMaxWidth(),
-        shape = cardShape(position),
+        shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh // restored color
     ) {
         Row(
@@ -143,6 +177,7 @@ fun SettingsSwitchItem(
     icon: ImageVector? = null,
     iconTint: Color? = null,
     position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle = MaterialTheme.typography.bodySmall
@@ -165,7 +200,8 @@ fun SettingsSwitchItem(
                 enabled = enabled
             )
         },
-        position = position
+        position = position,
+        animatePosition = animatePosition
     )
 }
 

@@ -1,8 +1,7 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
-    id 'com.google.devtools.ksp' version '2.2.21-2.0.4'
+    id 'com.google.devtools.ksp' version '2.3.11'
 }
 
 // Single source of truth for toolchain + dependency versions.
@@ -16,17 +15,18 @@ ext {
     appVersionName = '1.1.3-Alpha'
 
     ndkver       = '29.0.14206865'
-    CMAKEVERSION = '3.22.1'
+    CMAKEVERSION = '4.1.2'
     CPPSTD       = '-std=gnu++26'
-    TARGETSDK    = 35
-    APPCOMPAT    = '1.7.1'
-    GMSBASE      = '18.9.0'
-    GMSWEAR      = '19.0.0'
+    TARGETSDK    = 36
+    APPCOMPAT    = '1.8.0'
+    GMSBASE      = '18.10.1'
+    GMSWEAR      = '20.0.1'
 }
 
 android {
     buildFeatures.buildConfig = true
-    namespace "tk.glucodata"
+    buildFeatures.resValues = true
+    namespace = "tk.glucodata"
 
 //Can be defined in ~/.gradle/gradle.properties by setting for example:
 //thepassword = IDontKnow
@@ -36,15 +36,15 @@ android {
     signingConfigs {
         alg {
             if (project.hasProperty('thekeypassword') && "$thekeypassword" != "") {
-                storeFile file("$thekeyfile")
-                storePassword "$thepassword"
-                keyAlias "$thekeyalias"
-                keyPassword "$thekeypassword"
+                storeFile = file("$thekeyfile")
+                storePassword = "$thepassword"
+                keyAlias = "$thekeyalias"
+                keyPassword = "$thekeypassword"
             } else {
-                storeFile file("everyone.keystore")
-                storePassword "IDontKnow"
-                keyAlias "thealias"
-                keyPassword "IDontKnow"
+                storeFile = file("everyone.keystore")
+                storePassword = "IDontKnow"
+                keyAlias = "thealias"
+                keyPassword = "IDontKnow"
             }
         }
     }
@@ -59,13 +59,12 @@ android {
             }
         }
 
-        applicationId "tk.glucodata.ng"
-        versionName appVersionName
-        versionCode appVersionCode
+        applicationId = "tk.glucodata.ng"
+        versionName = appVersionName
+        versionCode = appVersionCode
 
-        targetSdk TARGETSDK
-        minSdk 26
-        minSdkVersion 26
+        targetSdk = TARGETSDK
+        minSdk = 26
         buildConfigField 'int', 'targetSDK', "$targetSdk"
         buildConfigField 'int', 'minSDK', "$minSdk"
         manifestPlaceholders["minSDK"] = "$minSdk"
@@ -96,11 +95,11 @@ android {
         buildConfigField 'int', 'SiBionics', '1'
         buildConfigField 'int', 'DexCom', '1'
 
-        signingConfig signingConfigs.alg
+        signingConfig = signingConfigs.alg
 
         externalNativeBuild {
             cmake {
-                version "$CMAKEVERSION"
+                version = "$CMAKEVERSION"
                 cppFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 cFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 arguments "-DJUGGLUCO_APP=TRUE -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=TRUE", "-Dlibre3=TRUE", "-DDEXCOM=TRUE"
@@ -112,20 +111,19 @@ android {
 
     productFlavors {
         mobile {
-            dimension 'wearos'
-            versionNameSuffix '-phone'
+            dimension = 'wearos'
+            versionNameSuffix = '-phone'
             buildConfigField 'int', 'isWear', '0'
         }
         wear {
-            dimension 'wearos'
-            targetSdk 34
-            minSdk 26
-            minSdkVersion 26
+            dimension = 'wearos'
+            targetSdk = 35
+            minSdk = 26
             buildConfigField 'int', 'minSDK', "$minSdk"
             manifestPlaceholders["minSDK"] = "$minSdk"
-            versionCode 1000000 + appVersionCode //WATCH: mobile versionCode + 1M offset
-            versionNameSuffix '-wear'
-            signingConfig signingConfigs.alg
+            versionCode = 1000000 + appVersionCode //WATCH: mobile versionCode + 1M offset
+            versionNameSuffix = '-wear'
+            signingConfig = signingConfigs.alg
             buildConfigField 'int', 'isWear', '1'
             externalNativeBuild.cmake {
                 arguments "-DWEAROS=TRUE"
@@ -133,16 +131,16 @@ android {
                 cFlags " -DWEAROS=1  -DUSEDIN=1   "
             }
             buildFeatures {
-                viewBinding true
+                viewBinding = true
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.alg
-            minifyEnabled true
-            shrinkResources true
+            signingConfig = signingConfigs.alg
+            minifyEnabled = true
+            shrinkResources = true
 
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules.my', 'proguard-rules.log'
 
@@ -150,23 +148,23 @@ android {
             buildConfigField 'int', 'isReleaseID', '1'
             buildConfigField 'int', 'doLog', '1'
 
-            jniDebuggable false
-            debuggable false
+            jniDebuggable = false
+            debuggable = false
             externalNativeBuild.cmake {
                 cppFlags "$CPPSTD", "-DRELEASEID=1", "-DRELEASE=1", "-DNORAWSTREAM=1", "-DRELEASEDIR=1"
                 cFlags "-DRELEASEID=1", "-DRELEASE=1", "-DNORAWSTREAM=1", "-DRELEASEDIR=1"
             }
         }
         releasedub {
-            versionNameSuffix 'DUB'
-            applicationIdSuffix ".dub"
+            versionNameSuffix = 'DUB'
+            applicationIdSuffix = ".dub"
             resValue "string", "app_name", "JugglucoNG Dub"
-            signingConfig signingConfigs.alg
-            minifyEnabled true
-            shrinkResources true
+            signingConfig = signingConfigs.alg
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules.my', 'proguard-rules.log'
-            jniDebuggable false
-            debuggable false
+            jniDebuggable = false
+            debuggable = false
 
             buildConfigField 'int', 'doLog', '1'
             buildConfigField 'int', 'isRelease', '1'
@@ -177,15 +175,15 @@ android {
             }
         }
         releasedub2 {
-            versionNameSuffix 'DUB2'
-            applicationIdSuffix ".dub2"
+            versionNameSuffix = 'DUB2'
+            applicationIdSuffix = ".dub2"
             resValue "string", "app_name", "JugglucoNG Dub 2"
-            signingConfig signingConfigs.alg
-            minifyEnabled true
-            shrinkResources true
+            signingConfig = signingConfigs.alg
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules.my', 'proguard-rules.log'
-            jniDebuggable false
-            debuggable false
+            jniDebuggable = false
+            debuggable = false
 
             buildConfigField 'int', 'doLog', '1'
             buildConfigField 'int', 'isRelease', '1'
@@ -198,17 +196,17 @@ android {
         debug {
             manifestPlaceholders["requireWatch"] = "false"
             manifestPlaceholders["debuggable"] = "true"
-            applicationIdSuffix ".debug"
-            versionNameSuffix 'DEBUG'
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = 'DEBUG'
 
             buildConfigField 'int', 'isReleaseID', '0'
             buildConfigField 'int', 'doLog', '1'
 
-            jniDebuggable true
-            debuggable true
-            minifyEnabled false
+            jniDebuggable = true
+            debuggable = true
+            minifyEnabled = false
 
-            signingConfig signingConfigs.alg
+            signingConfig = signingConfigs.alg
             externalNativeBuild.cmake {
                 cppFlags "$CPPSTD", "-DDEBUG=1", "-DSCANLOG=1", "-DAPPSUFFIX=\"quotes($applicationIdSuffix)\"", "-DNDK_DEBUG=1", "-UNDEBUG"
                 cFlags "-DDEBUG=1", "-DSCANLOG=1", "-DAPPSUFFIX=\"quotes($applicationIdSuffix)\"", "-DNDK_DEBUG=1", "-UNDEBUG"
@@ -218,23 +216,19 @@ android {
 
     externalNativeBuild {
         cmake {
-            path "src/main/cpp/CMakeLists.txt"
-            version "$CMAKEVERSION"
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "$CMAKEVERSION"
         }
     }
 
     compileOptions {
-        coreLibraryDesugaringEnabled true
+        coreLibraryDesugaringEnabled = true
 
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    ndkVersion "${ndkver}"
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17
-    }
+    ndkVersion = "${ndkver}"
 
     packagingOptions {
         pickFirst 'lib/arm64-v8a/libg.so'
@@ -257,7 +251,7 @@ android {
         }
     }
     lint {
-        abortOnError false
+        abortOnError = false
     }
     testOptions {
         unitTests {
@@ -269,14 +263,14 @@ android {
         }
     }
     dependenciesInfo {
-        includeInApk true
-        includeInBundle true
+        includeInApk = true
+        includeInBundle = true
     }
-    compileSdkVersion 'android-36.1'
-    buildToolsVersion '36.1.0'
+    compileSdk = 37
+    buildToolsVersion = '37.0.0'
     buildFeatures {
-        aidl true
-        compose true
+        aidl = true
+        compose = true
     }
 
     sourceSets {
@@ -306,13 +300,16 @@ android {
 // APK filenames. The default is "Common-mobile-release.apk" -- module name first,
 // no version. Produce JugglucoNG-<version>[-wear][-<build type>].apk instead, e.g.
 // JugglucoNG-1.0.9-Alpha.apk / JugglucoNG-1.0.9-Alpha-dub.apk.
-android.applicationVariants.all { variant ->
-    def buildTypeTag = [release: '', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
-            .get(variant.buildType.name, variant.buildType.name)
-    def parts = [variant.flavorName == 'wear' ? 'wear' : '', buildTypeTag].findAll { it }
-    def suffix = parts ? '-' + parts.join('-') : ''
-    variant.outputs.all { output ->
-        output.outputFileName = "JugglucoNG-${appVersionName}${suffix}.apk"
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def buildTypeTag = [release: '', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
+                .get(variant.buildType, variant.buildType)
+        def isWear = variant.productFlavors.any { flavor -> flavor.second == 'wear' }
+        def parts = [isWear ? 'wear' : '', buildTypeTag].findAll { it }
+        def suffix = parts ? '-' + parts.join('-') : ''
+        variant.outputs.each { output ->
+            output.outputFileName.set("JugglucoNG-${appVersionName}${suffix}.apk")
+        }
     }
 }
 
@@ -320,75 +317,79 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     // Compose (versions come from the BOM unless pinned deliberately)
-    def composeBom = platform('androidx.compose:compose-bom:2024.12.01')
+    def composeBom = platform('androidx.compose:compose-bom:2026.08.00')
     implementation composeBom
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
-    implementation 'androidx.compose.material3:material3:1.4.0'
-    implementation 'androidx.compose.material:material-icons-core:1.7.5'
-    implementation 'androidx.compose.material:material-icons-extended:1.7.5'
-    implementation 'androidx.compose.ui:ui-text-google-fonts:1.7.5'
-    implementation 'androidx.activity:activity-compose:1.9.3'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
-    implementation 'androidx.navigation:navigation-compose:2.8.5'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.compose.ui:ui-text-google-fonts'
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.11.0'
+    implementation 'androidx.navigation:navigation-compose:2.9.8'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
     implementation 'androidx.startup:startup-runtime:1.2.0'
-    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation 'androidx.core:core-ktx:1.19.0'
     implementation "androidx.appcompat:appcompat:$APPCOMPAT"
-    implementation 'androidx.activity:activity:1.11.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.21'
+    implementation 'androidx.activity:activity:1.13.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0'
     implementation "com.google.android.gms:play-services-base:$GMSBASE"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0'
 
     compileOnly 'com.google.android.wearable:wearable:2.9.0'
     implementation "com.google.android.gms:play-services-wearable:$GMSWEAR"
     // implementation 'com.google.android.gms:play-services-wearable:10.2.0' Needed for China? https://developer.android.com/training/wearables/creating-app-china#data-layer
 
     // Glance Support
-    implementation "androidx.glance:glance-appwidget:1.1.0"
-    implementation "androidx.glance:glance-material3:1.1.0"
-    implementation "androidx.work:work-runtime:2.9.1"
+    implementation "androidx.glance:glance-appwidget:1.1.1"
+    implementation "androidx.glance:glance-material3:1.1.1"
+    implementation "androidx.work:work-runtime:2.11.2"
 
     // ---- mobile ----
-    mobileImplementation 'com.google.android.material:material:1.13.0'
+    mobileImplementation 'com.google.android.material:material:1.14.0'
     mobileImplementation 'androidx.health.connect:connect-client:1.1.0'
-    mobileImplementation 'com.garmin.connectiq:ciq-companion-app-sdk:2.3.0@aar'
+    mobileImplementation 'com.garmin.connectiq:ciq-companion-app-sdk:2.4.0@aar'
 
     // Room Database for independent history storage
-    def room_version = "2.7.1"
+    def room_version = "2.8.4"
     mobileImplementation "androidx.room:room-runtime:$room_version"
     mobileImplementation "androidx.room:room-ktx:$room_version"
     ksp "androidx.room:room-compiler:$room_version"
 
     // Scanning (QR / barcode). Used by src/mobileSi + the src/mobileSiGoogle
     // ZXing shim.
-    def cameraXVersion = "1.4.2"
+    def cameraXVersion = "1.6.1"
     mobileImplementation 'com.google.zxing:core:3.5.4'
     mobileImplementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     mobileImplementation "androidx.camera:camera-core:$cameraXVersion"
     mobileImplementation "androidx.camera:camera-camera2:$cameraXVersion"
     mobileImplementation "androidx.camera:camera-lifecycle:$cameraXVersion"
     mobileImplementation "androidx.camera:camera-view:$cameraXVersion"
-    mobileImplementation 'com.google.guava:guava:33.5.0-android'
+    mobileImplementation 'com.google.guava:guava:33.7.1-android'
     mobileImplementation 'com.google.mlkit:barcode-scanning:17.3.0'
 
     // ---- wear ----
-    wearImplementation 'androidx.activity:activity-ktx:1.11.0'
-    wearImplementation 'androidx.constraintlayout:constraintlayout:2.2.1'
-    wearImplementation 'com.google.android.material:material:1.13.0'
-    wearImplementation 'androidx.databinding:viewbinding:8.13.0'
-    wearImplementation 'androidx.wear:wear:1.3.0'
+    wearImplementation 'androidx.activity:activity-ktx:1.13.0'
+    wearImplementation 'androidx.constraintlayout:constraintlayout:2.2.2'
+    wearImplementation 'com.google.android.material:material:1.14.0'
+    wearImplementation 'androidx.wear:wear:1.4.0'
     wearImplementation 'androidx.percentlayout:percentlayout:1.0.0'
     wearImplementation 'androidx.legacy:legacy-support-v4:1.0.0'
     wearImplementation 'androidx.wear.watchface:watchface-style:1.2.1'
@@ -398,15 +399,15 @@ dependencies {
     wearImplementation 'androidx.wear.watchface:watchface:1.2.1'
     wearImplementation 'androidx.wear.watchface:watchface-complications-rendering:1.2.1'
     wearImplementation 'androidx.wear.watchface:watchface-complications-data-source-ktx:1.2.1'
-    wearImplementation 'androidx.core:core-splashscreen:1.2.0-rc01'
-    wearImplementation 'androidx.wear.protolayout:protolayout-external-protobuf:1.3.0'
+    wearImplementation 'androidx.core:core-splashscreen:1.2.0'
+    wearImplementation 'androidx.wear.protolayout:protolayout-external-protobuf:1.4.2'
     // Wear Compose Material 3 (Expressive) UI
     wearImplementation 'androidx.wear.compose:compose-material3:1.6.2'
     wearImplementation 'androidx.wear.compose:compose-foundation:1.6.2'
     wearImplementation 'androidx.wear.compose:compose-navigation:1.6.2'
-    wearImplementation 'androidx.wear:wear-ongoing:1.0.0'
+    wearImplementation 'androidx.wear:wear-ongoing:1.1.0'
 
     // Unit tests
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.json:json:20240303'
+    testImplementation 'org.json:json:20260814'
 }

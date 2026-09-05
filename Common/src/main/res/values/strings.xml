@@ -136,6 +136,8 @@
  <string name="name">Name:</string>
  <string name="carbperunit">Carbohydrates/unit:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Incompatible history database</string>
+ <string name="history_database_incompatible_message">This build cannot open the existing history database because its version or schema is incompatible. Your data was not deleted. Install the build that created the database, or a newer compatible build, then restart the app.</string>
  <string name="search">Search</string>
  <string name="trace">Trace</string>
  <string name="unknown">Unknown</string>
@@ -512,6 +514,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clear">Clear</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE error history</string>
     <string name="log_enabled_waiting">Log enabled. Waiting for entries...</string>
     <string name="log_unchecked">Log unchecked. Enable to start.</string>
     <string name="error_reading_file">"Error reading file: "</string>
@@ -675,6 +678,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="disabled_status">Disabled</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Last BLE error</string>
     <string name="sensor_address">Address</string>
     <string name="sensor_started">Started</string>
     <string name="sensor_ends_officially">Ends Officially</string>
@@ -1568,10 +1572,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">Retry scheduled in %1$d min</string>
     <string name="nightscout_status_response_ok">Last response: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Last response: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Last response: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout follower</string>
     <string name="nightscout_follow_status_idle">Nightscout follower idle</string>
     <string name="nightscout_follow_status_following">Following Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Use v3 API for following</string>
+    <string name="nightscout_follow_use_v3_api_desc">Read from /api/v3 instead of /api/v1. The access token needs api:entries:read, api:treatments:read and api:devicestatus:read. Changed roles only take effect with the next token exchange, so restart the app if a 403 persists.</string>
     <string name="nightscout_follow_status_syncing">Refreshing Nightscout</string>
     <string name="nightscout_follow_status_paused">Nightscout follower paused</string>
     <string name="nightscout_follow_status_config_needed">Enter Nightscout URL</string>
@@ -1600,7 +1607,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Use Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">Glucose uploads need api:entries:create and api:entries:update.</string>
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
+    <string name="nightscout_follow_interval_title">Check for new values</string>
+    <string name="nightscout_follow_interval_desc">How often the follower asks the server. This is also how late a value can be, so it is how late an alarm raised on a followed value can be. A follower has no sensor of its own to keep the phone awake, so every check is a wake-up.</string>
+    <string name="nightscout_follow_interval_doze">Below 9 minutes, Android may still space checks further apart while the phone is idle. Excluding Juggluco from battery optimisation keeps the interval you chose.</string>
     <string name="nightscout_follow_url_required">Enter a Nightscout URL first</string>
     <string name="nightscout_mode_upload">Upload</string>
     <string name="nightscout_mode_follow">Follow</string>
@@ -2447,6 +2458,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Message template</string>
     <string name="outbound_api_template_desc">Tap a token below to insert it.</string>
+    <string name="outbound_api_insulin_tokens">Insulin types</string>
+    <string name="outbound_api_insulin_tokens_desc">Every active insulin type has tokens for its last dose, that dose time, minutes since, remaining units and the total so far today.</string>
     <string name="outbound_api_min_interval">Minimum interval (minutes)</string>
     <string name="outbound_api_min_interval_desc">0 sends every accepted live reading.</string>
     <string name="outbound_api_trigger">Trigger</string>
@@ -2799,4 +2812,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_type_anytime">Anytime</string>
     <string name="sensor_type_ottai">Ottai CGM</string>
     <string name="sensor_type_nightscout">Nightscout</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
+    <string name="sibionics_adaptive_v2_desc">Independent sensor-state estimate with a likely range</string>
+    <string name="glucose_likely_range">Likely range</string>
+    <string name="glucose_likely_range_value">%1$s–%2$s likely range</string>
+    <string name="glucose_estimated">Estimated glucose</string>
+    <string name="glucose_uncertainty_elevated">Sensor uncertainty elevated</string>
+    <string name="glucose_possible_artifact">Possible transient sensor artifact</string>
+    <string name="sibionics_uncertainty_ribbon">Uncertainty ribbon</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Show the likely-range band around the glucose line</string>
+    <string name="freeze_displayed_values">Keep displayed values</string>
+    <string name="freeze_displayed_values_desc">A reading keeps the value it was shown as. Calibration changes affect recent readings only.</string>
+    <string name="freeze_displayed_values_on">Keeping displayed values</string>
+    <string name="freeze_displayed_values_off">Recalculating on every change</string>
 </resources>
