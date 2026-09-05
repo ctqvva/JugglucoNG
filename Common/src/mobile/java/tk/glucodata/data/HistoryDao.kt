@@ -140,19 +140,12 @@ interface HistoryDao {
         timestamps: List<Long>
     ): List<Long>
 
-    @Query("""
-        UPDATE history_readings
-        SET value = :value
-        WHERE sensorSerial = :sensorSerial AND timestamp = :timestamp
-    """)
-    suspend fun updateValueAtTime(sensorSerial: String, timestamp: Long, value: Float): Int
-
-    @Query("""
-        UPDATE history_readings
-        SET rawValue = :rawValue
-        WHERE sensorSerial = :sensorSerial AND timestamp = :timestamp
-    """)
-    suspend fun updateRawValueAtTime(sensorSerial: String, timestamp: Long, rawValue: Float): Int
+    // Deliberately absent: there is no query here that overwrites a stored
+    // reading's `value` or `rawValue`. Those are what the sensor measured, and
+    // the one caller that used to rewrite them — the calibration pass — is what
+    // corrupted stores, because it fed on its own output. What a reading
+    // *displays* is recorded in `reading_display` instead. If you find yourself
+    // wanting an UPDATE here, you almost certainly want ReadingDisplayDao.
 
     @Query("""
         UPDATE history_readings SET sensorSerial = :newSerial 

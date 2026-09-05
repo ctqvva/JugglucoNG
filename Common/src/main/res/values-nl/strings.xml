@@ -137,6 +137,8 @@
  <string name="name">Naam:</string>
  <string name="carbperunit">Koolhydraten/eenheid:</string>
  <string name="database">Database</string>
+ <string name="history_database_incompatible_title">Incompatibele geschiedenisdatabase</string>
+ <string name="history_database_incompatible_message">Deze build kan de bestaande geschiedenisdatabase niet openen omdat de versie of het schema niet compatibel is. Uw gegevens zijn niet verwijderd. Installeer de build die de database heeft gemaakt, of een nieuwere compatibele build, en start de app daarna opnieuw.</string>
  <string name="search">Zoeken</string>
  <string name="trace">Trace</string>
  <string name="unknown">Onbekend</string>
@@ -443,6 +445,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clear">Wissen</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-foutgeschiedenis</string>
     <string name="log_enabled_waiting">Log ingeschakeld. Wachten op items...</string>
     <string name="log_unchecked">Log uitgeschakeld. Inschakelen om te starten.</string>
     <string name="error_reading_file">"Fout bij lezen bestand: "</string>
@@ -877,6 +880,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="keep_auto_calibration">Keep auto-calibration data</string>
     <string name="keep_data">Keep sensor info</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Laatste BLE-fout</string>
     <string name="libre_setup_done">Klaar</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Pas experimenteel Libre 3-scangedrag aan voordat je koppelt.</string>
@@ -1300,6 +1304,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Gebruik de Nightscout v3-API</string>
+    <string name="nightscout_use_v3_api_desc">Glucose-uploads hebben api:entries:create en api:entries:update nodig.</string>
     <string name="nightscout_follow_desc">Maak een alleen-lezen virtuele sensor van deze Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Voer eerst een Nightscout-URL in</string>
     <string name="nightscout_test_testing">Testen...</string>
@@ -1492,10 +1497,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_retry_in">Nieuwe poging over %1$d min</string>
     <string name="nightscout_status_response_ok">Laatste reactie: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Laatste reactie: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Laatste reactie: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Nightscout-volger</string>
     <string name="nightscout_follow_status_idle">Nightscout-volger inactief</string>
     <string name="nightscout_follow_status_following">Nightscout volgen</string>
+    <string name="nightscout_follow_use_v3_api">v3-API gebruiken om te volgen</string>
+    <string name="nightscout_follow_use_v3_api_desc">Leest van /api/v3 in plaats van /api/v1. Het toegangstoken heeft api:entries:read, api:treatments:read en api:devicestatus:read nodig. Gewijzigde rollen werken pas bij de volgende tokenuitwisseling: herstart de app als een 403 aanhoudt.</string>
     <string name="nightscout_follow_status_syncing">Nightscout vernieuwen</string>
     <string name="nightscout_follow_status_paused">Nightscout-volger gepauzeerd</string>
     <string name="nightscout_follow_status_config_needed">Nightscout-URL invoeren</string>
@@ -1954,6 +1962,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Berichtsjabloon</string>
     <string name="outbound_api_template_desc">Tik hieronder op een token om het in te voegen.</string>
+    <string name="outbound_api_insulin_tokens">Insulinesoorten</string>
+    <string name="outbound_api_insulin_tokens_desc">Elke actieve insulinesoort heeft tokens voor de laatste dosis, het tijdstip, de minuten sindsdien, de resterende eenheden en het totaal van vandaag.</string>
     <string name="outbound_api_min_interval">Minimaal interval (minuten)</string>
     <string name="outbound_api_min_interval_desc">0 stuurt elke geaccepteerde live meting.</string>
     <string name="outbound_api_trigger">Trigger</string>
@@ -2633,4 +2643,20 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucosechartvaluecomplicationlabel">Grafiek + waarde</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafiek + waarde + pijl</string>
     <string name="glucosechartfullcomplicationlabel">Grafiek + waarde + pijl + tijd</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimenteel)</string>
+    <string name="sibionics_adaptive_v2_desc">Onafhankelijke sensortoestandsschatting met waarschijnlijk bereik</string>
+    <string name="glucose_likely_range">Waarschijnlijk bereik</string>
+    <string name="glucose_likely_range_value">waarschijnlijk bereik %1$s–%2$s</string>
+    <string name="glucose_estimated">Geschatte glucose</string>
+    <string name="glucose_uncertainty_elevated">Verhoogde sensoronzekerheid</string>
+    <string name="glucose_possible_artifact">Mogelijk tijdelijk sensorartefact</string>
+    <string name="sibionics_uncertainty_ribbon">Onzekerheidsband</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Toon de band met het waarschijnlijke bereik rond de glucoselijn</string>
+    <string name="freeze_displayed_values">Weergegeven waarden behouden</string>
+    <string name="freeze_displayed_values_desc">Een meting behoudt de weergegeven waarde. Kalibratiewijzigingen gelden alleen voor recente metingen.</string>
+    <string name="freeze_displayed_values_on">Weergegeven waarden worden behouden</string>
+    <string name="freeze_displayed_values_off">Wordt bij elke wijziging herberekend</string>
+    <string name="nightscout_follow_interval_title">Naar nieuwe waarden kijken</string>
+    <string name="nightscout_follow_interval_desc">Hoe vaak de volger de server bevraagt. Dat is ook hoe oud een waarde kan zijn, en dus hoe laat een alarm op een gevolgde waarde kan komen. Een volger heeft geen eigen sensor die de telefoon wakker houdt, dus elke controle is een wekmoment.</string>
+    <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Juggluco uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
 </resources>

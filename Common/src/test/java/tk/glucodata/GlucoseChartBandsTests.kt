@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -117,6 +118,49 @@ class GlucoseChartBandsTests {
             assertTrue("collapsed to ${ascending.size} from $list", ascending.size >= 2)
             assertEquals(ascending.sorted(), ascending)
         }
+    }
+
+    @Test
+    fun aShortStripNeedsAFadeScaledToIt() {
+        // The dashboard's preview navigator squeezes a whole day into ~42.dp.
+        // The shared 18px fade is tuned for the full-height chart; on the strip
+        // it spans most of a mmol/L, so the low tone bleeds well above the
+        // target low and the strip reads as if it ignored the target range.
+        val stripHeight = 115f // ~42.dp at 2.75x
+        val minValue = 2.52f
+        val valueRange = 6.66f
+        fun y(value: Float) = stripHeight - ((value - minValue) / valueRange) * stripHeight
+
+        fun stripStops(fade: Float) = GlucoseChartBands.verticalStops(
+            veryHigh = veryHigh, high = high, inRange = inRange, low = low, veryLow = veryLow,
+            yVeryHigh = y(13.9f), yHigh = y(8.3f), yLow = y(3.5f), yVeryLow = y(3.0f),
+            chartHeightPx = stripHeight, fadePx = fade,
+        )
+
+        // 4.3 sits comfortably inside a 3.5-8.3 target and must read neutral.
+        val sample = y(4.3f) / stripHeight
+        assertTrue(
+            "the shared fade should be the thing that breaks here",
+            sampleAt(stripStops(GlucoseChartBands.DEFAULT_FADE_PX), sample) != inRange
+        )
+        assertEquals(inRange, sampleAt(stripStops(stripHeight * 0.025f), sample))
+    }
+
+    /** The gradient's colour at a normalised position, as a shader would read it. */
+    private fun sampleAt(stops: List<Pair<Float, Color>>, position: Float): Color {
+        if (stops.isEmpty()) return Color.Transparent
+        if (position <= stops.first().first) return stops.first().second
+        if (position >= stops.last().first) return stops.last().second
+        for (index in 0 until stops.size - 1) {
+            val (startAt, startColor) = stops[index]
+            val (endAt, endColor) = stops[index + 1]
+            if (position in startAt..endAt) {
+                val span = endAt - startAt
+                if (span <= 0f) return endColor
+                return lerp(startColor, endColor, (position - startAt) / span)
+            }
+        }
+        return stops.last().second
     }
 
     @Test

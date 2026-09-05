@@ -75,6 +75,9 @@ static void start(Object context) {
 static    void splash(AppCompatActivity act) {
        SplashScreen.installSplashScreen(act);
       }
+static boolean historyDatabaseCompatible(Context context) {
+    return true;
+}
 @SuppressLint("StaticFieldLeak")
 static ViewGroup layout=null;
 @SuppressLint("StaticFieldLeak")

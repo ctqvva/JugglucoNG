@@ -40,6 +40,8 @@
     <string name="connectwithsensor">Подключение к датчику</string>
     <string name="darkmode">Темная тема</string>
     <string name="database">База данных</string>
+    <string name="history_database_incompatible_title">Несовместимая база данных истории</string>
+    <string name="history_database_incompatible_message">Эта сборка не может открыть существующую базу данных истории, поскольку её версия или схема несовместима. Ваши данные не были удалены. Установите сборку, которая создала базу данных, или более новую совместимую сборку, затем перезапустите приложение.</string>
     <string name="datapresentuntil">"Данные сохраняются на приемнике до тех пор, пока: "</string>
     <string name="date">К дате</string>
     <string name="day_back">День назад</string>
@@ -359,6 +361,7 @@
     <string name="clear">Очистить</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">История ошибок BLE</string>
     <string name="log_enabled_waiting">Лог включен. Ожидание записей...</string>
     <string name="log_unchecked">Лог выключен. Включите для начала.</string>
     <string name="error_reading_file">"Ошибка чтения файла: "</string>
@@ -493,6 +496,7 @@
     <string name="enabled_status">Включен</string>
     <string name="disabled_status">Отключен</string>
     <string name="last_ble_status">Статус BLE</string>
+    <string name="last_ble_error">Последняя ошибка BLE</string>
     <string name="sensor_address">Адрес</string>
     <string name="sensor_started">Запущен</string>
     <string name="sensor_ends_officially">Офиц. окончание</string>
@@ -1294,6 +1298,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">URL ночного скаута</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Используйте API Nightscout v3</string>
+    <string name="nightscout_use_v3_api_desc">Для загрузки глюкозы нужны api:entries:create и api:entries:update.</string>
     <string name="nightscout_follow_desc">Создать виртуальный датчик только для чтения из этого URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Сначала введите URL Nightscout</string>
     <string name="nightscout_test_testing">Проверка...</string>
@@ -1492,10 +1497,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">Повтор через %1$d мин</string>
     <string name="nightscout_status_response_ok">Последний ответ: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Последний ответ: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Последний ответ: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Источник Nightscout</string>
     <string name="nightscout_follow_status_idle">Источник Nightscout простаивает</string>
     <string name="nightscout_follow_status_following">Получение из Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Использовать API v3 для слежения</string>
+    <string name="nightscout_follow_use_v3_api_desc">Читает из /api/v3 вместо /api/v1. Токену доступа нужны api:entries:read, api:treatments:read и api:devicestatus:read. Изменённые роли действуют только со следующего обмена токенов: перезапустите приложение, если 403 сохраняется.</string>
     <string name="nightscout_follow_status_syncing">Обновление Nightscout</string>
     <string name="nightscout_follow_status_paused">Источник Nightscout приостановлен</string>
     <string name="nightscout_follow_status_config_needed">Введите URL Nightscout</string>
@@ -1955,6 +1963,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Шаблон сообщения</string>
     <string name="outbound_api_template_desc">Нажмите токен ниже, чтобы вставить его.</string>
+    <string name="outbound_api_insulin_tokens">Типы инсулина</string>
+    <string name="outbound_api_insulin_tokens_desc">У каждого активного типа инсулина есть токены для последней дозы, её времени, минут с момента ввода, остатка единиц и суммы за сегодня.</string>
     <string name="outbound_api_min_interval">Минимальный интервал (минуты)</string>
     <string name="outbound_api_min_interval_desc">0 отправляет каждое принятое текущее показание.</string>
     <string name="outbound_api_trigger">Триггер</string>
@@ -2637,4 +2647,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">График + значение</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + значение + стрелка</string>
     <string name="glucosechartfullcomplicationlabel">График + значение + стрелка + время</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (экспериментально)</string>
+    <string name="sibionics_adaptive_v2_desc">Независимая оценка состояния датчика с вероятным диапазоном</string>
+    <string name="glucose_likely_range">Вероятный диапазон</string>
+    <string name="glucose_likely_range_value">вероятный диапазон %1$s–%2$s</string>
+    <string name="glucose_estimated">Оценка глюкозы</string>
+    <string name="glucose_uncertainty_elevated">Повышенная неопределённость датчика</string>
+    <string name="glucose_possible_artifact">Возможен временный артефакт датчика</string>
+    <string name="sibionics_uncertainty_ribbon">Полоса неопределённости</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Показывать полосу вероятного диапазона вокруг линии глюкозы</string>
+    <string name="freeze_displayed_values">Сохранять показанные значения</string>
+    <string name="freeze_displayed_values_desc">Измерение сохраняет значение, которое было показано. Изменения калибровки влияют только на свежие измерения.</string>
+    <string name="freeze_displayed_values_on">Показанные значения сохраняются</string>
+    <string name="freeze_displayed_values_off">Пересчёт при каждом изменении</string>
+    <string name="nightscout_follow_interval_title">Проверять новые значения</string>
+    <string name="nightscout_follow_interval_desc">Как часто подписчик опрашивает сервер. Это же определяет, насколько старым может быть значение, а значит и насколько поздно придёт тревога по отслеживаемому значению. У подписчика нет своего сенсора, который держал бы телефон активным, поэтому каждая проверка — это пробуждение.</string>
+    <string name="nightscout_follow_interval_doze">Меньше 9 минут Android всё равно может разносить проверки, пока телефон простаивает. Исключение Juggluco из оптимизации батареи сохраняет выбранный интервал.</string>
 </resources>

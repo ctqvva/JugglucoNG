@@ -132,6 +132,8 @@
   <string name="name">Name:</string>
   <string name="carbperunit">Kohlenhydrate/Einheit:</string>
   <string name="database">Datenbank</string>
+  <string name="history_database_incompatible_title">Inkompatible Verlaufsdatenbank</string>
+  <string name="history_database_incompatible_message">Dieser Build kann die vorhandene Verlaufsdatenbank nicht öffnen, weil ihre Version oder ihr Schema inkompatibel ist. Ihre Daten wurden nicht gelöscht. Installieren Sie den Build, der die Datenbank erstellt hat, oder einen neueren kompatiblen Build, und starten Sie die App anschließend neu.</string>
   <string name="search">Suchen</string>
   <string name="trace">Trace</string>
   <string name="unknown">Unbekannt</string>
@@ -451,6 +453,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clear">Löschen</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">BLE-Fehlerverlauf</string>
     <string name="log_enabled_waiting">Protokoll aktiviert. Warte auf Einträge...</string>
     <string name="log_unchecked">Protokoll deaktiviert. Aktivieren zum Starten.</string>
     <string name="error_reading_file">"Fehler beim Lesen der Datei: "</string>
@@ -906,6 +909,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="keep_auto_calibration">Autokalibrierungsdaten behalten</string>
     <string name="keep_data">Sensorinfo behalten</string>
     <string name="last_ble_status">Letzter BLE-Status</string>
+    <string name="last_ble_error">Letzter BLE-Fehler</string>
     <string name="libre_setup_done">Fertig</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Experimentelles Scan-Verhalten für Libre 3 vor dem Koppeln anpassen.</string>
@@ -1329,6 +1333,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_url_label">Nightscout-URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Nightscout-v3-API verwenden</string>
+    <string name="nightscout_use_v3_api_desc">Glukose-Uploads benötigen api:entries:create und api:entries:update.</string>
     <string name="nightscout_follow_desc">Erstellt einen schreibgeschützten virtuellen Sensor aus dieser Nightscout-URL.</string>
     <string name="nightscout_follow_url_required">Zuerst eine Nightscout-URL eingeben</string>
     <string name="nightscout_test_testing">Test läuft...</string>
@@ -1523,10 +1528,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_retry_in">Nächster Versuch in %1$d Min.</string>
     <string name="nightscout_status_response_ok">Letzte Antwort: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Letzte Antwort: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Letzte Antwort: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Letzte Antwort: ungültige Nightscout-URL</string>
     <string name="nightscout_follow_title">Nightscout-Follower</string>
     <string name="nightscout_follow_status_idle">Nightscout-Follower bereit</string>
     <string name="nightscout_follow_status_following">Folgt Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">v3-API zum Folgen verwenden</string>
+    <string name="nightscout_follow_use_v3_api_desc">Liest von /api/v3 statt /api/v1. Der Zugriffstoken benötigt api:entries:read, api:treatments:read und api:devicestatus:read. Geänderte Rollen wirken erst mit dem nächsten Token-Austausch: Bei anhaltendem 403 die App neu starten.</string>
     <string name="nightscout_follow_status_syncing">Nightscout wird aktualisiert</string>
     <string name="nightscout_follow_status_paused">Nightscout-Follower pausiert</string>
     <string name="nightscout_follow_status_config_needed">Nightscout-URL eingeben</string>
@@ -2036,6 +2044,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Nachrichtenvorlage</string>
     <string name="outbound_api_template_desc">Tippe unten auf ein Token, um es einzufügen.</string>
+    <string name="outbound_api_insulin_tokens">Insulinarten</string>
+    <string name="outbound_api_insulin_tokens_desc">Jede aktive Insulinart hat Tokens für die letzte Dosis, deren Uhrzeit, die Minuten seitdem, die verbleibenden Einheiten und die heutige Summe.</string>
     <string name="outbound_api_min_interval">Mindestintervall (Minuten)</string>
     <string name="outbound_api_min_interval_desc">0 sendet jeden akzeptierten Live-Wert.</string>
     <string name="outbound_api_trigger">Auslöser</string>
@@ -2629,4 +2639,20 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (experimentell)</string>
+    <string name="sibionics_adaptive_v2_desc">Unabhängige Sensorzustandsschätzung mit wahrscheinlichem Bereich</string>
+    <string name="glucose_likely_range">Wahrscheinlicher Bereich</string>
+    <string name="glucose_likely_range_value">wahrscheinlicher Bereich %1$s–%2$s</string>
+    <string name="glucose_estimated">Geschätzter Glukosewert</string>
+    <string name="glucose_uncertainty_elevated">Erhöhte Sensorunsicherheit</string>
+    <string name="glucose_possible_artifact">Möglicherweise vorübergehendes Sensorartefakt</string>
+    <string name="sibionics_uncertainty_ribbon">Unsicherheitsband</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Das Band des wahrscheinlichen Bereichs um die Glukosekurve anzeigen</string>
+    <string name="freeze_displayed_values">Angezeigte Werte behalten</string>
+    <string name="freeze_displayed_values_desc">Ein Messwert behält den angezeigten Wert. Kalibrierungsänderungen wirken nur auf aktuelle Messwerte.</string>
+    <string name="freeze_displayed_values_on">Angezeigte Werte werden behalten</string>
+    <string name="freeze_displayed_values_off">Wird bei jeder Änderung neu berechnet</string>
+    <string name="nightscout_follow_interval_title">Neue Werte abrufen</string>
+    <string name="nightscout_follow_interval_desc">Wie oft der Follower den Server fragt. Das ist zugleich, wie alt ein Wert sein kann, und damit auch, wie spät ein Alarm auf einen gefolgten Wert kommen kann. Ein Follower hat keinen eigenen Sensor, der das Telefon wach hält, also ist jede Abfrage ein Aufwecken.</string>
+    <string name="nightscout_follow_interval_doze">Unter 9 Minuten kann Android die Abfragen im Ruhezustand trotzdem weiter auseinanderziehen. Juggluco von der Akku-Optimierung auszunehmen hält das eingestellte Intervall.</string>
 </resources>

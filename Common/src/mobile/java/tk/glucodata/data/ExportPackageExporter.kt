@@ -457,6 +457,23 @@ object ExportPackageExporter {
         // outputs (Nightscout/xDrip/screen) would show, when a calibration applies.
         val isMmol = tk.glucodata.Applic.unit == 1
         val viewModeOf = ExportCalibration.viewModeResolver()
+        // Readings whose displayed value was recorded export that value rather
+        // than a fresh recomputation — see ReadingDisplay.
+        val sealedByKey: Map<Long, Float> = if (
+            runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+        ) {
+            val nowMs = System.currentTimeMillis()
+            runCatching {
+                database.readingDisplayDao().getAllSince(0L)
+                    .filter { it.isUsable && it.isSealedAt(nowMs) }
+                    .associate { sealedDisplayKey(it.sensorSerial, it.timestamp) to it.displayMgdl }
+            }.getOrDefault(emptyMap())
+        } else {
+            emptyMap()
+        }
+        val sealedOf: (HistoryReading) -> Float? = { reading ->
+            sealedByKey[sealedDisplayKey(reading.sensorSerial, reading.timestamp)]
+        }
 
         return JSONObject()
             .put("rangeStartEpochMillis", if (startMillis > 0L) startMillis else JSONObject.NULL)
@@ -465,7 +482,7 @@ object ExportPackageExporter {
             .put(
                 "readings",
                 JSONArray().also { array ->
-                    readings.forEach { array.put(it.toJson(isMmol, viewModeOf)) }
+                    readings.forEach { array.put(it.toJson(isMmol, viewModeOf, sealedOf)) }
                 }
             )
             .put(
@@ -699,14 +716,23 @@ object ExportPackageExporter {
         return rows.size
     }
 
-    private fun HistoryReading.toJson(isMmol: Boolean, viewModeOf: (String?) -> Int): JSONObject {
+    /** Mirrors HistoryRepository's display key: sensor plus minute bucket. */
+    private fun sealedDisplayKey(sensorSerial: String, timestamp: Long): Long =
+        (timestamp / 60_000L) * 31L + sensorSerial.hashCode()
+
+    private fun HistoryReading.toJson(
+        isMmol: Boolean,
+        viewModeOf: (String?) -> Int,
+        sealedOf: (HistoryReading) -> Float?
+    ): JSONObject {
         val calibratedMgDl = ExportCalibration.calibratedMgDl(
             autoMgDl = value,
             rawMgDl = rawValue,
             timestamp = timestamp,
             sensorId = sensorSerial,
             viewMode = viewModeOf(sensorSerial),
-            isMmol = isMmol
+            isMmol = isMmol,
+            sealedMgDl = sealedOf(this)
         )
         return JSONObject()
             .put("timestamp", timestamp)

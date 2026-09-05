@@ -18,6 +18,16 @@ import java.util.Locale
 import java.util.UUID
 
 object AnytimeConstants {
+    // Precompiled once. These were built inline on every call, and because
+    // SensorIdentity.matches -> managedMatches asks every driver adapter to
+    // canonicalise both ids, a single identity comparison compiled a fresh
+    // java.util.regex.Pattern (ICU native) per adapter per side. A stuck-main-thread
+    // stack dump landed in Pattern.compile beneath canonicalSensorId, and that path
+    // runs per reading, per sensor, per UI snapshot and per notification build.
+    private val MAC_WITH_COLONS: Regex = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16: Regex = Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12: Regex = Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16_CASE_SENSITIVE: Regex = Regex("^[0-9A-F]{12,16}$")
 
     // ---- Logging tag ----
 
@@ -392,8 +402,8 @@ object AnytimeConstants {
         val trimmed = name?.trim().orEmpty()
         if (trimmed.isEmpty()) return false
         if (isProvisionalSensorId(trimmed)) return true
-        return Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed) ||
-            Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)
+        return MAC_WITH_COLONS.matches(trimmed) ||
+            PLAIN_HEX_12_16.matches(trimmed)
     }
 
     @JvmStatic
@@ -408,10 +418,10 @@ object AnytimeConstants {
     fun canonicalSensorId(sensorId: String?): String {
         val trimmed = sensorId?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
-        if (Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (MAC_WITH_COLONS.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).replace(":", "")
         }
-        if (Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (PLAIN_HEX_12_16.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).take(MAX_NATIVE_SENSOR_ID_CHARS)
         }
         return trimmed
@@ -420,7 +430,7 @@ object AnytimeConstants {
     @JvmStatic
     fun macAddressFromSensorId(sensorId: String?): String? {
         val canonical = canonicalSensorId(sensorId)
-        if (!Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE).matches(canonical)) return null
+        if (!PLAIN_HEX_12.matches(canonical)) return null
         return canonical.chunked(2).joinToString(":")
     }
 
@@ -443,7 +453,7 @@ object AnytimeConstants {
     @JvmStatic
     fun deriveInitialSensorId(deviceName: String?, address: String?): String {
         val addr = canonicalSensorId(address)
-        if (addr.isNotEmpty() && Regex("^[0-9A-F]{12,16}$").matches(addr)) return addr
+        if (addr.isNotEmpty() && PLAIN_HEX_12_16_CASE_SENSITIVE.matches(addr)) return addr
         val fallback = deviceName?.trim().orEmpty()
             .uppercase(Locale.US)
             .filter { it.isLetterOrDigit() }

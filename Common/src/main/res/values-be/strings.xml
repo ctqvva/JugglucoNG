@@ -135,6 +135,8 @@
  <string name="name">Імя:</string>
  <string name="carbperunit">Вугляводы/адзінка:</string>
  <string name="database">База дадзеных</string>
+ <string name="history_database_incompatible_title">Несумяшчальная база даных гісторыі</string>
+ <string name="history_database_incompatible_message">Гэта зборка не можа адкрыць існуючую базу даных гісторыі, таму што яе версія або схема несумяшчальная. Вашы даныя не былі выдалены. Усталюйце зборку, якая стварыла базу даных, або навейшую сумяшчальную зборку, затым перазапусціце праграму.</string>
  <string name="search">Пошук</string>
  <string name="trace">След</string>
  <string name="unknown">Невядомы</string>
@@ -556,6 +558,7 @@
     <string name="debug_logs_title">Журналы адладкі</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
+    <string name="ble_error_history">Гісторыя памылак BLE</string>
     <string name="log_enabled_waiting">Журнал уключаны. Чаканне запісаў...</string>
     <string name="log_unchecked">Журнал выключаны. Уключыце для пачатку.</string>
     <string name="error_reading_file">"Памылка чытання файла: "</string>
@@ -804,6 +807,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="keep_data">Keep sensor info</string>
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
+    <string name="last_ble_error">Апошняя памылка BLE</string>
     <string name="libre_setup_done">Гатова</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Наладзьце эксперыментальныя паводзіны сканавання Libre 3 перад спалучэннем.</string>
@@ -1256,6 +1260,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_url_label">URL начнога разведчыка</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
     <string name="nightscout_use_v3_api">Выкарыстоўвайце Nightscout v3 API</string>
+    <string name="nightscout_use_v3_api_desc">Для загрузкі глюкозы патрэбныя api:entries:create і api:entries:update.</string>
     <string name="nightscout_follow_desc">Стварыць віртуальны датчык толькі для чытання з гэтага URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Спачатку ўвядзіце URL Nightscout</string>
     <string name="nightscout_test_testing">Праверка...</string>
@@ -1448,10 +1453,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_retry_in">Паўтор праз %1$d хв</string>
     <string name="nightscout_status_response_ok">Апошні адказ: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Апошні адказ: HTTP %1$d</string>
+    <string name="nightscout_status_response_error_detail">Апошні адказ: HTTP %1$d, %2$s</string>
     <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
     <string name="nightscout_follow_title">Крыніца Nightscout</string>
     <string name="nightscout_follow_status_idle">Крыніца Nightscout чакае</string>
     <string name="nightscout_follow_status_following">Атрыманне з Nightscout</string>
+    <string name="nightscout_follow_use_v3_api">Выкарыстоўваць API v3 для сачэння</string>
+    <string name="nightscout_follow_use_v3_api_desc">Чытаць з /api/v3 замест /api/v1. Токен доступу патрабуе api:entries:read, api:treatments:read і api:devicestatus:read. Змены роляў дзейнічаюць толькі з наступным абменам токенаў, таму перазапусціце праграму, калі 403 захоўваецца.</string>
     <string name="nightscout_follow_status_syncing">Абнаўленне Nightscout</string>
     <string name="nightscout_follow_status_paused">Крыніца Nightscout прыпынена</string>
     <string name="nightscout_follow_status_config_needed">Увядзіце URL Nightscout</string>
@@ -1982,6 +1990,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="outbound_api_headers_placeholder">Authorization: Bearer token</string>
     <string name="outbound_api_message_template">Шаблон паведамлення</string>
     <string name="outbound_api_template_desc">Націсніце токен ніжэй, каб уставіць яго.</string>
+    <string name="outbound_api_insulin_tokens">Тыпы інсуліну</string>
+    <string name="outbound_api_insulin_tokens_desc">Кожны актыўны тып інсуліну мае токены для апошняй дозы, яе часу, хвілін з таго моманту, астатніх адзінак і сумы за сёння.</string>
     <string name="outbound_api_min_interval">Мінімальны інтэрвал (хвіліны)</string>
     <string name="outbound_api_min_interval_desc">0 адпраўляе кожнае прынятае бягучае паказанне.</string>
     <string name="outbound_api_trigger">Трыгер</string>
@@ -2661,4 +2671,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <string name="sibionics_adaptive_v2">Adaptive V2 (эксперыментальна)</string>
+    <string name="sibionics_adaptive_v2_desc">Незалежная ацэнка стану датчыка з верагодным дыяпазонам</string>
+    <string name="glucose_likely_range">Верагодны дыяпазон</string>
+    <string name="glucose_likely_range_value">верагодны дыяпазон %1$s–%2$s</string>
+    <string name="glucose_estimated">Ацэненая глюкоза</string>
+    <string name="glucose_uncertainty_elevated">Павышаная нявызначанасць датчыка</string>
+    <string name="glucose_possible_artifact">Магчымы часовы артэфакт датчыка</string>
+    <string name="sibionics_uncertainty_ribbon">Стужка нявызначанасці</string>
+    <string name="sibionics_uncertainty_ribbon_desc">Паказваць паласу верагоднага дыяпазону вакол лініі глюкозы</string>
+    <string name="freeze_displayed_values">Захоўваць паказаныя значэнні</string>
+    <string name="freeze_displayed_values_desc">Паказанне захоўвае значэнне, з якім яно было паказана. Змены каліброўкі закранаюць толькі свежыя паказанні.</string>
+    <string name="freeze_displayed_values_on">Паказаныя значэнні захоўваюцца</string>
+    <string name="freeze_displayed_values_off">Пералік пры кожнай змене</string>
+    <string name="nightscout_follow_interval_title">Правяраць новыя значэнні</string>
+    <string name="nightscout_follow_interval_desc">Як часта падпісчык апытвае сервер. Гэта таксама тое, наколькі старым можа быць значэнне, а значыць і наколькі позна прыйдзе трывога па сачыльным значэнні. У падпісчыка няма свайго сэнсара, які трымаў бы тэлефон абуджаным, таму кожная праверка — гэта абуджэнне.</string>
+    <string name="nightscout_follow_interval_doze">Менш за 9 хвілін Android усё роўна можа разводзіць праверкі, пакуль тэлефон бяздзейнічае. Выключэнне Juggluco з аптымізацыі батарэі захоўвае выбраны інтэрвал.</string>
 </resources>

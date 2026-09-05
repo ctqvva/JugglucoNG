@@ -665,7 +665,7 @@ fun ExpressiveSettingsScreen(
                     subtitle = stringResource(R.string.import_data_settings_desc),
                     icon = Icons.Default.FolderOpen,
                     iconTint = dataColor,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.MIDDLE,
                     onClick = { 
                         importLauncher.launch(
                             arrayOf(
@@ -679,6 +679,30 @@ fun ExpressiveSettingsScreen(
                             )
                         )
                     }
+                )
+
+                // A reading's displayed value is a record, not a derivation —
+                // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
+                // current behaviour so the common question is answered in place.
+                val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
+                    .freezeDisplayedValues.collectAsState()
+                SettingsSwitchItem(
+                    title = stringResource(R.string.freeze_displayed_values),
+                    subtitle = stringResource(
+                        if (freezeDisplayedValues) {
+                            R.string.freeze_displayed_values_on
+                        } else {
+                            R.string.freeze_displayed_values_off
+                        }
+                    ),
+                    checked = freezeDisplayedValues,
+                    onCheckedChange = {
+                        tk.glucodata.data.calibration.CalibrationManager
+                            .setFreezeDisplayedValues(it)
+                    },
+                    icon = Icons.Default.Lock,
+                    iconTint = dataColor,
+                    position = CardPosition.BOTTOM
                 )
             }
         }
