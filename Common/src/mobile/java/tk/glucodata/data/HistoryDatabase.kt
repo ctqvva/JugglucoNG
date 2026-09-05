@@ -44,6 +44,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         also repairs v19 databases produced by earlier Clone test builds
  *   v21 — durable journal recovery identity independent of local database row ids
  *   v22 — durable cross-device journal recovery tombstones
+ *   v23 — transactional history recovery import receipts
  */
 @Database(
     entities = [
@@ -57,8 +58,9 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalPendingDeleteEntity::class,
         CloneJournalTombstoneEntity::class,
         CloneJournalRecoveryTombstoneEntity::class,
+        CloneRecoveryImportEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -547,6 +549,13 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /** v22 -> v23: prevent replacement replay after a process dies just after commit. */
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS clone_recovery_imports (jobId TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(jobId))")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -574,7 +583,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_18_19,
                     MIGRATION_19_20,
                     MIGRATION_20_21,
-                    MIGRATION_21_22
+                    MIGRATION_21_22,
+                    MIGRATION_22_23
                 )
                 .build().also { INSTANCE = it }
             }
