@@ -45,8 +45,9 @@ public class JournalIobAccess {
     }
 
     // [classicIob, eiob, cob] in units/grams, NaN marking "no data of that
-    // kind"; null when unavailable.
-    static float[] snapshot(long atMillis) {
+    // kind"; null when unavailable. Public: the PRE_HIGH IOB-coverage check
+    // in tk.glucodata.alerts reads the classic IOB through this bridge.
+    public static float[] snapshot(long atMillis) {
         try {
             if (!snapshotResolved) {
                 snapshotResolved = true;

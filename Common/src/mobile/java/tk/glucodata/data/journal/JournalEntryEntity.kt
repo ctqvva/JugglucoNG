@@ -43,5 +43,11 @@ data class JournalEntryEntity(
     val insulinCurveEvidence: String? = null,
     val insulinBodyWeightKg: Float? = null,
     @ColumnInfo(defaultValue = "0")
-    val insulinCurveWasApproximated: Boolean = false
+    val insulinCurveWasApproximated: Boolean = false,
+    /**
+     * When this row last went out to LibreView, so an unchanged entry is not resent on
+     * every upload pass. Tracked separately from [nsUploadedAt] because the two
+     * destinations succeed and fail independently.
+     */
+    val lvUploadedAt: Long? = null
 )

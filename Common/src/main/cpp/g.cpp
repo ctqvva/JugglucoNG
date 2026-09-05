@@ -1536,6 +1536,76 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
   return stored;
 }
 
+// Raw-carrying sibling of addGlucoseStreamBatchWithTemp, for drivers whose
+// history mirror is minute-index-addressed and idempotent (Sibionics, Anytime).
+// The point of the batch form is what happens *around* the loop, not the loop:
+// one shell resolve, one seedDirectStreamStateIfMissing (stat + read + alloc),
+// quiet writes that skip the per-sample LOGGER, a single backstream/backhistory
+// rewind from the lowest index touched, and one setstreaming. Mirroring a
+// 4867-sample history one call at a time cost all of that per reading.
+extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass cl, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
+      !sensorId)
+    return 0;
+  const jsize count = env->GetArrayLength(timestamps);
+  if (count <= 0 || env->GetArrayLength(glucoses) != count ||
+      env->GetArrayLength(raws) != count ||
+      env->GetArrayLength(temperatures) != count)
+    return 0;
+
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  jlong *timeValues = env->GetLongArrayElements(timestamps, nullptr);
+  jfloat *glucoseValues = env->GetFloatArrayElements(glucoses, nullptr);
+  jfloat *rawValues = env->GetFloatArrayElements(raws, nullptr);
+  jfloat *temperatureValues = env->GetFloatArrayElements(temperatures, nullptr);
+  if (!str || !timeValues || !glucoseValues || !rawValues ||
+      !temperatureValues) {
+    if (temperatureValues)
+      env->ReleaseFloatArrayElements(temperatures, temperatureValues, JNI_ABORT);
+    if (rawValues)
+      env->ReleaseFloatArrayElements(raws, rawValues, JNI_ABORT);
+    if (glucoseValues)
+      env->ReleaseFloatArrayElements(glucoses, glucoseValues, JNI_ABORT);
+    if (timeValues)
+      env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
+    if (str)
+      env->ReleaseStringUTFChars(sensorId, str);
+    return 0;
+  }
+
+  jint stored = 0;
+  jlong firstTimestamp = 0;
+  for (jsize index = 0; index < count && firstTimestamp <= 0; ++index)
+    firstTimestamp = timeValues[index];
+  if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
+    seedDirectStreamStateIfMissing(hist, firstTimestamp);
+    int rewindFrom = -1;
+    for (jsize index = 0; index < count; ++index) {
+      if (storeGlucoseStreamSample(
+              hist, str, timeValues[index], glucoseValues[index],
+              rawValues[index], temperatureValues[index], true, true, true,
+              &rewindFrom)) {
+        ++stored;
+      }
+    }
+    if (rewindFrom >= 0 && backup) {
+      hist->backstream(rewindFrom);
+      hist->backhistory(rewindFrom);
+    }
+    if (stored > 0)
+      setstreaming(hist);
+  }
+
+  env->ReleaseFloatArrayElements(temperatures, temperatureValues, JNI_ABORT);
+  env->ReleaseFloatArrayElements(raws, rawValues, JNI_ABORT);
+  env->ReleaseFloatArrayElements(glucoses, glucoseValues, JNI_ABORT);
+  env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
+  env->ReleaseStringUTFChars(sensorId, str);
+  return stored;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL fromjava(addGlucoseStreamWithRawTemp)(
     JNIEnv *env, jclass cl, jlong timestamp, jfloat glucose, jfloat rawGlucose,
     jfloat temperatureC, jstring sensorId) {

@@ -2,6 +2,7 @@ package tk.glucodata.data.journal
 
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.map
 import android.content.Context
 import tk.glucodata.Applic
@@ -125,6 +126,12 @@ class JournalRepository {
         if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
+        // Every kind of entry, not only the ones that move IOB: a fingerstick or a note is
+        // sent to Nightscout too, and nothing else will wake the uploader for it. What came
+        // from another system is never sent back, so importing from one does not wake it.
+        if (!isMirroredSource(input.source)) {
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        }
         return id
     }
 
@@ -132,6 +139,84 @@ class JournalRepository {
     suspend fun hasEntryWithSourceRecordId(sourceRecordId: String): Boolean {
         val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
         return dao.getEntryBySourceRecordId(id) != null
+    }
+
+    /** What one importer has already written in a stretch of time, so it can reconcile. */
+    suspend fun entriesFromSourceBetween(
+        source: JournalEntrySource,
+        startMillis: Long,
+        endMillis: Long
+    ): List<JournalEntry> {
+        return dao.getEntriesBySourceBetween(source.storageValue, startMillis, endMillis)
+            .map(JournalEntryEntity::toModel)
+    }
+
+    /**
+     * Renames an entry an importer can now identify more stably, leaving everything else
+     * alone — the point is to keep the row, including edits made to it, not to rewrite it.
+     *
+     * @return false when the entry is gone or the name is already taken
+     */
+    suspend fun retagSourceRecordId(entryId: Long, sourceRecordId: String): Boolean {
+        val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
+        return database.withTransaction {
+            val existing = dao.getEntryById(entryId) ?: return@withTransaction false
+            if (existing.sourceRecordId == id) return@withTransaction true
+            if (dao.getEntryBySourceRecordId(id) != null) return@withTransaction false
+            dao.upsertEntry(existing.copy(sourceRecordId = id, updatedAt = System.currentTimeMillis()))
+            true
+        }
+    }
+
+    /**
+     * Adopts an entry a pen has now confirmed as one of its doses: the row stays, with its
+     * amount, its insulin and whatever note was written on it, and takes the dose's stable
+     * name and the time the pen measured. Keeping the row rather than replacing it is what
+     * saves the note, and Nightscout knows the treatment by that row, so re-timing it there
+     * is a correction rather than a second treatment.
+     *
+     * @return false when the entry is gone, or another row already carries that name
+     */
+    suspend fun adoptPenDose(
+        entryId: Long,
+        sourceRecordId: String,
+        timestampMillis: Long,
+        expectedUnits: Float,
+    ): Boolean {
+        val id = sourceRecordId.trim().takeIf { it.isNotBlank() } ?: return false
+        val adopted = database.withTransaction {
+            val existing = dao.getEntryById(entryId) ?: return@withTransaction false
+            // Only insulin is a pen's to claim; anything else would also need the glucose
+            // side of a change told about it.
+            if (existing.entryType != JournalEntryType.INSULIN.storageValue) return@withTransaction false
+            // Only a row still written by hand, and only while it still says what it said
+            // when the pairing was worked out: the amount is what decided that pairing, and
+            // between proposing and confirming there is a sheet open and time to edit.
+            if (existing.source != JournalEntrySource.MANUAL.storageValue) return@withTransaction false
+            val amount = existing.amount ?: return@withTransaction false
+            if ((amount * 10f).roundToInt() != (expectedUnits * 10f).roundToInt()) {
+                return@withTransaction false
+            }
+            val taken = dao.getEntryBySourceRecordId(id)
+            // sourceRecordId is unique and the upsert replaces on conflict, so a name
+            // already in use has to stop the adoption rather than overwrite that row.
+            if (taken != null && taken.id != entryId) return@withTransaction false
+            dao.upsertEntry(
+                existing.copy(
+                    timestamp = timestampMillis,
+                    source = JournalEntrySource.PEN.storageValue,
+                    sourceRecordId = id,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            true
+        }
+        if (adopted) {
+            // The dose moved in time and is insulin, so IOB and the treatment upload both
+            // have to look again; updatedAt is what marks the row for a fresh upload.
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        return adopted
     }
 
     suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>) {
@@ -143,6 +228,7 @@ class JournalRepository {
             dao.deleteEntriesBySourceRecordIds(ids)
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
     }
 
@@ -171,6 +257,8 @@ class JournalRepository {
         if (deletedGlucose != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
+        // A deletion queues a tombstone, which is the uploader's to carry out.
+        tk.glucodata.NightscoutUploadWake.afterJournalChange()
     }
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
@@ -227,6 +315,12 @@ class JournalRepository {
         dao.deleteInsulinPresetById(presetId)
         tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
     }
+
+    /** Rows this app mirrors from elsewhere; the uploader skips them, so a wake is wasted. */
+    private fun isMirroredSource(source: JournalEntrySource): Boolean =
+        source == JournalEntrySource.AAPS ||
+            source == JournalEntrySource.NIGHTSCOUT ||
+            source == JournalEntrySource.API
 
     private fun affectsIob(entryType: String?): Boolean {
         return entryType == JournalEntryType.INSULIN.storageValue ||

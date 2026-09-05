@@ -72,6 +72,12 @@ fun ReadingRow(
     history: List<GlucosePoint> = emptyList(), // Advanced Trend: Need history
     // The row's historical "Δ" (see readingDeltaTexts); null hides the slot entirely.
     deltaText: String? = null,
+    /**
+     * The same movement the Δ beside it states, in mg/dL per minute. When it is there the
+     * arrow turns by it, so the two cannot disagree; without it the arrow falls back to the
+     * regression, which is also the case where no number sits next to it.
+     */
+    deltaRateMgdlPerMinute: Float? = null,
     peerReadings: List<GlucosePoint> = emptyList(),
     peerSeries: Map<String, PeerSensorSeries> = emptyMap(),
     // True whenever the dashboard is in multi-sensor mode, even if THIS row has
@@ -212,10 +218,16 @@ fun ReadingRow(
 
     // --- ADVANCED TREND ENGINE ---
     // Calculate on the fly using the passed history subset
-    val trendResult = remember(history, index) {
+    val regressed = remember(history, index) {
         val relevantHistory = if (history.isNotEmpty()) history.drop(index) else listOf(point)
         val nativeList = relevantHistory.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) }
         tk.glucodata.logic.TrendEngine.calculateTrend(nativeList, useRaw = (viewMode == 1 || viewMode == 3), isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit))
+    }
+    // A row states one movement. Where the Δ knows it, the arrow says the same thing rather
+    // than the longer regression, which answers a different question and can point the other
+    // way during a reversal — Δ −5 beside an arrow up is the app contradicting itself.
+    val trendResult = remember(regressed, deltaRateMgdlPerMinute) {
+        rowTrendResult(regressed, deltaRateMgdlPerMinute)
     }
 
     Surface(
@@ -259,24 +271,13 @@ fun ReadingRow(
             val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             val isRawModeRR = viewMode == 1 || viewMode == 3
             val calibrationSensorId = sensorId?.takeIf { it.isNotBlank() }
-            val hasCalibrationRR = !tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(
-                    isRawModeRR,
-                    calibrationSensorId
-                )
-            val calibratedValueRR = if (hasCalibrationRR) {
-                val baseValue = if (isRawModeRR) point.rawValue else point.value
-                if (baseValue.isFinite() && baseValue > 0.1f) {
-                    tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                        baseValue,
-                        point.timestamp,
-                        isRawModeRR,
-                        sensorIdOverride = calibrationSensorId
-                    )
-                } else {
-                    null
-                }
-            } else null
+            // Recorded value if this reading has one, otherwise the projection —
+            // see SealedGlucoseValue for why every surface asks the same way.
+            val calibratedValueRR = SealedGlucoseValue.calibratedFor(
+                point = point,
+                isRawMode = isRawModeRR,
+                sensorId = calibrationSensorId
+            )
             val dvs = getDisplayValues(point, viewMode, unit, calibratedValueRR)
             val primaryBaseColor = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             // Multi-sensor: every sensor's value carries a subtle identity tint
@@ -384,23 +385,11 @@ fun ReadingRow(
                     peerMode,
                     calibrations
                 ) {
-                    if (!tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                        tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModePeer, peerSensorId)
-                    ) {
-                        val baseValue = if (isRawModePeer) peer.rawValue else peer.value
-                        if (baseValue.isFinite() && baseValue > 0.1f) {
-                            tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                                baseValue,
-                                peer.timestamp,
-                                isRawModePeer,
-                                sensorIdOverride = peerSensorId
-                            )
-                        } else {
-                            null
-                        }
-                    } else {
-                        null
-                    }
+                    SealedGlucoseValue.calibratedFor(
+                        point = peer,
+                        isRawMode = isRawModePeer,
+                        sensorId = peerSensorId
+                    )
                 }
                 val peerTrendResult = remember(peer.timestamp, peer.sensorSerial, peerSensorSeries, peerMode, unit) {
                     val nativeList = MultiSensorDisplay.recentWindow(
@@ -876,4 +865,18 @@ fun JournalTimelineRow(
             }
         }
     }
+}
+
+/**
+ * The arrow's own reading of a row: the movement the Δ beside it states when there is one,
+ * the regression otherwise. Only the velocity and the state it maps to are replaced; how
+ * confident and how noisy the neighbourhood is are properties of the data, not of which
+ * window was measured.
+ */
+internal fun rowTrendResult(
+    regressed: tk.glucodata.logic.TrendEngine.TrendResult,
+    deltaRateMgdlPerMinute: Float?,
+): tk.glucodata.logic.TrendEngine.TrendResult {
+    val rate = deltaRateMgdlPerMinute?.takeIf { it.isFinite() } ?: return regressed
+    return regressed.copy(state = tk.glucodata.logic.TrendEngine.stateFor(rate), velocity = rate)
 }
