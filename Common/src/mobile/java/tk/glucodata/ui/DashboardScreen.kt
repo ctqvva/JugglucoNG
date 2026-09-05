@@ -396,6 +396,9 @@ fun DashboardScreen(
         // calibrations are re-paired once here rather than only on a live edit.
         tk.glucodata.data.calibration.JournalCalibrationSync.onAppStart()
     }
+    // The alarm quiet window: header chip + dialog.
+    val quietWindowUntilMs by viewModel.quietWindowUntilMs.collectAsState()
+    var showQuietWindowDialog by remember { mutableStateOf(false) }
     // State for wizards (matching SensorScreen pattern)
     var showSibionicsWizard by remember { mutableStateOf(false) }
     var showLibreWizard by remember { mutableStateOf(false) }
@@ -680,6 +683,10 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showQuietWindowDialog) {
+        tk.glucodata.ui.alerts.QuietWindowDialog(onDismiss = { showQuietWindowDialog = false })
     }
 
     // Sibionics Setup Wizard (Full Screen)
@@ -1372,6 +1379,8 @@ fun DashboardScreen(
                             showDelta = dashboardShowDelta,
                             deltaIntervalMinutes = deltaIntervalMinutes,
                             arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
+                            quietWindowUntilMs = quietWindowUntilMs,
+                            onQuietWindowClick = { showQuietWindowDialog = true },
                             onHeroClick = {
                                 val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                 val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1663,6 +1672,8 @@ fun DashboardScreen(
                             showDelta = dashboardShowDelta,
                             deltaIntervalMinutes = deltaIntervalMinutes,
                             arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
+                            quietWindowUntilMs = quietWindowUntilMs,
+                            onQuietWindowClick = { showQuietWindowDialog = true },
                             onHeroClick = {
                                 val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                 val rawVal = latestPoint?.rawValue ?: autoVal

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
@@ -492,6 +494,16 @@ class DashboardViewModel(
 
     private val _alertsMasterEnabled = MutableStateFlow(false)
     val alertsMasterEnabled = _alertsMasterEnabled.asStateFlow()
+
+    /** End of the running alarm quiet window, 0 when none: the dashboard's chip. */
+    val quietWindowUntilMs: kotlinx.coroutines.flow.StateFlow<Long> =
+        tk.glucodata.alerts.QuietWindow.state
+            .map { it.untilMs }
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                tk.glucodata.alerts.QuietWindow.state.value.untilMs
+            )
 
     private var collectionMode = CollectionMode.INACTIVE
     private var currentReadingJob: Job? = null
