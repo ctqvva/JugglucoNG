@@ -101,4 +101,67 @@ class GlucosePointSegmentsTests {
         rawValue = 95f,
         sensorSerial = sensorSerial
     )
+
+    /**
+     * The reported artifact: a one-minute hole in the live stream filled by a row
+     * no sensor owns, which the merge keeps on purpose.
+     *
+     * Breaking on it drew two holes with an orphaned fragment between them, at a
+     * moment when nothing was actually missing. Nothing here is more than a
+     * minute apart, so the only thing that could have split it was identity.
+     */
+    @Test
+    fun split_doesNotBreakForARowNoSensorOwns() {
+        val segments = GlucosePointSegments.split(
+            listOf(
+                point(1 * MINUTE_MS, "sensor-a"),
+                point(2 * MINUTE_MS, "sensor-a"),
+                point(3 * MINUTE_MS, "unknown"),
+                point(4 * MINUTE_MS, "sensor-a"),
+                point(5 * MINUTE_MS, "sensor-a")
+            )
+        )
+
+        assertEquals(listOf(5), segments.map { it.size })
+    }
+
+    @Test
+    fun split_doesNotBreakForAnImportedRowEither() {
+        val segments = GlucosePointSegments.split(
+            listOf(
+                point(1 * MINUTE_MS, "sensor-a"),
+                point(2 * MINUTE_MS, tk.glucodata.data.HistoryRepository.IMPORTED_SENSOR_SERIAL),
+                point(3 * MINUTE_MS, "sensor-a")
+            )
+        )
+
+        assertEquals(listOf(3), segments.map { it.size })
+    }
+
+    /**
+     * A real swap still breaks, even with an unowned row sitting on the boundary.
+     *
+     * This is what makes the rule "compare with the last owned serial" rather
+     * than "compare with the previous point": pairwise, neither
+     * sensor-old→unknown nor unknown→sensor-new differs, and a genuine handover
+     * would draw as one continuous line.
+     *
+     * The unowned row joins the run before it. Nothing attributes it to either
+     * sensor, so the choice is arbitrary; being contiguous with what precedes it
+     * at least makes it deterministic.
+     */
+    @Test
+    fun split_stillBreaksBetweenTwoRealSensorsSeparatedByAnUnownedRow() {
+        val segments = GlucosePointSegments.split(
+            listOf(
+                point(1 * MINUTE_MS, "sensor-old"),
+                point(2 * MINUTE_MS, "unknown"),
+                point(3 * MINUTE_MS, "sensor-new")
+            )
+        )
+
+        assertEquals(2, segments.size)
+        assertEquals(listOf("sensor-old", "sensor-new"), segments.map { it.first().sensorSerial })
+        assertEquals(listOf(2, 1), segments.map { it.size })
+    }
 }

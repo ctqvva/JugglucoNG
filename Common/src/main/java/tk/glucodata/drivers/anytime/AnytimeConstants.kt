@@ -18,6 +18,16 @@ import java.util.Locale
 import java.util.UUID
 
 object AnytimeConstants {
+    // Precompiled once. These were built inline on every call, and because
+    // SensorIdentity.matches -> managedMatches asks every driver adapter to
+    // canonicalise both ids, a single identity comparison compiled a fresh
+    // java.util.regex.Pattern (ICU native) per adapter per side. A stuck-main-thread
+    // stack dump landed in Pattern.compile beneath canonicalSensorId, and that path
+    // runs per reading, per sensor, per UI snapshot and per notification build.
+    private val MAC_WITH_COLONS: Regex = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16: Regex = Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12: Regex = Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE)
+    private val PLAIN_HEX_12_16_CASE_SENSITIVE: Regex = Regex("^[0-9A-F]{12,16}$")
 
     // ---- Logging tag ----
 
@@ -109,6 +119,9 @@ object AnytimeConstants {
     /** CT5 encrypted QR/KR query. Body: {0x3F, 0x55, 0xAA, sum}. */
     const val TX_CT5_QUERY_SSN: Byte = 0x3F
 
+    /** CT5 end-cycle/unbind request. Body: {0x0A, temporaryId[4], sum}. */
+    const val TX_CT5_END_CYCLE: Byte = TX_UNBIND
+
     // ---- Sensor → phone notification opcodes (RX) ----
 
     const val RX_VERSION: Byte = 0x01
@@ -134,6 +147,9 @@ object AnytimeConstants {
 
     /** Unbind ack. */
     const val RX_UNBIND_ACK: Byte = 0x0A
+
+    /** Ack for the SDK's family-less `unBindRequest()` — `{0x58, 0x55, 0xAA, 0x57}`. */
+    const val RX_UNBIND_ACK_GENERIC: Byte = 0x58
 
     /** K/R upload ack. */
     const val RX_INPUT_KR_ACK: Byte = 0x0B
@@ -246,6 +262,14 @@ object AnytimeConstants {
     /** Warmup window before reliable readings. */
     const val DEFAULT_WARMUP_MINUTES = 60
 
+    /**
+     * CT5 warm-up. Hardware evidence (fresh activation trace 2026-08-17): live
+     * records start at glucoseId=0 and carry valid telemetry but no glucose;
+     * the first non-zero glucose arrived at id=14, i.e. 14 x 3 min = 42 min.
+     * 45 minutes is the vendor-rounded window that covers it.
+     */
+    const val CT5_WARMUP_MINUTES = 40
+
     /** Watchdog — official app's pullDataDelay is 190 s. */
     const val PULL_WATCHDOG_SECONDS = 190L
 
@@ -284,8 +308,9 @@ object AnytimeConstants {
     /**
      * Per-prefix descriptor. `algorithm` is the int the JNI uses to dispatch into
      * the correct chemistry-specific pipeline inside libalgorithm-jni.so.
-     * `endNumber` is the approximate maximum 3-minute record count before the
-     * session ends (vendor tables include a small initialization allowance).
+     * `endNumber` is the vendor's nominal record horizon (vendor tables include
+     * a small initialization allowance). CT5 firmware may continue emitting
+     * live ids beyond this value, so it is not a hard BLE/history boundary.
      */
     data class FamilyEntry(
         val prefix: String,
@@ -384,8 +409,8 @@ object AnytimeConstants {
         val trimmed = name?.trim().orEmpty()
         if (trimmed.isEmpty()) return false
         if (isProvisionalSensorId(trimmed)) return true
-        return Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed) ||
-            Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)
+        return MAC_WITH_COLONS.matches(trimmed) ||
+            PLAIN_HEX_12_16.matches(trimmed)
     }
 
     @JvmStatic
@@ -400,10 +425,10 @@ object AnytimeConstants {
     fun canonicalSensorId(sensorId: String?): String {
         val trimmed = sensorId?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
-        if (Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (MAC_WITH_COLONS.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).replace(":", "")
         }
-        if (Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE).matches(trimmed)) {
+        if (PLAIN_HEX_12_16.matches(trimmed)) {
             return trimmed.uppercase(Locale.US).take(MAX_NATIVE_SENSOR_ID_CHARS)
         }
         return trimmed
@@ -412,7 +437,7 @@ object AnytimeConstants {
     @JvmStatic
     fun macAddressFromSensorId(sensorId: String?): String? {
         val canonical = canonicalSensorId(sensorId)
-        if (!Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE).matches(canonical)) return null
+        if (!PLAIN_HEX_12.matches(canonical)) return null
         return canonical.chunked(2).joinToString(":")
     }
 
@@ -435,7 +460,7 @@ object AnytimeConstants {
     @JvmStatic
     fun deriveInitialSensorId(deviceName: String?, address: String?): String {
         val addr = canonicalSensorId(address)
-        if (addr.isNotEmpty() && Regex("^[0-9A-F]{12,16}$").matches(addr)) return addr
+        if (addr.isNotEmpty() && PLAIN_HEX_12_16_CASE_SENSITIVE.matches(addr)) return addr
         val fallback = deviceName?.trim().orEmpty()
             .uppercase(Locale.US)
             .filter { it.isLetterOrDigit() }
@@ -466,6 +491,33 @@ object AnytimeConstants {
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "anytime_temp_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
+
+    /** Learned mg/dL-per-nA for a CT5, and how many readings taught it. */
+    const val PREF_CT5_RAW_SCALE_PREFIX = "anytime_ct5_raw_scale_"
+    const val PREF_CT5_RAW_SCALE_SAMPLES_PREFIX = "anytime_ct5_raw_scale_n_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
+    const val PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX = "anytime_ct5_recovery_cipher_"
+    const val PREF_CT5_RECOVERY_RANDOM_B_PREFIX = "anytime_ct5_recovery_randomb_"
+    const val PREF_CT5_RECOVERY_TEMP_ID_PREFIX = "anytime_ct5_recovery_tempid_"
+
+    /**
+     * Highest CT5 glucose id whose computed record we have actually imported.
+     * Distinct from PREF_LAST_GLUCOSE_ID_PREFIX, which also advances on
+     * warm-up/no-glucose frames that carry no point to store.
+     */
+    const val PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX = "anytime_ct5_imported_id_"
+
+    /** Pending CT5 gap repair (inclusive start / exclusive end), so an interrupted
+     *  repair survives a process restart instead of being replayed from zero. */
+    const val PREF_CT5_GAP_FROM_PREFIX = "anytime_ct5_gap_from_"
+    const val PREF_CT5_GAP_STOP_BEFORE_PREFIX = "anytime_ct5_gap_stop_"
+
+    /** Auto-repair ids the transmitter repeatedly proved it cannot currently serve. */
+    const val PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX = "anytime_ct5_skipped_history_ids_"
+    /** CT5 history ids the transmitter returned, including points already present in Room. */
+    const val PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX = "anytime_ct5_resolved_history_ids_"
+    const val PREF_CT5_GAP_FAILURE_FROM_PREFIX = "anytime_ct5_gap_failure_from_"
+    const val PREF_CT5_GAP_FAILURE_STOP_PREFIX = "anytime_ct5_gap_failure_stop_"
+    const val PREF_CT5_GAP_FAILURE_COUNT_PREFIX = "anytime_ct5_gap_failure_count_"
 }

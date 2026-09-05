@@ -153,8 +153,9 @@ static char *librehistel(const LibreHistEl *el, const int64_t histor,
     "timestamp": "2023-09-08T21:57:38.000+02:00"
  } */
 
-static char *libreScanel(const ScanData &scanel, const int16_t nr, char *ptr) {
-  const auto mgdL = scanel.getmgdL();
+static char *libreScanel(const SensorGlucoseData *sens, const ScanData &scanel,
+                         const int16_t nr, char *ptr) {
+  const auto mgdL = libreviewExportedMgdl(sens, scanel.gettime(), scanel.getmgdL());
   valuestart(ptr, mgdL);
   int mil = 0;
   ptr += TdatestringGMT(scanel.gettime(), mil, ptr);
@@ -301,6 +302,8 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
   for (const ScanData *iter = found; iter <= laststream;) {
     uint64_t timesum = 0LL;
     double glusum = 0.0;
+    double rawsum = 0.0;
+    int rawnum = 0;
     int num = 0;
     const int nextid = id + periodright;
     if (nextid > laststreamid)
@@ -309,6 +312,10 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
       //        LOGGER("id %d\n",iter->id);
       timesum += iter->t;
       glusum += iter->g;
+      if (const int raw = sensdata->getRawForPoll(iter); raw > 0) {
+        rawsum += raw;
+        ++rawnum;
+      }
       useddata = iter;
       ++num;
       do {
@@ -318,8 +325,14 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
     }
   ENDINLOOP:
     if (num) {
-      list[datuit].ti = timesum / num;
-      list[datuit].mgdL = (int16_t)round(glusum / num);
+      //Average first, then calibrate, exactly as the Nightscout uploader does, so both
+      //destinations carry the same series rather than two roundings of it.
+      const uint32_t avgtime = timesum / num;
+      const int avgmgdl = (int)round(glusum / num);
+      const int avgraw = rawnum ? (int)lround(rawsum / rawnum) : 0;
+      list[datuit].ti = avgtime;
+      list[datuit].mgdL =
+          (int16_t)libreviewExportedMgdl(sensdata, avgtime, avgmgdl, avgraw);
       list[datuit++].id = id;
       //    LOGGER("in id=%d\n",id);
     }
@@ -444,9 +457,10 @@ bool putwhenneeded(bool libre3, SensorGlucoseData *sensdata) {
   }
 }
 extern int betweenviews;
-static char *onecurrent(const ScanData &scanel, const int nr, char *ptr,
-                        bool isviewed) {
-  const auto mgdL = scanel.getmgdL();
+static char *onecurrent(const SensorGlucoseData *sens, const ScanData &scanel,
+                        const int nr, char *ptr, bool isviewed) {
+  const auto mgdL = libreviewExportedMgdl(sens, scanel.gettime(), scanel.getmgdL(),
+                                          sens ? sens->getRawForPoll(&scanel) : 0);
   valuestart(ptr, mgdL);
   int mil = getmmsec();
   auto wastime = scanel.gettime();
@@ -472,7 +486,7 @@ static void addoldcurrents(char *&uitptr, const SensorGlucoseData *sens,
   for (int i : viewed) {
     if (i >= start && i < current) {
       const ScanData *el = startstream + i;
-      uitptr = onecurrent(*el, i, uitptr, true);
+      uitptr = onecurrent(sens, *el, i, uitptr, true);
       *uitptr++ = ',';
     }
   }
@@ -535,7 +549,7 @@ betweenviews
               }
            }*/
       }
-      uitptr = onecurrent(*el, i, uitptr, isViewed);
+      uitptr = onecurrent(sens, *el, i, uitptr, isViewed);
       *uitptr++ = ',';
       addoldcurrents(uitptr, sens, start, id);
       return ends;
@@ -662,7 +676,11 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
 #else
   constexpr const int bytesnumbers = 0;
 #endif
-  if (!nrscans && !histtotal && !bytesnumbers && !hasnewcurrent) {
+  //Journal entries are pending from the moment they are rendered until the document is
+  //answered, so the guard releases them on every path out of here that is not a success.
+  const int journalbytes = libreviewJournalPrepare(false);
+  destruct _journal([] { libreviewJournalDiscard(); });
+  if (!nrscans && !histtotal && !bytesnumbers && !journalbytes && !hasnewcurrent) {
     LOGAR("libreview not needed");
     return true;
   }
@@ -707,7 +725,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
       350 + timeuitlen + aftercurrents.size() + afterdevice2.size() +
       afterlocalstartime.size() + afterhists.size() + afterscans.size() +
       usertokenlen + aftertoken.size() + nrscans * scanelsize +
-      afterfood.size() + afterinsulin.size();
+      afterfood.size() + afterinsulin.size() + journalbytes;
 
 #ifndef NOLOG
 
@@ -779,9 +797,18 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
   uitptr += devicelen;
 
   addstrview(uitptr, afterdevice2);
-  uitptr += numbers.writeallfood(uitptr);
+  {
+    //Journal entries first, then the legacy store's. Each journal entry ends in a comma,
+    //writeallfood drops its own last one, so only a journal-only array needs trimming.
+    char *foodstart = uitptr;
+    uitptr += libreviewJournalWrite(uitptr, libreviewJournalFood);
+    uitptr += numbers.writeallfood(uitptr);
+    if (uitptr > foodstart && uitptr[-1] == ',')
+      --uitptr;
+  }
   addstrview(uitptr, afterfood);
   const char *startptr = uitptr;
+  uitptr += libreviewJournalWrite(uitptr, libreviewJournalNotes);
   uitptr += numbers.writeallnotes(uitptr);
   uitptr +=
       makesensorstarts(lists + startsensor, senslen - startsensor, uitptr);
@@ -789,7 +816,13 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
     --uitptr;
   addstrview(uitptr, afterlocalstartime);
   LOGAR("before numbers.writeallinsulin(uitptr)");
-  uitptr += numbers.writeallinsulin(uitptr);
+  {
+    char *insulinstart = uitptr;
+    uitptr += libreviewJournalWrite(uitptr, libreviewJournalInsulin);
+    uitptr += numbers.writeallinsulin(uitptr);
+    if (uitptr > insulinstart && uitptr[-1] == ',')
+      --uitptr;
+  }
   LOGAR("after numbers.writeallinsulin(uitptr)");
   addstrview(uitptr, afterinsulin);
 
@@ -825,7 +858,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
              ++iter) {
           ++id;
           if (iter->valid() && iter->gettime() > starttimeiter) {
-            uitptr = libreScanel(*iter, id, uitptr);
+            uitptr = libreScanel(sensdata, *iter, id, uitptr);
             *uitptr++ = ',';
             ++scansiter;
           }
@@ -851,7 +884,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
   //    write(STDOUT_FILENO,uitbuf,uitlen);
   LOGGER("uitlen=%d\n", uitlen);
   logwriter(uitbuf, uitlen);
-  if (!currentToSend && scansiter == 0 && !histtotal && !bytesnumbers) {
+  if (!currentToSend && scansiter == 0 && !histtotal && !bytesnumbers && !journalbytes) {
     LOGAR("Nothing to write to libreview");
     return true;
   }
@@ -864,6 +897,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
   if (datasend) {
     LOGAR("libresendmeasurements success");
     numbers.onSuccess();
+    libreviewJournalCommit();
     if (currentsend > 0) {
       currentsensor->getinfo()->libreCurrentIter = currentsend + 1;
       currentsensor->getinfo()->sendsensorstart = true;

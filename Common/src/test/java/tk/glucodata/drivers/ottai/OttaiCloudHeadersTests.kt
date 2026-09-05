@@ -10,34 +10,45 @@ import org.json.JSONObject
 class OttaiCloudHeadersTests {
 
     @Test
-    fun legacyBindUsesUserIdContract() {
+    fun legacyBindKeepsProvenBodyShape() {
         val body = OttaiCloudClient.bindRequestBody(
             mac = "001122334455",
             deviceVersion = "V2.5.S2417.2",
             userId = "test-user",
-            activeTimeMs = 123L,
+            activeTime = 123_456L,
             contract = OttaiCloudClient.BindContract.LEGACY,
         )
 
+        assertEquals("001122334455", body.getString("mac"))
+        assertEquals("cgm", body.getString("deviceType"))
         assertEquals("test-user", body.getString("userId"))
+        assertEquals(123_456L, body.getLong("activeTime"))
         assertFalse(body.has("patientId"))
         assertFalse(body.has("newBindType"))
     }
 
     @Test
-    fun v3BindUsesNullPatientContract() {
+    fun v3BindMatchesOfficialRecoveredShape() {
+        // Official builder branch B (0x7aef88): {mac, deviceType:cgm, deviceVersion,
+        // activeTime(seconds), userId, newBindType:2} — no patientId, no auth-field echo.
         val body = OttaiCloudClient.bindRequestBody(
             mac = "001122334455",
             deviceVersion = "E1.1.4(V1.7.S2530.1)",
-            userId = "must-not-leak",
-            activeTimeMs = 123L,
+            userId = "test-user",
+            activeTime = 123_456L,
             contract = OttaiCloudClient.BindContract.V3,
         )
 
-        assertTrue(body.has("patientId"))
-        assertEquals(JSONObject.NULL, body.get("patientId"))
-        assertFalse(body.has("userId"))
+        assertEquals("cgm", body.getString("deviceType"))
+        assertEquals("E1.1.4(V1.7.S2530.1)", body.getString("deviceVersion"))
+        assertEquals("test-user", body.getString("userId"))
+        assertEquals(123_456L, body.getLong("activeTime"))
         assertEquals(2, body.getInt("newBindType"))
+        assertFalse(body.has("patientId"))
+        assertFalse(body.has("sign"))
+        assertFalse(body.has("colorBoxTailSn"))
+        assertFalse(body.has("keyC"))
+        assertFalse(body.has("boardType"))
     }
 
     @Test
@@ -62,44 +73,6 @@ class OttaiCloudHeadersTests {
                 OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
             ),
         )
-    }
-
-    @Test
-    fun v3BindOmitsSensorAuthUntilActiveAuthRuns() {
-        val body = OttaiCloudClient.bindRequestBody(
-            mac = "001122334455",
-            deviceVersion = "E1.1.4(V1.7.S2530.1)",
-            userId = null,
-            activeTimeMs = 123L,
-            contract = OttaiCloudClient.BindContract.V3,
-            v3Auth = null,
-        )
-        assertFalse(body.has("sign"))
-        assertFalse(body.has("colorBoxTailSn"))
-        assertFalse(body.has("keyC"))
-        assertFalse(body.has("boardType"))
-    }
-
-    @Test
-    fun v3BindIncludesSensorAuthWhenPresent() {
-        val body = OttaiCloudClient.bindRequestBody(
-            mac = "001122334455",
-            deviceVersion = "E1.1.4(V1.7.S2530.1)",
-            userId = null,
-            activeTimeMs = 123L,
-            contract = OttaiCloudClient.BindContract.V3,
-            v3Auth = OttaiCloudClient.V3BindAuth(
-                sign = "abc123",
-                colorBoxTailSn = "TAIL42",
-                keyC = "CCEE",
-                boardType = "M8",
-            ),
-        )
-        assertEquals("abc123", body.getString("sign"))
-        assertEquals("TAIL42", body.getString("colorBoxTailSn"))
-        assertEquals("CCEE", body.getString("keyC"))
-        assertEquals("M8", body.getString("boardType"))
-        assertEquals(2, body.getInt("newBindType"))
     }
 
     @Test
@@ -231,12 +204,99 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
+    fun cgmAuthVerifyUsesRecoveredMd5Signer() {
+        // CONFIRMED from live Frida capture and caller disassembly:
+        // appName + deviceId + mac + paramStr + shaInfo + timestamp_ms + SEED.
+        // See AGENTS/docs/protocols/ottai/cgmauth-sign-formula.md
+        assertEquals(
+            "f400087fa9b5e142bd8553630e3a5c0f",
+            OttaiCloudClient.cgmAuthVerifySign(
+                profile = OttaiRegistry.SessionProfile.CN_PHONE,
+                deviceId = "n:b143d5c5-53b4-3ae0-880f-10320c96b111",
+                timestampMillis = 1_787_444_389_880L,
+                mac = "6CA04230E260",
+                paramStr = "d300030078dbfd00c837d1a611a21c5ad81a932022be36a4bc5e13e8b35446edd69568bfcc23f45172966df4e1c9d28488a08066c891f2ef5f44902f872950b9134b3772",
+                shaInfo = "0000000000000000000000000000000000000000000000000000000000000000",
+            )
+        )
+    }
+
+    @Test
+    fun cgmAuthHeaderTimestampUsesSignerMilliseconds() {
+        val timestampMillis = 1_234_567_890L
+        val headers = OttaiCloudClient.cnPhoneHeaders(
+            deviceId = "test-device",
+            accessToken = "test-token",
+            timestamp = timestampMillis,
+            traceId = "test-trace",
+        )
+        assertEquals(timestampMillis.toString(), headers["timestamp"])
+    }
+
+    @Test
+    fun cgmAuthVerifyUsesSignBodyField() {
+        val body = OttaiCloudClient.cgmAuthVerifyRequestBody(
+            mac = "18690ADED9B3",
+            paramStr = "01ab",
+            shaInfo = "aabb",
+            sign = "signed",
+            timestampMillis = 1_234_567_890L,
+        )
+
+        assertEquals("18690ADED9B3", body.getString("mac"))
+        assertEquals("01AB", body.getString("paramStr"))
+        assertEquals("AABB", body.getString("shaInfo"))
+        assertEquals("signed", body.getString("sign"))
+        assertEquals("1234567890", body.getString("timestamp"))
+        assertFalse(body.has("signature"))
+    }
+
+    @Test
     fun legacyOrUnknownSessionProfileStaysOnWatchIdentity() {
         assertEquals(OttaiRegistry.SessionProfile.WATCH, OttaiRegistry.parseSessionProfile(null))
         assertEquals(OttaiRegistry.SessionProfile.WATCH, OttaiRegistry.parseSessionProfile("unknown"))
         assertEquals(
             OttaiRegistry.SessionProfile.CN_PHONE,
             OttaiRegistry.parseSessionProfile(OttaiRegistry.SessionProfile.CN_PHONE.name),
+        )
+    }
+
+    @Test
+    fun cnHeaderUsesOfficialIdentitySuffixAndRejectsBuildId() {
+        val official = "A1B2C3D4E5F6G7H8J9K0LMNOPQRSTUVW"
+        val native = "n:8d4b44d5-df3a-3421-8866-9ade268285b2"
+        assertEquals("g:$official", OttaiRegistry.cnHeaderDeviceId(" $official ", "legacy"))
+        assertEquals("g:$official", OttaiRegistry.cnHeaderDeviceId("g:$official", "legacy"))
+        assertEquals(native, OttaiRegistry.cnHeaderDeviceId(native, "legacy"))
+        assertEquals(native, OttaiRegistry.cnHeaderDeviceId("ottai:a:$native", "legacy"))
+        assertEquals("legacy", OttaiRegistry.cnHeaderDeviceId("CP41.260731.005.B1", "legacy"))
+        assertEquals("legacy", OttaiRegistry.cnHeaderDeviceId("1234567890abcdef", "legacy"))
+        assertEquals("legacy", OttaiRegistry.cnHeaderDeviceId("", "legacy"))
+        assertEquals("legacy", OttaiRegistry.cnHeaderDeviceId(null, "legacy"))
+    }
+
+    @Test
+    fun cnNativeDeviceIdMatchesOfficialUuidDerivation() {
+        assertEquals(
+            "8d4b44d5-df3a-3421-8866-9ade268285b2",
+            OttaiRegistry.nativeCnDeviceId(
+                androidId = "android-id",
+                board = "board",
+                brand = "brand",
+                device = "device",
+                model = "model",
+                product = "product",
+            ),
+        )
+        assertNull(
+            OttaiRegistry.nativeCnDeviceId(
+                androidId = "9774d56d682e549c",
+                board = "board",
+                brand = "brand",
+                device = "device",
+                model = "model",
+                product = "product",
+            ),
         )
     }
 

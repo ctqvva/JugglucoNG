@@ -31,6 +31,17 @@
     <item name="android:paddingRight">20dp</item>
 </style>
 
+<!-- The pen receiver draws nothing: it reads the tag it was started for and finishes.
+     Translucent rather than NoDisplay, because it has to stay alive for the few
+     seconds the read takes. -->
+<style name="Theme.PenTagReceiver" parent="android:Theme.Translucent.NoTitleBar">
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:windowAnimationStyle">@null</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:backgroundDimEnabled">false</item>
+</style>
+
 
 
 </resources>

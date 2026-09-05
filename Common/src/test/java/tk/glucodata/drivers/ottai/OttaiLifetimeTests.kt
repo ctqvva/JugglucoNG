@@ -7,6 +7,26 @@ import org.junit.Test
 
 class OttaiLifetimeTests {
     @Test
+    fun v3EpochSecondsAreNormalizedToPersistenceMilliseconds() {
+        assertEquals(1_787_489_036_000L, normalizeOttaiActiveTimeMs(1_787_489_036L))
+        assertEquals(1_787_489_036_000L, normalizeOttaiActiveTimeMs(1_787_489_036_000L))
+        assertEquals(0L, normalizeOttaiActiveTimeMs(0L))
+    }
+
+    @Test
+    fun impossibleLifetimeValuesCannotProduceFarFutureEndDates() {
+        assertEquals(28L * DAY_MS, OttaiConstants.sanitizeActiveExpireMs(28L * DAY_MS))
+        assertEquals(0L, OttaiConstants.sanitizeActiveExpireMs(4_204_901_547_000L))
+        assertEquals(
+            OttaiConstants.DEFAULT_ACTIVE_EXPIRE_MS,
+            OttaiConstants.expectedLifetimeMs(
+                cloudActiveExpireMs = 4_204_901_547_000L,
+                acceptedMaxActiveMs = 0L,
+            ),
+        )
+    }
+
+    @Test
     fun activationNegotiatesDownToCloudRatedLifetime() {
         val cloudFourteenDays = 14L * DAY_MS
 

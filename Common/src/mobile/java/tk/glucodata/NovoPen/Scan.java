@@ -27,6 +27,7 @@ import static tk.glucodata.ScanNfcV.failure;
 import static tk.glucodata.ScanNfcV.getvibrator;
 import static tk.glucodata.ScanNfcV.startvibration;
 
+import android.content.Context;
 import android.nfc.Tag;
 
 import tk.glucodata.NovoPen.opennov.OpContext;
@@ -46,6 +47,15 @@ public class Scan {
     static final private String LOG_ID = "Scan";
 
     static public void onTag(MainActivity act, Tag tag) {
+        onTag(act, tag, false);
+    }
+
+    /**
+     * The one read path. {@code unattended} is the background receiver's case: the app
+     * is not in front, so the result goes to the journal and a notification rather than
+     * to the review sheet.
+     */
+    static public void onTag(Context act, Tag tag, boolean unattended) {
         // Every ISO-DEP tag the phone sees while Juggluco is in front lands here. Without
         // pen support switched on, that tag is somebody's bank card and none of our business.
         if (!InsulinPenManager.isEnabled()) {
@@ -78,7 +88,11 @@ public class Scan {
         } else if (op.doses == null) {
             Log.e(LOG_ID, "op.doses==null");
         } else {
-            InsulinPenManager.onScanned(op.specification.getSerial(), op.doses);
+            if (unattended) {
+                InsulinPenManager.onScannedUnattended(op.specification.getSerial(), op.doses);
+            } else {
+                InsulinPenManager.onScanned(op.specification.getSerial(), op.doses);
+            }
             return;
         }
 

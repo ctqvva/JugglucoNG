@@ -209,6 +209,8 @@ inline void addjsonstring(char *&outptr,std::string_view value) {
 
 int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
                         const sensorname_t *sensorname);
+int resolveExportedMgdlAt(const SensorGlucoseData *sens, const sensorname_t *sensorname,
+                          const uint32_t tim, const int storedMgdl, const int rawCurrent);
 const ScanData *makeExportedScan(const SensorGlucoseData *sens,
                                  const ScanData *val,
                                  const sensorname_t *sensorname,

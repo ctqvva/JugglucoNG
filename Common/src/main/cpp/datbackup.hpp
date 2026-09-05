@@ -246,6 +246,10 @@ static constexpr const uintptr_t wakeend = 64;
 static constexpr const uintptr_t wakesend = 128;
 static constexpr const uintptr_t wakereconnect = 256;
 static constexpr const uintptr_t wakestreamsend = 512;
+/* Journal treatments. Their own reason: they used to travel on wakenums, which is raised by
+   the native number paths, so whether a dose reached Nightscout depended on a calibration or
+   a backup happening to come along. */
+static constexpr const uintptr_t waketreatments = 1024;
 
 class Backup {
 
@@ -262,6 +266,7 @@ public:
   static constexpr const uintptr_t wakesend = ::wakesend;
   static constexpr const uintptr_t wakereconnect = ::wakereconnect;
   static constexpr const uintptr_t wakestreamsend = ::wakestreamsend;
+  static constexpr const uintptr_t waketreatments = ::waketreatments;
   struct condvar_t {
     uintptr_t dobackup = 0;
     std::mutex backupmutex;

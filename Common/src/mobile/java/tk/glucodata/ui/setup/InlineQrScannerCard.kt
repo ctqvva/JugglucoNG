@@ -147,7 +147,15 @@ fun InlineQrScannerCard(
             )
             .build()
     }
-    val barcodeScanner = remember { BarcodeScanning.getClient(scannerOptions) }
+    val barcodeScannerResult = remember {
+        runCatching { BarcodeScanning.getClient(scannerOptions) }
+    }
+    val barcodeScanner = barcodeScannerResult.getOrNull()
+    LaunchedEffect(barcodeScannerResult) {
+        barcodeScannerResult.exceptionOrNull()?.let { throwable ->
+            scannerError = throwable.message ?: throwable.javaClass.simpleName
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -170,7 +178,7 @@ fun InlineQrScannerCard(
             camera = null
             torchEnabled = false
             analyzerExecutor.shutdown()
-            barcodeScanner.close()
+            barcodeScanner?.close()
         }
     }
 
@@ -197,10 +205,26 @@ fun InlineQrScannerCard(
         }
     }
 
-    DisposableEffect(previewView, hasPermission, lifecycleOwner, consumed, lifecycleResumed, scannerEnabled) {
+    DisposableEffect(
+        previewView,
+        hasPermission,
+        lifecycleOwner,
+        consumed,
+        lifecycleResumed,
+        scannerEnabled,
+        barcodeScanner
+    ) {
         val generation = bindingGeneration.incrementAndGet()
         val targetView = previewView
-        if (!hasPermission || targetView == null || consumed || !lifecycleResumed || !scannerEnabled) {
+        val activeBarcodeScanner = barcodeScanner
+        if (
+            !hasPermission ||
+            targetView == null ||
+            consumed ||
+            !lifecycleResumed ||
+            !scannerEnabled ||
+            activeBarcodeScanner == null
+        ) {
             camera = null
             torchEnabled = false
             onDispose { }
@@ -241,7 +265,7 @@ fun InlineQrScannerCard(
                                         imageProxy.imageInfo.rotationDegrees
                                     )
 
-                                    barcodeScanner.process(inputImage)
+                                    activeBarcodeScanner.process(inputImage)
                                         .addOnSuccessListener(mainExecutor) { barcodes ->
                                             val rawValue = barcodes
                                                 .firstNotNullOfOrNull { barcode ->

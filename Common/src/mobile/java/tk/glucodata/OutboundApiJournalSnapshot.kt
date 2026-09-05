@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.data.HistoryDatabase
@@ -230,7 +231,64 @@ object OutboundApiJournalSnapshot {
             .put("journal_cob", finiteOrNull(cob))
             .put("events", events)
             .put("treatments", events)
+            .put(OutboundApiInsulinTokens.JSON_ARRAY, insulinTypesJson(presets, entries, atMillis))
     }
+
+    /**
+     * One entry per active insulin type, feeding the per-type template tokens
+     * (see [OutboundApiInsulinTokens]). Archived types are left out: they are
+     * the ones the user turned off, and their tokens would only clutter the
+     * settings chips — insulin already injected with one still counts toward
+     * the aggregate IOB, which is computed elsewhere from the full preset list.
+     *
+     * The per-type IOB deliberately ignores `countsTowardIob`: that switch says
+     * whether a type belongs in the single `{iob}` number, and a user asking
+     * for their basal by name wants what is actually left of it. The totals are
+     * bounded by the entry window buildSnapshot loaded, which always spans at
+     * least the last 24 hours.
+     */
+    private fun insulinTypesJson(
+        presets: List<JournalInsulinPreset>,
+        entries: List<JournalEntryEntity>,
+        atMillis: Long
+    ): JSONArray {
+        val active = presets.filterNot { it.isArchived }.sortedBy { it.sortOrder }
+        val slugs = OutboundApiInsulinTokens.assignSlugs(active.map { it.displayName })
+        val dayStartMillis = startOfDayMillis(atMillis)
+        val array = JSONArray()
+        active.forEachIndexed { index, preset ->
+            val doses = entries.mapNotNull { entry ->
+                if (JournalEntryType.fromStorage(entry.entryType) != JournalEntryType.INSULIN) return@mapNotNull null
+                if (entry.insulinPresetId != preset.id) return@mapNotNull null
+                if (entry.timestamp > atMillis) return@mapNotNull null
+                val units = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
+                JournalIobCalculator.Dose(entry.timestamp, units, preset)
+            }
+            val last = doses.maxByOrNull { it.timestampMillis }
+            val todayUnits = doses
+                .filter { it.timestampMillis >= dayStartMillis }
+                .sumOf { it.amountUnits.toDouble() }
+            array.put(
+                JSONObject()
+                    .put("slug", slugs[index])
+                    .put("name", preset.displayName)
+                    .put("iob", finiteOrNull(JournalIobCalculator.compute(doses, atMillis).iobUnits))
+                    .put("last_units", finiteOrNull(last?.amountUnits))
+                    .put("last_timestamp", last?.timestampMillis ?: 0L)
+                    .put("today_units", todayUnits)
+            )
+        }
+        return array
+    }
+
+    private fun startOfDayMillis(atMillis: Long): Long =
+        Calendar.getInstance().apply {
+            timeInMillis = atMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
 
     private suspend fun importJournal(raw: String, sourcePrefix: String): Int {
         val trimmed = raw.trim()

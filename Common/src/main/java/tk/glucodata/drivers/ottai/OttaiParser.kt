@@ -9,8 +9,8 @@
 //   bytes 0..3   status/prefix (unused by the parser)
 //   bytes 4..5   frontDataNo (LE16)
 //   bytes 6..7   marker/count (LE16; history continuation)
-//   bytes 8..N   8-byte records
-// Each 8-byte record becomes a 12-byte parser input:
+//   bytes 8..N   8- or 9-byte records (the E1.1 version string is ambiguous)
+// Each BLE record becomes a 12-byte parser input:
 //   {0x00,0x00} || LE16(frontDataNo + recordIndex) || record8
 // 12-byte record fields:
 //   [2..3] dataNo LE16
@@ -47,7 +47,7 @@ object OttaiParser {
 
     const val HEADER_SIZE = 8
     const val BLE_RECORD_SIZE = 8
-    /** E1.2 firmware packs 9-byte live records with a different field layout. */
+    /** Some V1.7 devices pack 9-byte records with a different field layout. */
     const val BLE_RECORD_SIZE_E12 = 9
     const val PARSER_RECORD_SIZE = 12
     const val INVALID_DATA_NO = 65535
@@ -55,15 +55,15 @@ object OttaiParser {
     /**
      * Choose the BLE record size for a decrypted payload.
      *
-     * The layout discriminator is the firmware's E-number, NOT its V-number. Both
-     * E1.1.4(V1.7.S2530.1) and E1.2.3(V1.7.SH2542.1) say "V1.7" while shipping different
-     * records — 8-byte and 9-byte respectively — so treating "V1.7" as confirmation of the
-     * 9-byte layout mis-framed every E1.1 sensor: in the 2026-08-11 Syai trace the device
-     * put 20 records in a 168-byte frame (8 + 20*8, next frame front=20) and the parser read
-     * 17, decoding temperatures like 571 °C and storing a fabricated 38.7 mmol/L.
+     * The version string is not a sufficient discriminator. A 2026-08-11 Syai and the
+     * 2026-08-23 CN V3 sensor both report E1.1.4(V1.7.S2530.1), but the Syai puts 20
+     * 8-byte records in a 168-byte frame while the CN V3 sensor advances 18 records per
+     * 176-byte frame and uses the 9-byte field layout. Hard-coding E1.1 to 8 bytes therefore
+     * decodes the V3 stream as temperatures over 500 °C and currents near zero.
      *
-     * Only E-families decoded on hardware are trusted outright. Anything else is inferred
-     * from the data, and that inference uses the vendor's OWN validity gate (raw current
+     * Only families whose layout has stayed unambiguous on hardware are trusted outright.
+     * E1.1 is inferred from every payload. The inference uses the vendor's OWN validity gate
+     * (raw current
      * >= 1000, temperature <= 45 — a1.a.b), not a made-up physiological band: a cold reading
      * is still valid, while the mis-aligned layout loses because it decodes an impossible
      * current/temperature (e.g. 505 °C).
@@ -76,9 +76,8 @@ object OttaiParser {
         return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
     }
 
-    /** E major.minor -> record size, for the firmware families we have decoded on hardware. */
+    /** E major.minor -> record size, only for families still unambiguous on hardware. */
     private val CONFIRMED_E_FAMILIES = mapOf(
-        "1.1" to BLE_RECORD_SIZE,     // E1.1.4(V1.7.S2530.1) — Syai, 8-byte
         "1.2" to BLE_RECORD_SIZE_E12, // E1.2.3(V1.7.SH2542.1) — 9-byte
     )
 
@@ -135,7 +134,7 @@ object OttaiParser {
         val out = ArrayList<ByteArray>(count)
         for (i in 0 until count) {
             val src = HEADER_SIZE + i * bleSize
-            // E1.2 notifies pad the frame tail with zero records; skip them so the live
+            // 9-byte notifies pad the frame tail with zero records; skip them so the live
             // path's records.last() lands on the real sample.
             if (nineByte && (0 until bleSize).all { payload[src + it].toInt() == 0 }) continue
             val dataNo = (front + i) and 0xFFFF
@@ -143,7 +142,7 @@ object OttaiParser {
             rec[2] = (dataNo and 0xFF).toByte()
             rec[3] = ((dataNo ushr 8) and 0xFF).toByte()
             if (nineByte) {
-                // Transcode the 9-byte E1.2 record into the 12-byte parser layout so
+                // Transcode the 9-byte record into the 12-byte parser layout so
                 // parseRecord/formula stay unchanged. The 16-bit runtime counter wraps,
                 // so derive runtime from dataNo (= minutes since activation) instead.
                 val runtime = dataNo * 60

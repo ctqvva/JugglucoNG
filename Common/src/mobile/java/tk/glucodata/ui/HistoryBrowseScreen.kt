@@ -65,7 +65,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import tk.glucodata.R
+import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
@@ -363,6 +365,8 @@ fun HistoryBrowseScreen(
     targetLow: Float,
     targetHigh: Float,
     graphSmoothingMinutes: Int,
+    /** The window the reading itself carries here; see DataSmoothing.localSmoothingMinutes. */
+    evaluationSmoothingMinutes: Int,
     collapseSmoothedData: Boolean,
     previewWindowMode: Int,
     calibrations: List<tk.glucodata.data.calibration.CalibrationEntity>,
@@ -379,7 +383,9 @@ fun HistoryBrowseScreen(
     onJournalEntryClick: ((JournalEntry) -> Unit)? = null,
     onAddJournalEntry: ((Long, JournalEntryType?, Float?) -> Unit)? = null,
     showTransferActions: Boolean = true,
-    quickAddAlwaysNow: Boolean = false
+    quickAddAlwaysNow: Boolean = false,
+    showRowDelta: Boolean = false,
+    deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -466,8 +472,37 @@ fun HistoryBrowseScreen(
         )
     }
     val visibleSections = remember(visibleTimelineRows) { buildHistorySections(visibleTimelineRows) }
+    // The reading rows' "Δ", the dashboard's setting and function: null while the
+    // setting is off, so the row's slot stays hidden exactly as it does today. The
+    // index is built once per history; the visible window only asks it.
+    // The Δ states a movement, so it reads the reading as the app reasons with it rather
+    // than as it was stored — the same series the dashboard, the notification and the delta
+    // alarms use. Built once per history alongside the index it feeds.
+    val evaluationHistory = remember(sortedHistory, evaluationSmoothingMinutes, collapseSmoothedData) {
+        buildSmoothedConsumerHistory(
+            points = sortedHistory,
+            evaluationSmoothingMinutes = evaluationSmoothingMinutes,
+            collapseChunks = collapseSmoothedData
+        )
+    }
+    val rowDeltaIndex = remember(showRowDelta, evaluationHistory) {
+        if (showRowDelta) {
+            RowDeltaIndex(
+                evaluationHistory,
+                sameSensor = SensorIdentity::matches,
+                isShared = { HistoryRepository.isImportedHistorySerial(it) }
+            )
+        } else null
+    }
+    val rowDeltas = remember(rowDeltaIndex, visibleTimelineRows, unit, deltaIntervalMinutes) {
+        rowDeltaIndex?.deltasFor(
+            visibleTimelineRows.mapNotNull(TimelineRowItem::point),
+            tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+            deltaIntervalMinutes
+        ).orEmpty()
+    }
     val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit, activeHistory) {
-        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, activeHistory, journalFoodsById)
+        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, journalFoodsById)
     }
     val journalEntriesById = remember(filteredJournalEntries) { filteredJournalEntries.associateBy { it.id } }
 
@@ -759,6 +794,8 @@ fun HistoryBrowseScreen(
                                 index = index,
                                 totalCount = section.items.size,
                                 history = section.items.mapNotNull(TimelineRowItem::point),
+                                deltaText = rowDeltas[readingPoint]?.text,
+                                deltaRateMgdlPerMinute = rowDeltas[readingPoint]?.rateMgdlPerMinute,
                                 sensorId = sensorId,
                                 calibrations = calibrations,
                                 highlightLeadRow = false,

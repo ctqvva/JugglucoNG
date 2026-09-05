@@ -170,6 +170,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".drivers.nightscout.NightscoutFollowerPollReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".drivers.sibionics.SibionicsResetReminderReceiver"
             android:enabled="true"
             android:exported="false" />
@@ -229,6 +233,9 @@
         <activity
             android:name=".ui.AlarmActivity"
             android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"

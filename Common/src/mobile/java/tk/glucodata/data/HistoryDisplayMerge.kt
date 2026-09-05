@@ -7,6 +7,7 @@ internal object HistoryDisplayMerge {
     private const val OVERLAP_PADDING_MS = 5L * 60L * 1000L
     private const val COVERAGE_SEGMENT_GAP_MS = 15L * 60L * 1000L
 
+
     private data class LogicalSensorBucket(
         val sensorId: String,
         val bucket: Long
@@ -15,6 +16,14 @@ internal object HistoryDisplayMerge {
     private class PreferredMatchResolver(preferredSerial: String?) {
         private val canonicalPreferred = SensorIdentity.resolveAppSensorId(preferredSerial)
         private val matchCache = HashMap<String, Boolean>()
+
+        /**
+         * Whether a preferred sensor was named at all — not whether it has any
+         * readings here. The distinction matters: a selected main that has gone
+         * quiet still names a preference, and ranking the other sensors against
+         * each other is exactly what that case needs.
+         */
+        val hasPreferred: Boolean get() = canonicalPreferred != null
 
         fun matches(sensorSerial: String?): Boolean {
             val preferred = canonicalPreferred ?: return false
@@ -38,6 +47,20 @@ internal object HistoryDisplayMerge {
         }
     }
 
+    /**
+     * [readings] must be the **whole** stored timeline, not a slice of it.
+     *
+     * [applyPreferredOverlapDominance] decides which sensor wins by building the
+     * preferred sensor's coverage segments out of the rows it is handed. Given a
+     * window that contains none of that sensor's rows — any span older than the
+     * current sensor — it suppresses nothing and every other sensor draws raw;
+     * given a window that clips those rows, the segments are truncated and rows
+     * are dropped at the seam. Both were shipped once, as a bounded dashboard
+     * query, and showed up as a foreign sensor's line on the chart and a hole in
+     * the middle of it.
+     *
+     * Slice after merging, never before.
+     */
     fun mergeReadings(
         readings: List<HistoryReading>,
         preferredSerial: String?
@@ -54,7 +77,7 @@ internal object HistoryDisplayMerge {
         }
 
         val coalesced = collapseLogicalSensorBuckets(readings, resolver, logicalResolver)
-        val filtered = applyPreferredOverlapDominance(coalesced, resolver)
+        val filtered = applyPreferredOverlapDominance(coalesced, resolver, logicalResolver)
         val merged = ArrayList<HistoryReading>(filtered.size)
         var currentTimestamp = Long.MIN_VALUE
         var currentBest: HistoryReading? = null
@@ -155,45 +178,96 @@ internal object HistoryDisplayMerge {
         return byBucket.values.sortedBy { it.timestamp }
     }
 
+    /**
+     * Decides, per stretch of time, which single sensor draws the line.
+     *
+     * The rule used to have exactly two ranks: the preferred sensor won inside
+     * its own coverage, and *everything else* passed through. That is fine while
+     * the preferred sensor is the one producing readings, and wrong the moment it
+     * is not — which happens whenever the user's selected main is a sensor that
+     * has gone quiet while another streams. A trace with three sensors
+     * (`liveMain=70D07…, selectedMain=BB368A3`) showed the failure: the preferred
+     * sensor had no recent coverage, so it suppressed nothing, and two live
+     * sensors' readings interleaved minute by minute. The chart starts a new
+     * segment on every sensor change, so an unbroken stream drew as a row of
+     * disconnected fragments — holes where there was no missing data at all.
+     *
+     * So the ranking is now the full list rather than a pair: preferred first,
+     * then the remaining sensors by how recently each last read. A reading is
+     * kept only where no higher-ranked sensor covers its moment, which means at
+     * most one sensor contributes to any stretch and the line cannot alternate.
+     * Where the preferred sensor does have coverage this is exactly the old
+     * behaviour, since it outranks everything.
+     *
+     * Rows no sensor owns keep their own rule: they are not a sensor competing
+     * for a stretch, they are filler, and they are dropped only where the
+     * preferred sensor already has that minute.
+     */
     private fun applyPreferredOverlapDominance(
         readings: List<HistoryReading>,
-        resolver: PreferredMatchResolver
+        resolver: PreferredMatchResolver,
+        logicalResolver: LogicalSensorResolver
     ): List<HistoryReading> {
-        val preferredReadings = readings
-            .filter { resolver.matches(it.sensorSerial) }
-        if (preferredReadings.isEmpty()) return readings
+        // With no preferred sensor named there is nothing to rank against, and
+        // the caller wants the richest reading per timestamp instead — that is
+        // the final dedupe's job, so leave the list alone for it.
+        if (!resolver.hasPreferred) return readings
 
-        val coverageSegments = buildCoverageSegments(preferredReadings)
+        val preferredReadings = readings.filter { resolver.matches(it.sensorSerial) }
         val preferredMinuteBuckets = preferredReadings
             .mapTo(HashSet(preferredReadings.size)) { it.timestamp / SENSOR_MINUTE_BUCKET_MS }
 
+        // Rank the sensors that are not the preferred one, most recently read
+        // first: the sensor still streaming should own the recent stretch, and a
+        // retired one should own only what predates it.
+        val ownedBySensor = LinkedHashMap<String, MutableList<HistoryReading>>()
+        for (reading in readings) {
+            if (resolver.matches(reading.sensorSerial)) continue
+            if (isImportedSerial(reading.sensorSerial)) continue
+            val sensorId = logicalResolver.resolve(reading.sensorSerial) ?: continue
+            ownedBySensor.getOrPut(sensorId) { ArrayList() }.add(reading)
+        }
+        val rankedOthers = ownedBySensor.entries
+            .sortedByDescending { it.value.last().timestamp }
+            .map { it.key to buildCoverageSegments(it.value) }
+
+        val preferredSegments = buildCoverageSegments(preferredReadings)
+
         val filtered = ArrayList<HistoryReading>(readings.size)
-        var segmentIndex = 0
         for (reading in readings) {
             if (resolver.matches(reading.sensorSerial)) {
                 filtered.add(reading)
                 continue
             }
             if (isImportedSerial(reading.sensorSerial)) {
-                val bucket = reading.timestamp / SENSOR_MINUTE_BUCKET_MS
-                if (bucket !in preferredMinuteBuckets) {
+                if ((reading.timestamp / SENSOR_MINUTE_BUCKET_MS) !in preferredMinuteBuckets) {
                     filtered.add(reading)
                 }
                 continue
             }
-            while (segmentIndex < coverageSegments.size &&
-                reading.timestamp > coverageSegments[segmentIndex].last + OVERLAP_PADDING_MS
-            ) {
-                segmentIndex++
+            if (covers(preferredSegments, reading.timestamp)) continue
+
+            val sensorId = logicalResolver.resolve(reading.sensorSerial)
+            var outranked = false
+            for ((otherId, otherSegments) in rankedOthers) {
+                if (otherId == sensorId) break
+                if (covers(otherSegments, reading.timestamp)) {
+                    outranked = true
+                    break
+                }
             }
-            val covered = segmentIndex < coverageSegments.size &&
-                reading.timestamp >= coverageSegments[segmentIndex].start - OVERLAP_PADDING_MS &&
-                reading.timestamp <= coverageSegments[segmentIndex].last + OVERLAP_PADDING_MS
-            if (!covered) {
-                filtered.add(reading)
-            }
+            if (!outranked) filtered.add(reading)
         }
         return filtered
+    }
+
+    /** Whether [segments] reach [timestamp], allowing the handover padding. */
+    private fun covers(segments: List<LongRange>, timestamp: Long): Boolean {
+        for (segment in segments) {
+            if (timestamp < segment.first - OVERLAP_PADDING_MS) return false
+            if (timestamp <= segment.last + OVERLAP_PADDING_MS) return true
+        }
+        return false
     }
 
     private fun isImportedSerial(sensorSerial: String?): Boolean {

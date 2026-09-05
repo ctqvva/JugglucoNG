@@ -33,7 +33,8 @@ interval`. New presets plug in via three extension points (see §7).
 | `Common/src/main/java/tk/glucodata/SuperGattCallback.java` (line 577) | **Producer** — calls `OutboundApi.enqueueGlucose(...)` on every new CGM reading. |
 | `Common/src/main/java/tk/glucodata/OutboundApi.kt` | **Orchestrator + worker.** Object `OutboundApi` (queue, trigger gating, rate limit, network guard), data class `Reading` (post-render fields), data class `JournalSnapshot`, and `class OutboundApiWorker` (`runOnce`, `sendTelegram`, `sendVk`, `sendJson`, HTTP plumbing). |
 | `Common/src/main/java/tk/glucodata/OutboundApiSettings.kt` | **Persistence + destination model.** `Config`, `Destination`, presets, defaults, encode/decode to JSON, legacy migration. |
-| `Common/src/mobile/java/tk/glucodata/OutboundApiJournalSnapshot.kt` | **Journal data source.** Builds a JSON snapshot of recent insulin / carb entries for `{journal}`, `{iob}`, `{cob}` substitution. `mobile` flavour only. |
+| `Common/src/main/java/tk/glucodata/OutboundApiInsulinTokens.kt` | **Per-insulin-type tokens.** Slugs a preset display name into a token family and expands it (see §5.1). |
+| `Common/src/mobile/java/tk/glucodata/OutboundApiJournalSnapshot.kt` | **Journal data source.** Builds a JSON snapshot of recent insulin / carb entries for `{journal}`, `{iob}`, `{cob}` and the per-insulin-type tokens. `mobile` flavour only. |
 | `Common/src/mobile/java/tk/glucodata/ui/OutboundApiSettingsScreen.kt` | **UI.** Compose screen, preset picker, per-destination editor, status row, test button. |
 | `Common/src/mobile/java/tk/glucodata/ui/MainNavigation.kt` | **Wiring** — registers the route into the settings nav graph. |
 
@@ -165,6 +166,30 @@ state at the moment of send.
 
 The full list is also exposed at runtime in
 `templateTokens` (private val in `OutboundApiSettingsScreen.kt`).
+
+### 5.1 Per-insulin-type tokens
+
+`{iob}` cannot say *which* insulin moved, so every insulin type the journal has
+active also gets a token family of its own, named after the type
+(`OutboundApiInsulinTokens`). The slug is the display name lowercased with
+non-alphanumeric runs collapsed to `_`, in whatever script the name is written
+in; the stock English presets give `rapid_acting_insulin` and
+`long_acting_insulin`. Colliding slugs get a `_2`, `_3` suffix.
+
+| Token             | Renders                                              |
+|-------------------|------------------------------------------------------|
+| `{<slug>}`        | Last dose in units, empty when there is none         |
+| `{<slug>_time}`   | Locale-formatted short time of that dose             |
+| `{<slug>_ago}`    | Whole minutes since that dose                        |
+| `{<slug>_iob}`    | Units of that type still active (`0` when none)      |
+| `{<slug>_today}`  | Units of that type since local midnight              |
+
+The per-type `_iob` ignores the preset's `countsTowardIob` switch — that switch
+governs the single aggregate `{iob}`, while a token named after a type reports
+what is actually left of it. Values come from the `insulin_types` array in the
+journal snapshot, which the custom-JSON body also carries as a top-level field.
+The settings screen lists the live tokens as chips (`insulinTemplateTokens()`),
+which is the only practical way to enter a non-Latin slug.
 
 Default templates:
 

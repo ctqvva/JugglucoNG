@@ -130,6 +130,35 @@ enum class GriZone(@param:StringRes val labelResId: Int) {
     }
 }
 
+/**
+ * Where a GMI reading sits relative to the therapy target the A1c tile prints.
+ *
+ * The tile used to word its status against the target (< 7.0 %) and colour itself
+ * against 5.7 and 6.5 — the population thresholds for prediabetes and for diagnosing
+ * diabetes. Those answer "does this person have diabetes", which is not the question
+ * this screen is for, so a 6.6 % reading read "target" on the tone reserved for the
+ * worst band. Word and colour now come from this one place and cannot drift apart.
+ */
+enum class GmiBand {
+    AT_TARGET,
+    ABOVE_TARGET,
+    WELL_ABOVE_TARGET;
+
+    companion object {
+        /** The consensus target for most adults on therapy; `R.string.gmi_target_value` prints it. */
+        const val TARGET_PERCENT = 7.0f
+
+        /** Half a point over target is a miss worth flagging, not yet the worst band. */
+        const val WELL_ABOVE_TARGET_PERCENT = 7.5f
+
+        fun of(gmiPercent: Float): GmiBand = when {
+            gmiPercent <= TARGET_PERCENT -> AT_TARGET
+            gmiPercent < WELL_ABOVE_TARGET_PERCENT -> ABOVE_TARGET
+            else -> WELL_ABOVE_TARGET
+        }
+    }
+}
+
 data class GlycemiaRiskIndex(
     val value: Float = 0f,
     val zone: GriZone = GriZone.A,

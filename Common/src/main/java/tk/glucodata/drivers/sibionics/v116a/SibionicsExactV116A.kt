@@ -3,6 +3,7 @@
 package tk.glucodata.drivers.sibionics.v116a
 
 import tk.glucodata.drivers.sibionics.SibionicsChemicalSignal
+import tk.glucodata.drivers.sibionics.SibionicsSensorObservation
 
 private data class Ptr(val bytes: ByteArray, val off: Int = 0) {
     fun plus(delta: Int): Ptr = Ptr(bytes, off + delta)
@@ -27239,6 +27240,47 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
     var latestChemicalSignal: SibionicsChemicalSignal? = null
         private set
 
+    /**
+     * Vendor sensor-state observation on the absolute glucose scale.
+     *
+     * The V1.1.6A pipeline has the same shape as V1.1.5G:
+     *
+     * ```
+     *   ESA_Compensate(ctx+0x538, adjusted, ctx[0x510]) -> adjusted + mean(five compensations)
+     *   Regular_deconvolution(ctx+0x858, esaOutput)
+     * ```
+     *
+     * The ESA output *is* the calibrated observation — sensor-state
+     * compensation applied, deconvolution not yet — and the deconvolution
+     * stores its own input at offset 0xf0 of its context, so it can be read
+     * back at `ctx + 0x858 + 0xf0` without re-deriving `adjusted`.
+     *
+     * That slot is only *written* on the vendor's five-sample correction
+     * stage, so reading it directly gives a sample-and-held value that stands
+     * still for four minutes and then jumps — it moved on 1 minute in 5, and
+     * hid every turning point for up to four minutes. The front end behind it
+     * runs every minute, so this republishes the held sensor-state terms
+     * against the current one-minute chemical signal, exactly as V1.1.5G's
+     * core does with `heldBase`/`heldEsaCompensation`. Within a stage the
+     * vendor's own arithmetic is `chemical` plus a constant, so carrying that
+     * constant is the identity, not an approximation.
+     */
+    var latestSensorObservation: SibionicsSensorObservation? = null
+        private set
+
+    /**
+     * `esaOutput - chemical` as captured on the most recent correction stage:
+     * the vendor's sensitivity/base/ESA sensor-state terms collapsed into the
+     * one constant that separates the two within a stage.
+     */
+    private var heldCalibrationOffsetMmol = 0f
+
+    /** Raw bits of the last ESA output seen, used to detect a stage refresh. */
+    private var lastStageEsaBits = 0L
+
+    /** False until the first correction stage has produced sensor-state terms. */
+    private var hasStageState = false
+
     fun configure(value: Float) {
         val normalized = value.takeIf { it.isFinite() } ?: 1.27f
         if (normalized.toRawBits() == decodedSensitivity.toRawBits()) return
@@ -27249,11 +27291,16 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
     fun reset() {
         context = newContext(decodedSensitivity)
         latestChemicalSignal = null
+        latestSensorObservation = null
+        heldCalibrationOffsetMmol = 0f
+        lastStageEsaBits = 0L
+        hasStageState = false
     }
 
     fun process(rawMmol: Float, temperatureC: Float, index: Int): Float? {
         if (!rawMmol.isFinite() || rawMmol <= 0f || !temperatureC.isFinite() || index < 1) {
             latestChemicalSignal = null
+            latestSensorObservation = null
             return null
         }
         val trend = Ptr(ByteArray(4))
@@ -27266,15 +27313,65 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
         val averageTemperature = readF32(pointer.plus(0x9a0)).toFloat()
         val compensated = temperatureCompensatedValue(filtered, averageTemperature)
         val activeSensitivity = readF32(pointer.plus(0xdc)).toFloat()
+        val qualityFlags = readI32(pointer.plus(0x34))
+        val chemical = if (activeSensitivity.isFinite() && activeSensitivity > 0f) {
+            (compensated / activeSensitivity).coerceAtLeast(0f)
+        } else {
+            Float.NaN
+        }
         latestChemicalSignal = SibionicsChemicalSignal(
-            mmol = if (activeSensitivity.isFinite() && activeSensitivity > 0f) {
-                (compensated / activeSensitivity).coerceAtLeast(0f)
-            } else {
-                Float.NaN
-            },
-            qualityFlags = readI32(pointer.plus(0x34)),
+            mmol = chemical,
+            qualityFlags = qualityFlags,
         )
+        publishSensorObservation(pointer, chemical, activeSensitivity, qualityFlags, index)
         return output.takeIf { it.isFinite() && it > 0f }
+    }
+
+    private fun publishSensorObservation(
+        pointer: Ptr,
+        chemical: Float,
+        activeSensitivity: Float,
+        qualityFlags: Int,
+        index: Int,
+    ) {
+        // Last value handed to the deconvolution, i.e. the ESA output. This
+        // slot only changes on a correction stage; the minutes in between must
+        // reuse its sensor-state terms rather than its stale absolute value.
+        val stageEsa = readF64(pointer.plus(DECONVOLUTION_INPUT_OFFSET))
+        val stageEsaBits = stageEsa.toRawBits()
+        val stageCalibrated = stageEsa.toFloat()
+        if (stageEsaBits != lastStageEsaBits &&
+            stageCalibrated.isFinite() && stageCalibrated > 0f && chemical.isFinite()
+        ) {
+            lastStageEsaBits = stageEsaBits
+            heldCalibrationOffsetMmol = stageCalibrated - chemical
+            hasStageState = true
+        }
+        if (!hasStageState || !chemical.isFinite() ||
+            !activeSensitivity.isFinite() || activeSensitivity <= 0f
+        ) {
+            latestSensorObservation = null
+            return
+        }
+        val calibrated = chemical + heldCalibrationOffsetMmol
+        if (!calibrated.isFinite() || calibrated <= 0f) {
+            latestSensorObservation = null
+            return
+        }
+        var compensationSum = 0f
+        for (slot in 0 until ESA_BUFFER_SLOTS) {
+            compensationSum += readF32(pointer.plus(ESA_BUFFER_OFFSET + slot * 4)).toFloat()
+        }
+        latestSensorObservation = SibionicsSensorObservation(
+            calibratedMmol = calibrated,
+            chemicalMmol = chemical,
+            sensorStateCompensationMmol = compensationSum / ESA_BUFFER_SLOTS,
+            qualityFlags = qualityFlags,
+            factorySensitivity = changeV116Sensitivity(decodedSensitivity).toFloat(),
+            activeSensitivity = activeSensitivity,
+            sensorAgeMinutes = index,
+            family = FAMILY_V116A,
+        )
     }
 
     private fun temperatureCompensatedValue(input: Float, averageTemperature: Float): Float {
@@ -27292,12 +27389,16 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
     }
 
     fun snapshot(): ByteArray {
-        val output = ByteArray(12 + context.size)
+        val output = ByteArray(HEADER_SIZE + context.size + HELD_STATE_SIZE)
         val header = Ptr(output)
-        writeI32(header, 0x5331_3136)
-        writeI32(header.plus(4), 1)
+        writeI32(header, SNAPSHOT_MAGIC)
+        writeI32(header.plus(4), SNAPSHOT_VERSION)
         writeI32(header.plus(8), decodedSensitivity.toRawBits())
-        context.copyInto(output, 12)
+        context.copyInto(output, HEADER_SIZE)
+        val held = Ptr(output).plus(HEADER_SIZE + context.size)
+        writeI32(held, heldCalibrationOffsetMmol.toRawBits())
+        writeI64(held.plus(4), lastStageEsaBits)
+        writeI32(held.plus(12), if (hasStageState) 1 else 0)
         return output
     }
 
@@ -27311,16 +27412,44 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
     }
 
     fun restore(snapshot: ByteArray?): Boolean {
-        if (snapshot == null || snapshot.size != 12 + CONTEXT_SIZE) return false
+        if (snapshot == null || snapshot.size != HEADER_SIZE + CONTEXT_SIZE + HELD_STATE_SIZE) {
+            return false
+        }
         val header = Ptr(snapshot)
-        if (readI32(header) != 0x5331_3136 || readI32(header.plus(4)) != 1) return false
+        if (readI32(header) != SNAPSHOT_MAGIC || readI32(header.plus(4)) != SNAPSHOT_VERSION) {
+            return false
+        }
         if (readI32(header.plus(8)) != decodedSensitivity.toRawBits()) return false
-        context = snapshot.copyOfRange(12, snapshot.size)
+        context = snapshot.copyOfRange(HEADER_SIZE, HEADER_SIZE + CONTEXT_SIZE)
+        val held = Ptr(snapshot).plus(HEADER_SIZE + CONTEXT_SIZE)
+        heldCalibrationOffsetMmol = Float.fromBits(readI32(held))
+        lastStageEsaBits = readI64(held.plus(4))
+        hasStageState = readI32(held.plus(12)) != 0
         return true
     }
 
     private companion object {
         private const val CONTEXT_SIZE = 0x9ac
+        const val FAMILY_V116A = 116
+
+        private const val SNAPSHOT_MAGIC = 0x5331_3136
+
+        /**
+         * 2 adds the held sensor-state terms. A version-1 snapshot restores as
+         * false, which is the existing signal to rebuild rather than continue.
+         */
+        private const val SNAPSHOT_VERSION = 2
+        private const val HEADER_SIZE = 12
+
+        /** offset (f32) + last ESA bits (i64) + hasStageState (i32). */
+        private const val HELD_STATE_SIZE = 16
+
+        /** ESA_Compensate's five-slot compensation history: ctx + 0x538, four bytes per slot. */
+        private const val ESA_BUFFER_OFFSET = 0x538
+        private const val ESA_BUFFER_SLOTS = 5
+
+        /** Regular_deconvolution stores its input at 0xf0 of its own context at ctx + 0x858. */
+        private const val DECONVOLUTION_INPUT_OFFSET = 0x858 + 0xf0
 
         private fun newContext(decodedSensitivity: Float): ByteArray {
             val template = V116_TEMPLATE_HEX

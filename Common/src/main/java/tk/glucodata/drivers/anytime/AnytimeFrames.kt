@@ -11,6 +11,8 @@
 //   AnytimeFrames.parseRawRecords(bytes)     — 9-byte or 11-byte raw records
 //   AnytimeFrames.parseWideRawSeriesRecords  — 0x22 CT2.5/CT3A/CT4 history batches
 //   AnytimeFrames.parseComputedRecord(bytes) — 19-byte computed glucose record
+//   AnytimeFrames.parseCt5CurrentRecord      — CT5 0x35 live push (see hasGlucose)
+//   AnytimeFrames.parseCt5SeriesRecords      — CT5 0x37 history batch (see hasGlucose)
 //   AnytimeFrames.parseCheckResponse(bytes)  — 0x05 health response
 //   AnytimeFrames.parseResetResponse(bytes)  — 0x11 reset response
 
@@ -29,7 +31,17 @@ data class AnytimeRawRecord(
     val recordBytes: ByteArray,
 )
 
-/** 19-byte computed-glucose record (CT5 push, CT3 on demand). */
+/**
+ * 19-byte computed-glucose record (CT5 push, CT3 on demand).
+ *
+ * A CT5 frame has three possible outcomes, and they must stay distinguishable:
+ *   1. malformed          — parser returns null
+ *   2. valid, no glucose  — [hasGlucose] false; warm-up telemetry, no reading
+ *   3. valid with glucose — [hasGlucose] true
+ *
+ * Collapsing (2) into (1) is what used to make every warm-up push look like a
+ * "bad frame" and left a fresh sensor effectively unknown until first glucose.
+ */
 data class AnytimeComputedRecord(
     val glucoseId: Int,
     val hypoEarlyWarnMinutes: Int,
@@ -42,6 +54,26 @@ data class AnytimeComputedRecord(
     val errorCode: Int,
     val trend: Int,
     val warnCode: Int,
+    /** False for a protocol-valid record the sensor has not computed glucose for yet. */
+    val hasGlucose: Boolean = true,
+    /**
+     * Electrode potentials, present only in the 15-byte "voltage" chunk. BE/WE/RE are the
+     * potentiostat's own setpoints and hold constant on healthy hardware, so their value is
+     * that a *change* means the front end has lost control. CE is the potential needed to
+     * sustain the working current: mostly a function of Iw, with a slow residual that tracks
+     * electrode ageing. [Int.MIN_VALUE] when the chunk does not carry them.
+     */
+    val beVoltageMv: Int = Int.MIN_VALUE,
+    val weVoltageMv: Int = Int.MIN_VALUE,
+    val reVoltageMv: Int = Int.MIN_VALUE,
+    val ceVoltageMv: Int = Int.MIN_VALUE,
+    /**
+     * Transmitter supply reading, raw. The vendor app forwards this to its server without
+     * scaling or displaying it, and no CT5 check frame has ever answered on this hardware,
+     * so the unit is unverified — it is NOT fed to the battery-percentage path, where a
+     * wrong scale would raise a false low-battery alarm.
+     */
+    val batteryRaw: Int = Int.MIN_VALUE,
 ) {
     val gluMgdl: Int get() = (gluMmol * 18.0f + 0.5f).toInt()
 }
@@ -66,6 +98,21 @@ data class AnytimeCheckStatus(
 
 /** 0x11 reset response. byte 2 != 0 ⇒ device was bound. */
 data class AnytimeResetStatus(val isBound: Boolean)
+
+/**
+ * Strict 0x11 bind-state answer, mirroring the vendor SDK's `TransmitterReset`:
+ * it demands 14 bytes before it will read [isBound] at all, and only reads the
+ * unbind reason out of byte 8 when the tip byte 12 is 0x22.
+ *
+ * The transmitter is the only witness to whether an unbind actually landed, so
+ * an under-validated answer here is worse than none — hence the separate,
+ * stricter parse rather than reusing [AnytimeResetStatus].
+ */
+data class AnytimeCt5BindState(
+    val isBound: Boolean,
+    /** `UNBIND_CHARGE`(1) / `UNBIND_OTHER`(0), or -1 when the transmitter did not say. */
+    val unbindReason: Int,
+)
 
 /** Generic frame parsed from a notification. */
 data class AnytimeFrame(
@@ -160,6 +207,15 @@ object AnytimeFrames {
         /** {0x0A, 0x55, 0xAA, sum} — CT2.5/CT3A/CT4 unbind. */
         @JvmStatic
         fun unbindSummed(): ByteArray = withSum(0x0A, 0x55, 0xAA)
+
+        /**
+         * `{0x58, 0x55, 0xAA, 0x57}` — the vendor SDK's family-less
+         * `ProtocolToolsHolder.unBindRequest()`, reached by every device whose
+         * `EGattMessage` has no branch of its own. Not the CT5 call path, but
+         * the firmware may still answer it.
+         */
+        @JvmStatic
+        fun unbindGeneric(): ByteArray = withSum(0x58, 0x55, 0xAA)
 
         /** {0x03, year-1900, mon+1, day, hour, min, sec}. */
         @JvmStatic
@@ -362,6 +418,15 @@ object AnytimeFrames {
         @JvmStatic
         fun ct5PushAck(): ByteArray = withSum(AnytimeConstants.TX_CT5_PUSH_ACK.toInt() and 0xFF, 0x55, 0xAA)
 
+        /**
+         * CT5 bind-state query — `{0x11, 0x55, 0xAA, 0x10}`. CT5 shares the
+         * CT2.5 frame here (`ProtocolTools.reset_request` routes CT5 to
+         * `resetRequest_CT2_5`); it reads the transmitter's bind flag and does
+         * not change it. Answer parsed by [parseCt5BindState].
+         */
+        @JvmStatic
+        fun ct5BindStateQuery(): ByteArray = withSum(AnytimeConstants.TX_RESET.toInt() and 0xFF, 0x55, 0xAA)
+
         /** CT5 series-history pull. */
         @JvmStatic
         @JvmOverloads
@@ -380,11 +445,18 @@ object AnytimeFrames {
         fun ct5InputBgMg(mgdl: Int): ByteArray =
             withSum(0x09, (mgdl ushr 8) and 0xFF, mgdl and 0xFF)
 
-        /** CT5 unbind needs the same four-character temp id used during setup. */
+        /** CT5 end-cycle frame: opcode 0x0A + the authenticated four-byte temporary id. */
         @JvmStatic
-        fun ct5Unbind(tempId: String): ByteArray {
-            val bytes = tempId.take(4).padStart(4, '0').toByteArray(Charsets.US_ASCII)
-            return withSum(0x0A, bytes[0].toInt(), bytes[1].toInt(), bytes[2].toInt(), bytes[3].toInt())
+        fun ct5EndCycle(tempId: String): ByteArray {
+            val id = tempId.toByteArray(Charsets.US_ASCII)
+            require(tempId.length == 4 && id.size == 4) { "CT5 temporary id must be four ASCII bytes" }
+            return withSum(
+                AnytimeConstants.TX_CT5_END_CYCLE.toInt() and 0xFF,
+                id[0].toInt() and 0xFF,
+                id[1].toInt() and 0xFF,
+                id[2].toInt() and 0xFF,
+                id[3].toInt() and 0xFF,
+            )
         }
 
         /** CT5 encrypted K/R + temporary id setup. */
@@ -562,10 +634,14 @@ object AnytimeFrames {
         return out
     }
 
+    // A warm-up record (no glucose) is still a plausible live record. Without the
+    // ~10 bits of glucose entropy far more of the 256 keys survive this filter, so
+    // in practice the ambiguity check below rejects rather than guessing — which is
+    // the safe outcome. A fresh activation establishes the cipher through setID.
     private fun looksLikeCt5LiveRecord(record: AnytimeComputedRecord, maxGlucoseId: Int): Boolean =
         record.glucoseId in 0..maxGlucoseId &&
                 record.errorCode == 0 &&
-                record.gluMgdl in 20..600 &&
+                (!record.hasGlucose || record.gluMgdl in 20..600) &&
                 record.temperatureC in 15f..45f &&
                 record.ibNa in 0f..100f &&
                 record.iwNa in 0f..100f &&
@@ -574,6 +650,7 @@ object AnytimeFrames {
     private fun ct5RecordSignature(record: AnytimeComputedRecord): String =
         listOf(
             record.glucoseId,
+            record.hasGlucose,
             record.gluMgdl,
             (record.temperatureC * 10f).roundToInt(),
             record.trend,
@@ -629,7 +706,11 @@ object AnytimeFrames {
         val trend = (trendAndHigh ushr 4) and 0x0F
         val glucoseMgdl = ((trendAndHigh and 0x0F) shl 8) or (decoded[offset + 7].toInt() and 0xFF)
         val error = decoded[offset + 8].toInt() and 0xFF
-        if (glucoseMgdl <= 0) return null
+        // glucoseMgdl == 0 is a valid warm-up/status record, not a malformed frame.
+        // Callers use hasGlucose to decide whether a reading may be stored.
+        val hasGlucose = glucoseMgdl > 0
+        // The voltage chunk carries six more bytes the parser used to drop on the floor.
+        val hasVoltages = chunkSize >= AnytimeConstants.CT5_VOLTAGE_CHUNK_SIZE
         return AnytimeComputedRecord(
             glucoseId = glucoseId,
             hypoEarlyWarnMinutes = 0,
@@ -637,11 +718,17 @@ object AnytimeFrames {
             ibNa = ibRaw / 100f,
             iwNa = iwRaw / 100f,
             temperatureC = temperature,
-            gluMmol = glucoseMgdl / 18f,
+            gluMmol = if (hasGlucose) glucoseMgdl / 18f else 0f,
             referenceBgMmol = 0f,
             errorCode = error,
             trend = trend,
             warnCode = 0,
+            hasGlucose = hasGlucose,
+            beVoltageMv = if (hasVoltages) (decoded[offset + 9].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            weVoltageMv = if (hasVoltages) (decoded[offset + 10].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            reVoltageMv = if (hasVoltages) (decoded[offset + 11].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            ceVoltageMv = if (hasVoltages) (decoded[offset + 12].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            batteryRaw = if (hasVoltages) u16(decoded[offset + 13], decoded[offset + 14]) else Int.MIN_VALUE,
         )
     }
 
@@ -867,6 +954,7 @@ object AnytimeFrames {
             errorCode = err,
             trend = trend,
             warnCode = warn,
+            hasGlucose = (gluInt != 0 || gluFrac != 0),
         )
     }
 
@@ -918,6 +1006,27 @@ object AnytimeFrames {
         if (bytes[0] != AnytimeConstants.RX_RESET) return null
         val isBound = (bytes[2].toInt() and 0xFF) != 0
         return AnytimeResetStatus(isBound = isBound)
+    }
+
+    /**
+     * Parse a CT5 0x11 answer the way the vendor's `TransmitterReset` does:
+     * opcode, a valid checksum and a full 14 bytes are all required, because
+     * `isBind()` there throws below that length rather than guessing.
+     */
+    @JvmStatic
+    fun parseCt5BindState(bytes: ByteArray): AnytimeCt5BindState? {
+        if (bytes.size < 14) return null
+        if (bytes[0] != AnytimeConstants.RX_RESET) return null
+        if (!verifySum(bytes)) return null
+        val isBound = (bytes[2].toInt() and 0xFF) != 0
+        // Vendor: the reason byte is only meaningful when the tip byte says 0x22,
+        // and only 0/1 are defined there.
+        val reason = if (!isBound && (bytes[12].toInt() and 0xFF) == 0x22) {
+            (bytes[8].toInt() and 0xFF).takeIf { it == 0 || it == 1 } ?: -1
+        } else {
+            -1
+        }
+        return AnytimeCt5BindState(isBound = isBound, unbindReason = reason)
     }
 
     /** Extract version string from 0x20 formal-version response (best-effort). */
