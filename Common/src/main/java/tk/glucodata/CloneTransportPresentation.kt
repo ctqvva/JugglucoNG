@@ -13,8 +13,21 @@ object CloneTransportPresentation {
 
     @JvmStatic
     fun statusTextRes(transport: CloneTransport?): Int = when (transport) {
+        CloneTransport.LOCAL_ICE, CloneTransport.TURN -> R.string.clone_transport_connected
+        CloneTransport.UNKNOWN, null -> R.string.clone_transport_reconnecting
+    }
+
+    @JvmStatic
+    fun routeTextRes(transport: CloneTransport?): Int = when (transport) {
         CloneTransport.LOCAL_ICE -> R.string.clone_transport_local_ice
         CloneTransport.TURN -> R.string.clone_transport_turn_ice
         CloneTransport.UNKNOWN, null -> R.string.clone_transport_reconnecting
+    }
+
+    @JvmStatic
+    fun discoveryTextRes(source: Int): Int = when (source) {
+        1 -> R.string.clone_signaling_lan
+        2 -> R.string.clone_signaling_rendezvous
+        else -> R.string.unknown
     }
 }
