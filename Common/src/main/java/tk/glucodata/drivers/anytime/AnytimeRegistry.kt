@@ -298,6 +298,43 @@ object AnytimeRegistry {
         prefs(c).edit().putInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, key.coerceIn(-1, 255)).apply()
     }
 
+    /**
+     * Highest CT5 id actually imported as a glucose point. Warm-up ids advance
+     * the cursor but never this, so gap repair after a restart asks for exactly
+     * the ids that are missing rather than replaying the session.
+     */
+    @JvmStatic fun loadCt5HighestImportedId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id, -1)
+    @JvmStatic fun saveCt5HighestImportedId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId >= 0) editor.putInt(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    /** Pending CT5 gap repair, so an interrupted repair resumes after a restart. */
+    @JvmStatic
+    fun loadCt5PendingGap(c: Context, id: String): IntArray? {
+        val p = prefs(c)
+        val from = p.getInt(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id, -1)
+        val stopBefore = p.getInt(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id, -1)
+        if (from < 0 || stopBefore <= from) return null
+        return intArrayOf(from, stopBefore)
+    }
+
+    @JvmStatic
+    fun saveCt5PendingGap(c: Context, id: String, fromId: Int, stopBeforeId: Int) {
+        val editor = prefs(c).edit()
+        if (fromId < 0 || stopBeforeId <= fromId) {
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id)
+        } else {
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id, fromId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id, stopBeforeId)
+        }
+        editor.apply()
+    }
+
     @JvmStatic fun loadCt5TempId(c: Context, id: String): String =
         prefs(c).getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null).orEmpty()
     @JvmStatic fun saveCt5TempId(c: Context, id: String, tempId: String) {
@@ -453,6 +490,9 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + sensorId)
         }.apply()
     }
 

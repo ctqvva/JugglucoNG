@@ -14,12 +14,23 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
+import android.provider.Settings
+import java.security.SecureRandom
+import java.util.UUID
 import tk.glucodata.Log
 import tk.glucodata.Natives
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedSensorUiSignals
+
+/**
+ * Ottai's older responses use epoch milliseconds, while the CN V3 bind response echoes the
+ * official request's epoch-seconds activeTime. Keep the persistence/export contract uniformly ms.
+ */
+internal fun normalizeOttaiActiveTimeMs(value: Long): Long =
+    if (value in 1L..9_999_999_999L) value * 1_000L else value
 
 object OttaiRegistry {
 
@@ -30,6 +41,11 @@ object OttaiRegistry {
     private const val TAG = OttaiConstants.TAG
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val PREF_DRAFT_SENSORS_KEY = "ottai_draft_sensors"
+    private const val PREF_V3_BOOTSTRAP_PENDING_PREFIX = "ottai_v3_bootstrap_pending_"
+    private const val CN_COMMON_DEVICE_ID_LENGTH = 32
+    private const val CN_COMMON_DEVICE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    private const val CN_COMMON_NATIVE_PREFIX = "n:"
+    private const val CN_COMMON_GENERATED_PREFIX = "g:"
     // Pre-1.0.6-merge key for the accepted lifetime; read once by loadAcceptedMaxActive migration.
     private const val LEGACY_ACTIVATED_MAXACTIVE_PREFIX = "ottai_activated_maxactive_"
     // ~1 min cadence: 9000 samples is about 6 days of temperature, matching Anytime.
@@ -132,6 +148,18 @@ object OttaiRegistry {
         }.apply()
     }
 
+    /** Device version the CN V3 validate call accepted for [sensorId]; bindV3 must repeat it. */
+    @JvmStatic fun saveLastValidatedDeviceVersion(c: Context, sensorId: String, version: String) {
+        val v = version.trim()
+        if (sensorId.isBlank() || v.isEmpty()) return
+        prefs(c).edit().putString(lastValidatedVersionKey(sensorId), v).apply()
+    }
+
+    @JvmStatic fun loadLastValidatedDeviceVersion(c: Context, sensorId: String): String? =
+        prefs(c).getString(lastValidatedVersionKey(sensorId), null)?.trim()?.ifEmpty { null }
+
+    private fun lastValidatedVersionKey(sensorId: String) = "ottai_v3_validated_version_$sensorId"
+
     /** Stable per-install device id used in the cloud signature + deviceId header. */
     @JvmStatic
     fun loadOrCreateDeviceId(c: Context): String {
@@ -141,6 +169,85 @@ object OttaiRegistry {
         prefs(c).edit().putString(OttaiConstants.PREF_SELF_DEVICE_ID, generated).apply()
         return generated
     }
+
+    /**
+     * The CN phone SDK stores the suffix of its common_uniqueid. The official format is
+     * appName:a:n:<native UUID> when Android supplies a stable native ID, or
+     * appName:a:g:<32-character fallback> otherwise. The appName:a: part is added by the
+     * request identity formatter, so callers that sign legacy CN requests and callers that build
+     * the common header use the same suffix without double-prefixing it.
+     */
+    @JvmStatic
+    fun loadCnHeaderDeviceId(c: Context): String {
+        val p = prefs(c)
+        val existing = p.getString(OttaiConstants.PREF_CN_COMMON_DEVICE_ID, null)
+        cnHeaderDeviceId(existing, "").takeIf { it.isNotEmpty() }?.let { normalized ->
+            if (existing?.trim() != normalized) {
+                p.edit().putString(OttaiConstants.PREF_CN_COMMON_DEVICE_ID, normalized).apply()
+            }
+            return normalized
+        }
+        val native = nativeCnDeviceId(
+            androidId = runCatching {
+                Settings.Secure.getString(c.contentResolver, Settings.Secure.ANDROID_ID)
+            }.getOrNull(),
+            board = Build.BOARD,
+            brand = Build.BRAND,
+            device = Build.DEVICE,
+            model = Build.MODEL,
+            product = Build.PRODUCT,
+        )
+        val generated = native?.let { "$CN_COMMON_NATIVE_PREFIX$it" } ?: run {
+            val random = SecureRandom()
+            buildString(CN_COMMON_GENERATED_PREFIX.length + CN_COMMON_DEVICE_ID_LENGTH) {
+                append(CN_COMMON_GENERATED_PREFIX)
+                repeat(CN_COMMON_DEVICE_ID_LENGTH) {
+                    append(CN_COMMON_DEVICE_ID_ALPHABET[random.nextInt(CN_COMMON_DEVICE_ID_ALPHABET.length)])
+                }
+            }
+        }
+        p.edit().putString(OttaiConstants.PREF_CN_COMMON_DEVICE_ID, generated).apply()
+        return generated
+    }
+
+    /** Official DeviceUtil.c() native ID derivation, kept pure for regression testing. */
+    internal fun nativeCnDeviceId(
+        androidId: String?,
+        board: String,
+        brand: String,
+        device: String,
+        model: String,
+        product: String,
+    ): String? {
+        val id = androidId?.takeIf { it.isNotEmpty() && it != "9774d56d682e549c" } ?: return null
+        return UUID.nameUUIDFromBytes(
+            (id + board + brand + device + model + product).toByteArray(Charsets.UTF_8),
+        ).toString()
+    }
+
+    internal fun cnHeaderDeviceId(stored: String?, fallback: String): String {
+        val value = stored?.trim().orEmpty()
+        val suffix = value.removePrefix("ottai:a:")
+        if (isNativeCnDeviceId(suffix)) return "$CN_COMMON_NATIVE_PREFIX${suffix.substring(2)}"
+        if (isGeneratedCnDeviceId(suffix)) return "$CN_COMMON_GENERATED_PREFIX${suffix.substring(2)}"
+        // Migrate the pre-format random value without changing the install's stable identity.
+        if (suffix.length == CN_COMMON_DEVICE_ID_LENGTH &&
+            suffix.all { it in CN_COMMON_DEVICE_ID_ALPHABET }
+        ) {
+            return "$CN_COMMON_GENERATED_PREFIX$suffix"
+        }
+        return fallback
+    }
+
+    private fun isNativeCnDeviceId(value: String): Boolean {
+        if (!value.startsWith(CN_COMMON_NATIVE_PREFIX)) return false
+        return runCatching { UUID.fromString(value.substring(2)) }.isSuccess
+    }
+
+    private fun isGeneratedCnDeviceId(value: String): Boolean =
+        value.length == CN_COMMON_GENERATED_PREFIX.length + CN_COMMON_DEVICE_ID_LENGTH &&
+            value.startsWith(CN_COMMON_GENERATED_PREFIX) &&
+            value.drop(CN_COMMON_GENERATED_PREFIX.length).all { it in CN_COMMON_DEVICE_ID_ALPHABET }
 
     // ---- sensor record set ----
 
@@ -308,7 +415,9 @@ object OttaiRegistry {
                 OttaiConstants.PREF_HISTORY_HOLES_PREFIX,
                 LEGACY_ACTIVATED_MAXACTIVE_PREFIX,
                 OttaiConstants.PREF_TEMPERATURE_HISTORY_PREFIX,
+                PREF_V3_BOOTSTRAP_PENDING_PREFIX,
             ).forEach { remove(it + canonical) }
+            remove(lastValidatedVersionKey(canonical))
         }.apply()
         saveProvisionalActiveTime(context, canonical, recoveredStartMs)
     }
@@ -322,12 +431,20 @@ object OttaiRegistry {
         val existing = loadMaterials(context, id)
         val coefficient = m.coefficient.ifBlank { existing.coefficient }
         val method = OttaiMethodDefaults.resolve(m.method.ifBlank { existing.method }, coefficient)
+        val activeExpireTimeMs = OttaiConstants.sanitizeActiveExpireMs(m.activeExpireTimeMs)
         val saved = prefs(context).edit().apply {
             putString(OttaiConstants.PREF_KEYA_PREFIX + id, m.keyAHex)
             putString(OttaiConstants.PREF_METHOD_PREFIX + id, method)
             putString(OttaiConstants.PREF_COEFF_PREFIX + id, coefficient)
-            putLong(OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id, m.activeTimeMs)
-            putLong(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id, m.activeExpireTimeMs)
+            putLong(
+                OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id,
+                normalizeOttaiActiveTimeMs(m.activeTimeMs),
+            )
+            if (activeExpireTimeMs > 0L) {
+                putLong(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id, activeExpireTimeMs)
+            } else {
+                remove(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id)
+            }
             putLong(OttaiConstants.PREF_RETAIN_TIME_PREFIX + id, m.retainTimeMs)
             putLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, m.preheatPeriodMs)
             putString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, m.deviceVersion)
@@ -338,6 +455,7 @@ object OttaiRegistry {
             return false
         }
         Log.i(OttaiConstants.TAG, "persisted materials for $id")
+        setV3CredentialBootstrapPending(context, id, false)
         // Stored auth material decides which record findRecord prefers, which feeds the memoized
         // SensorIdentity.resolveAppSensorId — refresh it so a newly-material-backed id resolves.
         tk.glucodata.SensorIdentity.invalidateCaches()
@@ -354,12 +472,26 @@ object OttaiRegistry {
             p.getString(OttaiConstants.PREF_METHOD_PREFIX + id, null).orEmpty(),
             coefficient,
         )
+        val activeTimeKey = OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id
+        val storedActiveTime = p.getLong(activeTimeKey, 0L)
+        val activeTimeMs = normalizeOttaiActiveTimeMs(storedActiveTime)
+        if (activeTimeMs != storedActiveTime) {
+            p.edit().putLong(activeTimeKey, activeTimeMs).apply()
+            Log.w(TAG, "migrated activeTime seconds to milliseconds for $id")
+        }
+        val activeExpireKey = OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id
+        val storedActiveExpire = p.getLong(activeExpireKey, 0L)
+        val activeExpireTimeMs = OttaiConstants.sanitizeActiveExpireMs(storedActiveExpire)
+        if (activeExpireTimeMs != storedActiveExpire) {
+            p.edit().remove(activeExpireKey).apply()
+            Log.w(TAG, "removed invalid activeExpire duration for $id")
+        }
         return DeviceMaterials(
             keyAHex = p.getString(OttaiConstants.PREF_KEYA_PREFIX + id, null).orEmpty(),
             method = method,
             coefficient = coefficient,
-            activeTimeMs = p.getLong(OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id, 0L),
-            activeExpireTimeMs = p.getLong(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id, 0L),
+            activeTimeMs = activeTimeMs,
+            activeExpireTimeMs = activeExpireTimeMs,
             retainTimeMs = p.getLong(OttaiConstants.PREF_RETAIN_TIME_PREFIX + id, 0L),
             preheatPeriodMs = p.getLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, 0L),
             deviceVersion = p.getString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, null).orEmpty(),
@@ -376,7 +508,10 @@ object OttaiRegistry {
     @JvmStatic fun saveActiveTimeMs(c: Context, id: String, activeTimeMs: Long) {
         val canonical = resolveCanonicalSensorId(c, id)
             ?: OttaiConstants.canonicalSensorId(id).ifEmpty { id }
-        prefs(c).edit().putLong(OttaiConstants.PREF_ACTIVE_TIME_PREFIX + canonical, activeTimeMs).apply()
+        prefs(c).edit().putLong(
+            OttaiConstants.PREF_ACTIVE_TIME_PREFIX + canonical,
+            normalizeOttaiActiveTimeMs(activeTimeMs),
+        ).apply()
     }
 
     @JvmStatic fun loadProvisionalActiveTime(c: Context, id: String): Long =
@@ -396,25 +531,33 @@ object OttaiRegistry {
     @JvmStatic fun loadAcceptedMaxActive(c: Context, id: String): Long {
         val canonical = OttaiConstants.canonicalSensorId(id)
         val current = prefs(c).getLong(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical, 0L)
-        if (current > 0L) return current
+        val sanitizedCurrent = OttaiConstants.sanitizeActiveExpireMs(current)
+        if (sanitizedCurrent > 0L) return sanitizedCurrent
+        if (current != 0L) {
+            prefs(c).edit().remove(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical).apply()
+        }
         // Lazy migration: pre-1.0.6-merge builds persisted the accepted lifetime under the
         // dropped PREF_ACTIVATED_MAXACTIVE_PREFIX key. Rewrite it under the new key once so an
         // upgraded install doesn't lose an extended sensor's real accepted lifetime.
         val legacy = prefs(c).getLong(LEGACY_ACTIVATED_MAXACTIVE_PREFIX + canonical, 0L)
-        if (legacy > 0L) {
+        val sanitizedLegacy = OttaiConstants.sanitizeActiveExpireMs(legacy)
+        if (sanitizedLegacy > 0L) {
             prefs(c).edit()
-                .putLong(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical, legacy)
+                .putLong(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical, sanitizedLegacy)
                 .remove(LEGACY_ACTIVATED_MAXACTIVE_PREFIX + canonical)
                 .apply()
+        } else if (legacy != 0L) {
+            prefs(c).edit().remove(LEGACY_ACTIVATED_MAXACTIVE_PREFIX + canonical).apply()
         }
-        return legacy
+        return sanitizedLegacy
     }
 
     @JvmStatic fun saveAcceptedMaxActive(c: Context, id: String, durationMs: Long) {
         val canonical = OttaiConstants.canonicalSensorId(id)
+        val sanitized = OttaiConstants.sanitizeActiveExpireMs(durationMs)
         prefs(c).edit().apply {
-            if (durationMs > 0L) {
-                putLong(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical, durationMs)
+            if (sanitized > 0L) {
+                putLong(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical, sanitized)
             } else {
                 remove(OttaiConstants.PREF_ACCEPTED_MAX_ACTIVE_PREFIX + canonical)
             }
@@ -430,6 +573,21 @@ object OttaiRegistry {
         prefs(c).getBoolean(OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX + OttaiConstants.canonicalSensorId(id), false)
     @JvmStatic fun setActivationAttempted(c: Context, id: String, v: Boolean) {
         prefs(c).edit().putBoolean(OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX + OttaiConstants.canonicalSensorId(id), v).apply()
+    }
+
+    @JvmStatic
+    fun isV3CredentialBootstrapPending(c: Context, id: String): Boolean =
+        prefs(c).getBoolean(
+            PREF_V3_BOOTSTRAP_PENDING_PREFIX + OttaiConstants.canonicalSensorId(id),
+            false,
+        )
+
+    @JvmStatic
+    fun setV3CredentialBootstrapPending(c: Context, id: String, pending: Boolean) {
+        val key = PREF_V3_BOOTSTRAP_PENDING_PREFIX + OttaiConstants.canonicalSensorId(id)
+        prefs(c).edit().apply {
+            if (pending) putBoolean(key, true) else remove(key)
+        }.apply()
     }
 
     @JvmStatic fun loadLastDataNo(c: Context, id: String): Int =
@@ -605,8 +763,10 @@ object OttaiRegistry {
                 keyAHex = keyA,
                 method = o.optString("method"),
                 coefficient = o.optString("coefficient"),
-                activeTimeMs = o.optLong("activeTimeMs", 0L),
-                activeExpireTimeMs = o.optLong("activeExpireTimeMs", 0L),
+                activeTimeMs = normalizeOttaiActiveTimeMs(o.optLong("activeTimeMs", 0L)),
+                activeExpireTimeMs = OttaiConstants.sanitizeActiveExpireMs(
+                    o.optLong("activeExpireTimeMs", 0L),
+                ),
                 retainTimeMs = o.optLong("retainTimeMs", 0L),
                 preheatPeriodMs = o.optLong("preheatPeriodMs", 0L),
                 deviceVersion = o.optString("deviceVersion"),
@@ -710,6 +870,54 @@ object OttaiRegistry {
             )
         }
         return stableId
+    }
+
+    /**
+     * Fetch credentials through a wizard-owned GATT transaction. The manager is intentionally
+     * not added to SensorBluetooth.gattcallbacks and no managed record is written: only a draft
+     * address exists until cgmAuth + bindV3 have produced usable materials.
+     */
+    fun startV3CredentialBootstrap(
+        context: Context,
+        sensorId: String,
+        address: String,
+        onComplete: (DeviceMaterials?, OttaiCloudClient.CloudFailure?) -> Unit,
+    ): OttaiBleManager? {
+        val canonical = OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
+        val bleAddress = OttaiConstants.normalizeBleAddress(address, allowPlain = false)
+        if (canonical.isBlank() ||
+            bleAddress == null ||
+            loadLastValidatedDeviceVersion(context, canonical).isNullOrBlank() ||
+            loadSessionProfile(context) != SessionProfile.CN_PHONE ||
+            loadAccessToken(context).isBlank()
+        ) {
+            return null
+        }
+        saveDraftRecord(context, canonical, bleAddress, OttaiConstants.DEFAULT_DISPLAY_NAME)
+        // 39745902 briefly represented this transaction as a managed sensor. Demote that orphan
+        // locally (without cloud unbind) before retrying, otherwise saving keyA below would make
+        // the stale managed record visible again before the user's explicit Connect action.
+        if (!hasStoredAuthMaterial(context, canonical)) {
+            writeRecords(context, persistedRecords(context).filter { !it.matchesId(canonical) })
+            ManagedSensorUiSignals.markDeviceListDirty()
+            runCatching { SensorBluetooth.updateDevices() }
+        }
+        setV3CredentialBootstrapPending(context, canonical, true)
+        val manager = OttaiBleManager(canonical, 0L).also {
+            it.mActiveDeviceAddress = bleAddress
+            val adapter = runCatching {
+                (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+                    ?: BluetoothAdapter.getDefaultAdapter()
+            }.getOrNull()
+            it.mActiveBluetoothDevice = runCatching { adapter?.getRemoteDevice(bleAddress) }.getOrNull()
+            it.restoreFromPersistence(context)
+        }
+        return if (manager.beginV3CredentialBootstrap(onComplete)) {
+            manager
+        } else {
+            setV3CredentialBootstrapPending(context, canonical, false)
+            null
+        }
     }
 
     @JvmStatic

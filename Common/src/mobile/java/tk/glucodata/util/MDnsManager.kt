@@ -14,10 +14,15 @@ data class DiscoveredMirror(
     val mirrorJson: String = "" // The full QR-equivalent JSON from getbackJson
 )
 
+internal fun isOwnNsdService(discoveredServiceName: String, registeredServiceName: String?): Boolean =
+    registeredServiceName != null && discoveredServiceName == registeredServiceName
+
 class MDnsManager(private val context: Context) {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val serviceType = "_jugglucong._tcp."
     
+    @Volatile
+    private var registeredServiceName: String? = null
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     
@@ -46,12 +51,22 @@ class MDnsManager(private val context: Context) {
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
+                registeredServiceName = NsdServiceInfo.serviceName
                 Log.d("MDNS", "Service registered: ${NsdServiceInfo.serviceName}")
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                if (registrationListener === this) {
+                    registeredServiceName = null
+                    registrationListener = null
+                }
                 Log.e("MDNS", "Registration failed: $errorCode")
             }
-            override fun onServiceUnregistered(arg0: NsdServiceInfo) {}
+            override fun onServiceUnregistered(arg0: NsdServiceInfo) {
+                if (registrationListener === this) {
+                    registeredServiceName = null
+                    registrationListener = null
+                }
+            }
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
         }
 
@@ -65,7 +80,6 @@ class MDnsManager(private val context: Context) {
     fun unregisterService() {
         try {
             registrationListener?.let { nsdManager.unregisterService(it) }
-            registrationListener = null
         } catch (e: Exception) {}
     }
 
@@ -81,6 +95,10 @@ class MDnsManager(private val context: Context) {
                     nsdManager.resolveService(service, object : NsdManager.ResolveListener {
                         override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
                         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                            if (isOwnNsdService(serviceInfo.serviceName, registeredServiceName)) {
+                                Log.d("MDNS", "Ignoring own service: ${serviceInfo.serviceName}")
+                                return
+                            }
                             val hostAddress = serviceInfo.host?.hostAddress ?: return
                             // Reassemble chunked JSON from TXT records
                             val numChunks = serviceInfo.attributes["jn"]?.let { String(it).toIntOrNull() } ?: 0

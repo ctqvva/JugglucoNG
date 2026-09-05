@@ -25,6 +25,16 @@ interface JournalDao {
     suspend fun getEntriesBetween(startMillis: Long, endMillis: Long): List<JournalEntryEntity>
 
     @Query(
+        "SELECT * FROM journal_entries WHERE source = :source AND timestamp BETWEEN :startMillis AND :endMillis " +
+            "ORDER BY timestamp ASC, id ASC"
+    )
+    suspend fun getEntriesBySourceBetween(
+        source: String,
+        startMillis: Long,
+        endMillis: Long
+    ): List<JournalEntryEntity>
+
+    @Query(
         "SELECT * FROM journal_entries WHERE glucoseValueMgDl IS NOT NULL AND timestamp >= :startMillis " +
             "ORDER BY timestamp ASC, id ASC"
     )
@@ -115,6 +125,19 @@ interface JournalDao {
     @Query("SELECT nsRemoteId FROM journal_entries WHERE nsUploadedAt IS NOT NULL AND nsRemoteId IS NOT NULL")
     suspend fun getOwnUploadedNightscoutRemoteIds(): List<String>
 
+    @Query(
+        """
+        SELECT * FROM journal_entries
+         WHERE timestamp >= :sinceMillis
+           AND (lvUploadedAt IS NULL OR updatedAt > lvUploadedAt)
+         ORDER BY timestamp ASC, id ASC
+        """
+    )
+    suspend fun getEntriesNeedingLibreviewUpload(sinceMillis: Long): List<JournalEntryEntity>
+
+    @Query("UPDATE journal_entries SET lvUploadedAt = :uploadedAt WHERE id IN (:ids)")
+    suspend fun markEntriesUploadedToLibreview(ids: List<Long>, uploadedAt: Long)
+
     @Query("SELECT * FROM journal_pending_deletes ORDER BY deletedAt ASC")
     suspend fun getPendingNightscoutDeletes(): List<JournalPendingDeleteEntity>
 
@@ -123,4 +146,10 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_pending_deletes WHERE entryId = :entryId")
     suspend fun clearPendingNightscoutDelete(entryId: Long)
+
+    @Query(
+        "UPDATE journal_pending_deletes SET attempts = :attempts, lastAttemptAt = :attemptedAt " +
+            "WHERE entryId = :entryId"
+    )
+    suspend fun recordFailedNightscoutDelete(entryId: Long, attempts: Int, attemptedAt: Long)
 }
