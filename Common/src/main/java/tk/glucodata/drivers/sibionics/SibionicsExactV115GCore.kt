@@ -333,6 +333,13 @@ internal class SibionicsExactV115GCore(
     private class Esa {
         private val buffer = FloatArray(5)
 
+        /**
+         * The additive sensor-state term ESA contributes, i.e. the mean of the
+         * compensation history it holds. Equal to what [update] adds, so it can
+         * be applied to off-stage minutes without re-running the stage.
+         */
+        fun compensationMean(): Float = f32(buffer.sum() / 5f)
+
         fun update(current: Float, compensation: Float): Float {
             val f1 = buffer[1]
             val f2 = buffer[2]
@@ -395,6 +402,20 @@ internal class SibionicsExactV115GCore(
     var latestChemicalSignal: SibionicsChemicalSignal? = null
         private set
 
+    /**
+     * Vendor sensor-state observation on the absolute glucose scale.
+     *
+     * The clip/ESA stage only runs every fifth minute, so its outputs are held
+     * and re-applied to the minutes in between — the same convention the driver
+     * already uses for the stock correction delta.
+     */
+    var latestSensorObservation: SibionicsSensorObservation? = null
+        private set
+
+    private var heldBase = 0f
+    private var heldEsaCompensation = 0f
+    private var hasStageState = false
+
     fun configure(decodedSensitivity: Float) {
         val normalized = decodedSensitivity.takeIf { it.isFinite() } ?: DEFAULT_DECODED_SENSITIVITY
         if (this.decodedSensitivity == normalized) return
@@ -422,6 +443,10 @@ internal class SibionicsExactV115GCore(
         temperatureDownSum = 0f
         debug = null
         latestChemicalSignal = null
+        latestSensorObservation = null
+        heldBase = 0f
+        heldEsaCompensation = 0f
+        hasStageState = false
     }
 
     fun process(rawMmol: Float, temperatureC: Float, index: Int): Float? {
@@ -442,6 +467,7 @@ internal class SibionicsExactV115GCore(
             mmol = (compensated / sensitivity).coerceAtLeast(0f),
             qualityFlags = flags,
         )
+        publishSensorObservation(compensated, flags, index)
         lastIg = ig
         if (index % 5 != 0) return null
 
@@ -484,6 +510,13 @@ internal class SibionicsExactV115GCore(
         )
         sensitivity = clipResult.activeSensitivity
         val esaValue = esa.update(adjusted, clipResult.compensationSize)
+        // Capture the stage's absolute sensor-state terms before deconvolution
+        // so the minutes between stages can reuse them, then republish this
+        // minute's observation now that they are current.
+        heldBase = base
+        heldEsaCompensation = esa.compensationMean()
+        hasStageState = true
+        publishSensorObservation(compensated, flags, index)
         ig = deconvolution.update(esaValue)
         val display = ig + calibrationCompensation
         debug = DebugState(
@@ -501,6 +534,34 @@ internal class SibionicsExactV115GCore(
             display = display,
         )
         return nativeRound(max(display, 0f))
+    }
+
+    /**
+     * Rebuilds [latestSensorObservation] from the current front-end value and
+     * the held stage terms.
+     *
+     * Before the first clip/ESA stage completes there is no sensor-state
+     * compensation to apply, and the chemical signal on its own is not on the
+     * absolute scale — so no observation is published rather than a
+     * systematically low one.
+     */
+    private fun publishSensorObservation(compensated: Float, flags: Int, index: Int) {
+        if (!hasStageState || !compensated.isFinite() || sensitivity <= 0f) {
+            latestSensorObservation = null
+            return
+        }
+        val adjusted = (compensated - heldBase) / sensitivity
+        val calibrated = adjusted + heldEsaCompensation
+        latestSensorObservation = SibionicsSensorObservation(
+            calibratedMmol = calibrated,
+            chemicalMmol = (compensated / sensitivity).coerceAtLeast(0f),
+            sensorStateCompensationMmol = heldEsaCompensation,
+            qualityFlags = flags,
+            factorySensitivity = clip.initialSensitivity,
+            activeSensitivity = sensitivity,
+            sensorAgeMinutes = index,
+            family = FAMILY_V115G,
+        )
     }
 
     fun snapshot(): ByteArray = ByteArrayOutputStream().use { bytes ->
@@ -523,6 +584,9 @@ internal class SibionicsExactV115GCore(
             output.writeInt(temperatureDownCount)
             output.writeFloat(temperatureUpSum)
             output.writeFloat(temperatureDownSum)
+            output.writeFloat(heldBase)
+            output.writeFloat(heldEsaCompensation)
+            output.writeBoolean(hasStageState)
             val clipState = clip.snapshot()
             output.writeInt(clipState.size)
             output.write(clipState)
@@ -550,12 +614,16 @@ internal class SibionicsExactV115GCore(
             temperatureDownCount = input.readInt()
             temperatureUpSum = input.readFloat()
             temperatureDownSum = input.readFloat()
+            heldBase = input.readFloat()
+            heldEsaCompensation = input.readFloat()
+            hasStageState = input.readBoolean()
             val clipSize = input.readInt()
             if (clipSize !in 1..MAX_CLIP_SNAPSHOT_BYTES) return false
             val clipState = ByteArray(clipSize)
             input.readFully(clipState)
             if (input.available() != 0 || !clip.restore(clipState)) return false
             debug = null
+            latestSensorObservation = null
             true
         }
     }.getOrDefault(false)
@@ -746,7 +814,8 @@ internal class SibionicsExactV115GCore(
     private companion object {
         private const val DEFAULT_DECODED_SENSITIVITY = 1.27f
         private const val SNAPSHOT_MAGIC = 0x5349_4233
-        private const val SNAPSHOT_VERSION = 2
+        const val FAMILY_V115G = 115
+        private const val SNAPSHOT_VERSION = 3
         private const val MAX_CLIP_SNAPSHOT_BYTES = 8 * 1024
 
         private val COEFFICIENTS = floatArrayOf(

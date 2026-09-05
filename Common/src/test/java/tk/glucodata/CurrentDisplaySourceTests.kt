@@ -110,7 +110,7 @@ class CurrentDisplaySourceTests {
     }
 
     @Test
-    fun prepareRecentPointsForCurrent_smoothsLivePointBeforeTrendResolution() {
+    fun prepareRecentPointsForCurrent_preservesLinearLiveEdgeBeforeTrendResolution() {
         val minute = 60_000L
         val recentPoints = listOf(
             GlucosePoint(0L * minute, 100f, 90f),
@@ -140,7 +140,7 @@ class CurrentDisplaySourceTests {
         )
 
         assertEquals(15L * minute, processed.last().timestamp)
-        assertEquals(115f, processed.last().value, 0.001f)
+        assertEquals(130f, processed.last().value, 0.001f)
     }
 
     @Test

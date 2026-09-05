@@ -10,6 +10,7 @@ package tk.glucodata.drivers.anytime
 
 data class AnytimeProfile(
     val family: AnytimeConstants.Family,
+    /** Minutes between consecutive glucose ids. One id == one tick, never 5 minutes for CT5. */
     val readingIntervalMinutes: Int,
     val warmupMinutes: Int,
     val ratedLifetimeDays: Int,
@@ -21,6 +22,12 @@ data class AnytimeProfile(
     val lowBatteryVolts: Float,
 ) {
     fun ratedLifetimeMs(): Long = ratedLifetimeDays * 24L * 60L * 60L * 1000L
+
+    fun warmupMs(): Long = warmupMinutes * 60L * 1000L
+
+    /** Glucose ids covered by the warm-up window at this family's cadence. */
+    fun warmupRecords(): Int =
+        if (readingIntervalMinutes <= 0) 0 else warmupMinutes / readingIntervalMinutes
 }
 
 object AnytimeProfileResolver {
@@ -46,6 +53,11 @@ object AnytimeProfileResolver {
             AnytimeConstants.Family.CT5 -> 3
             else -> AnytimeConstants.DEFAULT_READING_INTERVAL_MINUTES
         }
+        // CT5 warm-up is shorter than the shared default; see CT5_WARMUP_MINUTES.
+        val warmupMinutes = when (entry.family) {
+            AnytimeConstants.Family.CT5 -> AnytimeConstants.CT5_WARMUP_MINUTES
+            else -> AnytimeConstants.DEFAULT_WARMUP_MINUTES
+        }
         val lowVolts = when (entry.family) {
             AnytimeConstants.Family.CT2_5 -> AnytimeConstants.BATTERY_LOW_VOLTS_CT2_5
             AnytimeConstants.Family.CT4 -> AnytimeConstants.BATTERY_LOW_VOLTS_CT4
@@ -57,7 +69,7 @@ object AnytimeProfileResolver {
         return AnytimeProfile(
             family = entry.family,
             readingIntervalMinutes = readingMinutes,
-            warmupMinutes = AnytimeConstants.DEFAULT_WARMUP_MINUTES,
+            warmupMinutes = warmupMinutes,
             ratedLifetimeDays = ((entry.endNumber.toLong() * readingMinutes) / (60L * 24L)).toInt().coerceAtLeast(7),
             algorithmId = entry.algorithm,
             endNumber = entry.endNumber,

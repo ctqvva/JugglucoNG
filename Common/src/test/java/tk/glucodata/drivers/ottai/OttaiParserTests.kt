@@ -131,21 +131,48 @@ class OttaiParserTests {
     }
 
     @Test
-    fun chooseRecordSize_e11IsEightByteDespiteSayingV17() {
-        // The 2026-08-11 Syai regression: E1.1.4 and E1.2.3 both say "V1.7" and ship different
-        // records, so the V-number cannot decide. E1.1 is 8-byte even when handed a payload
-        // whose 9-byte reading would otherwise look structurally plausible.
-        val nineLookingData = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
+    fun chooseRecordSize_e11CanUseNineByteLayout() {
+        // The 2026-08-23 CN V3 sensor reports the same E1.1.4(V1.7.S2530.1) as the older
+        // 8-byte Syai, but its 176-byte history pages advance by 18 and contain 18 nine-byte
+        // records plus six padding bytes. The payload, not E1.1, must select the layout.
+        val nineByteData = ByteArray(176).also { p ->
+            p[4] = 0; p[5] = 0
+            for (i in 0 until 18) {
+                val src = 8 + i * 9
+                p[src] = 0x20; p[src + 1] = 0x1F // current = 7968 LE
+                p[src + 6] = 0x47                // voltage
+                p[src + 7] = 0xAC.toByte(); p[src + 8] = 0x0D // temp = 35.00 C LE
+            }
+        }
         assertEquals(
-            OttaiParser.BLE_RECORD_SIZE,
-            OttaiParser.chooseRecordSize(nineLookingData, "E1.1.4(V1.7.S2530.1)"),
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.chooseRecordSize(nineByteData, "E1.1.4(V1.7.S2530.1)"),
         )
+        val records = OttaiParser.frameRecords(nineByteData, "E1.1.4(V1.7.S2530.1)")
+        assertEquals(18, records.size)
+        val first = OttaiParser.parseRecord(records.first())
+        assertEquals(7968, first.rawCurrent)
+        assertEquals(35.0, first.temperatureC, 1e-9)
+    }
+
+    @Test
+    fun frameRecords_e11NineByteLiveNotifyIgnoresShortPadding() {
+        // The same CN V3 sensor's live frame is header + one 9-byte record + seven zero bytes.
+        // Its length is also compatible with two 8-byte records, so content must break the tie.
+        val payload = hex("000000007600ffff1f3c34e115ba47c50b" + "00".repeat(7))
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)"),
+        )
+        val records = OttaiParser.frameRecords(payload, "E1.1.4(V1.7.S2530.1)")
+        assertEquals(1, records.size)
+        assertEquals(118, OttaiParser.parseRecord(records.single()).dataNo)
     }
 
     @Test
     fun frameRecords_e11SyaiFrameKeepsEveryRecord() {
-        // Frame shape from the trace: 8-byte header + 20 records in 168 bytes, front=0, so the
-        // device's next frame starts at 20. Read as 9-byte it yields 17 and loses 17..19.
+        // The older Syai with the SAME E1.1 version remains 8-byte: header + 20 records in
+        // 168 bytes, front=0, and the next frame starts at 20. Structural selection preserves it.
         val payload = ByteArray(168).also { p ->
             p[4] = 0; p[5] = 0 // frontDataNo = 0
             for (i in 0 until 20) {

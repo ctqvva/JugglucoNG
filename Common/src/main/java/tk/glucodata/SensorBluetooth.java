@@ -1185,6 +1185,11 @@ public class SensorBluetooth {
                 && gatt.charcha[0] > gatt.constatchange[1];
     }
 
+    /** Wall-clock time of the last connection failure recorded for the sensor. */
+    public static long connectionStatusChangedAt(SuperGattCallback gatt) {
+        return gatt == null ? 0L : gatt.constatchange[1];
+    }
+
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---
     public static void addAiDexSensor(Context context, String name, String address) {
         if (context == null || name == null || name.trim().isEmpty() || address == null || address.trim().isEmpty()) {

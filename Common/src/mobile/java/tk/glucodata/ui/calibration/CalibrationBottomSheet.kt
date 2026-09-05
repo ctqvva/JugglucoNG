@@ -67,6 +67,7 @@ import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.theme.displayLargeExpressive
 import java.text.SimpleDateFormat
 import java.util.*
@@ -131,11 +132,15 @@ fun CalibrationBottomSheet(
         else -> selectedAutoValue.takeIf { it > 0f } ?: selectedRawValue.takeIf { it > 0f }
     } ?: initialValueAuto
 
+    /**
+     * Records what the readings now display as. Non-destructive: the sensor's own
+     * stored values are never touched, and readings already sealed keep the
+     * number they were shown as.
+     */
     fun triggerRewriteOverwrittenHistory(startTimestamp: Long = 0L) {
-        if (!CalibrationManager.shouldOverwriteSensorValues()) return
         if (currentSensor.isBlank()) return
         CoroutineScope(Dispatchers.IO).launch {
-            historyRepository.rewriteSensorValuesWithCalibration(
+            historyRepository.recordCalibratedDisplayValues(
                 sensorSerial = currentSensor,
                 isRawMode = isRawMode,
                 startTimestamp = startTimestamp
@@ -226,7 +231,7 @@ fun CalibrationBottomSheet(
     // Time State
     var isTimeExpanded by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },

@@ -48,7 +48,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -86,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
@@ -544,16 +544,21 @@ internal fun metricSpec(
             tone = bandTone(summary.avgMgDl)
         )
 
-        StatsMetric.GMI -> spec(
-            value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
-            status = if (summary.gmiPercent <= 7.0f) targetWord else highWord,
-            meta = "$targetWord $targetValue",
-            tone = when {
-                summary.gmiPercent < 5.7f -> TirInRangeColor
-                summary.gmiPercent < 6.5f -> TirHighColor
-                else -> TirVeryHighColor
-            }
-        )
+        StatsMetric.GMI -> {
+            // Status word and tone both read [GmiBand], so the tile cannot call a
+            // number "target" and colour it like the worst one at the same time.
+            val band = GmiBand.of(summary.gmiPercent)
+            spec(
+                value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
+                status = if (band == GmiBand.AT_TARGET) targetWord else highWord,
+                meta = "$targetWord $targetValue",
+                tone = when (band) {
+                    GmiBand.AT_TARGET -> TirInRangeColor
+                    GmiBand.ABOVE_TARGET -> TirHighColor
+                    GmiBand.WELL_ABOVE_TARGET -> TirVeryHighColor
+                }
+            )
+        }
 
         StatsMetric.CV -> spec(
             value = String.format(Locale.getDefault(), "%.1f%%", summary.cvPercent),
@@ -1406,7 +1411,7 @@ private fun PinnedMetricPickerSheet(
     onTogglePinned: (StatsMetric) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { CompactSheetDragHandle() }
     ) {

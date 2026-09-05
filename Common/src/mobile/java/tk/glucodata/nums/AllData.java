@@ -1019,7 +1019,11 @@ void register(Context context) {
                mConnectIQ.registerForAppEvents(devices.get(devused), mMyApp, IQlistener);
                usewatch=true;
             } catch (InvalidStateException e) {
+                usewatch=false;
                 Applic.argToaster(getApplication(), "ConnectIQ is not in a valid state", Toast.LENGTH_SHORT);
+            } catch (ServiceUnavailableException e) {
+                usewatch=false;
+                Log.stack(LOG_ID,"registerForAppEvents: ServiceUnavailableException", e);
             }
         }
    }
@@ -1039,6 +1043,8 @@ void unregister() {
 
           mConnectIQ.shutdown(getApplication());
       } catch (InvalidStateException e) {
+      } catch (ServiceUnavailableException e) {
+         Log.stack(LOG_ID,"unregister: ServiceUnavailableException", e);
       }
       }
    }

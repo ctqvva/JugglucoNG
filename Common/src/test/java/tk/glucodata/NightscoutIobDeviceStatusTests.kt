@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -105,6 +106,38 @@ class NightscoutIobDeviceStatusTests {
         lastCob: Float = cob
     ) = NightscoutIobDeviceStatus.shouldUpload(now + elapsed, now, iob, eiob, cob, lastIob, lastEiob, lastCob)
 
+    // -- v3 document shape -------------------------------------------------
+
+    @Test
+    fun `a v3 document is a single object carrying the app field the server requires`() {
+        val doc = NightscoutIobDeviceStatus.buildDocument(now, 1.8f, 1.5f, 24f, true)!!
+        // v3 refuses an array, and refuses a document without "app" ("Bad or missing app field").
+        assertTrue(doc, doc.startsWith("{"))
+        val entry = JSONObject(doc)
+        assertEquals("JugglucoNG", entry.getString("app"))
+        assertEquals(now, entry.getLong("date"))
+        assertEquals(1.8, entry.getJSONObject("openaps").getJSONObject("iob").getDouble("iob"), 1e-9)
+        assertEquals(24.0, entry.getJSONObject("jugglucong").getDouble("cob"), 1e-9)
+    }
+
+    @Test
+    fun `the v1 document keeps its array wrapper and needs no app field`() {
+        val doc = NightscoutIobDeviceStatus.buildDocument(now, 1.8f, 1.5f, 24f, false)!!
+        assertTrue(doc, doc.startsWith("["))
+        val entry = JSONArray(doc).getJSONObject(0)
+        assertFalse(entry.has("app"))
+        assertEquals(1.8, entry.getJSONObject("openaps").getJSONObject("iob").getDouble("iob"), 1e-9)
+    }
+
+    @Test
+    fun `both versions carry the same payload`() {
+        val v1 = JSONArray(NightscoutIobDeviceStatus.buildDocument(now, 1.8f, 1.5f, 24f, false)!!).getJSONObject(0)
+        val v3 = JSONObject(NightscoutIobDeviceStatus.buildDocument(now, 1.8f, 1.5f, 24f, true)!!)
+        assertEquals(v1.getJSONObject("jugglucong").toString(), v3.getJSONObject("jugglucong").toString())
+        assertEquals(v1.getJSONObject("openaps").toString(), v3.getJSONObject("openaps").toString())
+        assertEquals(v1.getString("created_at"), v3.getString("created_at"))
+    }
+
     @Test
     fun `first upload is always due`() {
         assertTrue(NightscoutIobDeviceStatus.shouldUpload(now, 0L, 1.8f, 1.5f, 0f, Float.NaN, Float.NaN, Float.NaN))
@@ -143,5 +176,24 @@ class NightscoutIobDeviceStatusTests {
         assertTrue(NightscoutIobDeviceStatus.fastIntervalElapsed(now, 0L))
         assertFalse(NightscoutIobDeviceStatus.fastIntervalElapsed(now + fast - 1, now))
         assertTrue(NightscoutIobDeviceStatus.fastIntervalElapsed(now + fast, now))
+    }
+
+    // -- ancillary token retry ---------------------------------------------
+
+    @Test
+    fun `an empty cache with no prior attempt fetches a token immediately`() {
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now, 0L))
+    }
+
+    @Test
+    fun `a refused token request is not repeated within the interval`() {
+        val retry = NightscoutIobDeviceStatus.TOKEN_RETRY_MILLIS
+        assertFalse(NightscoutIobDeviceStatus.tokenRetryDue(now + retry - 1, now))
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now + retry, now))
+    }
+
+    @Test
+    fun `a clock that moved backwards does not block token requests forever`() {
+        assertTrue(NightscoutIobDeviceStatus.tokenRetryDue(now - 1, now))
     }
 }

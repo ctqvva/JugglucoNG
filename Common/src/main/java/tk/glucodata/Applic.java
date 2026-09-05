@@ -688,6 +688,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                                 ;
                             }
                             ;
+                            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                                    .recoverOnNetworkAvailable(Applic.this);
                             final boolean wearos = useWearos();
                             if (wearos || hasip()) {
                                 Natives.networkpresent();
@@ -894,6 +896,11 @@ public class Applic extends Application implements androidx.work.Configuration.P
             ;
             libre3init.init();
             SuperGattCallback.initAlarmTalk();
+            // A poll alarm may be the component that starts this process. Restore cloud-only
+            // callbacks before registering network listeners so the receiver and onAvailable
+            // can repair polling without waiting for MainActivity to initialize Bluetooth.
+            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                    .restoreConfiguredFollower(this);
             initialize();
 
             // Load the glucose colour palette + per-band overrides before any
@@ -1011,6 +1018,13 @@ public class Applic extends Application implements androidx.work.Configuration.P
     @Override
     public void onCreate() {
         super.onCreate();
+        // Before anything else: Application.onCreate precedes every component
+        // (boot receiver, restarted service, activity), so this is the only
+        // place that guarantees the trend/alert bridges exist before the first
+        // reading is evaluated. Waiting for Specific.start() at the end of
+        // initproc() left a post-reboot window where forecast alerts fired on
+        // the degraded two-point slope.
+        Specific.registerBridges();
         enlargeCursorWindow();
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {

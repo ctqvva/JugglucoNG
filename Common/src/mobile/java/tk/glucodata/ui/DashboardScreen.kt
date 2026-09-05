@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -335,7 +336,18 @@ fun DashboardScreen(
     val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
     val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
-    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
+    // The chart's window and the reading's window, resolved once from the same switches.
+    // The chart is presentation; everything else on this screen is what the app is going
+    // to reason with, so it gets the window the notification and the alarms use.
+    val visualSmoothingMinutes = tk.glucodata.DataSmoothing.graphSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
+    val evaluationSmoothingMinutes = tk.glucodata.DataSmoothing.localSmoothingMinutes(
+        smoothingMinutes = chartSmoothingMinutes,
+        graphOnly = dataSmoothingGraphOnly,
+        exchangeOutputsOnly = dataSmoothingExchangeOnly
+    )
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
@@ -375,6 +387,10 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         tk.glucodata.data.calibration.CalibrationManager.init(context)
         tk.glucodata.data.calibration.CalibrationManager.loadCalibrations()
+        // Retires the old "overwrite sensor values" switch and, for stores that
+        // ran with it on, records what was already displayed before anything
+        // else can move it — see HistoryRepository.
+        tk.glucodata.data.HistoryRepository(context).seedDisplayRecordsFromOverwrittenHistory()
         // Journal BG entries can arrive while the app is not running — a meter
         // handing over its stored readings, a Nightscout pull — so the derived
         // calibrations are re-paired once here rather than only on a live edit.
@@ -413,11 +429,14 @@ fun DashboardScreen(
     val scopedJournalEntries = remember(journalEnabled, journalEntries) {
         if (!journalEnabled) emptyList() else journalEntries
     }
-    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit, glucoseHistory) {
+    // Deliberately not keyed on glucoseHistory: the markers do not depend on it,
+    // and keying on it rebuilt the list — and so recomposed the chart — on every
+    // new reading, once a minute, for an identical result.
+    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit) {
         if (!journalEnabled || scopedJournalEntries.isEmpty()) {
             emptyList()
         } else {
-            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, glucoseHistory, journalFoodsById)
+            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, journalFoodsById)
         }
     }
     val localInsulinSummary = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalNow) {
@@ -470,14 +489,12 @@ fun DashboardScreen(
     }
     val consumerHistory = remember(
         glucoseHistory,
-        visualSmoothingMinutes,
-        dataSmoothingGraphOnly,
+        evaluationSmoothingMinutes,
         dataSmoothingCollapseChunks
     ) {
         buildSmoothedConsumerHistory(
             points = glucoseHistory,
-            smoothingMinutes = visualSmoothingMinutes,
-            smoothOnlyGraph = dataSmoothingGraphOnly,
+            evaluationSmoothingMinutes = evaluationSmoothingMinutes,
             collapseChunks = dataSmoothingCollapseChunks
         )
     }
@@ -1031,12 +1048,16 @@ fun DashboardScreen(
             val maxChartBoostPx = with(density) { maxChartBoostDp.toPx() }
 
             val chartBoostState = rememberSaveable { mutableFloatStateOf(0f) }
+            val chartExpansionGestureGate = remember { DashboardChartExpansionGestureGate() }
 
             val scope = rememberCoroutineScope()
 
             val nestedScrollConnection = remember(maxChartBoostPx, middleChartBoostPx, listState) {
                 object : NestedScrollConnection {
                     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        if (source == NestedScrollSource.UserInput) {
+                            chartExpansionGestureGate.onDirectScrollDelta(available.y)
+                        }
                         // Dragging UP (scroll delta < 0): Shrink chart first.
                         // 100% absorption means chart shrinks EXACTLY as finger moves, keeping top fixed.
                         // Once boost hits 0, remainders pass to the list for uninterrupted scrolling.
@@ -1059,6 +1080,9 @@ fun DashboardScreen(
                         // Removing artificial damping so it feels completely free, not restrictive or jiggly.
                         val currentBoostPx = chartBoostState.floatValue * maxChartBoostPx
                         if (
+                            chartExpansionGestureGate.allowsExpansion(
+                                directUserInput = source == NestedScrollSource.UserInput
+                            ) &&
                             available.y > 0 &&
                             maxChartBoostPx > 0f &&
                             listState.firstVisibleItemIndex == 0 &&
@@ -1194,19 +1218,31 @@ fun DashboardScreen(
             // Per-row Δ: the hero's delta computation anchored at each row's
             // timestamp — over the same unsmoothed history the hero reads, so the
             // newest row and the hero can never disagree.
-            val recentReadingDeltaTexts = remember(
-                dashboardRowsShowDelta, recentReadings, glucoseHistory, unit, deltaIntervalMinutes
+            // The rows' movement is read once and used twice: the Δ text, and the rate the
+            // row's arrow turns by. Only where the number is actually shown, though: with the
+            // column off there is nothing for the arrow to contradict, and rebasing it anyway
+            // would let a display setting quietly decide what an arrow means.
+            //
+            // Over [consumerHistory], which is the reading as the app reasons with it. Read
+            // from the stored series instead, this Δ was the one number on the screen that
+            // ignored the smoothing setting, so the row could state a fall the notification
+            // and the delta alarms — computed from the smoothed reading — did not agree with.
+            val recentReadingDeltas = remember(
+                dashboardRowsShowDelta, recentReadings, consumerHistory, unit, deltaIntervalMinutes
             ) {
                 if (dashboardRowsShowDelta) {
-                    readingDeltaTexts(
+                    readingDeltas(
                         recentReadings.map { it.timestamp },
-                        glucoseHistory,
+                        consumerHistory,
                         tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
                         deltaIntervalMinutes
                     )
                 } else {
                     emptyList()
                 }
+            }
+            val recentReadingDeltaTexts = remember(recentReadingDeltas) {
+                recentReadingDeltas.map { it?.text }
             }
             val peerSeriesById = remember(multiSensorDisplay) {
                 multiSensorDisplay.series.associateBy { it.sensorId }
@@ -1245,22 +1281,13 @@ fun DashboardScreen(
                 predictionCalibrationRefresh,
                 calibrationRevision
             ) {
-                if (latestPoint != null &&
-                    !tk.glucodata.data.calibration.CalibrationManager.shouldOverwriteSensorValues() &&
-                    tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeHero, calibrationSensorId)
-                ) {
-                    val baseValue = if (isRawModeHero) latestPoint.rawValue else latestPoint.value
-                    if (baseValue.isFinite() && baseValue > 0.1f) {
-                        tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                            baseValue,
-                            latestPoint.timestamp,
-                            isRawModeHero,
-                            sensorIdOverride = calibrationSensorId
-                        )
-                    } else {
-                        null
-                    }
-                } else null
+                latestPoint?.let { point ->
+                    SealedGlucoseValue.calibratedFor(
+                        point = point,
+                        isRawMode = isRawModeHero,
+                        sensorId = calibrationSensorId
+                    )
+                }
             }
 
         // --- LAYOUT LOGIC ---
@@ -1407,6 +1434,7 @@ fun DashboardScreen(
                                 totalCount = recentReadings.size,
                                 history = recentReadingsTrendHistory,
                                 deltaText = recentReadingDeltaTexts.getOrNull(index),
+                                deltaRateMgdlPerMinute = recentReadingDeltas.getOrNull(index)?.rateMgdlPerMinute,
                                 peerReadings = recentReadingPeers.getOrNull(index).orEmpty(),
                                 peerSeries = peerSeriesById,
                                 multiSensorActive = multiSensorActive,
@@ -1583,6 +1611,26 @@ fun DashboardScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .pointerInput(listState, chartExpansionGestureGate) {
+                        awaitEachGesture {
+                            awaitFirstDown(
+                                requireUnconsumed = false,
+                                pass = PointerEventPass.Initial
+                            )
+                            chartExpansionGestureGate.onGestureStarted(
+                                startedAtTop = listState.firstVisibleItemIndex == 0 &&
+                                    listState.firstVisibleItemScrollOffset == 0,
+                                chartExpanded = chartBoostState.floatValue > 0f
+                            )
+                            try {
+                                do {
+                                    val event = awaitPointerEvent(PointerEventPass.Final)
+                                } while (event.changes.any { it.pressed })
+                            } finally {
+                                chartExpansionGestureGate.onGestureEnded()
+                            }
+                        }
+                    }
                     .nestedScroll(nestedScrollConnection)
                     .padding(padding),
                 state = listState,
@@ -1837,6 +1885,7 @@ fun DashboardScreen(
                                 totalCount = recentReadings.size,
                                 history = recentReadingsTrendHistory,
                                 deltaText = recentReadingDeltaTexts.getOrNull(index),
+                                deltaRateMgdlPerMinute = recentReadingDeltas.getOrNull(index)?.rateMgdlPerMinute,
                                 peerReadings = recentReadingPeers.getOrNull(index).orEmpty(),
                                 peerSeries = peerSeriesById,
                                 multiSensorActive = multiSensorActive,

@@ -106,7 +106,7 @@ private final static String LOG_ID="OpenNovMessage";
                 }
                 break;
             case CONFIRMED_EVENT_REPORT_CHOSEN: 
-                var er = EventReport.parse(buffer,context.doses);
+                var er = EventReport.parse(buffer,context);
                 if (er != null) {
 /*                    for (var ds : er.doses) {
                         if (d) log("dose: " + ds.toJson() + " " + tk.glucodata.util.timestring(ds.absoluteTime) + " valid: " + ds.isValid());

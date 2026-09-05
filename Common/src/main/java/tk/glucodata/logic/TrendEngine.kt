@@ -35,6 +35,21 @@ object TrendEngine {
         Unknown
     }
 
+    /**
+     * Which arrow a rate in mg/dL per minute is. Named so that anything drawing an arrow
+     * from a rate this engine did not measure still lands on the same boundaries.
+     */
+    @JvmStatic
+    fun stateFor(velocity: Float): TrendState = when {
+        velocity > 2.0f -> TrendState.DoubleUp
+        velocity > 1.0f -> TrendState.SingleUp
+        velocity > 0.5f -> TrendState.FortyFiveUp
+        velocity > -0.5f -> TrendState.Flat
+        velocity > -1.0f -> TrendState.FortyFiveDown
+        velocity > -2.0f -> TrendState.SingleDown
+        else -> TrendState.DoubleDown
+    }
+
     data class TrendResult(
         val state: TrendState,
         val velocity: Float,     // mg/dL per minute
@@ -350,18 +365,7 @@ object TrendEngine {
         } else 0f
         val noiseLevel = noiseLevel2
 
-        // Map to State
-        val state = when {
-            velocity > 2.0 -> TrendState.DoubleUp
-            velocity > 1.0 -> TrendState.SingleUp
-            velocity > 0.5 -> TrendState.FortyFiveUp
-            velocity > -0.5 -> TrendState.Flat
-            velocity > -1.0 -> TrendState.FortyFiveDown
-            velocity > -2.0 -> TrendState.SingleDown
-            else -> TrendState.DoubleDown
-        }
-
-        return TrendResult(state, velocity, acceleration, 1.0f, noiseLevel)
+        return TrendResult(stateFor(velocity), velocity, acceleration, 1.0f, noiseLevel)
     }
 }
 
