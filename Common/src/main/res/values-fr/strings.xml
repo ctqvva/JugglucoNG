@@ -910,8 +910,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Découverte</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2612,13 +2613,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">À quelle fréquence le suiveur interroge le serveur. C\'est aussi l\'âge que peut avoir une valeur, et donc le retard possible d\'une alarme déclenchée sur une valeur suivie. Un suiveur n\'a pas de capteur à lui pour garder le téléphone éveillé, donc chaque interrogation est un réveil.</string>
     <string name="nightscout_follow_interval_doze">En dessous de 9 minutes, Android peut malgré tout espacer les interrogations lorsque le téléphone est inactif. Exclure Juggluco de l\'optimisation de la batterie préserve l\'intervalle choisi.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">ICE local</string>
-    <string name="clone_transport_turn_ice">ICE TURN</string>
+    <string name="clone_transport_local_ice">Pair à pair</string>
+    <string name="clone_transport_connected">Connecté</string>
+    <string name="clone_transport_turn_ice">Relais TURN</string>
     <string name="clone_transport_reconnecting">Reconnexion…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">Serveur STUN</string>
     <string name="mirror_certificate_verification">Vérification du certificat</string>
     <string name="mirror_app_turn_server">TURN fourni par l’application</string>
-    <string name="clone_source_turn_description">Clone via TURN</string>
-    <string name="clone_source_local_ice_description">Clone via ICE local</string>
+    <string name="clone_source_turn_description">Clone via relais TURN</string>
+    <string name="clone_source_local_ice_description">Clone en pair à pair</string>
 </resources>

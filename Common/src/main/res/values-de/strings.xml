@@ -983,8 +983,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_local_discovery">Gekoppelte Clones im lokalen Netzwerk finden</string>
     <string name="clone_local_discovery_summary">Bekannte Hybrid-Paare im selben lokalen Netzwerk ohne Rendezvous-Server verbinden. Kopplungsgeheimnisse werden nicht angekündigt.</string>
     <string name="clone_lan_discovery_status">LAN-Suche</string>
-    <string name="clone_signaling">Signalisierung</string>
-    <string name="clone_signaling_lan">Lokales Netzwerk</string>
+    <string name="clone_signaling">Erkennung</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">TURN-Server für STUN verwenden</string>
     <string name="use_turn_for_stun_summary">Den konfigurierten TURN-Server auch für STUN verwenden</string>
     <string name="rendezvous_server">Rendezvous-Server</string>
@@ -2645,13 +2646,14 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_interval_desc">Wie oft der Follower den Server fragt. Das ist zugleich, wie alt ein Wert sein kann, und damit auch, wie spät ein Alarm auf einen gefolgten Wert kommen kann. Ein Follower hat keinen eigenen Sensor, der das Telefon wach hält, also ist jede Abfrage ein Aufwecken.</string>
     <string name="nightscout_follow_interval_doze">Unter 9 Minuten kann Android die Abfragen im Ruhezustand trotzdem weiter auseinanderziehen. Juggluco von der Akku-Optimierung auszunehmen hält das eingestellte Intervall.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Lokales ICE</string>
-    <string name="clone_transport_turn_ice">TURN-ICE</string>
+    <string name="clone_transport_local_ice">Peer-to-Peer</string>
+    <string name="clone_transport_connected">Verbunden</string>
+    <string name="clone_transport_turn_ice">TURN-Relay</string>
     <string name="clone_transport_reconnecting">Verbindung wird wiederhergestellt…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN-Server</string>
     <string name="mirror_certificate_verification">Zertifikatsprüfung</string>
     <string name="mirror_app_turn_server">Von der App bereitgestelltes TURN</string>
-    <string name="clone_source_turn_description">Clone über TURN</string>
-    <string name="clone_source_local_ice_description">Clone über lokales ICE</string>
+    <string name="clone_source_turn_description">Clone über TURN-Relay</string>
+    <string name="clone_source_local_ice_description">Clone über Peer-to-Peer</string>
 </resources>

@@ -950,8 +950,9 @@
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Wykrywanie</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2644,13 +2645,14 @@
     <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
     <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Lokalny ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">Równorzędne</string>
+    <string name="clone_transport_connected">Połączono</string>
+    <string name="clone_transport_turn_ice">Przekaźnik TURN</string>
     <string name="clone_transport_reconnecting">Ponowne łączenie…</string>
     <string name="mirror_route">Trasa</string>
     <string name="mirror_stun_server">Serwer STUN</string>
     <string name="mirror_certificate_verification">Weryfikacja certyfikatu</string>
     <string name="mirror_app_turn_server">TURN zapewniany przez aplikację</string>
-    <string name="clone_source_turn_description">Clone przez TURN</string>
-    <string name="clone_source_local_ice_description">Clone przez lokalne ICE</string>
+    <string name="clone_source_turn_description">Clone przez przekaźnik TURN</string>
+    <string name="clone_source_local_ice_description">Clone przez połączenie równorzędne</string>
 </resources>

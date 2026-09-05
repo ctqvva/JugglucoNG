@@ -464,8 +464,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Илрүүлэлт</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2721,13 +2722,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
     <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Local ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">Төхөөрөмж хооронд</string>
+    <string name="clone_transport_connected">Холбогдсон</string>
+    <string name="clone_transport_turn_ice">TURN дамжуулагч</string>
     <string name="clone_transport_reconnecting">Дахин холбогдож байна…</string>
     <string name="mirror_route">Route</string>
     <string name="mirror_stun_server">STUN server</string>
     <string name="mirror_certificate_verification">Certificate verification</string>
     <string name="mirror_app_turn_server">App-provided TURN</string>
-    <string name="clone_source_turn_description">TURN-ээр дамжих Clone</string>
-    <string name="clone_source_local_ice_description">Дотоод ICE-ээр дамжих Clone</string>
+    <string name="clone_source_turn_description">TURN дамжуулагчаар дамжих Clone</string>
+    <string name="clone_source_local_ice_description">Төхөөрөмж хоорондын Clone</string>
 </resources>

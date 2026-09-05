@@ -906,8 +906,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Upptäckt</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2606,13 +2607,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
     <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Lokal ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">Peer-to-peer</string>
+    <string name="clone_transport_connected">Ansluten</string>
+    <string name="clone_transport_turn_ice">TURN-relä</string>
     <string name="clone_transport_reconnecting">Återansluter…</string>
     <string name="mirror_route">Rutt</string>
     <string name="mirror_stun_server">STUN-server</string>
     <string name="mirror_certificate_verification">Certifikatverifiering</string>
     <string name="mirror_app_turn_server">TURN från appen</string>
-    <string name="clone_source_turn_description">Clone via TURN</string>
-    <string name="clone_source_local_ice_description">Clone via lokal ICE</string>
+    <string name="clone_source_turn_description">Clone via TURN-relä</string>
+    <string name="clone_source_local_ice_description">Clone via peer-to-peer</string>
 </resources>

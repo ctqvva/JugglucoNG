@@ -921,8 +921,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">发现</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2622,13 +2623,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">跟随者向服务器询问的频率。它同时决定数值可能有多旧，因此也决定基于跟随数值的警报可能有多晚。跟随者没有自己的传感器让手机保持唤醒，所以每次检查都是一次唤醒。</string>
     <string name="nightscout_follow_interval_doze">低于 9 分钟时，手机闲置期间 Android 仍可能拉长检查间隔。将 Juggluco 排除在电池优化之外可保持所选间隔。</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">本地 ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">点对点</string>
+    <string name="clone_transport_connected">已连接</string>
+    <string name="clone_transport_turn_ice">TURN 中继</string>
     <string name="clone_transport_reconnecting">正在重新连接…</string>
     <string name="mirror_route">路由</string>
     <string name="mirror_stun_server">STUN 服务器</string>
     <string name="mirror_certificate_verification">证书验证</string>
     <string name="mirror_app_turn_server">应用提供的 TURN</string>
-    <string name="clone_source_turn_description">通过 TURN 的 Clone</string>
-    <string name="clone_source_local_ice_description">通过本地 ICE 的 Clone</string>
+    <string name="clone_source_turn_description">通过 TURN 中继的 Clone</string>
+    <string name="clone_source_local_ice_description">通过点对点连接的 Clone</string>
 </resources>

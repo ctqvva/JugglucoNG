@@ -936,8 +936,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Keşif</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2634,13 +2635,14 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_follow_interval_desc">Takipçinin sunucuya ne sıklıkla sorduğu. Bu aynı zamanda bir değerin ne kadar eski olabileceği, dolayısıyla takip edilen bir değere dayanan alarmın ne kadar geç gelebileceğidir. Takipçinin telefonu uyanık tutan kendi sensörü yoktur, bu yüzden her kontrol bir uyandırmadır.</string>
     <string name="nightscout_follow_interval_doze">9 dakikanın altında Android, telefon boştayken kontrolleri yine de aralayabilir. Juggluco\'yu pil optimizasyonundan çıkarmak seçilen aralığı korur.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Yerel ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">Eşler arası</string>
+    <string name="clone_transport_connected">Bağlı</string>
+    <string name="clone_transport_turn_ice">TURN aktarıcısı</string>
     <string name="clone_transport_reconnecting">Yeniden bağlanıyor…</string>
     <string name="mirror_route">Rota</string>
     <string name="mirror_stun_server">STUN sunucusu</string>
     <string name="mirror_certificate_verification">Sertifika doğrulaması</string>
     <string name="mirror_app_turn_server">Uygulama tarafından sağlanan TURN</string>
-    <string name="clone_source_turn_description">TURN üzerinden Clone</string>
-    <string name="clone_source_local_ice_description">Yerel ICE üzerinden Clone</string>
+    <string name="clone_source_turn_description">TURN aktarıcısı üzerinden Clone</string>
+    <string name="clone_source_local_ice_description">Eşler arası Clone</string>
 </resources>

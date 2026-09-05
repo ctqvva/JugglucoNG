@@ -946,8 +946,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
-    <string name="clone_signaling">Signaling</string>
-    <string name="clone_signaling_lan">Local network</string>
+    <string name="clone_signaling">Обнаружение</string>
+    <string name="clone_signaling_lan">LAN</string>
+    <string name="clone_signaling_rendezvous">Rendezvous</string>
     <string name="use_turn_for_stun">Use TURN server for STUN</string>
     <string name="use_turn_for_stun_summary">Use the configured TURN server for STUN as well</string>
     <string name="rendezvous_server">Rendezvous server</string>
@@ -2653,13 +2654,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_desc">Как часто подписчик опрашивает сервер. Это же определяет, насколько старым может быть значение, а значит и насколько поздно придёт тревога по отслеживаемому значению. У подписчика нет своего сенсора, который держал бы телефон активным, поэтому каждая проверка — это пробуждение.</string>
     <string name="nightscout_follow_interval_doze">Меньше 9 минут Android всё равно может разносить проверки, пока телефон простаивает. Исключение Juggluco из оптимизации батареи сохраняет выбранный интервал.</string>
     <string name="clone_source_label">Clone</string>
-    <string name="clone_transport_local_ice">Локальный ICE</string>
-    <string name="clone_transport_turn_ice">TURN ICE</string>
+    <string name="clone_transport_local_ice">Одноранговое</string>
+    <string name="clone_transport_connected">Подключено</string>
+    <string name="clone_transport_turn_ice">Ретранслятор TURN</string>
     <string name="clone_transport_reconnecting">Повторное подключение…</string>
     <string name="mirror_route">Маршрут</string>
     <string name="mirror_stun_server">Сервер STUN</string>
     <string name="mirror_certificate_verification">Проверка сертификата</string>
     <string name="mirror_app_turn_server">TURN от приложения</string>
-    <string name="clone_source_turn_description">Clone через TURN</string>
-    <string name="clone_source_local_ice_description">Clone через локальный ICE</string>
+    <string name="clone_source_turn_description">Clone через ретранслятор TURN</string>
+    <string name="clone_source_local_ice_description">Clone по одноранговому соединению</string>
 </resources>

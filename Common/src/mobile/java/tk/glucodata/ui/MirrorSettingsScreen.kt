@@ -1080,14 +1080,8 @@ fun MirrorConnectionCard(
 @Composable
 private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
     val unknown = stringResource(R.string.unknown)
-    val route = stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
-    val signaling = stringResource(
-        when (mirror.cloneSignalingSource) {
-            1 -> R.string.clone_signaling_lan
-            2 -> R.string.rendezvous_server
-            else -> R.string.unknown
-        },
-    )
+    val route = stringResource(CloneTransportPresentation.routeTextRes(mirror.cloneTransport))
+    val signaling = stringResource(CloneTransportPresentation.discoveryTextRes(mirror.cloneSignalingSource))
     val stun = if (mirror.useTurnForStun) {
         mirror.turnEndpoint?.let { "$it · TURN" } ?: unknown
     } else {
