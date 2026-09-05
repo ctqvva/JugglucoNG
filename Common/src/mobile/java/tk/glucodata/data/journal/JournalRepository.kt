@@ -12,7 +12,7 @@ import tk.glucodata.data.HistoryDatabase
 class JournalRepository {
     private companion object {
         const val PREFS_NAME = "tk.glucodata_preferences"
-        const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v4"
+        const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v6"
         const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v2"
     }
 
@@ -50,6 +50,23 @@ class JournalRepository {
         val existing = input.id?.let { dao.getEntryById(it) }
             ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
         val now = System.currentTimeMillis()
+        val isInsulin = input.type == JournalEntryType.INSULIN
+        val preserveCurveSnapshot = isInsulin &&
+            existing?.entryType == JournalEntryType.INSULIN.storageValue &&
+            existing.amount == input.amount &&
+            existing.insulinPresetId == input.insulinPresetId &&
+            !existing.insulinCurveJsonSnapshot.isNullOrBlank()
+        val resolvedCurve = if (isInsulin && !preserveCurveSnapshot) {
+            val amount = input.amount?.takeIf { it.isFinite() && it > 0f }
+            val preset = input.insulinPresetId?.let { dao.getInsulinPresetById(it) }?.toModel()
+            if (amount != null && preset != null) {
+                preset.resolveCurveForDose(amount, JournalHumanProfile.bodyWeightKg(Applic.app))
+            } else {
+                null
+            }
+        } else {
+            null
+        }
         val entity = JournalEntryEntity(
             id = existing?.id ?: (input.id ?: 0L),
             timestamp = input.timestamp,
@@ -70,7 +87,37 @@ class JournalRepository {
             proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
             fatGrams = input.fatGrams?.coerceAtLeast(0f),
             nsUploadedAt = existing?.nsUploadedAt,
-            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId
+            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId,
+            insulinCurveJsonSnapshot = when {
+                !isInsulin -> null
+                preserveCurveSnapshot -> existing?.insulinCurveJsonSnapshot
+                else -> resolvedCurve?.points?.let(::serializeJournalCurve)
+            },
+            insulinCurveProfileId = when {
+                !isInsulin -> null
+                preserveCurveSnapshot -> existing?.insulinCurveProfileId
+                else -> resolvedCurve?.profileId
+            },
+            insulinCurveModelVersion = when {
+                !isInsulin -> null
+                preserveCurveSnapshot -> existing?.insulinCurveModelVersion
+                else -> resolvedCurve?.modelVersion
+            },
+            insulinCurveEvidence = when {
+                !isInsulin -> null
+                preserveCurveSnapshot -> existing?.insulinCurveEvidence
+                else -> resolvedCurve?.evidence?.storageValue
+            },
+            insulinBodyWeightKg = when {
+                !isInsulin -> null
+                preserveCurveSnapshot -> existing?.insulinBodyWeightKg
+                else -> resolvedCurve?.usedBodyWeightKg
+            },
+            insulinCurveWasApproximated = when {
+                !isInsulin -> false
+                preserveCurveSnapshot -> existing?.insulinCurveWasApproximated ?: true
+                else -> resolvedCurve?.approximated ?: true
+            }
         )
         val id = dao.upsertEntry(entity)
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
@@ -216,24 +263,50 @@ class JournalRepository {
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
         val existing = input.id?.let { dao.getInsulinPresetById(it) }
+        val requestedProfile = input.curveProfileId?.let(JournalBuiltInCurveProfile::fromStorage)
+        val requestedEvidence = requestedProfile
+            ?.let { JournalInsulinCurveCatalogue.definition(it).evidence }
+            ?: JournalCurveEvidence.UNVERIFIED
+        val forceZeroEndpoints = requestedEvidence.requiresZeroEndpoints
+        val normalizedCurveJson = input.curveJson
+            .takeIf { it.isNotBlank() }
+            ?.let(::parseJournalCurve)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { serializeJournalCurve(it, forceZeroEndpoints) }
+            ?: serializeJournalCurve(defaultJournalCurve(input.onsetMinutes, input.durationMinutes))
+        val matchesRequestedProfile = requestedProfile != null &&
+            normalizedCurveJson == serializeJournalCurve(
+                builtInJournalCurve(requestedProfile),
+                forceZeroEndpoints
+            )
+        val storedProfile = requestedProfile?.takeIf { matchesRequestedProfile }
+        val storedEvidence = if (storedProfile == null) {
+            JournalCurveEvidence.UNVERIFIED
+        } else {
+            JournalInsulinCurveCatalogue.definition(storedProfile).evidence
+        }
         val entity = JournalInsulinPresetEntity(
             id = existing?.id ?: (input.id ?: 0L),
             displayName = input.displayName.trim(),
             onsetMinutes = input.onsetMinutes.coerceAtLeast(0),
             durationMinutes = input.durationMinutes.coerceAtLeast(input.onsetMinutes.coerceAtLeast(0)),
             accentColor = input.accentColor,
-            curveJson = input.curveJson.ifBlank {
-                serializeJournalCurve(defaultJournalCurve(input.onsetMinutes, input.durationMinutes))
-            },
+            curveJson = normalizedCurveJson,
             isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
             isArchived = input.isArchived,
-            countsTowardIob = input.countsTowardIob,
+            countsTowardIob = input.countsTowardIob &&
+                storedEvidence != JournalCurveEvidence.SOURCE_STEADY_STATE &&
+                storedEvidence != JournalCurveEvidence.SOURCE_REFERENCE,
             sortOrder = input.sortOrder,
-            useForCalculation = input.useForCalculation
+            useForCalculation = input.useForCalculation &&
+                storedEvidence != JournalCurveEvidence.SOURCE_STEADY_STATE &&
+                storedEvidence != JournalCurveEvidence.SOURCE_REFERENCE,
+            curveProfileId = storedProfile?.storageValue,
+            curveModelVersion = if (storedProfile == null) 0 else JournalInsulinCurveCatalogue.MODEL_VERSION,
+            curveEvidence = storedEvidence.storageValue
         )
         val id = dao.upsertInsulinPreset(entity)
-        // Curve or countsTowardIob edits reshape the IOB of existing doses.
-        // Calculation eligibility is persisted alongside them for journal dose assist.
+        // Entries snapshot their resolved curve, so edits affect future doses only.
         tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         return id
     }
@@ -315,169 +388,90 @@ class JournalRepository {
 
     private fun defaultPresets(): List<JournalInsulinPresetEntity> {
         val app = Applic.app
-        return listOf(
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.rapidinsulin),
-                onsetMinutes = 14,
-                durationMinutes = 360,
-                accentColor = 0xFF1565C0.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.RAPID_GENERIC)),
+        fun preset(
+            nameRes: Int,
+            profile: JournalBuiltInCurveProfile,
+            color: Int,
+            sortOrder: Int,
+            archived: Boolean = true,
+            countsTowardIob: Boolean = false
+        ): JournalInsulinPresetEntity {
+            val definition = JournalInsulinCurveCatalogue.definition(profile)
+            val curve = definition.variants.minByOrNull { kotlin.math.abs(it.dose - definition.referenceDose) }
+                ?.points
+                ?: emptyList()
+            val onset = JournalInsulinCurveCatalogue.referenceOnsetMinutes(profile)
+            val duration = curve.lastOrNull()?.minute ?: 0
+            return JournalInsulinPresetEntity(
+                displayName = app.getString(nameRes),
+                onsetMinutes = onset,
+                durationMinutes = duration,
+                accentColor = color,
+                curveJson = serializeJournalCurve(
+                    curve,
+                    forceZeroEndpoints = definition.evidence.requiresZeroEndpoints
+                ),
                 isBuiltIn = true,
-                isArchived = false,
-                countsTowardIob = true,
-                sortOrder = 0
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.longinsulin),
-                onsetMinutes = 90,
-                durationMinutes = 1440,
-                accentColor = 0xFF6B7C3B.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.LONG_BASAL_GENERIC)),
-                isBuiltIn = true,
-                isArchived = false,
-                countsTowardIob = false,
-                sortOrder = 1,
-                useForCalculation = false
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.humaninsulin),
-                onsetMinutes = 28,
-                durationMinutes = 510,
-                accentColor = 0xFF6A1B9A.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.HUMAN_REGULAR)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 2
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.aspart),
-                onsetMinutes = 14,
-                durationMinutes = 360,
-                accentColor = 0xFF1976D2.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.ASPART)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 3
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.lispro),
-                onsetMinutes = 12,
-                durationMinutes = 330,
-                accentColor = 0xFF00897B.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.LISPRO)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 4
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.glulisine),
-                onsetMinutes = 15,
-                durationMinutes = 480,
-                accentColor = 0xFF00838F.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.GLULISINE)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 5
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.fiasp),
-                onsetMinutes = 10,
-                durationMinutes = 360,
-                accentColor = 0xFF2E7D32.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.FIASP)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 6
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.urli),
-                onsetMinutes = 15,
-                durationMinutes = 370,
-                accentColor = 0xFF00695C.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.URLI)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 7
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.afrezza),
-                onsetMinutes = 12,
-                durationMinutes = 210,
-                accentColor = 0xFFEF6C00.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.AFREZZA)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 8
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.journal_preset_nph),
-                onsetMinutes = 90,
-                durationMinutes = 720,
-                accentColor = 0xFFE67E22.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.NPH)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = true,
-                sortOrder = 9
-            ),
-            JournalInsulinPresetEntity(
-                displayName = app.getString(R.string.journal_preset_ultra_long_basal),
-                onsetMinutes = 180,
-                durationMinutes = 2160,
-                accentColor = 0xFF3949AB.toInt(),
-                curveJson = serializeJournalCurve(builtInJournalCurve(JournalBuiltInCurveProfile.ULTRA_LONG_BASAL)),
-                isBuiltIn = true,
-                isArchived = true,
-                countsTowardIob = false,
-                sortOrder = 10,
-                useForCalculation = false
+                isArchived = archived,
+                countsTowardIob = countsTowardIob,
+                sortOrder = sortOrder,
+                useForCalculation = countsTowardIob && definition.evidence.supportsPerDoseCalculation,
+                curveProfileId = profile.storageValue,
+                curveModelVersion = JournalInsulinCurveCatalogue.MODEL_VERSION,
+                curveEvidence = definition.evidence.storageValue
             )
+        }
+        return listOf(
+            preset(R.string.journal_preset_rapid_generic, JournalBuiltInCurveProfile.RAPID_GENERIC, 0xFF1565C0.toInt(), 0, archived = false, countsTowardIob = true),
+            preset(R.string.journal_preset_long_generic, JournalBuiltInCurveProfile.LONG_BASAL_GENERIC, 0xFF6B7C3B.toInt(), 1, archived = false),
+            preset(R.string.journal_preset_regular_u100, JournalBuiltInCurveProfile.HUMAN_REGULAR, 0xFF6A1B9A.toInt(), 2, countsTowardIob = true),
+            preset(R.string.journal_preset_aspart, JournalBuiltInCurveProfile.ASPART, 0xFF1976D2.toInt(), 3, countsTowardIob = true),
+            preset(R.string.journal_preset_lispro, JournalBuiltInCurveProfile.LISPRO, 0xFF00897B.toInt(), 4, countsTowardIob = true),
+            preset(R.string.journal_preset_glulisine, JournalBuiltInCurveProfile.GLULISINE, 0xFF00838F.toInt(), 5, countsTowardIob = true),
+            preset(R.string.journal_preset_fiasp, JournalBuiltInCurveProfile.FIASP, 0xFF2E7D32.toInt(), 6, countsTowardIob = true),
+            preset(R.string.journal_preset_lyumjev, JournalBuiltInCurveProfile.URLI, 0xFF00695C.toInt(), 7, countsTowardIob = true),
+            preset(R.string.journal_preset_afrezza, JournalBuiltInCurveProfile.AFREZZA, 0xFFEF6C00.toInt(), 8, countsTowardIob = true),
+            preset(R.string.journal_preset_nph_named, JournalBuiltInCurveProfile.NPH, 0xFFE67E22.toInt(), 9),
+            preset(R.string.journal_preset_ultra_long_generic, JournalBuiltInCurveProfile.ULTRA_LONG_BASAL, 0xFF3949AB.toInt(), 10),
+            preset(R.string.journal_preset_lantus, JournalBuiltInCurveProfile.GLARGINE_U100, 0xFF5E6C3B.toInt(), 11),
+            preset(R.string.journal_preset_toujeo, JournalBuiltInCurveProfile.GLARGINE_U300, 0xFF4E6041.toInt(), 12),
+            preset(R.string.journal_preset_levemir, JournalBuiltInCurveProfile.DETEMIR, 0xFF7B6A3C.toInt(), 13),
+            preset(R.string.journal_preset_tresiba, JournalBuiltInCurveProfile.DEGLUDEC, 0xFF3949AB.toInt(), 14),
+            preset(R.string.journal_preset_awiqli, JournalBuiltInCurveProfile.ICODEC, 0xFF512DA8.toInt(), 15),
+            preset(R.string.journal_preset_regular_u500, JournalBuiltInCurveProfile.HUMAN_REGULAR_U500, 0xFF8E244D.toInt(), 16),
+            preset(R.string.journal_preset_ryzodeg, JournalBuiltInCurveProfile.RYZODEG_70_30, 0xFF6D4C41.toInt(), 17),
+            preset(R.string.journal_preset_aspart_mix_7030, JournalBuiltInCurveProfile.ASPART_MIX_70_30, 0xFF795548.toInt(), 18),
+            preset(R.string.journal_preset_lispro_mix_5050, JournalBuiltInCurveProfile.LISPRO_MIX_50_50, 0xFF8D6E63.toInt(), 19),
+            preset(R.string.journal_preset_lispro_mix_7525, JournalBuiltInCurveProfile.LISPRO_MIX_75_25, 0xFFA1887F.toInt(), 20),
+            preset(R.string.journal_preset_human_mix_7030, JournalBuiltInCurveProfile.HUMAN_MIX_70_30, 0xFF5D4037.toInt(), 21)
         )
     }
 
     private fun mergeBuiltInPresets(
         existing: List<JournalInsulinPresetEntity>
     ): List<JournalInsulinPresetEntity> {
-        val builtInsByName = existing.filter { it.isBuiltIn }.associateBy { it.displayName }
-        val builtInsBySortOrder = existing.filter { it.isBuiltIn }.associateBy { it.sortOrder }
         return defaultPresets().map { preset ->
-            val existingMatch = builtInsByName[preset.displayName]
-                ?: legacyBuiltInMatch(preset.sortOrder, builtInsBySortOrder)
-            existingMatch?.copy(
+            val existingMatch = matchExistingBuiltInPreset(preset, existing)
+            val merged = existingMatch?.copy(
                 displayName = preset.displayName,
-                onsetMinutes = preset.onsetMinutes,
-                durationMinutes = preset.durationMinutes,
                 accentColor = preset.accentColor,
-                curveJson = preset.curveJson,
-                isArchived = preset.isArchived,
-                countsTowardIob = preset.countsTowardIob,
-                sortOrder = preset.sortOrder,
-                useForCalculation = preset.useForCalculation
+                sortOrder = preset.sortOrder
             ) ?: preset
+            val shouldUpgradeSourceCurve = existingMatch != null &&
+                existingMatch.curveProfileId == preset.curveProfileId &&
+                existingMatch.curveModelVersion in 1 until JournalInsulinCurveCatalogue.MODEL_VERSION
+            if (shouldUpgradeSourceCurve) {
+                merged.copy(
+                    onsetMinutes = preset.onsetMinutes,
+                    durationMinutes = preset.durationMinutes,
+                    curveJson = preset.curveJson,
+                    curveModelVersion = preset.curveModelVersion,
+                    curveEvidence = preset.curveEvidence
+                )
+            } else {
+                merged
+            }
         }
-    }
-
-    private fun legacyBuiltInMatch(
-        newSortOrder: Int,
-        builtInsBySortOrder: Map<Int, JournalInsulinPresetEntity>
-    ): JournalInsulinPresetEntity? {
-        val legacySortOrder = when (newSortOrder) {
-            0 -> 1
-            1 -> 4
-            2 -> 2
-            7 -> 0
-            9 -> 3
-            10 -> 5
-            else -> null
-        } ?: return null
-        return builtInsBySortOrder[legacySortOrder]
     }
 
     private fun defaultFoods(): List<JournalFoodEntity> {
@@ -522,6 +516,31 @@ class JournalRepository {
     }
 }
 
+internal fun matchExistingBuiltInPreset(
+    newPreset: JournalInsulinPresetEntity,
+    existing: List<JournalInsulinPresetEntity>
+): JournalInsulinPresetEntity? {
+    val builtIns = existing.filter { it.isBuiltIn }
+    newPreset.curveProfileId?.let { profileId ->
+        builtIns.firstOrNull { it.curveProfileId == profileId }?.let { return it }
+    }
+    builtIns.firstOrNull { it.displayName == newPreset.displayName }?.let { return it }
+    val bySortOrder = builtIns.associateBy { it.sortOrder }
+    if ((0..10).all(bySortOrder::containsKey) && newPreset.sortOrder <= 10) {
+        return bySortOrder[newPreset.sortOrder]
+    }
+    val legacySortOrder = when (newPreset.sortOrder) {
+        0 -> 1
+        1 -> 4
+        2 -> 2
+        7 -> 0
+        9 -> 3
+        10 -> 5
+        else -> null
+    }
+    return legacySortOrder?.let(bySortOrder::get)
+}
+
 private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? {
     nsRemoteId?.takeIf { it.isNotBlank() }?.let { return it }
     if (source != JournalEntrySource.NIGHTSCOUT.storageValue) return null
@@ -550,7 +569,13 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         source = JournalEntrySource.fromStorage(source),
         sourceRecordId = sourceRecordId,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        insulinCurveJsonSnapshot = insulinCurveJsonSnapshot,
+        insulinCurveProfileId = insulinCurveProfileId,
+        insulinCurveModelVersion = insulinCurveModelVersion,
+        insulinCurveEvidence = insulinCurveEvidence?.let { JournalCurveEvidence.fromStorage(it) },
+        insulinBodyWeightKg = insulinBodyWeightKg,
+        insulinCurveWasApproximated = insulinCurveWasApproximated
     )
 }
 
@@ -566,7 +591,13 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
         isArchived = isArchived,
         countsTowardIob = countsTowardIob,
         sortOrder = sortOrder,
-        useForCalculation = useForCalculation
+        useForCalculation = useForCalculation,
+        curveProfileId = curveProfileId,
+        curveModelVersion = curveModelVersion,
+        curveEvidence = JournalCurveEvidence.fromStorage(curveEvidence),
+        scientificName = curveProfileId
+            ?.let(JournalBuiltInCurveProfile::fromStorage)
+            ?.let(JournalInsulinCurveCatalogue::scientificName)
     )
 }
 

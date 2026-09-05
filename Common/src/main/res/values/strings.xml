@@ -2234,7 +2234,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_curve_add_point">Add curve point</string>
     <string name="journal_curve_point">Point %1$d</string>
     <string name="journal_curve_minutes">Minute</string>
-    <string name="journal_curve_activity">Activity</string>
+    <string name="journal_curve_activity">Relative activity</string>
+    <string name="journal_curve_activity_desc">Glucose-lowering activity relative to the peak of this curve (100%).</string>
+    <string name="journal_scientific_name">Scientific name</string>
     <string name="journal_curve_reset">Reset curve</string>
     <string name="journal_enable_preset">Restore</string>
     <string name="journal_disable_preset">Disable</string>
@@ -2790,6 +2792,42 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Chart + value</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Chart + value + arrow</string>
     <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
+    <string name="journal_preset_rapid_generic" translatable="false">Rapid acting (generic)</string>
+    <string name="journal_preset_long_generic" translatable="false">Long acting (generic)</string>
+    <string name="journal_preset_regular_u100" translatable="false">Humulin R / Novolin R</string>
+    <string name="journal_preset_aspart" translatable="false">NovoRapid / NovoLog</string>
+    <string name="journal_preset_lispro" translatable="false">Humalog</string>
+    <string name="journal_preset_glulisine" translatable="false">Apidra</string>
+    <string name="journal_preset_fiasp" translatable="false">Fiasp</string>
+    <string name="journal_preset_lyumjev" translatable="false">Lyumjev</string>
+    <string name="journal_preset_afrezza" translatable="false">Afrezza</string>
+    <string name="journal_preset_nph_named" translatable="false">Humulin N / Novolin N</string>
+    <string name="journal_preset_ultra_long_generic" translatable="false">Ultra-long basal (generic)</string>
+    <string name="journal_preset_lantus" translatable="false">Lantus / Basaglar / Semglee</string>
+    <string name="journal_preset_toujeo" translatable="false">Toujeo</string>
+    <string name="journal_preset_levemir" translatable="false">Levemir</string>
+    <string name="journal_preset_tresiba" translatable="false">Tresiba</string>
+    <string name="journal_preset_awiqli" translatable="false">Awiqli</string>
+    <string name="journal_preset_regular_u500" translatable="false">Humulin R U-500</string>
+    <string name="journal_preset_ryzodeg" translatable="false">Ryzodeg</string>
+    <string name="journal_preset_aspart_mix_7030" translatable="false">NovoLog Mix 70/30 / NovoMix 30</string>
+    <string name="journal_preset_lispro_mix_5050" translatable="false">Humalog Mix 50/50</string>
+    <string name="journal_preset_lispro_mix_7525" translatable="false">Humalog Mix 75/25</string>
+    <string name="journal_preset_human_mix_7030" translatable="false">Humulin 70/30 / Novolin 70/30</string>
+    <string name="journal_curve_unverified">Unverified curve</string>
+    <string name="journal_curve_unverified_desc">This activity shape is an estimate or a custom curve and is not traced to a complete pharmacodynamic source.</string>
+    <string name="journal_curve_source_backed">Source-backed single-dose curve</string>
+    <string name="journal_curve_source_backed_desc">Derived from a published pharmacodynamic glucose-infusion-rate profile. It is a population average, not a personalized prediction.</string>
+    <string name="journal_curve_steady_state">Source-backed steady-state profile</string>
+    <string name="journal_curve_steady_state_desc">Measured after repeated dosing. It is shown for reference and cannot be used as the action of one dose.</string>
+    <string name="journal_curve_reference_only">Source-backed reference profile</string>
+    <string name="journal_curve_reference_only_desc">The published observation does not contain a complete single-dose tail, so calculation is disabled.</string>
+    <string name="journal_curve_use_source">Use source</string>
+    <string name="journal_body_weight_title">Body weight for insulin curves</string>
+    <string name="journal_body_weight_desc">Used only to select official dose-per-kilogram activity profiles. New doses keep a local snapshot of the weight used.</string>
+    <string name="journal_body_weight_kg">Weight (kg)</string>
+    <string name="journal_body_weight_value">%1$.1f kg</string>
+    <string name="journal_body_weight_not_set">Not set. Weight-indexed curves use their reference dose.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
     <string name="sibionics_adaptive_v2_desc">Independent sensor-state estimate with a likely range</string>
     <string name="glucose_likely_range">Likely range</string>

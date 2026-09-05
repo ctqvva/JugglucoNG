@@ -37,6 +37,7 @@ import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalInsulinPresetInput
+import tk.glucodata.data.journal.JournalHumanProfile
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
@@ -412,6 +413,9 @@ class DashboardViewModel(
     private val _journalDashboardQuickAddButton = MutableStateFlow(false)
     val journalDashboardQuickAddButton = _journalDashboardQuickAddButton.asStateFlow()
 
+    private val _journalBodyWeightKg = MutableStateFlow<Float?>(null)
+    val journalBodyWeightKg = _journalBodyWeightKg.asStateFlow()
+
     private val _glucoseValueRangeColorsEnabled = MutableStateFlow(false)
     val glucoseValueRangeColorsEnabled = _glucoseValueRangeColorsEnabled.asStateFlow()
 
@@ -749,6 +753,7 @@ class DashboardViewModel(
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
         _journalQuickAddAlwaysNow.value = prefs.getBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, false)
         _journalDashboardQuickAddButton.value = prefs.getBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, false)
+        _journalBodyWeightKg.value = JournalHumanProfile.bodyWeightKg(context)
         _glucoseValueRangeColorsEnabled.value = prefs.getBoolean(GLUCOSE_RANGE_COLORS_KEY, false)
         _glucoseArrowForecastColorsEnabled.value = prefs.getBoolean(ARROW_FORECAST_COLORS_KEY, false)
         _glucoseChartRangeColorsEnabled.value = prefs.getBoolean(CHART_RANGE_COLORS_KEY, false)
@@ -1578,6 +1583,12 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, enabled).apply()
         _journalDashboardQuickAddButton.value = enabled
+    }
+
+    fun setJournalBodyWeightKg(value: Float?) {
+        val context = tk.glucodata.Applic.app
+        JournalHumanProfile.setBodyWeightKg(context, value)
+        _journalBodyWeightKg.value = JournalHumanProfile.bodyWeightKg(context)
     }
 
     fun setGlucoseValueRangeColorsEnabled(enabled: Boolean) {
