@@ -16,12 +16,12 @@ import tk.glucodata.data.meal.MealRepository
  * The quick-add gesture for meals: create one and open it, so scanning can start right away.
  * Used by the "+" menus on the journal and the dashboard; the meal list stays one level up.
  */
-/** The open meal most recently worked on, or null when every meal is marked done. */
+/** The most recently edited unarchived meal without a saved eating entry. */
 @Composable
 fun rememberCurrentMeal(): Meal? {
     val repository = remember { MealRepository() }
-    val meals by repository.observeMeals().collectAsStateWithLifecycle(initialValue = emptyList())
-    return remember(meals) { meals.firstOrNull { !it.isArchived } }
+    val meal by repository.observeCurrentMeal().collectAsStateWithLifecycle(initialValue = null)
+    return meal
 }
 
 @Composable
