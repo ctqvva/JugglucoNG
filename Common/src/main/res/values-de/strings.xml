@@ -2598,6 +2598,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_new">Neue Mahlzeit</string>
     <string name="meal_current_prefix">Aktuelle Mahlzeit: %1$s</string>
     <string name="meal_default_label">Mahlzeit</string>
+    <string name="meal_suggested_breakfast">Frühstück</string>
+    <string name="meal_suggested_lunch">Mittagessen</string>
+    <string name="meal_suggested_dinner">Abendessen</string>
+    <string name="meal_suggested_snack">Snack</string>
     <string name="meal_empty">Noch keine Mahlzeiten. Beim Kochen anlegen, Produkte scannen und beim Essen eintragen.</string>
     <string name="meal_open_section">Offen</string>
     <string name="meal_archived_section">Erledigt</string>

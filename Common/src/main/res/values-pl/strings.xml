@@ -2597,6 +2597,10 @@
     <string name="meal_new">Nowy posiłek</string>
     <string name="meal_current_prefix">Bieżący posiłek: %1$s</string>
     <string name="meal_default_label">Posiłek</string>
+    <string name="meal_suggested_breakfast">Śniadanie</string>
+    <string name="meal_suggested_lunch">Obiad</string>
+    <string name="meal_suggested_dinner">Kolacja</string>
+    <string name="meal_suggested_snack">Przekąska</string>
     <string name="meal_empty">Brak posiłków. Utwórz posiłek podczas gotowania, zeskanuj produkty i zapisz, co jesz, gdy to jesz.</string>
     <string name="meal_open_section">Otwarte</string>
     <string name="meal_archived_section">Zakończone</string>

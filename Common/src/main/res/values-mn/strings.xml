@@ -2674,6 +2674,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_new">Шинэ хоол</string>
     <string name="meal_current_prefix">Одоогийн хоол: %1$s</string>
     <string name="meal_default_label">Хоол</string>
+    <string name="meal_suggested_breakfast">Өглөөний цай</string>
+    <string name="meal_suggested_lunch">Өдрийн хоол</string>
+    <string name="meal_suggested_dinner">Оройн хоол</string>
+    <string name="meal_suggested_snack">Зууш</string>
     <string name="meal_empty">Хоол алга. Хоол хийхдээ үүсгэж, орцыг скан хийгээд, идэх үедээ бүртгэнэ үү.</string>
     <string name="meal_open_section">Нээлттэй</string>
     <string name="meal_archived_section">Дууссан</string>

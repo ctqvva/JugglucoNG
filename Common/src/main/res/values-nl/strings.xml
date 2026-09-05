@@ -2602,6 +2602,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_new">Nieuwe maaltijd</string>
     <string name="meal_current_prefix">Huidige maaltijd: %1$s</string>
     <string name="meal_default_label">Maaltijd</string>
+    <string name="meal_suggested_breakfast">Ontbijt</string>
+    <string name="meal_suggested_lunch">Lunch</string>
+    <string name="meal_suggested_dinner">Avondeten</string>
+    <string name="meal_suggested_snack">Tussendoortje</string>
     <string name="meal_empty">Nog geen maaltijden. Maak er een tijdens het koken, scan wat erin gaat en log wat je eet wanneer je het eet.</string>
     <string name="meal_open_section">Open</string>
     <string name="meal_archived_section">Klaar</string>

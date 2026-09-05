@@ -2565,6 +2565,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">Nouveau repas</string>
     <string name="meal_current_prefix">Repas en cours : %1$s</string>
     <string name="meal_default_label">Repas</string>
+    <string name="meal_suggested_breakfast">Petit-déjeuner</string>
+    <string name="meal_suggested_lunch">Déjeuner</string>
+    <string name="meal_suggested_dinner">Dîner</string>
+    <string name="meal_suggested_snack">Collation</string>
     <string name="meal_empty">Aucun repas. Créez-en un en cuisinant, scannez les produits et notez ce que vous mangez au moment du repas.</string>
     <string name="meal_open_section">En cours</string>
     <string name="meal_archived_section">Terminés</string>

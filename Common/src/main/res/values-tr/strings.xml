@@ -2587,6 +2587,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_new">Yeni öğün</string>
     <string name="meal_current_prefix">Geçerli öğün: %1$s</string>
     <string name="meal_default_label">Öğün</string>
+    <string name="meal_suggested_breakfast">Kahvaltı</string>
+    <string name="meal_suggested_lunch">Öğle yemeği</string>
+    <string name="meal_suggested_dinner">Akşam yemeği</string>
+    <string name="meal_suggested_snack">Atıştırmalık</string>
     <string name="meal_empty">Henüz öğün yok. Yemek yaparken bir öğün oluşturun, ürünleri tarayın ve yediğinizi yerken kaydedin.</string>
     <string name="meal_open_section">Açık</string>
     <string name="meal_archived_section">Tamamlandı</string>

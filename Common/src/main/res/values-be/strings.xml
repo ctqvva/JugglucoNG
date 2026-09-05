@@ -2630,6 +2630,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">Новы прыём ежы</string>
     <string name="meal_current_prefix">Бягучы прыём ежы: %1$s</string>
     <string name="meal_default_label">Прыём ежы</string>
+    <string name="meal_suggested_breakfast">Сняданак</string>
+    <string name="meal_suggested_lunch">Абед</string>
+    <string name="meal_suggested_dinner">Вячэра</string>
+    <string name="meal_suggested_snack">Перакус</string>
     <string name="meal_empty">Пакуль няма прыёмаў ежы. Стварыце падчас гатавання, адскануйце прадукты і запісвайце з’едзенае, калі ясце.</string>
     <string name="meal_open_section">Адкрытыя</string>
     <string name="meal_archived_section">Завершаныя</string>

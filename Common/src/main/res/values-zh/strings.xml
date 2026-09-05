@@ -2575,6 +2575,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">新建餐食</string>
     <string name="meal_current_prefix">当前餐食：%1$s</string>
     <string name="meal_default_label">餐食</string>
+    <string name="meal_suggested_breakfast">早餐</string>
+    <string name="meal_suggested_lunch">午餐</string>
+    <string name="meal_suggested_dinner">晚餐</string>
+    <string name="meal_suggested_snack">零食</string>
     <string name="meal_empty">还没有餐食。做饭时新建一餐，扫描食材，进食时再记录。</string>
     <string name="meal_open_section">进行中</string>
     <string name="meal_archived_section">已完成</string>

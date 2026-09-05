@@ -2560,6 +2560,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">Nova refeição</string>
     <string name="meal_current_prefix">Refeição atual: %1$s</string>
     <string name="meal_default_label">Refeição</string>
+    <string name="meal_suggested_breakfast">Pequeno-almoço</string>
+    <string name="meal_suggested_lunch">Almoço</string>
+    <string name="meal_suggested_dinner">Jantar</string>
+    <string name="meal_suggested_snack">Lanche</string>
     <string name="meal_empty">Ainda não há refeições. Crie uma enquanto cozinha, leia os produtos e registe o que come quando come.</string>
     <string name="meal_open_section">Abertas</string>
     <string name="meal_archived_section">Concluídas</string>

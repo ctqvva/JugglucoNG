@@ -2549,6 +2549,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">Nuovo pasto</string>
     <string name="meal_current_prefix">Pasto in corso: %1$s</string>
     <string name="meal_default_label">Pasto</string>
+    <string name="meal_suggested_breakfast">Colazione</string>
+    <string name="meal_suggested_lunch">Pranzo</string>
+    <string name="meal_suggested_dinner">Cena</string>
+    <string name="meal_suggested_snack">Spuntino</string>
     <string name="meal_empty">Nessun pasto. Creane uno mentre cucini, scansiona i prodotti e registra ciò che mangi quando lo mangi.</string>
     <string name="meal_open_section">Aperti</string>
     <string name="meal_archived_section">Conclusi</string>

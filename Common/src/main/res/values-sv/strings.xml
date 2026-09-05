@@ -2559,6 +2559,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_new">Ny måltid</string>
     <string name="meal_current_prefix">Aktuell måltid: %1$s</string>
     <string name="meal_default_label">Måltid</string>
+    <string name="meal_suggested_breakfast">Frukost</string>
+    <string name="meal_suggested_lunch">Lunch</string>
+    <string name="meal_suggested_dinner">Middag</string>
+    <string name="meal_suggested_snack">Mellanmål</string>
     <string name="meal_empty">Inga måltider ännu. Skapa en när du lagar mat, skanna det som går i och logga det du äter när du äter.</string>
     <string name="meal_open_section">Öppna</string>
     <string name="meal_archived_section">Klara</string>

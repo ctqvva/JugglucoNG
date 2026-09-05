@@ -2759,6 +2759,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_new">Cunto cusub</string>
     <string name="meal_current_prefix">Cuntada hadda: %1$s</string>
     <string name="meal_default_label">Cunto</string>
+    <string name="meal_suggested_breakfast">Quraac</string>
+    <string name="meal_suggested_lunch">Qado</string>
+    <string name="meal_suggested_dinner">Casho</string>
+    <string name="meal_suggested_snack">Cunto fudud</string>
     <string name="meal_empty">Weli cunto ma jirto. Samee mid markaad karinayso, iskaan garee waxa gala, oo diiwaangeli waxaad cunto markaad cunayso.</string>
     <string name="meal_open_section">Furan</string>
     <string name="meal_archived_section">La dhammeeyey</string>
