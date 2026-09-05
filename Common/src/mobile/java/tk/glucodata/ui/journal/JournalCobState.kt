@@ -17,7 +17,8 @@ internal fun rememberJournalCob(nowMillis: Long, entries: List<JournalEntry>): F
     val cob by produceState<Float?>(null, nowMillis, entries, revision) {
         value = withContext(Dispatchers.IO) {
             OutboundApiJournalSnapshot.broadcastIobSnapshot(nowMillis)
-                ?.getOrNull(2)?.takeIf { it.isFinite() && it >= 0f }
+                // Both displays use one decimal below 1 g; hide amounts that render as zero.
+                ?.getOrNull(2)?.takeIf { it.isFinite() && it >= 0.05f }
         }
     }
     return cob
