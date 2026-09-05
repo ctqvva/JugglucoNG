@@ -69,6 +69,34 @@ class ICanHealthParserTests {
         assertEquals(4.50f, reading!!.glucoseMmolL, 0.001f)
     }
 
+    @Test
+    fun parseGlucoseNotification_rejectsWarmupFrameWithoutChallenge() {
+        val sequence = 60
+        val data = encryptedNotification(
+            sequence = sequence,
+            plaintext = glucosePlaintext(sequence = sequence, glucoseRaw = 2960)
+        )
+
+        assertNull(parse(data, authChallenge = null, warmupMinutes = 120))
+    }
+
+    @Test
+    fun parseGlucoseNotification_rejectsWarmupFrameWithShortChallenge() {
+        val sequence = 60
+        val data = encryptedNotification(
+            sequence = sequence,
+            plaintext = glucosePlaintext(sequence = sequence, glucoseRaw = 2960)
+        )
+
+        assertNull(
+            parse(
+                data,
+                authChallenge = byteArrayOf(0x01, 0x02, 0x03),
+                warmupMinutes = 120,
+            )
+        )
+    }
+
     private fun parse(
         data: ByteArray,
         authChallenge: ByteArray? = null,

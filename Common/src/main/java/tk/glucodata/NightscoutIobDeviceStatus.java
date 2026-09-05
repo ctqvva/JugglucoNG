@@ -37,6 +37,10 @@ public class NightscoutIobDeviceStatus {
     // back to the same slow cadence as the battery devicestatus.
     static final long FAST_INTERVAL_MILLIS = 5L * 60L * 1000L;
     static final long SLOW_INTERVAL_MILLIS = 15L * 60L * 1000L;
+    // The ancillary upload path fetches its own token when the cache is empty,
+    // but at most this often, so a refusing server is asked once per interval
+    // instead of on every devicestatus attempt.
+    static final long TOKEN_RETRY_MILLIS = FAST_INTERVAL_MILLIS;
     // Below half of the 0.01-unit display quantum IOB counts as zero.
     private static final float VALUE_QUANTUM = 0.01f;
 
@@ -47,6 +51,14 @@ public class NightscoutIobDeviceStatus {
     // callers use this as a cheap gate before computing the journal snapshot.
     static boolean fastIntervalElapsed(long nowMillis, long lastUploadMillis) {
         return lastUploadMillis <= 0L || nowMillis - lastUploadMillis >= FAST_INTERVAL_MILLIS;
+    }
+
+    // True when the ancillary path may spend a network round trip on a token
+    // request. A clock that moved backwards must not block requests forever.
+    static boolean tokenRetryDue(long nowMillis, long lastAttemptMillis) {
+        return lastAttemptMillis <= 0L
+                || nowMillis < lastAttemptMillis
+                || nowMillis - lastAttemptMillis >= TOKEN_RETRY_MILLIS;
     }
 
     // Decides whether a devicestatus is due. Fast cadence while insulin is on
@@ -86,11 +98,26 @@ public class NightscoutIobDeviceStatus {
     // the journal has data of that kind. All values are insulin units and
     // grams; glucose units play no role here.
     static String buildDocument(long nowMillis, float iob, float eiob, float cob) {
+        return buildDocument(nowMillis, iob, eiob, cob, false);
+    }
+
+    /**
+     * @param useV3 v3 stores one document rather than an array, and rejects one without an
+     *              "app" field ("Bad or missing app field"). The payload itself is the same
+     *              either way, so only the wrapper and those required fields differ.
+     */
+    static String buildDocument(long nowMillis, float iob, float eiob, float cob, boolean useV3) {
         if (!Float.isFinite(iob))
             return null;
         final String timestamp = isoTimestamp(nowMillis);
-        final StringBuilder out = new StringBuilder(224);
-        out.append("[{\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp)
+        final StringBuilder out = new StringBuilder(256);
+        if (useV3) {
+            out.append("{\"app\":\"JugglucoNG\",\"date\":").append(nowMillis)
+                    .append(",\"utcOffset\":0,\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp);
+        } else {
+            out.append("[{\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp);
+        }
+        out
                 .append("\",\"openaps\":{\"iob\":{\"iob\":").append(formatUnits(iob))
                 .append(",\"timestamp\":\"").append(timestamp)
                 .append("\"}},\"jugglucong\":{\"iob\":").append(formatUnits(iob));
@@ -98,7 +125,7 @@ public class NightscoutIobDeviceStatus {
             out.append(",\"eiob\":").append(formatUnits(eiob));
         if (Float.isFinite(cob))
             out.append(",\"cob\":").append(formatUnits(cob));
-        out.append("}}]");
+        out.append(useV3 ? "}}" : "}}]");
         return out.toString();
     }
 

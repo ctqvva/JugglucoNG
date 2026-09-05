@@ -35,5 +35,11 @@ data class JournalEntryEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val nsUploadedAt: Long? = null,
-    val nsRemoteId: String? = null
+    val nsRemoteId: String? = null,
+    /**
+     * When this row last went out to LibreView, so an unchanged entry is not resent on
+     * every upload pass. Tracked separately from [nsUploadedAt] because the two
+     * destinations succeed and fail independently.
+     */
+    val lvUploadedAt: Long? = null
 )

@@ -61,14 +61,23 @@ import android.view.ViewGroup;
 public class Specific {
 final static private String LOG_ID="Specific";
 
-static void start(Object context) {
+// Called from Applic.onCreate(), before any path that can evaluate a reading;
+// see the mobile Specific for why start() is too late after a reboot.
+static void registerBridges() {
     TrendAccess.register(tk.glucodata.logic.TrendEngineVelocityProvider.INSTANCE);
+}
+
+static void start(Object context) {
+    registerBridges();
     CalibrationAccess.register(SyncedWearCalibrationProvider.INSTANCE);
 }
 
 static    void splash(AppCompatActivity act) {
        SplashScreen.installSplashScreen(act);
       }
+static boolean historyDatabaseCompatible(Context context) {
+    return true;
+}
 @SuppressLint("StaticFieldLeak")
 static ViewGroup layout=null;
 @SuppressLint("StaticFieldLeak")

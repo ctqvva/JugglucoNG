@@ -39,6 +39,7 @@ import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelSmallPrim
 import tk.glucodata.ui.theme.labelLargeExpressive
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
@@ -384,6 +385,21 @@ fun DashboardCombinedHeader(
     }
 
     val primaryText = dvs?.primaryStr ?: currentGlucose
+    // The newest point's credible interval, when the active estimator reports
+    // one. Rendered as a quiet second line under the value rather than a badge:
+    // it is context for the number above it, not a separate fact.
+    val currentRangeText = remember(history, latestPoint, isMmol, viewMode) {
+        if (viewMode == 1 || viewMode == 3) {
+            null
+        } else {
+            (history.lastOrNull() ?: latestPoint)?.uncertainty
+                ?.takeIf { it.isUsable }
+                ?.let { uncertainty ->
+                    "${tk.glucodata.ui.util.GlucoseFormatter.format(uncertainty.lower, isMmol)}" +
+                        "–${tk.glucodata.ui.util.GlucoseFormatter.format(uncertainty.upper, isMmol)}"
+                }
+        }
+    }
     val secondaryText = dvs?.secondaryStr
     val tertiaryText = dvs?.tertiaryStr
     val hasSecondary = secondaryText != null
@@ -633,15 +649,29 @@ fun DashboardCombinedHeader(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
+                            Column(
                                 modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.CenterStart
+                                horizontalAlignment = Alignment.Start
                             ) {
                                 DashboardHeroPrimaryText(
                                     value = primaryText,
                                     style = primaryValueStyle,
                                     color = heroValueColor
                                 )
+                                // Only when the estimator actually reports a
+                                // range, and deliberately quiet: low contrast,
+                                // label type, no label word. The number above
+                                // stays the thing you read.
+                                currentRangeText?.let { range ->
+                                    Text(
+                                        text = range,
+                                        style = MaterialTheme.typography.labelMedium
+                                            .copy(fontFeatureSettings = "tnum"),
+                                        color = heroValueColor.copy(alpha = 0.55f),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
+                                }
                             }
 
                             HeroTrendWithDelta(
@@ -2153,7 +2183,7 @@ private fun DashboardClearOptionsBottomSheet(
 ) {
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
     
-    androidx.compose.material3.ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() }

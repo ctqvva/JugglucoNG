@@ -45,9 +45,8 @@ public class JournalIobAccess {
     }
 
     // [classicIob, eiob, cob] in units/grams, NaN marking "no data of that
-    // kind"; null when unavailable. Public for the compression-low hold in
-    // tk.glucodata.alerts, which needs the classic IOB for its
-    // "can the insulin explain this fall" gate.
+    // kind"; null when unavailable. Public: compression-low hold and
+    // PRE_HIGH IOB coverage in tk.glucodata.alerts both read classic IOB.
     public static float[] snapshot(long atMillis) {
         try {
             if (!snapshotResolved) {

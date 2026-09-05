@@ -96,7 +96,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
@@ -153,6 +152,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import tk.glucodata.R
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.GlucoseFormatter
 import java.text.SimpleDateFormat
@@ -479,7 +479,7 @@ fun StatsScreen(
 
         if (showShareSheet) {
             val parsedReportDays = reportDaysInput.toIntOrNull()?.coerceIn(1, 365)
-            ModalBottomSheet(
+            StableModalBottomSheet(
                 onDismissRequest = { showShareSheet = false },
                 dragHandle = { CompactSheetDragHandle() }
             ) {
@@ -834,7 +834,7 @@ private fun ArrangeSheet(
     // dismissing, and the animating height moved its drag anchors underneath it — so it
     // dismissed on an ordinary scroll, and on any scroll begun before the open animation
     // had settled.
-    ModalBottomSheet(
+    StableModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { CompactSheetDragHandle() }
     ) {

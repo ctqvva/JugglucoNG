@@ -88,7 +88,9 @@ LibreHist  libreRealHistory(SensorGlucoseData *sens,uint32_t starttime,uint32_t 
 	for(;iter<endpos;iter++) {
 		const Glucose *gl=sens->getglucose(iter);
 		if(gl->valid()&&!info->isLibreSend(iter)) {
-			list[uitit++]={.ti=gl->gettime(),.mgdL=gl->getmgdL(),.id=(uint16_t)(gl->getid())};
+			list[uitit++]={.ti=gl->gettime(),
+			               .mgdL=(uint16_t)libreviewExportedMgdl(sens,gl->gettime(),gl->getmgdL()),
+			               .id=(uint16_t)(gl->getid())};
 			}
 		}
 	LOGGER("startit=%d nr=%d\n",startit,uitit);
