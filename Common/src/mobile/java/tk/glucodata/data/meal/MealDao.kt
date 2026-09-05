@@ -11,6 +11,19 @@ interface MealDao {
     @Query("SELECT * FROM meals ORDER BY (archivedAt IS NULL) DESC, updatedAt DESC, id DESC")
     fun observeMeals(): Flow<List<MealEntity>>
 
+    /** Drafts leave quick-add as soon as eating is saved in the journal. */
+    @Query("""
+        SELECT * FROM meals
+        WHERE archivedAt IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM journal_entries
+              WHERE mealId = meals.id AND entryType = 'carbs'
+          )
+        ORDER BY updatedAt DESC, id DESC
+        LIMIT 1
+    """)
+    fun observeCurrentMeal(): Flow<MealEntity?>
+
     @Query("SELECT * FROM meals WHERE id = :id LIMIT 1")
     fun observeMeal(id: Long): Flow<MealEntity?>
 

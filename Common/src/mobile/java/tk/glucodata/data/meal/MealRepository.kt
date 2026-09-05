@@ -20,6 +20,8 @@ class MealRepository {
 
     fun observeMeals(): Flow<List<Meal>> = dao.observeMeals().map { rows -> rows.map(MealEntity::toModel) }
 
+    fun observeCurrentMeal(): Flow<Meal?> = dao.observeCurrentMeal().map { it?.toModel() }
+
     fun observeMeal(id: Long): Flow<Meal?> = dao.observeMeal(id).map { it?.toModel() }
 
     fun observeItems(mealId: Long): Flow<List<MealItem>> =
