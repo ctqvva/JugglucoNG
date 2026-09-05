@@ -9,9 +9,14 @@ package tk.glucodata.alerts
 object AlertDisplayText {
 
     // These alerts embed a duration/lead time in their message ("Sensor expires
-    // in 12 hours", "Missed reading - 30 min"); the numbers ARE the payload.
+    // in 12 hours", "Missed reading - 30 min", "Forecast low: 33 mg/dL (30 min)");
+    // the numbers ARE the payload. The forecast horizon is a number too -
+    // stripping digits turned the title into "Forecast low:  ( min)".
     private fun carriesDurationNumbers(type: AlertType?): Boolean =
-        type == AlertType.SENSOR_EXPIRY || type == AlertType.MISSED_READING
+        type == AlertType.SENSOR_EXPIRY ||
+            type == AlertType.MISSED_READING ||
+            type == AlertType.PRE_LOW ||
+            type == AlertType.PRE_HIGH
 
     /**
      * Badge/title of the separate alert notification. Glucose-carrying messages

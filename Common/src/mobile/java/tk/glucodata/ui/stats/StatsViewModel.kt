@@ -723,12 +723,11 @@ class StatsViewModel : ViewModel() {
         }
 
         val isMmol = unit == GlucoseUnit.MMOL
-        val overwriteSensorValues = CalibrationManager.shouldOverwriteSensorValues()
         val hideInitialWhenCalibrated = CalibrationManager.shouldHideInitialWhenCalibrated()
         val sensorSerial = activeSerial ?: history.firstOrNull()?.sensorSerial
         val calibratedDisplayValues = arrayOfNulls<Float>(history.size)
 
-        if (!overwriteSensorValues) {
+        run {
             history.withIndex()
                 .groupBy { indexedPoint -> indexedPoint.value.sensorSerial ?: sensorSerial }
                 .forEach { (pointSensorSerial, indexedPoints) ->
@@ -758,6 +757,15 @@ class StatsViewModel : ViewModel() {
                         }
                     }
                 }
+
+            // A reading whose displayed value was recorded overrides the series
+            // recomputed above: the statistic has to describe what was on screen,
+            // not what today's calibration would have made of it.
+            history.forEachIndexed { index, point ->
+                point.sealedDisplayValue
+                    ?.takeIf { it.isFinite() && it > 0f }
+                    ?.let { calibratedDisplayValues[index] = it }
+            }
         }
 
         val resolved = history.mapIndexedNotNull { index, point ->

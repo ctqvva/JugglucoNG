@@ -14,12 +14,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
+
+internal const val HUE_WHEEL_START_ANGLE_DEGREES = -90f
+
+internal fun hueForWheelVector(dx: Float, dy: Float): Float {
+    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+    return (angle + 450f) % 360f
+}
+
+internal fun wheelAngleForHue(hue: Float): Float = hue + HUE_WHEEL_START_ANGLE_DEGREES
 
 @Composable
 fun ExpressiveHueWheelPicker(
@@ -30,13 +40,13 @@ fun ExpressiveHueWheelPicker(
 ) {
     val sweepColors = remember {
         listOf(
-            Color(0xFFFF1744),
-            Color(0xFFFF9100),
-            Color(0xFFFFEA00),
-            Color(0xFF00E676),
-            Color(0xFF00B0FF),
-            Color(0xFF651FFF),
-            Color(0xFFFF1744)
+            Color.Red,
+            Color.Yellow,
+            Color.Green,
+            Color.Cyan,
+            Color.Blue,
+            Color.Magenta,
+            Color.Red
         )
     }
     val handleHaloColor = MaterialTheme.colorScheme.surface
@@ -52,10 +62,7 @@ fun ExpressiveHueWheelPicker(
                     val dx = offset.x - size.width / 2f
                     val dy = offset.y - size.height / 2f
                     if (hypot(dx, dy) < minOf(size.width, size.height) * 0.28f) return
-                    val angle = Math.toDegrees(
-                        atan2(dy.toDouble(), dx.toDouble())
-                    ).toFloat()
-                    onHueChange((angle + 450f) % 360f)
+                    onHueChange(hueForWheelVector(dx, dy))
                 }
                 detectTapGestures(onTap = ::updateHue)
             }
@@ -67,22 +74,22 @@ fun ExpressiveHueWheelPicker(
                     if (hypot(dx, dy) < minOf(size.width, size.height) * 0.28f) {
                         return@detectDragGestures
                     }
-                    val angle = Math.toDegrees(
-                        atan2(dy.toDouble(), dx.toDouble())
-                    ).toFloat()
-                    onHueChange((angle + 450f) % 360f)
+                    onHueChange(hueForWheelVector(dx, dy))
                 }
             }
     ) {
         val ringWidth = 22.dp.toPx()
         val radius = (size.minDimension / 2f) - ringWidth
-        drawCircle(
-            brush = Brush.sweepGradient(sweepColors),
-            radius = radius,
-            style = Stroke(width = ringWidth, cap = StrokeCap.Round)
-        )
+        // Compose sweep gradients start at 3 o'clock. HSV hue 0 starts at 12 o'clock here.
+        rotate(HUE_WHEEL_START_ANGLE_DEGREES) {
+            drawCircle(
+                brush = Brush.sweepGradient(sweepColors),
+                radius = radius,
+                style = Stroke(width = ringWidth, cap = StrokeCap.Round)
+            )
+        }
 
-        val angleRadians = Math.toRadians((hue - 90f).toDouble())
+        val angleRadians = Math.toRadians(wheelAngleForHue(hue).toDouble())
         val handleCenter = Offset(
             x = center.x + (cos(angleRadians) * radius).toFloat(),
             y = center.y + (sin(angleRadians) * radius).toFloat()

@@ -126,6 +126,27 @@
 
         </activity>
         
+        <!-- Takes an insulin-pen tap while the app is not in front and imports the
+             doses without bringing the UI up. Disabled until the "import in the
+             background" setting enables it; see InsulinPenManager. -->
+        <activity
+            android:name=".ui.PenTagReceiverActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PenTagReceiver">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_pen_tech_filter" />
+        </activity>
+
         <activity
             android:name=".ui.ComposeUIActivity"
             android:label="Search"

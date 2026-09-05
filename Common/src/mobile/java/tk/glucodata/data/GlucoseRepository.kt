@@ -317,25 +317,79 @@ class GlucoseRepository {
     }
 
     /**
-     * Dashboard history follows the selected/current sensor directly. This keeps
-     * the dashboard out of the all-sensor merged timeline while still allowing
-     * date-picker/pan browsing across the full persisted history for that sensor.
+     * The dashboard chart's line: the same merged cross-sensor timeline the
+     * History screen draws, over the same unbounded range.
+     *
+     * It used to follow the current sensor's serial alone, so a swapped-out
+     * sensor — no longer in `activeSensors()`, so its serial resolved to nothing
+     * — silently left the dashboard while History, stats and export all still
+     * showed it. This is deliberately the identical call History makes, because
+     * the two disagreeing about the same readings is the bug.
+     *
+     * Bounding this to the visible window is not available, and the reason is
+     * worth writing down because it looks like an obvious optimisation:
+     *
+     *  - [HistoryDisplayMerge] decides which sensor wins by building the
+     *    preferred sensor's coverage segments *from the rows it is given*. Hand
+     *    it a window containing none of that sensor's rows — any span older than
+     *    the current sensor — and it suppresses nothing, so every other sensor's
+     *    rows draw raw. The merge is only correct over the whole timeline.
+     *  - The chart takes "latest reading" to mean the last point in this list.
+     *    Bounded, that is the newest point *in the window*, which breaks
+     *    back-to-now, the auto-scroll and the prediction anchor.
+     *
+     * Both are properties of the whole list, so the list has to be the whole
+     * timeline. Cost belongs in how points are mapped, not in how few are read.
      */
     fun getDashboardHistoryFlowRaw(startTime: Long): Flow<List<GlucosePoint>> {
         return _currentSerial.flatMapLatest { serial ->
             val preferredSerial = resolveDisplayPreferredSerial(serial)
             channelFlow {
-                if (preferredSerial == null) {
-                    send(emptyList())
-                    return@channelFlow
-                }
-
                 launch {
                     historyRepository.ensureBackfilled(preferredSerial, startTime)
                 }
-                observeDisplayHistory(preferredSerial, startTime).collect { points ->
-                    send(points)
-                }
+                // Coarse to fine over one authoritative query, rather than a
+                // narrower query: paint the recent tail as soon as it is ready,
+                // then replace it with the full timeline. The tail is a superset
+                // of what the default range draws and contains the newest
+                // reading, so the first frame is already correct at the live
+                // edge; the full list follows and is what panning reads, so
+                // scrolling back never waits on Room.
+                historyRepository.getDisplayHistoryFirstPaint(preferredSerial, startTime)
+                    ?.let { firstPaint ->
+                        BatteryTrace.bump(
+                            key = "dashboard.history.first_paint",
+                            logEvery = 20L,
+                            detail = "size=${firstPaint.size}"
+                        )
+                        send(firstPaint)
+                    }
+                historyRepository.getDisplayHistoryFlow(preferredSerial, startTime)
+                    .collect { points ->
+                        HistoryRepository.reportRecentSensorComposition(points)
+                        send(points)
+                    }
+            }
+        }
+    }
+
+    /**
+     * The current sensor's own recent rows — never merged, never widened.
+     *
+     * The dashboard needs two different lists and used to conflate them. The
+     * chart wants every sensor that covers the window; the history-recovery
+     * check, the hero value, the trend arrow and the Δ readout want *this*
+     * sensor and nothing else. Feeding the merged list to the recovery check
+     * would let a retired sensor's newer-looking tail convince it that the live
+     * sensor is up to date, and no native re-sync would ever be requested.
+     */
+    fun getCurrentSensorTailFlowRaw(startTime: Long): Flow<List<GlucosePoint>> {
+        return _currentSerial.flatMapLatest { serial ->
+            val preferredSerial = resolveDisplayPreferredSerial(serial)
+            if (preferredSerial == null) {
+                kotlinx.coroutines.flow.flowOf(emptyList())
+            } else {
+                historyRepository.getHistoryFlowForSensor(preferredSerial, startTime)
             }
         }
     }

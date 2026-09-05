@@ -63,7 +63,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
 set(BCRYPTDIR ${INCLUDESELF}/bcrypt/)
 set(BCRYPTFILES ${BCRYPTDIR}aes_encrypt.c ${BCRYPTDIR}bcrypt.cpp ${BCRYPTDIR}ccm_mode.c ${BCRYPTDIR}utils.c)
 
-set(EXTRAVIEW ${NETDIR}/libreview/putsensor.cpp ${NETDIR}/libreview/mkrealhistory.cpp ${NETDIR}/libreview/libreview.cpp ${NETDIR}/libreview/newlibre3.cpp ${NETDIR}/libreview/libreview.cpp )
+set(EXTRAVIEW ${NETDIR}/libreview/putsensor.cpp ${NETDIR}/libreview/mkrealhistory.cpp ${NETDIR}/libreview/libreview.cpp ${NETDIR}/libreview/newlibre3.cpp ${NETDIR}/libreview/journalentries.cpp ${NETDIR}/libreview/libreview.cpp )
 
 set(LIBRE3FILES ${INCLUDESELF}/libre3/bluetooth.cpp ${INCLUDESELF}/libre3/nfc.cpp)
 

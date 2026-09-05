@@ -167,7 +167,7 @@ object ICanHealthParser {
             authChallenge = authChallenge,
             usesNewBundledCrypto = usesNewBundledCrypto,
             warmupMinutes = warmupMinutes,
-        )
+        ) ?: return null
         val directGlucoseEncoding =
             ICanHealthConstants.usesDirectSnHistoryGlucoseEncoding(onboardingDeviceSn)
         val glucLo = glucoseBytes[0].toInt() and 0xFF
@@ -689,7 +689,7 @@ object ICanHealthParser {
                     authChallenge = authChallenge,
                     usesNewBundledCrypto = usesNewBundledCrypto,
                     warmupMinutes = warmupMinutes,
-                )
+                ) ?: return null
                 val low = glucoseBytes[0].toInt() and 0xFF
                 val high = glucoseBytes[1].toInt() and 0xFF
                 val dataState = if (directGlucoseEncoding) 0 else (high ushr 4) and 0x0F
@@ -724,10 +724,19 @@ object ICanHealthParser {
         authChallenge: ByteArray?,
         usesNewBundledCrypto: Boolean,
         warmupMinutes: Int,
-    ): ByteArray {
-        val challenge = authChallenge
-        if (sequenceNumber >= warmupMinutes || challenge == null || challenge.isEmpty()) {
+    ): ByteArray? {
+        if (sequenceNumber >= warmupMinutes) {
             return byteArrayOf(low, high)
+        }
+        val challenge = authChallenge
+        if (challenge == null || challenge.size < 4) {
+            // During warm-up these bytes are challenge-dependent XOR data. Without all four
+            // challenge bytes they cannot be decoded safely; accepting them verbatim can turn
+            // the encoded value into plausible but dangerously wrong glucose.
+            logWarn(
+                "decodeGlucose: rejecting warm-up seq=$sequenceNumber without a 4-byte auth challenge"
+            )
+            return null
         }
         val table = if (usesNewBundledCrypto) {
             ICanHealthConstants.LEGACY_HISTORY_GLUCOSE_XOR_TABLE_NEW

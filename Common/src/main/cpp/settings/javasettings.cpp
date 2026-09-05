@@ -1117,9 +1117,7 @@ static jlong getlibreaccountidnumber() {
   const jlong num = settings->data()->libreaccountIDnum;
   if (num != -1LL)
     return num;
-  if (!settings->data()->sendtolibreview) {
-    return 0;
-  }
+  // Libre 3 NFC needs the fetched account ID even when LibreView upload is off.
   auto &accountid = settings->data()->libreviewAccountID;
   uint32_t res = 0;
   for (auto el : accountid) {

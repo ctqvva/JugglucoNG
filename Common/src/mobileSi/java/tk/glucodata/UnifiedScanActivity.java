@@ -113,11 +113,18 @@ public class UnifiedScanActivity extends AppCompatActivity {
         flashButton.setOnClickListener(v -> toggleTorch());
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
-        barcodeScanner = BarcodeScanning.getClient(
-                new com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_QR_CODE)
-                        .build()
-        );
+        try {
+            barcodeScanner = BarcodeScanning.getClient(
+                    new com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
+                            .setBarcodeFormats(Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_QR_CODE)
+                            .build()
+            );
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "createBarcodeScanner", t);
+            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+            cancelAndFinish();
+            return;
+        }
 
         if (!hasCameraPermission()) {
             ActivityCompat.requestPermissions(

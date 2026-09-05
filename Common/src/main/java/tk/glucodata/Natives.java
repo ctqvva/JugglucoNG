@@ -723,6 +723,16 @@ public class Natives {
 
         public static native boolean addGlucoseStreamWithRawTemp(long time, float glucose, float rawGlucose, float temperatureC, String sensorId);
 
+        /**
+         * Batched sibling of {@link #addGlucoseStreamWithRawTemp}: same
+         * overwrite semantics for raw and temperature, but the shell resolve,
+         * state seeding, stream-cursor rewind and setstreaming happen once for
+         * the whole array instead of once per reading. Use this for any history
+         * mirror; the single-reading form is for live readings only.
+         * Arrays must be equal length; returns the number of samples stored.
+         */
+        public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
         public static native long ensureSensorShell(String sensorId, long startTimeSec);
 
         public static native long ensureSensorShellWithCapacity(String sensorId, long startTimeSec, int minimumRecords);
@@ -1031,6 +1041,13 @@ public class Natives {
         public static native void setNightUploader(String jurl, String Secret, boolean active, boolean v3);
 
         public static native void wakeuploader();
+
+        /**
+         * A journal entry was written, changed or deleted. Wakes the treatments branch of
+         * the uploader on its own reason, so a dose no longer waits for a calibration or a
+         * backup to come along and wake it by accident.
+         */
+        public static native void waketreatments();
 
         public static native boolean wakeNightscoutForLiveReading(String source, long timestampMillis);
 

@@ -34,6 +34,15 @@ data class SibionicsCalibrationAnchor(
  * The exact stock result is an absolute/drift reference and safety fallback,
  * not the signal being smoothed. Every emitted value still requires a real
  * one-minute source sample.
+ *
+ * Divergence from that reference is evidence-gated rather than free. The model
+ * may only leave the vendor trajectory as far as the chemical signal actually
+ * supports, measured from fall persistence, physiological rate plausibility,
+ * agreement with the vendor direction, innovation coherence and front-end
+ * quality. When that evidence weakens the output fades back toward stock
+ * instead of continuing an increasingly independent trajectory. There is no
+ * absolute low floor: the allowance is relative to the reference, so a
+ * coherent sustained fall still reaches genuinely low values.
  */
 internal class SibionicsAdaptiveAlgorithmContext {
     private class MotionModel(private val processNoise: Float) {
@@ -146,6 +155,15 @@ internal class SibionicsAdaptiveAlgorithmContext {
     private var lastIndex = -1
     private var samplesSinceInitialization = 0
 
+    // Plausibility evidence. These describe how well the chemical signal
+    // actually supports leaving the vendor trajectory, and are the only thing
+    // standing between the model and a confident but unsupported excursion.
+    private var chemicalRateEwma = 0f
+    private var stockRateEwma = 0f
+    private var fallSupport = 0f
+    private var innovationEwma = 0f
+    private var referenceTrust = INITIAL_REFERENCE_TRUST
+
     fun configure(sensitivity: Float) {
         decodedSensitivity = sensitivity.takeIf { it.isFinite() && it in 0.5f..3.5f }
             ?: DEFAULT_SENSITIVITY
@@ -169,6 +187,11 @@ internal class SibionicsAdaptiveAlgorithmContext {
         lastTimestampMs = 0L
         lastIndex = -1
         samplesSinceInitialization = 0
+        chemicalRateEwma = 0f
+        stockRateEwma = 0f
+        fallSupport = 0f
+        innovationEwma = 0f
+        referenceTrust = INITIAL_REFERENCE_TRUST
     }
 
     fun process(
@@ -228,26 +251,35 @@ internal class SibionicsAdaptiveAlgorithmContext {
         val chemicalObservation = chemicalGain * chemicalMmol + chemicalBias + calibrationDelta
         val measurementVariance = BASE_MEASUREMENT_VARIANCE /
             max(quality.overall * quality.overall, MIN_QUALITY * MIN_QUALITY)
+        val predictedLevel = steadyModel.level * (1f - dynamicProbability) +
+            dynamicModel.level * dynamicProbability
         val steadyUpdate = steadyModel.update(chemicalObservation, measurementVariance, elapsedMinutes)
         val dynamicUpdate = dynamicModel.update(chemicalObservation, measurementVariance, elapsedMinutes)
+        val chemicalRate = (chemicalMmol - lastChemical) / elapsedMinutes
         updateDynamicProbability(
             steadyLogLikelihood = steadyUpdate.logLikelihood,
             dynamicLogLikelihood = dynamicUpdate.logLikelihood,
-            chemicalRate = (chemicalMmol - lastChemical) / elapsedMinutes,
+            chemicalRate = chemicalRate,
+        )
+        updateEvidence(
+            chemicalRate = chemicalRate,
+            stockRate = (vendorStock - lastStock) / elapsedMinutes,
+            innovation = chemicalObservation - predictedLevel,
         )
 
         val level = steadyModel.level * (1f - dynamicProbability) +
             dynamicModel.level * dynamicProbability
         val rate = steadyModel.rate * (1f - dynamicProbability) +
             dynamicModel.rate * dynamicProbability
-        val leadMinutes = MIN_LEAD_MINUTES +
-            (MAX_LEAD_MINUTES - MIN_LEAD_MINUTES) * dynamicProbability
-        var output = level + rate * leadMinutes
+        val modelVariance = steadyModel.p00 * (1f - dynamicProbability) +
+            dynamicModel.p00 * dynamicProbability
+        val evidence = plausibility(quality.overall, modelVariance, level, rate)
 
-        val divergence = output - reference
-        if (abs(divergence) > MAX_REFERENCE_DIVERGENCE) {
-            output = reference + divergence.coerceIn(-MAX_REFERENCE_DIVERGENCE, MAX_REFERENCE_DIVERGENCE)
-        }
+        var output = level + leadOffset(rate, evidence)
+        output = fadeTowardReference(output, reference, evidence)
+        output = clampDivergence(output, reference, evidence)
+        // Unchanged safety rule: when the vendor reference is already low the
+        // model may not sit meaningfully above it and hide that low.
         if (reference < LOW_GLUCOSE_GUARD) {
             output = min(output, reference + LOW_FALL_ALLOWANCE)
         }
@@ -256,6 +288,118 @@ internal class SibionicsAdaptiveAlgorithmContext {
         samplesSinceInitialization++
         updateLastValues(chemicalMmol, vendorStock, reference, temperatureC, impedance, index, eventTimeMs)
         return roundTenth(output)
+    }
+
+    /**
+     * How far the model may legitimately leave the vendor reference, how much
+     * lead compensation is defensible, and how much of the independent estimate
+     * to trust at all.
+     */
+    private data class Plausibility(
+        val downwardAllowance: Float,
+        val upwardAllowance: Float,
+        val leadScale: Float,
+        val trust: Float,
+    )
+
+    private fun updateEvidence(chemicalRate: Float, stockRate: Float, innovation: Float) {
+        if (chemicalRate.isFinite()) {
+            chemicalRateEwma += RATE_SMOOTHING * (chemicalRate - chemicalRateEwma)
+        }
+        if (stockRate.isFinite()) {
+            stockRateEwma += STOCK_RATE_SMOOTHING * (stockRate - stockRateEwma)
+        }
+        // Persistence accumulates slower than it decays: several coherent
+        // falling samples are needed to earn allowance, one recovery sample is
+        // enough to lose most of it.
+        val falling = if (chemicalRate.isFinite() && chemicalRate <= -FALL_RATE_THRESHOLD) 1f else 0f
+        val persistenceRate = if (falling > 0f) FALL_SUPPORT_RISE else FALL_SUPPORT_DECAY
+        fallSupport = (fallSupport + persistenceRate * (falling - fallSupport)).coerceIn(0f, 1f)
+        if (innovation.isFinite()) {
+            innovationEwma += INNOVATION_SMOOTHING * (abs(innovation) - innovationEwma)
+        }
+    }
+
+    private fun plausibility(
+        quality: Float,
+        modelVariance: Float,
+        level: Float,
+        rate: Float,
+    ): Plausibility {
+        // Human glucose does not fall at arbitrary speed. A chemical rate well
+        // past the physiological maximum is evidence of a sensor event, not of
+        // a real excursion, so it buys less allowance rather than more.
+        val ratePlausibility = if (abs(chemicalRateEwma) <= PLAUSIBLE_RATE_MMOL_PER_MIN) {
+            1f
+        } else {
+            (PLAUSIBLE_RATE_MMOL_PER_MIN / abs(chemicalRateEwma)).coerceIn(0f, 1f)
+        }
+        // Does the vendor trajectory agree that we are falling? Stock lags, so
+        // this is one weighted term and never a hard gate — persistence covers
+        // the onset of a genuine fall before stock has moved.
+        val fallAgreement = if (chemicalRateEwma < -FALL_RATE_THRESHOLD) {
+            (stockRateEwma / chemicalRateEwma).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        val coherence = (1f / (1f + innovationEwma / INNOVATION_SCALE)).coerceIn(0f, 1f)
+        val qualityFactor = (QUALITY_FLOOR + (1f - QUALITY_FLOOR) * quality).coerceIn(0f, 1f)
+        val certainty = (1f / (1f + modelVariance / MODEL_VARIANCE_SCALE)).coerceIn(0f, 1f)
+
+        val support = PERSISTENCE_WEIGHT * fallSupport +
+            AGREEMENT_WEIGHT * fallAgreement +
+            COHERENCE_WEIGHT * coherence
+        val downwardEvidence = (ratePlausibility * support * qualityFactor).coerceIn(0f, 1f)
+        // Rises are gated the same way but start from a wider floor: an
+        // unsupported high reads as noise, an unsupported low reads as an alarm.
+        val upwardEvidence = (support * qualityFactor).coerceIn(0f, 1f)
+
+        val targetTrust = (MIN_REFERENCE_TRUST +
+            (1f - MIN_REFERENCE_TRUST) * qualityFactor * coherence * certainty)
+            .coerceIn(MIN_REFERENCE_TRUST, 1f)
+        referenceTrust += (targetTrust - referenceTrust).coerceIn(-TRUST_SLEW, TRUST_SLEW)
+        referenceTrust = referenceTrust.coerceIn(MIN_REFERENCE_TRUST, 1f)
+
+        // Extrapolation must not be what invents a low. Lead fades out as the
+        // estimate approaches the low range on a falling trajectory, and with
+        // poor quality, weak agreement or high model uncertainty.
+        val lowTaper = if (rate < 0f) {
+            ((level - LEAD_TAPER_END_MMOL) / (LEAD_TAPER_START_MMOL - LEAD_TAPER_END_MMOL))
+                .coerceIn(0f, 1f)
+        } else {
+            1f
+        }
+        val directionAgreement = if (rate < 0f) {
+            (LEAD_AGREEMENT_FLOOR + (1f - LEAD_AGREEMENT_FLOOR) * fallAgreement).coerceIn(0f, 1f)
+        } else {
+            1f
+        }
+        val leadScale = (lowTaper * directionAgreement * coherence * certainty * qualityFactor)
+            .coerceIn(0f, 1f)
+
+        return Plausibility(
+            downwardAllowance = MIN_DOWNWARD_DIVERGENCE +
+                (MAX_REFERENCE_DIVERGENCE - MIN_DOWNWARD_DIVERGENCE) * downwardEvidence,
+            upwardAllowance = MIN_UPWARD_DIVERGENCE +
+                (MAX_REFERENCE_DIVERGENCE - MIN_UPWARD_DIVERGENCE) * upwardEvidence,
+            leadScale = leadScale,
+            trust = referenceTrust,
+        )
+    }
+
+    private fun leadOffset(rate: Float, evidence: Plausibility): Float {
+        val leadMinutes = (MIN_LEAD_MINUTES +
+            (MAX_LEAD_MINUTES - MIN_LEAD_MINUTES) * dynamicProbability) * evidence.leadScale
+        val offset = rate * leadMinutes
+        return if (offset < 0f) max(offset, -MAX_LEAD_DROP_MMOL) else offset
+    }
+
+    private fun fadeTowardReference(output: Float, reference: Float, evidence: Plausibility): Float =
+        reference + (output - reference) * evidence.trust
+
+    private fun clampDivergence(output: Float, reference: Float, evidence: Plausibility): Float {
+        val divergence = output - reference
+        return reference + divergence.coerceIn(-evidence.downwardAllowance, evidence.upwardAllowance)
     }
 
     private fun initialize(
@@ -434,6 +578,11 @@ internal class SibionicsAdaptiveAlgorithmContext {
             output.writeLong(lastTimestampMs)
             output.writeInt(lastIndex)
             output.writeInt(samplesSinceInitialization)
+            output.writeFloat(chemicalRateEwma)
+            output.writeFloat(stockRateEwma)
+            output.writeFloat(fallSupport)
+            output.writeFloat(innovationEwma)
+            output.writeFloat(referenceTrust)
             steadyModel.writeTo(output)
             dynamicModel.writeTo(output)
         }
@@ -468,6 +617,11 @@ internal class SibionicsAdaptiveAlgorithmContext {
                 lastTimestampMs = input.readLong()
                 lastIndex = input.readInt()
                 samplesSinceInitialization = input.readInt()
+                chemicalRateEwma = input.readFloat()
+                stockRateEwma = input.readFloat()
+                fallSupport = input.readFloat()
+                innovationEwma = input.readFloat()
+                referenceTrust = input.readFloat()
                 steadyModel.readFrom(input)
                 dynamicModel.readFrom(input)
                 input.available() == 0 && isStateValid()
@@ -487,7 +641,11 @@ internal class SibionicsAdaptiveAlgorithmContext {
             meanChemical.isFinite() && meanStock.isFinite() && chemicalVariance.isFinite() &&
             chemicalVariance > 0f && chemicalStockCovariance.isFinite() && lastChemical.isFinite() &&
             lastStock.isFinite() && lastReference.isFinite() && lastIndex >= CUSTOM_MODEL_WARMUP_INDEX &&
-            samplesSinceInitialization > 0 && steadyModel.isValid() && dynamicModel.isValid()
+            samplesSinceInitialization > 0 && chemicalRateEwma.isFinite() && stockRateEwma.isFinite() &&
+            fallSupport.isFinite() && fallSupport in 0f..1f && innovationEwma.isFinite() &&
+            innovationEwma >= 0f && referenceTrust.isFinite() &&
+            referenceTrust in MIN_REFERENCE_TRUST..1f &&
+            steadyModel.isValid() && dynamicModel.isValid()
     }
 
     fun applyIntegratedCalibration(
@@ -582,7 +740,7 @@ internal class SibionicsAdaptiveAlgorithmContext {
 
     private companion object {
         private const val SNAPSHOT_MAGIC = 0x5349_4241
-        private const val SNAPSHOT_VERSION = 5
+        private const val SNAPSHOT_VERSION = 6
         private const val DEFAULT_SENSITIVITY = 1.27f
         private const val CUSTOM_MODEL_WARMUP_INDEX = 120
 
@@ -621,6 +779,37 @@ internal class SibionicsAdaptiveAlgorithmContext {
         private const val LOW_FALL_ALLOWANCE = 0.2f
         private const val MIN_OUTPUT_MMOL = 1.1f
         private const val MAX_OUTPUT_MMOL = 35f
+
+        // Plausibility gating.
+        //
+        // The allowances below are divergences from the vendor reference, never
+        // absolute glucose limits: with full evidence the model still reaches
+        // MAX_REFERENCE_DIVERGENCE below a reference that is itself low, so real
+        // values under 3 mmol/L stay reachable.
+        private const val MIN_DOWNWARD_DIVERGENCE = 0.35f
+        private const val MIN_UPWARD_DIVERGENCE = 1.2f
+        // Roughly the fastest sustained fall seen physiologically (~4 mg/dL/min).
+        // Faster chemical motion is treated as weaker, not stronger, evidence.
+        private const val PLAUSIBLE_RATE_MMOL_PER_MIN = 0.22f
+        private const val FALL_RATE_THRESHOLD = 0.02f
+        private const val FALL_SUPPORT_RISE = 0.30f
+        private const val FALL_SUPPORT_DECAY = 0.55f
+        private const val RATE_SMOOTHING = 0.35f
+        private const val STOCK_RATE_SMOOTHING = 0.30f
+        private const val INNOVATION_SMOOTHING = 0.25f
+        private const val INNOVATION_SCALE = 0.55f
+        private const val MODEL_VARIANCE_SCALE = 0.35f
+        private const val QUALITY_FLOOR = 0.55f
+        private const val PERSISTENCE_WEIGHT = 0.45f
+        private const val AGREEMENT_WEIGHT = 0.30f
+        private const val COHERENCE_WEIGHT = 0.25f
+        private const val INITIAL_REFERENCE_TRUST = 0.75f
+        private const val MIN_REFERENCE_TRUST = 0.35f
+        private const val TRUST_SLEW = 0.06f
+        private const val LEAD_TAPER_START_MMOL = 5.5f
+        private const val LEAD_TAPER_END_MMOL = 3.8f
+        private const val LEAD_AGREEMENT_FLOOR = 0.35f
+        private const val MAX_LEAD_DROP_MMOL = 0.6f
 
         private const val TEMPERATURE_JUMP_C = 1.2f
         private const val IMPEDANCE_QUALITY_SLOPE = 5f

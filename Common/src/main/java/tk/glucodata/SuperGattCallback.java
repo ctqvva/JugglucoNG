@@ -198,6 +198,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 ;
                 constatstatusstr = "Loss of signal";
                 constatchange[1] = now;
+                BleErrorHistory.record(SerialNumber, constatstatusstr, now);
                 final var thegatt = mBluetoothGatt;
                 if (thegatt != null) {
                     thegatt.disconnect();
@@ -213,6 +214,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     void setConStatus(int status) {
         constatstatusstr = "Status=" + status;
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            BleErrorHistory.record(SerialNumber, constatstatusstr, System.currentTimeMillis());
+        }
     }
 
     void shouldreconnect(long now) {
@@ -525,10 +529,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // NOT trigger notifications, alarms, broadcasts, or exchange data — those should
         // only reflect the main sensor's values to avoid confusing switching behavior.
         boolean isMainSensor = true;
+        String resolvedMainName = null;
         try {
-            String mainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
-            if (mainName != null && !mainName.isEmpty() && SerialNumber != null) {
-                isMainSensor = SensorIdentity.matches(SerialNumber, mainName);
+            resolvedMainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
+            if (resolvedMainName != null && !resolvedMainName.isEmpty() && SerialNumber != null) {
+                isMainSensor = SensorIdentity.matches(SerialNumber, resolvedMainName);
             }
         } catch (Throwable t) {
             // If we can't determine main sensor, default to allowing (safety)
@@ -536,8 +541,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         if (!isMainSensor) {
             if (doLog) {
+                // Reuse the resolution above. Re-calling resolveLiveMainSensor here
+                // just to build the message doubled a per-reading JNI sweep
+                // (Natives.activeSensors + mygatts) for every non-main reading.
                 Log.i(LOG_ID, "Multi-sensor: Skipping notifications/broadcasts for non-main sensor "
-                        + SerialNumber + " (liveMain=" + SensorIdentity.resolveLiveMainSensor(SerialNumber)
+                        + SerialNumber + " (liveMain=" + resolvedMainName
                         + ", selectedMain=" + Natives.lastsensorname() + ")");
             }
             // Still update the screen so charts/history reflect all sensors

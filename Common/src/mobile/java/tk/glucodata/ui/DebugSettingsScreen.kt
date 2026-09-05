@@ -53,28 +53,37 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.BuildConfig
+import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 enum class LogType {
-    TRACE, LOGCAT
+    TRACE, LOGCAT, BLE_ERRORS
 }
 
 private const val LOG_TAIL_BYTES = 50L * 1024L
 private const val PREF_HOWTO_DISMISSED = "debug_howto_dismissed"
 
-private fun LogType.fileName(): String =
-    if (this == LogType.TRACE) "logs/trace.log" else "logs/logcat.txt"
+private fun LogType.fileName(): String? = when (this) {
+    LogType.TRACE -> "logs/trace.log"
+    LogType.LOGCAT -> "logs/logcat.txt"
+    LogType.BLE_ERRORS -> null
+}
 
 private fun LogType.exportName(): String {
     val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-    return if (this == LogType.TRACE) "juggluco-trace-$stamp.log" else "juggluco-logcat-$stamp.txt"
+    return when (this) {
+        LogType.TRACE -> "juggluco-trace-$stamp.log"
+        LogType.LOGCAT -> "juggluco-logcat-$stamp.txt"
+        LogType.BLE_ERRORS -> "juggluco-ble-errors-$stamp.txt"
+    }
 }
 
 /** Snapshot of what is currently on disk, so the poll loop can skip untouched files. */
@@ -108,6 +117,26 @@ private fun readLog(file: File, truncationNotice: String): LogSnapshot {
         LogSnapshot(lines = listOf("${e.message}"), bytes = size, stamp = stamp)
     }
 }
+
+private fun readBleErrorHistory(): LogSnapshot {
+    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ", Locale.US)
+    val events = BleErrorHistory.events()
+    val lines = events.asReversed().map { event ->
+        "${formatter.format(Date(event.atMs))} sensor=${event.sensorId} status=${event.status}"
+    }
+    val bytes = lines.sumOf { it.toByteArray().size + 1 }.toLong()
+    return LogSnapshot(
+        lines = lines,
+        bytes = bytes,
+        stamp = events.firstOrNull()?.atMs ?: 0L,
+    )
+}
+
+private fun bleErrorHistoryText(): String =
+    readBleErrorHistory().lines
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString("\n", postfix = "\n")
+        .orEmpty()
 
 /** Short, non-identifying preamble so a shared log says which build it came from. */
 private fun reportHeader(): String = buildString {
@@ -144,20 +173,36 @@ fun DebugSettingsScreen(navController: NavController) {
     val chooserTitle = stringResource(R.string.debug_share_chooser)
     val savingError = stringResource(R.string.error_saving_file)
 
-    fun currentFile(): File = File(context.filesDir, logType.fileName())
+    fun currentFile(): File? = logType.fileName()?.let { File(context.filesDir, it) }
+
+    fun exportSource(type: LogType): DebugLogExportSource? {
+        val source = when (type) {
+            LogType.TRACE, LogType.LOGCAT -> DebugLogExportSource.FileContent(
+                File(context.filesDir, requireNotNull(type.fileName()))
+            )
+            LogType.BLE_ERRORS -> DebugLogExportSource.TextContent(bleErrorHistoryText())
+        }
+        return source.takeUnless(DebugLogExportSource::isEmpty)
+    }
 
     LaunchedEffect(logType) {
-        isRecording = if (logType == LogType.TRACE) Natives.islogging() else Natives.islogcat()
+        isRecording = when (logType) {
+            LogType.TRACE -> Natives.islogging()
+            LogType.LOGCAT -> Natives.islogcat()
+            LogType.BLE_ERRORS -> false
+        }
         loading = true
         var lastStamp = -1L
         var lastBytes = -1L
         while (isActive) {
             val next = withContext(Dispatchers.IO) {
                 val file = currentFile()
-                if (file.exists() && file.lastModified() == lastStamp && file.length() == lastBytes) {
+                if (logType == LogType.BLE_ERRORS) {
+                    readBleErrorHistory()
+                } else if (file != null && file.exists() && file.lastModified() == lastStamp && file.length() == lastBytes) {
                     null
                 } else {
-                    readLog(file, truncationNotice)
+                    file?.let { readLog(it, truncationNotice) } ?: LogSnapshot()
                 }
             }
             if (next != null) {
@@ -175,46 +220,79 @@ fun DebugSettingsScreen(navController: NavController) {
         ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        val selectedType = logType
         scope.launch {
+            var empty = false
             val error = withContext(Dispatchers.IO) {
-                runCatching {
-                    val source = currentFile()
-                    context.contentResolver.openOutputStream(uri)?.use { output ->
-                        output.write(reportHeader().toByteArray())
-                        source.inputStream().use { it.copyTo(output) }
+                val source = exportSource(selectedType)
+                if (source == null) {
+                    empty = true
+                    null
+                } else {
+                    var destinationOpened = false
+                    runCatching {
+                        val output = context.contentResolver.openOutputStream(uri, "wt")
+                            ?: throw IOException("Could not open export destination")
+                        destinationOpened = true
+                        output.use {
+                            writeDebugLogReport(it, reportHeader(), source)
+                        }
+                    }.exceptionOrNull().also {
+                        if (it != null && destinationOpened) {
+                            // ACTION_CREATE_DOCUMENT has already created the destination. Do not
+                            // leave a header-only or otherwise partial file behind after failure.
+                            runCatching { context.contentResolver.delete(uri, null, null) }
+                        }
                     }
-                }.exceptionOrNull()
+                }
             }
-            if (error != null) snackbarHost.showSnackbar(savingError + error.message)
+            when {
+                empty -> snackbarHost.showSnackbar(nothingToShare)
+                error != null -> snackbarHost.showSnackbar(savingError + error.message)
+            }
         }
     }
 
     fun shareLog() {
+        val selectedType = logType
         scope.launch {
+            var empty = false
             val result = withContext(Dispatchers.IO) {
+                var staged: File? = null
                 runCatching {
-                    val source = currentFile()
-                    if (!source.exists() || source.length() == 0L) return@runCatching null
+                    val source = exportSource(selectedType)
+                    if (source == null) {
+                        empty = true
+                        return@runCatching null
+                    }
                     val outDir = File(context.cacheDir, "exports").apply { mkdirs() }
                     // Each staged copy is as large as the log itself. Drop earlier ones so
                     // repeated shares don't quietly park tens of MB in the cache.
                     outDir.listFiles { f -> f.name.startsWith("juggluco-") }
                         ?.forEach { it.delete() }
-                    val staged = File(outDir, logType.exportName())
-                    staged.outputStream().use { output ->
-                        output.write(reportHeader().toByteArray())
-                        source.inputStream().use { it.copyTo(output) }
+                    val stagedFile = File(outDir, selectedType.exportName())
+                    staged = stagedFile
+                    stagedFile.outputStream().use { output ->
+                        writeDebugLogReport(output, reportHeader(), source)
                     }
                     FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.fileprovider",
-                        staged
+                        stagedFile
                     )
+                }.onFailure {
+                    // A failed staged copy must not masquerade as a valid shareable trace.
+                    staged?.delete()
                 }
+            }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                snackbarHost.showSnackbar(savingError + error.message)
+                return@launch
             }
             val uri = result.getOrNull()
             if (uri == null) {
-                snackbarHost.showSnackbar(nothingToShare)
+                if (empty) snackbarHost.showSnackbar(nothingToShare)
                 return@launch
             }
             runCatching {
@@ -251,7 +329,11 @@ fun DebugSettingsScreen(navController: NavController) {
                         )
                     }
                     IconButton(onClick = {
-                        if (logType == LogType.TRACE) Natives.zeroLog() else Natives.zeroLogcat()
+                        when (logType) {
+                            LogType.TRACE -> Natives.zeroLog()
+                            LogType.LOGCAT -> Natives.zeroLogcat()
+                            LogType.BLE_ERRORS -> BleErrorHistory.clear()
+                        }
                         snapshot = LogSnapshot()
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
@@ -276,29 +358,32 @@ fun DebugSettingsScreen(navController: NavController) {
                 )
             }
 
-            MasterSwitchCard(
-                title = stringResource(R.string.debug_record_title),
-                subtitle = stringResource(
-                    if (isRecording) R.string.debug_record_on else R.string.debug_record_off
-                ),
-                checked = isRecording,
-                icon = Icons.Default.BugReport,
-                onCheckedChange = { enabled ->
-                    isRecording = enabled
-                    if (logType == LogType.TRACE) {
-                        Natives.dolog(enabled)
-                        // Java-side guards mirror the native switch — refresh or they stay
-                        // short-circuited and the trace comes back empty.
-                        tk.glucodata.Log.refreshDoLog()
-                    } else {
-                        Natives.dologcat(enabled)
+            AnimatedVisibility(visible = logType != LogType.BLE_ERRORS) {
+                MasterSwitchCard(
+                    title = stringResource(R.string.debug_record_title),
+                    subtitle = stringResource(
+                        if (isRecording) R.string.debug_record_on else R.string.debug_record_off
+                    ),
+                    checked = isRecording,
+                    icon = Icons.Default.BugReport,
+                    onCheckedChange = { enabled ->
+                        isRecording = enabled
+                        if (logType == LogType.TRACE) {
+                            Natives.dolog(enabled)
+                            // Java-side guards mirror the native switch — refresh or they stay
+                            // short-circuited and the trace comes back empty.
+                            tk.glucodata.Log.refreshDoLog()
+                        } else {
+                            Natives.dologcat(enabled)
+                        }
                     }
-                }
-            )
+                )
+            }
 
             val logTypeLabels = mapOf(
                 LogType.TRACE to stringResource(R.string.trace_log),
-                LogType.LOGCAT to stringResource(R.string.logcat)
+                LogType.LOGCAT to stringResource(R.string.logcat),
+                LogType.BLE_ERRORS to stringResource(R.string.ble_error_history),
             )
             ConnectedButtonGroup(
                 options = LogType.entries,
