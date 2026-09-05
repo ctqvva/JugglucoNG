@@ -71,9 +71,9 @@ fun JournalEntryType.journalActionLabel(): String = when (this) {
     JournalEntryType.NOTE -> stringResource(R.string.journal_type_note)
 }
 
-fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
+fun JournalEntryType.journalActionIcon(mealId: Long? = null): ImageVector = when (this) {
     JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.LunchDining
+    JournalEntryType.CARBS -> if (mealId != null) Icons.Default.Restaurant else Icons.Default.LunchDining
     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
     JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label

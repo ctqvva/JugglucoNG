@@ -240,6 +240,7 @@ fun buildJournalChartMarkers(
         }
         JournalChartMarker(
             entryId = entry.id,
+            mealId = entry.mealId,
             timestamp = entry.timestamp,
             type = entry.type,
             title = entry.title,
@@ -822,7 +823,7 @@ fun JournalEntrySheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(
-                        imageVector = journalTypeIcon(draft.type),
+                        imageVector = draft.type.journalActionIcon(draft.mealId),
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -2686,7 +2687,7 @@ fun JournalInlineChip(
                 horizontalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 8.dp)
             ) {
                 Icon(
-                    imageVector = journalTypeIcon(entry.type),
+                    imageVector = entry.type.journalActionIcon(entry.mealId),
                     contentDescription = null,
                     tint = tint,
                     modifier = Modifier
@@ -2882,7 +2883,7 @@ private fun JournalEntryChip(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = journalTypeIcon(entry.type),
+                        imageVector = entry.type.journalActionIcon(entry.mealId),
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(16.dp)
