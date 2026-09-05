@@ -46,7 +46,7 @@ struct ICE_data {
  //   int sendsize=0;
     int lastpacket=0; 
     int nextAck=0;
-    bool shutdown=false;
+    std::atomic_bool shutdown{false};
     bool sendShutdown=false;
     bool  sendStop=false;
     int allindex;
@@ -124,15 +124,23 @@ struct ICE_data {
         askedData=false;
         databuf.clear();
         }
-    void reStarted() {
+    void reStarted(bool preservePeerRequest=false) {
         resetReceive();
         shutdown=false;
         sendShutdown=false;
         sendStop=false;
+        {
+        std::lock_guard<std::mutex> lck(sendMutex);
         sentAck=false;
         lastAcked=false;
-        certain_try_acquire(doSend);
-        LOGGERICE("reStarted side=%d doSend(%p).try_acquire()\n",side,&doSend);
+        }
+        {
+        std::lock_guard<std::mutex> lck(doSendMutex);
+        if(!preservePeerRequest)
+            certain_try_acquire(doSend);
+        }
+        LOGGERICE("reStarted side=%d doSend(%p) preservePeerRequest=%d\n",
+                  side,&doSend,preservePeerRequest);
         };
     void reCreated() {
         send_trans_id=0;

@@ -98,6 +98,7 @@ data class SensorInfo(
     val isSelectedForDisplay: Boolean = false,
     val assignedColorArgb: Int = SensorVisuals.colorArgb(serial),
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
+    val isCloneSource: Boolean = false,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -153,7 +154,10 @@ class SensorViewModel : ViewModel() {
 
     private fun normalizePublishedSensor(sensor: SensorInfo): SensorInfo {
         val resolved = SensorIdentity.resolveAppSensorId(sensor.serial) ?: sensor.serial
-        return if (resolved == sensor.serial) sensor else sensor.copy(serial = resolved)
+        return sensor.copy(
+            serial = resolved,
+            isCloneSource = tk.glucodata.CloneSensorRegistry.isCloneSensor(resolved),
+        )
     }
 
     private fun sensorPriority(sensor: SensorInfo): Int {
@@ -1152,6 +1156,10 @@ class SensorViewModel : ViewModel() {
     // Edit 39d: AiDex-safe reconnect. For AiDex, restart vendor stack instead of
     // calling native resetbluetooth (SIGSEGV risk). For legacy sensors, use proven sequence.
     fun reconnectSensor(serial: String, wipeData: Boolean = false) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) {
+            android.util.Log.w("SensorVM", "Ignoring local reconnect for Clone sensor $serial")
+            return
+        }
         val gatt = findGatt(serial)
         if (gatt != null) {
             viewModelScope.launch {

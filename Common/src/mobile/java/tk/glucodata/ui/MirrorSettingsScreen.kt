@@ -4,6 +4,8 @@ package tk.glucodata.ui
 
 import android.app.Activity
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.text.Html
 import android.widget.TextView
 import android.widget.Toast
@@ -32,9 +34,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,26 +46,88 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import org.json.JSONObject
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.CloneIceNetworkConfig
+import tk.glucodata.CloneIceNetworkConfigStore
+import tk.glucodata.CloneTransport
+import tk.glucodata.CloneTransportPresentation
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.util.DiscoveredMirror
 import tk.glucodata.util.MDnsManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val UNIFIED_EXTRA_SCAN_TEXT = "tk.glucodata.extra.scan_text"
 private const val UNIFIED_EXTRA_SCAN_CONTEXT = "tk.glucodata.extra.scan_context"
 private const val UNIFIED_SCAN_CONTEXT_MIRROR = 1
+
+private object CloneHostTransitionRunner {
+    private val running = AtomicBoolean(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val executor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "Clone host transition").apply { isDaemon = true }
+    }
+
+    @Volatile
+    private var desiredCloneEnabled: Boolean? = null
+
+    fun isRunning(): Boolean = running.get()
+
+    fun desiredEnabled(): Boolean? = desiredCloneEnabled
+
+    fun start(
+        connectionIndices: () -> List<Int>,
+        deactivated: Boolean,
+        cloneEnabledAfterTransition: Boolean,
+        beforeNative: () -> Unit,
+        afterNative: () -> Unit,
+        onFinished: () -> Unit,
+    ): Boolean {
+        if (!running.compareAndSet(false, true)) return false
+        desiredCloneEnabled = cloneEnabledAfterTransition
+
+        val indices = try {
+            beforeNative()
+            connectionIndices().also { resolved ->
+                if (deactivated) resolved.forEach(Natives::prepareHostDeactivation)
+            }
+        } catch (error: Throwable) {
+            tk.glucodata.Log.stack("MirrorSettings", "prepare Clone host transition", error)
+            desiredCloneEnabled = null
+            running.set(false)
+            onFinished()
+            return false
+        }
+
+        executor.execute {
+            try {
+                indices.forEach { index -> Natives.setHostDeactivated(index, deactivated) }
+                afterNative()
+            } catch (error: Throwable) {
+                tk.glucodata.Log.stack("MirrorSettings", "run Clone host transition", error)
+            } finally {
+                desiredCloneEnabled = null
+                running.set(false)
+                mainHandler.post(onFinished)
+            }
+        }
+        return true
+    }
+}
 
 private enum class ConnTestState { IDLE, TESTING, SUCCESS, FAILURE }
 
@@ -95,21 +161,149 @@ private suspend fun testJugglucoConnection(host: String, port: Int): Boolean =
 // ── QR Code ──────────────────────────────────────────────────────────────────
 
 @Composable
-fun QRCodeImage(content: String, size: Int = 500) {
+fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     if (content.isEmpty()) return
-    val bitmap = remember(content) {
-        try { com.journeyapps.barcodescanner.BarcodeEncoder().encodeBitmap(content, com.google.zxing.BarcodeFormat.QR_CODE, size, size) }
+    val bitmap = remember(content, size) {
+        try {
+            com.journeyapps.barcodescanner.BarcodeEncoder().encodeBitmap(
+                content,
+                com.google.zxing.BarcodeFormat.QR_CODE,
+                size,
+                size,
+                MIRROR_QR_ENCODE_HINTS
+            )
+        }
         catch (_: Exception) { null }
     }
     bitmap?.let {
-        androidx.compose.foundation.Image(bitmap = it.asImageBitmap(), contentDescription = "QR Code", modifier = Modifier.size(240.dp))
+        androidx.compose.foundation.Image(
+            bitmap = it.asImageBitmap(),
+            contentDescription = "QR Code",
+            modifier = modifier,
+            filterQuality = FilterQuality.None
+        )
+    }
+}
+
+@Composable
+private fun MirrorQrDialog(
+    title: String,
+    instruction: String?,
+    content: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            val qrSize = minOf(maxWidth - 32.dp, maxHeight - 180.dp, 560.dp)
+                .coerceAtLeast(200.dp)
+            val bitmapSize = with(LocalDensity.current) { qrSize.roundToPx() }
+            Surface(
+                modifier = Modifier.width(qrSize + 24.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(title, style = MaterialTheme.typography.titleLarge)
+                    if (instruction != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(instruction, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    QRCodeImage(content, bitmapSize, Modifier.size(qrSize))
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.close))
+                    }
+                }
+            }
+        }
     }
 }
 
 fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
+    val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
+    var previousTurnConfig: HybridQrTurnConfig? = null
+    var previousTurnWasPresent = false
+    var previousIceConfig: CloneIceNetworkConfig? = null
+    var turnChanged = false
+    var iceConfigChanged = false
+    var hostCommitted = false
+
+    fun rollbackNetworkConfiguration() {
+        if (turnChanged) {
+            if (previousTurnWasPresent && previousTurnConfig != null) {
+                Natives.setTurnServer(
+                    0,
+                    previousTurnConfig!!.host,
+                    previousTurnConfig!!.port,
+                    previousTurnConfig!!.username,
+                    previousTurnConfig!!.password,
+                )
+            } else {
+                Natives.deleteTurnServer(0)
+            }
+        }
+        if (iceConfigChanged && previousIceConfig != null &&
+            !CloneIceNetworkConfigStore.save(context, previousIceConfig!!)
+        ) {
+            tk.glucodata.Log.e("MirrorSettings", "Could not restore Clone ICE settings")
+        }
+    }
+
     try {
-        val jsonClean = if (jsonstr.endsWith(" MirrorJuggluco")) jsonstr.dropLast(15) else jsonstr
-        val json = JSONObject(jsonClean)
+        val json = parseMirrorQrJson(jsonstr)
+        val turnConfig = parseHybridQrTurnConfig(json)
+        val iceConfig = parseHybridQrIceConfig(json, turnConfig)
+        if (turnConfig != null) {
+            previousTurnWasPresent = Natives.TurnServerNR() > 0
+            if (previousTurnWasPresent) {
+                previousTurnConfig = HybridQrTurnConfig(
+                    host = Natives.getTurnHost(0).orEmpty(),
+                    port = Natives.getTurnPort(0),
+                    username = Natives.getTurnUser(0).orEmpty(),
+                    password = Natives.getTurnPassword(0).orEmpty(),
+                )
+            }
+        }
+        if (iceConfig != null) {
+            previousIceConfig = CloneIceNetworkConfigStore.load(context)
+        }
+        // A newly scanned connection is active immediately. Open the local
+        // receiver gate before native startup so its first authenticated packet
+        // cannot race a previously stored global-off state.
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
+        if (turnConfig != null) {
+            Natives.setTurnServer(
+                0, turnConfig.host, turnConfig.port,
+                turnConfig.username, turnConfig.password
+            )
+            turnChanged = true
+        }
+        if (iceConfig != null) {
+            val saved = CloneIceNetworkConfigStore.save(
+                context,
+                CloneIceNetworkConfig(
+                    rendezvousHost = iceConfig.rendezvousHost,
+                    rendezvousPort = iceConfig.rendezvousPort,
+                    useTurnForStun = iceConfig.useTurnForStun,
+                    verifyRendezvousCertificate = iceConfig.verifyRendezvousCertificate,
+                    useLocalDiscovery = iceConfig.useLocalDiscovery,
+                ),
+            )
+            if (!saved) throw IllegalStateException("Could not save Clone ICE settings")
+            iceConfigChanged = true
+        }
         val iceLabel = json.optString("ICElabel").takeIf { it.isNotEmpty() }
         val namesArray = json.optJSONArray("names")
         val names = if (namesArray != null) {
@@ -129,13 +323,19 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
             iceLabel, json.optBoolean("side", false)
         )
         if (pos < 0) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
+            rollbackNetworkConfiguration()
             Toast.makeText(context, changeHostErrorMessage(context, pos), Toast.LENGTH_SHORT).show()
             return false
         }
+        hostCommitted = true
+        refreshMirrorNetworking(context, reset = turnConfig != null || iceConfig != null)
         Toast.makeText(context, context.getString(R.string.mirrorscansucces), Toast.LENGTH_SHORT).show()
-        tk.glucodata.Applic.wakemirrors()
         return true
-    } catch (_: Exception) {
+    } catch (error: Exception) {
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
+        if (!hostCommitted) rollbackNetworkConfiguration()
+        tk.glucodata.Log.stack("MirrorSettings", "Import Clone QR", error)
         Toast.makeText(context, context.getString(R.string.mirror_invalid_qr_data), Toast.LENGTH_SHORT).show()
         return false
     }
@@ -152,6 +352,86 @@ private fun changeHostErrorMessage(context: Context, code: Int): String = when (
     else -> context.getString(R.string.mirror_error_with_code, code)
 }
 
+private data class QuickPairSender(val index: Int, val created: Boolean)
+
+private fun readMirrorConnectionSnapshots(): List<MirrorConnectionSnapshot> =
+    (0 until Natives.backuphostNr()).map { index ->
+        val iceLabel = Natives.getICElabel(index)
+        MirrorConnectionSnapshot(
+            index = index,
+            label = Natives.getbackuplabel(index),
+            isIce = !iceLabel.isNullOrBlank(),
+            iceSide = !iceLabel.isNullOrBlank() && Natives.getICEside(index),
+            isWearOs = Natives.isWearOS(index),
+            sendsData = Natives.getbackuphostnums(index) ||
+                Natives.getbackuphoststream(index) ||
+                Natives.getbackuphostscans(index),
+            receivesData = (Natives.getbackuphostreceive(index) and 2) != 0,
+            isDeactivated = Natives.getHostDeactivated(index),
+            isPending = Natives.isBackupHostPending(index)
+        )
+    }
+
+private fun refreshMirrorNetworking(context: Context, reset: Boolean = true) {
+    if (reset) Natives.resetnetwork()
+    tk.glucodata.CloneBackgroundLiveness.sync()
+    tk.glucodata.Applic.updateservice(context, Natives.getusebluetooth())
+    tk.glucodata.Applic.wakemirrors()
+}
+
+private fun finishCloneReceptionDisable() {
+    tk.glucodata.CloneSensorRegistry.deactivateAllCloneSensors()
+    // Drop the mobile snapshot cache too, then immediately resolve Nightscout
+    // or local Journal state for every IOB consumer.
+    tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+}
+
+private fun deleteAnnouncementSender(label: String?, ownedByAnnouncement: Boolean): Boolean {
+    if (label.isNullOrBlank()) return false
+    val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
+    if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement)) return false
+    Natives.deletebackuphost(connection!!.index)
+    return true
+}
+
+private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickPairSender {
+    val connections = readMirrorConnectionSnapshots()
+    reusableQuickPairIndex(connections, kind)?.let { index ->
+        if (connections.first { it.index == index }.isDeactivated) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
+            Natives.setHostDeactivated(index, false)
+            refreshMirrorNetworking(context)
+        }
+        return QuickPairSender(index, created = false)
+    }
+
+    val index = when (kind) {
+        QuickPairKind.LOCAL -> Natives.makeHomeSender()
+        QuickPairKind.HYBRID -> Natives.makeICESender()
+    }
+    if (index >= 0) {
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
+        refreshMirrorNetworking(context, reset = false)
+    }
+    return QuickPairSender(index, created = index >= 0)
+}
+
+private fun cleanupAnnouncementSender(
+    context: Context,
+    label: String?,
+    ownedByAnnouncement: Boolean,
+    syncReceptionState: Boolean = true,
+): Boolean {
+    if (!deleteAnnouncementSender(label, ownedByAnnouncement)) return false
+    if (syncReceptionState) {
+        val cloneEnabled = isCloneEnabled(readMirrorConnectionSnapshots())
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(cloneEnabled)
+        if (!cloneEnabled) finishCloneReceptionDisable()
+    }
+    refreshMirrorNetworking(context)
+    return true
+}
+
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
 @Composable
@@ -164,7 +444,8 @@ fun MirrorSettingsScreen(navController: NavController) {
     // mDNS
     val mdnsManager = remember { MDnsManager(context) }
     var isBroadcasting by remember { mutableStateOf(false) }
-    var broadcastSenderIdx by remember { mutableIntStateOf(-1) } // index of the sender entry on master
+    var broadcastSenderLabel by remember { mutableStateOf<String?>(null) }
+    var broadcastOwnsSender by remember { mutableStateOf(false) }
     var discoveredMirrors by remember { mutableStateOf(emptyList<DiscoveredMirror>()) }
 
     // Pending states
@@ -173,8 +454,26 @@ fun MirrorSettingsScreen(navController: NavController) {
 
     // Edit sheet state
     var editSheetPos by remember { mutableStateOf<Int?>(null) }
+    var cloneTransitionDesired by remember {
+        mutableStateOf(CloneHostTransitionRunner.desiredEnabled())
+    }
+    var backgroundLivenessEnabled by remember {
+        mutableStateOf(tk.glucodata.CloneBackgroundLiveness.isEnabled())
+    }
 
-    LaunchedEffect(triggerRefresh) { mirrors = getMirrorsList() }
+    val latestIsBroadcasting by rememberUpdatedState(isBroadcasting)
+    val latestBroadcastSenderLabel by rememberUpdatedState(broadcastSenderLabel)
+    val latestBroadcastOwnsSender by rememberUpdatedState(broadcastOwnsSender)
+
+    // Native ICE state changes independently of Compose. Keep the visible
+    // connection cards current while this screen is open.
+    LaunchedEffect(triggerRefresh) {
+        while (true) {
+            mirrors = getMirrorsList()
+            cloneTransitionDesired = CloneHostTransitionRunner.desiredEnabled()
+            delay(1_000)
+        }
+    }
 
     DisposableEffect(Unit) {
         mdnsManager.discoverServices { mirror ->
@@ -184,7 +483,14 @@ fun MirrorSettingsScreen(navController: NavController) {
         }
         onDispose {
             mdnsManager.stopDiscovery()
-            if (isBroadcasting) mdnsManager.unregisterService()
+            if (latestIsBroadcasting) {
+                mdnsManager.unregisterService()
+                cleanupAnnouncementSender(
+                    context,
+                    latestBroadcastSenderLabel,
+                    latestBroadcastOwnsSender
+                )
+            }
         }
     }
 
@@ -241,7 +547,18 @@ fun MirrorSettingsScreen(navController: NavController) {
             onDismissRequest = { scannedQrPayload = null },
             icon = { Icon(Icons.Filled.Link, contentDescription = null) },
             title = { Text(stringResource(R.string.mirror_connect_device_title)) },
-            text = { Text(stringResource(R.string.mirror_connect_qr_message)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.mirror_connect_qr_message))
+                    if (mirrorQrContainsTurnConfig(scannedQrPayload!!)) {
+                        Text(
+                            stringResource(R.string.mirror_connect_qr_turn_message),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     if (injectMirrorJson(scannedQrPayload!!, context)) triggerRefresh++
@@ -275,17 +592,11 @@ fun MirrorSettingsScreen(navController: NavController) {
     }
 
     if (showMyQR != null) {
-        AlertDialog(
-            onDismissRequest = { showMyQR = null },
-            title = { Text(stringResource(R.string.auto_qr)) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.scan_with_follower), style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(16.dp))
-                    QRCodeImage(showMyQR!!)
-                }
-            },
-            confirmButton = { Button(onClick = { showMyQR = null }) { Text(stringResource(R.string.close)) } }
+        MirrorQrDialog(
+            title = stringResource(R.string.auto_qr),
+            instruction = stringResource(R.string.scan_with_follower),
+            content = showMyQR!!,
+            onDismiss = { showMyQR = null }
         )
     }
 
@@ -323,15 +634,15 @@ fun MirrorSettingsScreen(navController: NavController) {
             item(key = "qr_section") {
                 SectionLabel(stringResource(R.string.mirror_quick_pair), topPadding = 8.dp)
             }
-            item(key = "qr_share") {
+            item(key = "qr_share_hybrid") {
                 SettingsItem(
-                    title = stringResource(R.string.mirror_share_my_qr),
-                    subtitle = stringResource(R.string.mirror_share_my_qr_desc),
-                    icon = Icons.Outlined.QrCode,
+                    title = stringResource(R.string.mirror_share_relay_qr),
+                    subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
+                    icon = Icons.Filled.Cloud,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.TOP,
                     onClick = {
-                        val idx = Natives.makeHomeSender()
+                        val idx = ensureQuickPairSender(context, QuickPairKind.HYBRID).index
                         if (idx >= 0) {
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
@@ -341,16 +652,20 @@ fun MirrorSettingsScreen(navController: NavController) {
                     }
                 )
             }
-            item(key = "qr_share_relay") {
+            item(key = "qr_share_local") {
                 SettingsItem(
-                    title = stringResource(R.string.mirror_share_relay_qr),
-                    subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
-                    icon = Icons.Filled.Cloud,
+                    title = stringResource(R.string.mirror_share_my_qr),
+                    subtitle = stringResource(R.string.mirror_share_my_qr_desc),
+                    icon = Icons.Outlined.QrCode,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
                     onClick = {
-                        val idx = Natives.makeICESender()
+                        val sender = ensureQuickPairSender(context, QuickPairKind.LOCAL)
+                        val idx = sender.index
                         if (idx >= 0) {
+                            if (Natives.getbackuplabel(idx) == broadcastSenderLabel) {
+                                broadcastOwnsSender = false
+                            }
                             showMyQR = Natives.getbackJson(idx)
                             triggerRefresh++
                         } else {
@@ -385,10 +700,11 @@ fun MirrorSettingsScreen(navController: NavController) {
                     onCheckedChange = { checked ->
                         isBroadcasting = checked
                         if (checked) {
-                            // Create a sender entry so master actually listens
-                            val idx = Natives.makeHomeSender()
+                            val sender = ensureQuickPairSender(context, QuickPairKind.LOCAL)
+                            val idx = sender.index
                             if (idx >= 0) {
-                                broadcastSenderIdx = idx
+                                broadcastSenderLabel = Natives.getbackuplabel(idx)
+                                broadcastOwnsSender = sender.created
                                 triggerRefresh++
                                 val senderPort = Natives.getbackuphostport(idx)?.toIntOrNull() ?: 8795
                                 // Get the full JSON (same data as QR code) for the follower
@@ -399,10 +715,21 @@ fun MirrorSettingsScreen(navController: NavController) {
                                     mirrorJson
                                 )
                             } else {
+                                broadcastSenderLabel = null
+                                broadcastOwnsSender = false
                                 mdnsManager.registerService(android.os.Build.MODEL ?: "Device")
                             }
                         } else {
                             mdnsManager.unregisterService()
+                            if (cleanupAnnouncementSender(
+                                    context,
+                                    broadcastSenderLabel,
+                                    broadcastOwnsSender
+                                )) {
+                                triggerRefresh++
+                            }
+                            broadcastSenderLabel = null
+                            broadcastOwnsSender = false
                         }
                     }
                 )
@@ -431,14 +758,14 @@ fun MirrorSettingsScreen(navController: NavController) {
                 }
             }
 
-            // ── Relay ────────────────────────────────────────────────
+            // ── Hybrid ───────────────────────────────────────────────
             item(key = "relay_section") {
-                SectionLabel(stringResource(R.string.mirror_relay))
+                SectionLabel(stringResource(R.string.mirror_hybrid))
             }
             item(key = "turn") {
                 SettingsItem(
-                    title = stringResource(R.string.turnserver),
-                    subtitle = stringResource(R.string.mirror_turn_server_desc),
+                    title = stringResource(R.string.hybrid_configuration),
+                    subtitle = stringResource(R.string.hybrid_configuration_summary),
                     icon = Icons.Filled.Cloud,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     showArrow = true,
@@ -458,6 +785,75 @@ fun MirrorSettingsScreen(navController: NavController) {
                 }
             }
 
+            val cloneConnections = mirrors.filterNot { it.isWearOs }
+            item(key = "clone_master") {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.mirror_clone_master),
+                    subtitle = stringResource(R.string.mirror_clone_master_desc),
+                    icon = Icons.Filled.SyncAlt,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    checked = cloneTransitionDesired
+                        ?: cloneConnections.any { !it.isDeactivated },
+                    enabled = cloneConnections.isNotEmpty() &&
+                        !CloneHostTransitionRunner.isRunning(),
+                    position = CardPosition.SINGLE,
+                    onCheckedChange = { enabled ->
+                        // Close the receiver gate before native host shutdown;
+                        // perform potentially blocking libjuice teardown away
+                        // from Android's input-dispatch thread.
+                        val announcementLabel = broadcastSenderLabel
+                        val announcementOwned = broadcastOwnsSender
+                        val started = CloneHostTransitionRunner.start(
+                            connectionIndices = {
+                                cloneConnectionIndices(readMirrorConnectionSnapshots())
+                            },
+                            deactivated = !enabled,
+                            cloneEnabledAfterTransition = enabled,
+                            beforeNative = {
+                                tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabled)
+                                if (!enabled && isBroadcasting) {
+                                    mdnsManager.unregisterService()
+                                    isBroadcasting = false
+                                    broadcastSenderLabel = null
+                                    broadcastOwnsSender = false
+                                }
+                            },
+                            afterNative = {
+                                if (!enabled) {
+                                    deleteAnnouncementSender(announcementLabel, announcementOwned)
+                                    finishCloneReceptionDisable()
+                                }
+                            },
+                            onFinished = {
+                                refreshMirrorNetworking(context)
+                                cloneTransitionDesired = null
+                                triggerRefresh++
+                            },
+                        )
+                        if (started) {
+                            cloneTransitionDesired = enabled
+                        }
+                    }
+                )
+            }
+            if (hasActiveCloneReceiver(readMirrorConnectionSnapshots())) {
+                item(key = "clone_background_liveness") {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.mirror_background_liveness),
+                        subtitle = stringResource(R.string.mirror_background_liveness_desc),
+                        icon = Icons.Filled.BatterySaver,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        checked = backgroundLivenessEnabled,
+                        enabled = !CloneHostTransitionRunner.isRunning(),
+                        position = CardPosition.SINGLE,
+                        onCheckedChange = { enabled ->
+                            backgroundLivenessEnabled = enabled
+                            tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
+                        }
+                    )
+                }
+            }
+
             if (mirrors.isEmpty()) {
                 item(key = "empty_msg") {
                     Surface(Modifier.fillMaxWidth(), shape = cardShape(CardPosition.SINGLE), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
@@ -468,18 +864,50 @@ fun MirrorSettingsScreen(navController: NavController) {
                 items(mirrors, key = { it.index }) { mirror ->
                     MirrorConnectionCard(
                         mirror = mirror,
+                        controlsEnabled = !CloneHostTransitionRunner.isRunning(),
                         onEdit = { editSheetPos = mirror.index },
-                        onToggle = {
-                            Natives.setHostDeactivated(mirror.index, !mirror.isDeactivated)
-                            Natives.resetnetwork()
-                            tk.glucodata.Applic.wakemirrors()
-                            triggerRefresh++
+                        onToggle = toggle@{
+                            val enabledAfterToggle = mirror.isDeactivated || cloneConnections.any {
+                                it.index != mirror.index && !it.isDeactivated
+                            }
+                            val started = CloneHostTransitionRunner.start(
+                                connectionIndices = { listOf(mirror.index) },
+                                deactivated = !mirror.isDeactivated,
+                                cloneEnabledAfterTransition = enabledAfterToggle,
+                                beforeNative = {
+                                    tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterToggle)
+                                },
+                                afterNative = {
+                                    if (!enabledAfterToggle) finishCloneReceptionDisable()
+                                },
+                                onFinished = {
+                                    refreshMirrorNetworking(context)
+                                    cloneTransitionDesired = null
+                                    triggerRefresh++
+                                },
+                            )
+                            if (started) {
+                                cloneTransitionDesired = enabledAfterToggle
+                            }
                         },
                         onShowQR = { mirror.index },
-                        onDelete = {
+                        onDelete = delete@{
+                            if (CloneHostTransitionRunner.isRunning()) return@delete
+                            val enabledAfterDelete = cloneConnections.any {
+                                it.index != mirror.index && !it.isDeactivated
+                            }
+                            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterDelete)
+                            if (mirror.label == broadcastSenderLabel) {
+                                mdnsManager.unregisterService()
+                                isBroadcasting = false
+                                broadcastSenderLabel = null
+                                broadcastOwnsSender = false
+                            }
                             Natives.deletebackuphost(mirror.index)
-                            Natives.resetnetwork()
-                            tk.glucodata.Applic.wakemirrors()
+                            if (!enabledAfterDelete) {
+                                finishCloneReceptionDisable()
+                            }
+                            refreshMirrorNetworking(context)
                             triggerRefresh++
                         }
                     )
@@ -505,6 +933,7 @@ fun MirrorSettingsScreen(navController: NavController) {
 @Composable
 fun MirrorConnectionCard(
     mirror: MirrorItemData,
+    controlsEnabled: Boolean = true,
     onEdit: () -> Unit,
     onToggle: () -> Unit,
     onShowQR: () -> Unit,
@@ -520,15 +949,11 @@ fun MirrorConnectionCard(
     LaunchedEffect(expanded) { if (!expanded) cardTestState = ConnTestState.IDLE }
 
     if (qrContent != null) {
-        AlertDialog(
-            onDismissRequest = { qrContent = null },
-            title = { Text(mirror.label ?: context.getString(R.string.connection_number, mirror.index)) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    QRCodeImage(qrContent!!)
-                }
-            },
-            confirmButton = { Button(onClick = { qrContent = null }) { Text(stringResource(R.string.close)) } }
+        MirrorQrDialog(
+            title = mirror.label ?: context.getString(R.string.connection_number, mirror.index),
+            instruction = null,
+            content = qrContent!!,
+            onDismiss = { qrContent = null }
         )
     }
 
@@ -541,6 +966,7 @@ fun MirrorConnectionCard(
             confirmButton = {
                 Button(
                     onClick = { onDelete(); showDeleteConfirm = false },
+                    enabled = controlsEnabled,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text(stringResource(R.string.delete)) }
             },
@@ -564,8 +990,15 @@ fun MirrorConnectionCard(
                         style = MaterialTheme.typography.titleMedium,
                         color = if (mirror.isDeactivated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else Color.Unspecified
                     )
-                    val sub = if (mirror.isDeactivated) stringResource(R.string.deactivated)
-                    else if (!mirror.port.isNullOrEmpty()) ":${mirror.port}" else null
+                    val sub = if (mirror.isDeactivated) {
+                        stringResource(R.string.deactivated)
+                    } else if (mirror.isIce) {
+                        stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
+                    } else if (!mirror.port.isNullOrEmpty()) {
+                        ":${mirror.port}"
+                    } else {
+                        null
+                    }
                     if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.graphicsLayer { rotationZ = chevronRotation })
@@ -575,6 +1008,10 @@ fun MirrorConnectionCard(
                 Column {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     if (!mirror.isDeactivated) {
+                        if (mirror.isIce) {
+                            CloneConnectionDiagnostics(mirror)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        }
                         AndroidView<TextView>(
                             factory = { ctx -> TextView(ctx).apply { textSize = 13f } },
                             update = { it.text = Html.fromHtml(mirror.status, Html.FROM_HTML_MODE_LEGACY) },
@@ -586,10 +1023,14 @@ fun MirrorConnectionCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showDeleteConfirm = true }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                        TextButton(
+                            onClick = { showDeleteConfirm = true },
+                            enabled = controlsEnabled,
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
                             Text(stringResource(R.string.delete))
                         }
-                        TextButton(onClick = onToggle) {
+                        TextButton(onClick = onToggle, enabled = controlsEnabled) {
                             Text(if (mirror.isDeactivated) stringResource(R.string.enable) else stringResource(R.string.disable))
                         }
                         TextButton(onClick = { qrContent = Natives.getbackJson(mirror.index) }) {
@@ -626,13 +1067,74 @@ fun MirrorConnectionCard(
                                 Text(stringResource(R.string.test))
                             }
                         }
-                        TextButton(onClick = onEdit) {
+                        TextButton(onClick = onEdit, enabled = controlsEnabled) {
                             Text(stringResource(R.string.edit))
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
+    val unknown = stringResource(R.string.unknown)
+    val route = stringResource(CloneTransportPresentation.routeTextRes(mirror.cloneTransport))
+    val signaling = stringResource(CloneTransportPresentation.discoveryTextRes(mirror.cloneSignalingSource))
+    val stun = if (mirror.useTurnForStun) {
+        mirror.turnEndpoint?.let { "$it · TURN" } ?: unknown
+    } else {
+        mirror.stunEndpoint ?: unknown
+    }
+    val turn = mirror.turnEndpoint ?: stringResource(R.string.mirror_app_turn_server)
+    val certificateVerification = when (mirror.verifyRendezvousCertificate) {
+        true -> stringResource(R.string.enabled_status)
+        false -> stringResource(R.string.disabled_status)
+        null -> unknown
+    }
+
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        CloneDiagnosticRow(stringResource(R.string.mirror_route), route)
+        CloneDiagnosticRow(stringResource(R.string.clone_signaling), signaling)
+        CloneDiagnosticRow(
+            stringResource(R.string.rendezvous_server),
+            mirror.rendezvousEndpoint ?: unknown,
+        )
+        CloneDiagnosticRow(stringResource(R.string.mirror_stun_server), stun)
+        CloneDiagnosticRow(stringResource(R.string.turnserver), turn)
+        CloneDiagnosticRow(
+            stringResource(R.string.mirror_certificate_verification),
+            certificateVerification,
+        )
+        CloneDiagnosticRow(
+            stringResource(R.string.clone_lan_discovery_status),
+            stringResource(
+                if (mirror.useLocalDiscovery) R.string.enabled_status
+                else R.string.disabled_status,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun CloneDiagnosticRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.42f),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(0.58f),
+        )
     }
 }
 
@@ -766,6 +1268,8 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
         // changebackuphost(pos, names, nr, detect, port, nums, stream, scans,
         //   recover, receive, activeonly, passiveonly, pass, starttime, label,
         //   testip, hasname, icelabel, side)
+        val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
+        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(true)
         val result = Natives.changebackuphost(
             if (isNew) -1 else pos,
             finalNames,
@@ -788,11 +1292,11 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             /* side */ iceSide
         )
         if (result < 0) {
+            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(receptionWasEnabled)
             Toast.makeText(context, changeHostErrorMessage(context, result), Toast.LENGTH_SHORT).show()
             return false
         }
-        Natives.resetnetwork()
-        tk.glucodata.Applic.wakemirrors()
+        refreshMirrorNetworking(context)
         return true
     }
 
@@ -879,13 +1383,15 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = port, onValueChange = { port = it },
-                    label = { Text(stringResource(R.string.port)) },
-                    supportingText = { Text(stringResource(R.string.mirror_port_default)) },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                if (connectionType != ConnectionType.ICE) {
+                    OutlinedTextField(
+                        value = port, onValueChange = { port = it },
+                        label = { Text(stringResource(R.string.port)) },
+                        supportingText = { Text(stringResource(R.string.mirror_port_default)) },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
             }
 
             // Connection label
@@ -1033,14 +1539,66 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
 
 data class MirrorItemData(
     val index: Int, val label: String?, val names: Array<String>?,
-    val port: String?, val isDeactivated: Boolean, val status: String
+    val port: String?, val isDeactivated: Boolean, val status: String,
+    val isWearOs: Boolean,
+    val isIce: Boolean,
+    val cloneTransport: CloneTransport?,
+    val rendezvousEndpoint: String?,
+    val stunEndpoint: String?,
+    val turnEndpoint: String?,
+    val useTurnForStun: Boolean,
+    val verifyRendezvousCertificate: Boolean?,
+    val useLocalDiscovery: Boolean,
+    val cloneSignalingSource: Int,
 )
 
 fun getMirrorsList(): List<MirrorItemData> {
     val mirrors = mutableListOf<MirrorItemData>()
+    val iceConfig = CloneIceNetworkConfigStore.load(tk.glucodata.Applic.app)
+    val turnEndpoint = if (Natives.TurnServerNR() > 0) {
+        formatNetworkEndpoint(Natives.getTurnHost(0), Natives.getTurnPort(0))
+    } else {
+        null
+    }
     for (i in 0 until Natives.backuphostNr()) {
-        val names = Natives.getbackupIPs(i) ?: emptyArray()
-        mirrors.add(MirrorItemData(i, Natives.getbackuplabel(i), names, Natives.getbackuphostport(i), Natives.getHostDeactivated(i), Natives.mirrorStatus(i) ?: ""))
+        val iceIdentity = Natives.getICElabel(i)
+        val isIce = !iceIdentity.isNullOrBlank()
+        val names = if (isIce) emptyArray() else Natives.getbackupIPs(i) ?: emptyArray()
+        val verification = if (isIce) Natives.getCloneRendezvousCertificateVerification(i) else -1
+        mirrors.add(
+            MirrorItemData(
+                i,
+                Natives.getbackuplabel(i),
+                names,
+                mirrorDisplayPort(isIce, Natives.getbackuphostport(i)),
+                Natives.getHostDeactivated(i),
+                Natives.mirrorStatus(i) ?: "",
+                Natives.isWearOS(i),
+                isIce,
+                iceIdentity?.let { CloneTransport.fromCode(Natives.getCloneConnectionTransport(it)) },
+                if (isIce) {
+                    formatNetworkEndpoint(
+                        Natives.getCloneRendezvousHost(i),
+                        Natives.getCloneRendezvousPort(i),
+                    )
+                } else {
+                    null
+                },
+                if (isIce && !iceConfig.useTurnForStun) {
+                    formatNetworkEndpoint(
+                        CloneIceNetworkConfig.DEFAULT_STUN_HOST,
+                        CloneIceNetworkConfig.DEFAULT_STUN_PORT,
+                    )
+                } else {
+                    null
+                },
+                if (isIce) turnEndpoint else null,
+                isIce && iceConfig.useTurnForStun,
+                verification.takeIf { it >= 0 }?.let { it != 0 },
+                isIce && iceConfig.useLocalDiscovery,
+                if (isIce) Natives.getCloneSignalingSource(i) else 0,
+            )
+        )
     }
     return mirrors
 }

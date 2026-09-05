@@ -68,7 +68,7 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
         boolstr[receives],status.receive.tid,boolstr[status.receive.ingetcom()],boolstr[status.receive.ininterpret],con->icedata[1].shutdown?"shutdown":"");
     juice_agent *agent=con->agent.load();
     char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN+10];
-    bufptr+=addphase(con->phase,bufptr);
+    bufptr+=addphase(con->phase.load(),bufptr);
     if(agent) {
          addar(bufptr,"<br><b>Local:</b> ");
         if(int res=juice_get_selected_addresses_inc_type(agent, bufptr, JUICE_MAX_ADDRESS_STRING_LEN, remoteAddr, JUICE_MAX_ADDRESS_STRING_LEN);res == 0) {
@@ -78,7 +78,7 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
           }
       }
    addar(bufptr,"<br><b>ICE State:</b> ");
-   auto statename=juice_state_to_string(con->state);
+   auto statename=juice_state_to_string(con->state.load());
    addstrview(bufptr,statename);
    if(con->endConnect) {
       addar(bufptr,"<br>End connection");
@@ -86,9 +86,9 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
    if(con->isConnected) {
        addar(bufptr,"<br>Connected");
        }
-   if(con->connectTime) {
+   if(const time_t connectTime=con->connectTime.load();connectTime) {
        addar(bufptr,"<br>");
-       ctime_r(&con->connectTime,bufptr);
+       ctime_r(&connectTime,bufptr);
        bufptr+=26;
        }
    else

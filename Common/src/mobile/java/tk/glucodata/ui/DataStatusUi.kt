@@ -33,6 +33,16 @@ internal data class DashboardDataStatusText(
     val isStale: Boolean = false
 )
 
+internal fun shouldShowDashboardSensorStatus(
+    isCloneSource: Boolean,
+    isFreshData: Boolean,
+    sensorStatus: String,
+    heroOwnsAwaitingStatus: Boolean,
+): Boolean = (!isFreshData || !isCloneSource) &&
+    sensorStatus.isNotEmpty() &&
+    sensorStatus != "Ready" &&
+    !heroOwnsAwaitingStatus
+
 @Composable
 internal fun rememberDashboardDataStatusText(
     dataState: DisplayDataState.Status,
