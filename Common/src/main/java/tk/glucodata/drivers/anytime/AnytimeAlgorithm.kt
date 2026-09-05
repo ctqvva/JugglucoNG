@@ -442,6 +442,11 @@ object AnytimeAlgorithm {
             warnCode = rec.warnCode,
             source = Source.NATIVE, // it's transmitter-native, even more authoritative
             rawMgdl = rawLinear.rawMgdl,
+            beVoltageMv = rec.beVoltageMv,
+            weVoltageMv = rec.weVoltageMv,
+            reVoltageMv = rec.reVoltageMv,
+            ceVoltageMv = rec.ceVoltageMv,
+            bVoltageMv = rec.batteryRaw,
         )
     }
 

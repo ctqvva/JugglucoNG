@@ -56,6 +56,24 @@ data class AnytimeComputedRecord(
     val warnCode: Int,
     /** False for a protocol-valid record the sensor has not computed glucose for yet. */
     val hasGlucose: Boolean = true,
+    /**
+     * Electrode potentials, present only in the 15-byte "voltage" chunk. BE/WE/RE are the
+     * potentiostat's own setpoints and hold constant on healthy hardware, so their value is
+     * that a *change* means the front end has lost control. CE is the potential needed to
+     * sustain the working current: mostly a function of Iw, with a slow residual that tracks
+     * electrode ageing. [Int.MIN_VALUE] when the chunk does not carry them.
+     */
+    val beVoltageMv: Int = Int.MIN_VALUE,
+    val weVoltageMv: Int = Int.MIN_VALUE,
+    val reVoltageMv: Int = Int.MIN_VALUE,
+    val ceVoltageMv: Int = Int.MIN_VALUE,
+    /**
+     * Transmitter supply reading, raw. The vendor app forwards this to its server without
+     * scaling or displaying it, and no CT5 check frame has ever answered on this hardware,
+     * so the unit is unverified — it is NOT fed to the battery-percentage path, where a
+     * wrong scale would raise a false low-battery alarm.
+     */
+    val batteryRaw: Int = Int.MIN_VALUE,
 ) {
     val gluMgdl: Int get() = (gluMmol * 18.0f + 0.5f).toInt()
 }
@@ -691,6 +709,8 @@ object AnytimeFrames {
         // glucoseMgdl == 0 is a valid warm-up/status record, not a malformed frame.
         // Callers use hasGlucose to decide whether a reading may be stored.
         val hasGlucose = glucoseMgdl > 0
+        // The voltage chunk carries six more bytes the parser used to drop on the floor.
+        val hasVoltages = chunkSize >= AnytimeConstants.CT5_VOLTAGE_CHUNK_SIZE
         return AnytimeComputedRecord(
             glucoseId = glucoseId,
             hypoEarlyWarnMinutes = 0,
@@ -704,6 +724,11 @@ object AnytimeFrames {
             trend = trend,
             warnCode = 0,
             hasGlucose = hasGlucose,
+            beVoltageMv = if (hasVoltages) (decoded[offset + 9].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            weVoltageMv = if (hasVoltages) (decoded[offset + 10].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            reVoltageMv = if (hasVoltages) (decoded[offset + 11].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            ceVoltageMv = if (hasVoltages) (decoded[offset + 12].toInt() and 0xFF) * 6 else Int.MIN_VALUE,
+            batteryRaw = if (hasVoltages) u16(decoded[offset + 13], decoded[offset + 14]) else Int.MIN_VALUE,
         )
     }
 

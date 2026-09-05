@@ -491,6 +491,10 @@ object AnytimeConstants {
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "anytime_temp_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
+
+    /** Learned mg/dL-per-nA for a CT5, and how many readings taught it. */
+    const val PREF_CT5_RAW_SCALE_PREFIX = "anytime_ct5_raw_scale_"
+    const val PREF_CT5_RAW_SCALE_SAMPLES_PREFIX = "anytime_ct5_raw_scale_n_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
     const val PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX = "anytime_ct5_recovery_cipher_"
