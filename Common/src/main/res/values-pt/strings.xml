@@ -721,6 +721,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Force o comando A0 Ativar durante a leitura</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Trocar receptor</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Force o comando A8 Trocar receptor durante a leitura</string>
+    <string name="libre3_activation_legacy_fallback">Não foi possível verificar a ativação de código aberto do Libre 3; será usado o método comprovado.</string>
     <string name="libreview_account_ready">ID da conta pronto</string>
     <string name="libreview_account_missing">ID da conta ausente</string>
     <string name="libreview_account_missing_desc">Introduza as credenciais e peça o ID da conta para sensores Libre 3</string>
@@ -2563,6 +2564,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Gráfico + valor</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Gráfico + valor + seta</string>
     <string name="glucosechartfullcomplicationlabel">Gráfico + valor + seta + hora</string>
+    <string name="libre3_source_experimental_warning">Compilação experimental de segurança do Libre 3. Mantenha o APK padrão disponível para reverter.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
     <string name="sibionics_adaptive_v2_desc">Estimativa independente do estado do sensor com intervalo provável</string>
     <string name="glucose_likely_range">Intervalo provável</string>

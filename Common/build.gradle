@@ -86,6 +86,7 @@ android {
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
         buildConfigField 'int', 'isRelease', '0'
         buildConfigField 'int', 'isReleaseID', '0'
+        buildConfigField 'boolean', 'EXPERIMENTAL_LIBRE3_SOURCE', 'false'
 
         // Every sensor backend is compiled into every build. These used to be
         // flavour dimensions (libreVersion / SiBionics / DexCom), but only one
@@ -153,6 +154,18 @@ android {
             externalNativeBuild.cmake {
                 cppFlags "$CPPSTD", "-DRELEASEID=1", "-DRELEASE=1", "-DNORAWSTREAM=1", "-DRELEASEDIR=1"
                 cFlags "-DRELEASEID=1", "-DRELEASE=1", "-DNORAWSTREAM=1", "-DRELEASEDIR=1"
+            }
+        }
+        l3experimental {
+            initWith release
+            matchingFallbacks = ['release']
+            minifyEnabled false
+            shrinkResources false
+            versionNameSuffix '-L3-SOURCE-EXPERIMENTAL'
+            resValue "string", "app_name", "JugglucoNG L3 Source Experimental"
+            buildConfigField 'boolean', 'EXPERIMENTAL_LIBRE3_SOURCE', 'true'
+            externalNativeBuild.cmake {
+                arguments "-DEXPERIMENTAL_LIBRE3_SOURCE=TRUE"
             }
         }
         releasedub {
@@ -302,7 +315,7 @@ android {
 // JugglucoNG-1.0.9-Alpha.apk / JugglucoNG-1.0.9-Alpha-dub.apk.
 androidComponents {
     onVariants(selector().all()) { variant ->
-        def buildTypeTag = [release: '', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
+        def buildTypeTag = [release: '', l3experimental: 'l3-source-experimental', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
                 .get(variant.buildType, variant.buildType)
         def isWear = variant.productFlavors.any { flavor -> flavor.second == 'wear' }
         def parts = [isWear ? 'wear' : '', buildTypeTag].findAll { it }

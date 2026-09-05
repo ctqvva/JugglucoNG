@@ -824,6 +824,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libre3_nfc_command_activate_desc">Tarama sırasında A0 Etkinleştir komutunu zorla</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Alıcıyı değiştir</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Tarama sırasında A8 Alıcıyı değiştir komutunu zorla</string>
+    <string name="libre3_activation_legacy_fallback">Açık kaynaklı Libre 3 etkinleştirmesi doğrulanamadı; kanıtlanmış yöntem kullanılıyor.</string>
     <string name="libreview_account_ready">Hesap kimliği hazır</string>
     <string name="libreview_account_missing">Hesap kimliği eksik</string>
     <string name="libreview_account_missing_desc">Libre 3 sensörleri için kimlik bilgilerini girin ve hesap kimliğini isteyin</string>
@@ -2590,6 +2591,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucosechartvaluecomplicationlabel">Grafik + değer</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Grafik + değer + ok</string>
     <string name="glucosechartfullcomplicationlabel">Grafik + değer + ok + saat</string>
+    <string name="libre3_source_experimental_warning">Deneysel Libre 3 güvenlik sürümü. Geri dönmek için standart APK’yı saklayın.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (deneysel)</string>
     <string name="sibionics_adaptive_v2_desc">Olası aralık veren bağımsız sensör durumu tahmini</string>
     <string name="glucose_likely_range">Olası aralık</string>

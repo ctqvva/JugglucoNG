@@ -781,6 +781,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Прымусова адпраўляць каманду A0 Актываваць падчас сканавання</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Пераключыць прыёмнік</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Прымусова адпраўляць каманду A8 Пераключыць прыёмнік падчас сканавання</string>
+    <string name="libre3_activation_legacy_fallback">Не ўдалося праверыць актывацыю Libre 3 з адкрытым зыходным кодам; выкарыстоўваецца правераны метад.</string>
     <string name="libreview_account_ready">ID уліковага запісу гатовы</string>
     <string name="libreview_account_missing">ID уліковага запісу адсутнічае</string>
     <string name="libreview_account_missing_desc">Увядзіце ўліковыя даныя і запытайце ID уліковага запісу для датчыкаў Libre 3</string>
@@ -2633,6 +2634,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Графік + значэнне</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Графік + значэнне + стрэлка</string>
     <string name="glucosechartfullcomplicationlabel">Графік + значэнне + стрэлка + час</string>
+    <string name="libre3_source_experimental_warning">Эксперыментальная зборка бяспекі Libre 3. Захавайце стандартны APK для вяртання.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (эксперыментальна)</string>
     <string name="sibionics_adaptive_v2_desc">Незалежная ацэнка стану датчыка з верагодным дыяпазонам</string>
     <string name="glucose_likely_range">Верагодны дыяпазон</string>

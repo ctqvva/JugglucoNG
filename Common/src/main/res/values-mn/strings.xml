@@ -654,6 +654,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre3_nfc_command_activate_desc">Скан хийх явцад A0 Идэвхжүүлэх командыг албадан ашиглах</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Хүлээн авагчийг солих</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Скан хийх явцад A8 Хүлээн авагчийг солих командыг албадан ашиглах</string>
+    <string name="libre3_activation_legacy_fallback">Libre 3-ын нээлттэй эхийн идэвхжүүлэлтийг баталгаажуулж чадсангүй; өмнөх баталгаатай аргыг ашиглаж байна.</string>
     <string name="libreview_account_ready">Account ID бэлэн</string>
     <string name="libreview_account_missing">Account ID дутуу байна</string>
     <string name="libreview_account_missing_desc">Нэвтрэх мэдээллээ оруулж, Libre 3 мэдрэгчийн Account ID-г хүснэ үү</string>
@@ -2677,6 +2678,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucosechartvaluecomplicationlabel">График + утга</string>
     <string name="glucosechartvaluearrowcomplicationlabel">График + утга + сум</string>
     <string name="glucosechartfullcomplicationlabel">График + утга + сум + цаг</string>
+    <string name="libre3_source_experimental_warning">Libre 3-ын туршилтын хамгаалалтын хувилбар. Буцаахад зориулж стандарт APK-г хадгална уу.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (туршилтын)</string>
     <string name="sibionics_adaptive_v2_desc">Мэдрэгчийн төлөвийн бие даасан үнэлгээ, магадлалт мужтай</string>
     <string name="glucose_likely_range">Магадлалт муж</string>

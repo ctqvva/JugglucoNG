@@ -723,6 +723,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Force the A0 Activate command during the scan</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Switch Receiver</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Force the A8 Switch Receiver command during the scan</string>
+    <string name="libre3_activation_legacy_fallback">The open-source Libre 3 activation could not be verified; using the established method.</string>
     <string name="libreview_account_ready">Account ID ready</string>
     <string name="libreview_account_missing">Account ID missing</string>
     <string name="libreview_account_missing_desc">Enter credentials and request the Account ID for Libre 3 sensors</string>
@@ -2790,6 +2791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucosechartvaluecomplicationlabel">Chart + value</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Chart + value + arrow</string>
     <string name="glucosechartfullcomplicationlabel">Chart + value + arrow + time</string>
+    <string name="libre3_source_experimental_warning">Experimental Libre 3 security build. Keep the standard APK available for rollback.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
     <string name="sibionics_adaptive_v2_desc">Independent sensor-state estimate with a likely range</string>
     <string name="glucose_likely_range">Likely range</string>

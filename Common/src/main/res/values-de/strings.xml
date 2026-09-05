@@ -883,6 +883,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libre3_nfc_command_activate_desc">Beim Scan den Befehl A0 Aktivieren erzwingen</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Empfänger wechseln</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Beim Scan den Befehl A8 Empfänger wechseln erzwingen</string>
+    <string name="libre3_activation_legacy_fallback">Die Open-Source-Aktivierung für Libre 3 konnte nicht verifiziert werden; die bewährte Methode wird verwendet.</string>
     <string name="libreview_account_ready">Konto-ID bereit</string>
     <string name="libreview_account_missing">Konto-ID fehlt</string>
     <string name="libreview_account_missing_desc">Geben Sie die Zugangsdaten ein und fordern Sie die Konto-ID für Libre-3-Sensoren an</string>
@@ -2601,6 +2602,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucosechartvaluecomplicationlabel">Diagramm + Wert</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Diagramm + Wert + Pfeil</string>
     <string name="glucosechartfullcomplicationlabel">Diagramm + Wert + Pfeil + Zeit</string>
+    <string name="libre3_source_experimental_warning">Experimenteller Libre-3-Sicherheitsbuild. Bewahren Sie die Standard-APK für eine Rückkehr auf.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (experimentell)</string>
     <string name="sibionics_adaptive_v2_desc">Unabhängige Sensorzustandsschätzung mit wahrscheinlichem Bereich</string>
     <string name="glucose_likely_range">Wahrscheinlicher Bereich</string>

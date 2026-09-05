@@ -843,6 +843,7 @@
     <string name="libre3_nfc_command_activate_desc">Wymuś polecenie A0 Aktywuj podczas skanowania</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Przełącz odbiornik</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Wymuś polecenie A8 Przełącz odbiornik podczas skanowania</string>
+    <string name="libre3_activation_legacy_fallback">Nie udało się zweryfikować aktywacji Libre 3 typu open source; używana jest sprawdzona metoda.</string>
     <string name="libreview_account_ready">Identyfikator konta gotowy</string>
     <string name="libreview_account_missing">Brak identyfikatora konta</string>
     <string name="libreview_account_missing_desc">Wprowadź dane logowania i pobierz identyfikator konta dla sensorów Libre 3</string>
@@ -2600,6 +2601,7 @@
     <string name="glucosechartvaluecomplicationlabel">Wykres + wartość</string>
     <string name="glucosechartvaluearrowcomplicationlabel">Wykres + wartość + strzałka</string>
     <string name="glucosechartfullcomplicationlabel">Wykres + wartość + strzałka + czas</string>
+    <string name="libre3_source_experimental_warning">Eksperymentalna kompilacja zabezpieczeń Libre 3. Zachowaj standardowy plik APK, aby móc wrócić.</string>
     <string name="sibionics_adaptive_v2">Adaptive V2 (eksperymentalny)</string>
     <string name="sibionics_adaptive_v2_desc">Niezależna ocena stanu czujnika z prawdopodobnym zakresem</string>
     <string name="glucose_likely_range">Prawdopodobny zakres</string>
