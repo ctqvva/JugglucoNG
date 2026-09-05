@@ -2583,6 +2583,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Öğünler</string>
+    <string name="meal_open_link">Öğünü aç: %1$s</string>
     <string name="meal_new">Yeni öğün</string>
     <string name="meal_current_prefix">Geçerli öğün: %1$s</string>
     <string name="meal_default_label">Öğün</string>

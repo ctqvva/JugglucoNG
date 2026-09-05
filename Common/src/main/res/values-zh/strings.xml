@@ -2571,6 +2571,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">餐食</string>
+    <string name="meal_open_link">打开餐食：%1$s</string>
     <string name="meal_new">新建餐食</string>
     <string name="meal_current_prefix">当前餐食：%1$s</string>
     <string name="meal_default_label">餐食</string>

@@ -364,6 +364,7 @@ fun JournalEntrySheet(
     onSaveEntries: ((List<JournalEntryInput>) -> Unit)? = null,
     onSaveFood: ((JournalFoodInput) -> Unit)? = null,
     onDelete: ((Long) -> Unit)? = null,
+    onOpenMeal: ((Long) -> Unit)? = null,
     sensorSerialProvider: () -> String?
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -559,6 +560,16 @@ fun JournalEntrySheet(
                             )
                         }
                     }
+                }
+            }
+
+            val linkedMealId = draft.mealId
+            if (draft.type == JournalEntryType.CARBS && linkedMealId != null && onOpenMeal != null) {
+                item(key = "linked_meal") {
+                    JournalMealLink(mealId = linkedMealId, onOpenMeal = { id ->
+                        onDismiss()
+                        onOpenMeal(id)
+                    })
                 }
             }
 

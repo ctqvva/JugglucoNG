@@ -2598,6 +2598,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Maaltijden</string>
+    <string name="meal_open_link">Maaltijd openen: %1$s</string>
     <string name="meal_new">Nieuwe maaltijd</string>
     <string name="meal_current_prefix">Huidige maaltijd: %1$s</string>
     <string name="meal_default_label">Maaltijd</string>

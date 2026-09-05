@@ -2594,6 +2594,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <!-- Meals: barcode scanner, Open Food Facts lookup, quantity engine, meal composition -->
     <string name="meal_title">Mahlzeiten</string>
+    <string name="meal_open_link">Mahlzeit öffnen: %1$s</string>
     <string name="meal_new">Neue Mahlzeit</string>
     <string name="meal_current_prefix">Aktuelle Mahlzeit: %1$s</string>
     <string name="meal_default_label">Mahlzeit</string>
