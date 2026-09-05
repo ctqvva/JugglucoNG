@@ -2406,6 +2406,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
+    <string name="clone_history_recovery">History recovery</string>
+    <string name="clone_history_direction_send">Send to receiver</string>
+    <string name="clone_history_direction_pull">Recover from receiver</string>
+    <string name="clone_history_pull_intro">Copy stored history from this Clone receiver to this phone.</string>
+    <string name="clone_history_pull_missing_desc">Add missing records to this phone. Existing history is kept.</string>
+    <string name="clone_history_pull_full_desc">Replace the selected history on this phone with a copy from the receiver.</string>
+    <string name="clone_history_pull_confirm_title">Replace this phone’s history?</string>
+    <string name="clone_history_pull_confirm_message">This replaces the selected history on this phone with a copy from the receiver. Save a backup first.</string>
+    <string name="clone_history_pull_receiving">Receiving history…</string>
+    <string name="clone_history_pull_importing">Verifying and importing history on this phone…</string>
     <string name="clone_history_send">Send history</string>
     <string name="clone_history_intro">Send stored history to this Clone receiver. Live readings continue while the transfer runs.</string>
     <string name="clone_history_mode">History mode</string>

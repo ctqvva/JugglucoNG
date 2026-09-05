@@ -242,6 +242,7 @@ object HistorySyncAccess {
                 Long::class.javaPrimitiveType,
                 String::class.java,
                 Boolean::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType,
             )
         }.getOrNull()
     }
@@ -347,6 +348,23 @@ object HistorySyncAccess {
             ?: ByteArray(0)
 
     @JvmStatic
+    fun receiveCloneRecoveryRequest(raw: ByteArray?): Boolean = runCatching {
+        val json = decodeRecoveryControl(raw) ?: return@runCatching false
+        cloneRecoveryHolder?.getMethod("preparePullExport", String::class.java)
+            ?.invoke(null, json) as? Boolean ?: false
+    }.getOrDefault(false)
+
+    @JvmStatic
+    fun readCloneRecoveryPullFile(jobId: String, packageChunk: Boolean, offset: Long, maximumBytes: Int): ByteArray? =
+        runCatching {
+            CloneHistoryRecoveryProtocol.validateJobId(jobId)
+            require(offset >= 0 && maximumBytes in 1..CloneOutgoingRecoveryProtocol.GET_PAGE_BYTES)
+            cloneRecoveryHolder?.getMethod("readPullFile", String::class.java,
+                Boolean::class.javaPrimitiveType, Long::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                ?.invoke(null, jobId, packageChunk, offset, maximumBytes) as? ByteArray
+        }.getOrNull()
+
+    @JvmStatic
     fun receiveCloneRecoveryManifest(raw: ByteArray?): ByteArray {
         val json = decodeRecoveryControl(raw) ?: return ByteArray(0)
         return invokeCloneRecoveryString(cloneRecoveryPreparePushMethod, json)
@@ -415,6 +433,7 @@ object HistorySyncAccess {
         connectionGeneration: Long,
         modeWire: String?,
         includeJournal: Boolean,
+        recoverFromReceiver: Boolean,
     ): ByteArray {
         if (!validCloneRecoveryOutgoingIdentity(iceLabel, connectionGeneration) ||
             modeWire.isNullOrBlank() || modeWire.length > 64
@@ -427,6 +446,7 @@ object HistorySyncAccess {
             connectionGeneration,
             modeWire,
             includeJournal,
+            recoverFromReceiver,
         )?.toRecoveryBytes() ?: ByteArray(0)
     }
 

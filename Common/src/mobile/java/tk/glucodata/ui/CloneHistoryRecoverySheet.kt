@@ -132,6 +132,7 @@ internal fun CloneHistoryRecoverySheet(
                         mirror.index,
                         selection.mode.wireValue,
                         selection.includeJournal && journalSupported,
+                        selection.recoverFromReceiver,
                     ).orEmpty()
                 )
             }
@@ -158,15 +159,15 @@ internal fun CloneHistoryRecoverySheet(
         AlertDialog(
             onDismissRequest = { showFullHistoryConfirmation = false },
             icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            title = { Text(stringResource(R.string.clone_history_full_confirm_title)) },
-            text = { Text(stringResource(R.string.clone_history_full_confirm_message)) },
+            title = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_title else R.string.clone_history_full_confirm_title)) },
+            text = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_message else R.string.clone_history_full_confirm_message)) },
             confirmButton = {
                 Button(
                     onClick = {
                         showFullHistoryConfirmation = false
                         startSelectedRecovery()
                     }
-                ) { Text(stringResource(R.string.clone_history_replace_and_send)) }
+                ) { Text(stringResource(R.string.clone_history_send_action)) }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showFullHistoryConfirmation = false }) {
@@ -188,7 +189,7 @@ internal fun CloneHistoryRecoverySheet(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
             Text(
-                text = stringResource(R.string.clone_history_send),
+                text = stringResource(R.string.clone_history_recovery),
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
@@ -199,7 +200,7 @@ internal fun CloneHistoryRecoverySheet(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.clone_history_intro),
+                text = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_intro else R.string.clone_history_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -215,6 +216,7 @@ internal fun CloneHistoryRecoverySheet(
                     CloneHistoryRecoveryOptions(
                         selection = selection,
                         journalSupported = journalSupported,
+                        pullSupported = outgoing.remoteSupportsPull,
                         enabled = !actionRunning,
                         onSelectionChange = { selection = it },
                     )
@@ -305,9 +307,20 @@ private fun CloneHistoryLoadingState(error: String?) {
 private fun CloneHistoryRecoveryOptions(
     selection: CloneHistoryRecoverySelection,
     journalSupported: Boolean,
+    pullSupported: Boolean,
     enabled: Boolean,
     onSelectionChange: (CloneHistoryRecoverySelection) -> Unit,
 ) {
+    for (pull in listOf(false, true)) {
+        if (!pull || pullSupported) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = selection.recoverFromReceiver == pull, enabled = enabled,
+                    onClick = { onSelectionChange(selection.copy(recoverFromReceiver = pull)) })
+                Text(stringResource(if (pull) R.string.clone_history_direction_pull else R.string.clone_history_direction_send))
+            }
+        }
+    }
+    Spacer(Modifier.height(12.dp))
     Text(
         text = stringResource(R.string.clone_history_mode),
         style = MaterialTheme.typography.titleMedium,
@@ -316,7 +329,7 @@ private fun CloneHistoryRecoveryOptions(
     CloneHistoryModeOption(
         selected = selection.mode == CloneRecoveryMode.ONLY_MISSING,
         title = stringResource(R.string.clone_history_only_missing),
-        subtitle = stringResource(R.string.clone_history_only_missing_desc),
+        subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_missing_desc else R.string.clone_history_only_missing_desc),
         enabled = enabled,
         onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.ONLY_MISSING)) },
     )
@@ -324,7 +337,7 @@ private fun CloneHistoryRecoveryOptions(
     CloneHistoryModeOption(
         selected = selection.mode == CloneRecoveryMode.FULL_HISTORY,
         title = stringResource(R.string.clone_history_full),
-        subtitle = stringResource(R.string.clone_history_full_desc),
+        subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_full_desc else R.string.clone_history_full_desc),
         enabled = enabled,
         onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.FULL_HISTORY)) },
     )
@@ -430,7 +443,7 @@ private fun CloneHistoryRecoveryProgress(
 
     Text(phaseText, style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(10.dp))
-    if (progress != null && state.phase == CloneOutgoingPhase.PUTTING_PACKAGE) {
+    if (progress != null && state.phase in setOf(CloneOutgoingPhase.PUTTING_PACKAGE, CloneOutgoingPhase.GETTING_PACKAGE)) {
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
     } else if (!state.phase.isTerminal) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -482,6 +495,9 @@ private fun CloneHistoryRecoveryProgress(
                 CloneOutgoingPhase.PROBING,
                 CloneOutgoingPhase.PUTTING_MANIFEST,
                 CloneOutgoingPhase.PUTTING_PACKAGE,
+                CloneOutgoingPhase.REQUESTING_PACKAGE,
+                CloneOutgoingPhase.GETTING_MANIFEST,
+                CloneOutgoingPhase.GETTING_PACKAGE,
             )
             if (cancellable) {
                 OutlinedButton(
@@ -502,7 +518,11 @@ private fun cloneHistoryPhaseText(phase: CloneOutgoingPhase): String = stringRes
     when (phase) {
         CloneOutgoingPhase.PROBING -> R.string.clone_history_checking_receiver
         CloneOutgoingPhase.PROBE_READY -> R.string.clone_history_ready
+        CloneOutgoingPhase.REQUESTING_PACKAGE,
+        CloneOutgoingPhase.GETTING_MANIFEST,
         CloneOutgoingPhase.PREPARING -> R.string.clone_history_preparing
+        CloneOutgoingPhase.GETTING_PACKAGE -> R.string.clone_history_pull_receiving
+        CloneOutgoingPhase.IMPORTING_LOCAL -> R.string.clone_history_pull_importing
         CloneOutgoingPhase.PUTTING_MANIFEST,
         CloneOutgoingPhase.PUTTING_PACKAGE -> R.string.clone_history_sending
         CloneOutgoingPhase.PUTTING_COMMIT,

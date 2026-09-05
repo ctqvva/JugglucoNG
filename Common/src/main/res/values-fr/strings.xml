@@ -1829,6 +1829,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connections">Connexions</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Activer toutes les connexions Clone enregistrées</string>
+    <string name="clone_history_recovery">Récupération de l’historique</string>
+    <string name="clone_history_direction_send">Envoyer au récepteur</string>
+    <string name="clone_history_direction_pull">Récupérer depuis le récepteur</string>
+    <string name="clone_history_pull_intro">Copier l’historique enregistré de ce récepteur Clone vers ce téléphone.</string>
+    <string name="clone_history_pull_missing_desc">Ajouter les données manquantes sur ce téléphone. L’historique existant est conservé.</string>
+    <string name="clone_history_pull_full_desc">Remplacer l’historique sélectionné sur ce téléphone par une copie du récepteur.</string>
+    <string name="clone_history_pull_confirm_title">Remplacer l’historique de ce téléphone ?</string>
+    <string name="clone_history_pull_confirm_message">L’historique sélectionné sur ce téléphone sera remplacé par une copie du récepteur. Effectuez d’abord une sauvegarde.</string>
+    <string name="clone_history_pull_receiving">Réception de l’historique…</string>
+    <string name="clone_history_pull_importing">Vérification et importation de l’historique sur ce téléphone…</string>
     <string name="clone_history_send">Send history</string>
     <string name="clone_history_intro">Send stored history to this Clone receiver. Live readings continue while the transfer runs.</string>
     <string name="clone_history_mode">History mode</string>

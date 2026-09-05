@@ -54,6 +54,7 @@ internal data class CloneRecoveryCapabilities(
     val categories: Int,
     val maximumChunkBytes: Int,
     val maximumCompressedBytes: Long,
+    val supportsPull: Boolean = false,
 )
 
 internal data class CloneRecoveryManifest(
@@ -183,6 +184,7 @@ internal object CloneHistoryRecoveryProtocol {
             categories = CloneRecoveryCategories.validate(categories),
             maximumChunkBytes = DEFAULT_CHUNK_BYTES,
             maximumCompressedBytes = MAXIMUM_COMPRESSED_BYTES,
+            supportsPull = true,
         )
 
     fun encodeCapabilities(capabilities: CloneRecoveryCapabilities): String {
@@ -194,6 +196,7 @@ internal object CloneHistoryRecoveryProtocol {
             .put("categories", capabilities.categories)
             .put("maximumChunkBytes", capabilities.maximumChunkBytes)
             .put("maximumCompressedBytes", capabilities.maximumCompressedBytes)
+            .put("supportsPull", capabilities.supportsPull)
             .toString()
     }
 
@@ -208,6 +211,7 @@ internal object CloneHistoryRecoveryProtocol {
             categories = root.requireInt("categories"),
             maximumChunkBytes = root.requireInt("maximumChunkBytes"),
             maximumCompressedBytes = root.requireLong("maximumCompressedBytes"),
+            supportsPull = if (root.has("supportsPull")) root.requireBoolean("supportsPull") else false,
         ).also(::validateCapabilities)
     }
 
@@ -544,6 +548,11 @@ internal object CloneHistoryRecoveryProtocol {
 
     fun validateCancel(cancel: CloneRecoveryCancel) {
         validateTerminalControl(cancel.protocolVersion, cancel.jobId, cancel.sha256)
+    }
+
+    private fun JSONObject.requireBoolean(name: String): Boolean {
+        require(get(name) is Boolean) { "Invalid $name" }
+        return getBoolean(name)
     }
 
     private fun validateCapabilities(capabilities: CloneRecoveryCapabilities) {

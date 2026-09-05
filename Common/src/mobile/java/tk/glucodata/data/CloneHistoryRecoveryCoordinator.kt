@@ -38,6 +38,7 @@ internal class CloneHistoryRecoveryCoordinator private constructor(
     )
     private val jobsMutex = Mutex()
     private val importMutex = Mutex()
+    private val preparedPullJobs = ConcurrentHashMap.newKeySet<String>()
 
     fun capabilitiesJson(): String = CloneHistoryRecoveryProtocol.encodeCapabilities(
         CloneHistoryRecoveryProtocol.localCapabilities(SUPPORTED_CATEGORIES)
@@ -81,6 +82,32 @@ internal class CloneHistoryRecoveryCoordinator private constructor(
             staging.verifiedPackageFile(manifest.jobId)
             manifest
         }
+
+    fun stagePullExport(requestJson: String): CloneRecoveryRequest {
+        val request = CloneHistoryRecoveryProtocol.decodeRequest(requestJson)
+        require(request.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER)
+        requireSupported(request)
+        staging.stageRequest(request)
+        return request
+    }
+
+    suspend fun preparePullExport(request: CloneRecoveryRequest) {
+        prepareLocalPackage(request)
+        preparedPullJobs.add(request.jobId)
+    }
+
+    fun readPullFile(jobId: String, packageChunk: Boolean, offset: Long, maximumBytes: Int): ByteArray {
+        require(jobId in preparedPullJobs) { "Clone history export is not ready" }
+        require(staging.readRequest(jobId).direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER)
+        require(maximumBytes in 1..tk.glucodata.CloneOutgoingRecoveryProtocol.GET_PAGE_BYTES)
+        return if (packageChunk) staging.readPackageChunk(jobId, offset, maximumBytes) else {
+            val bytes = CloneHistoryRecoveryProtocol.encodeManifest(staging.readManifest(jobId))
+                .toByteArray(Charsets.UTF_8)
+            require(offset in 0..CloneHistoryRecoveryProtocol.MAXIMUM_CONTROL_BYTES.toLong())
+            val start = minOf(offset, bytes.size.toLong()).toInt()
+            bytes.copyOfRange(start, minOf(bytes.size, start + maximumBytes))
+        }
+    }
 
     /** Accepts a sender-initiated package manifest on the receiving phone. */
     suspend fun prepareIncomingPush(manifestJson: String): CloneRecoveryStatus = jobsMutex.withLock {
@@ -268,12 +295,46 @@ object CloneHistoryRecoveryAccess {
     private const val TAG = "CloneHistoryRecovery"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val activeCommits = ConcurrentHashMap<String, Job>()
+    private val activeExports = ConcurrentHashMap<String, Job>()
 
     private val coordinator: CloneHistoryRecoveryCoordinator
         get() = CloneHistoryRecoveryCoordinator.getInstance()
 
+    init {
+        scope.launch {
+            while (true) {
+                runCatching { coordinator.cleanExpiredJobs() }
+                    .onFailure { Log.w(TAG, "Could not expire Clone recovery staging", it) }
+                kotlinx.coroutines.delay(60L * 60L * 1_000L)
+            }
+        }
+    }
+
     @JvmStatic
     fun capabilitiesJson(): String = coordinator.capabilitiesJson()
+
+    @JvmStatic
+    fun preparePullExport(requestJson: String): Boolean = runCatching {
+        require(CloneSensorRegistry.isReceptionEnabled()) { "Clone reception is disabled" }
+        val request = coordinator.stagePullExport(requestJson)
+        if (activeExports[request.jobId]?.isActive == true) return@runCatching true
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            runCatching { coordinator.preparePullExport(request) }
+                .onFailure { Log.w(TAG, "Could not prepare Clone history export", it) }
+        }
+        if (activeExports.putIfAbsent(request.jobId, job) == null) {
+            job.invokeOnCompletion { activeExports.remove(request.jobId, job) }
+            job.start()
+        } else job.cancel()
+        true
+    }.getOrDefault(false)
+
+    @JvmStatic
+    fun readPullFile(jobId: String, packageChunk: Boolean, offset: Long, maximumBytes: Int): ByteArray? =
+        runCatching {
+            require(CloneSensorRegistry.isReceptionEnabled()) { "Clone reception is disabled" }
+            coordinator.readPullFile(jobId, packageChunk, offset, maximumBytes)
+        }.getOrNull()
 
     @JvmStatic
     fun prepareIncomingPush(manifestJson: String): String = statusResult {

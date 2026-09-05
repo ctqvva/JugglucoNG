@@ -638,7 +638,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(wakebackup)(JNIEnv *env, jclass cl) {
 extern std::string probeCloneRecoveryForHost(int allindex);
 extern std::string startCloneRecoveryForHost(int allindex,
                                              std::string_view modeWire,
-                                             bool includeJournal);
+                                             bool includeJournal, bool recoverFromReceiver);
 extern std::string cancelCloneRecoveryForHost(int allindex);
 extern std::string cloneRecoveryStatusForHost(int allindex);
 extern bool wakeCloneRecoveryForLabel(std::string_view iceLabel);
@@ -650,7 +650,7 @@ fromjava(probeCloneRecovery)(JNIEnv *env, jclass, jint allindex) {
 
 extern "C" JNIEXPORT jstring JNICALL
 fromjava(startCloneRecovery)(JNIEnv *env, jclass, jint allindex,
-                             jstring jmodeWire, jboolean includeJournal) {
+                             jstring jmodeWire, jboolean includeJournal, jboolean recoverFromReceiver) {
   if (!jmodeWire) {
     return myNewStringUTF(env, std::string_view());
   }
@@ -662,7 +662,7 @@ fromjava(startCloneRecovery)(JNIEnv *env, jclass, jint allindex,
   const jsize modeBytes = env->GetStringUTFLength(jmodeWire);
   const std::string result = startCloneRecoveryForHost(
       allindex, std::string_view(modeWire, static_cast<size_t>(modeBytes)),
-      includeJournal == JNI_TRUE);
+      includeJournal == JNI_TRUE, recoverFromReceiver == JNI_TRUE);
   env->ReleaseStringUTFChars(jmodeWire, modeWire);
   return myNewStringUTF(env, result);
 }

@@ -1852,6 +1852,16 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
+    <string name="clone_history_recovery">Түүх сэргээх</string>
+    <string name="clone_history_direction_send">Хүлээн авагч руу илгээх</string>
+    <string name="clone_history_direction_pull">Хүлээн авагчаас сэргээх</string>
+    <string name="clone_history_pull_intro">Энэ Clone хүлээн авагчийн хадгалсан түүхийг энэ утас руу хуулах.</string>
+    <string name="clone_history_pull_missing_desc">Энэ утсанд дутуу бүртгэлийг нэмнэ. Одоо байгаа түүхийг хадгална.</string>
+    <string name="clone_history_pull_full_desc">Энэ утсан дээрх сонгосон түүхийг хүлээн авагчийн хуулбараар солино.</string>
+    <string name="clone_history_pull_confirm_title">Энэ утасны түүхийг солих уу?</string>
+    <string name="clone_history_pull_confirm_message">Энэ утсан дээрх сонгосон түүхийг хүлээн авагчийн хуулбараар солино. Эхлээд нөөц хуулбар үүсгэнэ үү.</string>
+    <string name="clone_history_pull_receiving">Түүх хүлээн авч байна…</string>
+    <string name="clone_history_pull_importing">Энэ утсан дээр түүхийг шалгаж, импортолж байна…</string>
     <string name="clone_history_send">Send history</string>
     <string name="clone_history_intro">Send stored history to this Clone receiver. Live readings continue while the transfer runs.</string>
     <string name="clone_history_mode">History mode</string>

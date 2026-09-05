@@ -1948,6 +1948,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connections">Verbindungen</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle gespeicherten Clone-Verbindungen aktivieren</string>
+    <string name="clone_history_recovery">Verlauf wiederherstellen</string>
+    <string name="clone_history_direction_send">An Empfänger senden</string>
+    <string name="clone_history_direction_pull">Vom Empfänger wiederherstellen</string>
+    <string name="clone_history_pull_intro">Gespeicherten Verlauf von diesem Clone-Empfänger auf dieses Telefon kopieren.</string>
+    <string name="clone_history_pull_missing_desc">Fehlende Einträge auf diesem Telefon ergänzen. Vorhandener Verlauf bleibt erhalten.</string>
+    <string name="clone_history_pull_full_desc">Den ausgewählten Verlauf auf diesem Telefon durch eine Kopie vom Empfänger ersetzen.</string>
+    <string name="clone_history_pull_confirm_title">Verlauf dieses Telefons ersetzen?</string>
+    <string name="clone_history_pull_confirm_message">Der ausgewählte Verlauf auf diesem Telefon wird durch eine Kopie vom Empfänger ersetzt. Erstelle vorher ein Backup.</string>
+    <string name="clone_history_pull_receiving">Verlauf wird empfangen…</string>
+    <string name="clone_history_pull_importing">Verlauf wird auf diesem Telefon geprüft und importiert…</string>
     <string name="clone_history_send">Verlauf senden</string>
     <string name="clone_history_intro">Gespeicherten Verlauf an diesen Clone-Empfänger senden. Live-Werte laufen während der Übertragung weiter.</string>
     <string name="clone_history_mode">Verlaufsmodus</string>

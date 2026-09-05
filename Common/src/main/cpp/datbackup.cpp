@@ -33,7 +33,7 @@ extern std::vector<uint8_t> javaProbeCloneRecoveryOutgoing(
     const char *iceLabel, int64_t connectionGeneration);
 extern std::vector<uint8_t> javaStartCloneRecoveryOutgoing(
     const char *iceLabel, int64_t connectionGeneration, const char *modeWire,
-    bool includeJournal);
+    bool includeJournal, bool recoverFromReceiver);
 extern std::vector<uint8_t> javaNextCloneRecoveryOutgoingAction(
     const char *iceLabel, int64_t connectionGeneration);
 extern int javaReportCloneRecoveryOutgoingResult(
@@ -69,6 +69,9 @@ enum class CloneRecoveryActionKind : uint8_t {
   putCommit = 4,
   getStatus = 5,
   putCancel = 6,
+  putRequest = 7,
+  getManifest = 8,
+  getPackageChunk = 9,
 };
 
 enum class CloneRecoveryResultOutcome : uint8_t {
@@ -161,8 +164,10 @@ bool validateCloneRecoveryActionPath(CloneRecoveryActionKind kind,
   switch (kind) {
   case CloneRecoveryActionKind::probeCapabilities:
     return path == cloneRecoveryCapabilityPath;
+  case CloneRecoveryActionKind::getManifest:
   case CloneRecoveryActionKind::putManifest:
     return isCloneRecoveryJobPath(path, "manifest.json");
+  case CloneRecoveryActionKind::getPackageChunk:
   case CloneRecoveryActionKind::putPackageChunk:
     return isCloneRecoveryJobPath(path, "package.jsonl.gz");
   case CloneRecoveryActionKind::putCommit:
@@ -171,6 +176,8 @@ bool validateCloneRecoveryActionPath(CloneRecoveryActionKind kind,
     return isCloneRecoveryJobPath(path, "status.json");
   case CloneRecoveryActionKind::putCancel:
     return isCloneRecoveryJobPath(path, "cancel.json");
+  case CloneRecoveryActionKind::putRequest:
+    return isCloneRecoveryJobPath(path, "request.json");
   }
   return false;
 }
@@ -186,7 +193,7 @@ bool parseCloneRecoveryAction(const std::vector<uint8_t> &raw,
   }
   const uint8_t kindCode = raw[1];
   if (kindCode < static_cast<uint8_t>(CloneRecoveryActionKind::probeCapabilities) ||
-      kindCode > static_cast<uint8_t>(CloneRecoveryActionKind::putCancel)) {
+      kindCode > static_cast<uint8_t>(CloneRecoveryActionKind::getPackageChunk)) {
     return false;
   }
   const uint64_t offset = readUint64LittleEndian(raw.data() + 4);
@@ -217,6 +224,7 @@ bool parseCloneRecoveryAction(const std::vector<uint8_t> &raw,
   switch (kind) {
   case CloneRecoveryActionKind::probeCapabilities:
   case CloneRecoveryActionKind::getStatus:
+  case CloneRecoveryActionKind::getManifest:
     if (payloadBytes != sizeof(uint32_t)) {
       return false;
     }
@@ -227,6 +235,14 @@ bool parseCloneRecoveryAction(const std::vector<uint8_t> &raw,
       return false;
     }
     break;
+  case CloneRecoveryActionKind::getPackageChunk:
+    if (payloadBytes != sizeof(uint32_t)) return false;
+    requestedBytes = readUint32LittleEndian(payload);
+    if (requestedBytes == 0 || requestedBytes > cloneRecoveryMaximumReadBytes ||
+        offset > cloneRecoveryMaximumPackageBytes ||
+        requestedBytes > cloneRecoveryMaximumPackageBytes - offset) return false;
+    break;
+  case CloneRecoveryActionKind::putRequest:
   case CloneRecoveryActionKind::putManifest:
   case CloneRecoveryActionKind::putCommit:
   case CloneRecoveryActionKind::putCancel:
@@ -589,7 +605,9 @@ int processCloneRecoveryAction(int sendindex) {
         current.connectionGeneration != binding.connectionGeneration) {
       outcome = CloneRecoveryResultOutcome::transportError;
     } else if (action.kind == CloneRecoveryActionKind::probeCapabilities ||
-               action.kind == CloneRecoveryActionKind::getStatus) {
+               action.kind == CloneRecoveryActionKind::getStatus ||
+               action.kind == CloneRecoveryActionKind::getManifest ||
+               action.kind == CloneRecoveryActionKind::getPackageChunk) {
       outcome = readCloneRecoveryVirtualFile(current, action, resultPayload);
       if (action.kind == CloneRecoveryActionKind::probeCapabilities) {
         if (outcome != CloneRecoveryResultOutcome::ok ||
@@ -664,7 +682,7 @@ std::string probeCloneRecoveryForHost(int allindex) {
 }
 
 std::string startCloneRecoveryForHost(int allindex, std::string_view modeWire,
-                                      bool includeJournal) {
+                                      bool includeJournal, bool recoverFromReceiver) {
   if (!javaCloneRecoverySenderBridgeReady() || modeWire.empty() ||
       modeWire.size() > 64 ||
       std::char_traits<char>::find(modeWire.data(), modeWire.size(), '\0')) {
@@ -678,7 +696,7 @@ std::string startCloneRecoveryForHost(int allindex, std::string_view modeWire,
   const std::vector<uint8_t> status = javaStartCloneRecoveryOutgoing(
       binding.iceLabel.c_str(),
       static_cast<int64_t>(binding.connectionGeneration), mode.c_str(),
-      includeJournal);
+      includeJournal, recoverFromReceiver);
   if (!status.empty()) {
     wakeCloneRecoverySenderForLabel(binding.iceLabel);
   }

@@ -1866,6 +1866,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connections">Verbindingen</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
+    <string name="clone_history_recovery">Geschiedenis herstellen</string>
+    <string name="clone_history_direction_send">Naar ontvanger verzenden</string>
+    <string name="clone_history_direction_pull">Van ontvanger herstellen</string>
+    <string name="clone_history_pull_intro">Kopieer opgeslagen geschiedenis van deze Clone-ontvanger naar deze telefoon.</string>
+    <string name="clone_history_pull_missing_desc">Voeg ontbrekende gegevens toe op deze telefoon. Bestaande geschiedenis blijft behouden.</string>
+    <string name="clone_history_pull_full_desc">Vervang de geselecteerde geschiedenis op deze telefoon door een kopie van de ontvanger.</string>
+    <string name="clone_history_pull_confirm_title">Geschiedenis van deze telefoon vervangen?</string>
+    <string name="clone_history_pull_confirm_message">De geselecteerde geschiedenis op deze telefoon wordt vervangen door een kopie van de ontvanger. Maak eerst een back-up.</string>
+    <string name="clone_history_pull_receiving">Geschiedenis ontvangen…</string>
+    <string name="clone_history_pull_importing">Geschiedenis controleren en importeren op deze telefoon…</string>
     <string name="clone_history_send">Send history</string>
     <string name="clone_history_intro">Send stored history to this Clone receiver. Live readings continue while the transfer runs.</string>
     <string name="clone_history_mode">History mode</string>

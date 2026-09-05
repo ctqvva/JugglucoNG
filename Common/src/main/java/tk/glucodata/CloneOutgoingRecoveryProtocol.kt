@@ -14,6 +14,10 @@ internal enum class CloneOutgoingPhase(val wireValue: String) {
     PUTTING_PACKAGE("putting_package"),
     PUTTING_COMMIT("putting_commit"),
     POLLING_STATUS("polling_status"),
+    REQUESTING_PACKAGE("requesting_package"),
+    GETTING_MANIFEST("getting_manifest"),
+    GETTING_PACKAGE("getting_package"),
+    IMPORTING_LOCAL("importing_local"),
     PUTTING_CANCEL("putting_cancel"),
     POLLING_CANCEL("polling_cancel"),
     COMPLETED("completed"),
@@ -36,7 +40,10 @@ internal enum class CloneOutgoingActionKind(val code: Int) {
     PUT_PACKAGE_CHUNK(3),
     PUT_COMMIT(4),
     GET_STATUS(5),
-    PUT_CANCEL(6);
+    PUT_CANCEL(6),
+    PUT_REQUEST(7),
+    GET_MANIFEST(8),
+    GET_PACKAGE_CHUNK(9);
 
     companion object {
         fun fromCode(code: Int): CloneOutgoingActionKind =
@@ -77,6 +84,9 @@ internal data class CloneOutgoingState(
     val retryCount: Int = 0,
     val nextAttemptAtMillis: Long = 0L,
     val error: String? = null,
+    val direction: CloneRecoveryDirection = CloneRecoveryDirection.SEND_TO_RECEIVER,
+    val remoteSupportsPull: Boolean = false,
+    val localCommitted: Boolean = false,
 )
 
 internal data class CloneOutgoingAction(
@@ -138,6 +148,7 @@ internal object CloneOutgoingRecoveryTransitions {
             maximumChunkBytes = CloneHistoryRecoveryProtocol.negotiatedChunkBytes(capabilities),
             negotiatedProtocolVersion = negotiated,
             remoteCategories = capabilities.categories,
+            remoteSupportsPull = capabilities.supportsPull,
             remoteMaximumCompressedBytes = capabilities.maximumCompressedBytes,
             capabilityGeneration = state.connectionGeneration,
             reconcileAfterProbe = false,
@@ -210,6 +221,7 @@ internal object CloneOutgoingRecoveryTransitions {
 
     fun mayClear(state: CloneOutgoingState): Boolean =
         state.jobId == null || state.phase == CloneOutgoingPhase.FAILED ||
+            state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER && state.phase.isTerminal ||
             state.phase == CloneOutgoingPhase.CANCELLED && !state.remoteJobEstablished ||
             state.remoteTerminal &&
             (state.phase == CloneOutgoingPhase.COMPLETED ||
@@ -231,7 +243,7 @@ internal object CloneOutgoingRecoveryProtocol {
     private const val MAXIMUM_RETRY_COUNT = 30
     private val jobPathPattern = Regex(
         "^${CloneHistoryRecoveryProtocol.JOB_PATH_PREFIX}/[a-f0-9]{32}/" +
-            "(manifest\\.json|package\\.jsonl\\.gz|status\\.json|commit\\.json|cancel\\.json)$"
+            "(request\\.json|manifest\\.json|package\\.jsonl\\.gz|status\\.json|commit\\.json|cancel\\.json)$"
     )
 
     fun validateIceLabel(iceLabel: String): String {
@@ -251,6 +263,9 @@ internal object CloneOutgoingRecoveryProtocol {
             .put("connectionGeneration", state.connectionGeneration)
             .apply { state.jobId?.let { put("jobId", it) } }
             .put("phase", state.phase.wireValue)
+            .put("direction", state.direction.wireValue)
+            .put("remoteSupportsPull", state.remoteSupportsPull)
+            .put("localCommitted", state.localCommitted)
             .put("nextOffset", state.nextOffset)
             .put("maximumChunkBytes", state.maximumChunkBytes)
             .apply {
@@ -283,6 +298,10 @@ internal object CloneOutgoingRecoveryProtocol {
             connectionGeneration = root.requireLong("connectionGeneration"),
             jobId = root.optionalString("jobId"),
             phase = CloneOutgoingPhase.fromWireValue(root.requireString("phase")),
+            direction = root.optionalString("direction")?.let(CloneRecoveryDirection::fromWireValue)
+                ?: CloneRecoveryDirection.SEND_TO_RECEIVER,
+            remoteSupportsPull = if (root.has("remoteSupportsPull")) root.requireBoolean("remoteSupportsPull") else false,
+            localCommitted = if (root.has("localCommitted")) root.requireBoolean("localCommitted") else false,
             nextOffset = root.requireLong("nextOffset"),
             maximumChunkBytes = root.requireInt("maximumChunkBytes"),
             negotiatedProtocolVersion = root.optionalInt("negotiatedProtocolVersion"),
@@ -356,7 +375,9 @@ internal object CloneOutgoingRecoveryProtocol {
             (state.phase == CloneOutgoingPhase.COMPLETED ||
                 state.phase == CloneOutgoingPhase.CANCELLED)
         ) { "Outgoing Clone recovery terminal marker is invalid" }
-        require(state.phase != CloneOutgoingPhase.COMPLETED || state.remoteTerminal) {
+        require(!state.localCommitted || state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER && state.phase == CloneOutgoingPhase.COMPLETED) { "Invalid local Clone recovery commit marker" }
+        require(state.phase != CloneOutgoingPhase.COMPLETED ||
+            if (state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) state.localCommitted else state.remoteTerminal) {
             "Outgoing Clone recovery completion was not confirmed remotely"
         }
     }
@@ -461,6 +482,18 @@ internal object CloneOutgoingRecoveryProtocol {
                     action.payload.size.toLong() <=
                         CloneHistoryRecoveryProtocol.MAXIMUM_COMPRESSED_BYTES - action.offset
             ) { "Invalid Clone recovery package action" }
+            CloneOutgoingActionKind.PUT_REQUEST -> require(
+                exactJobPath(action.path, "request.json") && action.offset == 0L && action.payload.isNotEmpty()
+            ) { "Invalid Clone recovery export request" }
+            CloneOutgoingActionKind.GET_MANIFEST -> require(
+                exactJobPath(action.path, "manifest.json") && validReadAction(action)
+            ) { "Invalid Clone recovery manifest read" }
+            CloneOutgoingActionKind.GET_PACKAGE_CHUNK -> require(
+                exactJobPath(action.path, "package.jsonl.gz") && validReadRequest(action.payload) &&
+                    action.offset <= CloneHistoryRecoveryProtocol.MAXIMUM_COMPRESSED_BYTES &&
+                    requestedReadBytes(action.payload).toLong() <=
+                        CloneHistoryRecoveryProtocol.MAXIMUM_COMPRESSED_BYTES - action.offset
+            ) { "Invalid Clone recovery package read" }
             CloneOutgoingActionKind.PUT_COMMIT -> require(
                 exactJobPath(action.path, "commit.json") && action.offset == 0L &&
                     action.payload.isNotEmpty()

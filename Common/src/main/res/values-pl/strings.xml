@@ -1858,6 +1858,16 @@
     <string name="mirror_connections">Połączenia</string>
     <string name="mirror_clone_master">Clone</string>
     <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
+    <string name="clone_history_recovery">Odzyskiwanie historii</string>
+    <string name="clone_history_direction_send">Wyślij do odbiornika</string>
+    <string name="clone_history_direction_pull">Odzyskaj z odbiornika</string>
+    <string name="clone_history_pull_intro">Skopiuj zapisaną historię z tego odbiornika Clone na ten telefon.</string>
+    <string name="clone_history_pull_missing_desc">Dodaj brakujące dane na tym telefonie. Istniejąca historia zostanie zachowana.</string>
+    <string name="clone_history_pull_full_desc">Zastąp wybraną historię na tym telefonie kopią z odbiornika.</string>
+    <string name="clone_history_pull_confirm_title">Zastąpić historię tego telefonu?</string>
+    <string name="clone_history_pull_confirm_message">Wybrana historia na tym telefonie zostanie zastąpiona kopią z odbiornika. Najpierw wykonaj kopię zapasową.</string>
+    <string name="clone_history_pull_receiving">Odbieranie historii…</string>
+    <string name="clone_history_pull_importing">Sprawdzanie i importowanie historii na tym telefonie…</string>
     <string name="clone_history_send">Send history</string>
     <string name="clone_history_intro">Send stored history to this Clone receiver. Live readings continue while the transfer runs.</string>
     <string name="clone_history_mode">History mode</string>

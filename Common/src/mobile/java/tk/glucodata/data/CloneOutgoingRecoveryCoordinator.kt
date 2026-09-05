@@ -40,13 +40,16 @@ import tk.glucodata.CloneRecoveryPhase
 import tk.glucodata.CloneRecoveryRequest
 import tk.glucodata.CloneRecoveryStaging
 import tk.glucodata.Natives
+import tk.glucodata.ClonePullRecoveryWorkflow
+import tk.glucodata.GlucoseReadingSource
 
-/** Durable action-driven sender for one active SEND_TO_RECEIVER job per ICE label. */
+/** Durable sender-initiated recovery in either direction, one job per ICE label. */
 internal class CloneOutgoingRecoveryCoordinator private constructor(context: Context) {
     private val staging = CloneRecoveryStaging(context.applicationContext.filesDir)
     private val history = CloneHistoryRecoveryStore(
         HistoryDatabase.getInstance(context.applicationContext)
     )
+    private val pull = ClonePullRecoveryWorkflow(staging)
     private val mutex = Mutex()
     private val verifiedJobs = mutableSetOf<String>()
     private val readBuffers = mutableMapOf<String, ByteArrayOutputStream>()
@@ -76,9 +79,12 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
         generation: Long,
         mode: CloneRecoveryMode,
         includeJournal: Boolean,
+        recoverFromReceiver: Boolean = false,
     ): CloneOutgoingState = mutex.withLock {
         CloneOutgoingRecoveryProtocol.validateIceLabel(iceLabel)
         require(generation >= 0L) { "Invalid Clone recovery connection generation" }
+        val direction = if (recoverFromReceiver) CloneRecoveryDirection.RECOVER_FROM_RECEIVER
+            else CloneRecoveryDirection.SEND_TO_RECEIVER
         val categories = CloneRecoveryCategories.selected(
             includeJournal = includeJournal,
             includeHypoClassifications = false,
@@ -87,7 +93,7 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
         previous?.let { existing ->
             if (existing.jobId != null && !existing.phase.isTerminal) {
                 val request = requestFor(existing)
-                require(request.mode == mode && request.categories == categories) {
+                require(request.mode == mode && request.categories == categories && request.direction == direction) {
                     "A different Clone recovery job is already active for this ICE label"
                 }
                 return@withLock resumeState(existing, generation)
@@ -99,7 +105,7 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
         val request = CloneRecoveryRequest(
             protocolVersion = CloneHistoryRecoveryProtocol.PROTOCOL_VERSION,
             jobId = CloneHistoryRecoveryProtocol.newJobId(),
-            direction = CloneRecoveryDirection.SEND_TO_RECEIVER,
+            direction = direction,
             mode = mode,
             categories = categories,
         )
@@ -109,7 +115,8 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
                 iceLabel = iceLabel,
                 connectionGeneration = generation,
                 jobId = request.jobId,
-                phase = CloneOutgoingPhase.PREPARING,
+                phase = if (recoverFromReceiver) CloneOutgoingPhase.PROBING else CloneOutgoingPhase.PREPARING,
+                direction = direction,
                 maximumChunkBytes = previous?.maximumChunkBytes
                     ?: CloneHistoryRecoveryProtocol.DEFAULT_CHUNK_BYTES,
                 negotiatedProtocolVersion = previous?.negotiatedProtocolVersion,
@@ -122,6 +129,14 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
 
     /** Builds or verifies the immutable package on the facade's Java IO scope. */
     suspend fun ensurePrepared(iceLabel: String): CloneOutgoingState {
+        val initialPull = mutex.withLock { staging.readOutgoingState(iceLabel) }
+        if (initialPull.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) {
+            if (initialPull.phase != CloneOutgoingPhase.IMPORTING_LOCAL) return initialPull
+            val completed = pull.importLocal(initialPull) { file, manifest ->
+                history.importPackage(file, manifest, GlucoseReadingSource.CLONE)
+            }
+            return mutex.withLock { writeState(completed) }
+        }
         val (initial, request) = mutex.withLock {
             val state = staging.readOutgoingState(iceLabel)
             val jobId = requireNotNull(state.jobId) { "Outgoing Clone recovery has no job" }
@@ -182,9 +197,12 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
             state.phase == CloneOutgoingPhase.PREPARING ||
             state.phase == CloneOutgoingPhase.PROBE_READY ||
             state.nextAttemptAtMillis > nowMillis ||
-            state.jobId != null && state.jobId !in verifiedJobs
+            state.direction == CloneRecoveryDirection.SEND_TO_RECEIVER && state.jobId != null && state.jobId !in verifiedJobs
         ) {
             return@withLock ByteArray(0)
+        }
+        if (state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) {
+            return@withLock pull.nextAction(state)?.let(CloneOutgoingRecoveryProtocol::encodeAction) ?: ByteArray(0)
         }
         val action = when (state.phase) {
             CloneOutgoingPhase.PROBING -> readAction(
@@ -264,6 +282,13 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
             state.phase != CloneOutgoingPhase.PROBE_READY
         ) { "Outgoing Clone recovery has no pending action" }
 
+        if (state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) {
+            val updated = try { pull.accept(state, result, nowMillis) }
+                catch (error: Exception) { pull.failed(state, error.message) }
+            writeState(updated)
+            return@withLock if (updated.phase.isTerminal || updated.phase == CloneOutgoingPhase.IMPORTING_LOCAL) -1L
+                else (updated.nextAttemptAtMillis - nowMillis).coerceAtLeast(0L)
+        }
         if (result.outcome == CloneOutgoingResultOutcome.TRANSPORT_ERROR ||
             result.outcome == CloneOutgoingResultOutcome.REJECTED
         ) {
@@ -370,7 +395,8 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
     suspend fun cancel(iceLabel: String): CloneOutgoingState = mutex.withLock {
         val current = staging.readOutgoingState(iceLabel)
         readBuffers.remove(iceLabel)
-        writeState(CloneOutgoingRecoveryTransitions.requestCancel(current))
+        writeState(if (current.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) pull.cancel(current)
+            else CloneOutgoingRecoveryTransitions.requestCancel(current))
     }
 
     suspend fun resume(iceLabel: String, generation: Long): CloneOutgoingState = mutex.withLock {
@@ -626,6 +652,9 @@ internal class CloneOutgoingRecoveryCoordinator private constructor(context: Con
 
     private fun resumeState(state: CloneOutgoingState, generation: Long): CloneOutgoingState {
         require(generation >= 0L) { "Invalid Clone recovery connection generation" }
+        if (state.direction == CloneRecoveryDirection.RECOVER_FROM_RECEIVER) {
+            return writeState(pull.resume(state, generation))
+        }
         if (state.connectionGeneration == generation || state.phase.isTerminal) return state
         readBuffers.remove(state.iceLabel)
         val phase = when {
@@ -733,12 +762,14 @@ object CloneOutgoingRecoveryAccess {
         connectionGeneration: Long,
         modeWire: String,
         includeJournal: Boolean,
+        recoverFromReceiver: Boolean,
     ): String = stateResult {
         coordinator.start(
             iceLabel,
             connectionGeneration,
             CloneRecoveryMode.fromWireValue(modeWire),
             includeJournal,
+            recoverFromReceiver,
         ).also { launchPreparation(it.iceLabel) }
     }
 
@@ -757,7 +788,9 @@ object CloneOutgoingRecoveryAccess {
         result: ByteArray,
     ): Int = runCatching {
         val plan = runBlocking(Dispatchers.IO) {
-            coordinator.reportResult(iceLabel, connectionGeneration, result)
+            coordinator.reportResult(iceLabel, connectionGeneration, result).also {
+                if (coordinator.status(iceLabel).phase == CloneOutgoingPhase.IMPORTING_LOCAL) launchPreparation(iceLabel)
+            }
         }
         when {
             plan == 0L -> {
