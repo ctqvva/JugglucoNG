@@ -218,7 +218,8 @@ data class JournalChartMarker(
     val durationMinutes: Int? = null,
     val curvePoints: List<JournalCurvePoint> = emptyList(),
     val activeStartMillis: Long? = null,
-    val activeEndMillis: Long? = null
+    val activeEndMillis: Long? = null,
+    val mealId: Long? = null
 )
 
 data class JournalActiveInsulinSummary(
