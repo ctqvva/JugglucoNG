@@ -1,6 +1,5 @@
 package tk.glucodata.data
 
-import androidx.room.withTransaction
 import java.io.File
 import tk.glucodata.CloneHistoryRecoveryProtocol
 import tk.glucodata.CloneRecoveryCategories
@@ -57,7 +56,7 @@ internal class CloneGlucoseRecoveryStore(
             file = file,
             manifest = manifest,
             recordValidator = CloneGlucoseRecoveryRecords.orderedValidator(),
-            transaction = { operation -> database.withTransaction { operation() } },
+            transaction = { operation -> database.withRecoveryTransaction(manifest) { operation() } },
             beforeVisit = session::beforeImport,
             afterVisit = session::finishImport,
             visitor = session::accept,
