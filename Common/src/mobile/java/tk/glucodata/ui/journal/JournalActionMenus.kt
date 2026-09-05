@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -51,6 +52,8 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartViewportSnapshot
 import kotlin.math.roundToInt
 
+private enum class MealRow { NEW, CURRENT }
+
 fun journalReachActionTypes(): List<JournalEntryType> = listOf(
     JournalEntryType.NOTE,
     JournalEntryType.ACTIVITY,
@@ -68,9 +71,9 @@ fun JournalEntryType.journalActionLabel(): String = when (this) {
     JournalEntryType.NOTE -> stringResource(R.string.journal_type_note)
 }
 
-fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
+fun JournalEntryType.journalActionIcon(mealId: Long? = null): ImageVector = when (this) {
     JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.Restaurant
+    JournalEntryType.CARBS -> if (mealId != null) Icons.Default.Restaurant else Icons.Default.LunchDining
     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
     JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
@@ -186,12 +189,21 @@ fun JournalFloatingActionMenu(
     }
 }
 
+/**
+ * @param onMealSelected when set, a "New meal" row sits right above Insulin — a meal is composed
+ *   while cooking and logged later, so it is not an entry type.
+ * @param currentMealLabel the open meal most recently worked on; with [onCurrentMealSelected] it
+ *   adds a "Current meal: …" row between New meal and Insulin that jumps straight back into it.
+ */
 @Composable
 fun JournalExpandableFab(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onTypeSelected: (JournalEntryType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMealSelected: (() -> Unit)? = null,
+    currentMealLabel: String? = null,
+    onCurrentMealSelected: (() -> Unit)? = null
 ) {
     val view = LocalView.current
     val density = LocalDensity.current
@@ -227,20 +239,65 @@ fun JournalExpandableFab(
                     translationY = 8.dp.toPx() * (1f - menuProgress)
                 }
             ) {
-                actionTypes.forEachIndexed { index, actionType ->
-                    val itemProgress = ((menuProgress - (index * 0.07f)) / 0.72f).coerceIn(0f, 1f)
-                    JournalActionMenuRow(
-                        actionType = actionType,
-                        placeIconAfterLabel = true,
-                        itemProgress = itemProgress,
-                        rowTravelPx = rowTravelPx,
-                        itemLiftPx = itemLiftPx,
-                        onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onTypeSelected(actionType)
-                            onExpandedChange(false)
+                // Top to bottom: the entry types, with the meal rows slotted in right above Insulin
+                // (Insulin stays closest to the button).
+                val rows: List<Any> = buildList {
+                    actionTypes.forEach { type ->
+                        if (type == JournalEntryType.INSULIN) {
+                            if (onMealSelected != null) add(MealRow.NEW)
+                            if (currentMealLabel != null && onCurrentMealSelected != null) add(MealRow.CURRENT)
                         }
-                    )
+                        add(type)
+                    }
+                }
+                rows.forEachIndexed { index, row ->
+                    val itemProgress = ((menuProgress - (index * 0.07f)) / 0.72f).coerceIn(0f, 1f)
+                    when (row) {
+                        is JournalEntryType -> JournalActionMenuRow(
+                            actionType = row,
+                            placeIconAfterLabel = true,
+                            itemProgress = itemProgress,
+                            rowTravelPx = rowTravelPx,
+                            itemLiftPx = itemLiftPx,
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onTypeSelected(row)
+                                onExpandedChange(false)
+                            }
+                        )
+                        MealRow.NEW -> JournalMenuRow(
+                            label = stringResource(R.string.meal_new),
+                            icon = Icons.Default.Restaurant,
+                            actionTint = journalTypeColor(JournalEntryType.CARBS),
+                            iconContainerColor = journalTypeSelectedContainerColor(JournalEntryType.CARBS),
+                            labelContainerColor = journalTypeSubtleContainerColor(JournalEntryType.CARBS),
+                            placeIconAfterLabel = true,
+                            itemProgress = itemProgress,
+                            rowTravelPx = rowTravelPx,
+                            itemLiftPx = itemLiftPx,
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onMealSelected?.invoke()
+                                onExpandedChange(false)
+                            }
+                        )
+                        MealRow.CURRENT -> JournalMenuRow(
+                            label = stringResource(R.string.meal_current_prefix, currentMealLabel.orEmpty()),
+                            icon = Icons.Default.Restaurant,
+                            actionTint = journalTypeColor(JournalEntryType.CARBS),
+                            iconContainerColor = journalTypeSelectedContainerColor(JournalEntryType.CARBS),
+                            labelContainerColor = journalTypeSubtleContainerColor(JournalEntryType.CARBS),
+                            placeIconAfterLabel = true,
+                            itemProgress = itemProgress,
+                            rowTravelPx = rowTravelPx,
+                            itemLiftPx = itemLiftPx,
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onCurrentMealSelected?.invoke()
+                                onExpandedChange(false)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -276,10 +333,33 @@ private fun JournalActionMenuRow(
     itemLiftPx: Float,
     onClick: () -> Unit
 ) {
-    val label = actionType.journalActionLabel()
-    val actionTint = journalTypeColor(actionType)
-    val iconContainerColor = journalTypeSelectedContainerColor(actionType)
-    val labelContainerColor = journalTypeSubtleContainerColor(actionType)
+    JournalMenuRow(
+        label = actionType.journalActionLabel(),
+        icon = actionType.journalActionIcon(),
+        actionTint = journalTypeColor(actionType),
+        iconContainerColor = journalTypeSelectedContainerColor(actionType),
+        labelContainerColor = journalTypeSubtleContainerColor(actionType),
+        placeIconAfterLabel = placeIconAfterLabel,
+        itemProgress = itemProgress,
+        rowTravelPx = rowTravelPx,
+        itemLiftPx = itemLiftPx,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun JournalMenuRow(
+    label: String,
+    icon: ImageVector,
+    actionTint: androidx.compose.ui.graphics.Color,
+    iconContainerColor: androidx.compose.ui.graphics.Color,
+    labelContainerColor: androidx.compose.ui.graphics.Color,
+    placeIconAfterLabel: Boolean,
+    itemProgress: Float,
+    rowTravelPx: Float,
+    itemLiftPx: Float,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .wrapContentWidth(if (placeIconAfterLabel) Alignment.End else Alignment.Start)
@@ -305,7 +385,7 @@ private fun JournalActionMenuRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (!placeIconAfterLabel) {
-            JournalActionFab(actionType, label, actionTint, iconContainerColor, onClick)
+            JournalActionFab(icon, label, actionTint, iconContainerColor, onClick)
         }
         Surface(
             modifier = Modifier.clickable(onClick = onClick),
@@ -321,14 +401,14 @@ private fun JournalActionMenuRow(
             )
         }
         if (placeIconAfterLabel) {
-            JournalActionFab(actionType, label, actionTint, iconContainerColor, onClick)
+            JournalActionFab(icon, label, actionTint, iconContainerColor, onClick)
         }
     }
 }
 
 @Composable
 private fun JournalActionFab(
-    actionType: JournalEntryType,
+    icon: ImageVector,
     label: String,
     actionTint: androidx.compose.ui.graphics.Color,
     iconContainerColor: androidx.compose.ui.graphics.Color,
@@ -342,7 +422,7 @@ private fun JournalActionFab(
         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp)
     ) {
         Icon(
-            imageVector = actionType.journalActionIcon(),
+            imageVector = icon,
             contentDescription = label,
             modifier = Modifier.size(22.dp)
         )

@@ -58,6 +58,7 @@ object JournalTreatmentTransfer {
             .put("journalTitle", entry.title)
             .put("journalSource", entry.source)
             .put("updated_at", formatIso8601(entry.updatedAt.takeIf { it > 0L } ?: timestamp))
+        entry.mealId?.let { json.put("journalMealId", it) }
 
         when (type) {
             JournalEntryType.INSULIN -> {

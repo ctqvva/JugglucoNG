@@ -1,0 +1,204 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
+package tk.glucodata.ui.meal
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import tk.glucodata.R
+import tk.glucodata.data.meal.MealRepository
+import tk.glucodata.data.meal.ProductBarcode
+import tk.glucodata.data.meal.ProductLookupOutcome
+import tk.glucodata.data.meal.ScannedProduct
+import tk.glucodata.ui.setup.InlineQrScannerCard
+import tk.glucodata.ui.setup.PRODUCT_BARCODE_FORMATS
+
+private sealed class ScanState {
+    object Idle : ScanState()
+    data class Looking(val barcode: String) : ScanState()
+    data class Miss(val barcode: String, val messageRes: Int, val detail: String? = null) : ScanState()
+}
+
+/** A barcode that just missed is not looked up again from this sheet for this long. */
+private const val MISS_RETRY_MS = 60_000L
+
+/**
+ * The existing camera card, told to read retail barcodes. A code that is not a valid EAN/UPC is
+ * rejected so the camera keeps running; a valid one is looked up cache-first. A miss offers the
+ * manual form with the barcode already filled in, so the next scan of that product is a hit.
+ *
+ * Cadence: the card stays mounted and is merely paused while a lookup runs and after a miss, so
+ * it is not re-created with the camera back on while the same code is still in frame — that was
+ * a re-scan loop that hammered the API. Codes are never "consumed" by the card; it keeps its own
+ * cooldown per rejected payload, and this sheet remembers misses for a minute.
+ */
+/**
+ * @param onPhotograph offered after a miss: read the label instead (the barcode is passed on so
+ *   the result is stored under it).
+ * @param onBarcode when set, a valid code is handed out without any lookup — used to attach a
+ *   barcode to a product that was read from its label.
+ */
+@Composable
+internal fun MealScanSheet(
+    repository: MealRepository,
+    allowNetwork: Boolean,
+    onDismiss: () -> Unit,
+    onProduct: (ScannedProduct?, String) -> Unit,
+    onPhotograph: ((String) -> Unit)? = null,
+    onBarcode: ((String) -> Unit)? = null
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var state by remember { mutableStateOf<ScanState>(ScanState.Idle) }
+    var manualCode by remember { mutableStateOf("") }
+    var pendingBarcode by remember { mutableStateOf<String?>(null) }
+    val recentMisses = remember { mutableMapOf<String, Long>() }
+    val scanning = state is ScanState.Idle && pendingBarcode == null
+
+    fun offerBarcode(code: String): Boolean {
+        if (onBarcode != null) {
+            onBarcode(code)
+            return true
+        }
+        if (pendingBarcode != null || state !is ScanState.Idle) return false
+        val missedAt = recentMisses[code]
+        if (missedAt != null && android.os.SystemClock.elapsedRealtime() - missedAt < MISS_RETRY_MS) return false
+        pendingBarcode = code
+        return true
+    }
+
+    LaunchedEffect(pendingBarcode) {
+        val code = pendingBarcode ?: return@LaunchedEffect
+        state = ScanState.Looking(code)
+        val outcome = repository.lookupProduct(code, allowNetwork)
+        if (outcome !is ProductLookupOutcome.Hit) {
+            recentMisses[code] = android.os.SystemClock.elapsedRealtime()
+        }
+        state = when (outcome) {
+            is ProductLookupOutcome.Hit -> {
+                onProduct(outcome.product, code)
+                ScanState.Idle
+            }
+            ProductLookupOutcome.NotFound -> ScanState.Miss(code, R.string.meal_lookup_not_found)
+            ProductLookupOutcome.Offline -> ScanState.Miss(code, R.string.meal_lookup_offline)
+            is ProductLookupOutcome.Failed -> ScanState.Miss(code, R.string.meal_lookup_failed, outcome.message)
+        }
+        pendingBarcode = null
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding()
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                stringResource(if (onBarcode != null) R.string.meal_ocr_attach_barcode_title else R.string.meal_scan_product),
+                style = MaterialTheme.typography.titleLarge
+            )
+            val current = state
+            InlineQrScannerCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                scannerEnabled = scanning,
+                barcodeFormats = PRODUCT_BARCODE_FORMATS,
+                onScanResult = { raw ->
+                    // Always false: the card must not consume the code and stop for good; pausing
+                    // is done through scannerEnabled, and a rejected payload gets the card's cooldown.
+                    val code = ProductBarcode.normalize(raw)
+                    if (code != null) offerBarcode(code)
+                    false
+                }
+            )
+            when (current) {
+                ScanState.Idle -> Unit
+                is ScanState.Looking -> {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.width(24.dp).height(24.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.meal_lookup_running, current.barcode))
+                    }
+                }
+                is ScanState.Miss -> {
+                    Text(
+                        text = stringResource(current.messageRes, current.detail ?: current.barcode),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        onPhotograph?.let { photograph ->
+                            Button(onClick = { photograph(current.barcode) }) {
+                                Text(stringResource(R.string.meal_ocr_button))
+                            }
+                        }
+                        TextButton(onClick = { onProduct(null, current.barcode) }) {
+                            Text(stringResource(R.string.meal_add_manual))
+                        }
+                        TextButton(onClick = { state = ScanState.Idle }) {
+                            Text(stringResource(R.string.meal_scan_again))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = manualCode,
+                    onValueChange = { manualCode = it.filter(Char::isDigit) },
+                    label = { Text(stringResource(R.string.meal_enter_barcode)) },
+                    placeholder = { Text(stringResource(R.string.meal_barcode_hint)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = manualCode.length >= 8 && ProductBarcode.normalize(manualCode) == null,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(
+                    enabled = ProductBarcode.normalize(manualCode) != null && pendingBarcode == null,
+                    onClick = {
+                        ProductBarcode.normalize(manualCode)?.let { code ->
+                            // A typed code is a deliberate retry: forget the earlier miss.
+                            recentMisses.remove(code)
+                            if (state !is ScanState.Idle) state = ScanState.Idle
+                            offerBarcode(code)
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.meal_lookup))
+                }
+            }
+        }
+    }
+}
