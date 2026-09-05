@@ -4,11 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
-import tk.glucodata.R
 import tk.glucodata.data.meal.Meal
 import tk.glucodata.data.meal.MealRepository
 
@@ -25,13 +24,15 @@ fun rememberCurrentMeal(): Meal? {
 }
 
 @Composable
-fun rememberNewMealAction(navController: NavController): () -> Unit {
+fun rememberNewMealAction(
+    navController: NavController,
+    repository: MealRepository = remember { MealRepository() }
+): () -> Unit {
     val scope = rememberCoroutineScope()
-    val repository = remember { MealRepository() }
-    val label = stringResource(R.string.meal_default_label)
+    val context = LocalContext.current
     return {
         scope.launch {
-            val id = repository.createMeal(label)
+            val id = repository.createMeal(context.getString(suggestedMealTitleRes()))
             navController.navigate("journal/meals/$id")
         }
     }

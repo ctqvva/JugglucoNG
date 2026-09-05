@@ -26,7 +26,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,7 +36,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import java.text.DateFormat
 import java.util.Date
-import kotlinx.coroutines.launch
 import tk.glucodata.R
 import tk.glucodata.data.meal.Meal
 import tk.glucodata.data.meal.MealItem
@@ -59,8 +57,7 @@ fun MealsScreen(
     val meals by repository.observeMeals().collectAsStateWithLifecycle(initialValue = emptyList())
     val allItems by repository.observeAllItems().collectAsStateWithLifecycle(initialValue = emptyList())
     val itemsByMeal = remember(allItems) { allItems.groupBy { it.mealId } }
-    val scope = rememberCoroutineScope()
-    val defaultLabel = stringResource(R.string.meal_default_label)
+    val newMealAction = rememberNewMealAction(navController, repository)
     val openMeals = remember(meals) { meals.filter { !it.isArchived } }
     val doneMeals = remember(meals) { meals.filter { it.isArchived } }
 
@@ -81,12 +78,7 @@ fun MealsScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = {
-                    scope.launch {
-                        val id = repository.createMeal(defaultLabel)
-                        navController.navigate("journal/meals/$id")
-                    }
-                },
+                onClick = newMealAction,
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.meal_new)) }
             )
