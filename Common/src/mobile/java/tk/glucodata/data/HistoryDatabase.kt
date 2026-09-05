@@ -36,6 +36,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
  *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — hypo episode classification marks (sensor-pressure vs real, user-togglable)
  */
 @Database(
     entities = [
@@ -46,18 +47,20 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
-        JournalPendingDeleteEntity::class
+        JournalPendingDeleteEntity::class,
+        HypoEpisodeMark::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
-    
+
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
     abstract fun readingDisplayDao(): ReadingDisplayDao
-
+    abstract fun hypoEpisodeDao(): HypoEpisodeDao
+    
     companion object {
         private const val DATABASE_NAME = "glucose_history.db"
 
@@ -421,6 +424,23 @@ abstract class HistoryDatabase : RoomDatabase() {
             return false
         }
 
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS hypo_episode_marks (
+                        episodeKeyMs INTEGER PRIMARY KEY NOT NULL,
+                        endMs INTEGER NOT NULL,
+                        nadirMgdl REAL NOT NULL,
+                        classification TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -443,7 +463,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
-                    MIGRATION_16_17
+                    MIGRATION_16_17,
+                    MIGRATION_17_18
                 )
                 .build().also { INSTANCE = it }
             }

@@ -86,6 +86,7 @@ import tk.glucodata.alerts.AlertDisplayText;
 import tk.glucodata.alerts.AlertType;
 import tk.glucodata.alerts.SnoozeManager;
 import tk.glucodata.alerts.AlertConfig;
+import tk.glucodata.alerts.AlertDefaults;
 import tk.glucodata.alerts.AlertNotificationDismissAction;
 import tk.glucodata.alerts.AlertRepository;
 import tk.glucodata.alerts.AlertStateTracker;
@@ -600,6 +601,7 @@ public class Notify {
     public static final String CHANNEL_LOSS = "LOSS";
     public static final String CHANNEL_MISSED_READING = "MISSED_READING";
     public static final String CHANNEL_SENSOR_EXPIRY = "SENSOR_EXPIRY";
+    public static final String CHANNEL_SENSOR_PRESSURE = "SENSOR_PRESSURE";
     // private static final String LOSSALARM = "LossofSensorAlarm";
     private static String GLUCOSENOTIFICATION = "glucoseNotification";
 
@@ -617,6 +619,8 @@ public class Notify {
                 return CHANNEL_HIGH;
             case 11:
                 return CHANNEL_SENSOR_EXPIRY;
+            case 14:
+                return CHANNEL_SENSOR_PRESSURE;
             default:
                 return GLUCOSEALARM;
         }
@@ -714,6 +718,17 @@ public class Notify {
             channelSensorExpiry.setShowBadge(false);
             channelSensorExpiry.setLockscreenVisibility(VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channelSensorExpiry);
+
+            NotificationChannel channelSensorPressure = new NotificationChannel(
+                    CHANNEL_SENSOR_PRESSURE,
+                    context.getString(R.string.alert_sensor_pressure),
+                    NotificationManager.IMPORTANCE_HIGH);
+            channelSensorPressure
+                    .setDescription(context.getString(R.string.sensor_pressure_channel_description));
+            channelSensorPressure.setSound(null, null);
+            channelSensorPressure.setShowBadge(false);
+            channelSensorPressure.setLockscreenVisibility(VISIBILITY_PUBLIC);
+            notificationManager.createNotificationChannel(channelSensorPressure);
         }
 
     }
@@ -2183,9 +2198,20 @@ public class Notify {
 
         int defDuration = DEFAULT_ALERT_DURATION_SECONDS;
 
-        boolean defSound = (kind <= 8) ? Natives.alarmhassound(kind) : true;
-        boolean defFlash = (kind <= 8) ? Natives.alarmhasflash(kind) : true;
-        boolean defVibrate = (kind <= 8) ? Natives.alarmhasvibration(kind) : true;
+        // Types above the native range take their defaults from AlertDefaults, the same
+        // source the settings screen renders — an unstored flash toggle must sound and
+        // look the same in the test as on the card (SENSOR_PRESSURE showed flash off
+        // and flashed anyway).
+        final AlertType prefType = kind > 8 ? AlertType.Companion.fromId(kind) : null;
+        final AlertConfig prefDefault = prefType != null
+                ? AlertDefaults.INSTANCE.defaultConfig(prefType, Applic.unit == 1)
+                : null;
+        boolean defSound = (kind <= 8) ? Natives.alarmhassound(kind)
+                : (prefDefault == null || prefDefault.getSoundEnabled());
+        boolean defFlash = (kind <= 8) ? Natives.alarmhasflash(kind)
+                : (prefDefault != null && prefDefault.getFlashEnabled());
+        boolean defVibrate = (kind <= 8) ? Natives.alarmhasvibration(kind)
+                : (prefDefault == null || prefDefault.getVibrationEnabled());
 
         final int rawDuration = p.getInt("alert_" + kind + "_alarmDur", defDuration);
         final int duration = sanitizeAlarmDurationSeconds(rawDuration);

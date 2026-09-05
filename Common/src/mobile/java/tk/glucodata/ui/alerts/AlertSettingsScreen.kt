@@ -441,6 +441,19 @@ fun AlertSettingsScreen(
                 )
             }
 
+            // Sensor-pressure hold (the compression-low gatekeeper): opt-in,
+            // thresholds, and the cue's own sound and haptics — the whole feature in
+            // one place, because its cue is not an alarm you arm by itself.
+            item(key = "sensor-pressure-hold") {
+                Spacer(Modifier.height(4.dp))
+                SensorPressureHoldCard(
+                    isMmol = isMmol,
+                    onPickCueSound = { currentUri, typeId, onPicked ->
+                        soundPickerRequest = Triple(currentUri, typeId, onPicked)
+                    }
+                )
+            }
+
             // === PREDICTIVE ALERTS SECTION ===
             item(key = "predictive-alerts-header") {
                 Spacer(Modifier.height(8.dp))
@@ -2250,6 +2263,7 @@ private fun getAlertIconAndColor(type: AlertType, isDark: Boolean): Pair<ImageVe
         AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to Color(0xFF78909C)
         AlertType.LOSS -> Icons.Default.BluetoothDisabled to Color(0xFF90A4AE)
         AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to Color(0xFF7E57C2)
+        AlertType.SENSOR_PRESSURE -> Icons.Default.Notifications to Color(0xFF8D6E63)
         else -> Icons.Default.Notifications to Color(0xFF42A5F5)  // Default blue
     }
 }
