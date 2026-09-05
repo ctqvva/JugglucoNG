@@ -491,6 +491,7 @@ private fun JournalMetricsPanel(
         }
     }
     val activeInsulinFromRemote = remoteInsulin != null && activeInsulin != null
+    val cobGrams = rememberJournalCob(nowMillis, entries)
     val iobUnits = activeInsulin?.iobUnits?.coerceAtLeast(0f) ?: 0f
     val eiobUnits = activeInsulin?.eiobUnits?.coerceAtLeast(0f) ?: 0f
     val activeUntilFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -539,10 +540,18 @@ private fun JournalMetricsPanel(
             JournalMetricCard(
                 title = stringResource(R.string.journal_type_food),
                 value = "${formatJournalMetric(foodToday, wholeNumber = true)} g",
-                detail = stringResource(
-                    R.string.journal_events_today,
-                    todaysEntries.count { it.type == JournalEntryType.CARBS }
-                ),
+                detail = listOfNotNull(
+                    cobGrams?.let { grams ->
+                        stringResource(
+                            R.string.journal_cob_value,
+                            stringResource(R.string.unit_carbs_value, formatJournalMetric(grams))
+                        )
+                    },
+                    stringResource(
+                        R.string.journal_events_today,
+                        todaysEntries.count { it.type == JournalEntryType.CARBS }
+                    )
+                ).joinToString(" · "),
                 icon = Icons.Default.Restaurant,
                 type = JournalEntryType.CARBS,
                 modifier = Modifier.weight(1f)

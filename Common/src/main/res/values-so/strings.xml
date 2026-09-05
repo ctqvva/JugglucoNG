@@ -1918,6 +1918,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_metric_carbs_today">Karboor maanta</string>
     <string name="journal_metric_insulin_today">Insulinta maanta</string>
     <string name="journal_metric_activity_today">Hawsha maanta</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
     <string name="journal_eiob_display_title">Muuji IOB wax ku ool ah (eIOB)</string>

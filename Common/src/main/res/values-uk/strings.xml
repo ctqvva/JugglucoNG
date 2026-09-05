@@ -1710,6 +1710,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_metric_activity_today">Активність сьогодні</string>
     <string name="journal_no_active_insulin">Немає активного інсуліну</string>
     <string name="journal_active_now_percent">Активно %1$d%%</string>
+    <string name="journal_cob_value">COB %1$s</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s ОД</string>
     <string name="journal_eiob_display_title">Показувати ефективний IOB (eIOB)</string>
