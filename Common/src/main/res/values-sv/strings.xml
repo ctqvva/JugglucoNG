@@ -1531,9 +1531,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target">Målvärde för dos</string>
     <string name="predictive_dose_target_explanation">Insulin- och kolhydratförslag korrigerar mot det här värdet. Det är skilt från målområdet i diagrammet.</string>
     <string name="state_dose_hint_title">Dostips</string>
-    <string name="state_dose_hint_desc">Föreslår kolhydrater när värdet är på väg under dosmålet, och en korrigering när det stannar högt trots att insulin redan verkar. Mängderna räknas ur känsligheten och kolhydratkvoten i modellprofilen — ställ in dem först.</string>
+    <string name="state_dose_hint_desc">Föreslår kolhydrater när värdet är på väg under dosmålet, och en korrigering när det förblir högt utan att sjunka. Kvarvarande insulin dras av; beräkningen är möjlig även med noll IOB. Mängderna räknas ur känsligheten och kolhydratkvoten i modellprofilen; ställ in dem först.</string>
     <string name="state_dose_hint_in_range_title">Korrigera även i övre delen av målområdet</string>
-    <string name="state_dose_hint_in_range_desc">Föreslår en korrigering även när värdet ligger klart över dosmålet och blir kvar där, eftersom inget längre verkar på det. Kolhydrater som inte loggats kan få kurvan att se stillastående ut medan mat fortfarande tas upp, och korrigeringen skulle då läggas ovanpå. Siffran är en uträkning ur din profil, inte en rekommendation.</string>
+    <string name="state_dose_hint_in_range_desc">Föreslår en korrigering även när värdet ligger klart över dosmålet och blir kvar där. Kolhydrater som inte loggats kan få kurvan att se stillastående ut medan mat fortfarande tas upp, och korrigeringen skulle då läggas ovanpå. Siffran är en uträkning ur din profil, inte en rekommendation.</string>
     <string name="state_dose_hint_horizon">Dostipsets horisont</string>
     <string name="state_dose_hint_horizon_explanation">Hur långt fram kolhydratförslaget tittar medan värdet faller. Kortare: senare och mer sällan; längre: tidigare och oftare.</string>
     <string name="state_dose_hint_profile_notice_title">Kontrollera din modellprofil</string>

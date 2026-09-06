@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.data.journal.JournalIobCalculator
 import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.GlucosePoint
 
@@ -69,8 +70,7 @@ class StateDoseHintTests {
 
     private fun hint(
         history: List<GlucosePoint>,
-        iobUnits: Float,
-        eiobUnits: Float,
+        iobUnits: Float?,
         unit: String = "mg/dL",
         targetHigh: Float = 180f,
         doseTargetMgDl: Float = 90f,
@@ -84,7 +84,6 @@ class StateDoseHintTests {
         targetHighDisplay = targetHigh,
         doseTargetMgDl = doseTargetMgDl,
         iobUnits = iobUnits,
-        eiobUnits = eiobUnits,
         parameters = parameters,
         horizonMinutes = horizonMinutes,
         correctInRange = correctInRange,
@@ -94,7 +93,7 @@ class StateDoseHintTests {
 
     private fun evaluation(
         history: List<GlucosePoint>,
-        iobUnits: Float = 1.8f,
+        iobUnits: Float? = 1.8f,
         nowMillis: Long = now
     ) = StateDoseHintCalculator.evaluate(
         history = history,
@@ -102,7 +101,6 @@ class StateDoseHintTests {
         targetHighDisplay = 180f,
         doseTargetMgDl = 105f,
         iobUnits = iobUnits,
-        eiobUnits = 0.6f,
         parameters = fieldParameters,
         horizonMinutes = 45,
         correctInRange = true,
@@ -114,10 +112,10 @@ class StateDoseHintTests {
     fun theFieldCaseSaysNothingAndNeverChangesSign() {
         // 22:51 — 211 mg/dL rising, IoB 4.6 U at eIoB 2.5 U. The gap to the target is
         // 121 mg/dL, which 4.6 U already more than covers, so there is nothing to add.
-        assertNull(hint(history(endValue = 211f, slopePerMinute = 0.4f), iobUnits = 4.6f, eiobUnits = 2.5f))
+        assertNull(hint(history(endValue = 211f, slopePerMinute = 0.4f), iobUnits = 4.6f))
         // 22:52 — twenty seconds later, 215 and still rising. Same answer, where the old
         // suggestion swung from "carbs: 2 g" to "insulin: 0.2 U".
-        assertNull(hint(history(endValue = 215f, slopePerMinute = 0.5f), iobUnits = 4.5f, eiobUnits = 2.5f))
+        assertNull(hint(history(endValue = 215f, slopePerMinute = 0.5f), iobUnits = 4.5f))
     }
 
     @Test
@@ -125,7 +123,6 @@ class StateDoseHintTests {
         val result = hint(
             history = history(endValue = 154f, slopePerMinute = -1.53125f),
             iobUnits = 1.8f,
-            eiobUnits = 0.6f,
             doseTargetMgDl = 105f,
             parameters = fieldParameters
         )
@@ -214,7 +211,6 @@ class StateDoseHintTests {
             hint(
                 history = reversalHistory(),
                 iobUnits = 1.8f,
-                eiobUnits = 0.8f,
                 doseTargetMgDl = 105f,
                 parameters = fieldParameters
             )
@@ -240,7 +236,6 @@ class StateDoseHintTests {
             hint(
                 history = reversalHistory(oldestValue = 250f),
                 iobUnits = 1.8f,
-                eiobUnits = 0.8f,
                 doseTargetMgDl = 105f,
                 parameters = fieldParameters
             )
@@ -258,7 +253,6 @@ class StateDoseHintTests {
         val result = hint(
             history = noisyNewest,
             iobUnits = 1.8f,
-            eiobUnits = 0.8f,
             doseTargetMgDl = 105f,
             parameters = fieldParameters
         )
@@ -272,7 +266,6 @@ class StateDoseHintTests {
         val result = hint(
             history = history(endValue = 300f, slopePerMinute = 0.5f),
             iobUnits = 1.0f,
-            eiobUnits = 0.5f
         )
         assertNotNull(result)
         assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
@@ -288,28 +281,30 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 300f, slopePerMinute = 0.5f),
                 iobUnits = 4.0f,
-                eiobUnits = 1.5f
             )
         )
     }
 
     @Test
-    fun nothingActingYetIsAnOrdinaryCorrectionAndNotThisHintsBusiness() {
-        assertNull(
-            hint(
-                history = history(endValue = 300f, slopePerMinute = 0.5f),
-                iobUnits = 1.0f,
-                eiobUnits = 0f
-            )
+    fun aNewDoseReducesTheCorrectionBeforeItStartsActing() {
+        val result = hint(
+            history = history(endValue = 191f, slopePerMinute = 0f),
+            iobUnits = 1.5f,
+            doseTargetMgDl = 105f,
+            parameters = fieldParameters
         )
+        assertNotNull(result)
+        assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
+        // All 1.5 U count, even before onset: (191 - 105) / 42 - 1.5, rounded down.
+        assertEquals(0.5f, result.amount, 0.001f)
     }
 
     @Test
     fun aStateHoveringAroundTheTargetStaysSilent() {
         // Either side of the target, inside the band, is where the old suggestion changed
         // sign on sensor noise.
-        assertNull(hint(history(endValue = 95f, slopePerMinute = -0.5f), iobUnits = 2f, eiobUnits = 1f))
-        assertNull(hint(history(endValue = 85f, slopePerMinute = -0.5f), iobUnits = 2f, eiobUnits = 1f))
+        assertNull(hint(history(endValue = 95f, slopePerMinute = -0.5f), iobUnits = 2f))
+        assertNull(hint(history(endValue = 85f, slopePerMinute = -0.5f), iobUnits = 2f))
     }
 
     @Test
@@ -318,7 +313,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 300f, slopePerMinute = 0.5f),
                 iobUnits = 1.0f,
-                eiobUnits = 0.5f,
                 parameters = PredictionModelParameters(
                     carbRatioGramsPerUnit = 10f,
                     insulinSensitivityMgDlPerUnit = 0f
@@ -335,7 +329,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 200f, slopePerMinute = 0.5f),
                 iobUnits = 1.8f,
-                eiobUnits = 0.8f
             )
         )
     }
@@ -348,14 +341,13 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 115f, slopePerMinute = -0.6f),
                 iobUnits = 0.05f,
-                eiobUnits = 0.02f
             )
         )
     }
 
     @Test
-    fun withoutInsulinOnBoardTheHintStaysOut() {
-        assertNull(hint(history(endValue = 150f, slopePerMinute = -1.5f), iobUnits = 0f, eiobUnits = 0f))
+    fun withoutInsulinOnBoardTheCarbHintStaysOut() {
+        assertNull(hint(history(endValue = 150f, slopePerMinute = -1.5f), iobUnits = 0f))
     }
 
     @Test
@@ -364,7 +356,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 150f, slopePerMinute = -1.5f),
                 iobUnits = 1.0f,
-                eiobUnits = 0.6f,
                 nowMillis = now + 20 * minute
             )
         )
@@ -373,7 +364,7 @@ class StateDoseHintTests {
     @Test
     fun aFallThatOnlyReachesTheTargetAfterTheHorizonSaysNothingYet() {
         // 150 falling 0.5 mg/dL per minute crosses 90 in two hours, well past the horizon.
-        assertNull(hint(history(endValue = 150f, slopePerMinute = -0.5f), iobUnits = 1.0f, eiobUnits = 0.6f))
+        assertNull(hint(history(endValue = 150f, slopePerMinute = -0.5f), iobUnits = 1.0f))
     }
 
     @Test
@@ -382,7 +373,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 300f, slopePerMinute = 0.5f, spanMinutes = 15),
                 iobUnits = 1.0f,
-                eiobUnits = 0.5f
             )
         )
     }
@@ -394,7 +384,6 @@ class StateDoseHintTests {
         val result = hint(
             history = history(endValue = 171f, slopePerMinute = 0f),
             iobUnits = 0.3f,
-            eiobUnits = 0.1f
         )
         assertNotNull(result)
         assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
@@ -411,7 +400,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 171f, slopePerMinute = 0f),
                 iobUnits = 2.0f,
-                eiobUnits = 0.8f
             )
         )
     }
@@ -420,19 +408,86 @@ class StateDoseHintTests {
     fun justAboveTheTargetIsNotWorthADose() {
         // 105 never gets past the hysteresis band; 112 does, and is then stopped by the
         // margin the in-range case starts at.
-        assertNull(hint(history(endValue = 105f, slopePerMinute = 0f), iobUnits = 0.1f, eiobUnits = 0.05f))
-        assertNull(hint(history(endValue = 112f, slopePerMinute = 0f), iobUnits = 0.1f, eiobUnits = 0.05f))
+        assertNull(hint(history(endValue = 105f, slopePerMinute = 0f), iobUnits = 0.1f))
+        assertNull(hint(history(endValue = 112f, slopePerMinute = 0f), iobUnits = 0.1f))
     }
 
     @Test
-    fun aboveTheRangeStaysWithTheRuleItAlreadyHad() {
-        // 200 is above the in-range high, so the existing rule owns it, and that rule wants
-        // insulin already acting. The in-range case must not pick the reading up instead.
+    fun flat191WithZeroIobProducesACorrection() {
+        val result = hint(
+            history = history(endValue = 191f, slopePerMinute = 0f),
+            iobUnits = 0f,
+            doseTargetMgDl = 105f,
+            parameters = fieldParameters
+        )
+        assertNotNull(result)
+        assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
+        assertEquals(2f, result.amount, 0.001f)
+        assertEquals(105f, result.targetMgDl, 0.001f)
+        assertNull(result.minutesAhead)
+    }
+
+    @Test
+    fun absentJournalInsulinSummaryStillProducesACompleteCorrection() {
+        val summary = JournalIobCalculator.buildActiveInsulinSummary(emptyList(), emptyMap(), now)
+        assertNull(summary)
+        val result = evaluation(history(endValue = 191f, slopePerMinute = 0f), summary?.iobUnits)
+        assertTrue(result is StateDoseHintEvaluation.Complete)
+        val complete = result as StateDoseHintEvaluation.Complete
+        assertEquals(now, complete.latestTimestamp)
+        assertNotNull(complete.hint)
+        assertEquals(StateDoseHintKind.INSULIN, complete.hint!!.kind)
+        assertEquals(2f, complete.hint.amount, 0.001f)
+    }
+
+    @Test
+    fun emptyBoardWorksOnBothSidesOfTheRangeCeiling() {
+        for (glucose in listOf(179f, 180f, 181f)) {
+            val result = hint(history(glucose, 0f), iobUnits = null)
+            assertNotNull("No correction at $glucose", result)
+            assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
+            assertEquals(1.5f, result.amount, 0.001f)
+        }
+    }
+
+    @Test
+    fun disablingInRangeCorrectionsStillAllowsZeroIobAboveTheRange() {
+        for (glucose in listOf(179f, 180f)) {
+            assertNull(hint(history(glucose, 0f), iobUnits = null, correctInRange = false))
+        }
+        val result = hint(history(181f, 0f), iobUnits = null, correctInRange = false)
+        assertNotNull(result)
+        assertEquals(StateDoseHintKind.INSULIN, result!!.kind)
+    }
+
+    @Test
+    fun invalidReportedIobIsNotTreatedAsAnEmptyBoard() {
+        for (iob in listOf(-1f, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+            assertNull(hint(history(191f, 0f), iobUnits = iob))
+        }
+    }
+
+    @Test
+    fun zeroIobDoesNotBypassTrendOrFreshnessChecks() {
+        assertNull(hint(history(191f, -0.25f), iobUnits = 0f))
+        assertNull(hint(history(191f, -0.6f), iobUnits = 0f))
+        assertNull(hint(history(191f, 0f, spanMinutes = 15), iobUnits = 0f))
+        assertNull(hint(history(191f, 0f), iobUnits = 0f, nowMillis = now + 20 * minute))
+    }
+
+    @Test
+    fun noInsulinSummaryDoesNotCreateACarbHint() {
+        assertNull(hint(history(150f, -1.5f), iobUnits = null))
+    }
+
+    @Test
+    fun aNewDoseCoveringTheGapSuppressesTheCorrection() {
         assertNull(
             hint(
-                history = history(endValue = 200f, slopePerMinute = 0f),
-                iobUnits = 0.3f,
-                eiobUnits = 0f
+                history(191f, 0f),
+                iobUnits = 2.1f,
+                doseTargetMgDl = 105f,
+                parameters = fieldParameters
             )
         )
     }
@@ -443,7 +498,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 171f, slopePerMinute = -0.6f),
                 iobUnits = 0.3f,
-                eiobUnits = 0.1f
             )
         )
     }
@@ -454,7 +508,6 @@ class StateDoseHintTests {
             hint(
                 history = history(endValue = 171f, slopePerMinute = 0f),
                 iobUnits = 0.3f,
-                eiobUnits = 0.1f,
                 correctInRange = false
             )
         )
@@ -462,7 +515,6 @@ class StateDoseHintTests {
         val carbs = hint(
             history = history(endValue = 154f, slopePerMinute = -1.53125f),
             iobUnits = 1.8f,
-            eiobUnits = 0.6f,
             doseTargetMgDl = 105f,
             parameters = fieldParameters,
             correctInRange = false
@@ -478,7 +530,6 @@ class StateDoseHintTests {
         val result = hint(
             history = history(endValue = 16.65f, slopePerMinute = 0.0277f),
             iobUnits = 1.0f,
-            eiobUnits = 0.5f,
             unit = "mmol/L",
             targetHigh = 10f
         )

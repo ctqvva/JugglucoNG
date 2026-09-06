@@ -2019,9 +2019,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target">Dose target</string>
     <string name="predictive_dose_target_explanation">Insulin and carb suggestions correct toward this value. It is separate from the in-range band shown on the chart.</string>
     <string name="state_dose_hint_title">Dose hint</string>
-    <string name="state_dose_hint_desc">Suggests carbs when the value is heading below the dose target, and a correction when it stays high although insulin is already acting. The amounts are computed from the sensitivity and carb ratio in the model profile, so set those first.</string>
+    <string name="state_dose_hint_desc">Suggests carbs when the value is heading below the dose target, and a correction when it stays high without falling. Any insulin on board is subtracted; zero IOB is allowed. The amounts are computed from the sensitivity and carb ratio in the model profile, so set those first.</string>
     <string name="state_dose_hint_in_range_title">Correct inside the target range</string>
-    <string name="state_dose_hint_in_range_desc">Also suggests a correction when the value sits well above the dose target and holds there with nothing left on board to move it. Carbs that were not logged can make a trace look settled while food is still being absorbed, and the correction would land on top of that. The figure is a calculation from your profile, not a recommendation.</string>
+    <string name="state_dose_hint_in_range_desc">Also suggests a correction when the value sits well above the dose target and holds there. Carbs that were not logged can make a trace look settled while food is still being absorbed, and the correction would land on top of that. The figure is a calculation from your profile, not a recommendation.</string>
     <string name="state_dose_hint_horizon">Dose hint horizon</string>
     <string name="state_dose_hint_horizon_explanation">How far ahead the carb suggestion looks while the value is falling. Shorter reacts later and says less; longer reacts earlier and says more.</string>
     <string name="state_dose_hint_profile_notice_title">Check your model profile</string>

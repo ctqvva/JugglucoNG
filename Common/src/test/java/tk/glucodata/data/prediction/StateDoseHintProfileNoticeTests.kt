@@ -82,7 +82,6 @@ class StateDoseHintProfileNoticeTests {
             targetHighDisplay = 180f,
             doseTargetMgDl = DoseTarget.DEFAULT_MGDL,
             iobUnits = 1.0f,
-            eiobUnits = 0.6f,
             parameters = PredictionModelParameters(
                 carbRatioGramsPerUnit = PredictionModelProfileStore.DEFAULT_CARB_RATIO_GRAMS_PER_UNIT,
                 insulinSensitivityMgDlPerUnit =

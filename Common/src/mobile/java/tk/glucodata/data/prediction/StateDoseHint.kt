@@ -86,10 +86,9 @@ object StateDoseHintContinuity {
  *
  * - falling, and on the current rate below the target within the horizon → how many carbs
  *   raise the measured projection back to the target;
- * - high, not coming down although insulin is already acting → how much more insulin the
- *   gap needs beyond what is already on board; and, when asked for, the same question for a
- *   value that is still inside the range but sitting well above the dose target with nothing
- *   left in flight to move it.
+ * - high and not coming down → how much insulin the gap needs after subtracting what is
+ *   already on board, including when there is none; and, when enabled, the same calculation
+ *   for a value inside the range but sitting well above the dose target.
  *
  * The **error directions are not symmetric**, and the arithmetic follows that. Too many
  * carbs show up on the curve within the hour and are corrected; too few end in a hypo, so
@@ -159,13 +158,12 @@ object StateDoseHintCalculator {
      *   is a display range, far too wide to dose against, but exactly right for telling
      *   "high" from "still in range".
      * @param doseTargetMgDl what a correction aims at.
-     * @param iobUnits insulin on board — remaining future action, the whole of it.
-     * @param eiobUnits the acting part of it. Read only above the band, to tell "the insulin
-     *   is not enough" from an ordinary uncorrected high, which is not this hint's business.
+     * @param iobUnits insulin on board, including doses that have not started acting.
+     *   Null means there is no active insulin summary and is treated as zero.
      * @param parameters sensitivity and carb ratio for now, from the model profile.
      * @param horizonMinutes how far ahead the falling case looks.
      * @param correctInRange whether a value that is still inside the range but sitting well
-     *   above the dose target, with nothing left in flight to move it, gets a correction too.
+     *   above the dose target gets a correction too.
      * @param maxReadingAgeMillis a reading older than this says nothing about now.
      */
     fun calculate(
@@ -173,8 +171,7 @@ object StateDoseHintCalculator {
         unit: String,
         targetHighDisplay: Float,
         doseTargetMgDl: Float,
-        iobUnits: Float,
-        eiobUnits: Float,
+        iobUnits: Float?,
         parameters: PredictionModelParameters,
         horizonMinutes: Int,
         correctInRange: Boolean,
@@ -186,7 +183,6 @@ object StateDoseHintCalculator {
         targetHighDisplay = targetHighDisplay,
         doseTargetMgDl = doseTargetMgDl,
         iobUnits = iobUnits,
-        eiobUnits = eiobUnits,
         parameters = parameters,
         horizonMinutes = horizonMinutes,
         correctInRange = correctInRange,
@@ -202,8 +198,7 @@ object StateDoseHintCalculator {
         unit: String,
         targetHighDisplay: Float,
         doseTargetMgDl: Float,
-        iobUnits: Float,
-        eiobUnits: Float,
+        iobUnits: Float?,
         parameters: PredictionModelParameters,
         horizonMinutes: Int,
         correctInRange: Boolean,
@@ -232,9 +227,9 @@ object StateDoseHintCalculator {
         // this is where the old suggestion flipped its sign between two readings.
         if (abs(currentMgDl - target) <= HYSTERESIS_MGDL) return complete(null)
 
-        // Nonsense in, nothing out. How much insulin on board each case needs is the
-        // case's own question, and they do not answer it the same way.
-        val iob = iobUnits.takeIf { it.isFinite() && it >= 0f } ?: return complete(null)
+        // An absent active insulin summary is a valid empty board. Invalid reported IOB
+        // must still suppress the hint rather than being mistaken for zero.
+        val iob = (iobUnits ?: 0f).takeIf { it.isFinite() && it >= 0f } ?: return complete(null)
 
         val trend = trend(history, latest.timestamp, ::mgDl)
             ?: return StateDoseHintEvaluation.Incomplete(latest.timestamp, latest.sensorSerial)
@@ -251,7 +246,6 @@ object StateDoseHintCalculator {
             target = target,
             sensitivity = sensitivity,
             iob = iob,
-            eiobUnits = eiobUnits,
             trend = trend,
             correctInRange = correctInRange
         ))
@@ -297,18 +291,10 @@ object StateDoseHintCalculator {
     }
 
     /**
-     * Not coming down, in either of two shapes.
-     *
-     * Above the range: high although insulin is already acting, so what is on board is not
-     * enough. Inside it: sitting well above the dose target, flat, with nothing left in
-     * flight to move it -- 171 with 0.3 U on board of which 0.1 is still acting will be 171
-     * in an hour. The therapeutic target is the neighbourhood of the dose target, not the
-     * upper edge of a display band, and that stretch is where a long-term average is won.
-     *
-     * The arithmetic is the same either way: computed on the current value, never on a peak
-     * the curve may never reach, with every unit on board subtracted -- all of it will still
-     * land, so subtracting only the acting part would systematically overshoot -- and the
-     * result rounded down to the pen's step.
+     * Not coming down, above the range or, when enabled, well above the dose target inside
+     * it. Existing insulin reduces the correction but is not required for eligibility.
+     * Computed on the current value, with all IOB subtracted, including doses still before
+     * onset, and rounded down to the pen's step.
      */
     private fun insulin(
         currentMgDl: Float,
@@ -316,7 +302,6 @@ object StateDoseHintCalculator {
         target: Float,
         sensitivity: Float,
         iob: Float,
-        eiobUnits: Float,
         trend: Trend,
         correctInRange: Boolean
     ): StateDoseHint? {
@@ -324,11 +309,7 @@ object StateDoseHintCalculator {
         if (trend.spanMinutes < RISE_MIN_SPAN_MINUTES) return null
         if (trend.slopeMgDlPerMinute < STAGNANT_MGDL_PER_MINUTE) return null
 
-        if (currentMgDl > highMgDl) {
-            // Nothing acting yet is an ordinary correction case, not a "the insulin is not
-            // enough" case, and this hint has no business in the former.
-            if (!eiobUnits.isFinite() || eiobUnits <= 0f) return null
-        } else {
+        if (currentMgDl <= highMgDl) {
             if (!correctInRange) return null
             // Just above the target is not worth a dose; the case starts further out.
             if (currentMgDl <= target + IN_RANGE_CORRECTION_MARGIN_MGDL) return null

@@ -1574,9 +1574,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_dose_target">Doelwaarde voor dosering</string>
     <string name="predictive_dose_target_explanation">Insuline- en koolhydraatsuggesties corrigeren naar deze waarde. Die staat los van het streefbereik op de grafiek.</string>
     <string name="state_dose_hint_title">Doseringshint</string>
-    <string name="state_dose_hint_desc">Stelt koolhydraten voor als de waarde onder het doseerdoel zakt, en een correctie als ze hoog blijft terwijl er al insuline werkt. De hoeveelheden komen uit de gevoeligheid en koolhydraatratio van het modelprofiel; stel die eerst in.</string>
+    <string name="state_dose_hint_desc">Stelt koolhydraten voor als de waarde onder het doseerdoel zakt, en een correctie als ze hoog blijft zonder te dalen. Aanwezige insuline wordt afgetrokken; berekening is ook mogelijk bij nul IOB. De hoeveelheden komen uit de gevoeligheid en koolhydraatratio van het modelprofiel; stel die eerst in.</string>
     <string name="state_dose_hint_in_range_title">Ook in het bovenste deel van het bereik corrigeren</string>
-    <string name="state_dose_hint_in_range_desc">Stelt ook een correctie voor als de waarde ruim boven het doseerdoel blijft staan en er niets meer werkt dat daar verandering in brengt. Niet-gelogde koolhydraten kunnen een vlakke lijn voorspiegelen terwijl er nog voedsel wordt opgenomen; de correctie komt er dan bovenop. Het getal is een berekening uit je profiel, geen advies.</string>
+    <string name="state_dose_hint_in_range_desc">Stelt ook een correctie voor als de waarde ruim boven het doseerdoel blijft staan. Niet-gelogde koolhydraten kunnen een vlakke lijn voorspiegelen terwijl er nog voedsel wordt opgenomen; de correctie komt er dan bovenop. Het getal is een berekening uit je profiel, geen advies.</string>
     <string name="state_dose_hint_horizon">Horizon van de hint</string>
     <string name="state_dose_hint_horizon_explanation">Hoe ver het koolhydraatvoorstel vooruitkijkt bij een dalende waarde. Korter meldt later en minder vaak, langer eerder en vaker.</string>
     <string name="state_dose_hint_profile_notice_title">Controleer je modelprofiel</string>

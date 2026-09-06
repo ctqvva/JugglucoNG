@@ -503,7 +503,7 @@ fun DashboardScreen(
         journalNow
     ) {
         val summary = activeInsulinSummary
-        if (!stateDoseHintEnabled || !journalEnabled || summary == null) {
+        if (!stateDoseHintEnabled || !journalEnabled) {
             StateDoseHintEvaluation.Complete(null, 0L, null)
         } else {
             StateDoseHintCalculator.evaluate(
@@ -511,8 +511,7 @@ fun DashboardScreen(
                 unit = unit,
                 targetHighDisplay = targetHigh,
                 doseTargetMgDl = predictionDoseTargetMgDl,
-                iobUnits = summary.iobUnits,
-                eiobUnits = summary.eiobUnits,
+                iobUnits = summary?.iobUnits,
                 parameters = predictionSettings.modelParametersAt(journalNow),
                 horizonMinutes = stateDoseHintHorizonMinutes,
                 correctInRange = stateDoseHintCorrectInRange,

@@ -1559,9 +1559,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_dose_target">Doz hedefi</string>
     <string name="predictive_dose_target_explanation">İnsülin ve karbonhidrat önerileri bu değere göre düzeltir. Grafikteki hedef aralıktan ayrıdır.</string>
     <string name="state_dose_hint_title">Doz ipucu</string>
-    <string name="state_dose_hint_desc">Değer doz hedefinin altına doğru giderken karbonhidrat, insülin zaten etki ederken yüksek kalıyorsa düzeltme önerir. Miktarlar model profilindeki duyarlılık ve karbonhidrat oranından hesaplanır; önce onları ayarlayın.</string>
+    <string name="state_dose_hint_desc">Değer doz hedefinin altına doğru giderken karbonhidrat, düşmeden yüksek kalıyorsa düzeltme önerir. Vücuttaki kalan insülin çıkarılır; IOB sıfırken de hesaplama yapılabilir. Miktarlar model profilindeki duyarlılık ve karbonhidrat oranından hesaplanır; önce onları ayarlayın.</string>
     <string name="state_dose_hint_in_range_title">Hedef aralığın üst kısmında da düzelt</string>
-    <string name="state_dose_hint_in_range_desc">Değer doz hedefinin belirgin şekilde üzerinde durup orada kaldığında, onu değiştirecek hiçbir şey kalmadığı için de bir düzeltme önerir. Kaydedilmemiş karbonhidratlar, yemek hâlâ emilirken eğriyi durgun gösterebilir; düzeltme o zaman bunun üstüne biner. Sayı profilinizden yapılan bir hesaptır, öneri değildir.</string>
+    <string name="state_dose_hint_in_range_desc">Değer doz hedefinin belirgin şekilde üzerinde durup orada kaldığında da bir düzeltme önerir. Kaydedilmemiş karbonhidratlar, yemek hâlâ emilirken eğriyi durgun gösterebilir; düzeltme o zaman bunun üstüne biner. Sayı profilinizden yapılan bir hesaptır, öneri değildir.</string>
     <string name="state_dose_hint_horizon">Doz ipucu ufku</string>
     <string name="state_dose_hint_horizon_explanation">Değer düşerken karbonhidrat önerisinin ne kadar ileriye baktığı. Kısa: daha geç ve daha seyrek; uzun: daha erken ve daha sık.</string>
     <string name="state_dose_hint_profile_notice_title">Model profilinizi kontrol edin</string>

@@ -1521,9 +1521,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target">Obiettivo per la dose</string>
     <string name="predictive_dose_target_explanation">I suggerimenti di insulina e carboidrati correggono verso questo valore. È separato dall\'intervallo target mostrato sul grafico.</string>
     <string name="state_dose_hint_title">Suggerimento di dose</string>
-    <string name="state_dose_hint_desc">Propone carboidrati quando il valore sta scendendo sotto il target di dose, e una correzione quando resta alto benché l\'insulina stia già agendo. Le quantità sono calcolate da sensibilità e rapporto carboidrati del profilo del modello: impostali prima.</string>
+    <string name="state_dose_hint_desc">Propone carboidrati quando il valore sta scendendo sotto il target di dose, e una correzione quando resta alto senza scendere. L\'insulina a bordo viene sottratta; il calcolo è possibile anche con IOB pari a zero. Le quantità sono calcolate da sensibilità e rapporto carboidrati del profilo del modello: impostali prima.</string>
     <string name="state_dose_hint_in_range_title">Correggi anche nella parte alta dell\'intervallo</string>
-    <string name="state_dose_hint_in_range_desc">Propone una correzione anche quando il valore resta ben sopra il target di dose e non si muove più, perché non c\'è più nulla che agisca. Carboidrati non registrati possono far sembrare piatta la curva mentre il cibo è ancora in assorbimento, e la correzione si aggiungerebbe. Il numero è un calcolo dal profilo, non una raccomandazione.</string>
+    <string name="state_dose_hint_in_range_desc">Propone una correzione anche quando il valore resta ben sopra il target di dose e non si muove più. Carboidrati non registrati possono far sembrare piatta la curva mentre il cibo è ancora in assorbimento, e la correzione si aggiungerebbe. Il numero è un calcolo dal profilo, non una raccomandazione.</string>
     <string name="state_dose_hint_horizon">Orizzonte del suggerimento</string>
     <string name="state_dose_hint_horizon_explanation">Quanto avanti guarda il suggerimento di carboidrati mentre il valore scende. Più corto: più tardi e più raro; più lungo: prima e più spesso.</string>
     <string name="state_dose_hint_profile_notice_title">Controlla il profilo del modello</string>
