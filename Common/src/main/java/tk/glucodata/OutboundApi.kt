@@ -616,7 +616,8 @@ object OutboundApi {
         "test", "status", "status_emoji"
     )
 
-    private val PLACEHOLDER = Regex("\\{[^{}\\s]+}")
+    // Android's ICU regex engine requires both literal braces to be escaped.
+    private val PLACEHOLDER = Regex("\\{[^{}\\s]+\\}")
 
     internal fun needsJournalSnapshot(template: String): Boolean =
         PLACEHOLDER.findAll(template).any { match ->
