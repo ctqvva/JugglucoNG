@@ -1867,6 +1867,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Förändringshastighet</string>
     <string name="glucifer_raw">Råa glukosvärden</string>
     <string name="glucifer_auto">Automatiskt kalibrerat glukos</string>
+    <string name="glucifer_done">Klart</string>
+    <string name="glucifer_saved_help">Ändringar sparas automatiskt. Aktivera destinationen, skicka ett testmeddelande och tryck sedan på Klart.</string>
+    <string name="glucifer_min_interval">Minsta sändningsintervall</string>
+    <string name="glucifer_live_updates">Nya glukosvärden och sparade ändringar skickar uppdateringar. Reservtimern används bara när ingen uppdatering har skickats.</string>
+    <string name="glucifer_fallback_interval">Uppdatera efter inaktivitet</string>
+    <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Telefonens batterinivå</string>
     <string name="glucifer_sensor_id">Sensoridentifierare</string>
     <string name="glucifer_sensor_generation">Sensorgeneration</string>

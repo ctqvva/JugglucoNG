@@ -1890,6 +1890,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucifer_rate">Өөрчлөлтийн хурд</string>
     <string name="glucifer_raw">Түүхий глюкоз</string>
     <string name="glucifer_auto">Автоматаар тохируулсан глюкоз</string>
+    <string name="glucifer_done">Дуусгах</string>
+    <string name="glucifer_saved_help">Өөрчлөлтүүд автоматаар хадгалагдана. Энэ илгээх тохиргоог идэвхжүүлж, туршилтын зурвас илгээгээд Дуусгах дээр товшино уу.</string>
+    <string name="glucifer_min_interval">Илгээх хамгийн бага зай</string>
+    <string name="glucifer_live_updates">Глюкозын шинэ хэмжилт болон хадгалсан өөрчлөлтүүд автоматаар илгээгдэнэ. Мэдээлэл илгээгдээгүй үед л нөөц таймер ажиллана.</string>
+    <string name="glucifer_fallback_interval">Идэвхгүй үед шинэчлэх</string>
+    <string name="glucifer_seconds">%1$d сек</string>
     <string name="glucifer_phone_battery">Утасны батарейн түвшин</string>
     <string name="glucifer_sensor_id">Мэдрэгчийн таних дугаар</string>
     <string name="glucifer_sensor_generation">Мэдрэгчийн үе</string>

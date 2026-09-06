@@ -2185,6 +2185,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucifer_rate">Xawaaraha isbeddelka</string>
     <string name="glucifer_raw">Gulukoosta ceeriin</string>
     <string name="glucifer_auto">Gulukoosta si toos ah loo saxay</string>
+    <string name="glucifer_done">Dhammee</string>
+    <string name="glucifer_saved_help">Isbeddellada si toos ah ayaa loo kaydiyaa. Daar goobtan, dir farriin tijaabo ah, dabadeed taabo Dhammee.</string>
+    <string name="glucifer_min_interval">Inta ugu yar ee u dhexeysa dirista</string>
+    <string name="glucifer_live_updates">Akhrisyada gulukooska cusub iyo isbeddellada la kaydiyey ayaa dira xogta. Saacadda kaydka ahi waxay shaqaysaa marka aan xog la dirin.</string>
+    <string name="glucifer_fallback_interval">Cusboonaysii marka aan firfircooni jirin</string>
+    <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Heerka batteriga taleefanka</string>
     <string name="glucifer_sensor_id">Aqoonsiga dareemaha</string>
     <string name="glucifer_sensor_generation">Jiilka dareemaha</string>

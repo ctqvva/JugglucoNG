@@ -1883,6 +1883,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">变化速率</string>
     <string name="glucifer_raw">原始葡萄糖</string>
     <string name="glucifer_auto">自动校准的葡萄糖</string>
+    <string name="glucifer_done">完成</string>
+    <string name="glucifer_saved_help">更改会自动保存。启用此目标，发送测试消息，然后点击完成。</string>
+    <string name="glucifer_min_interval">最短发送间隔</string>
+    <string name="glucifer_live_updates">新的血糖读数和保存的更改会自动触发更新。仅在没有发送更新时使用备用计时器。</string>
+    <string name="glucifer_fallback_interval">无更新后的刷新间隔</string>
+    <string name="glucifer_seconds">%1$d 秒</string>
     <string name="glucifer_phone_battery">手机电量</string>
     <string name="glucifer_sensor_id">传感器标识</string>
     <string name="glucifer_sensor_generation">传感器代次</string>

@@ -44,6 +44,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -83,6 +84,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -116,6 +121,15 @@ fun OutboundApiSettingsScreen(navController: NavController) {
     var showSecretForId by rememberSaveable { mutableStateOf<String?>(null) }
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<OutboundApiSettings.Destination?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(context, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(1000)
+                config = OutboundApiSettings.load(context)
+            }
+        }
+    }
 
     fun save(next: OutboundApiSettings.Config) {
         val normalized = next.copy(enabled = true)
@@ -220,6 +234,13 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.navigate_back)
                         )
+                    }
+                },
+                actions = {
+                    if (config.destinations.any { it.isGlucifer() }) {
+                        TextButton(onClick = { navController.popBackStack() }) {
+                            Text(stringResource(R.string.glucifer_done))
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -1466,6 +1487,16 @@ private fun GluciferFields(
     destination: OutboundApiSettings.Destination,
     onChange: (OutboundApiSettings.Destination) -> Unit
 ) {
+    Text(stringResource(R.string.glucifer_saved_help), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.glucifer_live_updates), style = MaterialTheme.typography.bodySmall)
+    SettingsSubsectionTitle(stringResource(R.string.glucifer_min_interval))
+    GluciferIntervalChoices(destination.gluciferMinIntervalSeconds) {
+        onChange(destination.copy(gluciferMinIntervalSeconds = it))
+    }
+    SettingsSubsectionTitle(stringResource(R.string.glucifer_fallback_interval))
+    GluciferIntervalChoices(destination.gluciferFallbackSeconds) {
+        onChange(destination.copy(gluciferFallbackSeconds = it))
+    }
     Text(stringResource(R.string.glucifer_glucose_required), style = MaterialTheme.typography.bodyMedium)
     Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferHistory, role = Role.Switch) {
         onChange(destination.copy(gluciferHistory = it))
@@ -1506,6 +1537,16 @@ private fun GluciferFields(
     }
 }
 
+
+@Composable
+private fun GluciferIntervalChoices(value: Int, onChange: (Int) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tk.glucodata.GluciferSendLimiter.intervals.forEach { seconds ->
+            FilterChip(selected = value == seconds, onClick = { onChange(seconds) },
+                label = { Text(stringResource(R.string.glucifer_seconds, seconds)) })
+        }
+    }
+}
 
 @Composable
 private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChange: (OutboundApiSettings.Destination) -> Unit) {

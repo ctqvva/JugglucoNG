@@ -2444,6 +2444,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Rate of change</string>
     <string name="glucifer_raw">Raw glucose</string>
     <string name="glucifer_auto">Automatically calibrated glucose</string>
+    <string name="glucifer_done">Done</string>
+    <string name="glucifer_saved_help">Changes are saved automatically. Turn this destination on, send a test message, then tap Done.</string>
+    <string name="glucifer_min_interval">Minimum send interval</string>
+    <string name="glucifer_live_updates">New glucose readings and saved changes send updates automatically. The fallback timer runs only when no update has been sent.</string>
+    <string name="glucifer_fallback_interval">Refresh after inactivity</string>
+    <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Phone battery level</string>
     <string name="glucifer_sensor_id">Sensor identifier</string>
     <string name="glucifer_sensor_generation">Sensor generation</string>

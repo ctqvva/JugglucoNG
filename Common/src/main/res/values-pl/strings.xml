@@ -1902,6 +1902,12 @@
     <string name="glucifer_rate">Tempo zmian</string>
     <string name="glucifer_raw">Surowa glukoza</string>
     <string name="glucifer_auto">Glukoza kalibrowana automatycznie</string>
+    <string name="glucifer_done">Gotowe</string>
+    <string name="glucifer_saved_help">Zmiany są zapisywane automatycznie. Włącz to miejsce docelowe, wyślij wiadomość testową i wybierz Gotowe.</string>
+    <string name="glucifer_min_interval">Minimalny odstęp wysyłania</string>
+    <string name="glucifer_live_updates">Nowe odczyty glukozy i zapisane zmiany uruchamiają wysyłanie. Zapasowy zegar działa tylko przy braku aktualizacji.</string>
+    <string name="glucifer_fallback_interval">Odświeżanie po bezczynności</string>
+    <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Poziom baterii telefonu</string>
     <string name="glucifer_sensor_id">Identyfikator sensora</string>
     <string name="glucifer_sensor_generation">Generacja sensora</string>
