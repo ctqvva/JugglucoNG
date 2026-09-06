@@ -6,7 +6,8 @@ import org.json.JSONObject
 object GluciferPayload {
     val fields = linkedSetOf(
         "trend", "delta_mgdl", "rate_mgdl_min", "raw_mgdl", "auto_mgdl",
-        "iob_u", "cob_g", "battery_percent", "sensor_id", "sensor_generation"
+        "iob_u", "cob_g", "battery_percent", "sensor_id", "sensor_generation",
+        "sensor_started_ms", "sensor_expires_ms", "sensor_warmup"
     )
     val alerts = linkedSetOf(
         "low", "high", "very_low", "very_high", "pre_low", "pre_high",
@@ -24,8 +25,10 @@ object GluciferPayload {
         mgdl: Int,
         selected: Set<String>,
         values: Map<String, Any?>,
-        alertStates: Map<String, Boolean?>
+        alertStates: Map<String, Boolean?>,
+        schemaVersion: Int = if (selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) 2 else 1
     ): JSONObject {
+        require(schemaVersion in 1..2)
         require(sourceId.matches(Regex("[A-Za-z0-9_-]{1,64}")))
         require(sequence in 1..9007199254740991L)
         require(mgdl in 1..1000 && glucoseTimeMs > 0 && nowMs > 0)
@@ -43,7 +46,7 @@ object GluciferPayload {
             alarms.put(it, alertStates[it] ?: JSONObject.NULL)
         }
         return JSONObject()
-            .put("schema_version", 1)
+            .put("schema_version", schemaVersion)
             .put("source_id", sourceId)
             .put("sequence", sequence)
             .put("sent_at_ms", nowMs)
@@ -52,9 +55,9 @@ object GluciferPayload {
             .put("alerts", alarms)
     }
 
-    fun acknowledged(body: String, sourceId: String, sequence: Long): Boolean = runCatching {
+    fun acknowledged(body: String, sourceId: String, sequence: Long, schemaVersion: Int = 1): Boolean = runCatching {
         val json = JSONObject(body)
-        json.opt("schema_version") == 1 && json.optString("source_id") == sourceId &&
+        json.opt("schema_version") == schemaVersion && json.optString("source_id") == sourceId &&
             json.opt("sequence") is Number && json.getLong("sequence") == sequence &&
             (json.get("sequence") as Number).toDouble() == sequence.toDouble() &&
             json.optString("status") in setOf("accepted", "duplicate", "superseded")
@@ -62,6 +65,7 @@ object GluciferPayload {
 
     /** Heartbeats may advance timestamps; a retry must preserve its original envelope. */
     fun sameData(a: JSONObject, b: JSONObject): Boolean =
+        a.getInt("schema_version") == b.getInt("schema_version") &&
         equalObject(a.getJSONObject("glucose"), b.getJSONObject("glucose")) &&
             equalObject(a.getJSONObject("fields"), b.getJSONObject("fields")) &&
             equalObject(a.getJSONObject("alerts"), b.getJSONObject("alerts"))
