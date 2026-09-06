@@ -70,7 +70,7 @@ class GluciferPayloadTests {
         val original = payload()
         val restored = JSONObject(original.toString())
         val candidate = payload(seq = 2, now = 1_788_696_010_000L)
-        val retry = GluciferPayload.nextDelivery(restored, candidate, true, false, candidate.getLong("sent_at_ms"))!!
+        val retry = GluciferPayload.nextDelivery(restored, candidate, true, false)!!
         assertEquals(1, retry.getInt("sequence"))
         assertEquals(original.getLong("sent_at_ms"), retry.getLong("sent_at_ms"))
         assertTrue(GluciferPayload.sameData(original, retry))
@@ -79,18 +79,30 @@ class GluciferPayloadTests {
     @Test fun `alert transitions replace pending snapshots and field removal is immediate`() {
         val original = payload()
         val cleared = payload(seq = 2, alerts = mapOf("low" to false, "high" to false))
-        assertSame(cleared, GluciferPayload.nextDelivery(original, cleared, true, false, cleared.getLong("sent_at_ms")))
+        assertSame(cleared, GluciferPayload.nextDelivery(original, cleared, true, false))
         val disabled = payload(selected = emptySet(), seq = 3)
-        assertSame(disabled, GluciferPayload.nextDelivery(cleared, disabled, true, false, disabled.getLong("sent_at_ms")))
+        assertSame(disabled, GluciferPayload.nextDelivery(cleared, disabled, true, false))
     }
 
-    @Test fun `unchanged successful snapshots wait for heartbeat unless a test is requested`() {
+    @Test fun `acknowledged unchanged data stays silent across fallback intervals and restart`() {
+        val original = JSONObject(payload().toString())
+        for (elapsed in listOf(1_000L, 60_000L, 360_000L, 3_600_000L, 86_400_000L)) {
+            val candidate = payload(seq = 2, now = original.getLong("sent_at_ms") + elapsed)
+            assertNull(GluciferPayload.nextDelivery(original, candidate, false, false))
+        }
+    }
+
+    @Test fun `explicit manual test can resend unchanged data`() {
         val original = payload()
-        val now = original.getLong("sent_at_ms")
-        val candidate = payload(seq = 2, now = now + 60_000L)
-        assertNull(GluciferPayload.nextDelivery(original, candidate, false, false, now + 59_999L))
-        assertSame(candidate, GluciferPayload.nextDelivery(original, candidate, false, false, now + 60_000L))
-        assertSame(candidate, GluciferPayload.nextDelivery(original, candidate, false, true, now))
+        val candidate = payload(seq = 2)
+        assertSame(candidate, GluciferPayload.nextDelivery(original, candidate, false, true))
+    }
+
+    @Test fun `new measurement sends even when its glucose value is identical`() {
+        val original = payload()
+        val candidate = payload(seq = 2)
+        candidate.getJSONObject("glucose").put("time_ms", original.getJSONObject("glucose").getLong("time_ms") + 60_000L)
+        assertSame(candidate, GluciferPayload.nextDelivery(original, candidate, false, false))
     }
 
     @Test fun `measurement rounding removes small IOB changes before comparison`() {
@@ -105,18 +117,17 @@ class GluciferPayloadTests {
         assertEquals(-0.2, fields.getDouble("rate_mgdl_min"), 0.0)
         assertEquals(-1.3, fields.getDouble("delta_mgdl"), 0.0)
         assertTrue(GluciferPayload.sameData(first, second))
-        assertNull(GluciferPayload.nextDelivery(first, second, false, false, first.getLong("sent_at_ms") + 1000))
+        assertNull(GluciferPayload.nextDelivery(first, second, false, false))
     }
 
     @Test fun `journal and alert changes send without waiting for another glucose reading`() {
         val original = payload(selected = setOf("iob_u", "alert:high"), values = mapOf("iob_u" to 2.0))
         val changed = payload(selected = setOf("iob_u", "alert:high"), seq = 2, values = mapOf("iob_u" to 1.0))
-        val now = original.getLong("sent_at_ms") + 1000
         assertEquals(original.getJSONObject("glucose").toString(), changed.getJSONObject("glucose").toString())
-        assertSame(changed, GluciferPayload.nextDelivery(original, changed, false, false, now))
+        assertSame(changed, GluciferPayload.nextDelivery(original, changed, false, false))
         val cleared = payload(selected = setOf("iob_u", "alert:high"), seq = 3,
             values = mapOf("iob_u" to 1.0), alerts = mapOf("high" to false))
-        assertSame(cleared, GluciferPayload.nextDelivery(changed, cleared, false, false, now + 1000))
+        assertSame(cleared, GluciferPayload.nextDelivery(changed, cleared, false, false))
     }
 
     @Test fun `rounding preserves lifecycle timestamps and boolean alerts`() {

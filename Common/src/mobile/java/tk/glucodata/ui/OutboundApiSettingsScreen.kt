@@ -1489,6 +1489,12 @@ private fun GluciferFields(
 ) {
     Text(stringResource(R.string.glucifer_saved_help), style = MaterialTheme.typography.bodyMedium)
     Text(stringResource(R.string.glucifer_live_updates), style = MaterialTheme.typography.bodySmall)
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferLiveBypass, role = Role.Switch) {
+        onChange(destination.copy(gluciferLiveBypass = it))
+    }) {
+        Text(stringResource(R.string.glucifer_live_bypass), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferLiveBypass, onCheckedChange = null)
+    }
     SettingsSubsectionTitle(stringResource(R.string.glucifer_min_interval))
     GluciferIntervalChoices(destination.gluciferMinIntervalSeconds) {
         onChange(destination.copy(gluciferMinIntervalSeconds = it))
@@ -1543,7 +1549,7 @@ private fun GluciferIntervalChoices(value: Int, onChange: (Int) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         tk.glucodata.GluciferSendLimiter.intervals.forEach { seconds ->
             FilterChip(selected = value == seconds, onClick = { onChange(seconds) },
-                label = { Text(stringResource(R.string.glucifer_seconds, seconds)) })
+                label = { Text(if (seconds >= 3600) stringResource(R.string.glucifer_hours, seconds / 3600) else stringResource(R.string.glucifer_seconds, seconds)) })
         }
     }
 }

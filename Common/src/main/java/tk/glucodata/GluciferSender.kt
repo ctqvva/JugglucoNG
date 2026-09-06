@@ -18,7 +18,7 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 /** One bounded sender queue, independent of other API destinations and sensor callbacks. */
 object GluciferSender {
     private const val PREFS = "glucifer_sender"
-    private val limiter = GluciferSendLimiter()
+    private val limiter = GluciferDeliveryBudget()
     private val started = AtomicBoolean(false)
     private val updateLock = Any()
     private var updateTask: java.util.concurrent.ScheduledFuture<*>? = null
@@ -76,7 +76,7 @@ object GluciferSender {
         fallbackClock.retain(ready.map { it.id }.toSet())
         if (ready.isEmpty()) return
         val now = SystemClock.elapsedRealtime()
-        val delay = ready.minOf { fallbackClock.remaining(it.id, it.gluciferFallbackSeconds, now) }
+        val delay = ready.minOf { maxOf(fallbackClock.remaining(it.id, it.gluciferFallbackSeconds, now), remaining(it, false)) }
         fallbackTask = executor.schedule({
             val instant = SystemClock.elapsedRealtime()
             val due = OutboundApiSettings.load(context).destinations.filter {
@@ -100,8 +100,9 @@ object GluciferSender {
         val config = OutboundApiSettings.load(context)
         config.destinations.filter { it.isGlucifer() && it.isReady() && (fallbackIds == null || it.id in fallbackIds) }.forEach { destination ->
             try {
-                val remaining = limiter.remaining(destination.id, interval(destination), SystemClock.elapsedRealtime())
-                if (remaining == 0L) send(context, destination, fallbackIds != null) else scheduleUpdate(remaining)
+                val remaining = remaining(destination, fallbackIds == null)
+                if (remaining == 0L) send(context, destination, fallbackIds == null)
+                else if (fallbackIds == null) scheduleUpdate(remaining)
             } catch (_: Exception) {
                 // Exceptions can contain a secret endpoint URL; retain only a fixed status.
                 OutboundApiSettings.recordAttempt(context, destination.id, -1, context.getString(R.string.glucifer_delivery_failed))
@@ -110,7 +111,7 @@ object GluciferSender {
         scheduleFallback()
     }
 
-    private fun send(context: Context, destination: OutboundApiSettings.Destination, fallback: Boolean = false) {
+    private fun send(context: Context, destination: OutboundApiSettings.Destination, live: Boolean) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val key = destination.id
         val previous = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
@@ -134,8 +135,8 @@ object GluciferSender {
         val schemaVersion = if (destination.gluciferHistory || selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) 2 else 1
         val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states, schemaVersion)
         val pending = previous?.optBoolean("pending", false) == true
-        val force = tests.remove(destination.id) || (fallback && !pending)
-        val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force, now) ?: run {
+        val force = tests.remove(destination.id)
+        val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force) ?: run {
             if (oldPayload != null) sendHistory(context, destination, oldPayload)
             return
         }
@@ -146,16 +147,22 @@ object GluciferSender {
         val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
         if (!latest.isGlucifer() || !latest.isReady() || latest.url != destination.url ||
             latest.gluciferFields != destination.gluciferFields || latest.gluciferHistory != destination.gluciferHistory) return
-        if (!limiter.acquire(destination.id, interval(latest), SystemClock.elapsedRealtime())) {
+        if (!acquire(latest, live)) {
             if (force) tests.add(destination.id)
             return
         }
         val result = post(destination.resolvedUrl(), payload.toString())
         if (result.first in 200..299 && GluciferPayload.acknowledged(
                 result.second, destination.id, payload.getLong("sequence"), payload.getInt("schema_version"))) {
-            prefs.edit().putString(key, record.put("pending", false).toString()).apply()
+            prefs.edit().putString(key, record.put("pending", false).toString())
+                .putBoolean("backfill_status:" + destination.id, GluciferBackfillStatus.supported(result.second)).apply()
             OutboundApiSettings.recordSuccess(context, destination.id, result.first)
             fallbackClock.reset(destination.id, SystemClock.elapsedRealtime())
+            if (destination.gluciferHistory) {
+                val history = historyState(prefs, destination)
+                GluciferHistoryLedger.acknowledge(history, listOf(payload.getJSONObject("glucose").getLong("time_ms")), now)
+                prefs.edit().putString("history:" + destination.id, history.toString()).commit()
+            }
             scheduleHistory(context, destination, payload)
         } else {
             OutboundApiSettings.recordAttempt(context, destination.id, result.first,
@@ -217,65 +224,116 @@ object GluciferSender {
             .takeIf { it.isFinite() }
     }.getOrNull()
 
+    private fun historyState(prefs: android.content.SharedPreferences, destination: OutboundApiSettings.Destination): JSONObject =
+        prefs.getString("history:" + destination.id, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?.takeIf { it.optString("url") == destination.url } ?: JSONObject().put("url", destination.url)
+
+    // A scheduled live event gets the next slot before history or diagnostic work.
+    private fun liveUpdateWaiting(): Boolean = synchronized(updateLock) { updateTask != null }
+    private fun liveUpdateDelay(): Long = synchronized(updateLock) {
+        if (updateTask == null) 1000L else (updateDueMs - SystemClock.elapsedRealtime()).coerceAtLeast(1000L)
+    }
+
     private fun sendHistory(context: Context, destination: OutboundApiSettings.Destination, current: JSONObject) {
-        if (!destination.gluciferHistory) return
+        if (liveUpdateWaiting()) {
+            scheduleHistory(context, destination, current, liveUpdateDelay())
+            return
+        }
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val key = "history:" + destination.id
-        val saved = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
-            ?.takeIf { it.optString("url") == destination.url } ?: JSONObject().put("url", destination.url)
+        val saved = historyState(prefs, destination)
+        GluciferHistoryLedger.unseen(saved, emptyList())
         val now = System.currentTimeMillis()
         var cursor = saved.optLong("cursor", now - GluciferHistory.RETENTION_MS)
-        if (saved.optLong("refresh_at", 0) in 1..now) {
+        if (!saved.has("pending") && saved.optLong("refresh_at", 0) in 1..now) {
             cursor = now - GluciferHistory.RETENTION_MS
-            saved.remove("pending")
             saved.remove("refresh_at")
         }
         val through = current.getJSONObject("glucose").getLong("time_ms")
-        val pending = saved.optJSONObject("pending") ?: run {
-            if (cursor >= through) return
-            val sensor = NotificationHistorySource.resolveSensorSerial() ?: return
-            val points = NotificationHistorySource.getDisplayHistory(cursor, false, sensor)
-            val raw = CurrentDisplaySource.resolveViewModeForSensor(sensor) in setOf(1, 3)
-            GluciferHistory.build(destination.id, points, cursor, through, now, raw) ?: run {
-                saved.put("cursor", through).put("refresh_at", now + 3600000L)
-                prefs.edit().putString(key, saved.toString()).commit()
-                return
+        if (!destination.gluciferHistory) saved.remove("pending")
+        val pending = if (!destination.gluciferHistory) null else saved.optJSONObject("pending") ?: run {
+            if (cursor >= through) null else {
+                val sensor = NotificationHistorySource.resolveSensorSerial()
+                val points = if (sensor == null) emptyList() else NotificationHistorySource.getDisplayHistory(cursor, false, sensor)
+                val raw = sensor != null && CurrentDisplaySource.resolveViewModeForSensor(sensor) in setOf(1, 3)
+                GluciferHistory.build(destination.id, GluciferHistoryLedger.unseen(saved, points), cursor, through, now, raw)
             }
         }
-        saved.put("pending", pending)
+        if (pending != null) saved.put("pending", pending)
+        else if (destination.gluciferHistory) {
+            saved.put("cursor", through)
+            if (!saved.has("refresh_at")) saved.put("refresh_at", now + 3600000L)
+        }
         if (!prefs.edit().putString(key, saved.toString()).commit()) return
+        val statusReady = reportBackfillStatus(context, destination, saved, pending != null)
+        if (statusReady != true) {
+            if (statusReady == false) scheduleHistory(context, destination, current, liveUpdateDelay())
+            return
+        }
+        if (pending == null) return
         val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
         if (!latest.isReady() || !latest.isGlucifer() || !latest.gluciferHistory || latest.url != destination.url) return
-        if (!limiter.acquire(destination.id, interval(latest), SystemClock.elapsedRealtime())) {
-            scheduleHistory(context, latest, current)
+        if (liveUpdateWaiting() || !acquire(latest, false)) {
+            scheduleHistory(context, latest, current, maxOf(remaining(latest, false), liveUpdateDelay()))
             return
         }
         val result = post(destination.resolvedUrl(), pending.toString())
         if (result.first in 200..299 && GluciferHistory.acknowledged(result.second, pending)) {
+            val readings = pending.getJSONArray("readings")
+            GluciferHistoryLedger.acknowledge(saved, (0 until readings.length()).map {
+                readings.getJSONObject(it).getLong("time_ms")
+            }, now)
             saved.put("cursor", GluciferHistory.through(pending)).remove("pending")
-            if (GluciferHistory.through(pending) >= through) saved.put("refresh_at", now + 3600000L)
             prefs.edit().putString(key, saved.toString()).commit()
-            if (GluciferHistory.through(pending) < through) scheduleHistory(context, latest, current)
+            // The next check sends remaining batches or reports completion once.
+            scheduleHistory(context, latest, current)
         } else {
             OutboundApiSettings.recordAttempt(context, destination.id, result.first, context.getString(R.string.glucifer_history_failed))
         }
     }
 
-    private fun scheduleHistory(context: Context, destination: OutboundApiSettings.Destination, payload: JSONObject) {
-        if (!destination.gluciferHistory || historyTasks.containsKey(destination.id)) return
-        val wait = limiter.remaining(destination.id, interval(destination), SystemClock.elapsedRealtime())
+    // true: already reported or accepted; false: wait for a slot; null: failed, retry on next update.
+    private fun reportBackfillStatus(context: Context, destination: OutboundApiSettings.Destination,
+        state: JSONObject, active: Boolean): Boolean? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("backfill_status:" + destination.id, false)) return true
+        if (state.opt("backfill_active") == active) return true
+        val payload = state.optJSONObject("status_pending")?.takeIf { it.opt("active") == active }
+            ?: GluciferBackfillStatus.build(destination.id, active)
+        state.put("status_pending", payload)
+        if (!prefs.edit().putString("history:" + destination.id, state.toString()).commit()) return null
+        val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return null
+        if (!latest.isGlucifer() || !latest.isReady() || latest.url != destination.url || (active && !latest.gluciferHistory)) return null
+        if (liveUpdateWaiting() || !limiter.acquire(destination.id, 1, true, true, SystemClock.elapsedRealtime())) return false
+        val result = post(destination.resolvedUrl(), payload.toString())
+        if (result.first !in 200..299 || !GluciferBackfillStatus.acknowledged(result.second, payload)) {
+            OutboundApiSettings.recordAttempt(context, destination.id, result.first, context.getString(R.string.glucifer_history_failed))
+            return null
+        }
+        state.put("backfill_active", active).remove("status_pending")
+        prefs.edit().putString("history:" + destination.id, state.toString()).commit()
+        return true
+    }
+
+    private fun scheduleHistory(context: Context, destination: OutboundApiSettings.Destination, payload: JSONObject, delayMs: Long = 1000L) {
+        historyTasks.remove(destination.id)?.cancel(false)
+        // Sleep until the available slot; completion transitions use the short request limit.
         historyTasks[destination.id] = executor.schedule({
             historyTasks.remove(destination.id)
             val latest = OutboundApiSettings.load(context).findDestination(destination.id)
-            if (latest != null && latest.isGlucifer() && latest.isReady() && latest.gluciferHistory && latest.url == destination.url) {
+            if (latest != null && latest.isGlucifer() && latest.isReady() && latest.url == destination.url) {
                 try { sendHistory(context, latest, payload) } catch (_: Exception) {
                     OutboundApiSettings.recordAttempt(context, destination.id, -1, context.getString(R.string.glucifer_history_failed))
                 }
             }
-        }, wait.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+        }, delayMs.coerceAtLeast(1000L), TimeUnit.MILLISECONDS)
     }
 
-    private fun interval(destination: OutboundApiSettings.Destination): Int = destination.gluciferMinIntervalSeconds
+    private fun remaining(destination: OutboundApiSettings.Destination, live: Boolean): Long =
+        limiter.remaining(destination.id, destination.gluciferMinIntervalSeconds, destination.gluciferLiveBypass, live, SystemClock.elapsedRealtime())
+
+    private fun acquire(destination: OutboundApiSettings.Destination, live: Boolean): Boolean =
+        limiter.acquire(destination.id, destination.gluciferMinIntervalSeconds, destination.gluciferLiveBypass, live, SystemClock.elapsedRealtime())
 
     internal fun post(url: String, body: String): Pair<Int, String> {
         require(validUrl(url))
