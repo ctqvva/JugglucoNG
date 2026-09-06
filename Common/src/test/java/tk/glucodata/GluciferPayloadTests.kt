@@ -52,6 +52,20 @@ class GluciferPayloadTests {
         assertEquals(0.0, result.getJSONObject("fields").getDouble("cob_g"), 0.0)
     }
 
+    @Test fun `active insulin is opt in rounded and changes delivery independently`() {
+        val values = mapOf("iob_u" to 3.2, "eiob_u" to 1.234)
+        assertFalse(payload(values = values).getJSONObject("fields").has("eiob_u"))
+        val first = payload(selected = setOf("eiob_u"), values = values)
+        assertEquals(setOf("eiob_u"), first.getJSONObject("fields").keys().asSequence().toSet())
+        assertEquals(1.2, first.getJSONObject("fields").getDouble("eiob_u"), 0.0)
+        val changed = payload(selected = setOf("eiob_u"), values = mapOf("eiob_u" to 1.4))
+        assertFalse(GluciferPayload.sameData(first, changed))
+        val missing = payload(selected = setOf("eiob_u"), values = mapOf("eiob_u" to Float.NaN))
+        assertTrue(missing.getJSONObject("fields").isNull("eiob_u"))
+        val zero = payload(selected = setOf("eiob_u"), values = mapOf("eiob_u" to 0f))
+        assertEquals(0.0, zero.getJSONObject("fields").getDouble("eiob_u"), 0.0)
+    }
+
     @Test fun `plain HTTP success and mismatched acknowledgement are not delivery success`() {
         assertFalse(GluciferPayload.acknowledged("", "phone-test", 1))
         assertFalse(GluciferPayload.acknowledged("{}", "phone-test", 1))

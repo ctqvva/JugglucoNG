@@ -529,7 +529,8 @@ object OutboundApi {
     internal data class JournalSnapshot(
         val iob: Float = Float.NaN,
         val cob: Float = Float.NaN,
-        val json: JSONObject? = null
+        val json: JSONObject? = null,
+        val eiob: Float = Float.NaN
     )
 
     internal fun renderMessage(
@@ -665,6 +666,7 @@ object OutboundApi {
             val json = JSONObject(raw)
             JournalSnapshot(
                 iob = json.optDouble("iob", Double.NaN).toFloat(),
+                eiob = json.optDouble("eiob", Double.NaN).toFloat(),
                 cob = json.optDouble("cob", Double.NaN).toFloat(),
                 json = json
             )
