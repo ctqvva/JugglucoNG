@@ -1886,6 +1886,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucifer_qr_confirm">%1$s adresindeki alıcı kullanılsın mı?</string>
     <string name="glucifer_qr_invalid">Bu QR kodu bir Home Assistant alıcı adresi içermiyor.</string>
     <string name="glucifer_warmup">Sensör ısınıyor</string>
+    <string name="glucifer_journal">Günlük kayıtlarını eşitle</string>
+    <string name="glucifer_journal_help">İnsülin ve karbonhidrat kayıtlarını oluşturulduğunda, düzenlendiğinde veya silindiğinde gönderir. Kapatmak, sonraki başarılı bağlantıda Home Assistant günlüğünü temizler.</string>
+    <string name="glucifer_journal_days">Saklanacak günlük geçmişi</string>
+    <string name="glucifer_journal_notes">Notları ve not kayıtlarını dahil et</string>
+    <string name="glucifer_journal_failed">Günlük teslimi onaylanmadı</string>
+    <string name="glucifer_days">%1$d gün</string>
     <string name="glucifer_history">Glikoz geçmişini tamamla (en fazla 7 gün)</string>
     <string name="glucifer_history_failed">Geçmişin alındığı onaylanmadı</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

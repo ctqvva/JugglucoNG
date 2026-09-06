@@ -1848,6 +1848,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_qr_confirm">Usare il ricevitore su %1$s?</string>
     <string name="glucifer_qr_invalid">Questo codice QR non contiene un URL del ricevitore Home Assistant.</string>
     <string name="glucifer_warmup">Riscaldamento del sensore</string>
+    <string name="glucifer_journal">Sincronizza il diario</string>
+    <string name="glucifer_journal_help">Invia le voci di insulina e carboidrati quando vengono create, modificate o eliminate. Disattivando, il diario in Home Assistant viene cancellato alla prossima connessione riuscita.</string>
+    <string name="glucifer_journal_days">Cronologia del diario da conservare</string>
+    <string name="glucifer_journal_notes">Includi note e annotazioni</string>
+    <string name="glucifer_journal_failed">Ricezione del diario non confermata</string>
+    <string name="glucifer_days">%1$d giorni</string>
     <string name="glucifer_history">Recupera lo storico del glucosio (fino a 7 giorni)</string>
     <string name="glucifer_history_failed">Ricezione dello storico non confermata</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

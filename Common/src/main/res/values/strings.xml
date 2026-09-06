@@ -2435,6 +2435,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_qr_confirm">Use receiver at %1$s?</string>
     <string name="glucifer_qr_invalid">This QR code is not a Home Assistant receiver URL.</string>
     <string name="glucifer_warmup">Sensor warming up</string>
+    <string name="glucifer_journal">Sync journal entries</string>
+    <string name="glucifer_journal_help">Sends insulin and carbohydrate entries when created, edited, or deleted. Turning this off clears the journal in Home Assistant after the next successful connection.</string>
+    <string name="glucifer_journal_days">Journal history to keep</string>
+    <string name="glucifer_journal_notes">Include notes and note entries</string>
+    <string name="glucifer_journal_failed">Journal delivery was not acknowledged</string>
+    <string name="glucifer_days">%1$d days</string>
     <string name="glucifer_history">Backfill glucose history (up to 7 days)</string>
     <string name="glucifer_history_failed">History delivery not acknowledged</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

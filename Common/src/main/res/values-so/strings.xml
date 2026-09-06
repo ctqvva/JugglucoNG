@@ -2176,6 +2176,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucifer_qr_confirm">Ma la isticmaalaa qaataha %1$s?</string>
     <string name="glucifer_qr_invalid">Koodhkan QR ma laha cinwaanka qaataha Home Assistant.</string>
     <string name="glucifer_warmup">Dareemaha ayaa kululaanaya</string>
+    <string name="glucifer_journal">Iswaafaji diiwaanka</string>
+    <string name="glucifer_journal_help">Waxay dirtaa diiwaannada insuliinta iyo karbohaydraytka marka la abuuro, la beddelo ama la tirtiro. Damintu waxay tirtirtaa diiwaanka Home Assistant marka xiriirka xiga guulaysto.</string>
+    <string name="glucifer_journal_days">Muddada la hayo taariikhda diiwaanka</string>
+    <string name="glucifer_journal_notes">Ku dar qoraallada iyo diiwaannada qoraalka</string>
+    <string name="glucifer_journal_failed">Helitaanka diiwaanka lama xaqiijin</string>
+    <string name="glucifer_days">%1$d maalmood</string>
     <string name="glucifer_history">Buuxi taariikhda gulukoosta (ilaa 7 maalmood)</string>
     <string name="glucifer_history_failed">Helitaanka taariikhda lama xaqiijin</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

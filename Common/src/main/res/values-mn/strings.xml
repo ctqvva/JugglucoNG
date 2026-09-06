@@ -1881,6 +1881,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucifer_qr_confirm">%1$s хаяг дахь хүлээн авагчийг ашиглах уу?</string>
     <string name="glucifer_qr_invalid">Энэ QR код Home Assistant хүлээн авагчийн хаяг агуулаагүй.</string>
     <string name="glucifer_warmup">Мэдрэгч халж байна</string>
+    <string name="glucifer_journal">Тэмдэглэлийн бичлэгүүдийг синк хийх</string>
+    <string name="glucifer_journal_help">Инсулин болон нүүрс усны бичлэгийг үүсгэх, засах, устгахад илгээнэ. Унтраавал дараагийн амжилттай холболтоор Home Assistant дахь тэмдэглэлийг цэвэрлэнэ.</string>
+    <string name="glucifer_journal_days">Тэмдэглэлийн түүх хадгалах хугацаа</string>
+    <string name="glucifer_journal_notes">Тайлбар болон тэмдэглэлийн бичлэгийг оруулах</string>
+    <string name="glucifer_journal_failed">Тэмдэглэл хүлээн авсныг баталгаажуулаагүй</string>
+    <string name="glucifer_days">%1$d өдөр</string>
     <string name="glucifer_history">Глюкозын түүхийг нөхөх (7 хүртэл хоног)</string>
     <string name="glucifer_history_failed">Түүх хүлээн авсан нь баталгаажаагүй</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

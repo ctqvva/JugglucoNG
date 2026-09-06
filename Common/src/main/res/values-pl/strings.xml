@@ -1893,6 +1893,12 @@
     <string name="glucifer_qr_confirm">Użyć odbiornika pod adresem %1$s?</string>
     <string name="glucifer_qr_invalid">Ten kod QR nie zawiera adresu odbiornika Home Assistant.</string>
     <string name="glucifer_warmup">Rozgrzewanie sensora</string>
+    <string name="glucifer_journal">Synchronizuj dziennik</string>
+    <string name="glucifer_journal_help">Wysyła wpisy insuliny i węglowodanów po utworzeniu, zmianie lub usunięciu. Wyłączenie usuwa dziennik w Home Assistant po następnym udanym połączeniu.</string>
+    <string name="glucifer_journal_days">Przechowywana historia dziennika</string>
+    <string name="glucifer_journal_notes">Uwzględnij notatki i wpisy notatek</string>
+    <string name="glucifer_journal_failed">Nie potwierdzono odbioru dziennika</string>
+    <string name="glucifer_days">%1$d dni</string>
     <string name="glucifer_history">Uzupełniaj historię glukozy (do 7 dni)</string>
     <string name="glucifer_history_failed">Odbiór historii nie został potwierdzony</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

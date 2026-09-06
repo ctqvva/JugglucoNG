@@ -1858,6 +1858,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_qr_confirm">Använd mottagaren på %1$s?</string>
     <string name="glucifer_qr_invalid">Denna QR-kod innehåller ingen mottagaradress för Home Assistant.</string>
     <string name="glucifer_warmup">Sensorn värms upp</string>
+    <string name="glucifer_journal">Synkronisera journalen</string>
+    <string name="glucifer_journal_help">Skickar insulin- och kolhydratposter när de skapas, ändras eller tas bort. Avstängning raderar journalen i Home Assistant efter nästa lyckade anslutning.</string>
+    <string name="glucifer_journal_days">Journalhistorik att behålla</string>
+    <string name="glucifer_journal_notes">Inkludera anteckningar och anteckningsposter</string>
+    <string name="glucifer_journal_failed">Mottagning av journalen bekräftades inte</string>
+    <string name="glucifer_days">%1$d dagar</string>
     <string name="glucifer_history">Fyll på glukoshistorik (upp till 7 dagar)</string>
     <string name="glucifer_history_failed">Mottagning av historik har inte bekräftats</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

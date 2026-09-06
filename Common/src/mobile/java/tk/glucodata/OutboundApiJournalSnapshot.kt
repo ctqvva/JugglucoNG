@@ -162,6 +162,32 @@ object OutboundApiJournalSnapshot {
         }
     }
 
+    /** Only explicitly selected journal content; no IOB snapshot window truncation. */
+    @JvmStatic
+    fun gluciferJournalJson(days: Int, includeNotes: Boolean, atMillis: Long): String = runBlocking(Dispatchers.IO) {
+        val dao = HistoryDatabase.getInstance(Applic.app).journalDao()
+        val presets = dao.getInsulinPresets().associateBy { it.id }
+        val entries = dao.getGluciferEntries(atMillis - days.coerceIn(1, 90) * 86400000L,
+            atMillis, includeNotes, GluciferJournal.MAX_ENTRIES)
+        JSONArray().apply {
+            entries.forEach { entry ->
+                val kind = entry.entryType
+                val amount = entry.amount?.takeIf { it.isFinite() && it > 0f && it <= 100000f }
+                if (kind != "note" && amount == null) return@forEach
+                val label = when (kind) {
+                    "insulin" -> presets[entry.insulinPresetId]?.displayName ?: "Insulin"
+                    "carbs" -> "Carbohydrates"
+                    else -> "Note"
+                }
+                val value = JSONObject().put("id", "j${entry.id}").put("time_ms", entry.timestamp)
+                    .put("kind", kind).put("label", label.take(128))
+                if (kind != "note") value.put("amount", amount!!.toString().toDouble())
+                if (includeNotes) value.put("note", (entry.note ?: if (kind == "note") entry.title else "").take(256))
+                put(value)
+            }
+        }.toString()
+    }
+
     private suspend fun buildSnapshot(atMillis: Long): JSONObject {
         val database = HistoryDatabase.getInstance(Applic.app)
         val dao = database.journalDao()

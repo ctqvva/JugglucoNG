@@ -1901,6 +1901,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucifer_qr_confirm">Ontvanger op %1$s gebruiken?</string>
     <string name="glucifer_qr_invalid">Deze QR-code bevat geen Home Assistant-ontvanger-URL.</string>
     <string name="glucifer_warmup">Sensor warmt op</string>
+    <string name="glucifer_journal">Dagboek synchroniseren</string>
+    <string name="glucifer_journal_help">Verstuurt insuline- en koolhydraatinvoer bij toevoegen, wijzigen of verwijderen. Uitschakelen wist het dagboek in Home Assistant na de volgende geslaagde verbinding.</string>
+    <string name="glucifer_journal_days">Dagboekgeschiedenis bewaren</string>
+    <string name="glucifer_journal_notes">Notities en notitie-items opnemen</string>
+    <string name="glucifer_journal_failed">Ontvangst van dagboek niet bevestigd</string>
+    <string name="glucifer_days">%1$d dagen</string>
     <string name="glucifer_history">Glucosegeschiedenis aanvullen (tot 7 dagen)</string>
     <string name="glucifer_history_failed">Ontvangst van geschiedenis niet bevestigd</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

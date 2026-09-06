@@ -1515,6 +1515,29 @@ private fun GluciferFields(
         Text(stringResource(R.string.glucifer_history), modifier = Modifier.weight(1f))
         StyledSwitch(checked = destination.gluciferHistory, onCheckedChange = null)
     }
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournal, role = Role.Switch) {
+        onChange(destination.copy(gluciferJournal = it))
+    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.glucifer_journal), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferJournal, onCheckedChange = null)
+    }
+    Text(stringResource(R.string.glucifer_journal_help), style = MaterialTheme.typography.bodySmall)
+    if (destination.gluciferJournal) {
+        SettingsSubsectionTitle(stringResource(R.string.glucifer_journal_days))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(1, 3, 7, 14, 30, 60, 90).forEach { days ->
+                FilterChip(selected = destination.gluciferJournalDays == days,
+                    onClick = { onChange(destination.copy(gluciferJournalDays = days)) },
+                    label = { Text(stringResource(R.string.glucifer_days, days)) })
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournalNotes, role = Role.Switch) {
+            onChange(destination.copy(gluciferJournalNotes = it))
+        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.glucifer_journal_notes), modifier = Modifier.weight(1f))
+            StyledSwitch(checked = destination.gluciferJournalNotes, onCheckedChange = null)
+        }
+    }
     val fields = listOf(
         "trend" to R.string.stats_trend,
         "delta_mgdl" to R.string.glucifer_delta,

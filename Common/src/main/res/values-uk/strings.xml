@@ -1934,6 +1934,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_qr_confirm">Використовувати приймач за адресою %1$s?</string>
     <string name="glucifer_qr_invalid">Цей QR-код не містить адресу приймача Home Assistant.</string>
     <string name="glucifer_warmup">Прогрівання сенсора</string>
+    <string name="glucifer_journal">Синхронізувати щоденник</string>
+    <string name="glucifer_journal_help">Надсилає записи інсуліну та вуглеводів під час створення, зміни або видалення. Вимкнення очищує щоденник у Home Assistant після наступного успішного з’єднання.</string>
+    <string name="glucifer_journal_days">Термін зберігання щоденника</string>
+    <string name="glucifer_journal_notes">Додавати примітки та записи нотаток</string>
+    <string name="glucifer_journal_failed">Отримання щоденника не підтверджено</string>
+    <string name="glucifer_days">%1$d дн.</string>
     <string name="glucifer_history">Дозавантаження історії глюкози (до 7 днів)</string>
     <string name="glucifer_history_failed">Отримання історії не підтверджено</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

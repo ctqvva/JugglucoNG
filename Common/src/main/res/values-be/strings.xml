@@ -1929,6 +1929,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_qr_confirm">Выкарыстоўваць прыёмнік па адрасе %1$s?</string>
     <string name="glucifer_qr_invalid">Гэты QR-код не змяшчае адрас прыёмніка Home Assistant.</string>
     <string name="glucifer_warmup">Прагрэў сенсара</string>
+    <string name="glucifer_journal">Сінхранізаваць дзённік</string>
+    <string name="glucifer_journal_help">Адпраўляе запісы інсуліну і вугляводаў пры стварэнні, змене або выдаленні. Выключэнне ачышчае дзённік у Home Assistant пасля наступнага паспяховага падключэння.</string>
+    <string name="glucifer_journal_days">Тэрмін захоўвання дзённіка</string>
+    <string name="glucifer_journal_notes">Уключаць нататкі і запісы нататак</string>
+    <string name="glucifer_journal_failed">Атрыманне дзённіка не пацверджана</string>
+    <string name="glucifer_days">%1$d дзён</string>
     <string name="glucifer_history">Дазагрузка гісторыі глюкозы (да 7 дзён)</string>
     <string name="glucifer_history_failed">Атрыманне гісторыі не пацверджана</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

@@ -1983,6 +1983,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucifer_qr_confirm">Empfänger unter %1$s verwenden?</string>
     <string name="glucifer_qr_invalid">Dieser QR-Code enthält keine Home-Assistant-Empfänger-URL.</string>
     <string name="glucifer_warmup">Sensor wärmt auf</string>
+    <string name="glucifer_journal">Tagebucheinträge synchronisieren</string>
+    <string name="glucifer_journal_help">Sendet Insulin- und Kohlenhydrateinträge beim Erstellen, Ändern oder Löschen. Ausschalten löscht das Tagebuch in Home Assistant nach der nächsten erfolgreichen Verbindung.</string>
+    <string name="glucifer_journal_days">Tagebuchverlauf aufbewahren</string>
+    <string name="glucifer_journal_notes">Notizen und Notizeinträge einschließen</string>
+    <string name="glucifer_journal_failed">Tagebuchübertragung wurde nicht bestätigt</string>
+    <string name="glucifer_days">%1$d Tage</string>
     <string name="glucifer_history">Glukoseverlauf nachladen (bis zu 7 Tage)</string>
     <string name="glucifer_history_failed">Übertragung des Verlaufs nicht bestätigt</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>

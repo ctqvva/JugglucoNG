@@ -129,7 +129,10 @@ object OutboundApiSettings {
         val gluciferHistory: Boolean = false,
         val gluciferMinIntervalSeconds: Int = 1,
         val gluciferFallbackSeconds: Int = 3600,
-        val gluciferLiveBypass: Boolean = true
+        val gluciferLiveBypass: Boolean = true,
+        val gluciferJournal: Boolean = false,
+        val gluciferJournalDays: Int = 7,
+        val gluciferJournalNotes: Boolean = false
     ) {
         fun isGlucifer(): Boolean = normalizedPreset() == PRESET_GLUCIFER
 
@@ -604,6 +607,9 @@ object OutboundApiSettings {
                         .put("gluciferMinIntervalSeconds", GluciferSendLimiter.interval(destination.gluciferMinIntervalSeconds))
                         .put("gluciferFallbackSeconds", GluciferSendLimiter.interval(destination.gluciferFallbackSeconds))
                         .put("gluciferLiveBypass", destination.gluciferLiveBypass)
+                        .put("gluciferJournal", destination.gluciferJournal)
+                        .put("gluciferJournalDays", destination.gluciferJournalDays.coerceIn(1, 90))
+                        .put("gluciferJournalNotes", destination.gluciferJournalNotes)
                 )
             }
         }
@@ -679,6 +685,9 @@ object OutboundApiSettings {
                 gluciferMinIntervalSeconds = GluciferSendLimiter.interval(item.optInt("gluciferMinIntervalSeconds", 1)),
                 gluciferFallbackSeconds = GluciferSendLimiter.interval(item.optInt("gluciferFallbackSeconds", 3600)),
                 gluciferLiveBypass = item.optBoolean("gluciferLiveBypass", true),
+                gluciferJournal = item.optBoolean("gluciferJournal", false),
+                gluciferJournalDays = item.optInt("gluciferJournalDays", 7).coerceIn(1, 90),
+                gluciferJournalNotes = item.optBoolean("gluciferJournalNotes", false),
                 gluciferFields = item.optJSONArray("gluciferFields")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }.toSet()
                         .intersect(GluciferPayload.supported)
