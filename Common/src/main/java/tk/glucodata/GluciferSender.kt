@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import tk.glucodata.alerts.AlertStateTracker
 import tk.glucodata.alerts.AlertType
+import tk.glucodata.drivers.ManagedSensorRuntime
 
 /** One bounded sender queue, independent of other API destinations and sensor callbacks. */
 object GluciferSender {
@@ -49,8 +50,8 @@ object GluciferSender {
     internal fun validUrl(value: String): Boolean = runCatching {
         val uri = URI(value.trim())
         uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank() &&
-            uri.userInfo == null && uri.fragment == null &&
-            uri.path.contains("/api/webhook/") && uri.path.substringAfter("/api/webhook/").isNotBlank()
+            uri.userInfo == null && uri.fragment == null && uri.query == null &&
+            Regex(".*/api/webhook/[A-Za-z0-9_-]+/?").matches(uri.path)
     }.getOrDefault(false)
 
     private fun cycle() {
@@ -87,22 +88,27 @@ object GluciferSender {
         val states = AlertType.entries.associate { type ->
             type.name.lowercase(Locale.ROOT) to AlertStateTracker.activeEpisodeForExport(type)
         }
-        val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states)
+        val schemaVersion = if (destination.gluciferHistory || selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) 2 else 1
+        val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states, schemaVersion)
         val pending = previous?.optBoolean("pending", false) == true
         val force = tests.remove(destination.id)
-        val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force, now) ?: return
+        val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force, now) ?: run {
+            if (oldPayload != null) sendHistory(context, destination, oldPayload)
+            return
+        }
         val record = JSONObject().put("payload", payload).put("pending", true)
         // Persist sequence and retry body together before exposing the snapshot on the wire.
         if (!prefs.edit().putString(key, record.toString()).commit()) return
         // Re-read after snapshot creation so a disabled or edited destination cancels old work.
         val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
         if (!latest.isGlucifer() || !latest.isReady() || latest.url != destination.url ||
-            latest.gluciferFields != destination.gluciferFields) return
+            latest.gluciferFields != destination.gluciferFields || latest.gluciferHistory != destination.gluciferHistory) return
         val result = post(destination.resolvedUrl(), payload.toString())
         if (result.first in 200..299 && GluciferPayload.acknowledged(
-                result.second, destination.id, payload.getLong("sequence"))) {
+                result.second, destination.id, payload.getLong("sequence"), payload.getInt("schema_version"))) {
             prefs.edit().putString(key, record.put("pending", false).toString()).apply()
             OutboundApiSettings.recordSuccess(context, destination.id, result.first)
+            sendHistory(context, destination, payload)
         } else {
             OutboundApiSettings.recordAttempt(context, destination.id, result.first,
                 context.getString(R.string.glucifer_not_acknowledged))
@@ -121,6 +127,20 @@ object GluciferSender {
             if ("sensor_id" in selected) values["sensor_id"] = reading.sensorId.takeIf { it.isNotBlank() }
             if ("sensor_generation" in selected) values["sensor_generation"] = reading.sensorGen
             if ("delta_mgdl" in selected) values["delta_mgdl"] = delta(reading)
+        }
+        if (selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) {
+            val sensorId = reading?.sensorId ?: NotificationHistorySource.resolveSensorSerial()
+            val managed = ManagedSensorRuntime.resolveUiSnapshot(sensorId, sensorId)
+            val native = if (managed == null && sensorId != null) runCatching { Natives.str2sensorptr(SensorIdentity.resolveNativeSensorName(sensorId) ?: sensorId) }.getOrDefault(0L) else 0L
+            val start = managed?.startTimeMs ?: if (native != 0L) runCatching { Natives.getSensorStartmsecFromSensorptr(native) }.getOrDefault(0L) else 0L
+            val end = managed?.let { it.expectedEndMs.takeIf { end -> end > 0 } ?: it.officialEndMs } ?: if (native != 0L) runCatching { Natives.getSensorEndTimeFromSensorptr(native, false) }.getOrDefault(0L) else 0L
+            if ("sensor_started_ms" in selected) values["sensor_started_ms"] = start.takeIf { it > 0 }
+            if ("sensor_expires_ms" in selected) values["sensor_expires_ms"] = end.takeIf { it > 0 }
+            if ("sensor_warmup" in selected) {
+                val kind = if (native != 0L) runCatching { Natives.getSensorptrLibreVersion(native) }.getOrDefault(-1) else -1
+                values["sensor_warmup"] = ManagedSensorRuntime.resolveDriver(sensorId)?.getWarmupState()
+                    ?: if (kind == 0x40 && start > 0 && now >= start) now - start < 30 * 60000L else null
+            }
         }
         if ("iob_u" in selected || "cob_g" in selected) {
             val journal = OutboundApi.loadJournalSnapshot(now)
@@ -148,6 +168,45 @@ object GluciferSender {
         GlucoseDelta.delta(reading.timeMillis, reading.mgdl.toFloat(), previous.timestamp, previousMgdl, 5)
             .takeIf { it.isFinite() }
     }.getOrNull()
+
+    private fun sendHistory(context: Context, destination: OutboundApiSettings.Destination, current: JSONObject) {
+        if (!destination.gluciferHistory) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val key = "history:" + destination.id
+        val saved = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?.takeIf { it.optString("url") == destination.url } ?: JSONObject().put("url", destination.url)
+        val now = System.currentTimeMillis()
+        var cursor = saved.optLong("cursor", now - GluciferHistory.RETENTION_MS)
+        if (saved.optLong("refresh_at", 0) in 1..now) {
+            cursor = now - GluciferHistory.RETENTION_MS
+            saved.remove("pending")
+            saved.remove("refresh_at")
+        }
+        val through = current.getJSONObject("glucose").getLong("time_ms")
+        val pending = saved.optJSONObject("pending") ?: run {
+            if (cursor >= through) return
+            val sensor = NotificationHistorySource.resolveSensorSerial() ?: return
+            val points = NotificationHistorySource.getDisplayHistory(cursor, false, sensor)
+            val raw = CurrentDisplaySource.resolveViewModeForSensor(sensor) in setOf(1, 3)
+            GluciferHistory.build(destination.id, points, cursor, through, now, raw) ?: run {
+                saved.put("cursor", through).put("refresh_at", now + 3600000L)
+                prefs.edit().putString(key, saved.toString()).commit()
+                return
+            }
+        }
+        saved.put("pending", pending)
+        if (!prefs.edit().putString(key, saved.toString()).commit()) return
+        val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
+        if (!latest.isReady() || !latest.isGlucifer() || !latest.gluciferHistory || latest.url != destination.url) return
+        val result = post(destination.resolvedUrl(), pending.toString())
+        if (result.first in 200..299 && GluciferHistory.acknowledged(result.second, pending)) {
+            saved.put("cursor", GluciferHistory.through(pending)).remove("pending")
+            if (GluciferHistory.through(pending) >= through) saved.put("refresh_at", now + 3600000L)
+            prefs.edit().putString(key, saved.toString()).commit()
+        } else {
+            OutboundApiSettings.recordAttempt(context, destination.id, result.first, context.getString(R.string.glucifer_history_failed))
+        }
+    }
 
     internal fun post(url: String, body: String): Pair<Int, String> {
         require(validUrl(url))
