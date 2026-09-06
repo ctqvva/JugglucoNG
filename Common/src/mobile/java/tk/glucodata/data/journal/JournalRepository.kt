@@ -75,6 +75,9 @@ class JournalRepository {
         val id = dao.upsertEntry(entity)
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        } else {
+            // Notes do not change IOB, but their journal delivery is still live.
+            tk.glucodata.GluciferSender.requestUpdate()
         }
         if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
@@ -206,6 +209,8 @@ class JournalRepository {
         }
         if (affectsIob(deletedType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        } else {
+            tk.glucodata.GluciferSender.requestUpdate()
         }
         if (deletedGlucose != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
