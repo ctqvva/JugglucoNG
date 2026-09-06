@@ -47,14 +47,18 @@ class GluciferSendLimiterTests {
         val encode = OutboundApiSettings::class.java.getDeclaredMethod("encodeDestinations", List::class.java).apply { isAccessible = true }
         val decode = OutboundApiSettings::class.java.getDeclaredMethod("decodeDestinations", String::class.java).apply { isAccessible = true }
         val destination = OutboundApiSettings.createDestination(OutboundApiSettings.PRESET_GLUCIFER)
-            .copy(gluciferMinIntervalSeconds = 5, gluciferFallbackSeconds = 30, gluciferLiveBypass = false)
+            .copy(gluciferMinIntervalSeconds = 5, gluciferFallbackSeconds = 30, gluciferLiveBypass = false, gluciferJournal = true, gluciferJournalDays = 90, gluciferJournalNotes = true)
         val raw = encode.invoke(OutboundApiSettings, listOf(destination)).toString()
         @Suppress("UNCHECKED_CAST")
         val restored = (decode.invoke(OutboundApiSettings, raw) as List<OutboundApiSettings.Destination>).single()
         assertEquals(5, restored.gluciferMinIntervalSeconds)
         assertEquals(30, restored.gluciferFallbackSeconds)
         assertFalse(restored.gluciferLiveBypass)
+        assertTrue(restored.gluciferJournal)
+        assertEquals(90, restored.gluciferJournalDays)
+        assertTrue(restored.gluciferJournalNotes)
         val old = org.json.JSONArray(raw)
+        listOf("gluciferJournal", "gluciferJournalDays", "gluciferJournalNotes").forEach { old.getJSONObject(0).remove(it) }
         old.getJSONObject(0).remove("gluciferMinIntervalSeconds")
         old.getJSONObject(0).remove("gluciferFallbackSeconds")
         old.getJSONObject(0).remove("gluciferLiveBypass")
@@ -63,5 +67,8 @@ class GluciferSendLimiterTests {
         assertEquals(1, migrated.gluciferMinIntervalSeconds)
         assertEquals(3600, migrated.gluciferFallbackSeconds)
         assertTrue(migrated.gluciferLiveBypass)
+        assertFalse(migrated.gluciferJournal)
+        assertFalse(migrated.gluciferJournalNotes)
+        assertEquals(7, migrated.gluciferJournalDays)
     }
 }

@@ -83,6 +83,12 @@
     public final float getVelocity();
 }
 
+# GluciferSender resolves the mobile-only journal exporter by name.
+-keepnames class tk.glucodata.OutboundApiJournalSnapshot
+-keepclassmembers class tk.glucodata.OutboundApiJournalSnapshot {
+    public static java.lang.String gluciferJournalJson(int,boolean,long);
+}
+
 #-keep class tk.glucodata.watchface.WatchFaceService
 #-keep class tk.glucodata.watchface.WatchFaceService.editor.WatchFaceConfigActivity
 
