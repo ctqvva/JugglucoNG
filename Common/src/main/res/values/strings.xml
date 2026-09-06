@@ -2444,6 +2444,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Rate of change</string>
     <string name="glucifer_raw">Raw glucose</string>
     <string name="glucifer_auto">Automatically calibrated glucose</string>
+    <string name="glucifer_phone_battery">Phone battery level</string>
     <string name="glucifer_sensor_id">Sensor identifier</string>
     <string name="glucifer_sensor_generation">Sensor generation</string>
     <string name="outbound_api_title">API destinations</string>

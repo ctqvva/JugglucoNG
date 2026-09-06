@@ -1873,6 +1873,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Vitesse de variation</string>
     <string name="glucifer_raw">Glucose brut</string>
     <string name="glucifer_auto">Glucose calibré automatiquement</string>
+    <string name="glucifer_phone_battery">Niveau de batterie du téléphone</string>
     <string name="glucifer_sensor_id">Identifiant du capteur</string>
     <string name="glucifer_sensor_generation">Génération du capteur</string>
     <string name="outbound_api_title">Destinations API</string>

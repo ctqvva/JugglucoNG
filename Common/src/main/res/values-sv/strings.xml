@@ -1867,6 +1867,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Förändringshastighet</string>
     <string name="glucifer_raw">Råa glukosvärden</string>
     <string name="glucifer_auto">Automatiskt kalibrerat glukos</string>
+    <string name="glucifer_phone_battery">Telefonens batterinivå</string>
     <string name="glucifer_sensor_id">Sensoridentifierare</string>
     <string name="glucifer_sensor_generation">Sensorgeneration</string>
     <string name="outbound_api_title">API-mål</string>

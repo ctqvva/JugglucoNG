@@ -1992,6 +1992,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucifer_rate">Änderungsrate</string>
     <string name="glucifer_raw">Rohe Glukosewerte</string>
     <string name="glucifer_auto">Automatisch kalibrierte Glukose</string>
+    <string name="glucifer_phone_battery">Akkustand des Telefons</string>
     <string name="glucifer_sensor_id">Sensorkennung</string>
     <string name="glucifer_sensor_generation">Sensorgeneration</string>
     <string name="outbound_api_title">API-Ziele</string>

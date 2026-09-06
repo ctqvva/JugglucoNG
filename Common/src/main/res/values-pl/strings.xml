@@ -1902,6 +1902,7 @@
     <string name="glucifer_rate">Tempo zmian</string>
     <string name="glucifer_raw">Surowa glukoza</string>
     <string name="glucifer_auto">Glukoza kalibrowana automatycznie</string>
+    <string name="glucifer_phone_battery">Poziom baterii telefonu</string>
     <string name="glucifer_sensor_id">Identyfikator sensora</string>
     <string name="glucifer_sensor_generation">Generacja sensora</string>
     <string name="outbound_api_title">Miejsca docelowe API</string>

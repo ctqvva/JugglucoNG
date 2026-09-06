@@ -1868,6 +1868,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Taxa de variação</string>
     <string name="glucifer_raw">Glicose bruta</string>
     <string name="glucifer_auto">Glicose calibrada automaticamente</string>
+    <string name="glucifer_phone_battery">Nível de bateria do telefone</string>
     <string name="glucifer_sensor_id">Identificador do sensor</string>
     <string name="glucifer_sensor_generation">Geração do sensor</string>
     <string name="outbound_api_title">Destinos de API</string>

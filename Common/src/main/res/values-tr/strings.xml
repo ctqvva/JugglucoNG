@@ -1895,6 +1895,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucifer_rate">Değişim hızı</string>
     <string name="glucifer_raw">Ham glikoz</string>
     <string name="glucifer_auto">Otomatik kalibre edilmiş glikoz</string>
+    <string name="glucifer_phone_battery">Telefon pil seviyesi</string>
     <string name="glucifer_sensor_id">Sensör kimliği</string>
     <string name="glucifer_sensor_generation">Sensör nesli</string>
     <string name="outbound_api_title">API hedefleri</string>

@@ -1938,6 +1938,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Хуткасць змены</string>
     <string name="glucifer_raw">Неапрацаваная глюкоза</string>
     <string name="glucifer_auto">Аўтаматычна адкалібраваная глюкоза</string>
+    <string name="glucifer_phone_battery">Узровень зараду тэлефона</string>
     <string name="glucifer_sensor_id">Ідэнтыфікатар сенсара</string>
     <string name="glucifer_sensor_generation">Пакаленне сенсара</string>
     <string name="outbound_api_title">Прызначэнні API</string>

@@ -1910,6 +1910,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucifer_rate">Veranderingssnelheid</string>
     <string name="glucifer_raw">Ruwe glucose</string>
     <string name="glucifer_auto">Automatisch gekalibreerde glucose</string>
+    <string name="glucifer_phone_battery">Batterijniveau van de telefoon</string>
     <string name="glucifer_sensor_id">Sensoridentificatie</string>
     <string name="glucifer_sensor_generation">Sensorgeneratie</string>
     <string name="outbound_api_title">API-bestemmingen</string>

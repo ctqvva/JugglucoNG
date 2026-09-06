@@ -1481,7 +1481,7 @@ private fun GluciferFields(
         "auto_mgdl" to R.string.glucifer_auto,
         "iob_u" to R.string.notification_show_iob_title,
         "cob_g" to R.string.notification_show_cob_title,
-        "battery_percent" to R.string.battery,
+        "battery_percent" to R.string.glucifer_phone_battery,
         "sensor_id" to R.string.glucifer_sensor_id,
         "sensor_generation" to R.string.glucifer_sensor_generation,
         "sensor_started_ms" to R.string.sensor_started,

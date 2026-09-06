@@ -1943,6 +1943,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_rate">Швидкість зміни</string>
     <string name="glucifer_raw">Необроблена глюкоза</string>
     <string name="glucifer_auto">Автоматично відкалібрована глюкоза</string>
+    <string name="glucifer_phone_battery">Рівень заряду телефона</string>
     <string name="glucifer_sensor_id">Ідентифікатор сенсора</string>
     <string name="glucifer_sensor_generation">Покоління сенсора</string>
     <string name="outbound_api_title">Призначення API</string>

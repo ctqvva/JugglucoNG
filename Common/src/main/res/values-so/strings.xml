@@ -2185,6 +2185,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucifer_rate">Xawaaraha isbeddelka</string>
     <string name="glucifer_raw">Gulukoosta ceeriin</string>
     <string name="glucifer_auto">Gulukoosta si toos ah loo saxay</string>
+    <string name="glucifer_phone_battery">Heerka batteriga taleefanka</string>
     <string name="glucifer_sensor_id">Aqoonsiga dareemaha</string>
     <string name="glucifer_sensor_generation">Jiilka dareemaha</string>
     <string name="outbound_api_title">Goobaha API</string>
