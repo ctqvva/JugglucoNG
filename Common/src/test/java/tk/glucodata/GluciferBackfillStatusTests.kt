@@ -5,6 +5,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class GluciferBackfillStatusTests {
+    @Test fun `unacknowledged transitions are reconciled even if the desired state returns to its old value`() {
+        val state = JSONObject().put("backfill_active", true)
+        assertFalse(GluciferBackfillStatus.needsReport(state, true))
+        assertTrue(GluciferBackfillStatus.needsReport(state, false))
+        state.put("status_pending", GluciferBackfillStatus.build("phone", false))
+        assertTrue(GluciferBackfillStatus.needsReport(state, true))
+    }
+
     @Test fun `older receivers do not get unsupported status messages`() {
         assertFalse(GluciferBackfillStatus.supported("{}"))
         assertTrue(GluciferBackfillStatus.supported("{\"capabilities\":[\"backfill_status\"]}"))

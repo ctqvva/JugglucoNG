@@ -297,7 +297,7 @@ object GluciferSender {
         state: JSONObject, active: Boolean): Boolean? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.getBoolean("backfill_status:" + destination.id, false)) return true
-        if (state.opt("backfill_active") == active) return true
+        if (!GluciferBackfillStatus.needsReport(state, active)) return true
         val payload = state.optJSONObject("status_pending")?.takeIf { it.opt("active") == active }
             ?: GluciferBackfillStatus.build(destination.id, active)
         state.put("status_pending", payload)
