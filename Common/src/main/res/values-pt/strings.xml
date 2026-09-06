@@ -1872,9 +1872,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">As alterações são guardadas automaticamente. Ative este destino, envie uma mensagem de teste e toque em Concluído.</string>
     <string name="glucifer_live_bypass">Os eventos em direto ignoram o intervalo em segundo plano</string>
     <string name="glucifer_hours">%1$d h</string>
-    <string name="glucifer_min_interval">Intervalo de envio em segundo plano</string>
-    <string name="glucifer_live_updates">Novas leituras de glicose e alterações guardadas enviam atualizações. O temporizador de recurso atua apenas quando não houve envios.</string>
-    <string name="glucifer_fallback_interval">Verificar após inatividade</string>
+    <string name="glucifer_min_interval">Pausa entre pedidos em segundo plano</string>
+    <string name="glucifer_fallback_interval">Procurar atualizações em falta após</string>
+    <string name="glucifer_fallback_help">Após este tempo sem um envio em direto bem-sucedido, procurar alterações. Os dados inalterados não são enviados.</string>
+    <string name="glucifer_background_spacing_help">Espaça os lotes de histórico e outros pedidos em segundo plano pendentes. Não inicia envios contínuos.</string>
+    <string name="glucifer_all_spacing_help">Espaça as atualizações em direto e os pedidos em segundo plano. As atualizações aguardam o fim desta pausa.</string>
+    <string name="glucifer_all_spacing_title">Pausa entre todos os pedidos</string>
+    <string name="glucifer_live_bypass_help">Ativado: novas leituras, alterações do diário e alertas são enviados prontamente, no máximo uma vez por segundo. Desativado: a pausa abaixo também se aplica.</string>
+    <string name="glucifer_minutes">%1$d min</string>
     <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Nível de bateria do telefone</string>
     <string name="glucifer_sensor_id">Identificador do sensor</string>

@@ -1861,9 +1861,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">Le modifiche vengono salvate automaticamente. Attiva questa destinazione, invia un messaggio di prova e tocca Fine.</string>
     <string name="glucifer_live_bypass">Gli eventi in tempo reale ignorano l’intervallo in background</string>
     <string name="glucifer_hours">%1$d h</string>
-    <string name="glucifer_min_interval">Intervallo di invio in background</string>
-    <string name="glucifer_live_updates">Le nuove letture del glucosio e le modifiche salvate inviano aggiornamenti. Il timer di riserva interviene solo in assenza di invii.</string>
-    <string name="glucifer_fallback_interval">Controlla dopo inattività</string>
+    <string name="glucifer_min_interval">Pausa tra le richieste in background</string>
+    <string name="glucifer_fallback_interval">Controlla gli aggiornamenti mancanti dopo</string>
+    <string name="glucifer_fallback_help">Dopo questo tempo senza un invio in tempo reale riuscito, verifica le modifiche. I dati invariati non vengono inviati.</string>
+    <string name="glucifer_background_spacing_help">Distanzia i lotti storici e le altre richieste in background in attesa. Non avvia invii continui.</string>
+    <string name="glucifer_all_spacing_help">Distanzia gli aggiornamenti in tempo reale e le richieste in background. Gli aggiornamenti attendono la fine della pausa.</string>
+    <string name="glucifer_all_spacing_title">Pausa tra tutte le richieste</string>
+    <string name="glucifer_live_bypass_help">Attivo: nuove letture, modifiche al diario e avvisi vengono inviati subito, al massimo una volta al secondo. Disattivo: si applica anche la pausa seguente.</string>
+    <string name="glucifer_minutes">%1$d min</string>
     <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Livello della batteria del telefono</string>
     <string name="glucifer_sensor_id">Identificativo del sensore</string>

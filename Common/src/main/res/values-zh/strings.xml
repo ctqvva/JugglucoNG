@@ -1887,9 +1887,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">更改会自动保存。启用此目标，发送测试消息，然后点击完成。</string>
     <string name="glucifer_live_bypass">实时事件不受后台间隔限制</string>
     <string name="glucifer_hours">%1$d 小时</string>
-    <string name="glucifer_min_interval">后台发送间隔</string>
-    <string name="glucifer_live_updates">新的血糖读数和保存的更改会自动触发更新。仅在没有发送更新时使用备用计时器。</string>
-    <string name="glucifer_fallback_interval">无更新后的检查间隔</string>
+    <string name="glucifer_min_interval">后台请求之间的间隔</string>
+    <string name="glucifer_fallback_interval">检查遗漏更新的等待时间</string>
+    <string name="glucifer_fallback_help">超过此时间没有成功发送实时更新时，检查数据变化。不会发送未变化的数据。</string>
+    <string name="glucifer_background_spacing_help">有待发送数据时，控制历史批次和其他后台请求之间的间隔。不会触发持续发送。</string>
+    <string name="glucifer_all_spacing_help">控制实时更新和后台请求之间的间隔。待发送的更新会等到此间隔结束。</string>
+    <string name="glucifer_all_spacing_title">所有请求之间的间隔</string>
+    <string name="glucifer_live_bypass_help">开启：新的血糖读数、日志更改和警报会及时发送，每秒最多一次。关闭：这些更新也遵守下方的请求间隔。</string>
+    <string name="glucifer_minutes">%1$d 分钟</string>
     <string name="glucifer_seconds">%1$d 秒</string>
     <string name="glucifer_phone_battery">手机电量</string>
     <string name="glucifer_sensor_id">传感器标识</string>

@@ -1947,9 +1947,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">Зміни зберігаються автоматично. Увімкніть це призначення, надішліть тестове повідомлення та натисніть Готово.</string>
     <string name="glucifer_live_bypass">Поточні події оминають фоновий інтервал</string>
     <string name="glucifer_hours">%1$d год</string>
-    <string name="glucifer_min_interval">Інтервал фонового надсилання</string>
-    <string name="glucifer_live_updates">Нові значення глюкози та збережені зміни надсилаються автоматично. Резервний таймер працює лише за відсутності надсилань.</string>
-    <string name="glucifer_fallback_interval">Перевірка за відсутності надсилань</string>
+    <string name="glucifer_min_interval">Пауза між фоновими запитами</string>
+    <string name="glucifer_fallback_interval">Перевіряти пропущені оновлення через</string>
+    <string name="glucifer_fallback_help">Після цього часу без успішного надсилання поточних даних перевіряти зміни. Незмінені дані не надсилаються.</string>
+    <string name="glucifer_background_spacing_help">Задає паузу між пакетами історії та іншими фоновими запитами в черзі. Не запускає безперервне надсилання.</string>
+    <string name="glucifer_all_spacing_help">Задає паузу між поточними оновленнями та фоновими запитами. Оновлення в черзі чекають завершення паузи.</string>
+    <string name="glucifer_all_spacing_title">Пауза між усіма запитами</string>
+    <string name="glucifer_live_bypass_help">Увімкнено: нові показання, зміни щоденника та тривоги надсилаються швидко, не частіше разу на секунду. Вимкнено: до них також застосовується пауза нижче.</string>
+    <string name="glucifer_minutes">%1$d хв</string>
     <string name="glucifer_seconds">%1$d с</string>
     <string name="glucifer_phone_battery">Рівень заряду телефона</string>
     <string name="glucifer_sensor_id">Ідентифікатор сенсора</string>

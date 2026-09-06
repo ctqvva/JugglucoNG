@@ -1894,9 +1894,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucifer_saved_help">Өөрчлөлтүүд автоматаар хадгалагдана. Энэ илгээх тохиргоог идэвхжүүлж, туршилтын зурвас илгээгээд Дуусгах дээр товшино уу.</string>
     <string name="glucifer_live_bypass">Шууд үйл явдал арын илгээлтийн зайг алгасана</string>
     <string name="glucifer_hours">%1$d цаг</string>
-    <string name="glucifer_min_interval">Арын илгээлтийн зай</string>
-    <string name="glucifer_live_updates">Глюкозын шинэ хэмжилт болон хадгалсан өөрчлөлтүүд автоматаар илгээгдэнэ. Мэдээлэл илгээгдээгүй үед л нөөц таймер ажиллана.</string>
-    <string name="glucifer_fallback_interval">Идэвхгүй үед шалгах</string>
+    <string name="glucifer_min_interval">Арын хүсэлтүүдийн хоорондох завсар</string>
+    <string name="glucifer_fallback_interval">Алдагдсан шинэчлэлтийг шалгах хугацаа</string>
+    <string name="glucifer_fallback_help">Энэ хугацаанд шууд илгээлт амжилтгүй бол өөрчлөгдсөн өгөгдлийг шалгана. Өөрчлөгдөөгүй өгөгдлийг илгээхгүй.</string>
+    <string name="glucifer_background_spacing_help">Хүлээгдэж буй түүхийн багц болон бусад арын хүсэлтүүдийн хооронд завсар гаргана. Тасралтгүй илгээлт эхлүүлэхгүй.</string>
+    <string name="glucifer_all_spacing_help">Шууд шинэчлэлт болон арын хүсэлтүүдийн хооронд завсар гаргана. Хүлээгдэж буй шинэчлэлт завсар дуусахыг хүлээнэ.</string>
+    <string name="glucifer_all_spacing_title">Бүх хүсэлтийн хоорондох завсар</string>
+    <string name="glucifer_live_bypass_help">Асаалттай: шинэ хэмжилт, өдрийн тэмдэглэлийн өөрчлөлт, дохиог секундэд дээд тал нь нэг удаа шуурхай илгээнэ. Унтраалттай: доорх завсар мөн үйлчилнэ.</string>
+    <string name="glucifer_minutes">%1$d мин</string>
     <string name="glucifer_seconds">%1$d сек</string>
     <string name="glucifer_phone_battery">Утасны батарейн түвшин</string>
     <string name="glucifer_sensor_id">Мэдрэгчийн таних дугаар</string>
