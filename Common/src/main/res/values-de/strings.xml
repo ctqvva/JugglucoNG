@@ -1996,10 +1996,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucifer_saved_help">Änderungen werden automatisch gespeichert. Dieses Ziel einschalten, eine Testnachricht senden und dann auf Fertig tippen.</string>
     <string name="glucifer_live_bypass">Live-Ereignisse umgehen das Hintergrundintervall</string>
     <string name="glucifer_hours">%1$d Std.</string>
-    <string name="glucifer_min_interval">Pause zwischen Hintergrundanfragen</string>
+    <string name="glucifer_min_interval">Mindestabstand zwischen Hintergrundanfragen</string>
     <string name="glucifer_fallback_interval">Auf ausstehende Updates prüfen nach</string>
     <string name="glucifer_fallback_help">Nach dieser Zeit ohne erfolgreiches Live-Update auf geänderte Daten prüfen. Unveränderte Daten werden nicht gesendet.</string>
-    <string name="glucifer_background_spacing_help">Abstand zwischen Verlaufspaketen und anderen Hintergrundanfragen, solange Daten ausstehen. Löst keinen dauernden Versand aus.</string>
+    <string name="glucifer_background_spacing_help">Begrenzt, wie schnell ausstehende Hintergrunddaten gesendet werden. Löst keine regelmäßigen Übertragungen aus. Live-Ereignisse werden bevorzugt gesendet.</string>
     <string name="glucifer_all_spacing_help">Abstand zwischen Live-Updates und Hintergrundanfragen. Ausstehende Updates warten, bis diese Pause abgelaufen ist.</string>
     <string name="glucifer_all_spacing_title">Pause zwischen allen Anfragen</string>
     <string name="glucifer_live_bypass_help">Ein: Neue Glukosewerte, Tagebuchänderungen und Alarme werden zeitnah gesendet, höchstens einmal pro Sekunde. Aus: Auch dafür gilt die folgende Pause.</string>

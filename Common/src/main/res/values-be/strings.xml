@@ -1942,10 +1942,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">Змены захоўваюцца аўтаматычна. Уключыце гэта прызначэнне, адпраўце тэставае паведамленне і націсніце Гатова.</string>
     <string name="glucifer_live_bypass">Бягучыя падзеі абмінаюць фонавы інтэрвал</string>
     <string name="glucifer_hours">%1$d г</string>
-    <string name="glucifer_min_interval">Паўза паміж фонавымі запытамі</string>
+    <string name="glucifer_min_interval">Мінімальны інтэрвал паміж фонавымі запытамі</string>
     <string name="glucifer_fallback_interval">Правяраць прапушчаныя абнаўленні праз</string>
     <string name="glucifer_fallback_help">Пасля гэтага часу без паспяховай адпраўкі бягучых даных правяраць змены. Нязмененыя даныя не адпраўляюцца.</string>
-    <string name="glucifer_background_spacing_help">Задае паўзу паміж пакетамі гісторыі і іншымі фонавымі запытамі ў чарзе. Не запускае бесперапынную адпраўку.</string>
+    <string name="glucifer_background_spacing_help">Абмяжоўвае хуткасць адпраўкі фонавых даных у чарзе. Не запускае перыядычныя абнаўленні. Падзеі ў рэальным часе маюць прыярытэт.</string>
     <string name="glucifer_all_spacing_help">Задае паўзу паміж бягучымі абнаўленнямі і фонавымі запытамі. Абнаўленні ў чарзе чакаюць заканчэння паўзы.</string>
     <string name="glucifer_all_spacing_title">Паўза паміж усімі запытамі</string>
     <string name="glucifer_live_bypass_help">Уключана: новыя паказанні, змены дзённіка і трывогі адпраўляюцца хутка, не часцей за раз у секунду. Выключана: да іх таксама ўжываецца паўза ніжэй.</string>

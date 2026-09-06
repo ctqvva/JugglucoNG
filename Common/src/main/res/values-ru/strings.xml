@@ -1915,10 +1915,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">Изменения сохраняются автоматически. Включите это назначение, отправьте тестовое сообщение и нажмите Готово.</string>
     <string name="glucifer_live_bypass">Текущие события обходят фоновый интервал</string>
     <string name="glucifer_hours">%1$d ч</string>
-    <string name="glucifer_min_interval">Пауза между фоновыми запросами</string>
+    <string name="glucifer_min_interval">Минимальный интервал между фоновыми запросами</string>
     <string name="glucifer_fallback_interval">Проверять пропущенные обновления через</string>
     <string name="glucifer_fallback_help">После этого времени без успешной отправки текущих данных проверять изменения. Неизменённые данные не отправляются.</string>
-    <string name="glucifer_background_spacing_help">Задаёт паузу между пакетами истории и другими ожидающими фоновыми запросами. Не запускает непрерывную отправку.</string>
+    <string name="glucifer_background_spacing_help">Ограничивает скорость отправки фоновых данных в очереди. Не запускает периодические обновления. События в реальном времени имеют приоритет.</string>
     <string name="glucifer_all_spacing_help">Задаёт паузу между текущими обновлениями и фоновыми запросами. Ожидающие обновления отправляются после паузы.</string>
     <string name="glucifer_all_spacing_title">Пауза между всеми запросами</string>
     <string name="glucifer_live_bypass_help">Вкл.: новые показания, изменения дневника и тревоги отправляются быстро, не чаще раза в секунду. Выкл.: к ним также применяется пауза ниже.</string>

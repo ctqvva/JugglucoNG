@@ -1906,10 +1906,10 @@
     <string name="glucifer_saved_help">Zmiany są zapisywane automatycznie. Włącz to miejsce docelowe, wyślij wiadomość testową i wybierz Gotowe.</string>
     <string name="glucifer_live_bypass">Zdarzenia na żywo pomijają interwał w tle</string>
     <string name="glucifer_hours">%1$d godz.</string>
-    <string name="glucifer_min_interval">Przerwa między żądaniami w tle</string>
+    <string name="glucifer_min_interval">Minimalny odstęp między żądaniami w tle</string>
     <string name="glucifer_fallback_interval">Sprawdzaj brakujące aktualizacje po</string>
     <string name="glucifer_fallback_help">Po tym czasie bez udanej aktualizacji na żywo sprawdź zmiany danych. Niezmienione dane nie są wysyłane.</string>
-    <string name="glucifer_background_spacing_help">Rozdziela paczki historii i inne oczekujące żądania w tle. Nie uruchamia ciągłego wysyłania.</string>
+    <string name="glucifer_background_spacing_help">Ogranicza szybkość wysyłania oczekujących danych w tle. Nie uruchamia okresowych aktualizacji. Zdarzenia na żywo mają pierwszeństwo.</string>
     <string name="glucifer_all_spacing_help">Rozdziela aktualizacje na żywo i żądania w tle. Oczekujące aktualizacje czekają na koniec przerwy.</string>
     <string name="glucifer_all_spacing_title">Przerwa między wszystkimi żądaniami</string>
     <string name="glucifer_live_bypass_help">Włączone: nowe odczyty, zmiany dziennika i alarmy są wysyłane szybko, najwyżej raz na sekundę. Wyłączone: obowiązuje je także przerwa poniżej.</string>

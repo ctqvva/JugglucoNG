@@ -1914,10 +1914,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucifer_saved_help">Wijzigingen worden automatisch opgeslagen. Schakel deze bestemming in, stuur een testbericht en tik op Gereed.</string>
     <string name="glucifer_live_bypass">Livegebeurtenissen omzeilen het achtergrondinterval</string>
     <string name="glucifer_hours">%1$d u</string>
-    <string name="glucifer_min_interval">Pauze tussen achtergrondverzoeken</string>
+    <string name="glucifer_min_interval">Minimale tijd tussen achtergrondverzoeken</string>
     <string name="glucifer_fallback_interval">Controleren op gemiste updates na</string>
     <string name="glucifer_fallback_help">Controleer na deze tijd zonder geslaagde live-update op gewijzigde gegevens. Ongewijzigde gegevens worden niet verzonden.</string>
-    <string name="glucifer_background_spacing_help">Spreidt historische batches en andere wachtende achtergrondverzoeken. Dit start geen doorlopende verzending.</string>
+    <string name="glucifer_background_spacing_help">Beperkt hoe snel wachtende achtergrondgegevens worden verzonden. Start geen periodieke updates. Livegebeurtenissen krijgen voorrang.</string>
     <string name="glucifer_all_spacing_help">Spreidt live-updates en achtergrondverzoeken. Wachtende updates worden na deze pauze verzonden.</string>
     <string name="glucifer_all_spacing_title">Pauze tussen alle verzoeken</string>
     <string name="glucifer_live_bypass_help">Aan: nieuwe glucosemetingen, dagboekwijzigingen en alarmen worden snel verzonden, maximaal eenmaal per seconde. Uit: de onderstaande pauze geldt ook hiervoor.</string>

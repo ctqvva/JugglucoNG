@@ -2189,10 +2189,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucifer_saved_help">Isbeddellada si toos ah ayaa loo kaydiyaa. Daar goobtan, dir farriin tijaabo ah, dabadeed taabo Dhammee.</string>
     <string name="glucifer_live_bypass">Dhacdooyinka tooska ahi waxay dhaafaan muddada gadaasha</string>
     <string name="glucifer_hours">%1$d saac</string>
-    <string name="glucifer_min_interval">Nasashada u dhexaysa codsiyada gadaasha</string>
+    <string name="glucifer_min_interval">Waqtiga ugu yar ee u dhexeeya codsiyada gadaasha</string>
     <string name="glucifer_fallback_interval">Hubi xogta ka maqantay kadib</string>
     <string name="glucifer_fallback_help">Marka muddadan ay dhaafto iyada oo aan diris toos ahi guulaysan, hubi xogta is beddeshay. Xog aan is beddelin lama diro.</string>
-    <string name="glucifer_background_spacing_help">Waxay kala fogaysaa xirmooyinka taariikhda iyo codsiyada gadaasha ee sugaya. Ma bilowdo diris joogto ah.</string>
+    <string name="glucifer_background_spacing_help">Waxay xaddidaysaa xawaaraha dirista xogta gadaasha ee sugaysa. Ma bilowdo cusboonaysiin xilliyo go’an. Dhacdooyinka tooska ah ayaa mudnaan leh.</string>
     <string name="glucifer_all_spacing_help">Waxay kala fogaysaa cusboonaysiinta tooska ah iyo codsiyada gadaasha. Xogta sugaysa waxay sugtaa dhammaadka nasashada.</string>
     <string name="glucifer_all_spacing_title">Nasashada u dhexaysa dhammaan codsiyada</string>
     <string name="glucifer_live_bypass_help">Shidan: akhrisyada cusub, isbeddellada diiwaanka iyo digniinaha dhaqso ayaa loo diraa, ugu badnaan hal mar ilbiriqsikii. Demman: nasashada hoose iyagana way khusaysaa.</string>

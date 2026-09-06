@@ -2448,10 +2448,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_saved_help">Changes are saved automatically. Turn this destination on, send a test message, then tap Done.</string>
     <string name="glucifer_live_bypass">Live events bypass the background interval</string>
     <string name="glucifer_hours">%1$d h</string>
-    <string name="glucifer_min_interval">Pause between background requests</string>
+    <string name="glucifer_min_interval">Minimum gap between background requests</string>
     <string name="glucifer_fallback_interval">Check for missed updates after</string>
     <string name="glucifer_fallback_help">After this long without a successful live update, check for changed data. Unchanged data is not sent.</string>
-    <string name="glucifer_background_spacing_help">Spaces history batches and other background requests while work is pending. This does not schedule continuous sends.</string>
+    <string name="glucifer_background_spacing_help">Limits how quickly pending background data is sent. Does not trigger periodic updates. Live events take priority.</string>
     <string name="glucifer_all_spacing_help">Spaces live updates and background requests. Pending updates wait until this pause has elapsed.</string>
     <string name="glucifer_all_spacing_title">Pause between all requests</string>
     <string name="glucifer_live_bypass_help">On: new glucose readings, journal changes, and alerts send promptly, at most once per second. Off: they also use the request spacing below.</string>
