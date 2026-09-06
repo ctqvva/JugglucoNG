@@ -27,6 +27,7 @@ object GluciferSender {
     private val fallbackClock = GluciferFallbackClock()
     private var fallbackTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val historyTasks = mutableMapOf<String, java.util.concurrent.ScheduledFuture<*>>()
+    private val journalTasks = mutableMapOf<String, java.util.concurrent.ScheduledFuture<*>>()
     private val tests = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     internal fun requestTest(destinationId: String) {
@@ -100,6 +101,7 @@ object GluciferSender {
         val config = OutboundApiSettings.load(context)
         config.destinations.filter { it.isGlucifer() && it.isReady() && (fallbackIds == null || it.id in fallbackIds) }.forEach { destination ->
             try {
+                scheduleJournal(context, destination, fallbackIds == null)
                 val remaining = remaining(destination, fallbackIds == null)
                 if (remaining == 0L) send(context, destination, fallbackIds == null)
                 else if (fallbackIds == null) scheduleUpdate(remaining)
@@ -155,7 +157,8 @@ object GluciferSender {
         if (result.first in 200..299 && GluciferPayload.acknowledged(
                 result.second, destination.id, payload.getLong("sequence"), payload.getInt("schema_version"))) {
             prefs.edit().putString(key, record.put("pending", false).toString())
-                .putBoolean("backfill_status:" + destination.id, GluciferBackfillStatus.supported(result.second)).apply()
+                .putBoolean("backfill_status:" + destination.id, GluciferBackfillStatus.supported(result.second))
+                .putBoolean("journal_capable:" + destination.id, GluciferJournal.supported(result.second)).apply()
             OutboundApiSettings.recordSuccess(context, destination.id, result.first)
             fallbackClock.reset(destination.id, SystemClock.elapsedRealtime())
             if (destination.gluciferHistory) {
@@ -235,8 +238,9 @@ object GluciferSender {
     }
 
     private fun sendHistory(context: Context, destination: OutboundApiSettings.Destination, current: JSONObject) {
-        if (liveUpdateWaiting()) {
-            scheduleHistory(context, destination, current, liveUpdateDelay())
+        if (liveUpdateWaiting() || journalTasks.isNotEmpty()) {
+            val journalDelay = journalTasks.values.minOfOrNull { it.getDelay(TimeUnit.MILLISECONDS) } ?: 0L
+            scheduleHistory(context, destination, current, maxOf(liveUpdateDelay(), journalDelay))
             return
         }
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -327,6 +331,67 @@ object GluciferSender {
                 }
             }
         }, delayMs.coerceAtLeast(1000L), TimeUnit.MILLISECONDS)
+    }
+
+    private fun scheduleJournal(context: Context, destination: OutboundApiSettings.Destination,
+        live: Boolean, delayMs: Long = 1000L) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!destination.gluciferJournal && !prefs.contains("journal:" + destination.id)) return
+        if (!live && journalTasks.containsKey(destination.id)) return
+        journalTasks.remove(destination.id)?.cancel(false)
+        journalTasks[destination.id] = executor.schedule({
+            journalTasks.remove(destination.id)
+            val latest = OutboundApiSettings.load(context).findDestination(destination.id)
+            if (latest != null && latest.isGlucifer() && latest.isReady()) {
+                try { sendJournal(context, latest, live) } catch (_: Exception) {
+                    OutboundApiSettings.recordAttempt(context, latest.id, -1, context.getString(R.string.glucifer_journal_failed))
+                }
+            }
+        }, delayMs.coerceAtLeast(1000L), TimeUnit.MILLISECONDS)
+    }
+
+    private fun sendJournal(context: Context, destination: OutboundApiSettings.Destination, live: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("journal_capable:" + destination.id, false)) return
+        if (liveUpdateWaiting()) {
+            scheduleJournal(context, destination, live, liveUpdateDelay())
+            return
+        }
+        val key = "journal:" + destination.id
+        val saved = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
+        if (saved.optString("url") != destination.url) {
+            saved.remove("pending"); saved.remove("acknowledged"); saved.remove("settings")
+            saved.put("url", destination.url)
+        }
+        val now = System.currentTimeMillis()
+        val current = if (destination.gluciferJournal) {
+            // Journal exists in the mobile source set only. Failure must not look like an empty journal.
+            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
+            val method = type.getMethod("gluciferJournalJson", Integer.TYPE, java.lang.Boolean.TYPE, java.lang.Long.TYPE)
+            val entries = org.json.JSONArray(method.invoke(null, destination.gluciferJournalDays, destination.gluciferJournalNotes, now).toString())
+            (0 until entries.length()).map { entries.getJSONObject(it) }
+        } else emptyList()
+        val payload = GluciferJournal.next(saved, destination.id, current, destination.gluciferJournal,
+            destination.gluciferJournalDays, destination.gluciferJournalNotes, now) ?: return
+        if (!prefs.edit().putString(key, saved.toString()).commit()) return
+        val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
+        if (!latest.isReady() || !latest.isGlucifer() || latest.url != destination.url ||
+            latest.gluciferJournal != destination.gluciferJournal || latest.gluciferJournalDays != destination.gluciferJournalDays ||
+            latest.gluciferJournalNotes != destination.gluciferJournalNotes) return
+        if (!acquire(latest, live)) {
+            scheduleJournal(context, latest, live, remaining(latest, live))
+            return
+        }
+        val result = post(latest.resolvedUrl(), payload.toString())
+        if (result.first in 200..299 && GluciferJournal.acknowledged(result.second, payload)) {
+            GluciferJournal.accept(saved, payload)
+            if (!prefs.edit().putString(key, saved.toString()).commit()) return
+            OutboundApiSettings.recordSuccess(context, destination.id, result.first)
+            if (live) fallbackClock.reset(destination.id, SystemClock.elapsedRealtime())
+            scheduleJournal(context, latest, live)
+        } else {
+            OutboundApiSettings.recordAttempt(context, destination.id, result.first, context.getString(R.string.glucifer_journal_failed))
+        }
     }
 
     private fun remaining(destination: OutboundApiSettings.Destination, live: Boolean): Long =
