@@ -3552,7 +3552,8 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
-            activeInsulinSummary?.let { summary ->
+            if (activeInsulinSummary != null || stateDoseHint != null) {
+                val summary = activeInsulinSummary
                 val unitsLabel = { units: Float ->
                     if (units % 1f < 0.05f) {
                         units.roundToInt().toString()
@@ -3560,12 +3561,12 @@ fun InteractiveGlucoseChart(
                         String.format(java.util.Locale.getDefault(), "%.1f", units)
                     }
                 }
-                val iobValue = stringResource(R.string.unit_insulin_value, unitsLabel(summary.iobUnits))
-                val eiobValue = stringResource(R.string.unit_insulin_value, unitsLabel(summary.eiobUnits))
-                val totalUnitsLabel = unitsLabel(summary.totalUnits)
+                val iobValue = summary?.let { stringResource(R.string.unit_insulin_value, unitsLabel(it.iobUnits)) }
+                val eiobValue = summary?.let { stringResource(R.string.unit_insulin_value, unitsLabel(it.eiobUnits)) }
+                val totalUnitsLabel = summary?.let { unitsLabel(it.totalUnits) }
                 val remainingLabel = formatRemainingDuration(
                     LocalContext.current,
-                    summary.activeUntil?.minus(System.currentTimeMillis())
+                    summary?.activeUntil?.minus(System.currentTimeMillis())
                 )
                 val doseHintAmount = remember(stateDoseHint?.kind, stateDoseHint?.amount) {
                     stateDoseHint?.let { hint ->
@@ -3616,7 +3617,7 @@ fun InteractiveGlucoseChart(
                         } else {
                             stringResource(R.string.dashboard_dose_hint_carbs, doseHintAmount)
                         }
-                        StateDoseHintKind.INSULIN -> if (isActiveInsulinExpanded) {
+                        StateDoseHintKind.INSULIN -> if (summary == null || isActiveInsulinExpanded) {
                             stringResource(R.string.dashboard_dose_hint_insulin, doseHintAmount)
                         } else {
                             stringResource(
@@ -3646,7 +3647,7 @@ fun InteractiveGlucoseChart(
                         .widthIn(max = activeInsulinMaxWidth)
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
-                        .clickable { isActiveInsulinExpanded = !isActiveInsulinExpanded },
+                        .clickable(enabled = summary != null) { isActiveInsulinExpanded = !isActiveInsulinExpanded },
                     shape = activeInsulinShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
                     tonalElevation = 0.dp,
@@ -3660,37 +3661,39 @@ fun InteractiveGlucoseChart(
                     ) {
                         // Expanding spells the abbreviations out in place instead of
                         // repeating the same two numbers in a second block below.
-                        if (isActiveInsulinExpanded) {
-                            Text(
-                                text = stringResource(R.string.dashboard_iob_full, iobValue),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (showEiob) {
+                        if (iobValue != null) {
+                            if (isActiveInsulinExpanded) {
                                 Text(
-                                    text = stringResource(R.string.dashboard_eiob_full, eiobValue),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.dashboard_iob_short, iobValue),
+                                    text = stringResource(R.string.dashboard_iob_full, iobValue),
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
+                                    fontWeight = FontWeight.SemiBold
                                 )
-                                if (showEiob) {
+                                if (showEiob && eiobValue != null) {
                                     Text(
-                                        text = stringResource(R.string.dashboard_eiob_short, eiobValue),
+                                        text = stringResource(R.string.dashboard_eiob_full, eiobValue),
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.dashboard_iob_short, iobValue),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
                                         maxLines = 1
                                     )
+                                    if (showEiob && eiobValue != null) {
+                                        Text(
+                                            text = stringResource(R.string.dashboard_eiob_short, eiobValue),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -3722,7 +3725,7 @@ fun InteractiveGlucoseChart(
                                 )
                             }
                         }
-                        if (isActiveInsulinExpanded) {
+                        if (isActiveInsulinExpanded && summary != null && totalUnitsLabel != null) {
                             Text(
                                 text = stringResource(
                                     R.string.journal_active_insulin_summary,
