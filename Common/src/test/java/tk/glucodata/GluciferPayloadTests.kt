@@ -93,6 +93,41 @@ class GluciferPayloadTests {
         assertSame(candidate, GluciferPayload.nextDelivery(original, candidate, false, true, now))
     }
 
+    @Test fun `measurement rounding removes small IOB changes before comparison`() {
+        val selected = setOf("iob_u", "cob_g", "rate_mgdl_min", "delta_mgdl")
+        val first = payload(selected = selected, values = mapOf("iob_u" to 1.234567, "cob_g" to 12.367,
+            "rate_mgdl_min" to -0.167, "delta_mgdl" to -1.267))
+        val second = payload(selected = selected, seq = 2, values = mapOf("iob_u" to 1.234568, "cob_g" to 12.367,
+            "rate_mgdl_min" to -0.167, "delta_mgdl" to -1.267))
+        val fields = first.getJSONObject("fields")
+        assertEquals(1.2, fields.getDouble("iob_u"), 0.0)
+        assertEquals(12.4, fields.getDouble("cob_g"), 0.0)
+        assertEquals(-0.2, fields.getDouble("rate_mgdl_min"), 0.0)
+        assertEquals(-1.3, fields.getDouble("delta_mgdl"), 0.0)
+        assertTrue(GluciferPayload.sameData(first, second))
+        assertNull(GluciferPayload.nextDelivery(first, second, false, false, first.getLong("sent_at_ms") + 1000))
+    }
+
+    @Test fun `journal and alert changes send without waiting for another glucose reading`() {
+        val original = payload(selected = setOf("iob_u", "alert:high"), values = mapOf("iob_u" to 2.0))
+        val changed = payload(selected = setOf("iob_u", "alert:high"), seq = 2, values = mapOf("iob_u" to 1.0))
+        val now = original.getLong("sent_at_ms") + 1000
+        assertEquals(original.getJSONObject("glucose").toString(), changed.getJSONObject("glucose").toString())
+        assertSame(changed, GluciferPayload.nextDelivery(original, changed, false, false, now))
+        val cleared = payload(selected = setOf("iob_u", "alert:high"), seq = 3,
+            values = mapOf("iob_u" to 1.0), alerts = mapOf("high" to false))
+        assertSame(cleared, GluciferPayload.nextDelivery(changed, cleared, false, false, now + 1000))
+    }
+
+    @Test fun `rounding preserves lifecycle timestamps and boolean alerts`() {
+        val timestamp = 1_788_600_123_456L
+        val result = payload(selected = setOf("sensor_started_ms", "sensor_warmup", "alert:high"),
+            values = mapOf("sensor_started_ms" to timestamp, "sensor_warmup" to false))
+        assertEquals(timestamp, result.getJSONObject("fields").getLong("sensor_started_ms"))
+        assertEquals(false, result.getJSONObject("fields").get("sensor_warmup"))
+        assertEquals(true, result.getJSONObject("alerts").get("high"))
+    }
+
     @Test fun `HTTP transport posts the snapshot and never follows redirects`() {
         val received = AtomicReference<String>()
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)

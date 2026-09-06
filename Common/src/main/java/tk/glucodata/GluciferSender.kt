@@ -2,6 +2,7 @@ package tk.glucodata
 
 import android.content.Context
 import android.os.BatteryManager
+import android.os.SystemClock
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
@@ -17,8 +18,15 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 /** One bounded sender queue, independent of other API destinations and sensor callbacks. */
 object GluciferSender {
     private const val PREFS = "glucifer_sender"
+    private val limiter = GluciferSendLimiter()
     private val started = AtomicBoolean(false)
-    private val queued = AtomicBoolean(false)
+    private val updateLock = Any()
+    private var updateTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private var updateDueMs = Long.MAX_VALUE
+    private var updateGeneration = 0L
+    private val fallbackClock = GluciferFallbackClock()
+    private var fallbackTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private val historyTasks = mutableMapOf<String, java.util.concurrent.ScheduledFuture<*>>()
     private val tests = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     internal fun requestTest(destinationId: String) {
@@ -31,20 +39,53 @@ object GluciferSender {
 
     @JvmStatic
     fun ensureRunning(context: Context) {
-        if (!OutboundApiSettings.load(context).destinations.any { it.isGlucifer() && it.isReady() }) return
-        if (started.compareAndSet(false, true)) {
-            executor.scheduleWithFixedDelay({ cycle() }, 0, 15, TimeUnit.SECONDS)
-        }
+        started.set(OutboundApiSettings.load(context).destinations.any { it.isGlucifer() && it.isReady() })
+        executor.execute { scheduleFallback() }
         requestUpdate()
     }
 
     @JvmStatic
-    fun requestUpdate() {
-        if (!started.get() || !queued.compareAndSet(false, true)) return
-        executor.schedule({
-            queued.set(false)
-            cycle()
-        }, 300, TimeUnit.MILLISECONDS)
+    fun requestUpdate() = scheduleUpdate(300)
+
+    private fun scheduleUpdate(delayMs: Long) {
+        if (!started.get()) return
+        synchronized(updateLock) {
+            val due = SystemClock.elapsedRealtime() + delayMs.coerceAtLeast(1)
+            if (updateTask != null && updateDueMs <= due) return
+            updateTask?.cancel(false)
+            updateDueMs = due
+            val generation = ++updateGeneration
+            updateTask = executor.schedule({
+                val current = synchronized(updateLock) {
+                    if (generation != updateGeneration) false else {
+                        updateTask = null
+                        updateDueMs = Long.MAX_VALUE
+                        true
+                    }
+                }
+                if (current) cycle()
+            }, delayMs.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+        }
+    }
+
+    // Only used on the sender executor. No fixed polling cadence competes with source events.
+    private fun scheduleFallback() {
+        fallbackTask?.cancel(false)
+        val context = Applic.app ?: return
+        val ready = OutboundApiSettings.load(context).destinations.filter { it.isGlucifer() && it.isReady() }
+        fallbackClock.retain(ready.map { it.id }.toSet())
+        if (ready.isEmpty()) return
+        val now = SystemClock.elapsedRealtime()
+        val delay = ready.minOf { fallbackClock.remaining(it.id, it.gluciferFallbackSeconds, now) }
+        fallbackTask = executor.schedule({
+            val instant = SystemClock.elapsedRealtime()
+            val due = OutboundApiSettings.load(context).destinations.filter {
+                it.isGlucifer() && it.isReady() && fallbackClock.remaining(it.id, it.gluciferFallbackSeconds, instant) == 0L
+            }.map { it.id }.toSet()
+            // Missing glucose or failed requests must not create a busy loop at the deadline.
+            due.forEach { fallbackClock.reset(it, instant) }
+            cycle(due)
+        }, delay.coerceAtLeast(1), TimeUnit.MILLISECONDS)
     }
 
     internal fun validUrl(value: String): Boolean = runCatching {
@@ -54,20 +95,22 @@ object GluciferSender {
             Regex(".*/api/webhook/[A-Za-z0-9_-]+/?").matches(uri.path)
     }.getOrDefault(false)
 
-    private fun cycle() {
+    private fun cycle(fallbackIds: Set<String>? = null) {
         val context = Applic.app ?: return
         val config = OutboundApiSettings.load(context)
-        config.destinations.filter { it.isGlucifer() && it.isReady() }.forEach { destination ->
+        config.destinations.filter { it.isGlucifer() && it.isReady() && (fallbackIds == null || it.id in fallbackIds) }.forEach { destination ->
             try {
-                send(context, destination)
+                val remaining = limiter.remaining(destination.id, interval(destination), SystemClock.elapsedRealtime())
+                if (remaining == 0L) send(context, destination, fallbackIds != null) else scheduleUpdate(remaining)
             } catch (_: Exception) {
                 // Exceptions can contain a secret endpoint URL; retain only a fixed status.
                 OutboundApiSettings.recordAttempt(context, destination.id, -1, context.getString(R.string.glucifer_delivery_failed))
             }
         }
+        scheduleFallback()
     }
 
-    private fun send(context: Context, destination: OutboundApiSettings.Destination) {
+    private fun send(context: Context, destination: OutboundApiSettings.Destination, fallback: Boolean = false) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val key = destination.id
         val previous = prefs.getString(key, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
@@ -91,7 +134,7 @@ object GluciferSender {
         val schemaVersion = if (destination.gluciferHistory || selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) 2 else 1
         val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states, schemaVersion)
         val pending = previous?.optBoolean("pending", false) == true
-        val force = tests.remove(destination.id)
+        val force = tests.remove(destination.id) || (fallback && !pending)
         val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force, now) ?: run {
             if (oldPayload != null) sendHistory(context, destination, oldPayload)
             return
@@ -103,12 +146,17 @@ object GluciferSender {
         val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
         if (!latest.isGlucifer() || !latest.isReady() || latest.url != destination.url ||
             latest.gluciferFields != destination.gluciferFields || latest.gluciferHistory != destination.gluciferHistory) return
+        if (!limiter.acquire(destination.id, interval(latest), SystemClock.elapsedRealtime())) {
+            if (force) tests.add(destination.id)
+            return
+        }
         val result = post(destination.resolvedUrl(), payload.toString())
         if (result.first in 200..299 && GluciferPayload.acknowledged(
                 result.second, destination.id, payload.getLong("sequence"), payload.getInt("schema_version"))) {
             prefs.edit().putString(key, record.put("pending", false).toString()).apply()
             OutboundApiSettings.recordSuccess(context, destination.id, result.first)
-            sendHistory(context, destination, payload)
+            fallbackClock.reset(destination.id, SystemClock.elapsedRealtime())
+            scheduleHistory(context, destination, payload)
         } else {
             OutboundApiSettings.recordAttempt(context, destination.id, result.first,
                 context.getString(R.string.glucifer_not_acknowledged))
@@ -198,15 +246,36 @@ object GluciferSender {
         if (!prefs.edit().putString(key, saved.toString()).commit()) return
         val latest = OutboundApiSettings.load(context).findDestination(destination.id) ?: return
         if (!latest.isReady() || !latest.isGlucifer() || !latest.gluciferHistory || latest.url != destination.url) return
+        if (!limiter.acquire(destination.id, interval(latest), SystemClock.elapsedRealtime())) {
+            scheduleHistory(context, latest, current)
+            return
+        }
         val result = post(destination.resolvedUrl(), pending.toString())
         if (result.first in 200..299 && GluciferHistory.acknowledged(result.second, pending)) {
             saved.put("cursor", GluciferHistory.through(pending)).remove("pending")
             if (GluciferHistory.through(pending) >= through) saved.put("refresh_at", now + 3600000L)
             prefs.edit().putString(key, saved.toString()).commit()
+            if (GluciferHistory.through(pending) < through) scheduleHistory(context, latest, current)
         } else {
             OutboundApiSettings.recordAttempt(context, destination.id, result.first, context.getString(R.string.glucifer_history_failed))
         }
     }
+
+    private fun scheduleHistory(context: Context, destination: OutboundApiSettings.Destination, payload: JSONObject) {
+        if (!destination.gluciferHistory || historyTasks.containsKey(destination.id)) return
+        val wait = limiter.remaining(destination.id, interval(destination), SystemClock.elapsedRealtime())
+        historyTasks[destination.id] = executor.schedule({
+            historyTasks.remove(destination.id)
+            val latest = OutboundApiSettings.load(context).findDestination(destination.id)
+            if (latest != null && latest.isGlucifer() && latest.isReady() && latest.gluciferHistory && latest.url == destination.url) {
+                try { sendHistory(context, latest, payload) } catch (_: Exception) {
+                    OutboundApiSettings.recordAttempt(context, destination.id, -1, context.getString(R.string.glucifer_history_failed))
+                }
+            }
+        }, wait.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+    }
+
+    private fun interval(destination: OutboundApiSettings.Destination): Int = destination.gluciferMinIntervalSeconds
 
     internal fun post(url: String, body: String): Pair<Int, String> {
         require(validUrl(url))
