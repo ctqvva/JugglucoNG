@@ -20,8 +20,9 @@ class GluciferHistoryLedgerTests {
 
     @Test fun `old acknowledged cursor is preserved when migrating`() {
         val state = JSONObject().put("cursor", now - 60000).put("refresh_at", now - 1)
-        assertEquals(listOf(point(now)), GluciferHistoryLedger.unseen(state,
-            listOf(point(now - 120000), point(now - 60000), point(now))))
+        val latest = point(now)
+        assertEquals(listOf(latest), GluciferHistoryLedger.unseen(state,
+            listOf(point(now - 120000), point(now - 60000), latest)))
     }
 
     @Test fun `ledger stays bounded without replaying the dropped prefix`() {
