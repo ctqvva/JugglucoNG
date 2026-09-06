@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Sms
@@ -1596,7 +1597,17 @@ private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChan
         if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
         else pendingUrl = url
     })
-    TextButton(onClick = scan) { Text(stringResource(R.string.scan_qr_button)) }
+    Button(onClick = scan, modifier = Modifier.fillMaxWidth()) {
+        Icon(
+            imageVector = Icons.Filled.QrCodeScanner,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = stringResource(R.string.scan_qr_button),
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
     pendingUrl?.let { url ->
         AlertDialog(onDismissRequest = { pendingUrl = null },
             title = { Text(stringResource(R.string.glucifer_title)) },
