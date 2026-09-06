@@ -128,7 +128,8 @@ object OutboundApiSettings {
         val gluciferFields: Set<String> = GluciferPayload.defaults,
         val gluciferHistory: Boolean = false,
         val gluciferMinIntervalSeconds: Int = 1,
-        val gluciferFallbackSeconds: Int = 360
+        val gluciferFallbackSeconds: Int = 3600,
+        val gluciferLiveBypass: Boolean = true
     ) {
         fun isGlucifer(): Boolean = normalizedPreset() == PRESET_GLUCIFER
 
@@ -602,6 +603,7 @@ object OutboundApiSettings {
                         .put("gluciferHistory", destination.gluciferHistory)
                         .put("gluciferMinIntervalSeconds", GluciferSendLimiter.interval(destination.gluciferMinIntervalSeconds))
                         .put("gluciferFallbackSeconds", GluciferSendLimiter.interval(destination.gluciferFallbackSeconds))
+                        .put("gluciferLiveBypass", destination.gluciferLiveBypass)
                 )
             }
         }
@@ -675,7 +677,8 @@ object OutboundApiSettings {
                 smsPolicy = SmsPolicy.decode(item.optJSONObject("smsPolicy")),
                 gluciferHistory = item.optBoolean("gluciferHistory", false),
                 gluciferMinIntervalSeconds = GluciferSendLimiter.interval(item.optInt("gluciferMinIntervalSeconds", 1)),
-                gluciferFallbackSeconds = GluciferSendLimiter.interval(item.optInt("gluciferFallbackSeconds", 360)),
+                gluciferFallbackSeconds = GluciferSendLimiter.interval(item.optInt("gluciferFallbackSeconds", 3600)),
+                gluciferLiveBypass = item.optBoolean("gluciferLiveBypass", true),
                 gluciferFields = item.optJSONArray("gluciferFields")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }.toSet()
                         .intersect(GluciferPayload.supported)

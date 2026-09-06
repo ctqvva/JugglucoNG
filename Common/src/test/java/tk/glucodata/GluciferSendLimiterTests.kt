@@ -5,7 +5,7 @@ import org.junit.Test
 
 class GluciferSendLimiterTests {
     @Test fun `all intervals bound repeated live history test and retry attempts`() {
-        assertEquals(listOf(1, 5, 10, 30, 60, 120, 360), GluciferSendLimiter.intervals)
+        assertEquals(listOf(1, 5, 10, 30, 60, 120, 360, 900, 1800, 3600, 21600, 43200, 86400), GluciferSendLimiter.intervals)
         for (seconds in GluciferSendLimiter.intervals) {
             val limiter = GluciferSendLimiter()
             assertTrue(limiter.acquire("phone", seconds, 100))
@@ -34,30 +34,34 @@ class GluciferSendLimiterTests {
         assertTrue(limiter.ready("phone", 5, 6000))
     }
 
-    @Test fun `new destinations default to one second limit and 360 second inactivity fallback`() {
+    @Test fun `new destinations default to one second limit and one hour inactivity fallback`() {
         val destination = OutboundApiSettings.createDestination(OutboundApiSettings.PRESET_GLUCIFER)
         assertEquals(1, destination.gluciferMinIntervalSeconds)
-        assertEquals(360, destination.gluciferFallbackSeconds)
-        assertEquals(360, GluciferSendLimiter.interval(0))
-        assertEquals(360, GluciferSendLimiter.interval(9999))
+        assertEquals(3600, destination.gluciferFallbackSeconds)
+        assertTrue(destination.gluciferLiveBypass)
+        assertEquals(3600, GluciferSendLimiter.interval(0))
+        assertEquals(3600, GluciferSendLimiter.interval(9999))
     }
 
     @Test fun `delivery preferences round trip and old saved destinations get the defaults`() {
         val encode = OutboundApiSettings::class.java.getDeclaredMethod("encodeDestinations", List::class.java).apply { isAccessible = true }
         val decode = OutboundApiSettings::class.java.getDeclaredMethod("decodeDestinations", String::class.java).apply { isAccessible = true }
         val destination = OutboundApiSettings.createDestination(OutboundApiSettings.PRESET_GLUCIFER)
-            .copy(gluciferMinIntervalSeconds = 5, gluciferFallbackSeconds = 30)
+            .copy(gluciferMinIntervalSeconds = 5, gluciferFallbackSeconds = 30, gluciferLiveBypass = false)
         val raw = encode.invoke(OutboundApiSettings, listOf(destination)).toString()
         @Suppress("UNCHECKED_CAST")
         val restored = (decode.invoke(OutboundApiSettings, raw) as List<OutboundApiSettings.Destination>).single()
         assertEquals(5, restored.gluciferMinIntervalSeconds)
         assertEquals(30, restored.gluciferFallbackSeconds)
+        assertFalse(restored.gluciferLiveBypass)
         val old = org.json.JSONArray(raw)
         old.getJSONObject(0).remove("gluciferMinIntervalSeconds")
         old.getJSONObject(0).remove("gluciferFallbackSeconds")
+        old.getJSONObject(0).remove("gluciferLiveBypass")
         @Suppress("UNCHECKED_CAST")
         val migrated = (decode.invoke(OutboundApiSettings, old.toString()) as List<OutboundApiSettings.Destination>).single()
         assertEquals(1, migrated.gluciferMinIntervalSeconds)
-        assertEquals(360, migrated.gluciferFallbackSeconds)
+        assertEquals(3600, migrated.gluciferFallbackSeconds)
+        assertTrue(migrated.gluciferLiveBypass)
     }
 }
