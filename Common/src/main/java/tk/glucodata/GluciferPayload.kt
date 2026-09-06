@@ -7,7 +7,7 @@ import kotlin.math.round
 object GluciferPayload {
     val fields = linkedSetOf(
         "trend", "delta_mgdl", "rate_mgdl_min", "raw_mgdl", "auto_mgdl",
-        "iob_u", "cob_g", "battery_percent", "sensor_id", "sensor_generation",
+        "iob_u", "eiob_u", "cob_g", "battery_percent", "sensor_id", "sensor_generation",
         "sensor_started_ms", "sensor_expires_ms", "sensor_warmup"
     )
     val alerts = linkedSetOf(

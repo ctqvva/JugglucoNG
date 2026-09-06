@@ -200,9 +200,10 @@ object GluciferSender {
                     ?: if (kind == 0x40 && start > 0 && now >= start) now - start < 30 * 60000L else null
             }
         }
-        if ("iob_u" in selected || "cob_g" in selected) {
+        if ("iob_u" in selected || "eiob_u" in selected || "cob_g" in selected) {
             val journal = OutboundApi.loadJournalSnapshot(now)
             if ("iob_u" in selected) values["iob_u"] = journal.iob
+            if ("eiob_u" in selected) values["eiob_u"] = journal.eiob
             if ("cob_g" in selected) values["cob_g"] = journal.cob
         }
         if ("battery_percent" in selected) {
