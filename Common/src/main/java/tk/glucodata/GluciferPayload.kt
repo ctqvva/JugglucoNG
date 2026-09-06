@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.json.JSONObject
+import kotlin.math.round
 
 /** Versioned, complete snapshots. Optional field selection happens before serialization. */
 object GluciferPayload {
@@ -38,6 +39,7 @@ object GluciferPayload {
             optional.put(key, when {
                 value is Float && !value.isFinite() -> JSONObject.NULL
                 value is Double && !value.isFinite() -> JSONObject.NULL
+                value is Float || value is Double -> round((value as Number).toDouble() * 10.0) / 10.0
                 else -> value ?: JSONObject.NULL
             })
         }
