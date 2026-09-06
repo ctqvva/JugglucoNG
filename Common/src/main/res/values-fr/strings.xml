@@ -1875,9 +1875,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_auto">Glucose calibré automatiquement</string>
     <string name="glucifer_done">Terminé</string>
     <string name="glucifer_saved_help">Les modifications sont enregistrées automatiquement. Activez cette destination, envoyez un message de test, puis appuyez sur Terminé.</string>
-    <string name="glucifer_min_interval">Intervalle minimal entre les envois</string>
+    <string name="glucifer_live_bypass">Les événements en direct ignorent le délai en arrière-plan</string>
+    <string name="glucifer_hours">%1$d h</string>
+    <string name="glucifer_min_interval">Intervalle des envois en arrière-plan</string>
     <string name="glucifer_live_updates">Les nouvelles mesures de glucose et les modifications enregistrées déclenchent un envoi. Le délai de secours agit uniquement sans envoi.</string>
-    <string name="glucifer_fallback_interval">Actualiser après inactivité</string>
+    <string name="glucifer_fallback_interval">Vérifier après inactivité</string>
     <string name="glucifer_seconds">%1$d s</string>
     <string name="glucifer_phone_battery">Niveau de batterie du téléphone</string>
     <string name="glucifer_sensor_id">Identifiant du capteur</string>

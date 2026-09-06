@@ -16,7 +16,7 @@ internal class GluciferSendLimiter {
     }
 
     companion object {
-        val intervals = listOf(1, 5, 10, 30, 60, 120, 360)
-        fun interval(seconds: Int): Int = seconds.takeIf { it in intervals } ?: 360
+        val intervals = listOf(1, 5, 10, 30, 60, 120, 360, 900, 1800, 3600, 21600, 43200, 86400)
+        fun interval(seconds: Int): Int = seconds.takeIf { it in intervals } ?: 3600
     }
 }

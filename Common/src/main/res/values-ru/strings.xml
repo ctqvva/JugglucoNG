@@ -1913,9 +1913,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_auto">Автоматически откалиброванная глюкоза</string>
     <string name="glucifer_done">Готово</string>
     <string name="glucifer_saved_help">Изменения сохраняются автоматически. Включите это назначение, отправьте тестовое сообщение и нажмите Готово.</string>
-    <string name="glucifer_min_interval">Минимальный интервал отправки</string>
+    <string name="glucifer_live_bypass">Текущие события обходят фоновый интервал</string>
+    <string name="glucifer_hours">%1$d ч</string>
+    <string name="glucifer_min_interval">Интервал фоновой отправки</string>
     <string name="glucifer_live_updates">Новые значения глюкозы и сохранённые изменения отправляются автоматически. Резервный таймер работает только при отсутствии отправок.</string>
-    <string name="glucifer_fallback_interval">Обновление при отсутствии отправок</string>
+    <string name="glucifer_fallback_interval">Проверка при отсутствии отправок</string>
     <string name="glucifer_seconds">%1$d с</string>
     <string name="glucifer_phone_battery">Уровень заряда телефона</string>
     <string name="glucifer_sensor_id">Идентификатор сенсора</string>

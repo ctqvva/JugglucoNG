@@ -1897,9 +1897,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucifer_auto">Otomatik kalibre edilmiş glikoz</string>
     <string name="glucifer_done">Bitti</string>
     <string name="glucifer_saved_help">Değişiklikler otomatik kaydedilir. Bu hedefi etkinleştirin, bir test mesajı gönderin ve Bitti düğmesine dokunun.</string>
-    <string name="glucifer_min_interval">En kısa gönderim aralığı</string>
+    <string name="glucifer_live_bypass">Canlı olaylar arka plan aralığını atlar</string>
+    <string name="glucifer_hours">%1$d sa</string>
+    <string name="glucifer_min_interval">Arka plan gönderim aralığı</string>
     <string name="glucifer_live_updates">Yeni glikoz ölçümleri ve kaydedilen değişiklikler otomatik gönderilir. Yedek zamanlayıcı yalnızca güncelleme gönderilmediğinde çalışır.</string>
-    <string name="glucifer_fallback_interval">Hareketsizlik sonrası yenileme</string>
+    <string name="glucifer_fallback_interval">Hareketsizlik sonrası kontrol</string>
     <string name="glucifer_seconds">%1$d sn</string>
     <string name="glucifer_phone_battery">Telefon pil seviyesi</string>
     <string name="glucifer_sensor_id">Sensör kimliği</string>

@@ -65,7 +65,7 @@ object GluciferPayload {
             json.optString("status") in setOf("accepted", "duplicate", "superseded")
     }.getOrDefault(false)
 
-    /** Heartbeats may advance timestamps; a retry must preserve its original envelope. */
+    /** Compare exported data, excluding delivery sequence and send time. */
     fun sameData(a: JSONObject, b: JSONObject): Boolean =
         a.getInt("schema_version") == b.getInt("schema_version") &&
         equalObject(a.getJSONObject("glucose"), b.getJSONObject("glucose")) &&
@@ -73,11 +73,11 @@ object GluciferPayload {
             equalObject(a.getJSONObject("alerts"), b.getJSONObject("alerts"))
 
     internal fun nextDelivery(
-        previous: JSONObject?, candidate: JSONObject, pending: Boolean, force: Boolean, nowMs: Long
+        previous: JSONObject?, candidate: JSONObject, pending: Boolean, force: Boolean
     ): JSONObject? {
         if (previous == null || force || !sameData(previous, candidate)) return candidate
         if (pending) return previous
-        return candidate.takeIf { nowMs - previous.getLong("sent_at_ms") >= 60_000L }
+        return null
     }
 
     private fun equalObject(a: JSONObject, b: JSONObject): Boolean {
