@@ -4,6 +4,9 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal object GluciferBackfillStatus {
+    fun needsReport(state: JSONObject, active: Boolean): Boolean =
+        state.opt("backfill_active") != active || state.has("status_pending")
+
     fun build(sourceId: String, active: Boolean): JSONObject = JSONObject()
         .put("schema_version", 2).put("type", "backfill_status")
         .put("source_id", sourceId).put("status_id", UUID.randomUUID().toString()).put("active", active)
