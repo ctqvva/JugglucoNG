@@ -126,7 +126,9 @@ object OutboundApiSettings {
         val lastStaleAtMsByRecipient: Map<String, Long> = emptyMap(),
         val smsPolicy: SmsPolicy = SmsPolicy(),
         val gluciferFields: Set<String> = GluciferPayload.defaults,
-        val gluciferHistory: Boolean = false
+        val gluciferHistory: Boolean = false,
+        val gluciferMinIntervalSeconds: Int = 1,
+        val gluciferFallbackSeconds: Int = 360
     ) {
         fun isGlucifer(): Boolean = normalizedPreset() == PRESET_GLUCIFER
 
@@ -264,7 +266,9 @@ object OutboundApiSettings {
     }
 
     @JvmStatic
-    fun save(context: Context = Applic.app, config: Config) {
+    fun save(context: Context = Applic.app, config: Config) = save(context, config, wakeGlucifer = true)
+
+    private fun save(context: Context, config: Config, wakeGlucifer: Boolean) {
         val normalized = config.copy(enabled = true)
         cachedConfig = normalized
         prefs(context).edit()
@@ -274,7 +278,7 @@ object OutboundApiSettings {
         // Adding, editing or disabling an SMS destination has to take effect without
         // waiting for the next reading — the watchdog is what makes it do anything.
         runCatching { tk.glucodata.sms.SmsWatchdog.ensureRunning(context) }
-        runCatching { GluciferSender.ensureRunning(context) }
+        if (wakeGlucifer) runCatching { GluciferSender.ensureRunning(context) }
     }
 
     @JvmStatic
@@ -366,7 +370,7 @@ object OutboundApiSettings {
     }
 
     fun recordAttempt(context: Context, destinationId: String, responseCode: Int, error: String?) {
-        updateDestination(context, destinationId) {
+        updateDestination(context, destinationId, wakeGlucifer = false) {
             it.copy(
                 lastAttemptAtMs = System.currentTimeMillis(),
                 lastResponseCode = responseCode,
@@ -377,7 +381,7 @@ object OutboundApiSettings {
 
     fun recordSuccess(context: Context, destinationId: String, responseCode: Int) {
         val now = System.currentTimeMillis()
-        updateDestination(context, destinationId) {
+        updateDestination(context, destinationId, wakeGlucifer = false) {
             it.copy(
                 lastAttemptAtMs = now,
                 lastSuccessAtMs = now,
@@ -457,6 +461,7 @@ object OutboundApiSettings {
         context: Context,
         destinationId: String,
         persist: Boolean = true,
+        wakeGlucifer: Boolean = true,
         transform: (Destination) -> Destination
     ) {
         val config = load(context)
@@ -465,7 +470,7 @@ object OutboundApiSettings {
         }
         val updatedConfig = config.copy(destinations = updated)
         if (persist) {
-            save(context, updatedConfig)
+            save(context, updatedConfig, wakeGlucifer)
         } else {
             cachedConfig = updatedConfig
         }
@@ -595,6 +600,8 @@ object OutboundApiSettings {
                         .put("smsPolicy", SmsPolicy.encode(destination.smsPolicy))
                         .put("gluciferFields", JSONArray(destination.gluciferFields.sorted()))
                         .put("gluciferHistory", destination.gluciferHistory)
+                        .put("gluciferMinIntervalSeconds", GluciferSendLimiter.interval(destination.gluciferMinIntervalSeconds))
+                        .put("gluciferFallbackSeconds", GluciferSendLimiter.interval(destination.gluciferFallbackSeconds))
                 )
             }
         }
@@ -667,6 +674,8 @@ object OutboundApiSettings {
                 lastStaleAtMsByRecipient = decodeLongMap(item.optJSONObject("lastStaleAtMsByRecipient")),
                 smsPolicy = SmsPolicy.decode(item.optJSONObject("smsPolicy")),
                 gluciferHistory = item.optBoolean("gluciferHistory", false),
+                gluciferMinIntervalSeconds = GluciferSendLimiter.interval(item.optInt("gluciferMinIntervalSeconds", 1)),
+                gluciferFallbackSeconds = GluciferSendLimiter.interval(item.optInt("gluciferFallbackSeconds", 360)),
                 gluciferFields = item.optJSONArray("gluciferFields")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }.toSet()
                         .intersect(GluciferPayload.supported)
