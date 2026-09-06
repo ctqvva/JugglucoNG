@@ -297,6 +297,21 @@ object PredictionModelProfileStore {
     fun parametersAt(preferences: SharedPreferences, timestamp: Long): PredictionModelParameters {
         return load(preferences).parametersAt(timestamp)
     }
+
+    /**
+     * Has a profile ever been written, or is [load] handing out the built-in defaults? Any
+     * of the three keys counts, because the tuning screen and the older single-value
+     * settings write different subsets of them.
+     *
+     * Read this to *say* what a number is computed from, never to switch a feature off: a
+     * feature that shows as enabled and silently does nothing is the failure this exists to
+     * avoid.
+     */
+    @JvmStatic
+    fun isSaved(preferences: SharedPreferences): Boolean =
+        preferences.contains(PROFILE_KEY) ||
+            preferences.contains(INSULIN_SENSITIVITY_KEY) ||
+            preferences.contains(CARB_RATIO_KEY)
 }
 
 private const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = 10f

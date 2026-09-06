@@ -154,10 +154,12 @@ import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
-import tk.glucodata.data.prediction.calculateForecastDoseRecommendation
-import tk.glucodata.data.prediction.ForecastDoseRecommendation
 import tk.glucodata.data.prediction.GlucosePredictionSeries
-import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
+import tk.glucodata.data.prediction.StateDoseHint
+import tk.glucodata.data.prediction.StateDoseHintCalculator
+import tk.glucodata.data.prediction.StateDoseHintContinuity
+import tk.glucodata.data.prediction.StateDoseHintDisplaySnapshot
+import tk.glucodata.data.prediction.StateDoseHintEvaluation
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
@@ -283,6 +285,7 @@ fun DashboardScreen(
     onNavigateToMqAccount: () -> Unit = {},
     onNavigateToReadiness: () -> Unit = {},
     onNavigateToAppUpdates: () -> Unit = {},
+    onNavigateToPredictionModelProfile: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
     // Read once here: the LazyColumns below use Arrangement.spacedBy, which reserves its gap
@@ -360,6 +363,11 @@ fun DashboardScreen(
     val dashboardRowsShowDelta by viewModel.dashboardRowsShowDelta.collectAsState()
     val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
+    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
+    val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
+    val stateDoseHintCorrectInRange by viewModel.stateDoseHintCorrectInRange.collectAsState()
+    val stateDoseHintProfileNoticeAck by viewModel.stateDoseHintProfileNoticeAck.collectAsState()
+    val predictionModelProfileSaved by viewModel.predictionModelProfileSaved.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
@@ -495,6 +503,77 @@ fun DashboardScreen(
             collapseChunks = dataSmoothingCollapseChunks
         )
     }
+    // Read off the current state, not off the far end of the forecast: the hint answers
+    // "what does the value need right now", which is a question the last point of a curve
+    // several hours out cannot answer.
+    val stateDoseHintEvaluation = remember(
+        stateDoseHintEnabled,
+        stateDoseHintHorizonMinutes,
+        stateDoseHintCorrectInRange,
+        journalEnabled,
+        consumerHistory,
+        activeInsulinSummary,
+        unit,
+        targetHigh,
+        predictionDoseTargetMgDl,
+        predictionSettings,
+        journalNow
+    ) {
+        val summary = activeInsulinSummary
+        if (!stateDoseHintEnabled || !journalEnabled) {
+            StateDoseHintEvaluation.Complete(null, 0L, null)
+        } else {
+            StateDoseHintCalculator.evaluate(
+                history = consumerHistory,
+                unit = unit,
+                targetHighDisplay = targetHigh,
+                doseTargetMgDl = predictionDoseTargetMgDl,
+                iobUnits = summary?.iobUnits,
+                parameters = predictionSettings.modelParametersAt(journalNow),
+                horizonMinutes = stateDoseHintHorizonMinutes,
+                correctInRange = stateDoseHintCorrectInRange,
+                nowMillis = journalNow,
+                maxReadingAgeMillis = Notify.glucosetimeout
+            )
+        }
+    }
+    var retainedDoseHint by remember { mutableStateOf<StateDoseHintDisplaySnapshot?>(null) }
+    val canRetainDoseHint = stateDoseHintEvaluation is StateDoseHintEvaluation.Incomplete &&
+        StateDoseHintContinuity.canRetain(
+            previous = retainedDoseHint,
+            incomplete = stateDoseHintEvaluation,
+            nowMillis = journalNow,
+            maxReadingAgeMillis = Notify.glucosetimeout
+        )
+    val stateDoseHint: StateDoseHint? = when (val evaluation = stateDoseHintEvaluation) {
+        is StateDoseHintEvaluation.Complete -> evaluation.hint
+        is StateDoseHintEvaluation.Incomplete -> retainedDoseHint?.hint.takeIf { canRetainDoseHint }
+    }
+    LaunchedEffect(stateDoseHintEvaluation, canRetainDoseHint) {
+        when (val evaluation = stateDoseHintEvaluation) {
+            is StateDoseHintEvaluation.Complete -> {
+                retainedDoseHint = evaluation.hint?.let { hint ->
+                    StateDoseHintDisplaySnapshot(
+                        hint = hint,
+                        latestTimestamp = evaluation.latestTimestamp,
+                        sensorSerial = evaluation.sensorSerial
+                    )
+                }
+            }
+            is StateDoseHintEvaluation.Incomplete -> {
+                if (!canRetainDoseHint) {
+                    retainedDoseHint = null
+                } else {
+                    android.util.Log.d(
+                        "StateDoseHint",
+                        "Holding previous hint during incomplete history snapshot"
+                    )
+                    delay(StateDoseHintContinuity.INCOMPLETE_HOLD_MILLIS)
+                    retainedDoseHint = null
+                }
+            }
+        }
+    }
     val predictionSeries = remember(
         journalEnabled,
         predictionSettings,
@@ -518,41 +597,11 @@ fun DashboardScreen(
             settings = predictionSettings
         )
     }
-    val forecastDoseRecommendation: ForecastDoseRecommendation? = remember(
-        journalDoseCalculatorEnabled,
-        predictionSeries,
-        viewMode,
-        unit,
-        targetLow,
-        predictionDoseTargetMgDl,
-        predictionSettings,
-        journalNow
-    ) {
-        if (!journalDoseCalculatorEnabled) {
-            null
-        } else {
-            val primarySeries = predictionSeries.lastOrNull {
-                it.kind == GlucosePredictionSeriesKind.CALIBRATED
-            } ?: predictionSeries.firstOrNull {
-                it.kind == if (viewMode == 1 || viewMode == 3) {
-                    GlucosePredictionSeriesKind.RAW
-                } else {
-                    GlucosePredictionSeriesKind.AUTO
-                }
-            } ?: predictionSeries.firstOrNull()
-            primarySeries?.let {
-                calculateForecastDoseRecommendation(
-                    predictionPoints = it.points,
-                    unit = unit,
-                    targetLow = targetLow,
-                    doseTargetMgDl = predictionDoseTargetMgDl,
-                    settings = predictionSettings,
-                    nowMillis = journalNow,
-                    maxBaselineAgeMillis = Notify.glucosetimeout
-                )
-            }
-        }
-    }
+    val stateDoseHintProfileNoticeDue = StateDoseHintCalculator.profileNoticeDue(
+        hintPresent = stateDoseHint != null,
+        modelProfileSaved = predictionModelProfileSaved,
+        noticeAcknowledged = stateDoseHintProfileNoticeAck
+    )
     // Per-peer prediction series so the simulation extends every drawn line,
     // not just the primary. Same journal/settings (same person), each peer's
     // own points + view mode.
@@ -1325,6 +1374,13 @@ fun DashboardScreen(
                             onOpenAppUpdates = onNavigateToAppUpdates
                         )
                     }
+                    if (stateDoseHintProfileNoticeDue) {
+                        StateDoseHintProfileBanner(
+                            modifier = Modifier.padding(top = 12.dp),
+                            onAcknowledge = { viewModel.acknowledgeStateDoseHintProfileNotice() },
+                            onOpenModelProfile = onNavigateToPredictionModelProfile
+                        )
+                    }
                 }
             )
             } else if (isLandscape) {
@@ -1406,6 +1462,15 @@ fun DashboardScreen(
                     if (appUpdateBannerVisible) {
                         item {
                             DashboardAppUpdateBanner(onOpenAppUpdates = onNavigateToAppUpdates)
+                        }
+                    }
+
+                    if (stateDoseHintProfileNoticeDue) {
+                        item {
+                            StateDoseHintProfileBanner(
+                                onAcknowledge = { viewModel.acknowledgeStateDoseHintProfileNotice() },
+                                onOpenModelProfile = onNavigateToPredictionModelProfile
+                            )
                         }
                     }
 
@@ -1517,9 +1582,9 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    stateDoseHint = stateDoseHint,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
-                                    forecastDoseRecommendation = forecastDoseRecommendation,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
                                     graphSmoothingMinutes = visualSmoothingMinutes,
@@ -1750,9 +1815,9 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    stateDoseHint = stateDoseHint,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
-                                    forecastDoseRecommendation = forecastDoseRecommendation,
                                     appChartRangeColors = appChartRangeColorsEnabled,
                                     predictionSeries = predictionSeries,
                                     graphSmoothingMinutes = visualSmoothingMinutes,

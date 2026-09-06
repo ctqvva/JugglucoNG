@@ -50,8 +50,10 @@ import tk.glucodata.R
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelBlock
 import tk.glucodata.data.prediction.PredictionModelProfile
+import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import kotlin.math.roundToInt
 
 private data class ProfileTimePickerRequest(
     val existingStartMinute: Int?,
@@ -66,6 +68,8 @@ fun PredictionModelProfileScreen(
     val profile by viewModel.predictionModelProfile.collectAsState()
     val unit by viewModel.unit.collectAsState()
     val doseTargetMgDl by viewModel.predictionDoseTargetMgDl.collectAsState()
+    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
+    val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
     val isMmol = GlucoseFormatter.isMmol(unit)
     var timePickerRequest by remember { mutableStateOf<ProfileTimePickerRequest?>(null) }
     var pendingDeleteStart by remember { mutableStateOf<Int?>(null) }
@@ -104,6 +108,17 @@ fun PredictionModelProfileScreen(
                         )
                     }
                 )
+            }
+
+            // Only while the hint is on: with it off the number steers nothing, and the
+            // screen is long enough already.
+            if (stateDoseHintEnabled) {
+                item(key = "dose_hint_horizon") {
+                    DoseHintHorizonCard(
+                        horizonMinutes = stateDoseHintHorizonMinutes,
+                        onHorizonChange = { viewModel.setStateDoseHintHorizonMinutes(it.roundToInt()) }
+                    )
+                }
             }
 
             item(key = "explanation") {
@@ -264,6 +279,40 @@ private fun DoseTargetCard(
             )
             Text(
                 text = stringResource(R.string.predictive_dose_target_explanation),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+    }
+}
+
+/**
+ * How far ahead the falling case looks. Its own card under the dose target: it belongs to
+ * the same decision, but it is a duration rather than a glucose value.
+ */
+@Composable
+private fun DoseHintHorizonCard(
+    horizonMinutes: Int,
+    onHorizonChange: (Float) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            PredictiveSimulationParameterRow(
+                title = stringResource(R.string.state_dose_hint_horizon),
+                valueLabel = stringResource(R.string.predictive_horizon_value, horizonMinutes),
+                value = horizonMinutes.toFloat(),
+                valueRange = StateDoseHintCalculator.HORIZON_MINUTES_MIN.toFloat()..
+                    StateDoseHintCalculator.HORIZON_MINUTES_MAX.toFloat(),
+                enabled = true,
+                onValueChange = onHorizonChange
+            )
+            Text(
+                text = stringResource(R.string.state_dose_hint_horizon_explanation),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)

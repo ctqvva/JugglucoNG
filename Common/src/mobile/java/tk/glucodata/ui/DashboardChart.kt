@@ -156,16 +156,16 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.prediction.GlucosePredictionPoint
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
-import tk.glucodata.data.prediction.ForecastDoseRecommendation
-import tk.glucodata.data.prediction.ForecastDoseRecommendationKind
+import tk.glucodata.data.prediction.StateDoseHint
+import tk.glucodata.data.prediction.StateDoseHintKind
 import tk.glucodata.ui.getDisplayValues
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.SensorColors
+import java.text.NumberFormat
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
-import java.text.NumberFormat
 
 private const val PREVIEW_WINDOW_MODE_EXPANDED_ONLY = 0
 private const val PREVIEW_WINDOW_MODE_ALWAYS = 1
@@ -666,9 +666,9 @@ fun DashboardChartSection(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    stateDoseHint: StateDoseHint? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
-    forecastDoseRecommendation: ForecastDoseRecommendation? = null,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
@@ -711,9 +711,9 @@ fun DashboardChartSection(
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
+                        stateDoseHint = stateDoseHint,
                         activeInsulinFromRemote = activeInsulinFromRemote,
                         showEiob = showEiob,
-                        forecastDoseRecommendation = forecastDoseRecommendation,
                         appChartRangeColors = appChartRangeColors,
                         predictionPoints = predictionPoints,
                         predictionSeries = predictionSeries,
@@ -785,9 +785,9 @@ fun InteractiveGlucoseChart(
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
+    stateDoseHint: StateDoseHint? = null,
     activeInsulinFromRemote: Boolean = false,
     showEiob: Boolean = true,
-    forecastDoseRecommendation: ForecastDoseRecommendation? = null,
     appChartRangeColors: Boolean = false,
     predictionPoints: List<GlucosePredictionPoint> = emptyList(),
     predictionSeries: List<GlucosePredictionSeries> = emptyList(),
@@ -3702,9 +3702,7 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
-            // The suggestion is not about insulin already given, so it must survive an empty
-            // board: a meal with nothing dosed for it is exactly when it has something to say.
-            if (activeInsulinSummary != null || forecastDoseRecommendation != null) {
+            if (activeInsulinSummary != null || stateDoseHint != null) {
                 val summary = activeInsulinSummary
                 val unitsLabel = { units: Float ->
                     if (units % 1f < 0.05f) {
@@ -3713,59 +3711,68 @@ fun InteractiveGlucoseChart(
                         String.format(java.util.Locale.getDefault(), "%.1f", units)
                     }
                 }
-                val iobValue = summary?.let {
-                    stringResource(R.string.unit_insulin_value, unitsLabel(it.iobUnits))
-                }
-                val eiobValue = summary?.let {
-                    stringResource(R.string.unit_insulin_value, unitsLabel(it.eiobUnits))
-                }
+                val iobValue = summary?.let { stringResource(R.string.unit_insulin_value, unitsLabel(it.iobUnits)) }
+                val eiobValue = summary?.let { stringResource(R.string.unit_insulin_value, unitsLabel(it.eiobUnits)) }
                 val totalUnitsLabel = summary?.let { unitsLabel(it.totalUnits) }
                 val remainingLabel = formatRemainingDuration(
                     LocalContext.current,
                     summary?.activeUntil?.minus(System.currentTimeMillis())
                 )
-                val forecastRecommendationAmount = remember(
-                    forecastDoseRecommendation?.kind,
-                    forecastDoseRecommendation?.amount
-                ) {
-                    forecastDoseRecommendation?.let { recommendation ->
+                val doseHintAmount = remember(stateDoseHint?.kind, stateDoseHint?.amount) {
+                    stateDoseHint?.let { hint ->
                         NumberFormat.getNumberInstance().apply {
-                            minimumFractionDigits = if (
-                                recommendation.kind == ForecastDoseRecommendationKind.INSULIN
-                            ) 1 else 0
+                            minimumFractionDigits =
+                                if (hint.kind == StateDoseHintKind.INSULIN) 1 else 0
                             maximumFractionDigits = minimumFractionDigits
                             isGroupingUsed = false
-                        }.format(recommendation.amount)
+                        }.format(hint.amount)
                     }
                 }
-                // Collapsed shows the bare amount ("≏ 17 g" — the unit already says which);
-                // expanded has room to name what is being suggested. Standing alone it always
-                // names it: without the IoB line above, "≏ 2,3 U" has nothing to lean on.
-                val nameTheRecommendation = isActiveInsulinExpanded || summary == null
-                val forecastRecommendationLabel = if (
-                    forecastDoseRecommendation != null && forecastRecommendationAmount != null
-                ) {
-                    when (forecastDoseRecommendation.kind) {
-                        ForecastDoseRecommendationKind.CARBS -> if (nameTheRecommendation) {
+                val doseHintTargetLabel = stateDoseHint?.let { hint ->
+                    if (isMmol) {
+                        stringResource(
+                            R.string.predictive_dose_target_value_mmol,
+                            GlucoseFormatter.mgToMmol(hint.targetMgDl)
+                        )
+                    } else {
+                        stringResource(R.string.predictive_dose_target_value_mgdl, hint.targetMgDl)
+                    }
+                }
+                // Collapsed shows the bare amount and, where there is one, when the state it
+                // is about arrives — a number with no time reads as "do this now", which is
+                // only true of the insulin case. Expanded has room to name both.
+                val doseHintLabel = if (stateDoseHint != null && doseHintAmount != null) {
+                    val minutesAhead = stateDoseHint.minutesAhead?.takeIf { it > 0 }
+                    when (stateDoseHint.kind) {
+                        StateDoseHintKind.CARBS -> if (!isActiveInsulinExpanded) {
+                            val amount = stringResource(R.string.unit_carbs_value, doseHintAmount)
+                            if (minutesAhead != null) {
+                                stringResource(R.string.dashboard_dose_hint_short_in, amount, minutesAhead)
+                            } else {
+                                stringResource(R.string.dashboard_dose_hint_short, amount)
+                            }
+                        } else if (minutesAhead != null && doseHintTargetLabel != null) {
                             stringResource(
-                                R.string.dashboard_forecast_recommendation_carbs,
-                                forecastRecommendationAmount
+                                R.string.dashboard_dose_hint_carbs_in,
+                                doseHintAmount,
+                                doseHintTargetLabel,
+                                minutesAhead
+                            )
+                        } else if (doseHintTargetLabel != null) {
+                            stringResource(
+                                R.string.dashboard_dose_hint_carbs_below,
+                                doseHintAmount,
+                                doseHintTargetLabel
                             )
                         } else {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_short,
-                                stringResource(R.string.unit_carbs_value, forecastRecommendationAmount)
-                            )
+                            stringResource(R.string.dashboard_dose_hint_carbs, doseHintAmount)
                         }
-                        ForecastDoseRecommendationKind.INSULIN -> if (nameTheRecommendation) {
-                            stringResource(
-                                R.string.dashboard_forecast_recommendation_insulin,
-                                forecastRecommendationAmount
-                            )
+                        StateDoseHintKind.INSULIN -> if (summary == null || isActiveInsulinExpanded) {
+                            stringResource(R.string.dashboard_dose_hint_insulin, doseHintAmount)
                         } else {
                             stringResource(
-                                R.string.dashboard_forecast_recommendation_short,
-                                stringResource(R.string.unit_insulin_value, forecastRecommendationAmount)
+                                R.string.dashboard_dose_hint_short,
+                                stringResource(R.string.unit_insulin_value, doseHintAmount)
                             )
                         }
                     }
@@ -3790,14 +3797,7 @@ fun InteractiveGlucoseChart(
                         .widthIn(max = activeInsulinMaxWidth)
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
-                        // Nothing to expand into when the suggestion stands alone, so no tap.
-                        .then(
-                            if (summary != null) {
-                                Modifier.clickable { isActiveInsulinExpanded = !isActiveInsulinExpanded }
-                            } else {
-                                Modifier
-                            }
-                        ),
+                        .clickable(enabled = summary != null) { isActiveInsulinExpanded = !isActiveInsulinExpanded },
                     shape = activeInsulinShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
                     tonalElevation = 0.dp,
@@ -3847,55 +3847,32 @@ fun InteractiveGlucoseChart(
                                 }
                             }
                         }
-                        // The suggestion and, while collapsed, how long the insulin still runs.
-                        // Expanded states the end time in full below. With an empty board this
-                        // is the card's only line.
-                        if (forecastRecommendationLabel != null ||
-                            (remainingLabel != null && !isActiveInsulinExpanded)
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                forecastRecommendationLabel?.let { label ->
-                                    // Alone in the card it is the content, not a footnote to it.
-                                    Text(
-                                        text = label,
-                                        style = if (summary == null) {
-                                            MaterialTheme.typography.labelLarge
-                                        } else {
-                                            MaterialTheme.typography.labelMedium
-                                        },
-                                        fontWeight = if (summary == null) FontWeight.SemiBold else null,
-                                        color = if (summary == null) {
-                                            MaterialTheme.colorScheme.onSurface
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        // Standing alone the label names what it suggests, which
-                                        // is long enough in some locales to need the second line.
-                                        maxLines = if (isActiveInsulinExpanded || summary == null) 2 else 1
-                                    )
-                                }
-                                if (!isActiveInsulinExpanded) {
-                                    remainingLabel?.let { label ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.AccessTime,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = label,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
-                                }
+                        // The hint, or — collapsed and with nothing to suggest — how long the
+                        // insulin still runs. Not both on one collapsed line: the hint already
+                        // carries its own time, and the card is under half the chart wide.
+                        // Expanded states the end time in full below either way.
+                        if (doseHintLabel != null) {
+                            Text(
+                                text = doseHintLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (isActiveInsulinExpanded) 2 else 1
+                            )
+                        } else if (remainingLabel != null && !isActiveInsulinExpanded) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = remainingLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
                             }
                         }
                         if (isActiveInsulinExpanded && summary != null && totalUnitsLabel != null) {

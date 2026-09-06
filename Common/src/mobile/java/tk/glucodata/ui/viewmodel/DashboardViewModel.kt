@@ -40,6 +40,7 @@ import tk.glucodata.data.journal.JournalInsulinPresetInput
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
+import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -202,6 +203,10 @@ class DashboardViewModel(
         const val PREDICTION_HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
         const val PREDICTION_NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
+        const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
+        const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
+        const val STATE_DOSE_HINT_PROFILE_NOTICE_KEY = "dashboard_state_dose_hint_profile_notice_ack"
+        const val STATE_DOSE_HINT_IN_RANGE_KEY = "dashboard_state_dose_hint_in_range_enabled"
         const val PREDICTION_CARB_RATIO_DEFAULT = 10f
         const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
         const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
@@ -396,6 +401,30 @@ class DashboardViewModel(
 
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
+
+    // On by default. The amounts are only as good as the sensitivity and carb ratio in the
+    // model profile, but a hint the reader acts on is not the place to withhold information
+    // over that -- the profile is named once instead, see stateDoseHintProfileNoticeAck.
+    // Anyone who switched it off keeps that: the key is written on every toggle, so only an
+    // installation that never touched it takes the new default.
+    private val _stateDoseHintEnabled = MutableStateFlow(true)
+    val stateDoseHintEnabled = _stateDoseHintEnabled.asStateFlow()
+
+    // Its own switch rather than part of the rule: whether to correct inside the range is a
+    // matter of therapy style, and folding it in would push anyone who disagrees into
+    // switching the whole hint off, carb branch included.
+    private val _stateDoseHintCorrectInRange = MutableStateFlow(true)
+    val stateDoseHintCorrectInRange = _stateDoseHintCorrectInRange.asStateFlow()
+
+    private val _stateDoseHintProfileNoticeAck = MutableStateFlow(false)
+    val stateDoseHintProfileNoticeAck = _stateDoseHintProfileNoticeAck.asStateFlow()
+
+    private val _predictionModelProfileSaved = MutableStateFlow(false)
+    val predictionModelProfileSaved = _predictionModelProfileSaved.asStateFlow()
+
+    private val _stateDoseHintHorizonMinutes =
+        MutableStateFlow(StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+    val stateDoseHintHorizonMinutes = _stateDoseHintHorizonMinutes.asStateFlow()
 
     private val _journalFoodMacrosEnabled = MutableStateFlow(false)
     val journalFoodMacrosEnabled = _journalFoodMacrosEnabled.asStateFlow()
@@ -744,6 +773,15 @@ class DashboardViewModel(
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
+        _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
+        _stateDoseHintCorrectInRange.value = prefs.getBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, true)
+        _stateDoseHintProfileNoticeAck.value = prefs.getBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, false)
+        _stateDoseHintHorizonMinutes.value = prefs
+            .getInt(STATE_DOSE_HINT_HORIZON_KEY, StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+            .coerceIn(
+                StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+                StateDoseHintCalculator.HORIZON_MINUTES_MAX
+            )
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
@@ -770,6 +808,7 @@ class DashboardViewModel(
             .getFloat(PREDICTION_INSULIN_SENSITIVITY_KEY, PREDICTION_INSULIN_SENSITIVITY_DEFAULT)
             .coerceIn(10f, 180f)
         _predictionModelProfile.value = PredictionModelProfileStore.load(prefs)
+        _predictionModelProfileSaved.value = PredictionModelProfileStore.isSaved(prefs)
         _predictionCarbRatioGramsPerUnit.value = _predictionModelProfile.value.blocks.first().carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value =
             _predictionModelProfile.value.blocks.first().insulinSensitivityMgDlPerUnit
@@ -1544,6 +1583,38 @@ class DashboardViewModel(
         _journalDoseCalculatorEnabled.value = enabled
     }
 
+    fun setStateDoseHintEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_KEY, enabled).apply()
+        _stateDoseHintEnabled.value = enabled
+    }
+
+    fun setStateDoseHintCorrectInRange(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, enabled).apply()
+        _stateDoseHintCorrectInRange.value = enabled
+    }
+
+    fun acknowledgeStateDoseHintProfileNotice() {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, true).apply()
+        _stateDoseHintProfileNoticeAck.value = true
+    }
+
+    fun setStateDoseHintHorizonMinutes(value: Int) {
+        val normalized = value.coerceIn(
+            StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+            StateDoseHintCalculator.HORIZON_MINUTES_MAX
+        )
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putInt(STATE_DOSE_HINT_HORIZON_KEY, normalized).apply()
+        _stateDoseHintHorizonMinutes.value = normalized
+    }
+
     fun setJournalFoodMacrosEnabled(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
@@ -1761,6 +1832,7 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         PredictionModelProfileStore.save(prefs, profile)
         _predictionModelProfile.value = profile
+        _predictionModelProfileSaved.value = true
         val first = profile.blocks.first()
         _predictionCarbRatioGramsPerUnit.value = first.carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value = first.insulinSensitivityMgDlPerUnit
