@@ -1871,6 +1871,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_escalating">递增</string>
     <string name="glucifer_delivery_failed">Glucifer HA 发送失败；等待重试</string>
     <string name="glucifer_not_acknowledged">Glucifer HA 未确认数据；等待重试</string>
+    <string name="glucifer_qr_confirm">使用 %1$s 的接收器？</string>
+    <string name="glucifer_qr_invalid">此二维码不包含 Home Assistant 接收器地址。</string>
+    <string name="glucifer_warmup">传感器预热中</string>
+    <string name="glucifer_history">补传血糖历史（最多 7 天）</string>
+    <string name="glucifer_history_failed">历史数据接收未确认</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">向 Home Assistant 发送所选数据</string>
     <string name="glucifer_glucose_required">始终发送葡萄糖和测量时间。请在下方逐项选择其他数据和警报。</string>

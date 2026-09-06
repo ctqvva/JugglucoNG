@@ -2432,6 +2432,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_escalating">Escalating</string>
     <string name="glucifer_delivery_failed">Glucifer HA delivery failed; retry pending</string>
     <string name="glucifer_not_acknowledged">Glucifer HA did not acknowledge the snapshot; retry pending</string>
+    <string name="glucifer_qr_confirm">Use receiver at %1$s?</string>
+    <string name="glucifer_qr_invalid">This QR code is not a Home Assistant receiver URL.</string>
+    <string name="glucifer_warmup">Sensor warming up</string>
+    <string name="glucifer_history">Backfill glucose history (up to 7 days)</string>
+    <string name="glucifer_history_failed">History delivery not acknowledged</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Send selected data to Home Assistant</string>
     <string name="glucifer_glucose_required">Glucose and its measurement time are always sent. Choose each additional field and alert below.</string>

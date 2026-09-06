@@ -1926,6 +1926,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_escalating">Нарастальная</string>
     <string name="glucifer_delivery_failed">Памылка адпраўкі ў Glucifer HA; чакаецца паўторная спроба</string>
     <string name="glucifer_not_acknowledged">Glucifer HA не пацвердзіў даныя; чакаецца паўторная спроба</string>
+    <string name="glucifer_qr_confirm">Выкарыстоўваць прыёмнік па адрасе %1$s?</string>
+    <string name="glucifer_qr_invalid">Гэты QR-код не змяшчае адрас прыёмніка Home Assistant.</string>
+    <string name="glucifer_warmup">Прагрэў сенсара</string>
+    <string name="glucifer_history">Дазагрузка гісторыі глюкозы (да 7 дзён)</string>
+    <string name="glucifer_history_failed">Атрыманне гісторыі не пацверджана</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Адпраўляць выбраныя даныя ў Home Assistant</string>
     <string name="glucifer_glucose_required">Глюкоза і час вымярэння адпраўляюцца заўсёды. Ніжэй выберыце кожнае дадатковае поле і апавяшчэнне.</string>

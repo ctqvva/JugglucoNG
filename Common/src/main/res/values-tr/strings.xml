@@ -1883,6 +1883,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="haptic_profile_escalating">Artan</string>
     <string name="glucifer_delivery_failed">Glucifer HA aktarımı başarısız; yeniden deneme bekleniyor</string>
     <string name="glucifer_not_acknowledged">Glucifer HA verileri onaylamadı; yeniden deneme bekleniyor</string>
+    <string name="glucifer_qr_confirm">%1$s adresindeki alıcı kullanılsın mı?</string>
+    <string name="glucifer_qr_invalid">Bu QR kodu bir Home Assistant alıcı adresi içermiyor.</string>
+    <string name="glucifer_warmup">Sensör ısınıyor</string>
+    <string name="glucifer_history">Glikoz geçmişini tamamla (en fazla 7 gün)</string>
+    <string name="glucifer_history_failed">Geçmişin alındığı onaylanmadı</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Seçilen verileri Home Assistant sistemine gönder</string>
     <string name="glucifer_glucose_required">Glikoz ve ölçüm zamanı her zaman gönderilir. Aşağıdan her ek veri alanını ve alarmı seçin.</string>

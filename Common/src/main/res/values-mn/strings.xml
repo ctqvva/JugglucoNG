@@ -1878,6 +1878,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="haptic_profile_escalating">Escalating</string>
     <string name="glucifer_delivery_failed">Glucifer HA руу илгээж чадсангүй; дахин оролдоно</string>
     <string name="glucifer_not_acknowledged">Glucifer HA өгөгдлийг баталгаажуулсангүй; дахин оролдоно</string>
+    <string name="glucifer_qr_confirm">%1$s хаяг дахь хүлээн авагчийг ашиглах уу?</string>
+    <string name="glucifer_qr_invalid">Энэ QR код Home Assistant хүлээн авагчийн хаяг агуулаагүй.</string>
+    <string name="glucifer_warmup">Мэдрэгч халж байна</string>
+    <string name="glucifer_history">Глюкозын түүхийг нөхөх (7 хүртэл хоног)</string>
+    <string name="glucifer_history_failed">Түүх хүлээн авсан нь баталгаажаагүй</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Сонгосон өгөгдлийг Home Assistant руу илгээх</string>
     <string name="glucifer_glucose_required">Глюкоз болон хэмжилтийн цагийг үргэлж илгээнэ. Доороос нэмэлт талбар, сэрэмжлүүлэг бүрийг сонгоно уу.</string>

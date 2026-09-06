@@ -1980,6 +1980,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="haptic_profile_escalating">Ansteigend</string>
     <string name="glucifer_delivery_failed">Glucifer HA: Übertragung fehlgeschlagen; erneuter Versuch ausstehend</string>
     <string name="glucifer_not_acknowledged">Glucifer HA hat die Daten nicht bestätigt; erneuter Versuch ausstehend</string>
+    <string name="glucifer_qr_confirm">Empfänger unter %1$s verwenden?</string>
+    <string name="glucifer_qr_invalid">Dieser QR-Code enthält keine Home-Assistant-Empfänger-URL.</string>
+    <string name="glucifer_warmup">Sensor wärmt auf</string>
+    <string name="glucifer_history">Glukoseverlauf nachladen (bis zu 7 Tage)</string>
+    <string name="glucifer_history_failed">Übertragung des Verlaufs nicht bestätigt</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Ausgewählte Daten an Home Assistant senden</string>
     <string name="glucifer_glucose_required">Glukose und Messzeit werden immer gesendet. Weitere Datenfelder und Alarme einzeln auswählen.</string>

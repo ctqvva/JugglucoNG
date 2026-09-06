@@ -1861,6 +1861,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_escalating">Progressive</string>
     <string name="glucifer_delivery_failed">Échec de transmission à Glucifer HA ; nouvelle tentative en attente</string>
     <string name="glucifer_not_acknowledged">Glucifer HA n’a pas confirmé les données ; nouvelle tentative en attente</string>
+    <string name="glucifer_qr_confirm">Utiliser le récepteur à %1$s ?</string>
+    <string name="glucifer_qr_invalid">Ce code QR ne contient pas une URL de récepteur Home Assistant.</string>
+    <string name="glucifer_warmup">Préchauffage du capteur</string>
+    <string name="glucifer_history">Compléter l’historique du glucose (jusqu’à 7 jours)</string>
+    <string name="glucifer_history_failed">Réception de l’historique non confirmée</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Envoyer les données sélectionnées à Home Assistant</string>
     <string name="glucifer_glucose_required">Le glucose et son heure de mesure sont toujours envoyés. Choisissez chaque champ et alerte supplémentaire ci-dessous.</string>

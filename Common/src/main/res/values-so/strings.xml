@@ -2173,6 +2173,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="haptic_profile_escalating">Sii kordhaya</string>
     <string name="glucifer_delivery_failed">Dirista Glucifer HA way fashilantay; isku day kale ayaa sugaya</string>
     <string name="glucifer_not_acknowledged">Glucifer HA ma xaqiijin xogta; isku day kale ayaa sugaya</string>
+    <string name="glucifer_qr_confirm">Ma la isticmaalaa qaataha %1$s?</string>
+    <string name="glucifer_qr_invalid">Koodhkan QR ma laha cinwaanka qaataha Home Assistant.</string>
+    <string name="glucifer_warmup">Dareemaha ayaa kululaanaya</string>
+    <string name="glucifer_history">Buuxi taariikhda gulukoosta (ilaa 7 maalmood)</string>
+    <string name="glucifer_history_failed">Helitaanka taariikhda lama xaqiijin</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">U dir xogta la doortay Home Assistant</string>
     <string name="glucifer_glucose_required">Gulukoosta iyo waqtiga cabbirka mar walba waa la diraa. Hoos ka dooro xog kasta iyo digniin kasta oo dheeraad ah.</string>

@@ -3384,6 +3384,12 @@ class ICanHealthBleManager(
         Log.w(TAG, "Skipping iCan $source history record seq=$sequenceNumber; no trusted timestamp anchor")
     }
 
+    override fun getWarmupState(): Boolean? = if (!isAuthenticated) null else when (launcherState) {
+        ICanHealthConstants.LAUNCHER_STATE_WARMUP -> true
+        ICanHealthConstants.LAUNCHER_STATE_RUNNING -> false
+        else -> null
+    }
+
     private fun hasStartedOrWarmupSession(): Boolean {
         if (hasConfirmedLiveSession()) {
             return true

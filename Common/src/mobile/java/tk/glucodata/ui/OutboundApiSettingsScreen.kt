@@ -94,6 +94,8 @@ import tk.glucodata.OutboundApi
 import tk.glucodata.OutboundApiInsulinTokens
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
+import tk.glucodata.GluciferSetup
+import tk.glucodata.ui.setup.rememberUnifiedQrScanLauncher
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.sms.SmsWatchdog
 import tk.glucodata.ui.components.CardPosition
@@ -604,6 +606,7 @@ private fun DestinationEditor(
     )
 
     if (isGlucifer) {
+        GluciferQrSetup(destination, onChange)
         GluciferFields(destination, onChange)
         return
     }
@@ -1464,6 +1467,12 @@ private fun GluciferFields(
     onChange: (OutboundApiSettings.Destination) -> Unit
 ) {
     Text(stringResource(R.string.glucifer_glucose_required), style = MaterialTheme.typography.bodyMedium)
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferHistory, role = Role.Switch) {
+        onChange(destination.copy(gluciferHistory = it))
+    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.glucifer_history), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferHistory, onCheckedChange = null)
+    }
     val fields = listOf(
         "trend" to R.string.stats_trend,
         "delta_mgdl" to R.string.glucifer_delta,
@@ -1474,7 +1483,10 @@ private fun GluciferFields(
         "cob_g" to R.string.notification_show_cob_title,
         "battery_percent" to R.string.battery,
         "sensor_id" to R.string.glucifer_sensor_id,
-        "sensor_generation" to R.string.glucifer_sensor_generation
+        "sensor_generation" to R.string.glucifer_sensor_generation,
+        "sensor_started_ms" to R.string.sensor_started,
+        "sensor_expires_ms" to R.string.sensor_expected_end,
+        "sensor_warmup" to R.string.glucifer_warmup
     ) + tk.glucodata.alerts.AlertType.entries.mapNotNull { type ->
         val key = type.name.lowercase(Locale.ROOT)
         if (key in tk.glucodata.GluciferPayload.alerts) "alert:$key" to type.nameResId else null
@@ -1491,5 +1503,25 @@ private fun GluciferFields(
             Text(stringResource(label), modifier = Modifier.weight(1f))
             StyledSwitch(checked = enabled, onCheckedChange = null)
         }
+    }
+}
+
+
+@Composable
+private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChange: (OutboundApiSettings.Destination) -> Unit) {
+    val context = LocalContext.current
+    var pendingUrl by remember(destination.id) { mutableStateOf<String?>(null) }
+    val scan = rememberUnifiedQrScanLauncher(requestCode = 0x4748, title = stringResource(R.string.scan_qr_button), onScanResult = { text ->
+        val url = GluciferSetup.parseQr(text)
+        if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
+        else pendingUrl = url
+    })
+    TextButton(onClick = scan) { Text(stringResource(R.string.scan_qr_button)) }
+    pendingUrl?.let { url ->
+        AlertDialog(onDismissRequest = { pendingUrl = null },
+            title = { Text(stringResource(R.string.glucifer_title)) },
+            text = { Text(stringResource(R.string.glucifer_qr_confirm, GluciferSetup.hostLabel(url))) },
+            confirmButton = { TextButton(onClick = { onChange(destination.copy(url = url)); pendingUrl = null }) { Text(stringResource(R.string.confirm)) } },
+            dismissButton = { TextButton(onClick = { pendingUrl = null }) { Text(stringResource(R.string.cancel)) } })
     }
 }

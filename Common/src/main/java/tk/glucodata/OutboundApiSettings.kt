@@ -125,7 +125,8 @@ object OutboundApiSettings {
         val lastSentMgdlByRecipient: Map<String, Int> = emptyMap(),
         val lastStaleAtMsByRecipient: Map<String, Long> = emptyMap(),
         val smsPolicy: SmsPolicy = SmsPolicy(),
-        val gluciferFields: Set<String> = GluciferPayload.defaults
+        val gluciferFields: Set<String> = GluciferPayload.defaults,
+        val gluciferHistory: Boolean = false
     ) {
         fun isGlucifer(): Boolean = normalizedPreset() == PRESET_GLUCIFER
 
@@ -593,6 +594,7 @@ object OutboundApiSettings {
                         )
                         .put("smsPolicy", SmsPolicy.encode(destination.smsPolicy))
                         .put("gluciferFields", JSONArray(destination.gluciferFields.sorted()))
+                        .put("gluciferHistory", destination.gluciferHistory)
                 )
             }
         }
@@ -664,6 +666,7 @@ object OutboundApiSettings {
                 lastSentMgdlByRecipient = decodeIntMap(item.optJSONObject("lastSentMgdlByRecipient")),
                 lastStaleAtMsByRecipient = decodeLongMap(item.optJSONObject("lastStaleAtMsByRecipient")),
                 smsPolicy = SmsPolicy.decode(item.optJSONObject("smsPolicy")),
+                gluciferHistory = item.optBoolean("gluciferHistory", false),
                 gluciferFields = item.optJSONArray("gluciferFields")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }.toSet()
                         .intersect(GluciferPayload.supported)

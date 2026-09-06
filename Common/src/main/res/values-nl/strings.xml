@@ -1898,6 +1898,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="haptic_profile_escalating">Oplopend</string>
     <string name="glucifer_delivery_failed">Verzenden naar Glucifer HA mislukt; nieuwe poging volgt</string>
     <string name="glucifer_not_acknowledged">Glucifer HA heeft de gegevens niet bevestigd; nieuwe poging volgt</string>
+    <string name="glucifer_qr_confirm">Ontvanger op %1$s gebruiken?</string>
+    <string name="glucifer_qr_invalid">Deze QR-code bevat geen Home Assistant-ontvanger-URL.</string>
+    <string name="glucifer_warmup">Sensor warmt op</string>
+    <string name="glucifer_history">Glucosegeschiedenis aanvullen (tot 7 dagen)</string>
+    <string name="glucifer_history_failed">Ontvangst van geschiedenis niet bevestigd</string>
     <string name="glucifer_title" translatable="false">Glucifer HA</string>
     <string name="glucifer_description">Geselecteerde gegevens naar Home Assistant sturen</string>
     <string name="glucifer_glucose_required">Glucose en meettijd worden altijd verzonden. Kies hieronder elk extra gegevensveld en alarm.</string>

@@ -1428,6 +1428,8 @@ class AnytimeBleManager(
      * field is in-memory only, so after an app restart a days-old sensor looked
      * like it was warming up until its next push.
      */
+    override fun getWarmupState(): Boolean? = if (isCt5() && ct5SensorAgeMs() >= 0) isCt5WarmingUp() else null
+
     private fun isCt5WarmingUp(): Boolean {
         if (!isCt5()) return false
         if (lastGlucoseAtMs > 0L) return false
