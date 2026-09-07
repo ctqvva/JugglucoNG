@@ -12,6 +12,9 @@ import tk.glucodata.data.prediction.PredictionModelProfileStore
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.ui.buildPredictionSeriesForChart
 import tk.glucodata.ui.buildSmoothedConsumerHistory
+import tk.glucodata.ui.util.GlucoseFormatter
+import tk.glucodata.ui.util.inDisplayUnit
+import tk.glucodata.data.prediction.GlucosePredictionSeries
 import java.util.Locale
 import kotlin.math.round
 
@@ -25,8 +28,10 @@ object GluciferPredictionSnapshot {
             System.currentTimeMillis() - glucoseTime > 600_000L) return@runBlocking "[]"
         val history = HistoryRepository().getHistoryForSensor(sensorId, glucoseTime - 3_600_000L)
             .filter { it.timestamp <= glucoseTime }
+        val isMmol = Applic.unit == 1
+        val unit = if (isMmol) "mmol/L" else "mg/dL"
         val minutes = DataSmoothing.localSmoothingMinutes(context)
-        val points = buildSmoothedConsumerHistory(history, minutes, minutes > 0 && DataSmoothing.collapseChunks(context))
+        val points = prepareHistory(history, isMmol, minutes, minutes > 0 && DataSmoothing.collapseChunks(context))
         val baseline = points.lastOrNull()?.timestamp ?: return@runBlocking "[]"
         if (glucoseTime - baseline > 120_000L) return@runBlocking "[]"
         val horizon = prefs.getInt("dashboard_prediction_horizon_minutes", 120).coerceIn(30, 360)
@@ -37,11 +42,12 @@ object GluciferPredictionSnapshot {
             baseline - 36 * 3_600_000L, baseline + horizon * 60_000L
         ) else emptyList()
         val presets = if (journalEnabled) repository.getInsulinPresetsSnapshot().associateBy { it.id } else emptyMap()
-        val scale = if (Applic.unit == 1) 18.0182f else 1f
-        val low = runCatching { Natives.targetlow() * scale }.getOrDefault(70f).takeIf { it > 0 } ?: 70f
-        val high = runCatching { Natives.targethigh() * scale }.getOrDefault(180f).takeIf { it > 0 } ?: 180f
+        val defaultLow = GlucoseFormatter.displayFromMgDl(70f, isMmol)
+        val defaultHigh = GlucoseFormatter.displayFromMgDl(180f, isMmol)
+        val low = runCatching { Natives.targetlow() }.getOrDefault(defaultLow).takeIf { it > 0 } ?: defaultLow
+        val high = runCatching { Natives.targethigh() }.getOrDefault(defaultHigh).takeIf { it > 0 } ?: defaultHigh
         val series = buildPredictionSeriesForChart(
-            points, CurrentDisplaySource.resolveViewModeForSensor(sensorId), entries, presets, "mg/dL", low, high,
+            points, CurrentDisplaySource.resolveViewModeForSensor(sensorId), entries, presets, unit, low, high,
             PredictiveSimulationSettings(
                 enabled = true,
                 trendMomentumEnabled = prefs.getBoolean("dashboard_prediction_trend_momentum_enabled", true),
@@ -50,16 +56,22 @@ object GluciferPredictionSnapshot {
                 modelProfile = PredictionModelProfileStore.load(prefs)
             )
         )
+        serialize(series, isMmol)
+    }
+
+    internal fun prepareHistory(history: List<tk.glucodata.ui.GlucosePoint>, isMmol: Boolean, minutes: Int, collapse: Boolean) =
+        buildSmoothedConsumerHistory(history.inDisplayUnit(isMmol), minutes, collapse)
+
+    internal fun serialize(series: List<GlucosePredictionSeries>, isMmol: Boolean): String =
         JSONArray().apply {
             series.forEach { curve ->
                 put(JSONObject().put("kind", curve.kind.name.lowercase(Locale.ROOT))
                     .put("points", JSONArray().apply {
                         curve.points.forEach { point ->
                             put(JSONObject().put("time_ms", point.timestamp)
-                                .put("mgdl", round(point.value.toDouble() * 10.0) / 10.0))
+                                .put("mgdl", round((if (isMmol) GlucoseFormatter.mmolToMg(point.value) else point.value).toDouble() * 10.0) / 10.0))
                         }
                     }))
             }
         }.toString()
-    }
 }
