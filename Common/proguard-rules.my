@@ -243,3 +243,6 @@
 -keep class tk.glucodata.ui.ComposeHostKt {
     public static void setComposeContent(androidx.appcompat.app.AppCompatActivity, android.view.View);
 }
+
+# Keep the optional Glucifer prediction bridge called from the shared sender.
+-keep class tk.glucodata.GluciferPredictionSnapshot { *; }

@@ -66,6 +66,22 @@ class GluciferPayloadTests {
         assertEquals(0.0, zero.getJSONObject("fields").getDouble("eiob_u"), 0.0)
     }
 
+    @Test fun `predictions are opt in and changed curves push without new glucose`() {
+        val curves = org.json.JSONArray("""[{"kind":"auto","points":[{"time_ms":1788695990000,"mgdl":123},{"time_ms":1788696290000,"mgdl":130}]}]""")
+        val first = payload(selected = setOf("predictions"), values = mapOf("predictions" to curves))
+        assertFalse(payload().has("predictions"))
+        assertEquals(0, first.getJSONObject("fields").length())
+        val restored = JSONObject(first.toString())
+        assertNull(GluciferPayload.nextDelivery(restored, first, false, false))
+        curves.getJSONObject(0).getJSONArray("points").getJSONObject(1).put("mgdl", 125)
+        val edited = payload(selected = setOf("predictions"), values = mapOf("predictions" to curves), seq = 2)
+        assertSame(edited, GluciferPayload.nextDelivery(restored, edited, false, false))
+        assertEquals(restored.getJSONObject("glucose").toString(), edited.getJSONObject("glucose").toString())
+        val disabled = payload(selected = emptySet(), seq = 3)
+        assertSame(disabled, GluciferPayload.nextDelivery(edited, disabled, false, false))
+        assertEquals(0, payload(selected = setOf("predictions")).getJSONArray("predictions").length())
+    }
+
     @Test fun `plain HTTP success and mismatched acknowledgement are not delivery success`() {
         assertFalse(GluciferPayload.acknowledged("", "phone-test", 1))
         assertFalse(GluciferPayload.acknowledged("{}", "phone-test", 1))
