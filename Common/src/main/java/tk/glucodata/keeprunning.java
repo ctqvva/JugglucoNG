@@ -42,7 +42,7 @@ private void logLifecycleState(String event, Intent intent) {
       Log.i(LOG_ID,event
               +" intent="+(intent==null?"null":intent.getAction())
               +" bluetooth="+Natives.getusebluetooth()
-              +" backupHosts="+Natives.backuphostNr()
+              +" backupHosts="+Natives.activeBackupHostNr()
               +" nightscoutEnabled="+Natives.getuseuploader()
               +" nightscoutRunning="+Natives.getnightscoutuploaderrunning());
       }
@@ -90,13 +90,14 @@ static PowerManager.WakeLock wakeLock =null;
        started=true;
        Applic app=(Applic) getApplicationContext();
        app.initproc();
+       CloneBackgroundLiveness.sync();
        logLifecycleState("onStartCommand",intent);
        if(Natives.getfloatglucose()&&!Natives.gethidefloatinJuggluco()) 
                 Floating.makefloat();
         try {
           if(intent==null) {
              if(!Applic.possiblybluetooth(this)) {
-                if(Natives.backuphostNr( )<=0) {
+                if(Natives.activeBackupHostNr( )<=0) {
                    Log.w(LOG_ID,"sticky restart stopped: no Bluetooth or backup-host work");
                    started=false;
                    stopSelf();
@@ -130,6 +131,7 @@ static PowerManager.WakeLock wakeLock =null;
   @Override
   public void onDestroy() {
     logLifecycleState("onDestroy",null);
+    CloneBackgroundLiveness.release();
     if(theservice==this) {
       theservice=null;
       started=false;

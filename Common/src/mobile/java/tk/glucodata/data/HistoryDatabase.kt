@@ -7,6 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import tk.glucodata.data.journal.JournalDao
+import tk.glucodata.data.journal.CloneJournalRecoveryTombstoneEntity
+import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
@@ -36,6 +38,13 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
  *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — per-reading glucose source provenance
+ *   v19 — stable first-arrival ordering for equivalent replicated readings
+ *   v20 — journal content origin plus durable Clone deletion tombstones;
+ *         also repairs v19 databases produced by earlier Clone test builds
+ *   v21 — durable journal recovery identity independent of local database row ids
+ *   v22 — durable cross-device journal recovery tombstones
+ *   v23 — transactional history recovery import receipts
  */
 @Database(
     entities = [
@@ -46,9 +55,12 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
-        JournalPendingDeleteEntity::class
+        JournalPendingDeleteEntity::class,
+        CloneJournalTombstoneEntity::class,
+        CloneJournalRecoveryTombstoneEntity::class,
+        CloneRecoveryImportEntity::class,
     ],
-    version = 17,
+    version = 23,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -421,6 +433,129 @@ abstract class HistoryDatabase : RoomDatabase() {
             return false
         }
 
+        /** v17 -> v18: persist the source that first delivered each glucose reading. */
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE history_readings " +
+                        "ADD COLUMN source TEXT NOT NULL DEFAULT 'sensor'"
+                )
+                // These virtual sensor ids are stable and unambiguous, so older
+                // rows can retain their known origin. Existing Clone rows cannot
+                // be reconstructed per entry and deliberately remain "sensor".
+                db.execSQL(
+                    "UPDATE history_readings SET source = 'nightscout' " +
+                        "WHERE UPPER(sensorSerial) LIKE 'NSF-%'"
+                )
+                db.execSQL(
+                    "UPDATE history_readings SET source = 'api' " +
+                        "WHERE UPPER(sensorSerial) LIKE 'API-%'"
+                )
+                db.execSQL(
+                    "UPDATE history_readings SET source = 'mq_follower' " +
+                        "WHERE UPPER(sensorSerial) LIKE 'MQF-%'"
+                )
+            }
+        }
+
+        /** v18 -> v19: retain stable first-arrival ordering for equivalent replicas. */
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE history_readings " +
+                        "ADD COLUMN firstStoredAt INTEGER NOT NULL DEFAULT 0"
+                )
+                // The table's autoincrement id is the only durable arrival order
+                // available for pre-migration rows. New rows use wall-clock time.
+                db.execSQL(
+                    "UPDATE history_readings SET firstStoredAt = id " +
+                        "WHERE firstStoredAt <= 0"
+                )
+            }
+        }
+
+        /**
+         * v19 -> v20: preserve journal origin and durable Clone deletion tombstones.
+         *
+         * Earlier Clone test builds also reported version 19, but used that step for
+         * these journal fields instead of the final firstStoredAt migration. Inspecting
+         * the schema makes this safe for both histories without dropping any data.
+         */
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "history_readings", "firstStoredAt")) {
+                    db.execSQL(
+                        "ALTER TABLE history_readings " +
+                            "ADD COLUMN firstStoredAt INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                db.execSQL(
+                    "UPDATE history_readings SET firstStoredAt = id " +
+                        "WHERE firstStoredAt <= 0"
+                )
+                if (!hasColumn(db, "journal_entries", "originSource")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN originSource TEXT")
+                }
+                db.execSQL(
+                    "UPDATE journal_entries SET originSource = source " +
+                        "WHERE originSource IS NULL " +
+                        "AND source IN ('manual', 'health_connect', 'meter', 'pen')"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS clone_journal_tombstones (
+                        entryId INTEGER PRIMARY KEY NOT NULL,
+                        deletedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        /** v20 -> v21: identify journal rows safely across backup restore and row-id reuse. */
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT")
+                db.execSQL(
+                    "UPDATE journal_entries SET recoveryId = lower(hex(randomblob(16))) " +
+                        "WHERE recoveryId IS NULL"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_journal_entries_recoveryId " +
+                        "ON journal_entries (recoveryId)"
+                )
+                db.execSQL("ALTER TABLE clone_journal_tombstones ADD COLUMN recoveryId TEXT")
+            }
+        }
+
+        /** v21 -> v22: retain recovered journal deletions by cross-device identity. */
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS clone_journal_recovery_tombstones (
+                        stableBaseId TEXT NOT NULL,
+                        recoveryId TEXT,
+                        deletedAt INTEGER NOT NULL,
+                        PRIMARY KEY(stableBaseId)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_clone_journal_recovery_tombstones_recoveryId " +
+                        "ON clone_journal_recovery_tombstones (recoveryId)"
+                )
+            }
+        }
+
+        /** v22 -> v23: prevent replacement replay after a process dies just after commit. */
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS clone_recovery_imports (jobId TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(jobId))")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -443,7 +578,13 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
-                    MIGRATION_16_17
+                    MIGRATION_16_17,
+                    MIGRATION_17_18,
+                    MIGRATION_18_19,
+                    MIGRATION_19_20,
+                    MIGRATION_20_21,
+                    MIGRATION_21_22,
+                    MIGRATION_22_23
                 )
                 .build().also { INSTANCE = it }
             }

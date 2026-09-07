@@ -197,6 +197,8 @@ struct updateone {
   int updateiob();
   int numbertypes();
   int sendCalibrate();
+  int sendCloneIobSnapshot();
+  int sendCloneJournalSnapshot();
 };
 
 #include "maxsendtohost.h"
@@ -250,6 +252,13 @@ static constexpr const uintptr_t wakestreamsend = 512;
    the native number paths, so whether a dose reached Nightscout depended on a calibration or
    a backup happening to come along. */
 static constexpr const uintptr_t waketreatments = 1024;
+/* Explicit Clone history recovery. Recovery uses the normal per-host sender
+   thread, but gets its own wake reason so a large transfer never masquerades
+   as live glucose work. */
+static constexpr const uintptr_t wakerecovery = 2048;
+
+int processCloneRecoveryAction(int sendindex);
+int resumeCloneRecoveryForHost(int allindex, int sendindex);
 
 class Backup {
 
@@ -267,6 +276,7 @@ public:
   static constexpr const uintptr_t wakereconnect = ::wakereconnect;
   static constexpr const uintptr_t wakestreamsend = ::wakestreamsend;
   static constexpr const uintptr_t waketreatments = ::waketreatments;
+  static constexpr const uintptr_t wakerecovery = ::wakerecovery;
   struct condvar_t {
     uintptr_t dobackup = 0;
     std::mutex backupmutex;
@@ -1026,6 +1036,16 @@ public:
     return receives;
   }
 
+  // Close the per-connection command gate without waiting for an in-flight
+  // command or tearing down libjuice. The UI uses this as the immediate half
+  // of Clone disable before the blocking teardown runs on a worker thread.
+  void prepareHostDeactivation(int index) {
+    if (index < 0 || index >= getupdatedata()->hostnr)
+      return;
+    if (Connect *connection = connections[index])
+      connection->setReceiverCommandsEnabled(false);
+  }
+
   void deactivateHost(int index, bool deactive) {
     LOGGER("deactivateHost(%d,%d)\n", index, deactive);
     if (index >= getupdatedata()->hostnr)
@@ -1036,8 +1056,16 @@ public:
       return;
     if (host.wearos)
       setBlueMessage(index, false);
+    Connect *connection = connections[index];
+    if (deactive && connection)
+      connection->setReceiverCommandsEnabled(false);
     host.deactivated = deactive;
     if (deactive) {
+      if (host.ICE && connection) {
+        // ICE owns a separate receiver loop and no classic host socket. End
+        // its current agent now; the loop parks on host.deactivated.
+        connection->endConnection();
+      }
       if (host.activereceive) {
         LOGGER("stop active receive     shutdown(%d)\n", hostsocks[index]);
         extern std::vector<condvar_t *> active_receive;
@@ -1064,7 +1092,16 @@ public:
         ::shutdown(sock, SHUT_RDWR);
       }
 
+      // Transport shutdown prevents new input. Waiting here makes the native
+      // disable call a quiescence boundary for a command already in interpret().
+      if (connection)
+        connection->waitForReceiverCommandsIdle();
+
     } else {
+      if (connection)
+        connection->setReceiverCommandsEnabled(true);
+      if (host.ICE)
+        startReceiverThread(index);
       if (host.index >= 0)
         startthread(index, host.index);
       if (host.activereceive) {
@@ -1188,6 +1225,9 @@ sendindex); extern bool doend(int sendindex); */
 #endif
     }
     uintptr_t current = 0;
+    if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
+      con_vars[sendindex]->wakebackup(wakerecovery);
+    }
     while (true) {
       if (doend(sendindex))
         return;
@@ -1311,6 +1351,15 @@ sendindex); extern bool doend(int sendindex); */
         con->sendrender(getupdatedata()->tosend[h].getcrypt(), command);
       }
     }
+    /* Live numbers, stream updates, scans and normal metadata always run
+       first. Exactly one recovery transaction may follow, then Java decides
+       whether to schedule another wake now or later. */
+    if (current & (wakerecovery | wakereconnect | wakeall)) {
+      if (processCloneRecoveryAction(h) == 1 && h < con_vars.size() &&
+          con_vars[h]) {
+        con_vars[h]->wakebackup(wakerecovery);
+      }
+    }
   }
   void lockwait(uintptr_t &current, int h) {
     LOGGER("%d before lock\n", h);
@@ -1409,6 +1458,13 @@ sendindex); extern bool doend(int sendindex); */
           } else {
             LOGAR(" no start");
           }
+        }
+        // changeICEhost() starts this companion thread when an ICE entry is
+        // created or edited. Restore the same lifecycle after process startup;
+        // receiver-only Clone entries have no sender index and otherwise stay
+        // at Phase::Start until an unrelated network change wakes them.
+        if (host.ICE && !host.deactivated) {
+          startReceiverThread(i);
         }
       }
 

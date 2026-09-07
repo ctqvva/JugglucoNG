@@ -119,6 +119,10 @@ void ICE_data::setRTO(int rtt) {
 #endif
 #endif
 void ICE_data::ackeddata(juice_agent_t *agent,udp_header  *head) {
+      // libjuice invokes this callback while holding its connection mutex. Keep
+      // all acknowledgement state under sendMutex, but never take the inverse
+      // path by calling juice_send() while sendMutex is held (see senddata()).
+      std::lock_guard<std::mutex> sendLock(sendMutex);
       int index=head->index;
       if(head->trans_id==send_trans_id) {
           if(index<0||index>=acknowledged.size()) {
@@ -135,21 +139,21 @@ void ICE_data::ackeddata(juice_agent_t *agent,udp_header  *head) {
           if(head->fin) {
             ++nextAck;
             ++send_trans_id;
+            {
+            std::lock_guard<std::mutex> sendWindowLock(doSendMutex);
             doSend=false;
-            LOGGERICE("ackeddata: last ack ++send_trans_id=%d\n",send_trans_id);
-            {std::lock_guard<std::mutex> lck(sendMutex);
-            lastAcked=true;
-            sendCond.notify_one();                        
             }
+            LOGGERICE("ackeddata: last ack ++send_trans_id=%d\n",send_trans_id);
+            lastAcked=true;
+            sendCond.notify_one();
             }
           else {
               while(acknowledged[nextAck])
                 ++nextAck;
               if(nextAck==lastpacket) {
-                     std::lock_guard<std::mutex> lck(sendMutex);
                      sentAck=true;
-                     sendCond.notify_one();                        
-               }
+                     sendCond.notify_one();
+                    }
                /*
               else {
                   int previndex=index-1;
@@ -172,8 +176,8 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
    switch(head->com) {
         case START: {
             ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-            if(!con) {
-                LOGGERICE("allindex=%d on_recv START, but con=null\n",allindex);
+            if(!con||!con->isCurrentAgent(agent)) {
+                LOGGERICE("allindex=%d on_recv START, but agent is no longer current\n",allindex);
                 return;
                 }
           if(head->ack) {
@@ -207,9 +211,29 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
                 if(!sendShutdown) 
                        sendshutDown(agent);
                 return;
-                }
+            }
             if(!head->ack) {
-                if(head->trans_id==send_trans_id||setNext(send_trans_id,head->trans_id)) {
+                bool acceptedTransaction;
+                bool implicitlyAcknowledgedPrevious=false;
+                uint16_t currentSendTransaction;
+                {
+                std::lock_guard<std::mutex> sendLock(sendMutex);
+                acceptedTransaction=head->trans_id==send_trans_id;
+                if(!acceptedTransaction&&setNext(send_trans_id,head->trans_id)) {
+                    // The receiver can ask for transaction N+1 before the final
+                    // acknowledgement for N arrives. Its request proves that it
+                    // received N completely, so release the sender waiting on N
+                    // before servicing N+1.
+                    lastAcked=true;
+                    sendCond.notify_one();
+                    implicitlyAcknowledgedPrevious=true;
+                    acceptedTransaction=true;
+                    }
+                currentSendTransaction=send_trans_id;
+                }
+                if(acceptedTransaction) {
+                    if(implicitlyAcknowledgedPrevious)
+                        LOGGERICE("on_recv ASK trans_id=%d implicitly acknowledged previous transaction\n",head->trans_id);
                     LOGGERICE("on_recv allindex=%d side=%d ASK trans_id=%d same as send_trans_id\n",allindex,side,head->trans_id);
                     head->ack=true;
                     if(!sendWithError(agent, data,sizeof(udp_header))) {
@@ -228,7 +252,7 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
 
                     }
                  else
-                    LOGGERICE("on_recv side=%d ASK trans_id=%d != send_trans_id=%d\n",side,head->trans_id,send_trans_id);
+                    LOGGERICE("on_recv side=%d ASK trans_id=%d != send_trans_id=%d\n",side,head->trans_id,currentSendTransaction);
                 return;
                 }
          else {
@@ -349,11 +373,26 @@ void ICE_data::askdata(juice_agent_t *agent) {
 
 void ICE_data::sendStart(juice_agent_t *agent,ICEConnect *con) {
        LOGGERICE("sendStart allindex=%d side=%d\n",con->allindex,side);
+       const uint64_t generation=con->currentAgentGeneration();
+       if(!con->isCurrentAgent(agent,generation)) {
+            LOGGERICE("defer sendStart allindex=%d side=%d: agent is no longer current\n",con->allindex,side);
+            return;
+            }
+       const juice_state_t initialState=juice_get_state(agent);
+       if(initialState!=JUICE_STATE_CONNECTED&&initialState!=JUICE_STATE_COMPLETED) {
+            LOGGERICE("defer sendStart allindex=%d side=%d: state=%s\n",con->allindex,side,juice_state_to_string(initialState));
+            return;
+            }
        for(int i=0;!con->start_ack&&i<5;++i) {
+            if(!con->isCurrentAgent(agent,generation))
+                    return;
             uint32_t rel_msec=getRelMsec(starttime);
             udp_header  head{.rel_msec=rel_msec,.com=START,.side=side,.ack=false,.trans_id=send_trans_id};
-            if(!sendWithError(agent, reinterpret_cast<const char *>(&head),sizeof(udp_header)))
+            if(!sendRetry(agent, reinterpret_cast<const char *>(&head),sizeof(udp_header))) {
+                    con->requestReconnectIfCurrent(agent,generation);
+                    LOGGERICE("sendStart failed allindex=%d side=%d\n",con->allindex,side);
                     return;
+                    }
             usleep(RTO*100);
             };
        LOGGERICE("end sendStart allindex=%d side=%d start_ack=%d\n",con->allindex,side,con->start_ack);
@@ -391,11 +430,13 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
            return -1;
            }
         LOGGERICE("allindex=%d side=%d senddata doSend(%p).acquire();\n",allindex,side,&doSend);
-        time_t startWait=time(nullptr);
-        static constexpr const int waitsec=4*60;
+        static constexpr const int waitsec=30;
+        bool readyToSend;
         {
         std::unique_lock<std::mutex> lck(doSendMutex);
-        doSendCond.wait_for(lck,std::chrono::seconds(waitsec), [this] {return doSend; });   
+        readyToSend=doSendCond.wait_for(
+            lck,std::chrono::seconds(waitsec),
+            [this] {return doSend||shutdown; });
         }
 //        certain_try_acquire(doSend);
         if(shutdown) {
@@ -411,37 +452,40 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
                 LOGGERICE("side=%d senddata ICEConnect==null\n",side);
                 return -1;
                 }
-        if(!con->isConnected||(!doSend&&(time(nullptr)-startWait)<waitsec)) {
-                LOGGERICE("allindex=%d side=%d connect=%d doSend=%d wait\n",allindex,side,con->isConnected,doSend);
-                {
-                std::unique_lock<std::mutex> lck(doSendMutex);
-                doSendCond.wait_for(lck,std::chrono::seconds(waitsec), [this] {return doSend; });   
+        if(!con->isConnected||!con->isCurrentAgent(agent)) {
+                LOGGERICE("allindex=%d side=%d senddata connection changed while waiting\n",allindex,side);
+                return -1;
                 }
-                if(!doSend) {
-                    LOGGERICE("allindex=%dside=%d senddata !doSend\n",allindex,side);
-                    return -1;
-                    }
+        if(!readyToSend) {
+                LOGGERICE("allindex=%d side=%d senddata timed out waiting for peer request\n",allindex,side);
+                con->endConnection();
+                return -1;
                 }
+        LOGGERICE("side=%d start senddata %.*s %d\n",side,40,data,len);
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+
+        uint32_t starttime2=tv.tv_sec,rel_msec;
+   //     uint32_t startmsec=tv.tv_usec/100;
+        int totalminuslastunits=(len-1)/dataunit;
+        int trans_id;
+        {
+        std::lock_guard<std::mutex> lck(sendMutex);
         nextAck=0;
         lastAcked=false;
         sentAck=false;
+        trans_id=send_trans_id;
+        starttime=starttime2;
+        lastpacket=totalminuslastunits;
+        bzero(&acknowledged,sizeof(acknowledged)); //only relevant once?
+        }
         destruct _{[this]{
+                std::lock_guard<std::mutex> lck(sendMutex);
                 nextAck=0;
                 lastAcked=false;
                 sentAck=false;
                 lastpacket=-1;
                 }};
-        LOGGERICE("side=%d start senddata %.*s %d\n",side,40,data,len);
-        const int trans_id=send_trans_id;
-        struct timeval tv;
-        gettimeofday(&tv, nullptr);
-        
-        uint32_t starttime2=tv.tv_sec,rel_msec; 
-        starttime=starttime2;
-   //     uint32_t startmsec=tv.tv_usec/100;
-        int totalminuslastunits=(len-1)/dataunit;
-        lastpacket=totalminuslastunits; 
-        bzero( &acknowledged,sizeof( acknowledged)); //only relevant once?
         if(totalminuslastunits>0) {
             for(int index=0;index<totalminuslastunits; index++) {
                 rel_msec= sendpacket(agent, trans_id,data,len, index, starttime2);
@@ -476,6 +520,7 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                         if(waited>waittime) {
                              if(waited>std::chrono::microseconds(RTO*timesRTO*100*16)) {
                                     LOGGERICE("%d senddata endConnection b\n",side);
+                                    lck.unlock();
                                     con->endConnection();
                                     return -1;
                                     }
@@ -492,7 +537,14 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                                 if(!acknowledged[index]) {
                                         ++notack;
                                         LOGGERICE("side=%d trans_id %d senddata packet %d not acknowledged\n",side,trans_id,index);
+                                        // libjuice holds its connection mutex while
+                                        // delivering acknowledgements. Release our
+                                        // acknowledgement mutex before entering it,
+                                        // otherwise TURN traffic can deadlock the two
+                                        // threads in opposite lock order.
+                                        lck.unlock();
                                         rel_msec= sendpacket(agent, trans_id,data,len, index, starttime2);
+                                        lck.lock();
                                         if(shutdown) {
                                             LOGGERICE("%d senddata: shutdown 3\n",side);
                                             return -1;
@@ -553,12 +605,15 @@ std::chrono::duration_cast<std::chrono::milliseconds>(waittime).count());
                        LOGGER("trans_id=%d RTO=%d waittime=%d final took too long\n",trans_id,RTO,waittime);
                        if((newnow-now)> std::chrono::microseconds(RTO*timesRTO*100*16)) {
                             LOGGERICE("%d senddata endConnection c\n",side);
+                            lck.unlock();
                             con->endConnection();
                             return -1;
                             }
                         if(!acknowledged[totalminuslastunits]) {
                                 LOGGERICE("trans_id=%d side=%d senddata final packet %d not acknowledged\n",trans_id,side,totalminuslastunits);
+                                lck.unlock();
                                 rel_msec= sendpacket(agent, trans_id,data,len, totalminuslastunits, starttime2);
+                                lck.lock();
                                 if(shutdown) {
                                     LOGGERICE("%d senddata: shutdown 6\n",side);
                                     return -1;

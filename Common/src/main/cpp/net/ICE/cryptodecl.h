@@ -12,7 +12,10 @@ void (*X509_freeptr)(X509 *a);
 X509 *(*d2i_X509_fpptr)(FILE *fp, X509 **a);
 int (*X509_STORE_add_certptr)(X509_STORE *ctx, X509 *x);
 unsigned long (*ERR_get_errorptr)(void);
-
+int (*X509_check_hostptr)(X509 *x, const char *chk, size_t chklen,
+                          unsigned int flags, char **peername);
+int (*X509_check_ip_ascptr)(X509 *x, const char *ipasc,
+                            unsigned int flags);
 
 
 

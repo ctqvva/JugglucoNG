@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
 import java.io.BufferedReader
@@ -102,7 +103,7 @@ object HistoryExporter {
                         writer.write(
                             "Timestamp,Date,Value,RawValue,CalibratedValue,Unit,SensorSerial,RecordType," +
                                 "JournalId,JournalType,JournalTitle,JournalNote,JournalAmount,JournalGlucoseMgDl," +
-                                "JournalDurationMinutes,JournalIntensity,JournalInsulinPresetId,JournalSource," +
+                                "JournalDurationMinutes,JournalIntensity,JournalInsulinPresetId,JournalSource,JournalOriginSource," +
                                 "JournalSourceRecordId,JournalCreatedAt,JournalUpdatedAt," +
                                 "PresetId,PresetName,PresetOnsetMinutes,PresetDurationMinutes,PresetAccentColor," +
                                 "PresetCurveJson,PresetBuiltIn,PresetArchived,PresetCountsTowardIob," +
@@ -152,6 +153,7 @@ object HistoryExporter {
                                     entry.intensity.orEmpty(),
                                     entry.insulinPresetId ?: "",
                                     entry.source,
+                                    entry.originSource.orEmpty(),
                                     entry.sourceRecordId.orEmpty(),
                                     entry.createdAt,
                                     entry.updatedAt
@@ -362,7 +364,8 @@ object HistoryExporter {
                         sensorSerial = importSerial,
                         value = reading.valueMgDl,
                         rawValue = reading.rawValueMgDl,
-                        rate = 0f
+                        rate = 0f,
+                        source = GlucoseReadingSource.IMPORT,
                     )
                 }
                 if (readings.isNotEmpty()) {
