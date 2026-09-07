@@ -514,3 +514,26 @@ it does not re-arm the same alert immediately. Manual alarm tests do not alter
 production alert values. The normal live-event delivery option applies: it
 bypasses the background interval by default, with delivery subject to network
 availability.
+
+### Glucifer alert reasons and activity
+
+Snapshots can include `alert_details` (latest change per selected alert),
+`alert_events` (the latest 32 changes in this NG process), and `reporting`
+(background interval in seconds and the live-event bypass setting). Each change
+has a stable `id`, `alert`, `reason`, and `time_ms`. Snoozes also include
+`snoozed_until_ms`. Reasons are `fired`, `acknowledged`, `snoozed`, and `cleared`.
+These fields accompany the existing selected alert booleans; disabling an alert
+also removes its metadata. Older receivers ignore the additional fields.
+
+NG takes the booleans and metadata under the same tracker lock. A quick firing
+and acknowledgement can share one snapshot: the boolean is already off, while
+both events remain in the buffer. Retry identities do not change. Repeated
+runtime evaluations do not overwrite an acknowledgement or snooze reason.
+A `cleared` event means the runtime reset an active episode or first evaluated
+it as inactive; it does not assert a particular glucose threshold was crossed.
+Manual alarm tests never add production alert events.
+
+The event buffer is bounded and process-local, not a complete archival log.
+Glucifer HA 0.7.0 retains received events separately and deduplicates retries.
+The reporting interval is a background fallback, not the sensor's measurement
+cadence or a heartbeat; unchanged data is still skipped.

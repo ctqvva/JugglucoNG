@@ -55,6 +55,7 @@ object SnoozeManager {
         if (!preemptive) {
             AlertStateTracker.onAlertSnoozed(alertType)
         }
+        AlertStateTracker.onAlertSnoozedForExport(alertType, snoozeUntil)
         AlertRuntimeManager.onAlertSnoozed(alertType)
         Notify.cancelRetrySession(alertType.id, "snoozed")
         // Acknowledged: a quiet window's silenced episode must not break through now.
