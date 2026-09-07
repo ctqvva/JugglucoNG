@@ -20,4 +20,4 @@ npm install --prefix /tmp/glucifer-artwork playwright@1.63.0
 NODE_PATH=/tmp/glucifer-artwork/node_modules node docs/brand/render.cjs
 ```
 
-The renderer reads local files only and writes the banner, previews and Android resources. The monochrome pen has fewer details so it remains legible when tinted. Adaptive foregrounds use a 108 dp layer with the mark centered in its 66 dp safe region, following [Android's icon guidance](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
+The renderer reads local files only and writes the banner, previews and Android resources. The monochrome pen has fewer details so it remains legible when tinted. Each foreground is centered by its rendered alpha distribution, including the badge where present; all variants share a scale that keeps them inside the safe circle. Adaptive foregrounds use a 108 dp layer with the mark centered in its 66 dp safe region, following [Android's icon guidance](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).

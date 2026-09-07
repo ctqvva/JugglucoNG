@@ -8,21 +8,61 @@ const body = master.slice(master.indexOf('>') + 1, master.lastIndexOf('</svg>'))
 const font = fs.readFileSync(path.join(__dirname, 'Outfit.ttf')).toString('base64');
 const typography = `<style>@font-face{font-family:Outfit;src:url(data:font/ttf;base64,${font})}text{font-family:Outfit,sans-serif}</style>`;
 const svg = (content, box='0 0 108 108') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}" fill="none">${content}</svg>`;
-// Center the master within Android's 66 dp safe region on a 108 dp layer.
+// Initial placement; optical centering below uses rendered alpha, not SVG bounds.
 const mark = `<g transform="translate(14.27 17.90) scale(.058)">${body}</g>`;
 const pen = 'M-36-12H36Q44-12 44-4V29H52V98H58V211H72Q82 211 82 222V426Q82 443 65 443H58V624Q58 642 43 655V684H29V759L20 780H-20L-29 759V684H-44V650Q-58 642-58 624V98H-52V29H-44V-4Q-44-12-36-12Z';
 const mono = `<defs><filter id="white"><feFlood flood-color="white"/><feComposite in2="SourceGraphic" operator="in"/></filter><mask id="pen-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254"><path fill="white" d="M0 0H1254V1254H0Z"/><path transform="translate(1028 500) rotate(40)" d="${pen}" fill="black" stroke="black" stroke-width="34"/></mask><mask id="pen-window" maskUnits="userSpaceOnUse" x="-100" y="-40" width="220" height="860"><path d="${pen}" fill="white"/><rect x="-24" y="216" width="48" height="239" rx="20" fill="black"/></mask></defs><g transform="translate(14.27 17.90) scale(.058)"><g mask="url(#pen-gap)"><g filter="url(#white)">${body}</g></g><g transform="translate(1028 500) rotate(40)"><path d="${pen}" fill="white" mask="url(#pen-window)"/></g></g>`;
 const badge = '<g transform="translate(12 12.4) scale(.8)"><circle cx="70" cy="72" r="10" fill="#e5b955" stroke="#101a2a" stroke-width="2"/><path d="M67 67H73V77H67ZM65 65H71" stroke="#101a2a" stroke-width="1.8" stroke-linejoin="round"/></g>';
-const foreground = duplicate => svg(mark + (duplicate ? badge : ''));
-const icon = (duplicate=false, round=false) => svg(`<${round?'circle cx="54" cy="54" r="53"':'rect x="1" y="1" width="106" height="106" rx="23"'} fill="${duplicate?'#263d3c':'#101a2a'}"/><g transform="translate(-27 -27) scale(1.5)">${mark}${duplicate?badge:''}</g>`);
+const rawLayers = {
+  color: mark,
+  duplicate: mark + badge,
+  monochrome: mono,
+  duplicateMonochrome: mono + '<circle cx="68" cy="70" r="6" fill="white"/>',
+};
+const centeredLayers = {};
+const foreground = duplicate => svg(centeredLayers[duplicate ? 'duplicate' : 'color']);
+const icon = (duplicate=false, round=false) => svg(`<${round?'circle cx="54" cy="54" r="53"':'rect x="1" y="1" width="106" height="106" rx="23"'} fill="${duplicate?'#263d3c':'#101a2a'}"/><g transform="translate(-27 -27) scale(1.5)">${centeredLayers[duplicate ? 'duplicate' : 'color']}</g>`);
 const banner = svg(`${typography}<rect width="1800" height="600" rx="32" fill="#101a2a"/><g transform="translate(-47 -36) scale(.56)">${body}</g><text x="655" y="361" fill="#f2f6fa" font-size="190" font-weight="600">Glucifer</text>`, '0 0 1800 600');
-const variants = [['Round launcher',icon(false,true)],['Rounded launcher',icon()],['Second installation',icon(true)],['Themed, light',svg('<rect width="108" height="108" rx="25" fill="#e4e8ef"/><g style="filter:brightness(0) saturate(100%)" transform="translate(-27 -27) scale(1.5)">'+mono+'</g>')],['Themed, dark',svg('<circle cx="54" cy="54" r="54" fill="#24303e"/><g transform="translate(-27 -27) scale(1.5)">'+mono+'</g>')]];
-const examples = svg(`${typography}<rect width="1600" height="520" rx="28" fill="#101722"/><text x="60" y="82" fill="#f2f6fa" font-size="38" font-weight="500">Glucifer on Android</text>${variants.map(([label,art],i)=>`<svg x="${65+i*310}" y="155" width="220" height="220" viewBox="0 0 108 108">${art.slice(art.indexOf('>')+1,art.lastIndexOf('</svg>')).replaceAll(/id="([^"]+)"/g,(_,id)=>`id="v${i}-${id}"`).replaceAll(/url\(#([^)]+)\)/g,(_,id)=>`url(#v${i}-${id})`).replaceAll(/href="#([^"]+)"/g,(_,id)=>`href="#v${i}-${id}"`)}</svg><text x="${175+i*310}" y="435" text-anchor="middle" fill="#c5cfda" font-size="23">${label}</text>`).join('')}`, '0 0 1600 520');
+const variants = () => [['Round launcher',icon(false,true)],['Rounded launcher',icon()],['Second installation',icon(true)],['Themed, light',svg('<rect width="108" height="108" rx="25" fill="#e4e8ef"/><g style="filter:brightness(0) saturate(100%)" transform="translate(-27 -27) scale(1.5)">'+centeredLayers.monochrome+'</g>')],['Themed, dark',svg('<circle cx="54" cy="54" r="54" fill="#24303e"/><g transform="translate(-27 -27) scale(1.5)">'+centeredLayers.monochrome+'</g>')]];
+const examples = () => svg(`${typography}<rect width="1600" height="520" rx="28" fill="#101722"/><text x="60" y="82" fill="#f2f6fa" font-size="38" font-weight="500">Glucifer on Android</text>${variants().map(([label,art],i)=>`<svg x="${65+i*310}" y="155" width="220" height="220" viewBox="0 0 108 108">${art.slice(art.indexOf('>')+1,art.lastIndexOf('</svg>')).replaceAll(/id="([^"]+)"/g,(_,id)=>`id="v${i}-${id}"`).replaceAll(/url\(#([^)]+)\)/g,(_,id)=>`url(#v${i}-${id})`).replaceAll(/href="#([^"]+)"/g,(_,id)=>`href="#v${i}-${id}"`)}</svg><text x="${175+i*310}" y="435" text-anchor="middle" fill="#c5cfda" font-size="23">${label}</text>`).join('')}`, '0 0 1600 520');
 function write(relative, content) {const dest=path.join(root,relative);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.writeFileSync(dest,content);}
 (async()=>{
  const browser=await chromium.launch({headless:true});
  try {
   const page=await browser.newPage({deviceScaleFactor:1});
+  // A drop is asymmetric: equal outer margins still leave its visual mass off-center.
+  // Measure each complete foreground, including the duplicate badge, at 8x density.
+  const measurements = {};
+  for (const [name, layer] of Object.entries(rawLayers)) {
+   measurements[name] = await page.evaluate(async art => {
+    const image = new Image();
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(art)}`;
+    await image.decode();
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 864;
+    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0, 864, 864);
+    const {data} = context.getImageData(0, 0, 864, 864);
+    let mass = 0, weightedX = 0, weightedY = 0;
+    for (let i = 3; i < data.length; i += 4) {
+     const alpha = data[i], pixel = (i - 3) / 4;
+     mass += alpha; weightedX += (pixel % 864 + .5) * alpha;
+     weightedY += (Math.floor(pixel / 864) + .5) * alpha;
+    }
+    const x = weightedX / mass / 8, y = weightedY / mass / 8;
+    let radius = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] >= 128) {
+     const pixel = (i - 3) / 4;
+     radius = Math.max(radius, Math.hypot((pixel % 864 + .5) / 8 - x, (Math.floor(pixel / 864) + .5) / 8 - y));
+    }
+    return {x, y, radius};
+   }, svg(layer));
+  }
+  // Share a scale so the mark has consistent size; leave room inside the 33 dp radius.
+  const scale = Math.min(1, 32 / Math.max(...Object.values(measurements).map(m => m.radius)));
+  for (const [name, layer] of Object.entries(rawLayers)) {
+   const {x, y} = measurements[name];
+   centeredLayers[name] = `<g transform="translate(54 54) scale(${scale}) translate(${-x} ${-y})">${layer}</g>`;
+  }
+  console.log('Foreground centers before correction:', measurements, 'shared scale:', scale);
   async function png(relative, art, width, height=width) {
    await page.setViewportSize({width,height});
    await page.setContent(`<style>html,body{margin:0;width:100%;height:100%}body>svg{display:block;width:100%;height:100%}</style>${art}`);
@@ -32,10 +72,10 @@ function write(relative, content) {const dest=path.join(root,relative);fs.mkdirS
   }
   write('docs/brand/icon.svg',icon());
   write('docs/brand/adaptive-foreground.svg',foreground(false));
-  write('docs/brand/monochrome.svg',svg(mono));
+  write('docs/brand/monochrome.svg',svg(centeredLayers.monochrome));
   write('docs/brand/banner.svg',banner);
   await png('docs/brand/banner.png',banner,1800,600);
-  await png('docs/brand/launcher-examples.png',examples,1600,520);
+  await png('docs/brand/launcher-examples.png',examples(),1600,520);
   await png('docs/brand/icon.png',icon(),512);
   await png('docs/brand/mark.png',master,415,508);
   await png('Common/src/main/ic_launcher-playstore.png',icon(),512);
@@ -48,7 +88,7 @@ function write(relative, content) {const dest=path.join(root,relative);fs.mkdirS
     await png(`${dir}/ic_launcher.png`,icon(source==='releasedub'),48*factor);
     await png(`${dir}/ic_launcher_round.png`,icon(source==='releasedub',true),48*factor);
     await png(`${dir}/ic_launcher_foreground.png`,foreground(source==='releasedub'),108*factor);
-    await png(`${dir}/ic_launcher_monochrome.png`,svg(mono+(source==='releasedub'?'<circle cx="68" cy="70" r="6" fill="white"/>':'')),108*factor);
+    await png(`${dir}/ic_launcher_monochrome.png`,svg(centeredLayers[source==='releasedub' ? 'duplicateMonochrome' : 'monochrome']),108*factor);
    }
   }
   for(const source of ['main','releasedub']) {
