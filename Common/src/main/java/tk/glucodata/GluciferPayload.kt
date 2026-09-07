@@ -16,7 +16,7 @@ object GluciferPayload {
         "falling_fast", "rising_fast", "sensor_pressure"
     )
     val defaults: Set<String> = setOf("trend", "delta_mgdl") + alerts.map { "alert:$it" }
-    val supported: Set<String> = fields + alerts.map { "alert:$it" }
+    val supported: Set<String> = fields + alerts.map { "alert:$it" } + "predictions"
 
     fun build(
         sourceId: String,
@@ -55,6 +55,7 @@ object GluciferPayload {
             .put("glucose", JSONObject().put("time_ms", glucoseTimeMs).put("mgdl", mgdl))
             .put("fields", optional)
             .put("alerts", alarms)
+            .apply { if ("predictions" in selected) put("predictions", values["predictions"] ?: org.json.JSONArray()) }
     }
 
     fun acknowledged(body: String, sourceId: String, sequence: Long, schemaVersion: Int = 1): Boolean = runCatching {
@@ -70,7 +71,9 @@ object GluciferPayload {
         a.getInt("schema_version") == b.getInt("schema_version") &&
         equalObject(a.getJSONObject("glucose"), b.getJSONObject("glucose")) &&
             equalObject(a.getJSONObject("fields"), b.getJSONObject("fields")) &&
-            equalObject(a.getJSONObject("alerts"), b.getJSONObject("alerts"))
+            equalObject(a.getJSONObject("alerts"), b.getJSONObject("alerts")) &&
+            (a.optJSONArray("predictions") ?: org.json.JSONArray()).toString() ==
+                (b.optJSONArray("predictions") ?: org.json.JSONArray()).toString()
 
     internal fun nextDelivery(
         previous: JSONObject?, candidate: JSONObject, pending: Boolean, force: Boolean

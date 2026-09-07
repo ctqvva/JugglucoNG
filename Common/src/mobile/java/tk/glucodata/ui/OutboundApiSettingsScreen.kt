@@ -1549,6 +1549,7 @@ private fun GluciferFields(
         }
     }
     val fields = listOf(
+        "predictions" to R.string.wear_prediction_title,
         "trend" to R.string.stats_trend,
         "delta_mgdl" to R.string.glucifer_delta,
         "rate_mgdl_min" to R.string.glucifer_rate,

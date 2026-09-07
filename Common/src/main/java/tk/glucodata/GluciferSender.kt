@@ -206,6 +206,14 @@ object GluciferSender {
             if ("eiob_u" in selected) values["eiob_u"] = journal.eiob
             if ("cob_g" in selected) values["cob_g"] = journal.cob
         }
+        if ("predictions" in selected && reading != null) {
+            values["predictions"] = runCatching {
+                val type = Class.forName("tk.glucodata.GluciferPredictionSnapshot")
+                val json = type.getMethod("snapshotJson", Context::class.java, String::class.java, Long::class.javaPrimitiveType)
+                    .invoke(null, context, reading.sensorId, reading.timeMillis) as String
+                org.json.JSONArray(json)
+            }.getOrNull()
+        }
         if ("battery_percent" in selected) {
             val battery = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
             values["battery_percent"] = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
