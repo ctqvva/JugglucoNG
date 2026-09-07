@@ -22,9 +22,10 @@ object AlertStateTracker {
     // Unknown until this process has evaluated the production episode.
     private val exportKnown = mutableSetOf<AlertType>()
 
+    /** A fired alert still awaiting acknowledgement, independent of re-arm bookkeeping. */
     @Synchronized
     fun activeEpisodeForExport(type: AlertType): Boolean? =
-        if (type in exportKnown) lastTriggerTime.containsKey(type) else null
+        if (type in exportKnown) lastTriggerTime.containsKey(type) && type !in dismissedAlerts else null
 
     // User dismissal suppresses this episode until the condition clears.
     private val dismissedAlerts = mutableSetOf<AlertType>()
@@ -117,7 +118,12 @@ object AlertStateTracker {
         if (manualTests.consumeAction(type)) {
             return false
         }
+        val exportChanged = activeEpisodeForExport(type) != false
         dismissedAlerts.add(type)
+        exportKnown.add(type)
+        // Keep lastTriggerTime and dismissal suppression until the condition clears.
+        // HA automations should stop as soon as the user acknowledges the alert.
+        if (exportChanged) tk.glucodata.GluciferSender.requestUpdate()
         SmsWatchdog.onAlertAcknowledged(type.id)
         // Acknowledged: a quiet window's silenced episode must not break through now.
         QuietWindow.clearSilencedEpisode(type.id)

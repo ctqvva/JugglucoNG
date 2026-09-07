@@ -499,3 +499,18 @@ touched; only the default for new destinations changes.
 - **Headers on the edit path:** any custom `headers` field on the
   destination is also applied to `editMessageText` so e.g.
   `Authorization: Bearer …` relays keep working.
+
+## Glucifer alert acknowledgement
+
+The Glucifer HA destination sends selected alerts as booleans. A production
+alert firing sets its value to `true`. Stop, dismiss or acknowledgement sets
+it to `false` and requests a live push, so an HA automation can stop its lights
+or sound without waiting for another glucose reading. Phone and watch snooze
+actions also clear the exported value. A later actual firing sets it to `true`
+again.
+
+Acknowledgement keeps the internal episode and dismissal suppression intact;
+it does not re-arm the same alert immediately. Manual alarm tests do not alter
+production alert values. The normal live-event delivery option applies: it
+bypasses the background interval by default, with delivery subject to network
+availability.
