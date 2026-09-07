@@ -131,11 +131,15 @@ object GluciferSender {
         val selected = destination.gluciferFields.intersect(GluciferPayload.supported)
             .filter { !it.startsWith("alert:") || it in availableAlerts }.toSet()
         val values = optionalValues(context, current, selected, now)
-        val states = AlertType.entries.associate { type ->
-            type.name.lowercase(Locale.ROOT) to AlertStateTracker.activeEpisodeForExport(type)
-        }
+        val alertSnapshot = AlertStateTracker.snapshotForExport()
+        val states = alertSnapshot.states
         val schemaVersion = if (destination.gluciferHistory || selected.any { it in setOf("sensor_started_ms", "sensor_expires_ms", "sensor_warmup") }) 2 else 1
         val candidate = GluciferPayload.build(destination.id, sequence, now, time, mgdl, selected, values, states, schemaVersion)
+        candidate.put("alert_details", alertSnapshot.detailsJson(selected))
+        candidate.put("alert_events", alertSnapshot.eventsJson(selected))
+        candidate.put("reporting", JSONObject()
+            .put("background_interval_seconds", destination.gluciferMinIntervalSeconds)
+            .put("live_bypass", destination.gluciferLiveBypass))
         val pending = previous?.optBoolean("pending", false) == true
         val force = tests.remove(destination.id)
         val payload = GluciferPayload.nextDelivery(oldPayload, candidate, pending, force) ?: run {

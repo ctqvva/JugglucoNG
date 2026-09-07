@@ -25,7 +25,36 @@ object AlertStateTracker {
     /** A fired alert still awaiting acknowledgement, independent of re-arm bookkeeping. */
     @Synchronized
     fun activeEpisodeForExport(type: AlertType): Boolean? =
-        if (type in exportKnown) lastTriggerTime.containsKey(type) && type !in dismissedAlerts else null
+        if (type in exportKnown) lastTriggerTime.containsKey(type) && type !in dismissedAlerts && exportDetails[type]?.reason != "snoozed" else null
+
+    // Export metadata never changes cooldown or episode suppression.
+    private val exportDetails = mutableMapOf<AlertType, GluciferAlertChange>()
+    private val exportEvents = ArrayDeque<GluciferAlertChange>()
+
+    @Synchronized
+    fun snapshotForExport(): GluciferAlertSnapshot = GluciferAlertSnapshot(
+        AlertType.entries.associate { it.name.lowercase(java.util.Locale.ROOT) to activeEpisodeForExport(it) },
+        exportDetails.values.toList(), exportEvents.toList()
+    )
+
+    private fun recordExport(type: AlertType, reason: String, snoozedUntilMs: Long? = null) {
+        val prior = exportDetails[type]
+        if (prior?.reason == reason && prior.snoozedUntilMs == snoozedUntilMs) return
+        val change = GluciferAlertChange(java.util.UUID.randomUUID().toString(),
+            type.name.lowercase(java.util.Locale.ROOT), reason, System.currentTimeMillis(), snoozedUntilMs)
+        exportDetails[type] = change
+        exportEvents.addLast(change)
+        while (exportEvents.size > 32) exportEvents.removeFirst()
+        tk.glucodata.GluciferSender.requestUpdate()
+    }
+
+    /** Called only after a real snooze was accepted, not for a manual test. */
+    @Synchronized
+    fun onAlertSnoozedForExport(type: AlertType, untilMs: Long) {
+        if (manualTests.isActive(type)) return
+        exportKnown.add(type)
+        recordExport(type, "snoozed", untilMs)
+    }
 
     // User dismissal suppresses this episode until the condition clears.
     private val dismissedAlerts = mutableSetOf<AlertType>()
@@ -98,7 +127,7 @@ object AlertStateTracker {
         lastTriggerTime[type] = System.currentTimeMillis()
         cooldownUntilTime[type] = lastTriggerTime.getValue(type) + effectiveRearmCooldownMs(config)
         exportKnown.add(type)
-        tk.glucodata.GluciferSender.requestUpdate()
+        recordExport(type, "fired")
         SmsWatchdog.onAlertFired(type.id)
         return true
     }
@@ -123,7 +152,7 @@ object AlertStateTracker {
         exportKnown.add(type)
         // Keep lastTriggerTime and dismissal suppression until the condition clears.
         // HA automations should stop as soon as the user acknowledges the alert.
-        if (exportChanged) tk.glucodata.GluciferSender.requestUpdate()
+        if (exportChanged) recordExport(type, "acknowledged")
         SmsWatchdog.onAlertAcknowledged(type.id)
         // Acknowledged: a quiet window's silenced episode must not break through now.
         QuietWindow.clearSilencedEpisode(type.id)
@@ -163,7 +192,8 @@ object AlertStateTracker {
      */
     @Synchronized
     fun resetState(type: AlertType) {
-        val exportChanged = exportKnown.add(type) || lastTriggerTime.containsKey(type)
+        val wasActive = activeEpisodeForExport(type) == true
+        val firstEvaluation = exportKnown.add(type)
         if (
             lastTriggerTime.containsKey(type) ||
             dismissedAlerts.contains(type) ||
@@ -177,7 +207,7 @@ object AlertStateTracker {
         lastTriggerTime.remove(type)
         dismissedAlerts.remove(type)
         manualTests.clearPending(type)
-        if (exportChanged) tk.glucodata.GluciferSender.requestUpdate()
+        if (wasActive || firstEvaluation) recordExport(type, "cleared")
         SmsWatchdog.onAlertResolved(type.id)
     }
 }
