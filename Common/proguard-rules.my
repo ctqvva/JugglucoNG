@@ -202,6 +202,7 @@
 -keepnames class tk.glucodata.OutboundApiJournalSnapshot
 -keepclassmembers class tk.glucodata.OutboundApiJournalSnapshot {
     public static java.lang.String snapshotJson(long);
+    public static java.lang.String gluciferJournalJson(int,boolean,long);
     public static int importFromJson(java.lang.String);
     public static int importFromJsonForSource(java.lang.String,java.lang.String);
     public static float[] broadcastIobSnapshot(long);
@@ -242,3 +243,6 @@
 -keep class tk.glucodata.ui.ComposeHostKt {
     public static void setComposeContent(androidx.appcompat.app.AppCompatActivity, android.view.View);
 }
+
+# Keep the optional Glucifer prediction bridge called from the shared sender.
+-keep class tk.glucodata.GluciferPredictionSnapshot { *; }

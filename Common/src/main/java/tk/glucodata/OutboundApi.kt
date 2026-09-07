@@ -241,6 +241,7 @@ object OutboundApi {
         val appContext = context.applicationContext
         val config = OutboundApiSettings.load(appContext)
         if (timeMillis <= 0L || primaryMgdl <= 0) return
+        GluciferSender.ensureRunning(appContext)
 
         val eventId = if (test) {
             "test-${System.currentTimeMillis()}"
@@ -249,6 +250,10 @@ object OutboundApi {
         }
         val now = System.currentTimeMillis()
         resolveDestinations(config, destinationId).forEach { destination ->
+            if (destination.isGlucifer()) {
+                if (test) GluciferSender.requestTest(destination.id) else GluciferSender.requestUpdate()
+                return@forEach
+            }
             if (!test && !destination.shouldSendForGlucose(primaryMgdl)) {
                 return@forEach
             }
@@ -524,7 +529,8 @@ object OutboundApi {
     internal data class JournalSnapshot(
         val iob: Float = Float.NaN,
         val cob: Float = Float.NaN,
-        val json: JSONObject? = null
+        val json: JSONObject? = null,
+        val eiob: Float = Float.NaN
     )
 
     internal fun renderMessage(
@@ -611,7 +617,8 @@ object OutboundApi {
         "test", "status", "status_emoji"
     )
 
-    private val PLACEHOLDER = Regex("\\{[^{}\\s]+}")
+    // Android's ICU regex engine requires both literal braces to be escaped.
+    private val PLACEHOLDER = Regex("\\{[^{}\\s]+\\}")
 
     internal fun needsJournalSnapshot(template: String): Boolean =
         PLACEHOLDER.findAll(template).any { match ->
@@ -648,7 +655,7 @@ object OutboundApi {
         return asMgdl.isFinite() && asMgdl in 1f..600f
     }
 
-    private fun loadJournalSnapshot(timeMillis: Long): JournalSnapshot {
+    internal fun loadJournalSnapshot(timeMillis: Long): JournalSnapshot {
         val raw = runCatching {
             val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
             val method = type.getMethod("snapshotJson", java.lang.Long.TYPE)
@@ -659,6 +666,7 @@ object OutboundApi {
             val json = JSONObject(raw)
             JournalSnapshot(
                 iob = json.optDouble("iob", Double.NaN).toFloat(),
+                eiob = json.optDouble("eiob", Double.NaN).toFloat(),
                 cob = json.optDouble("cob", Double.NaN).toFloat(),
                 json = json
             )

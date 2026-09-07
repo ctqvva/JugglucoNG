@@ -2750,6 +2750,8 @@ class OttaiBleManager(
             ?: provisionalActiveTimeMs.takeIf { it > 0L }
             ?: 0L
 
+    override fun getWarmupState(): Boolean? = if (warmupAnchorMs() > 0) warmupRemainingMs() > 0 else null
+
     private fun warmupRemainingMs(now: Long = System.currentTimeMillis()): Long {
         val start = warmupAnchorMs()
         if (start <= 0L) return -1L

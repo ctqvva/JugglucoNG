@@ -98,6 +98,9 @@ data class ManagedSensorUiSnapshot(
  */
 interface ManagedBluetoothSensorDriver {
 
+    /** Null until the driver has enough sensor state to determine warmup. */
+    fun getWarmupState(): Boolean? = null
+
     fun canConnectWithoutDataptr(): Boolean = false
 
     fun getDetailedBleStatus(): String = ""
