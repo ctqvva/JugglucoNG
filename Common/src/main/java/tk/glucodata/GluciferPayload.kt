@@ -72,6 +72,12 @@ object GluciferPayload {
         equalObject(a.getJSONObject("glucose"), b.getJSONObject("glucose")) &&
             equalObject(a.getJSONObject("fields"), b.getJSONObject("fields")) &&
             equalObject(a.getJSONObject("alerts"), b.getJSONObject("alerts")) &&
+            (a.optJSONObject("alert_details") ?: JSONObject()).toString() ==
+                (b.optJSONObject("alert_details") ?: JSONObject()).toString() &&
+            (a.optJSONArray("alert_events") ?: org.json.JSONArray()).toString() ==
+                (b.optJSONArray("alert_events") ?: org.json.JSONArray()).toString() &&
+            (a.optJSONObject("reporting") ?: JSONObject()).toString() ==
+                (b.optJSONObject("reporting") ?: JSONObject()).toString() &&
             (a.optJSONArray("predictions") ?: org.json.JSONArray()).toString() ==
                 (b.optJSONArray("predictions") ?: org.json.JSONArray()).toString()
 
