@@ -119,3 +119,6 @@
 
 # Looked up by name from native code (g.cpp isManagedDirectStreamSensorId); R8 would otherwise rename it.
 -keep class tk.glucodata.SensorIdentity { public static boolean usesNativeDirectStreamShell(java.lang.String); }
+
+# Keep the optional Glucifer prediction bridge called from the shared sender.
+-keep class tk.glucodata.GluciferPredictionSnapshot { *; }
