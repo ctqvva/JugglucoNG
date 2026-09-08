@@ -10,6 +10,39 @@ import org.junit.Test
 
 class RelayQrTurnConfigTests {
     @Test
+    fun turnPortsRejectFractionalAndOverflowingNumbersInBothFormats() {
+        for (port in listOf("3478.5", "4294970774", "-1", "65536")) {
+            for (turn in listOf(
+                "[\"turn.example.test\",$port,\"\",\"\"]",
+                "{\"host\":\"turn.example.test\",\"port\":$port}",
+            )) {
+                val result = runCatching {
+                    parseHybridQrTurnConfig(parseMirrorQrJson("{\"ICElabel\":\"pair\",\"turn\":$turn}"))
+                }
+                assertTrue("Must reject TURN port $port", result.exceptionOrNull() is IllegalArgumentException)
+            }
+        }
+    }
+
+    @Test
+    fun turnQrCannotImportCredentialsThatNativeStorageWouldTruncate() {
+        for ((host, username, password) in listOf(
+            Triple("a".repeat(192), "", ""),
+            Triple("turn.example.test", "u".repeat(96), ""),
+            Triple("turn.example.test", "", "p".repeat(128)),
+            Triple("turn.example.test", "я".repeat(48), ""),
+            Triple("turn.example.test", "", "🔐".repeat(22)),
+        )) {
+            val result = runCatching {
+                parseHybridQrTurnConfig(parseMirrorQrJson(
+                    """{"ICElabel":"pair","turn":["$host",3478,"$username","$password"]}""",
+                ))
+            }
+            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        }
+    }
+
+    @Test
     fun mirrorQrUsesMediumErrorCorrection() {
         assertEquals(
             ErrorCorrectionLevel.M,

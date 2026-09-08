@@ -33,7 +33,6 @@ class RendezvousTlsSafetyTests {
         val https = source("Common/src/main/cpp/net/ICE/ContextHTTPS.cpp")
         val options = source("Common/src/main/cpp/net/ICE/ContextHTTPS.hpp")
         val config = source("Common/src/main/java/tk/glucodata/CloneIceNetworkConfig.kt")
-        val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
 
         assertTrue(options.contains("bool verifyCertificate = true"))
         assertTrue(config.contains("val verifyRendezvousCertificate: Boolean = true"))
@@ -44,6 +43,5 @@ class RendezvousTlsSafetyTests {
         assertTrue(https.contains("!SSL_get_peer_certificateptr"))
         assertTrue(https.contains("!X509_check_hostptr"))
         assertTrue(https.contains("!X509_check_ip_ascptr"))
-        assertTrue(screen.contains("mutableStateOf(if (isAbsent) true else initialIceConfig.useTurnForStun)"))
     }
 }

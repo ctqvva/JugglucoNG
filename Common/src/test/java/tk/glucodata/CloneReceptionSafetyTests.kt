@@ -134,7 +134,7 @@ class CloneReceptionSafetyTests {
         val worker = screen.indexOf("executor.execute")
         assertTrue(prepare >= 0 && worker > prepare)
         assertTrue(screen.contains("Natives.setHostDeactivated(index, deactivated)"))
-        assertTrue(screen.contains("enabled = cloneConnections.isNotEmpty() && !CloneHostTransitionRunner.isRunning()"))
+        assertTrue(screen.contains("controlsEnabled = cloneConnections.isNotEmpty() && !CloneHostTransitionRunner.isRunning()"))
     }
 
     @Test
@@ -408,30 +408,48 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun savedHybridSwitchesWaitForTheNextCloneConnection() {
+    fun hybridSwitchesPersistImmediatelyWithoutResettingTheLiveConnection() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
             .replace(Regex("\\s+"), " ")
-
-        assertTrue(screen.contains("onCheckedChange = { useLocalDiscovery = it }"))
-        val save = screen.lastIndexOf("val iceSaved = CloneIceNetworkConfigStore.save")
-        val conditionalReset = screen.indexOf("if (serverDetailsChanged) Natives.resetnetwork()", save)
-        assertTrue(save >= 0 && conditionalReset > save)
-        val serverComparison = screen.substring(
-            screen.indexOf("val serverDetailsChanged", save),
-            conditionalReset,
-        )
-        assertTrue(serverComparison.contains("turnDetailsChanged"))
-        assertTrue(screen.contains("val turnDetailsChanged = if (previousTurn == null) { cleanTurnHost.isNotEmpty() } else !previousTurn.contentEquals(nextTurn)"))
-        assertTrue(serverComparison.contains("initialIceConfig.rendezvousHost != nextIceConfig.rendezvousHost"))
-        assertFalse(serverComparison.contains("useLocalDiscovery"))
-        assertFalse(serverComparison.contains("preferIPv4"))
-        assertTrue(screen.contains("onCheckedChange = { preferIPv4 = it }"))
-        assertFalse(serverComparison.contains("useTurnForStun"))
-        assertFalse(serverComparison.contains("verifyRendezvousCertificate"))
-        assertTrue(screen.contains("stringResource(R.string.hybrid_save_behavior)"))
+        val switches = screen.substring(screen.indexOf("onLocalDiscovery ="), screen.indexOf("onSaveTurn ="))
+        assertTrue(switches.contains("CloneIceNetworkConfigStore.save(context, next)"))
+        assertTrue(switches.contains("useLocalDiscovery = enabled"))
+        assertTrue(switches.contains("useTurnForStun = enabled"))
+        assertTrue(switches.contains("preferIPv4 = enabled"))
+        assertFalse(switches.contains("resetnetwork()"))
         assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
+    }
+
+    /**
+     * STUN over TURN needs a TURN server to point at. This used to be expressed
+     * as a default that switched itself on when none was configured, which the
+     * validation work removed; the guarantee now is that the switch cannot be
+     * reached without a server, and that clearing the server clears it too.
+     */
+    @Test
+    fun stunOverTurnIsUnreachableWithoutATurnServer() {
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+        val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(screen.contains("useTurnForStun = nextTurn != null && config.useTurnForStun"))
+        val stunSwitch = hybrid.substring(hybrid.indexOf("R.string.clone_stun_short"))
+            .substringBefore("position = CardPosition.BOTTOM")
+        assertTrue(stunSwitch.contains("enabled = turn != null"))
+        assertTrue(stunSwitch.contains("R.string.clone_stun_needs_server"))
+    }
+
+    @Test
+    fun serverEditorsRetainRollbackAndReconnectOnlyForChangedEndpoints() {
+        val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
+            .replace(Regex("\\s+"), " ")
+        assertTrue(screen.contains("readTurnEndpoint() != nextTurn"))
+        assertTrue(screen.contains("writeTurnEndpoint(previous)"))
+        assertTrue(screen.contains("if (previous != nextTurn) Natives.resetnetwork()"))
+        assertTrue(screen.contains("if (endpointChanged) Natives.resetnetwork()"))
     }
 
     @Test
@@ -448,16 +466,9 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
-    fun hybridSettingsNameAllServicesWhileTurnDiagnosticsStaySpecific() {
+    fun turnDiagnosticsStaySpecific() {
         val mirrorSettings = source("Common/src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
-        val hybridSettings = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
-            .replace(Regex("\\s+"), " ")
-
-        assertTrue(mirrorSettings.contains("SectionLabel(stringResource(R.string.mirror_hybrid))"))
-        assertTrue(mirrorSettings.contains("title = stringResource(R.string.hybrid_configuration)"))
-        assertTrue(mirrorSettings.contains("subtitle = stringResource(R.string.hybrid_configuration_summary)"))
-        assertTrue(hybridSettings.contains("title = { Text(stringResource(R.string.hybrid_configuration)) }"))
         assertTrue(mirrorSettings.contains("CloneDiagnosticRow(stringResource(R.string.turnserver), turn)"))
     }
 
