@@ -202,6 +202,13 @@ object CloneSensorRegistry {
     fun markLocalSensor(sensorId: String?) {
         val localKeys = candidateKeys(sensorId)
         if (localKeys.isEmpty()) return
+        // The receiver dials a sensor on a timer but only marks it when the
+        // sender syncs it, and the Anytime syncs every three minutes. A dial
+        // landing in that gap took a local reading, cleared the flag here, and
+        // the sensor never got it back -- so it stayed a local record with a
+        // play button. A sensor the mirror is still delivering keeps its flag
+        // whatever this device manages to read off it.
+        if (isMirrorDelivering(sensorId)) return
         synchronized(lock) {
             val preferences = prefs() ?: return
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
