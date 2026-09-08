@@ -468,6 +468,7 @@ class MQBleManager(
             val stored = Natives.addGlucoseStream(sampleMs / 1000L, glucoseMgdl / 10f, nativeName)
             if (stored) {
                 NightscoutUploadWake.afterLiveNativeWrite("mq", sampleMs)
+                markLocalReadingAccepted(sampleMs)
             }
             applyNativeSensorMetadata(nativeName)
             Natives.wakebackup()

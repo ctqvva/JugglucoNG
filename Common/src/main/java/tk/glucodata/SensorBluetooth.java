@@ -1634,6 +1634,19 @@ public class SensorBluetooth {
             }
             return false;
         }
+        // A sensor whose readings are arriving over Clone belongs to the sending
+        // device. Dialling it here puts two phones on one transmitter, and the
+        // loser of that race is whichever one was actually wearing it. The claim
+        // lasts only while the mirror keeps delivering, so unplugging the sender
+        // still lets this device pick the sensor up, and turning Clone off hands
+        // it back immediately.
+        if (CloneSensorRegistry.isReceptionEnabled()
+                && CloneSensorRegistry.isMirrorDelivering(cb.SerialNumber)) {
+            if (doLog) {
+                Log.i(LOG_ID, "checkandconnect skipped: mirrored over Clone " + cb.SerialNumber);
+            }
+            return false;
+        }
         BluetoothAdapter adapter = mBluetoothAdapter;
         if (adapter == null && mBluetoothManager != null) {
             try {

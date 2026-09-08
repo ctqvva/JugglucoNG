@@ -208,8 +208,12 @@ static std::vector<std::pair<std::string, bool>> pendingMirrorSensorSyncs;
 static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) {
     std::string serial = extractMirrorSensorSerial(path);
     if (serial.empty()) {
+        LOGGER("mirror: no serial in %.64s; nothing queued to mark as Clone\n",
+               std::string(path).c_str());
         return;
     }
+    LOGGER("mirror: queue Clone mark %s (forceFull=%d) from %.64s\n", serial.c_str(),
+           forceFull, std::string(path).c_str());
     for (auto &entry : pendingMirrorSensorSyncs) {
         if (entry.first == serial) {
             entry.second = entry.second || forceFull;
@@ -221,7 +225,12 @@ static void queueMirrorSyncSensorForPath(std::string_view path, bool forceFull) 
 
 static void flushPendingMirrorSensorSyncs(int cloneTransport,
                                           const char *cloneConnectionIdentity) {
+    // A sensor that never reaches this flush is never marked as a Clone record,
+    // and SensorBluetooth then treats it as a local sensor to dial and guess a
+    // vendor for. Say what actually got marked.
+    LOGGER("mirror: flushing %zu queued Clone marks\n", pendingMirrorSensorSyncs.size());
     for (const auto &entry : pendingMirrorSensorSyncs) {
+        LOGGER("mirror: marking %s as Clone\n", entry.first.c_str());
         javaMirrorSyncSensor(entry.first.c_str(), entry.second, cloneTransport,
                              cloneConnectionIdentity);
     }

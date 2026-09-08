@@ -459,11 +459,16 @@ public:
     }
     if (minimumPollRecords > 0 &&
         hist[ind]->pollStorageCapacity() < minimumPollRecords) {
+      // Geometry is fixed at creation, so a larger request cannot be honoured
+      // here. The existing mapping is still perfectly usable, though, and
+      // abandoning the call skipped the present/finished flags below -- which
+      // is what decides whether the sensor is offered at all. Report the
+      // shortfall and carry on; callers check hasSensorStreamCapacity when the
+      // size itself matters.
       LOGGER("ensureDirectStreamShell %.16s capacity=%zu requested=%zu; "
              "active mapping unchanged\n",
              name.data(), hist[ind]->pollStorageCapacity(),
              minimumPollRecords);
-      return nullptr;
     }
     auto *info = hist[ind]->getinfo();
     if (starttime > 0) {
@@ -1519,8 +1524,12 @@ public:
   int update(crypt_t *pass, Connect *connect, const int ind, int &startupdate,
              int &firstsensor, const bool upstream, const bool upscan,
              const bool restoreinfo, const bool resetdevices) {
-    LOGGER("Sensoren::update firstsensor=%d sock=%d ind=%d resetdevices=%d\n",
-           firstsensor, connect->getSenderIdent(), ind, resetdevices);
+    // last() decides how far this loop reaches, and a sender that offers no
+    // sensors at all looks identical to one that has none. Say which it is.
+    LOGGER("Sensoren::update firstsensor=%d sock=%d ind=%d resetdevices=%d "
+           "last=%d maxhist=%d\n",
+           firstsensor, connect->getSenderIdent(), ind, resetdevices, last(),
+           getmaxhistory());
     int changed = INT_MAX;
     int did = 2;
 
@@ -1588,8 +1597,17 @@ public:
           };
           did |= resscan;
         }
-      } else
-        return did & 0x4;
+      } else {
+        // A slot with no sensor behind it is a hole in the list, not a failed
+        // transfer. Blank entries collect at the front of sensors.dat when
+        // addsensor is interrupted between claiming an index and writing the
+        // name, and aborting here meant one such leftover hid every real
+        // sensor after it -- the update returned 0, which the caller reads as
+        // a send failure and tears the connection down. A broken-but-present
+        // sensor already continues a few lines above; a missing one is no
+        // worse.
+        continue;
+      }
     }
     if (((lastsens >= startupdate || resetdevices) && (changed = 0, true)) ||
         changed < INT_MAX) {
