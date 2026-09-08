@@ -3,6 +3,7 @@
 // are substituted. No Rendezvous service participates in these tests.
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <fcntl.h>
 #include <net/if.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -18,6 +19,26 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#ifdef __APPLE__
+// Host adapters for Linux APIs used by the included Android implementation.
+// Keep the production signaling and encryption code unchanged in this harness.
+static ssize_t testGetRandom(void *buffer, size_t length, unsigned int) {
+    arc4random_buf(buffer, length);
+    return static_cast<ssize_t>(length);
+}
+static int testSocket(int domain, int type, int protocol) {
+    const int fd = ::socket(domain, type, protocol);
+    if (fd >= 0 && fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+#define getrandom testGetRandom
+#define socket testSocket
+#define SOCK_CLOEXEC 0
+#endif
 
 // Access the production receive loop without binding a real Wi-Fi interface.
 #define private public
@@ -35,6 +56,11 @@ static ssize_t testSendTo(int, const void *, size_t, int,
 #undef sendto
 #undef freeifaddrs
 #undef getifaddrs
+#ifdef __APPLE__
+#undef getrandom
+#undef socket
+#undef SOCK_CLOEXEC
+#endif
 
 using namespace std::chrono_literals;
 
@@ -104,7 +130,12 @@ struct Link {
 };
 
 static int testGetIfAddrs(ifaddrs **result) {
-    static sockaddr_in broadcast{AF_INET, 0, {htonl(INADDR_BROADCAST)}, {}};
+    static sockaddr_in broadcast = [] {
+        sockaddr_in value{};
+        value.sin_family = AF_INET;
+        value.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+        return value;
+    }();
     static ifaddrs interface = [] {
         ifaddrs value{};
         value.ifa_flags = IFF_UP | IFF_BROADCAST;
