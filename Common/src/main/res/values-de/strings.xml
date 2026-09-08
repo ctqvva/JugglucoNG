@@ -487,7 +487,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="show_password">Passwort anzeigen</string>
     <string name="hide_password">Passwort verbergen</string>
 
-    <string name="turn_server">Turn-Server</string>
+    <string name="turn_server">TURN-Server</string>
     <string name="add_connection">Verbindung hinzufügen</string>
     <string name="help">Hilfe</string>
     <string name="send_to">Senden an</string>
@@ -980,7 +980,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="turnserver">TURN-Server</string>
     <string name="hybrid_configuration">Hybrid-Konfiguration</string>
     <string name="hybrid_configuration_summary">Lokale Suche, Rendezvous, STUN und TURN</string>
-    <string name="hybrid_save_behavior">Transportoptionen werden beim nächsten Verbindungsversuch wirksam. Änderungen an Serverdaten oder die Auswahl eines anderen Rendezvous-Servers verbinden Clone sofort neu.</string>
     <string name="clone_ice_services">ICE-Dienste</string>
     <string name="clone_local_discovery">Gekoppelte Clones im lokalen Netzwerk finden</string>
     <string name="clone_local_discovery_summary">Bekannte Hybrid-Paare im selben lokalen Netzwerk ohne Rendezvous-Server verbinden. Kopplungsgeheimnisse werden nicht angekündigt.</string>
@@ -994,6 +993,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="rendezvous_host_hint">z. B. connect.example.com</string>
     <string name="rendezvous_port">Rendezvous-Port</string>
     <string name="use_custom_rendezvous_server">Eigenen Rendezvous-Server verwenden</string>
+    <string name="use_custom_turn_server">Eigenen TURN-Server verwenden</string>
     <string name="use_custom_rendezvous_server_summary">Andernfalls den Standard der App verwenden</string>
     <string name="verify_rendezvous_certificate">Rendezvous-Zertifikat prüfen</string>
     <string name="verify_rendezvous_certificate_summary">Zertifikatskette und Hostnamen prüfen. Nur für einen vertrauenswürdigen selbst signierten Server deaktivieren.</string>
@@ -1941,11 +1941,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_share_relay_qr">Hybrid-QR teilen</string>
     <string name="mirror_share_relay_qr_desc">Versucht zuerst eine direkte Verbindung, dann bei Bedarf TURN</string>
     <string name="mirror_scan_qr_desc">QR eines anderen Geräts zum Verbinden scannen</string>
-    <string name="mirror_local_network">Lokales Netzwerk</string>
     <string name="mirror_broadcast_network">Im Netzwerk ankündigen</string>
     <string name="mirror_broadcast_network_desc">Geräte in der Nähe dieses Gerät finden lassen</string>
     <string name="mirror_relay">Relay</string>
-    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">TURN-Relay für entfernte Verbindungen</string>
     <string name="mirror_connections">Verbindungen</string>
     <string name="mirror_clone_master">Clone</string>
@@ -2732,4 +2730,27 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_app_turn_server">Von der App bereitgestelltes TURN</string>
     <string name="clone_source_turn_description">Clone über TURN-Relay</string>
     <string name="clone_source_local_ice_description">Clone über Peer-to-Peer</string>
+    <string name="mirror_connection_setup">Verbindungseinrichtung</string>
+    <string name="turn_help_how_body">Der Rendezvous-Server stellt nur zwei Geräte einander vor: jedes hinterlegt dort seine möglichen Adressen und holt die des anderen ab. Glukosedaten laufen nie darüber. Eine direkte Route wird bevorzugt; TURN leitet den Verkehr nur weiter, wenn keine direkte Route funktioniert, und das Weitergeleitete bleibt verschlüsselt.\n\nSind beide Schalter aus, werden Rendezvous und Relay der App verwendet. Schalten Sie einen ein, wird nur dieser Teil zu Ihrem; bei beiden verlässt nur noch die Abfrage der öffentlichen Adresse Ihre Server, sofern „TURN für STUN“ diese nicht ebenfalls an Ihr Relay schickt.\n\nIm selben Netz verbindet „Gekoppelte Geräte in der Nähe finden“ beide direkt und überspringt das Rendezvous.</string>
+    <string name="turn_credentials_too_long">Benutzername oder Passwort ist für diese TURN-Konfiguration zu lang.</string>
+    <string name="clone_sync_title">Synchronisierung</string>
+    <string name="clone_network_title">Clone-Netzwerk</string>
+    <string name="clone_servers">Server</string>
+    <string name="clone_server_default">App-Standard</string>
+    <string name="clone_connection_options">Verbindung</string>
+    <string name="clone_local_short">Gekoppelte Geräte finden</string>
+    <string name="clone_local_short_desc">Im lokalen Netzwerk erneut verbinden</string>
+    <string name="clone_stun_short">TURN für STUN</string>
+    <string name="clone_stun_needs_server">Zuerst einen TURN-Server einrichten</string>
+    <string name="clone_stun_short_desc">Relay auch zum Aufbau direkter Verbindungen nutzen</string>
+    <string name="clone_switches_apply">Wird automatisch gespeichert und beim nächsten Verbindungsversuch verwendet.</string>
+    <string name="clone_server_edit_hint">Serveränderungen verbinden Clone neu. Verwende auf beiden Geräten dieselben Einstellungen.</string>
+    <string name="clone_use_default_server">App-Standard verwenden</string>
+    <string name="clone_custom_server">Eigener Server</string>
+    <string name="clone_add_first">Zuerst ein Gerät koppeln</string>
+    <string name="clone_visible_nearby">In der Nähe sichtbar</string>
+    <string name="clone_visible_nearby_desc">Neue Geräte können dieses Telefon finden</string>
+    <string name="clone_network_summary">Server und lokale Suche</string>
+    <string name="clone_connections_empty">Noch keine gekoppelten Geräte.</string>
+    <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
 </resources>
