@@ -342,7 +342,7 @@
 <string name="parseip">Error parsing IP</string>
 <string name="toomanyhosts">Maximal number of hosts exceeded</string>
 <string name="senthosts">Juggluco sends to maximal 6 hosts</string>
-    <string name="hostname">hostname</string>
+    <string name="hostname">Hostname</string>
    <string name="clampnow">Now clamp</string>
     <string name="sendfrom">"Send from: "</string>
  <string name="changestartbutton">Change start</string>
@@ -475,7 +475,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 <string name="internet">Internet</string>
 <string name="homenet">Home net</string>
 <string name="ICE">ICE</string>
-<string name="username">Username</string>
+    <string name="username">Username</string>
 
 <string name="icelabel">ICE Label</string>
 <string name="zero">0</string>
@@ -486,8 +486,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="turnserver">TURN Server</string>
     <string name="hybrid_configuration">Hybrid configuration</string>
     <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
-    <string name="hybrid_save_behavior">Transport switches take effect on the next connection attempt. Changing server details or selecting another rendezvous server reconnects Clone immediately.</string>
     <string name="clone_ice_services">ICE services</string>
+    <string name="mirror_connection_setup">Connection setup</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
     <string name="clone_prefer_ipv4">Prefer IPv4</string>
@@ -502,6 +502,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rendezvous_host_hint">e.g. connect.example.com</string>
     <string name="rendezvous_port">Rendezvous port</string>
     <string name="use_custom_rendezvous_server">Use custom rendezvous server</string>
+    <string name="use_custom_turn_server">Use custom TURN server</string>
     <string name="use_custom_rendezvous_server_summary">Otherwise use the app default</string>
     <string name="verify_rendezvous_certificate">Verify rendezvous certificate</string>
     <string name="verify_rendezvous_certificate_summary">Check the certificate chain and hostname. Disable only for a trusted self-signed server.</string>
@@ -588,7 +589,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_password">Show password</string>
     <string name="hide_password">Hide password</string>
 
-    <string name="turn_server">Turn Server</string>
+    <string name="turn_server">TURN server</string>
     <string name="add_connection">Add Connection</string>
     <string name="help">Help</string>
     <string name="send_to">Send to</string>
@@ -2399,11 +2400,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_share_relay_qr">Share Hybrid QR</string>
     <string name="mirror_share_relay_qr_desc">Tries direct first, then TURN if needed</string>
     <string name="mirror_scan_qr_desc">Scan another device QR to connect</string>
-    <string name="mirror_local_network">Local Network</string>
     <string name="mirror_broadcast_network">Broadcast on Network</string>
     <string name="mirror_broadcast_network_desc">Let nearby devices discover this device</string>
     <string name="mirror_relay">Relay</string>
-    <string name="mirror_hybrid">Hybrid</string>
     <string name="mirror_turn_server_desc">TURN relay for remote connections</string>
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>
@@ -2918,4 +2917,26 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_app_turn_server">App-provided TURN</string>
     <string name="clone_source_turn_description">Clone via TURN relay</string>
     <string name="clone_source_local_ice_description">Clone via peer-to-peer</string>
+    <string name="turn_help_how_body">The rendezvous server only introduces two devices: each leaves its possible addresses there and collects the other’s. It never carries glucose data. A direct route is preferred; TURN relays the traffic only when no direct route works, and what it relays stays encrypted.\n\nWith both switches off, the app’s own rendezvous and relay are used. Turn one on and only that part becomes yours; turn both on and only the public-address lookup still leaves your servers, unless TURN for STUN sends that to your relay too.\n\nOn one network, Find paired devices nearby connects the two directly and skips the rendezvous.</string>
+    <string name="turn_credentials_too_long">The username or password is too long for this TURN configuration.</string>
+    <string name="clone_sync_title">Synchronization</string>
+    <string name="clone_network_title">Clone network</string>
+    <string name="clone_servers">Servers</string>
+    <string name="clone_server_default">App default</string>
+    <string name="clone_connection_options">Connection options</string>
+    <string name="clone_local_short">Find paired devices nearby</string>
+    <string name="clone_local_short_desc">Reconnect over the same local network</string>
+    <string name="clone_stun_short">TURN for STUN</string>
+    <string name="clone_stun_needs_server">Configure a TURN server first</string>
+    <string name="clone_stun_short_desc">Use the relay server for direct connection setup too</string>
+    <string name="clone_switches_apply">Saved automatically. Used on the next connection attempt.</string>
+    <string name="clone_server_edit_hint">Server changes reconnect Clone. Use the same settings on both devices.</string>
+    <string name="clone_use_default_server">Use app default</string>
+    <string name="clone_custom_server">Custom server</string>
+    <string name="clone_add_first">Pair a device to get started</string>
+    <string name="clone_visible_nearby">Visible nearby</string>
+    <string name="clone_visible_nearby_desc">Allow new devices to find this phone</string>
+    <string name="clone_network_summary">Servers and local discovery</string>
+    <string name="clone_connections_empty">No paired devices yet.</string>
+    <string name="clone_background_desc">Uses more battery</string>
 </resources>
