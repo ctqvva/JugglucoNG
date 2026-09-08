@@ -1927,6 +1927,7 @@ class ICanHealthBleManager(
             )
             if (stored) {
                 NightscoutUploadWake.afterLiveNativeWrite("ican", sampleTimeMs)
+                markLocalReadingAccepted(sampleTimeMs)
             }
             applyNativeSensorMetadata()
             val sensorPtr = resolveNativeSensorPtr(SerialNumber)

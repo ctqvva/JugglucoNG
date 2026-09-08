@@ -1070,6 +1070,9 @@ class AiDexBleManager(
         if (timestampMs > 0L && timestampMs > lastGlucoseTimeMs) {
             lastGlucoseTimeMs = timestampMs
         }
+        // Every path here decoded the reading over this device's own connection,
+        // which is the ownership claim Clone reads.
+        markLocalReadingAccepted(timestampMs)
         handler.removeCallbacks(broadcastAssistRunnable)
         clearFirstValidReadingWait(reason)
         if (phase == Phase.STREAMING && streamingStartedAtMs > 0L && lastF003FrameTimeMs < streamingStartedAtMs) {

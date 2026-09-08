@@ -107,6 +107,11 @@ internal object CloneLiveTransportPolicy {
 
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
 object CloneSensorRegistry {
+    /** How long a quiet mirror keeps its claim on a sensor. */
+    private const val MIRROR_LIVE_WINDOW_MS = 10L * 60L * 1000L
+    private val lastMirrorSeen = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val processStartedAt = android.os.SystemClock.elapsedRealtime()
+
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_SENSOR_IDS = "clone_source_sensor_ids_v1"
     private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_labels_v1"
@@ -131,6 +136,15 @@ object CloneSensorRegistry {
                 .getOrNull()
                 ?.let(CloneSensorKeyCodec::normalize)
                 ?.let(::add)
+            // Native shortens a sensor name to everything past its first five
+            // characters, an X- prefixed AiDex name excepted, and the GATT
+            // callbacks on the receiving device carry that short form while the
+            // registry is written from the full one. Without both, a lookup by
+            // one name misses an entry stored under the other -- which showed up
+            // as a mirrored sensor briefly claiming to be a Libre 2.
+            if (!raw.startsWith("X-") && raw.length > 5) {
+                CloneSensorKeyCodec.normalize(raw.substring(5))?.let(::add)
+            }
         }
     }
 
@@ -154,7 +168,10 @@ object CloneSensorRegistry {
             } else {
                 transport
             }
-            val updated = current.filterKeys { it !in aliases } + (key to effectiveTransport)
+            val seenAt = android.os.SystemClock.elapsedRealtime()
+            aliases.forEach { lastMirrorSeen[it] = seenAt }
+            val updated = current.filterKeys { it !in aliases } +
+                aliases.associateWith { effectiveTransport }
             if (updated != current) {
                 preferences.edit()
                     .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(updated))
@@ -188,7 +205,9 @@ object CloneSensorRegistry {
         synchronized(lock) {
             val preferences = prefs() ?: return
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
-            val updated = current.filterKeys { it !in localKeys }
+            val updated = current.filterKeys { stored ->
+                stored !in localKeys && candidateKeys(stored).none { it in localKeys }
+            }
             val currentConnections = CloneSensorConnectionCodec.decode(
                 preferences.getString(KEY_SENSOR_CONNECTIONS, null)
             )
@@ -203,6 +222,28 @@ object CloneSensorRegistry {
                     .apply()
             }
         }
+    }
+
+    /**
+     * Whether readings for [sensorId] are still arriving over Clone.
+     *
+     * The receiving device stands back from a sensor the sender is mirroring, but
+     * it must not hold that position forever: unplug the sender and the follower
+     * should be able to take the sensor over, which is how a handover worked
+     * before there was any gate at all. A mirror that has gone quiet for
+     * [MIRROR_LIVE_WINDOW_MS] releases its claim.
+     *
+     * Nothing seen yet in this process is treated as live for the same window, so
+     * a restart cannot snatch a sensor out from under a sender that is streaming
+     * perfectly well and simply has not synced since.
+     */
+    @JvmStatic
+    fun isMirrorDelivering(sensorId: String?): Boolean {
+        if (!isCloneSensor(sensorId)) return false
+        val now = android.os.SystemClock.elapsedRealtime()
+        val seen = candidateKeys(sensorId).mapNotNull(lastMirrorSeen::get).maxOrNull()
+            ?: return now - processStartedAt < MIRROR_LIVE_WINDOW_MS
+        return now - seen < MIRROR_LIVE_WINDOW_MS
     }
 
     @JvmStatic
