@@ -50,6 +50,7 @@ import kotlin.math.roundToInt
 import tk.glucodata.GlucoseRangeColors.Band
 import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -126,7 +127,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        ExpandableRangeSettingsCard(
+        ExpandableSettingsCard(
             title = stringResource(R.string.chart_limits_title),
             summary = chartSummary,
             icon = Icons.AutoMirrored.Filled.ShowChart,
@@ -160,7 +161,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
                 }
             )
         }
-        ExpandableRangeSettingsCard(
+        ExpandableSettingsCard(
             title = stringResource(R.string.glucose_range_title),
             summary = glucoseSummary,
             icon = Icons.Default.TrackChanges,
@@ -234,89 +235,6 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
                 }
             )
             GlucosePaletteResetAllButton()
-        }
-    }
-}
-
-@Composable
-private fun ExpandableRangeSettingsCard(
-    title: String,
-    summary: String,
-    icon: ImageVector,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    position: CardPosition,
-    content: @Composable () -> Unit
-) {
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        label = "rangeSettingsChevron"
-    )
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onExpandedChange(!expanded) }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        modifier = Modifier.padding(top = 2.dp),
-                        text = summary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.graphicsLayer { rotationZ = chevronRotation }
-                )
-            }
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                    )
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        content()
-                    }
-                }
-            }
         }
     }
 }
