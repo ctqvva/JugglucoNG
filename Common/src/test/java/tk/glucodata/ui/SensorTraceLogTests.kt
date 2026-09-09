@@ -149,4 +149,30 @@ class SensorTraceLogTests {
         assertEquals(timed, newerTraceSource(fromFile = timeless, fromRing = timed))
         assertEquals(timed, newerTraceSource(fromFile = timed, fromRing = timeless))
     }
+
+    @Test
+    fun theExportFileNamesTheSensorAndTheMoment() {
+        val at = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            .apply { timeZone = java.util.TimeZone.getDefault() }
+            .parse("2026-09-09 22:57:04")!!
+
+        assertEquals(
+            "juggluco-connection-70D07E2552DB-20260909-225704.txt",
+            sensorTraceExportName("70D07E2552DB", at),
+        )
+    }
+
+    @Test
+    fun anExportNameSurvivesAWkwardSerials() {
+        // A picker filename is not a place for path separators or colons.
+        assertEquals(
+            "juggluco-connection-70D07E2552DB-20260909-225704.txt",
+            sensorTraceExportName("70:D0:7E:25:52:DB", stamp),
+        )
+        assertTrue(sensorTraceExportName("", stamp).startsWith("juggluco-connection-sensor-"))
+        assertTrue(sensorTraceExportName("../../etc/passwd", stamp).let { "/" !in it })
+    }
+
+    private val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+        .parse("2026-09-09 22:57:04")!!
 }

@@ -1,8 +1,14 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package tk.glucodata.ui
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -13,6 +19,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +57,7 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
@@ -198,6 +207,13 @@ private fun readRecentSensorTraceLines(
     }.getOrDefault(emptyList())
 }
 
+/** Named for the sensor and the moment, the way the debug log export is. */
+internal fun sensorTraceExportName(serial: String, at: Date = Date()): String {
+    val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(at)
+    val safe = serial.filter { it.isLetterOrDigit() }.take(24).ifEmpty { "sensor" }
+    return "juggluco-connection-$safe-$stamp.txt"
+}
+
 @Composable
 internal fun SensorTraceLog(sensor: SensorInfo) {
     val context = LocalContext.current
@@ -234,6 +250,35 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
     val rendered = remember(lines) {
         lines.joinToString("\n") { line ->
             formatSensorTraceLine(line) { millis -> timeFormat.format(Date(millis)) }
+        }
+    }
+
+    val scope = rememberCoroutineScope()
+    val savingError = stringResource(R.string.error_saving_file)
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val text = rendered
+        scope.launch {
+            val error = withContext(Dispatchers.IO) {
+                var opened = false
+                runCatching {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: throw java.io.IOException("Could not open export destination")
+                    opened = true
+                    output.use { it.write(text.toByteArray()) }
+                }.exceptionOrNull().also {
+                    // The picker created the file before we ever wrote to it; a failure here
+                    // would otherwise leave an empty one behind with the name of a real export.
+                    if (it != null && opened) {
+                        runCatching { context.contentResolver.delete(uri, null, null) }
+                    }
+                }
+            }
+            if (error != null) {
+                Toast.makeText(context, savingError + error.message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -313,10 +358,12 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
         }
         // A text button carries its own 8dp of vertical padding inside a 40dp target, so any
         // gap added here lands on top of that and the log ends up floating above its actions.
-        Row(
+        // Three labelled buttons do not fit a card on one line in every language -- Kopieren,
+        // Teilen, Speichern already overflow -- so they wrap rather than being clipped.
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             TextButton(onClick = { clipboard.setText(AnnotatedString(rendered)) }) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null)
@@ -339,6 +386,13 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                 Icon(Icons.Default.Share, contentDescription = null)
                 Spacer8()
                 Text(stringResource(R.string.share))
+            }
+            TextButton(
+                onClick = { saveLauncher.launch(sensorTraceExportName(sensor.serial)) },
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null)
+                Spacer8()
+                Text(stringResource(R.string.save))
             }
         }
     }
