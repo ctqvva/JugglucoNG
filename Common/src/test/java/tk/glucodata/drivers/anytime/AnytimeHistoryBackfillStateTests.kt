@@ -26,6 +26,78 @@ class AnytimeHistoryBackfillStateTests {
     }
 
     @Test
+    fun aPersistedTimelineAnchorSurvivesARestart() {
+        assertEquals(
+            1_787_503_820_003L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 1_787_503_820_003L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = 8_175,
+            )
+        )
+    }
+
+    @Test
+    fun anInstallWithoutAPersistedAnchorFallsBackToTheStoredSensorStart() {
+        // Upgrades from before the anchor was persisted: an id has been seen, so a
+        // start exists and the first push must not be allowed to re-derive it.
+        assertEquals(
+            1_787_503_820_003L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = 8_175,
+            )
+        )
+    }
+
+    @Test
+    fun aSensorThatHasNeverReportedAnIdStillBootstrapsFromItsFirstPush() {
+        assertEquals(
+            0L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = -1,
+            )
+        )
+        assertEquals(
+            0L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 0L,
+                persistedLastGlucoseId = -1,
+            )
+        )
+    }
+
+    @Test
+    fun aRestoredAnchorStopsARepeatedIdFromWalkingTheSensorStartForward() {
+        // The 2026-09-09 CT5 trace: id 8175 was frozen past the rated life and every
+        // push re-anchored the session because the anchor lived only in memory.
+        val restored = restoredTimelineStartMs(
+            persistedTimelineStartMs = 0L,
+            persistedSensorStartMs = 1_787_503_820_003L,
+            persistedLastGlucoseId = 8_175,
+        )
+        assertFalse(
+            shouldReanchorTimeline(
+                liveId = 8_175,
+                previousMaxId = 8_175,
+                haveTimelineStart = restored > 0L,
+            )
+        )
+        // A genuinely newer id still moves the timeline.
+        assertTrue(
+            shouldReanchorTimeline(
+                liveId = 8_176,
+                previousMaxId = 8_175,
+                haveTimelineStart = restored > 0L,
+            )
+        )
+    }
+
+    @Test
     fun caughtUpCooldownSuppressesImmediateSameIdBackfillUntilNewerDataArrives() {
         var nowMs = 10_000L
         val cooldown = AnytimeHistoryCaughtUpCooldown(

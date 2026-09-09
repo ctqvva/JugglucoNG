@@ -87,6 +87,29 @@ internal fun liveIdLooksRolledBack(
  * Keyed on the previous highest id, which a genuine restart resets to -1, so a re-activation
  * anchors from its own first id exactly as before.
  */
+/**
+ * The timeline anchor to start a process with.
+ *
+ * [shouldReanchorTimeline] treats a missing anchor as "bootstrap, take whatever the
+ * first live id says". That is right for a new sensor and wrong after a restart: the
+ * anchor used to live only in memory, so every process start re-anchored on the first
+ * push, and a transmitter repeating an id it had already sent walked the stored sensor
+ * start forward by however long the app had been down.
+ *
+ * The sensor start is the fallback for installs that predate the persisted anchor, and
+ * only when an id has been seen before — without one there is nothing the anchor could
+ * have been derived from.
+ */
+internal fun restoredTimelineStartMs(
+    persistedTimelineStartMs: Long,
+    persistedSensorStartMs: Long,
+    persistedLastGlucoseId: Int,
+): Long = when {
+    persistedTimelineStartMs > 0L -> persistedTimelineStartMs
+    persistedSensorStartMs > 0L && persistedLastGlucoseId >= 0 -> persistedSensorStartMs
+    else -> 0L
+}
+
 internal fun shouldReanchorTimeline(
     liveId: Int,
     previousMaxId: Int,

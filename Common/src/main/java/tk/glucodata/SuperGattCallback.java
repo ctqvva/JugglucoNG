@@ -1078,9 +1078,15 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * constructor overwrites from {@code Natives.getAndroid13()}, so until this hook existed a
      * driver had no say at all: every one of the 103 connect attempts logged during the
      * 2026-08-01 jamming storm (52 + 51, two Ottai sensors) used autoConnect=true and not one
-     * used false. Whether a direct connect would do better on any particular peripheral is still
+     * used false. Whether a direct connect would do better on any particular peripheral was
      * unmeasured — see {@link #noteFirstGattCallback} for the number that would decide it — so
-     * every driver deliberately keeps inheriting the user's setting here.
+     * every driver inherited the user's setting here.
+     * <p>
+     * The Anytime driver is the one exception, and only because that number came in: a CT5 told
+     * to go low-power is unreachable between its 3-minute pushes, where a direct connect can only
+     * spend Android's 30-second timer and report status 147. It overrides this to fall back to
+     * autoConnect once an attempt has actually timed out; every other driver still has nothing
+     * deciding between the modes and keeps inheriting the setting.
      */
     protected boolean useAutoConnect() {
         return autoconnect;
