@@ -280,7 +280,6 @@ fun animatedCardShape(position: CardPosition, radius: Dp = 12.dp): RoundedCorner
 fun SettingsItem(
     title: String,
     subtitle: String? = null,
-    showArrow: Boolean = false,
     onClick: (() -> Unit)? = null,
     icon: ImageVector? = null,
     iconTint: Color? = null, // Added tint
@@ -341,16 +340,59 @@ fun SettingsItem(
             if (trailingContent != null) {
                 Spacer(Modifier.width(12.dp))
                 trailingContent()
-            } else if (showArrow) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    Icons.Filled.ChevronRight,
-                    null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
+}
+
+/**
+ * A row that does two jobs: the body opens a screen, the switch turns the feature off
+ * without going there. The chevron marks that split, and that is the only thing it is
+ * for — on a plain row the whole surface is already the target, so an arrow there says
+ * nothing the tap does not already say.
+ */
+@Composable
+fun SettingsNavSwitchItem(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    iconTint: Color? = null,
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
+    switchEnabled: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconTint = iconTint,
+        onClick = onClick,
+        position = position,
+        animatePosition = animatePosition,
+        modifier = modifier,
+        trailingContent = {
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(8.dp))
+            VerticalDivider(
+                modifier = Modifier.height(30.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+            )
+            Spacer(Modifier.width(8.dp))
+            StyledSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = switchEnabled
+            )
+        }
+    )
 }
 
 @Composable

@@ -457,7 +457,6 @@ fun TalkerSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.voice_schedule_from),
                         subtitle = SpeakSchedule.formatMinutes(scheduleStart),
-                        showArrow = true,
                         icon = Icons.Default.Schedule,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE,
@@ -466,7 +465,6 @@ fun TalkerSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.voice_schedule_until),
                         subtitle = SpeakSchedule.formatMinutes(scheduleEnd),
-                        showArrow = true,
                         icon = Icons.Default.Schedule,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM,
@@ -595,7 +593,6 @@ private fun DropdownSettingsCard(
         SettingsItem(
             title = title,
             subtitle = value,
-            showArrow = enabled,
             onClick = if (enabled) ({ onExpandedChange(true) }) else null,
             icon = icon,
             iconTint = iconTint,

@@ -195,7 +195,6 @@ fun AppUpdatesScreen(navController: NavController) {
             SettingsItem(
                 title = stringResource(R.string.app_updates_source_title),
                 subtitle = state.updateSource,
-                showArrow = true,
                 icon = Icons.Filled.Link,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 position = CardPosition.BOTTOM,

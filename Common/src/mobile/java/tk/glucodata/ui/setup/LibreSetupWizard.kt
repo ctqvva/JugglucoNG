@@ -327,7 +327,6 @@ fun LibreSetupWizard(
                             } else {
                                 stringResource(R.string.libreview_account_missing_desc)
                             },
-                            showArrow = true,
                             icon = Icons.Default.Cloud,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.SINGLE,

@@ -414,7 +414,6 @@ fun DisplayAndColorSettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.preview_window_title),
                 subtitle = previewWindowLabel,
-                showArrow = true,
                 icon = Icons.Default.CropSquare,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.TOP,
@@ -1009,7 +1008,7 @@ private fun WarningPanel(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-private fun isAodAccessibilityEnabled(context: Context): Boolean {
+internal fun isAodAccessibilityEnabled(context: Context): Boolean {
     val manager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
     return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->
         info.resolveInfo?.serviceInfo?.packageName == context.packageName &&

@@ -386,6 +386,35 @@ private fun finishCloneReceptionDisable() {
     tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
 }
 
+/** Whether clone reception is on, as this screen's master switch reports it. */
+internal fun isCloneReceptionEnabled(): Boolean = isCloneEnabled(readMirrorConnectionSnapshots())
+
+/** Whether there is anything for the master switch to act on. */
+internal fun hasCloneConnections(): Boolean =
+    readMirrorConnectionSnapshots().any { !it.isWearOs }
+
+/**
+ * The master switch's transition for callers that hold none of this screen's state — the
+ * settings row. The screen's own switch does the same thing plus the mDNS announcement
+ * teardown, which only exists while that screen is open.
+ */
+internal fun setCloneReceptionEnabled(
+    context: Context,
+    enabled: Boolean,
+    onFinished: () -> Unit = {},
+): Boolean =
+    CloneHostTransitionRunner.start(
+        connectionIndices = { cloneConnectionIndices(readMirrorConnectionSnapshots()) },
+        deactivated = !enabled,
+        cloneEnabledAfterTransition = enabled,
+        beforeNative = { tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabled) },
+        afterNative = { if (!enabled) finishCloneReceptionDisable() },
+        onFinished = {
+            refreshMirrorNetworking(context)
+            onFinished()
+        },
+    )
+
 private fun deleteAnnouncementSender(label: String?, ownedByAnnouncement: Boolean): Boolean {
     if (label.isNullOrBlank()) return false
     val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
@@ -728,7 +757,6 @@ fun MirrorSettingsScreen(navController: NavController) {
                             Text(device.name, style = MaterialTheme.typography.titleSmall)
                             Text("${device.ip}:${device.port}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f))
                         }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f))
                     }
                 }
             }

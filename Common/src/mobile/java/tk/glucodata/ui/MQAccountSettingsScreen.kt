@@ -317,7 +317,6 @@ fun MQAccountSettingsContent(
             SettingsItem(
                 title = stringResource(R.string.mq_follower_settings_title),
                 subtitle = followerSubtitle,
-                showArrow = true,
                 icon = Icons.Default.PeopleAlt,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.SINGLE,

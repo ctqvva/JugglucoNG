@@ -1511,7 +1511,6 @@ fun SensorCard(
                 SettingsItem(
                     title = stringResource(R.string.mq_account_title),
                     subtitle = accountSubtitle,
-                    showArrow = true,
                     icon = Icons.Default.Cloud,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,

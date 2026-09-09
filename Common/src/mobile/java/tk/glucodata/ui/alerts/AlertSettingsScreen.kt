@@ -534,7 +534,6 @@ fun AlertSettingsScreen(
                     subtitle = talkerSummary,
                     icon = Icons.AutoMirrored.Filled.VolumeUp,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    showArrow = true,
                     position = SettingsItemPosition.SINGLE,
                     onClick = { navController.navigate("settings/alerts/talker") }
                 )
@@ -1627,11 +1626,6 @@ private fun PreemptiveSnoozeCard() {
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                 )
             }
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
         }
     }
     

@@ -288,7 +288,6 @@ fun JournalSettingsScreen(
                                 predictionModelProfile.blocks.size
                             )
                         },
-                        showArrow = true,
                         onClick = if (journalEnabled) {
                             { navController.navigate("settings/predictive-simulation/model-profile") }
                         } else {
@@ -358,7 +357,6 @@ fun JournalSettingsScreen(
                             if (journalFoodLibraryEnabled) activeFoods.size else 0,
                             allFoods.size
                         ),
-                        showArrow = true,
                         onClick = { navController.navigate("settings/journal/foods") },
                         icon = Icons.Default.Restaurant,
                         iconTint = MaterialTheme.colorScheme.secondary,
@@ -367,7 +365,6 @@ fun JournalSettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.journal_insulin_library),
                         subtitle = stringResource(R.string.journal_insulin_library_count, activePresets.size, allPresets.size),
-                        showArrow = true,
                         onClick = { navController.navigate("settings/journal/insulin") },
                         icon = Icons.Default.Vaccines,
                         iconTint = MaterialTheme.colorScheme.tertiary,

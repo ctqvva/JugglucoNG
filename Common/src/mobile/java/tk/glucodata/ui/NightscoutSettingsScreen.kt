@@ -168,6 +168,50 @@ private fun applyNightscoutTestAuth(
     NightscoutFollowerRegistry.applyAuth(connection, trimmed)
 }
 
+/** Whether either Nightscout direction is live, the way this screen's master switch reads it. */
+internal fun isNightscoutActive(context: android.content.Context): Boolean =
+    Natives.getuseuploader() || NightscoutFollowerRegistry.loadConfig(context).enabled
+
+/**
+ * Flip the configured Nightscout link on or off from outside this screen. Works from what is
+ * stored rather than from what a screen is holding, so the settings row and the master switch
+ * here always land on the same state.
+ */
+internal fun setNightscoutActive(context: android.content.Context, active: Boolean) {
+    val config = NightscoutFollowerRegistry.loadConfig(context)
+    val mode = NightscoutModePreference.load(
+        context = context,
+        legacyUploaderActive = Natives.getuseuploader(),
+        legacyFollowerEnabled = config.enabled,
+    )
+    val url = Natives.getnightuploadurl().orEmpty()
+    val secret = Natives.getnightuploadsecret().orEmpty()
+    val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
+    val uploadActive = active && mode == NightscoutModePreference.Mode.UPLOAD
+    val followActive = active && mode == NightscoutModePreference.Mode.FOLLOW
+
+    Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, Natives.getnightscoutV3())
+    // The stored failure describes the old settings; keep it off the screen until the next
+    // attempt has run under the new ones.
+    NightPost.clearDeviceStatusOutcome()
+    when {
+        followActive && normalizedUrl.isNotBlank() ->
+            NightscoutFollowerRegistry.enableFollowerSensor(
+                context, normalizedUrl, secret, useV3 = config.useV3
+            )
+        followActive ->
+            NightscoutFollowerRegistry.saveConfig(
+                context, enabled = true, url = normalizedUrl, secret = secret, useV3 = config.useV3
+            )
+        else -> {
+            if (config.enabled) NightscoutFollowerRegistry.disableFollowerSensor(context)
+            NightscoutFollowerRegistry.saveConfig(
+                context, enabled = false, url = normalizedUrl, secret = secret, useV3 = config.useV3
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NightscoutSettingsScreen(navController: NavController) {

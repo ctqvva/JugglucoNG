@@ -180,7 +180,6 @@ fun AppUpdatesSettingsItem(
     SettingsItem(
         title = stringResource(R.string.app_updates_title),
         subtitle = subtitle,
-        showArrow = true,
         icon = Icons.Filled.SystemUpdate,
         iconTint = iconTint,
         position = position,

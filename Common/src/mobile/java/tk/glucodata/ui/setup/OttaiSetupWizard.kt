@@ -1511,7 +1511,6 @@ fun OttaiSetupWizard(
                             SettingsItem(
                                 title = stringResource(R.string.ottai_account_sensors_title),
                                 subtitle = null,
-                                showArrow = true,
                                 icon = Icons.Default.Cloud,
                                 iconTint = MaterialTheme.colorScheme.primary,
                                 onClick = if (!busy) ({ step = OttaiSetupStep.ACCOUNT_SENSORS }) else null,

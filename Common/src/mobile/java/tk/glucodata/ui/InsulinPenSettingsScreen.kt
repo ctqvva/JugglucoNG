@@ -259,7 +259,6 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                             subtitle = penRowSubtitle(pen),
                             icon = Icons.Default.Vaccines,
                             iconTint = MaterialTheme.colorScheme.primary,
-                            showArrow = true,
                             position = cardPositionFor(index, pens.size),
                             onClick = { editingSerial = pen.serial },
                         )

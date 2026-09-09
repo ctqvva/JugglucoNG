@@ -280,7 +280,6 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                 SettingsItem(
                     title = stringResource(R.string.api_source_settings_title),
                     subtitle = stringResource(R.string.api_source_desc),
-                    showArrow = true,
                     icon = Icons.Filled.CloudDownload,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.SINGLE,
