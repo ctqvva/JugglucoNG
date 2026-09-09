@@ -2165,12 +2165,19 @@ fun SensorCard(
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    // Inset and softened: this separates two parts of one card, and at full
+                    // strength edge to edge it read as a rule between two cards instead.
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { connectionLogExpanded = !connectionLogExpanded }
-                            .heightIn(min = ButtonDefaults.MinHeight)
+                            // A whole-width row that only toggles one thing can afford the list
+                            // item's own height, and it is the easiest thing on the card to hit.
+                            .heightIn(min = 56.dp)
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -2200,7 +2207,9 @@ fun SensorCard(
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut(),
                     ) {
-                        Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                        // The taller header already spaces the log off the rows above, so the
+                        // gap that matters is the one under it -- and Copy/Share bring their own.
+                        Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)) {
                             SensorTraceLog(sensor)
                         }
                     }

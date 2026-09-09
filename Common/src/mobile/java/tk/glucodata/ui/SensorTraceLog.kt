@@ -291,8 +291,10 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                 softWrap = true,
             )
         }
+        // A text button carries its own 8dp of vertical padding inside a 40dp target, so any
+        // gap added here lands on top of that and the log ends up floating above its actions.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
