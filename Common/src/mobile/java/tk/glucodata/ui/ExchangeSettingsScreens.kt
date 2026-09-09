@@ -1302,7 +1302,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                         } else {
                                             stringResource(
                                                 R.string.webserver_cert_expires,
-                                                formatEpoch(installed.notAfterMillis)
+                                                formatExpiryDate(installed.notAfterMillis)
                                             )
                                         },
                                         style = MaterialTheme.typography.bodySmall,
@@ -1614,6 +1614,20 @@ private fun findLocalIpv4Address(): String? {
             ?.hostAddress
     } catch (_: Throwable) {
         null
+    }
+}
+
+/**
+ * Date only. A certificate expires two years out, so the time of day it happens
+ * is noise -- unlike [formatEpoch], whose other callers are showing when the
+ * mirror last sent or received.
+ */
+private fun formatExpiryDate(epochMs: Long): String {
+    if (epochMs <= 0L) return ""
+    return try {
+        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs))
+    } catch (_: Throwable) {
+        ""
     }
 }
 
