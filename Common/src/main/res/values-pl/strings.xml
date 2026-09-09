@@ -773,6 +773,7 @@
     <string name="calibration">Kalibracja</string>
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Kalibracje</string>
+    <string name="manual_calibration">Kalibracja ręczna</string>
     <string name="caresens_air_scan_instruction">Zeskanuj kod czujnika na opakowaniu CareSens Air</string>
     <string name="caresens_air_sensor">CareSens Air</string>
     <string name="caresens_air_sensor_desc">Zeskanuj kod + Bluetooth</string>

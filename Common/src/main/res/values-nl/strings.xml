@@ -390,6 +390,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 <string name="sensorstreamed"></string>
 <string name="sensornotstreamed">Nog niets</string>
 <string name="calibrations">Kalibraties</string>
+<string name="manual_calibration">Handmatige kalibratie</string>
  <string name="allvalues">Alle waarden</string>
 <string name="writedown">Schrijf op!</string>
  <string name="switchtowatch">Wissel</string>

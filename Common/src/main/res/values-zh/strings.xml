@@ -715,6 +715,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration">校准</string>
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Calibrations</string>
+    <string name="manual_calibration">手动校准</string>
     <string name="caresens_air_scan_instruction">扫描 CareSens Air 包装上的传感器代码</string>
     <string name="caresens_air_sensor">康森空气</string>
     <string name="caresens_air_sensor_desc">扫码+蓝牙</string>

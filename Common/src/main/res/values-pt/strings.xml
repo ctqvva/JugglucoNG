@@ -609,6 +609,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration">Calibração</string>
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Calibrations</string>
+    <string name="manual_calibration">Calibração manual</string>
     <string name="can_t_play">"Can't play "</string>
     <string name="can_t_use_specification">Can\'t use specification</string>
     <string name="caresens_air_scan_instruction">Digitalize o código do sensor em seu pacote CareSens Air</string>

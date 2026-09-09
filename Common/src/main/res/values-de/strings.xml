@@ -397,6 +397,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="sensorstreamed"></string>
 <string name="sensornotstreamed">Noch nichts</string>
 <string name="calibrations">Kalibrierungen</string>
+<string name="manual_calibration">Manuelle Kalibrierung</string>
  <string name="allvalues">Alle Werte</string>
  <string name="writedown">Aufschreiben!</string>
  <string name="switchtowatch">Wechseln</string>
