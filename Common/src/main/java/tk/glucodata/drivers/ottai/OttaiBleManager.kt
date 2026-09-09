@@ -867,6 +867,10 @@ class OttaiBleManager(
     // sample is admitted and re-baselines the gate.
     @Volatile private var consecutiveContinuityRejects = 0
     @Volatile private var lastDataNo = -1
+    // frontDataNo of the last decrypted notify (live or history alike — one counter), used to
+    // settle chooseRecordSize's 8-vs-9-byte vote from the sensor's own advance rather than a
+    // content guess. -1 until the first successfully decrypted payload.
+    @Volatile private var lastFrameFront = -1
     @Volatile private var consecutiveCeilingFullDrops = 0
     @Volatile private var ceilingDistrusted = false
     // Set when the bounded wait for a fresh advertisement gave up. connectDevice()'s
@@ -2864,7 +2868,10 @@ class OttaiBleManager(
             Log.w(TAG, "$kind $source decrypt failed len=${cipher.size} blockMod=${cipher.size % 16}")
             return
         }
-        val records = OttaiParser.frameRecords(payload, materials.deviceVersion)
+        val front = OttaiParser.frontDataNo(payload)
+        val previousFront = lastFrameFront.takeIf { it >= 0 }
+        val records = OttaiParser.frameRecords(payload, materials.deviceVersion, previousFront)
+        lastFrameFront = front
         if (records.isEmpty()) {
             Log.w(TAG, "$kind $source no records payloadLen=${payload.size} hex=${OttaiCrypto.bytesToHex(payload).take(160)}")
             if (live) {
@@ -2883,7 +2890,7 @@ class OttaiBleManager(
             }
             return
         }
-        logi(TAG) { "$kind $source decrypted payloadLen=${payload.size} records=${records.size} front=${OttaiParser.frontDataNo(payload)}" }
+        logi(TAG) { "$kind $source decrypted payloadLen=${payload.size} records=${records.size} front=$front" }
         val readings = if (live) {
             listOf(OttaiParser.toReading(records.last(), materials.method, materials.coefficients, activeMs))
         } else {

@@ -208,4 +208,64 @@ class OttaiParserTests {
         assertEquals(8000, r.rawCurrent)
         assertEquals(35.0, r.temperatureC, 1e-9)
     }
+
+    // 2026-09-09 field capture (a real Ottai CN V3 unit, vE1.1.4(V1.7.S2530.1)): the content vote has
+    // nothing to work with on a short, still-unpopulated live frame — one 9-byte window against
+    // two 8-byte ones — and a real device tipped it to 8-byte, decoding an all-zero trailing
+    // "record" (raw=0, runtime=0) that then failed every downstream sanity gate. Every notify on
+    // the wire still carries the sensor's own dataNo in its header, though, and that count is
+    // ground truth: whichever candidate size reproduces the observed advance from the previous
+    // notify is the real one, independent of what the record bytes happen to contain.
+    @Test
+    fun chooseRecordSize_frontDeltaOverridesAmbiguousContent() {
+        // 16-byte body, front=50: content is near-zero, so both candidates read current=0 and
+        // tie at zero valid records. Unresolved, that tie defaults to 8-byte (matches the field
+        // failure). A previous front of 49 says the sensor advanced by exactly 1 record, which
+        // only the 9-byte reading (16/9=1) reproduces — 8-byte would need 2 (16/8=2). Byte 16
+        // (the live-record's last byte) is nonzero only so frameRecords' zero-padding skip
+        // doesn't discard the sole 9-byte record outright; it lands in neither candidate's
+        // current field, so the content vote above is unaffected.
+        val payload = ByteArray(16 + OttaiParser.HEADER_SIZE).also {
+            it[4] = 50
+            it[16] = 1
+        }
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)"),
+        )
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 49),
+        )
+        val records = OttaiParser.frameRecords(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 49)
+        assertEquals(1, records.size)
+        assertEquals(50, OttaiParser.parseRecord(records.single()).dataNo)
+    }
+
+    @Test
+    fun chooseRecordSize_frontDeltaCanConfirmEightByteToo() {
+        // Same ambiguous all-zero content, 24-byte body: nine-byte gives 24/9=2 candidate
+        // records, eight-byte gives 24/8=3. A previous front 3 behind this one matches only the
+        // 8-byte reading.
+        val payload = ByteArray(24 + OttaiParser.HEADER_SIZE).also { it[4] = 10 }
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 8),
+        )
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 7),
+        )
+    }
+
+    @Test
+    fun chooseRecordSize_ignoresFrontDeltaWhenItMatchesNeitherCandidate() {
+        // A delta that fits neither candidate's record count (a reconnect, a history seek to an
+        // unrelated dataNo, 16-bit wraparound) must not force a size — fall back to content.
+        val payload = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(payload, "E9.9.9(V9.9.UNK)", previousFront = 4096),
+        )
+    }
 }
