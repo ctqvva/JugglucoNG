@@ -2177,7 +2177,7 @@ fun SensorCard(
                             .clickable(role = Role.Button) { connectionLogExpanded = !connectionLogExpanded }
                             // A whole-width row that only toggles one thing can afford the list
                             // item's own height, and it is the easiest thing on the card to hit.
-                            .heightIn(min = 56.dp)
+                            .heightIn(min = 48.dp)
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
