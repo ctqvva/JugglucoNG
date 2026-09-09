@@ -192,8 +192,19 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
     LaunchedEffect(context, identifiers, driverTags) {
         val file = File(context.filesDir, "logs/trace.log")
         while (isActive) {
-            lines = withContext(Dispatchers.IO) {
-                readRecentSensorTraceLines(file, identifiers, driverTags)
+            // trace.log is the richer source -- it has the native lines too and it survives a
+            // restart -- but it is only written while logging is on. With logging off the
+            // in-memory ring is all there is, and reading it costs no IO.
+            lines = if (tk.glucodata.Log.doLog) {
+                withContext(Dispatchers.IO) {
+                    readRecentSensorTraceLines(file, identifiers, driverTags)
+                }
+            } else {
+                filterRecentSensorTraceLines(
+                    lines = tk.glucodata.SensorTraceRing.snapshot().asList(),
+                    identifiers = identifiers,
+                    driverTags = driverTags,
+                )
             }
             delay(2_000L)
         }
