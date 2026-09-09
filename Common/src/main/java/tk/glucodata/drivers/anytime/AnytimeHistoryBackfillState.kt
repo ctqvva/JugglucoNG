@@ -87,6 +87,12 @@ internal fun liveIdLooksRolledBack(
  * Keyed on the previous highest id, which a genuine restart resets to -1, so a re-activation
  * anchors from its own first id exactly as before.
  */
+internal fun shouldReanchorTimeline(
+    liveId: Int,
+    previousMaxId: Int,
+    haveTimelineStart: Boolean,
+): Boolean = liveId >= 0 && (!haveTimelineStart || liveId > previousMaxId)
+
 /**
  * The timeline anchor to start a process with.
  *
@@ -109,12 +115,6 @@ internal fun restoredTimelineStartMs(
     persistedSensorStartMs > 0L && persistedLastGlucoseId >= 0 -> persistedSensorStartMs
     else -> 0L
 }
-
-internal fun shouldReanchorTimeline(
-    liveId: Int,
-    previousMaxId: Int,
-    haveTimelineStart: Boolean,
-): Boolean = liveId >= 0 && (!haveTimelineStart || liveId > previousMaxId)
 
 /**
  * Legacy families use the profile record count as a hard history boundary.

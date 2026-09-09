@@ -77,15 +77,20 @@ class AnytimeBleManager(
          * How long a soft reconnect waits between closing the old GATT and opening
          * a new one.
          *
-         * BluetoothGatt.close() returns immediately but unregisters the client
-         * asynchronously, and connecting again inside that window leaves two clients
-         * on one link. In the 2026-09-09 CT5 trace the 250ms this used to be produced
-         * a session with two onMtuChanged callbacks for a single requestMtu and an
-         * 8s service discovery — against under a second on the clean retry two minutes
-         * later — and the stack then dropped the link with GATT_FAILURE (257) a second
-         * after the low-power ack, as the retired client finally went away. A quiet
-         * gap costs nothing here: the alternative is the ~90s of blind reconnects that
-         * followed.
+         * Defensive, and not a proven mechanism. What the 2026-09-09 CT5 trace shows
+         * is that reconnecting 250ms after close() produced a visibly unhealthy
+         * session — two onMtuChanged callbacks for a single requestMtu, service
+         * discovery taking 8s where the clean retry two minutes later took under one,
+         * and the link dropped with GATT_FAILURE (257) a second after the low-power
+         * ack. The likely reading is that close() had not finished unregistering the
+         * old client, since BluetoothGatt.close() returns before the stack is done
+         * with it; the trace does not establish that, and neither duplicate callback
+         * proves a second registered client on its own.
+         *
+         * Widening the gap is cheap either way — the reconnect is already 250ms late
+         * and nothing waits on it — while the failure it guards against cost ~90s of
+         * blind reconnects. Making the GATT lifecycle itself safe against overlapping
+         * attempts would be the real fix.
          */
         private const val SOFT_RECONNECT_SETTLE_MS = 750L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 15_000L
@@ -277,12 +282,9 @@ class AnytimeBleManager(
     @Volatile private var pendingCccdGatt: BluetoothGatt? = null
     @Volatile private var lastConnectRequestAtMs: Long = 0L
 
-    /**
-     * Direct connects in a row that expired without reaching the transmitter.
-     * Drives [useAutoConnect] and the reconnect backoff; any connection at all
-     * clears it.
-     */
-    @Volatile private var consecutiveConnectTimeouts: Int = 0
+    /** What direct connects to this transmitter have actually achieved so far. */
+    private val connectMode = AnytimeConnectModeState()
+
     @Volatile private var pendingFingerstickMgdl: Int = -1
     @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
     @Volatile private var pendingKrPush: Boolean = false
@@ -2015,23 +2017,12 @@ class AnytimeBleManager(
     }
 
     /**
-     * Inherit the user's setting until a direct connect has actually proved itself
-     * unable to reach this transmitter, then let the stack wait for an
-     * advertisement instead of burning another 30-second timer. See
-     * [shouldUseAutoConnect] for the measurement behind that.
+     * Inherit the user's setting until a direct connect has proved itself unable to
+     * reach this transmitter, then let the stack wait for an advertisement instead of
+     * burning another 30-second timer. Kept free of side effects: it is read again to
+     * record which mode a connection was established with.
      */
-    override fun useAutoConnect(): Boolean {
-        val user = super.useAutoConnect()
-        val auto = shouldUseAutoConnect(user, consecutiveConnectTimeouts)
-        if (auto && !user) {
-            Log.i(
-                TAG,
-                "Using autoConnect after $consecutiveConnectTimeouts direct connect " +
-                        "timeout(s); waiting for the transmitter to advertise"
-            )
-        }
-        return auto
-    }
+    override fun useAutoConnect(): Boolean = connectMode.useAutoConnect(super.useAutoConnect())
 
     private fun scheduleReconnect(reason: String, delayMs: Long = ACTIVE_SESSION_RECONNECT_DELAY_MS) {
         if (stop) return
@@ -2311,7 +2302,9 @@ class AnytimeBleManager(
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
                 Log.i(TAG, "Connected to ${gatt.device?.address}")
-                consecutiveConnectTimeouts = 0
+                // Nothing between opening the attempt and this callback can change the
+                // mode, so asking again reports what this connection was opened with.
+                connectMode.onConnected(usedAutoConnect = useAutoConnect())
                 cancelReconnect()
                 clearGattCallbacks()
                 mBluetoothGatt = gatt
@@ -2340,12 +2333,16 @@ class AnytimeBleManager(
             BluetoothProfile.STATE_DISCONNECTED -> {
                 Log.i(TAG, "Disconnected (status=$status)")
                 // A disconnect out of CONNECTING never reached the transmitter, so
-                // status 147 here is the 30-second direct-connect timer, not a lost
-                // link. Anything that did connect resets the count.
-                consecutiveConnectTimeouts = if (phase == Phase.CONNECTING && isConnectTimeoutStatus(status)) {
-                    consecutiveConnectTimeouts + 1
-                } else {
-                    0
+                // status 147 here is Android's direct-connect timer expiring rather
+                // than a link that dropped.
+                val couldReachDirectly = !connectMode.directConnectUnreachable
+                connectMode.onDisconnected(status, wasConnecting = phase == Phase.CONNECTING)
+                if (couldReachDirectly && connectMode.directConnectUnreachable) {
+                    Log.i(
+                        TAG,
+                        "Direct connect timed out without reaching $SerialNumber; waiting for it " +
+                                "to advertise instead until a direct connect succeeds again"
+                    )
                 }
                 phase = Phase.IDLE
                 streamingSinceMs = 0L
@@ -2391,8 +2388,7 @@ class AnytimeBleManager(
                     if (!stop) {
                         scheduleReconnect(
                             "GATT disconnect status=$status",
-                            connectRetryDelayMs(
-                                consecutiveConnectTimeouts = consecutiveConnectTimeouts,
+                            connectMode.retryDelayMs(
                                 baseDelayMs = ACTIVE_SESSION_RECONNECT_DELAY_MS,
                                 readingIntervalMs = profile.readingIntervalMinutes * 60L * 1000L,
                             ),
