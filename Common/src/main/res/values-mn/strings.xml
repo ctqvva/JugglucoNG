@@ -1366,7 +1366,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wearosinfo">Wearosinfo</string>
     <string name="wipe_sensor_data_desc">Delete sensor data from this device.</string>
     <string name="wipe_sensor_data_title">Wipe sensor data</string>
-    <string name="manual_calibration">Manual calibarion</string>
+    <string name="manual_calibration">Гараар каллибраци</string>
     <!-- Report localization -->
     <string name="report_generated_page">Generated %1$s · Page %2$d</string>
     <string name="report_patient_information">Patient information</string>
