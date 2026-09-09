@@ -257,11 +257,20 @@ void restartwatchthread(int port) {
       stopwatchthread();
       constexpr const int waitstepms=10;
       constexpr const int maxwaitms=3000;
-      for(int waited=0;xdripserversock!=-1&&waited<maxwaitms;waited+=waitstepms) {
+      /*
+         Both sockets, not just the one whose port changed. stopwatchthread()
+         takes the SSL listener down too, and startwatchthread() only brings SSL
+         back up while xdripserversslsock is still -1 -- so waiting on the plain
+         socket alone can rebind HTTP at the moment SSL has not finished letting
+         go, and leave HTTPS down until the app restarts.
+      */
+      auto released=[]{ return xdripserversock==-1&&xdripserversslsock==-1; };
+      for(int waited=0;!released()&&waited<maxwaitms;waited+=waitstepms) {
          std::this_thread::sleep_for(std::chrono::milliseconds(waitstepms));
          }
-      if(xdripserversock!=-1) {
-         LOGGERWEB("restartwatchthread: listener still on %d, not rebinding to %d\n",xdripserversock,port);
+      if(!released()) {
+         LOGGERWEB("restartwatchthread: listeners still on %d/%d, not rebinding to %d\n",
+            xdripserversock,xdripserversslsock,port);
          return;
          }
       LOGGERWEB("restartwatchthread: rebinding to %d\n",port);
