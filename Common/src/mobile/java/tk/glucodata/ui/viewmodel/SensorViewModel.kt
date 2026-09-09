@@ -159,9 +159,13 @@ class SensorViewModel : ViewModel() {
 
     private fun normalizePublishedSensor(sensor: SensorInfo): SensorInfo {
         val resolved = SensorIdentity.resolveAppSensorId(sensor.serial) ?: sensor.serial
+        // resolveAppSensorId can hand back an id the registry was never written
+        // under, so the raw serial the callback carries has to count too.
+        val clone = tk.glucodata.CloneSensorRegistry.isCloneSensor(resolved) ||
+            tk.glucodata.CloneSensorRegistry.isCloneSensor(sensor.serial)
         return sensor.copy(
             serial = resolved,
-            isCloneSource = tk.glucodata.CloneSensorRegistry.isCloneSensor(resolved),
+            isCloneSource = clone,
         )
     }
 
@@ -631,7 +635,12 @@ class SensorViewModel : ViewModel() {
     
                         SensorInfo(
                             serial = sensorSerial,
-                            displayName = try { gatt.mygetDeviceName() } catch (_: Throwable) { sensorSerial },
+                            // mygetDeviceName falls back to "?" when there is no bonded
+                            // device behind the callback, which is every Clone record. That
+                            // sentinel is not a name, so the serial stands in for it here the
+                            // same way it does for a managed snapshot.
+                            displayName = (try { gatt.mygetDeviceName() } catch (_: Throwable) { null })
+                                ?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: sensorSerial,
                             deviceAddress = gatt.mActiveDeviceAddress ?: "Unknown",
                             connectionStatus = displayedError?.status?.let(::mapBleStatus).orEmpty(),
                             connectionStatusAtMs = displayedError?.atMs ?: 0L,
@@ -665,7 +674,9 @@ class SensorViewModel : ViewModel() {
                     android.util.Log.e("SensorViewModel", "Error loading sensor ${gatt.SerialNumber}", e)
                     SensorInfo(
                         serial = gatt.SerialNumber ?: "Error",
-                        displayName = try { gatt.mygetDeviceName() } catch (_: Throwable) { gatt.SerialNumber ?: "Error" },
+                        displayName = (try { gatt.mygetDeviceName() } catch (_: Throwable) { null })
+                            ?.takeIf { SensorIdentity.isUsableSensorId(it) }
+                            ?: (gatt.SerialNumber ?: "Error"),
                         deviceAddress = gatt.mActiveDeviceAddress ?: "Unknown",
                         connectionStatus = "Load Error",
                         starttime = "",

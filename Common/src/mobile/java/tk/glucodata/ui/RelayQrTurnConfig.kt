@@ -6,9 +6,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val MIRROR_QR_SUFFIX = " MirrorJuggluco"
-private const val MAX_TURN_HOST_LENGTH = 191
-private const val MAX_TURN_USERNAME_LENGTH = 95
-private const val MAX_TURN_PASSWORD_LENGTH = 127
 private const val MAX_ICE_HOST_LENGTH = 191
 private const val DEFAULT_RENDEZVOUS_PORT = 6789
 
@@ -38,6 +35,12 @@ private fun exactInteger(value: Any?, error: String): Long {
     return integer
 }
 
+private fun turnPort(value: Any?): Int {
+    val port = exactInteger(value, "TURN port is invalid")
+    require(port in 1L..65535L) { "TURN port is invalid" }
+    return port.toInt()
+}
+
 internal fun parseMirrorQrJson(payload: String): JSONObject {
     val json = if (payload.endsWith(MIRROR_QR_SUFFIX)) {
         payload.dropLast(MIRROR_QR_SUFFIX.length)
@@ -55,7 +58,7 @@ internal fun parseHybridQrTurnConfig(json: JSONObject): HybridQrTurnConfig? {
     val config = when (val turn = json.get("turn")) {
         is JSONObject -> HybridQrTurnConfig(
             turn.optString("host", "").trim(),
-            turn.optInt("port", -1),
+            turnPort(turn.opt("port")),
             turn.optString("username", ""),
             turn.optString("password", "")
         )
@@ -63,7 +66,7 @@ internal fun parseHybridQrTurnConfig(json: JSONObject): HybridQrTurnConfig? {
             require(turn.length() == 4) { "TURN configuration is invalid" }
             HybridQrTurnConfig(
                 turn.optString(0, "").trim(),
-                turn.optInt(1, -1),
+                turnPort(turn.opt(1)),
                 turn.optString(2, ""),
                 turn.optString(3, "")
             )
@@ -74,9 +77,15 @@ internal fun parseHybridQrTurnConfig(json: JSONObject): HybridQrTurnConfig? {
 
     require(host.isNotEmpty()) { "TURN host is missing" }
     require(port in 1..65535) { "TURN port is invalid" }
-    require(host.length <= MAX_TURN_HOST_LENGTH) { "TURN host is too long" }
-    require(username.length <= MAX_TURN_USERNAME_LENGTH) { "TURN username is too long" }
-    require(password.length <= MAX_TURN_PASSWORD_LENGTH) { "TURN password is too long" }
+    require(TurnServerInputPolicy.fitsNativeBuffer(host, TurnServerInputPolicy.HOST_BYTES)) {
+        "TURN host is too long"
+    }
+    require(TurnServerInputPolicy.fitsNativeBuffer(username, TurnServerInputPolicy.USERNAME_BYTES)) {
+        "TURN username is too long"
+    }
+    require(TurnServerInputPolicy.fitsNativeBuffer(password, TurnServerInputPolicy.PASSWORD_BYTES)) {
+        "TURN password is too long"
+    }
 
     return config
 }

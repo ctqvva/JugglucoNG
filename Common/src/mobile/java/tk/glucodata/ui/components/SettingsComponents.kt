@@ -4,7 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,15 +17,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
@@ -35,6 +43,180 @@ fun SliderControl(label: String, value: Float, onValueChange: (Float) -> Unit, r
             valueRange = range,
             steps = steps
         )
+    }
+}
+
+/**
+ * A settings row that opens its own content underneath, inside the same card:
+ * header, divider, then the content. Extracted from the glucose range screen,
+ * which is where this shape was already established.
+ */
+@Composable
+fun ExpandableSettingsCard(
+    title: String,
+    summary: String,
+    icon: ImageVector,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    position: CardPosition,
+    iconTint: Color? = null,
+    content: @Composable () -> Unit,
+) {
+    val tint = iconTint ?: MaterialTheme.colorScheme.primary
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "expandableSettingsChevron"
+    )
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange(!expanded) }
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = tint.copy(alpha = 0.12f)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = title, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        modifier = Modifier.padding(top = 2.dp),
+                        text = summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.graphicsLayer { rotationZ = chevronRotation }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        content()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The switch-headed sibling of [ExpandableSettingsCard]: turning it on is what
+ * reveals the content, because the content only exists to serve that choice.
+ * Same card, same divider, so a page can mix the two without looking mixed.
+ */
+@Composable
+fun DisclosingSwitchCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    position: CardPosition,
+    iconTint: Color? = null,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val tint = iconTint ?: MaterialTheme.colorScheme.primary
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = enabled) { onCheckedChange(!checked) }
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = tint.copy(alpha = 0.12f)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = title, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        modifier = Modifier.padding(top = 2.dp),
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                StyledSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+            }
+
+            AnimatedVisibility(
+                visible = checked,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        content()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -105,7 +287,8 @@ fun SettingsItem(
     trailingContent: (@Composable () -> Unit)? = null,
     position: CardPosition = CardPosition.SINGLE,
     animatePosition: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    subtitleStyle: TextStyle? = null,
 ) {
     Surface(
         onClick = onClick ?: {},
@@ -149,15 +332,17 @@ fun SettingsItem(
                 if (subtitle != null) {
                     Text(
                         subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = subtitleStyle ?: MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             if (trailingContent != null) {
+                Spacer(Modifier.width(12.dp))
                 trailingContent()
             } else if (showArrow) {
+                Spacer(Modifier.width(12.dp))
                 Icon(
                     Icons.Filled.ChevronRight,
                     null,
@@ -180,7 +365,7 @@ fun SettingsSwitchItem(
     animatePosition: Boolean = false,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
-    subtitleStyle: TextStyle = MaterialTheme.typography.bodySmall
+    subtitleStyle: TextStyle? = null,
 ) {
     SettingsItem(
         title = title,
@@ -193,6 +378,7 @@ fun SettingsSwitchItem(
             null
         },
         modifier = modifier,
+        subtitleStyle = subtitleStyle,
         trailingContent = {
             StyledSwitch(
                 checked = checked,
@@ -213,7 +399,8 @@ fun MasterSwitchCard(
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector,
     modifier: Modifier = Modifier,
-    iconTint: Color = MaterialTheme.colorScheme.primary
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    enabled: Boolean = true,
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (checked) {
@@ -239,7 +426,7 @@ fun MasterSwitchCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 84.dp)
-                .clickable { onCheckedChange(!checked) }
+                .clickable(enabled = enabled) { onCheckedChange(!checked) }
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -279,6 +466,7 @@ fun MasterSwitchCard(
 
             StyledSwitch(
                 checked = checked,
+                enabled = enabled,
                 onCheckedChange = onCheckedChange
             )
         }
