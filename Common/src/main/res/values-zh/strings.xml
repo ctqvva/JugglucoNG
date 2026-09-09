@@ -2731,4 +2731,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">服务器与本地发现</string>
     <string name="clone_connections_empty">尚无已配对设备。</string>
     <string name="clone_background_desc">会增加耗电量</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS 加密</string>
+    <string name="webserver_certificate">证书</string>
+    <string name="webserver_cert_selfsigned">自签名，在本设备上生成</string>
+    <string name="webserver_cert_custom">自定义证书</string>
+    <string name="webserver_cert_none">尚无证书</string>
+    <string name="webserver_cert_generate">生成</string>
+    <string name="webserver_cert_regenerate">重新生成</string>
+    <string name="webserver_cert_import">导入</string>
+    <string name="webserver_cert_import_hint">请从您的证书颁发机构导入这两个文件。</string>
+    <string name="webserver_cert_generating">正在生成证书…</string>
+    <string name="webserver_cert_expires">有效期至 %1$s</string>
+    <string name="webserver_cert_expired">已过期</string>
+    <string name="webserver_cert_missing_address">未包含 %1$s</string>
+    <string name="webserver_cert_created">证书已生成</string>
 </resources>

@@ -2743,4 +2743,20 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_connections_empty">Henüz eşleştirilmiş cihaz yok.</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS şifrelemesi</string>
+    <string name="webserver_certificate">Sertifika</string>
+    <string name="webserver_cert_selfsigned">Kendinden imzalı, bu cihazda oluşturuldu</string>
+    <string name="webserver_cert_custom">Özel sertifika</string>
+    <string name="webserver_cert_none">Henüz sertifika yok</string>
+    <string name="webserver_cert_generate">Oluştur</string>
+    <string name="webserver_cert_regenerate">Yeniden oluştur</string>
+    <string name="webserver_cert_import">İçe aktar</string>
+    <string name="webserver_cert_import_hint">Sertifika yetkilinizden her iki dosyayı da içe aktarın.</string>
+    <string name="webserver_cert_generating">Sertifika oluşturuluyor…</string>
+    <string name="webserver_cert_expires">Bitiş: %1$s</string>
+    <string name="webserver_cert_expired">Süresi doldu</string>
+    <string name="webserver_cert_missing_address">%1$s adresini kapsamıyor</string>
+    <string name="webserver_cert_created">Sertifika oluşturuldu</string>
 </resources>

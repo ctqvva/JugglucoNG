@@ -2939,4 +2939,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Servers and local discovery</string>
     <string name="clone_connections_empty">No paired devices yet.</string>
     <string name="clone_background_desc">Uses more battery</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS encryption</string>
+    <string name="webserver_certificate">Certificate</string>
+    <string name="webserver_cert_selfsigned">Self-signed, generated on this device</string>
+    <string name="webserver_cert_custom">Custom certificate</string>
+    <string name="webserver_cert_none">No certificate yet</string>
+    <string name="webserver_cert_generate">Generate</string>
+    <string name="webserver_cert_regenerate">Regenerate</string>
+    <string name="webserver_cert_import">Import</string>
+    <string name="webserver_cert_import_hint">Import both files from your certificate authority.</string>
+    <string name="webserver_cert_generating">Generating certificate…</string>
+    <string name="webserver_cert_expires">Expires %1$s</string>
+    <string name="webserver_cert_expired">Expired</string>
+    <string name="webserver_cert_missing_address">Does not cover %1$s</string>
+    <string name="webserver_cert_created">Certificate created</string>
 </resources>

@@ -2829,4 +2829,20 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_network_summary">Серверүүд ба дотоод хайлт</string>
     <string name="clone_connections_empty">Хосолсон төхөөрөмж одоогоор алга.</string>
     <string name="clone_background_desc">Батарейн зарцуулалт нэмэгдэнэ</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS шифрлэлт</string>
+    <string name="webserver_certificate">Гэрчилгээ</string>
+    <string name="webserver_cert_selfsigned">Энэ төхөөрөмж дээр үүсгэсэн, өөрөө гарын үсэг зурсан</string>
+    <string name="webserver_cert_custom">Хэрэглэгчийн гэрчилгээ</string>
+    <string name="webserver_cert_none">Гэрчилгээ алга</string>
+    <string name="webserver_cert_generate">Үүсгэх</string>
+    <string name="webserver_cert_regenerate">Дахин үүсгэх</string>
+    <string name="webserver_cert_import">Импортлох</string>
+    <string name="webserver_cert_import_hint">Гэрчилгээжүүлэх байгууллагаасаа хоёр файлыг импортлоно уу.</string>
+    <string name="webserver_cert_generating">Гэрчилгээ үүсгэж байна…</string>
+    <string name="webserver_cert_expires">%1$s-д дуусна</string>
+    <string name="webserver_cert_expired">Хугацаа дууссан</string>
+    <string name="webserver_cert_missing_address">%1$s-г хамрахгүй</string>
+    <string name="webserver_cert_created">Гэрчилгээ үүслээ</string>
 </resources>

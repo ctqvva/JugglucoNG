@@ -2790,4 +2790,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Сервери та локальний пошук</string>
     <string name="clone_connections_empty">Підключених пристроїв ще немає.</string>
     <string name="clone_background_desc">Збільшує витрату батареї</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Шифрування HTTPS</string>
+    <string name="webserver_certificate">Сертифікат</string>
+    <string name="webserver_cert_selfsigned">Самопідписаний, створений на цьому пристрої</string>
+    <string name="webserver_cert_custom">Власний сертифікат</string>
+    <string name="webserver_cert_none">Сертифіката ще немає</string>
+    <string name="webserver_cert_generate">Створити</string>
+    <string name="webserver_cert_regenerate">Створити заново</string>
+    <string name="webserver_cert_import">Імпорт</string>
+    <string name="webserver_cert_import_hint">Імпортуйте обидва файли з вашого центру сертифікації.</string>
+    <string name="webserver_cert_generating">Створення сертифіката…</string>
+    <string name="webserver_cert_expires">Діє до %1$s</string>
+    <string name="webserver_cert_expired">Прострочений</string>
+    <string name="webserver_cert_missing_address">Не охоплює %1$s</string>
+    <string name="webserver_cert_created">Сертифікат створено</string>
 </resources>

@@ -2715,4 +2715,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Servrar och lokal sökning</string>
     <string name="clone_connections_empty">Inga parkopplade enheter ännu.</string>
     <string name="clone_background_desc">Ökar batteriförbrukningen</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS-kryptering</string>
+    <string name="webserver_certificate">Certifikat</string>
+    <string name="webserver_cert_selfsigned">Självsignerat, skapat på den här enheten</string>
+    <string name="webserver_cert_custom">Eget certifikat</string>
+    <string name="webserver_cert_none">Inget certifikat ännu</string>
+    <string name="webserver_cert_generate">Skapa</string>
+    <string name="webserver_cert_regenerate">Skapa nytt</string>
+    <string name="webserver_cert_import">Importera</string>
+    <string name="webserver_cert_import_hint">Importera båda filerna från din certifikatutfärdare.</string>
+    <string name="webserver_cert_generating">Skapar certifikat…</string>
+    <string name="webserver_cert_expires">Går ut %1$s</string>
+    <string name="webserver_cert_expired">Har gått ut</string>
+    <string name="webserver_cert_missing_address">Täcker inte %1$s</string>
+    <string name="webserver_cert_created">Certifikat skapat</string>
 </resources>

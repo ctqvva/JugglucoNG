@@ -2914,4 +2914,20 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_network_summary">Adeegayaal iyo raadinta gudaha</string>
     <string name="clone_connections_empty">Weli ma jiraan aalado lammaansan.</string>
     <string name="clone_background_desc">Waxay isticmaashaa batari badan</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Sirdoonka HTTPS</string>
+    <string name="webserver_certificate">Shahaado</string>
+    <string name="webserver_cert_selfsigned">Is-saxiixday, waxaa lagu sameeyay qalabkan</string>
+    <string name="webserver_cert_custom">Shahaado gaar ah</string>
+    <string name="webserver_cert_none">Weli shahaado ma jirto</string>
+    <string name="webserver_cert_generate">Samee</string>
+    <string name="webserver_cert_regenerate">Dib u samee</string>
+    <string name="webserver_cert_import">Soo deji</string>
+    <string name="webserver_cert_import_hint">Labada fayl ka soo dejiso hay\'addaada shahaadooyinka.</string>
+    <string name="webserver_cert_generating">Shahaadada waa la samaynayaa…</string>
+    <string name="webserver_cert_expires">Waxay dhacaysaa %1$s</string>
+    <string name="webserver_cert_expired">Dhacay</string>
+    <string name="webserver_cert_missing_address">Ma daboosho %1$s</string>
+    <string name="webserver_cert_created">Shahaadada waa la sameeyay</string>
 </resources>

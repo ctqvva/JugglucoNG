@@ -2754,4 +2754,20 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_connections_empty">Noch keine gekoppelten Geräte.</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS-Verschlüsselung</string>
+    <string name="webserver_certificate">Zertifikat</string>
+    <string name="webserver_cert_selfsigned">Selbstsigniert, auf diesem Gerät erzeugt</string>
+    <string name="webserver_cert_custom">Eigenes Zertifikat</string>
+    <string name="webserver_cert_none">Noch kein Zertifikat</string>
+    <string name="webserver_cert_generate">Erzeugen</string>
+    <string name="webserver_cert_regenerate">Neu erzeugen</string>
+    <string name="webserver_cert_import">Importieren</string>
+    <string name="webserver_cert_import_hint">Importieren Sie beide Dateien von Ihrer Zertifizierungsstelle.</string>
+    <string name="webserver_cert_generating">Zertifikat wird erzeugt…</string>
+    <string name="webserver_cert_expires">Gültig bis %1$s</string>
+    <string name="webserver_cert_expired">Abgelaufen</string>
+    <string name="webserver_cert_missing_address">Deckt %1$s nicht ab</string>
+    <string name="webserver_cert_created">Zertifikat erzeugt</string>
 </resources>

@@ -2758,4 +2758,20 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_network_summary">Servers en lokaal zoeken</string>
     <string name="clone_connections_empty">Nog geen gekoppelde apparaten.</string>
     <string name="clone_background_desc">Verbruikt meer batterij</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS-versleuteling</string>
+    <string name="webserver_certificate">Certificaat</string>
+    <string name="webserver_cert_selfsigned">Zelfondertekend, op dit apparaat gemaakt</string>
+    <string name="webserver_cert_custom">Eigen certificaat</string>
+    <string name="webserver_cert_none">Nog geen certificaat</string>
+    <string name="webserver_cert_generate">Aanmaken</string>
+    <string name="webserver_cert_regenerate">Opnieuw aanmaken</string>
+    <string name="webserver_cert_import">Importeren</string>
+    <string name="webserver_cert_import_hint">Importeer beide bestanden van uw certificaatautoriteit.</string>
+    <string name="webserver_cert_generating">Certificaat wordt aangemaakt…</string>
+    <string name="webserver_cert_expires">Verloopt op %1$s</string>
+    <string name="webserver_cert_expired">Verlopen</string>
+    <string name="webserver_cert_missing_address">Dekt %1$s niet</string>
+    <string name="webserver_cert_created">Certificaat aangemaakt</string>
 </resources>

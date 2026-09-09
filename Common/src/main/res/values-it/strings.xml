@@ -2705,4 +2705,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Server e ricerca locale</string>
     <string name="clone_connections_empty">Nessun dispositivo associato.</string>
     <string name="clone_background_desc">Consuma più batteria</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Crittografia HTTPS</string>
+    <string name="webserver_certificate">Certificato</string>
+    <string name="webserver_cert_selfsigned">Autofirmato, generato su questo dispositivo</string>
+    <string name="webserver_cert_custom">Certificato personalizzato</string>
+    <string name="webserver_cert_none">Nessun certificato</string>
+    <string name="webserver_cert_generate">Genera</string>
+    <string name="webserver_cert_regenerate">Rigenera</string>
+    <string name="webserver_cert_import">Importa</string>
+    <string name="webserver_cert_import_hint">Importa entrambi i file dalla tua autorità di certificazione.</string>
+    <string name="webserver_cert_generating">Generazione del certificato…</string>
+    <string name="webserver_cert_expires">Scade il %1$s</string>
+    <string name="webserver_cert_expired">Scaduto</string>
+    <string name="webserver_cert_missing_address">Non copre %1$s</string>
+    <string name="webserver_cert_created">Certificato generato</string>
 </resources>

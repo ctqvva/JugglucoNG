@@ -2761,4 +2761,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Серверы и локальный поиск</string>
     <string name="clone_connections_empty">Подключённых устройств пока нет.</string>
     <string name="clone_background_desc">Повышает расход батареи</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Шифрование HTTPS</string>
+    <string name="webserver_certificate">Сертификат</string>
+    <string name="webserver_cert_selfsigned">Самоподписанный, создан на этом устройстве</string>
+    <string name="webserver_cert_custom">Собственный сертификат</string>
+    <string name="webserver_cert_none">Сертификата пока нет</string>
+    <string name="webserver_cert_generate">Создать</string>
+    <string name="webserver_cert_regenerate">Создать заново</string>
+    <string name="webserver_cert_import">Импорт</string>
+    <string name="webserver_cert_import_hint">Импортируйте оба файла из вашего центра сертификации.</string>
+    <string name="webserver_cert_generating">Создание сертификата…</string>
+    <string name="webserver_cert_expires">Действует до %1$s</string>
+    <string name="webserver_cert_expired">Истёк</string>
+    <string name="webserver_cert_missing_address">Не охватывает %1$s</string>
+    <string name="webserver_cert_created">Сертификат создан</string>
 </resources>
