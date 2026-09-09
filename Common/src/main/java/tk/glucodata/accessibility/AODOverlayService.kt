@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -122,10 +123,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
                 Intent.ACTION_TIME_TICK -> refreshPeriodic("aod.overlay.refresh.tick")
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenOn = false
-                    updateVisibility()
+                    showOverlay()
                 }
                 Intent.ACTION_SCREEN_ON -> {
-                    isScreenOn = true
                     // Immediately check keyguard state - faster than waiting for USER_PRESENT
                     checkAndUpdateLockState()
                     // Also schedule quick rechecks to catch unlock faster
@@ -170,6 +170,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         return keyguardManager.isDeviceLocked || keyguardManager.isKeyguardLocked
     }
+
+    private fun resolveScreenOn(): Boolean =
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
 
     private fun checkAndUpdateLockState() {
         isLocked = resolveDeviceLocked()
@@ -225,6 +228,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             }
         }
         
+        isScreenOn = resolveScreenOn()
         isLocked = resolveDeviceLocked()
         updateVisibility()
     }
@@ -234,12 +238,10 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
     }
 
     private fun updateVisibility() {
-        // Timeout-driven AOD can arrive before the full keyguard UI is considered "showing".
-        // Keep the historical screen-off behavior so ambient mode still appears, and rely on
-        // the unlock/window-state path to hide again as soon as the user returns to an app.
-        val shouldShow = isLocked || !isScreenOn
-        
-        if (shouldShow) {
+        // SCREEN_ON can also be sent while entering ambient mode on some devices.
+        // isInteractive distinguishes that non-interactive AOD state from the lock screen.
+        isScreenOn = resolveScreenOn()
+        if (!isScreenOn) {
             showOverlay()
         } else {
             hideOverlay()
