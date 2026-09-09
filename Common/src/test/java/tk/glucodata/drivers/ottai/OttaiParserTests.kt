@@ -209,7 +209,7 @@ class OttaiParserTests {
         assertEquals(35.0, r.temperatureC, 1e-9)
     }
 
-    // 2026-09-09 field capture (Ottai 6083DA27005F, vE1.1.4(V1.7.S2530.1)): the content vote has
+    // 2026-09-09 field capture (a real Ottai CN V3 unit, vE1.1.4(V1.7.S2530.1)): the content vote has
     // nothing to work with on a short, still-unpopulated live frame — one 9-byte window against
     // two 8-byte ones — and a real device tipped it to 8-byte, decoding an all-zero trailing
     // "record" (raw=0, runtime=0) that then failed every downstream sanity gate. Every notify on
