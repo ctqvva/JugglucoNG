@@ -3150,7 +3150,7 @@ fun SensorCard(
                         }
                     }
                 }
-                }
+            }
             }
         }
     }
