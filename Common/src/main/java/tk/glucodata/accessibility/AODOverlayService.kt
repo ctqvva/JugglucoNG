@@ -289,6 +289,13 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             val inflater = LayoutInflater.from(this)
             overlayView = inflater.inflate(R.layout.aod_overlay, null)
             overlayView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // The overlay always draws a light-on-transparent palette, so an
+            // automatic dark conversion (platform force-dark, or a vendor
+            // "expanded dark mode") only inverts the value into black on the
+            // always-on display. Opt the whole hierarchy out of it.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                overlayView?.isForceDarkAllowed = false
+            }
             
             params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
