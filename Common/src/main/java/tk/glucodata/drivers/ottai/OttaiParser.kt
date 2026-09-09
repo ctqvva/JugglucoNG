@@ -68,9 +68,29 @@ object OttaiParser {
      * is still valid, while the mis-aligned layout loses because it decodes an impossible
      * current/temperature (e.g. 505 °C).
      * 9-byte: current[0:2], temp[7:9]; 8-byte: current[4:6], temp[6:8].
+     *
+     * @param previousFront frontDataNo of the immediately preceding notify on this connection
+     * (live or history — the sensor's dataNo counter is one sequence), or null if unknown (first
+     * frame of a session/transfer). When the advance from [previousFront] to this payload's own
+     * frontDataNo exactly matches the record count ONE candidate size implies for this payload's
+     * length — and not the other — that settles it outright: the sensor's own counter is ground
+     * truth, unlike the content-based vote below, which a real device's still-unseen "unused"
+     * record bytes can tip either way (seen live: a 24-byte single-record 9-byte frame voted
+     * 8-byte, decoding to an all-zero trailing record — raw=0, runtime=0 — because the vote had
+     * only 1 nine-byte window to check against 2 eight-byte ones).
      */
-    internal fun chooseRecordSize(payload: ByteArray, deviceVersion: String): Int {
+    internal fun chooseRecordSize(payload: ByteArray, deviceVersion: String, previousFront: Int? = null): Int {
         confirmedRecordSize(deviceVersion)?.let { return it }
+        val bodyLen = payload.size - HEADER_SIZE
+        if (previousFront != null && bodyLen > 0) {
+            val delta = (frontDataNo(payload) - previousFront) and 0xFFFF
+            if (delta > 0) {
+                val nineCount = bodyLen / BLE_RECORD_SIZE_E12
+                val eightCount = bodyLen / BLE_RECORD_SIZE
+                if (delta == nineCount && delta != eightCount) return BLE_RECORD_SIZE_E12
+                if (delta == eightCount && delta != nineCount) return BLE_RECORD_SIZE
+            }
+        }
         val nine = vendorValidCount(payload, BLE_RECORD_SIZE_E12, curLo = 0, tempLo = 7)
         val eight = vendorValidCount(payload, BLE_RECORD_SIZE, curLo = 4, tempLo = 6)
         return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
@@ -123,10 +143,10 @@ object OttaiParser {
      * (`{0,0} || LE16(frontDataNo+idx) || record8`). Trailing partial bytes are
      * ignored. Returns empty if there is no record region.
      */
-    fun frameRecords(payload: ByteArray, deviceVersion: String = ""): List<ByteArray> {
+    fun frameRecords(payload: ByteArray, deviceVersion: String = "", previousFront: Int? = null): List<ByteArray> {
         if (payload.size <= HEADER_SIZE) return emptyList()
         val front = frontDataNo(payload)
-        val bleSize = chooseRecordSize(payload, deviceVersion)
+        val bleSize = chooseRecordSize(payload, deviceVersion, previousFront)
         val nineByte = bleSize == BLE_RECORD_SIZE_E12
         val bodyLen = payload.size - HEADER_SIZE
         val count = bodyLen / bleSize
