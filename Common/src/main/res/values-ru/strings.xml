@@ -2665,4 +2665,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Проверять новые значения</string>
     <string name="nightscout_follow_interval_desc">Как часто подписчик опрашивает сервер. Это же определяет, насколько старым может быть значение, а значит и насколько поздно придёт тревога по отслеживаемому значению. У подписчика нет своего сенсора, который держал бы телефон активным, поэтому каждая проверка — это пробуждение.</string>
     <string name="nightscout_follow_interval_doze">Меньше 9 минут Android всё равно может разносить проверки, пока телефон простаивает. Исключение Juggluco из оптимизации батареи сохраняет выбранный интервал.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Шифрование HTTPS</string>
+    <string name="webserver_certificate">Сертификат</string>
+    <string name="webserver_cert_selfsigned">Самоподписанный, создан на этом устройстве</string>
+    <string name="webserver_cert_custom">Собственный сертификат</string>
+    <string name="webserver_cert_none">Сертификата пока нет</string>
+    <string name="webserver_cert_generate">Создать</string>
+    <string name="webserver_cert_regenerate">Создать заново</string>
+    <string name="webserver_cert_import">Импорт</string>
+    <string name="webserver_cert_import_hint">Импортируйте оба файла из вашего центра сертификации.</string>
+    <string name="webserver_cert_generating">Создание сертификата…</string>
+    <string name="webserver_cert_expires">Действует до %1$s</string>
+    <string name="webserver_cert_expired">Истёк</string>
+    <string name="webserver_cert_missing_address">Не охватывает %1$s</string>
+    <string name="webserver_cert_created">Сертификат создан</string>
 </resources>

@@ -2725,4 +2725,20 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
     <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
     <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS шифрлэлт</string>
+    <string name="webserver_certificate">Гэрчилгээ</string>
+    <string name="webserver_cert_selfsigned">Энэ төхөөрөмж дээр үүсгэсэн, өөрөө гарын үсэг зурсан</string>
+    <string name="webserver_cert_custom">Хэрэглэгчийн гэрчилгээ</string>
+    <string name="webserver_cert_none">Гэрчилгээ алга</string>
+    <string name="webserver_cert_generate">Үүсгэх</string>
+    <string name="webserver_cert_regenerate">Дахин үүсгэх</string>
+    <string name="webserver_cert_import">Импортлох</string>
+    <string name="webserver_cert_import_hint">Гэрчилгээжүүлэх байгууллагаасаа хоёр файлыг импортлоно уу.</string>
+    <string name="webserver_cert_generating">Гэрчилгээ үүсгэж байна…</string>
+    <string name="webserver_cert_expires">%1$s-д дуусна</string>
+    <string name="webserver_cert_expired">Хугацаа дууссан</string>
+    <string name="webserver_cert_missing_address">%1$s-г хамрахгүй</string>
+    <string name="webserver_cert_created">Гэрчилгээ үүслээ</string>
 </resources>

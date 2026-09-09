@@ -2634,4 +2634,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">检查新数值</string>
     <string name="nightscout_follow_interval_desc">跟随者向服务器询问的频率。它同时决定数值可能有多旧，因此也决定基于跟随数值的警报可能有多晚。跟随者没有自己的传感器让手机保持唤醒，所以每次检查都是一次唤醒。</string>
     <string name="nightscout_follow_interval_doze">低于 9 分钟时，手机闲置期间 Android 仍可能拉长检查间隔。将 Juggluco 排除在电池优化之外可保持所选间隔。</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS 加密</string>
+    <string name="webserver_certificate">证书</string>
+    <string name="webserver_cert_selfsigned">自签名，在本设备上生成</string>
+    <string name="webserver_cert_custom">自定义证书</string>
+    <string name="webserver_cert_none">尚无证书</string>
+    <string name="webserver_cert_generate">生成</string>
+    <string name="webserver_cert_regenerate">重新生成</string>
+    <string name="webserver_cert_import">导入</string>
+    <string name="webserver_cert_import_hint">请从您的证书颁发机构导入这两个文件。</string>
+    <string name="webserver_cert_generating">正在生成证书…</string>
+    <string name="webserver_cert_expires">有效期至 %1$s</string>
+    <string name="webserver_cert_expired">已过期</string>
+    <string name="webserver_cert_missing_address">未包含 %1$s</string>
+    <string name="webserver_cert_created">证书已生成</string>
 </resources>
