@@ -2794,7 +2794,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">Шифрування HTTPS</string>
     <string name="webserver_certificate">Сертифікат</string>
-    <string name="webserver_cert_selfsigned">Самопідписаний, створений на цьому пристрої</string>
+    <string name="webserver_cert_selfsigned">Самопідписаний, створений для цього пристрою та поточної мережі</string>
     <string name="webserver_cert_custom">Власний сертифікат</string>
     <string name="webserver_cert_none">Сертифіката ще немає</string>
     <string name="webserver_cert_generate">Створити</string>
@@ -2804,6 +2804,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_generating">Створення сертифіката…</string>
     <string name="webserver_cert_expires">Діє до %1$s</string>
     <string name="webserver_cert_expired">Прострочений</string>
-    <string name="webserver_cert_missing_address">Не охоплює %1$s</string>
     <string name="webserver_cert_created">Сертифікат створено</string>
+    <string name="webserver_cert_update">Оновити</string>
+    <string name="webserver_cert_needs_update">Сертифікат потребує оновлення</string>
+    <string name="webserver_cert_address_changed">Мережеву адресу змінено на %1$s</string>
+    <string name="webserver_cert_export">Експорт</string>
+    <string name="webserver_cert_export_hint">Встановіть сертифікат на іншому пристрої, щоб довіряти цьому серверу.</string>
+    <string name="webserver_cert_export_certificate">Сертифікат</string>
+    <string name="webserver_cert_export_with_key">Сертифікат і закритий ключ</string>
+    <string name="webserver_cert_export_key_warning">Закритий ключ дозволяє іншому пристрою видавати себе за цей сервер. Тримайте його в таємниці.</string>
 </resources>

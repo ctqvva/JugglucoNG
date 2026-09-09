@@ -2789,7 +2789,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">Шыфраванне HTTPS</string>
     <string name="webserver_certificate">Сертыфікат</string>
-    <string name="webserver_cert_selfsigned">Самападпісаны, створаны на гэтай прыладзе</string>
+    <string name="webserver_cert_selfsigned">Самападпісаны, створаны для гэтай прылады і бягучай сеткі</string>
     <string name="webserver_cert_custom">Уласны сертыфікат</string>
     <string name="webserver_cert_none">Сертыфіката яшчэ няма</string>
     <string name="webserver_cert_generate">Стварыць</string>
@@ -2799,6 +2799,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_generating">Стварэнне сертыфіката…</string>
     <string name="webserver_cert_expires">Дзейнічае да %1$s</string>
     <string name="webserver_cert_expired">Тэрмін мінуў</string>
-    <string name="webserver_cert_missing_address">Не ахоплівае %1$s</string>
     <string name="webserver_cert_created">Сертыфікат створаны</string>
+    <string name="webserver_cert_update">Абнавіць</string>
+    <string name="webserver_cert_needs_update">Сертыфікат патрабуе абнаўлення</string>
+    <string name="webserver_cert_address_changed">Сеткавы адрас зменены на %1$s</string>
+    <string name="webserver_cert_export">Экспарт</string>
+    <string name="webserver_cert_export_hint">Усталюйце сертыфікат на іншай прыладзе, каб давяраць гэтаму серверу.</string>
+    <string name="webserver_cert_export_certificate">Сертыфікат</string>
+    <string name="webserver_cert_export_with_key">Сертыфікат і прыватны ключ</string>
+    <string name="webserver_cert_export_key_warning">Прыватны ключ дазваляе іншай прыладзе выдаваць сябе за гэты сервер. Трымайце яго ў сакрэце.</string>
 </resources>

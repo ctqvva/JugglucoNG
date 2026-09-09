@@ -2833,7 +2833,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">HTTPS шифрлэлт</string>
     <string name="webserver_certificate">Гэрчилгээ</string>
-    <string name="webserver_cert_selfsigned">Энэ төхөөрөмж дээр үүсгэсэн, өөрөө гарын үсэг зурсан</string>
+    <string name="webserver_cert_selfsigned">Энэ төхөөрөмж болон одоогийн сүлжээнд зориулж үүсгэсэн, өөрөө гарын үсэг зурсан</string>
     <string name="webserver_cert_custom">Хэрэглэгчийн гэрчилгээ</string>
     <string name="webserver_cert_none">Гэрчилгээ алга</string>
     <string name="webserver_cert_generate">Үүсгэх</string>
@@ -2843,6 +2843,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="webserver_cert_generating">Гэрчилгээ үүсгэж байна…</string>
     <string name="webserver_cert_expires">%1$s-д дуусна</string>
     <string name="webserver_cert_expired">Хугацаа дууссан</string>
-    <string name="webserver_cert_missing_address">%1$s-г хамрахгүй</string>
     <string name="webserver_cert_created">Гэрчилгээ үүслээ</string>
+    <string name="webserver_cert_update">Шинэчлэх</string>
+    <string name="webserver_cert_needs_update">Гэрчилгээг шинэчлэх шаардлагатай</string>
+    <string name="webserver_cert_address_changed">Сүлжээний хаяг %1$s болж өөрчлөгдсөн</string>
+    <string name="webserver_cert_export">Экспортлох</string>
+    <string name="webserver_cert_export_hint">Энэ серверт итгэхийн тулд гэрчилгээг өөр төхөөрөмж дээр суулгана уу.</string>
+    <string name="webserver_cert_export_certificate">Гэрчилгээ</string>
+    <string name="webserver_cert_export_with_key">Гэрчилгээ ба хувийн түлхүүр</string>
+    <string name="webserver_cert_export_key_warning">Хувийн түлхүүр нь өөр төхөөрөмжид энэ сервер мэт дүр эсгэх боломж олгоно. Нууц байлгана уу.</string>
 </resources>

@@ -73,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -903,6 +904,13 @@ fun GarminStatusScreen(navController: NavController) {
     }
 }
 
+/**
+ * The accurate type for a PEM file, and the one Android's certificate installer
+ * registers for -- so a shared certificate can be opened and trusted directly on
+ * the receiving device rather than only saved.
+ */
+private const val PEM_MIME_TYPE = "application/x-pem-file"
+
 @Composable
 fun WebServerSettingsScreen(navController: NavController) {
     val context = LocalContext.current
@@ -921,6 +929,7 @@ fun WebServerSettingsScreen(navController: NavController) {
     var certificate by remember { mutableStateOf(WebServerCertificate.installed(context)) }
     var generatingCertificate by remember { mutableStateOf(false) }
     var showCertificateImport by rememberSaveable { mutableStateOf(false) }
+    var showCertificateExport by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -1097,6 +1106,42 @@ fun WebServerSettingsScreen(navController: NavController) {
     fun openUrl(url: String) {
         if (!applyCurrentInputs(showErrors = true)) return
         uriHandler.openUri(url)
+    }
+
+    /**
+     * Hands the PEMs to the share sheet, which is both halves of what people
+     * want here: send it to the other device, or save it to Files as a backup.
+     */
+    fun exportCertificate(includePrivateKey: Boolean) {
+        showCertificateExport = false
+        val staged = WebServerCertificate.stageForExport(context, includePrivateKey)
+        if (staged.isEmpty()) {
+            Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_LONG).show()
+            return
+        }
+        val uris = ArrayList<Uri>(
+            staged.map {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
+            }
+        )
+        val intent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).apply {
+                type = PEM_MIME_TYPE
+                putExtra(Intent.EXTRA_STREAM, uris.first())
+            }
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = PEM_MIME_TYPE
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }
+        }.apply { addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        runCatching {
+            context.startActivity(
+                Intent.createChooser(intent, context.getString(R.string.webserver_cert_export))
+            )
+        }.onFailure {
+            Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_LONG).show()
+        }
     }
 
     fun shareUrl(url: String) {
@@ -1276,87 +1321,122 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text(
-                                    text = stringResource(R.string.webserver_certificate),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
                                 val installed = certificate
+                                // Loopback-only means no LAN name is in play, so
+                                // a certificate that omits this phone's address
+                                // is not a problem worth raising.
+                                val lanAddress = lanHost?.takeIf { !localOnly }
+                                val status = WebServerCertificate.statusOf(
+                                    installed = installed,
+                                    lanAddress = lanAddress,
+                                    nowMillis = System.currentTimeMillis(),
+                                )
+                                val needsAttention = status == WebServerCertificate.Status.ADDRESS_CHANGED ||
+                                    status == WebServerCertificate.Status.EXPIRED
+
                                 Text(
                                     text = when {
                                         generatingCertificate ->
                                             stringResource(R.string.webserver_cert_generating)
-                                        installed == null ->
-                                            stringResource(R.string.webserver_cert_none)
-                                        installed.selfSigned ->
-                                            stringResource(R.string.webserver_cert_selfsigned)
-                                        else -> stringResource(R.string.webserver_cert_custom)
+                                        needsAttention ->
+                                            stringResource(R.string.webserver_cert_needs_update)
+                                        else -> stringResource(R.string.webserver_certificate)
                                     },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (needsAttention && !generatingCertificate) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
                                 )
-                                if (installed != null && !generatingCertificate) {
-                                    val expired = installed.isExpired(System.currentTimeMillis())
+
+                                if (!generatingCertificate) {
                                     Text(
-                                        text = if (expired) {
-                                            stringResource(R.string.webserver_cert_expired)
-                                        } else {
-                                            stringResource(
-                                                R.string.webserver_cert_expires,
-                                                formatExpiryDate(installed.notAfterMillis)
-                                            )
+                                        text = when {
+                                            installed == null -> stringResource(R.string.webserver_cert_none)
+                                            status == WebServerCertificate.Status.EXPIRED ->
+                                                stringResource(R.string.webserver_cert_expired)
+                                            status == WebServerCertificate.Status.ADDRESS_CHANGED ->
+                                                stringResource(
+                                                    R.string.webserver_cert_address_changed,
+                                                    lanAddress.orEmpty()
+                                                )
+                                            installed.selfSigned ->
+                                                stringResource(R.string.webserver_cert_selfsigned)
+                                            else -> stringResource(R.string.webserver_cert_custom)
                                         },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (expired) {
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (needsAttention) {
                                             MaterialTheme.colorScheme.error
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                         }
                                     )
-                                    // DHCP moves phones. A certificate that was
-                                    // right when it was written stops matching
-                                    // the address people are typing, and the
-                                    // browser blames the name rather than the
-                                    // lease.
-                                    val uncovered = lanHost
-                                        ?.takeIf { !localOnly && !installed.covers(it) }
-                                    if (uncovered != null) {
+                                }
+
+                                if (installed != null && !generatingCertificate) {
+                                    // The names the certificate actually answers
+                                    // to. Spelling them out is what gives
+                                    // Regenerate a meaning the user can act on:
+                                    // remake this for the addresses I have now.
+                                    if (installed.hostnames.isNotEmpty()) {
+                                        Text(
+                                            text = installed.hostnames.joinToString(", "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (status != WebServerCertificate.Status.EXPIRED) {
                                         Text(
                                             text = stringResource(
-                                                R.string.webserver_cert_missing_address,
-                                                uncovered
+                                                R.string.webserver_cert_expires,
+                                                formatExpiryDate(installed.notAfterMillis)
                                             ),
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
+
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilledTonalButton(
-                                        onClick = { generateCertificate(thenEnableSsl = false) },
-                                        enabled = childEnabled && !generatingCertificate,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Filled.Autorenew, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            stringResource(
-                                                if (installed == null) {
-                                                    R.string.webserver_cert_generate
-                                                } else {
-                                                    R.string.webserver_cert_regenerate
-                                                }
-                                            )
-                                        )
+                                    val primaryLabel = stringResource(
+                                        when (status) {
+                                            WebServerCertificate.Status.MISSING ->
+                                                R.string.webserver_cert_generate
+                                            WebServerCertificate.Status.ADDRESS_CHANGED,
+                                            WebServerCertificate.Status.EXPIRED ->
+                                                R.string.webserver_cert_update
+                                            else -> R.string.webserver_cert_regenerate
+                                        }
+                                    )
+                                    val onPrimary = { generateCertificate(thenEnableSsl = false) }
+                                    val primaryEnabled = childEnabled && !generatingCertificate
+                                    // Filled only while something is actually
+                                    // wrong; the rest of the time reissuing is
+                                    // just one of three equal options.
+                                    if (needsAttention) {
+                                        Button(
+                                            onClick = onPrimary,
+                                            enabled = primaryEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(primaryLabel) }
+                                    } else {
+                                        FilledTonalButton(
+                                            onClick = onPrimary,
+                                            enabled = primaryEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(primaryLabel) }
                                     }
                                     OutlinedButton(
-                                        onClick = { showCertificateImport = true },
-                                        enabled = childEnabled && !generatingCertificate,
+                                        onClick = { showCertificateExport = true },
+                                        enabled = primaryEnabled && installed != null,
                                         modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Filled.Shield, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.webserver_cert_import))
-                                    }
+                                    ) { Text(stringResource(R.string.webserver_cert_export)) }
+                                    OutlinedButton(
+                                        onClick = { showCertificateImport = true },
+                                        enabled = primaryEnabled,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text(stringResource(R.string.webserver_cert_import)) }
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1513,6 +1593,47 @@ fun WebServerSettingsScreen(navController: NavController) {
                 }
             }
         }
+    }
+    if (showCertificateExport) {
+        AlertDialog(
+            onDismissRequest = { showCertificateExport = false },
+            title = { Text(stringResource(R.string.webserver_cert_export)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.webserver_cert_export_hint),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedButton(
+                        onClick = { exportCertificate(includePrivateKey = false) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Shield, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.webserver_cert_export_certificate))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = { exportCertificate(includePrivateKey = true) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Key, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.webserver_cert_export_with_key))
+                    }
+                    Text(
+                        text = stringResource(R.string.webserver_cert_export_key_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCertificateExport = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
     }
     if (showCertificateImport) {
         AlertDialog(

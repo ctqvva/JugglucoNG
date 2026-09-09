@@ -2709,7 +2709,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">Crittografia HTTPS</string>
     <string name="webserver_certificate">Certificato</string>
-    <string name="webserver_cert_selfsigned">Autofirmato, generato su questo dispositivo</string>
+    <string name="webserver_cert_selfsigned">Autofirmato, generato per questo dispositivo e la rete attuale</string>
     <string name="webserver_cert_custom">Certificato personalizzato</string>
     <string name="webserver_cert_none">Nessun certificato</string>
     <string name="webserver_cert_generate">Genera</string>
@@ -2719,6 +2719,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_generating">Generazione del certificato…</string>
     <string name="webserver_cert_expires">Scade il %1$s</string>
     <string name="webserver_cert_expired">Scaduto</string>
-    <string name="webserver_cert_missing_address">Non copre %1$s</string>
     <string name="webserver_cert_created">Certificato generato</string>
+    <string name="webserver_cert_update">Aggiorna</string>
+    <string name="webserver_cert_needs_update">Il certificato va aggiornato</string>
+    <string name="webserver_cert_address_changed">Indirizzo di rete cambiato in %1$s</string>
+    <string name="webserver_cert_export">Esporta</string>
+    <string name="webserver_cert_export_hint">Installa il certificato su un altro dispositivo per fidarti di questo server.</string>
+    <string name="webserver_cert_export_certificate">Certificato</string>
+    <string name="webserver_cert_export_with_key">Certificato e chiave privata</string>
+    <string name="webserver_cert_export_key_warning">La chiave privata consente a un altro dispositivo di spacciarsi per questo server. Tienila riservata.</string>
 </resources>

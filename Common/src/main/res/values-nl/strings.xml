@@ -2762,7 +2762,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">HTTPS-versleuteling</string>
     <string name="webserver_certificate">Certificaat</string>
-    <string name="webserver_cert_selfsigned">Zelfondertekend, op dit apparaat gemaakt</string>
+    <string name="webserver_cert_selfsigned">Zelfondertekend, gemaakt voor dit apparaat en het huidige netwerk</string>
     <string name="webserver_cert_custom">Eigen certificaat</string>
     <string name="webserver_cert_none">Nog geen certificaat</string>
     <string name="webserver_cert_generate">Aanmaken</string>
@@ -2772,6 +2772,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="webserver_cert_generating">Certificaat wordt aangemaakt…</string>
     <string name="webserver_cert_expires">Verloopt op %1$s</string>
     <string name="webserver_cert_expired">Verlopen</string>
-    <string name="webserver_cert_missing_address">Dekt %1$s niet</string>
     <string name="webserver_cert_created">Certificaat aangemaakt</string>
+    <string name="webserver_cert_update">Bijwerken</string>
+    <string name="webserver_cert_needs_update">Certificaat moet worden bijgewerkt</string>
+    <string name="webserver_cert_address_changed">Netwerkadres gewijzigd in %1$s</string>
+    <string name="webserver_cert_export">Exporteren</string>
+    <string name="webserver_cert_export_hint">Installeer het certificaat op een ander apparaat om deze server te vertrouwen.</string>
+    <string name="webserver_cert_export_certificate">Certificaat</string>
+    <string name="webserver_cert_export_with_key">Certificaat en privésleutel</string>
+    <string name="webserver_cert_export_key_warning">Met de privésleutel kan een ander apparaat zich voordoen als deze server. Houd hem geheim.</string>
 </resources>

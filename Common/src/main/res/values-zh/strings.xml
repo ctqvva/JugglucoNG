@@ -2735,7 +2735,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">HTTPS 加密</string>
     <string name="webserver_certificate">证书</string>
-    <string name="webserver_cert_selfsigned">自签名，在本设备上生成</string>
+    <string name="webserver_cert_selfsigned">自签名，为本设备和当前网络生成</string>
     <string name="webserver_cert_custom">自定义证书</string>
     <string name="webserver_cert_none">尚无证书</string>
     <string name="webserver_cert_generate">生成</string>
@@ -2745,6 +2745,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_generating">正在生成证书…</string>
     <string name="webserver_cert_expires">有效期至 %1$s</string>
     <string name="webserver_cert_expired">已过期</string>
-    <string name="webserver_cert_missing_address">未包含 %1$s</string>
     <string name="webserver_cert_created">证书已生成</string>
+    <string name="webserver_cert_update">更新</string>
+    <string name="webserver_cert_needs_update">证书需要更新</string>
+    <string name="webserver_cert_address_changed">网络地址已变为 %1$s</string>
+    <string name="webserver_cert_export">导出</string>
+    <string name="webserver_cert_export_hint">在另一台设备上安装此证书即可信任本服务器。</string>
+    <string name="webserver_cert_export_certificate">证书</string>
+    <string name="webserver_cert_export_with_key">证书和私钥</string>
+    <string name="webserver_cert_export_key_warning">私钥可让其他设备冒充本服务器，请妥善保管。</string>
 </resources>
