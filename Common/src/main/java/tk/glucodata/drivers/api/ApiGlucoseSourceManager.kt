@@ -252,6 +252,7 @@ class ApiGlucoseSourceManager(
             sensorSerial = SerialNumber,
             readings = readings,
             logLabel = "API source",
+            mirrorToNative = true,
         )
         if (tailMs > 0L) {
             lastImportedHistoryTailMs = tailMs
@@ -280,6 +281,7 @@ class ApiGlucoseSourceManager(
             reading = latest.copy(rate = rate),
             sensorGen = SENSOR_GEN,
             logLabel = "API source",
+            mirrorToNative = true,
         )
     }
 

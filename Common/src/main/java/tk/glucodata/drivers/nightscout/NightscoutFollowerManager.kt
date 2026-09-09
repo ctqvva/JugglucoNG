@@ -426,6 +426,7 @@ class NightscoutFollowerManager(
             sensorSerial = SerialNumber,
             readings = readings,
             logLabel = "Nightscout follower",
+            mirrorToNative = true,
         )
         if (tailMs > 0L) {
             lastImportedHistoryTailMs = tailMs
@@ -449,6 +450,7 @@ class NightscoutFollowerManager(
             reading = latest.copy(rate = rate),
             sensorGen = SENSOR_GEN,
             logLabel = "Nightscout follower",
+            mirrorToNative = true,
         )
     }
 
