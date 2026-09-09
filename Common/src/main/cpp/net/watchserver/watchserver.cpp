@@ -144,6 +144,7 @@ static bool startwatchserver(bool secure,int port,int *sockptr) {
    }
 
 #include <thread>
+#include <chrono>
 #include <algorithm>
 #include "sensoren.hpp"
 
@@ -240,6 +241,33 @@ void stopwatchthread() {
 #ifdef USE_SSL
    stopsslwatchthread();
 #endif
+   }
+extern void restartwatchthread(int port) ;
+/*
+   Rebinding to a different port means dropping the listening socket and taking
+   a new one. stopwatchthread() only shuts the socket down: the accept() loop
+   that owns it is what clears xdripserversock, one wakeup later. Calling
+   startwatchthread() before that happens hits its xdripserversock==-1 guard,
+   does nothing, and leaves the server down until the app is restarted -- so
+   wait for the handover. On a detached thread, because the caller is the UI
+   thread coming through JNI.
+*/
+void restartwatchthread(int port) {
+   std::thread restart([port] {
+      stopwatchthread();
+      constexpr const int waitstepms=10;
+      constexpr const int maxwaitms=3000;
+      for(int waited=0;xdripserversock!=-1&&waited<maxwaitms;waited+=waitstepms) {
+         std::this_thread::sleep_for(std::chrono::milliseconds(waitstepms));
+         }
+      if(xdripserversock!=-1) {
+         LOGGERWEB("restartwatchthread: listener still on %d, not rebinding to %d\n",xdripserversock,port);
+         return;
+         }
+      LOGGERWEB("restartwatchthread: rebinding to %d\n",port);
+      startwatchthread(port);
+      });
+   restart.detach();
    }
 
 //&hosts[hostlen-1]
