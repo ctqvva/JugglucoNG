@@ -2660,7 +2660,7 @@
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">Szyfrowanie HTTPS</string>
     <string name="webserver_certificate">Certyfikat</string>
-    <string name="webserver_cert_selfsigned">Samopodpisany, utworzony na tym urządzeniu</string>
+    <string name="webserver_cert_selfsigned">Samopodpisany, utworzony dla tego urządzenia i bieżącej sieci</string>
     <string name="webserver_cert_custom">Własny certyfikat</string>
     <string name="webserver_cert_none">Brak certyfikatu</string>
     <string name="webserver_cert_generate">Utwórz</string>
@@ -2670,6 +2670,13 @@
     <string name="webserver_cert_generating">Tworzenie certyfikatu…</string>
     <string name="webserver_cert_expires">Wygasa %1$s</string>
     <string name="webserver_cert_expired">Wygasł</string>
-    <string name="webserver_cert_missing_address">Nie obejmuje %1$s</string>
     <string name="webserver_cert_created">Utworzono certyfikat</string>
+    <string name="webserver_cert_update">Zaktualizuj</string>
+    <string name="webserver_cert_needs_update">Certyfikat wymaga aktualizacji</string>
+    <string name="webserver_cert_address_changed">Adres sieciowy zmienił się na %1$s</string>
+    <string name="webserver_cert_export">Eksportuj</string>
+    <string name="webserver_cert_export_hint">Zainstaluj certyfikat na innym urządzeniu, aby zaufać temu serwerowi.</string>
+    <string name="webserver_cert_export_certificate">Certyfikat</string>
+    <string name="webserver_cert_export_with_key">Certyfikat i klucz prywatny</string>
+    <string name="webserver_cert_export_key_warning">Klucz prywatny pozwala innemu urządzeniu podszyć się pod ten serwer. Zachowaj go w tajemnicy.</string>
 </resources>

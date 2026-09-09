@@ -2839,7 +2839,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">HTTPS encryption</string>
     <string name="webserver_certificate">Certificate</string>
-    <string name="webserver_cert_selfsigned">Self-signed, generated on this device</string>
+    <string name="webserver_cert_selfsigned">Self-signed, generated for this device and current network</string>
     <string name="webserver_cert_custom">Custom certificate</string>
     <string name="webserver_cert_none">No certificate yet</string>
     <string name="webserver_cert_generate">Generate</string>
@@ -2849,6 +2849,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_generating">Generating certificate…</string>
     <string name="webserver_cert_expires">Expires %1$s</string>
     <string name="webserver_cert_expired">Expired</string>
-    <string name="webserver_cert_missing_address">Does not cover %1$s</string>
     <string name="webserver_cert_created">Certificate created</string>
+    <string name="webserver_cert_update">Update</string>
+    <string name="webserver_cert_needs_update">Certificate needs updating</string>
+    <string name="webserver_cert_address_changed">Network address changed to %1$s</string>
+    <string name="webserver_cert_export">Export</string>
+    <string name="webserver_cert_export_hint">Install the certificate on another device to trust this server.</string>
+    <string name="webserver_cert_export_certificate">Certificate</string>
+    <string name="webserver_cert_export_with_key">Certificate and private key</string>
+    <string name="webserver_cert_export_key_warning">The private key lets another device impersonate this server. Keep it private.</string>
 </resources>

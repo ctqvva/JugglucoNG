@@ -35,6 +35,11 @@ object WebServerCertificate {
     private const val COMMON_NAME = "JugglucoNG"
     private const val KEY_SIZE_BITS = 2048
 
+    /** Names the export files carry. They match the two import buttons. */
+    private const val EXPORT_CERTIFICATE_NAME = "jugglucong-fullchain.pem"
+    private const val EXPORT_PRIVATE_KEY_NAME = "jugglucong-privkey.pem"
+    private const val EXPORT_DIRECTORY = "exports"
+
     /** What the settings screen needs to describe the installed certificate. */
     data class Installed(
         val selfSigned: Boolean,
@@ -44,8 +49,45 @@ object WebServerCertificate {
     ) {
         fun isExpired(nowMillis: Long): Boolean = notAfterMillis in 1 until nowMillis
 
-        /** True when [host] is not covered, so a browser will add a name warning. */
+        /** True when [host] is one of the names a browser will accept for this certificate. */
         fun covers(host: String): Boolean = hostnames.any { it.equals(host, ignoreCase = true) }
+    }
+
+    /** What the screen should say, and which action it should offer first. */
+    enum class Status {
+        /** Nothing installed. HTTPS cannot start until something is. */
+        MISSING,
+
+        /** Installed and answering for the address people are using. */
+        READY,
+
+        /**
+         * Ours, still valid, but the device has moved to an address it was not
+         * issued for. Worth offering to reissue, not worth doing silently: the
+         * fingerprint would change under a certificate the user may already have
+         * exported and trusted elsewhere.
+         */
+        ADDRESS_CHANGED,
+
+        /** Past its notAfter. Browsers refuse it outright. */
+        EXPIRED,
+    }
+
+    /**
+     * [lanAddress] is the address the screen is telling people to visit, or null
+     * when the server is loopback-only and no LAN name matters.
+     *
+     * A certificate the user imported is deliberately never reported as
+     * ADDRESS_CHANGED: it may be issued to a domain name that has nothing to do
+     * with whatever IP the phone holds today, and offering to replace someone's
+     * CA-issued certificate because their DHCP lease moved would be wrong.
+     */
+    fun statusOf(installed: Installed?, lanAddress: String?, nowMillis: Long): Status = when {
+        installed == null -> Status.MISSING
+        installed.isExpired(nowMillis) -> Status.EXPIRED
+        !installed.selfSigned -> Status.READY
+        lanAddress != null && !installed.covers(lanAddress) -> Status.ADDRESS_CHANGED
+        else -> Status.READY
     }
 
     fun certificateFile(context: Context): File = File(filesDir(context), CERTIFICATE_FILE)
@@ -104,6 +146,37 @@ object WebServerCertificate {
             null
         }.onFailure { Log.stack(TAG, "generate", it) }
             .getOrElse { it.message ?: "Could not generate a certificate" }
+    }
+
+    /**
+     * Copies the installed certificate — and, when [includePrivateKey], the key
+     * beside it — into the directory the app's FileProvider serves, and returns
+     * the files to hand to a share intent.
+     *
+     * Staged rather than shared in place because the PEMs live in the app's
+     * private files directory, which the provider does not expose; only
+     * `cacheDir/exports` is declared in export_file_paths.xml. Previous staged
+     * copies are cleared first so a private key does not sit in the cache longer
+     * than the export that asked for it.
+     */
+    fun stageForExport(context: Context, includePrivateKey: Boolean): List<File> {
+        val certificate = certificateFile(context)
+        if (!certificate.canRead()) return emptyList()
+        return runCatching {
+            val directory = File(context.applicationContext.cacheDir, EXPORT_DIRECTORY)
+            directory.mkdirs()
+            directory.listFiles { file -> file.name.startsWith("jugglucong-") }
+                ?.forEach { it.delete() }
+
+            val staged = mutableListOf<File>()
+            staged += File(directory, EXPORT_CERTIFICATE_NAME).also { certificate.copyTo(it, overwrite = true) }
+            if (includePrivateKey) {
+                val key = privateKeyFile(context)
+                if (!key.canRead()) return emptyList()
+                staged += File(directory, EXPORT_PRIVATE_KEY_NAME).also { key.copyTo(it, overwrite = true) }
+            }
+            staged
+        }.onFailure { Log.stack(TAG, "stageForExport", it) }.getOrDefault(emptyList())
     }
 
     /** Called after an imported certificate lands, so it stops claiming to be ours. */
