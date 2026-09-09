@@ -104,4 +104,49 @@ class SensorTraceLogTests {
 
         assertEquals(odd, formatSensorTraceLine(odd) { "never" })
     }
+
+    // The reader used to pick its source from Log.doLog. That flag says whether trace.log is
+    // being written, not whether what it already holds is still current, and a stale file
+    // beat a live ring. These pin the choice to the lines instead.
+    @Test
+    fun aLiveRingBeatsAStaleTraceFile() {
+        val file = listOf("1000 10 I/Anytime connected", "1100 10 I/Anytime reading")
+        val ring = listOf("5000 20 I/Anytime connected", "5100 20 I/Anytime reading")
+
+        assertEquals(ring, newerTraceSource(fromFile = file, fromRing = ring))
+    }
+
+    @Test
+    fun aLiveTraceFileBeatsARingFromEarlierInTheSession() {
+        val file = listOf("5000 10 I/Anytime reading", "5200 10 GLU: streamstart")
+        val ring = listOf("4000 10 I/Anytime reading")
+
+        assertEquals(file, newerTraceSource(fromFile = file, fromRing = ring))
+    }
+
+    @Test
+    fun theFileWinsATieBecauseItAlsoCarriesTheNativeLines() {
+        val file = listOf("5000 10 I/Anytime reading", "5000 10 GLU: streamstart")
+        val ring = listOf("5000 10 I/Anytime reading")
+
+        assertEquals(file, newerTraceSource(fromFile = file, fromRing = ring))
+    }
+
+    @Test
+    fun eitherSourceStandsAloneWhenTheOtherHasNothing() {
+        val only = listOf("5000 10 I/Anytime reading")
+
+        assertEquals(only, newerTraceSource(fromFile = emptyList(), fromRing = only))
+        assertEquals(only, newerTraceSource(fromFile = only, fromRing = emptyList()))
+        assertEquals(emptyList<String>(), newerTraceSource(emptyList(), emptyList()))
+    }
+
+    @Test
+    fun aSourceWithNoParsableTimestampYieldsToOneThatHasOne() {
+        val timeless = listOf("no timestamp here at all")
+        val timed = listOf("5000 10 I/Anytime reading")
+
+        assertEquals(timed, newerTraceSource(fromFile = timeless, fromRing = timed))
+        assertEquals(timed, newerTraceSource(fromFile = timed, fromRing = timeless))
+    }
 }

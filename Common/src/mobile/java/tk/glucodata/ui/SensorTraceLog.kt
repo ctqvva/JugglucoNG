@@ -121,6 +121,31 @@ internal fun isUsefulSensorTraceLine(line: String): Boolean {
  * Trade the epoch seconds and pid for a wall clock, which is what a reader is actually
  * matching against when they say "it dropped out around twenty past".
  */
+/** Epoch seconds off the front of a trace line, or null when it does not carry one. */
+internal fun traceLineSeconds(line: String): Long? {
+    val firstGap = line.indexOf(' ')
+    if (firstGap <= 0) return null
+    return line.substring(0, firstGap).toLongOrNull()
+}
+
+/**
+ * Both sources answer the same question and neither is always right: trace.log stops being
+ * written the moment logging is turned off but keeps whatever it already had, and the ring
+ * only holds this process's lifetime. Asking Log.doLog which one to read trusts a flag; the
+ * lines themselves say which source is actually current, so take the fresher one.
+ */
+internal fun newerTraceSource(fromFile: List<String>, fromRing: List<String>): List<String> {
+    if (fromFile.isEmpty()) return fromRing
+    if (fromRing.isEmpty()) return fromFile
+    val fileAt = fromFile.lastNotNullSeconds() ?: return fromRing
+    val ringAt = fromRing.lastNotNullSeconds() ?: return fromFile
+    // Ties go to the file: with logging on it holds the same lines plus the native ones.
+    return if (ringAt > fileAt) fromRing else fromFile
+}
+
+private fun List<String>.lastNotNullSeconds(): Long? =
+    asReversed().firstNotNullOfOrNull(::traceLineSeconds)
+
 internal fun formatSensorTraceLine(line: String, formatTime: (Long) -> String): String {
     val firstGap = line.indexOf(' ')
     if (firstGap <= 0) return line
@@ -192,20 +217,15 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
     LaunchedEffect(context, identifiers, driverTags) {
         val file = File(context.filesDir, "logs/trace.log")
         while (isActive) {
-            // trace.log is the richer source -- it has the native lines too and it survives a
-            // restart -- but it is only written while logging is on. With logging off the
-            // in-memory ring is all there is, and reading it costs no IO.
-            lines = if (tk.glucodata.Log.doLog) {
-                withContext(Dispatchers.IO) {
-                    readRecentSensorTraceLines(file, identifiers, driverTags)
-                }
-            } else {
-                filterRecentSensorTraceLines(
-                    lines = tk.glucodata.SensorTraceRing.snapshot().asList(),
-                    identifiers = identifiers,
-                    driverTags = driverTags,
-                )
+            val fromFile = withContext(Dispatchers.IO) {
+                readRecentSensorTraceLines(file, identifiers, driverTags)
             }
+            val fromRing = filterRecentSensorTraceLines(
+                lines = tk.glucodata.SensorTraceRing.snapshot().asList(),
+                identifiers = identifiers,
+                driverTags = driverTags,
+            )
+            lines = newerTraceSource(fromFile, fromRing)
             delay(2_000L)
         }
     }
