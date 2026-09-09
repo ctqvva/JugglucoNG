@@ -392,6 +392,16 @@ fun DashboardCombinedHeader(
         }
     }
 
+    // Only while the reading is fresh: past the display timeout the counter would
+    // grow unbounded ("143m") in a card that is ~90dp of content, and the row
+    // below already names the state in bigger type by then.
+    val primaryReadingMillis = if (isFreshData) {
+        resolvedCurrentSnapshot?.timeMillis?.takeIf { it > 0L }
+            ?: latestPoint?.timestamp?.takeIf { it > 0L }
+    } else {
+        null
+    }
+
     val primaryText = dvs?.primaryStr ?: currentGlucose
     // The newest point's credible interval, when the active estimator reports
     // one. Rendered as a quiet second line under the value rather than a badge:
@@ -904,12 +914,28 @@ fun DashboardCombinedHeader(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.Start
                 ) {
-                    // 0. Signal Quality Indicator (above sensor name)
-                    if (trendResult.noiseLevel > 0f) {
-                        SignalQualityIndicator(
-                            noiseLevel = trendResult.noiseLevel,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
+                    // 0. Signal quality (start) and how old the newest reading is (end).
+                    // This row already existed with dead space to its right, so the
+                    // counter costs the card no height.
+                    if (trendResult.noiseLevel > 0f || primaryReadingMillis != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (trendResult.noiseLevel > 0f) {
+                                SignalQualityIndicator(noiseLevel = trendResult.noiseLevel)
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            primaryReadingMillis?.let { readingMillis ->
+                                tk.glucodata.ui.util.SensorReadingAgeLabel(
+                                    readingMillis = readingMillis,
+                                    iconTint = sensorContentColor.copy(alpha = 0.55f),
+                                    textColor = sensorContentColor.copy(alpha = 0.75f)
+                                )
+                            }
+                        }
                     }
                     
                     // 1. Sensor Name (Top Label)
