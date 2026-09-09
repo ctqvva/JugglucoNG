@@ -92,16 +92,22 @@ class ConnectModeLeverTests {
             "Common/src/main/java/tk/glucodata/drivers/anytime/AnytimeBleManager.kt",
         ).readText().replace(Regex("\\s+"), " ")
         assertTrue(
-            "the Anytime override must start from the application-wide setting",
-            text.contains("val user = super.useAutoConnect()"),
+            "the Anytime override must start from the application-wide setting and go " +
+                "through the measured-timeout policy",
+            text.contains(
+                "override fun useAutoConnect(): Boolean = " +
+                    "connectMode.useAutoConnect(super.useAutoConnect())"
+            ),
         )
-        assertTrue(
-            "the Anytime override must go through the measured-timeout policy",
-            text.contains("shouldUseAutoConnect(user, consecutiveConnectTimeouts)"),
-        )
-        assertTrue(
-            "only a connect that timed out may raise the counter that flips the mode",
-            text.contains("phase == Phase.CONNECTING && isConnectTimeoutStatus(status)"),
+        val policy = File(
+            repoRoot(),
+            "Common/src/main/java/tk/glucodata/drivers/anytime/AnytimeConnectRetryPolicy.kt",
+        ).readText()
+        assertEquals(
+            "the mode may only be changed where an observed timeout and a successful " +
+                "direct connect decide it; AnytimeConnectModeState is that one place",
+            2,
+            Regex("directConnectUnreachable = (true|false)").findAll(policy).count(),
         )
     }
 
