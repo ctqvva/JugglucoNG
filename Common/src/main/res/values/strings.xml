@@ -2255,6 +2255,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="display_readouts_section">Dashboard readouts</string>
     <string name="lock_screen_aod">Lock screen (AOD)</string>
     <string name="aod_settings_title">AOD settings</string>
+    <string name="aod_show_on_lockscreen">Show on the lock screen</string>
+    <string name="aod_show_on_lockscreen_desc">Also show while the screen is on and locked</string>
     <string name="customize_always_on_display">Customize always-on display</string>
     <string name="enable_overlay_service">Enable overlay service</string>
     <string name="accessibility_service_enabled">Accessibility service enabled</string>

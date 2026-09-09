@@ -1701,6 +1701,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_settings_subtitle">Customize notification shade</string>
     <string name="lock_screen_aod">Lock screen (AOD)</string>
     <string name="aod_settings_title">AOD settings</string>
+    <string name="aod_show_on_lockscreen">Түгжээтэй дэлгэцэд харуулах</string>
+    <string name="aod_show_on_lockscreen_desc">Дэлгэц асаалттай бөгөөд түгжээтэй үед бас харуулах</string>
     <string name="customize_always_on_display">Customize always-on display</string>
     <string name="enable_overlay_service">Enable overlay service</string>
     <string name="accessibility_service_enabled">Accessibility service enabled</string>

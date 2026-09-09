@@ -1754,6 +1754,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">Наладзьце шторку апавяшчэнняў</string>
     <string name="lock_screen_aod">Экран блакіроўкі (AOD)</string>
     <string name="aod_settings_title">Налады AOD</string>
+    <string name="aod_show_on_lockscreen">Паказваць на экране блакіроўкі</string>
+    <string name="aod_show_on_lockscreen_desc">Паказваць таксама, калі экран уключаны і заблакаваны</string>
     <string name="customize_always_on_display">Наладзьце заўсёды ўключаны экран</string>
     <string name="enable_overlay_service">Уключыць службу накладання</string>
     <string name="accessibility_service_enabled">Служба спецыяльных магчымасцяў уключана</string>

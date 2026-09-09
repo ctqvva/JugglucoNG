@@ -883,9 +883,22 @@ public class NotificationChartDrawer {
         return isDark ? Color.WHITE : Color.BLACK;
     }
 
+    /**
+     * Whether the AOD overlay currently draws light-on-dark. Always true over an ambient
+     * (black) panel; the service lowers it when the overlay is shown on an interactive
+     * lock screen whose wallpaper asks for dark text. Every AOD drawing routine reads the
+     * palette through {@link #useLightOnTransparentPalette}, so value, arrow, chart and
+     * grid all flip together.
+     */
+    private static volatile boolean sAodUsesLightPalette = true;
+
+    public static void setAodUsesLightPalette(boolean light) {
+        sAodUsesLightPalette = light;
+    }
+
     private static boolean useLightOnTransparentPalette(Context context) {
         if (context != null && AOD_OVERLAY_SERVICE_NAME.equals(context.getClass().getName())) {
-            return true;
+            return sAodUsesLightPalette;
         }
         int uiMode = context.getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK;

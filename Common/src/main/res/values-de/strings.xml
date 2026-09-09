@@ -1805,6 +1805,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_settings_subtitle">Benachrichtigungsleiste anpassen</string>
     <string name="lock_screen_aod">Sperrbildschirm (AOD)</string>
     <string name="aod_settings_title">AOD-Einstellungen</string>
+    <string name="aod_show_on_lockscreen">Auf dem Sperrbildschirm anzeigen</string>
+    <string name="aod_show_on_lockscreen_desc">Auch anzeigen, wenn der Bildschirm an und gesperrt ist</string>
     <string name="customize_always_on_display">Always-on-Display anpassen</string>
     <string name="enable_overlay_service">Overlay-Dienst aktivieren</string>
     <string name="accessibility_service_enabled">Bedienungshilfen-Dienst aktiviert</string>

@@ -1996,6 +1996,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_settings_subtitle">Habbee hadh wargelinta</string>
     <string name="lock_screen_aod">Shaashadda quful (AOD)</string>
     <string name="aod_settings_title">Dejinta AOD</string>
+    <string name="aod_show_on_lockscreen">Ku muuji shaashadda quful</string>
+    <string name="aod_show_on_lockscreen_desc">Sidoo kale muuji marka shaashadda ay shidan tahay oo qufulan</string>
     <string name="customize_always_on_display">Habee had iyo jeer-muuqaalka</string>
     <string name="enable_overlay_service">Daar adeega dulsaar</string>
     <string name="accessibility_service_enabled">Adeegga gelitaanka waa la furay</string>

@@ -1759,6 +1759,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">Налаштуйте панель сповіщень</string>
     <string name="lock_screen_aod">Екран блокування (AOD)</string>
     <string name="aod_settings_title">Налаштування AOD</string>
+    <string name="aod_show_on_lockscreen">Показувати на екрані блокування</string>
+    <string name="aod_show_on_lockscreen_desc">Показувати також, коли екран увімкнено та заблоковано</string>
     <string name="customize_always_on_display">Налаштуйте постійно ввімкнений екран</string>
     <string name="enable_overlay_service">Увімкнути службу накладання</string>
     <string name="accessibility_service_enabled">Службу доступності увімкнено</string>

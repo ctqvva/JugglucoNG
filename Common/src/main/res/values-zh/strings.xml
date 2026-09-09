@@ -1696,6 +1696,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">自定义通知栏</string>
     <string name="lock_screen_aod">锁屏（AOD）</string>
     <string name="aod_settings_title">AOD 设置</string>
+    <string name="aod_show_on_lockscreen">在锁定屏幕上显示</string>
+    <string name="aod_show_on_lockscreen_desc">屏幕点亮且已锁定时也显示</string>
     <string name="customize_always_on_display">自定义息屏显示</string>
     <string name="enable_overlay_service">启用覆盖层服务</string>
     <string name="accessibility_service_enabled">无障碍服务已启用</string>
