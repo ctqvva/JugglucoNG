@@ -72,6 +72,22 @@ class AnytimeBleManager(
         const val SENSOR_GEN = 0
 
         private const val ACTIVE_SESSION_RECONNECT_DELAY_MS = 2_000L
+
+        /**
+         * How long a soft reconnect waits between closing the old GATT and opening
+         * a new one.
+         *
+         * BluetoothGatt.close() returns immediately but unregisters the client
+         * asynchronously, and connecting again inside that window leaves two clients
+         * on one link. In the 2026-09-09 CT5 trace the 250ms this used to be produced
+         * a session with two onMtuChanged callbacks for a single requestMtu and an
+         * 8s service discovery — against under a second on the clean retry two minutes
+         * later — and the stack then dropped the link with GATT_FAILURE (257) a second
+         * after the low-power ack, as the retired client finally went away. A quiet
+         * gap costs nothing here: the alternative is the ~90s of blind reconnects that
+         * followed.
+         */
+        private const val SOFT_RECONNECT_SETTLE_MS = 750L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 15_000L
         private const val SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS = 5_000L
         private const val SERVICE_DISCOVERY_RETRY_DELAY_MS = 1_500L
@@ -260,6 +276,13 @@ class AnytimeBleManager(
     @Volatile private var forceScanResultAtMs: Long = 0L
     @Volatile private var pendingCccdGatt: BluetoothGatt? = null
     @Volatile private var lastConnectRequestAtMs: Long = 0L
+
+    /**
+     * Direct connects in a row that expired without reaching the transmitter.
+     * Drives [useAutoConnect] and the reconnect backoff; any connection at all
+     * clears it.
+     */
+    @Volatile private var consecutiveConnectTimeouts: Int = 0
     @Volatile private var pendingFingerstickMgdl: Int = -1
     @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
     @Volatile private var pendingKrPush: Boolean = false
@@ -407,6 +430,11 @@ class AnytimeBleManager(
         transmitterVersion = AnytimeRegistry.loadTransmitterVersion(context, id)
         val persistedLastGlucoseId = AnytimeRegistry.loadLastGlucoseId(context, id)
         sensorStartAtMs = AnytimeRegistry.loadSensorStartAt(context, id)
+        glucoseTimelineStartAtMs = restoredTimelineStartMs(
+            persistedTimelineStartMs = AnytimeRegistry.loadTimelineStartAt(context, id),
+            persistedSensorStartMs = sensorStartAtMs,
+            persistedLastGlucoseId = persistedLastGlucoseId,
+        )
         warmupStartedAtMs = AnytimeRegistry.loadWarmupStartedAt(context, id)
         bound = AnytimeRegistry.loadBound(context, id)
         lastReferenceBgMgdlTimes10 = AnytimeRegistry.loadReferenceBgMgdlTimes10(context, id)
@@ -613,6 +641,7 @@ class AnytimeBleManager(
         AnytimeRegistry.saveBound(ctx, id, bound)
         AnytimeRegistry.saveLastGlucoseId(ctx, id, lastGlucoseId)
         AnytimeRegistry.saveSensorStartAt(ctx, id, sensorStartAtMs)
+        AnytimeRegistry.saveTimelineStartAt(ctx, id, glucoseTimelineStartAtMs)
         AnytimeRegistry.saveWarmupStartedAt(ctx, id, warmupStartedAtMs)
         AnytimeRegistry.saveReferenceBgMgdlTimes10(ctx, id, lastReferenceBgMgdlTimes10)
         AnytimeRegistry.saveReferenceBgGlucoseId(ctx, id, lastReferenceBgGlucoseId)
@@ -1985,6 +2014,25 @@ class AnytimeBleManager(
         return super.reconnect(now)
     }
 
+    /**
+     * Inherit the user's setting until a direct connect has actually proved itself
+     * unable to reach this transmitter, then let the stack wait for an
+     * advertisement instead of burning another 30-second timer. See
+     * [shouldUseAutoConnect] for the measurement behind that.
+     */
+    override fun useAutoConnect(): Boolean {
+        val user = super.useAutoConnect()
+        val auto = shouldUseAutoConnect(user, consecutiveConnectTimeouts)
+        if (auto && !user) {
+            Log.i(
+                TAG,
+                "Using autoConnect after $consecutiveConnectTimeouts direct connect " +
+                        "timeout(s); waiting for the transmitter to advertise"
+            )
+        }
+        return auto
+    }
+
     private fun scheduleReconnect(reason: String, delayMs: Long = ACTIVE_SESSION_RECONNECT_DELAY_MS) {
         if (stop) return
         reconnectReason = reason
@@ -2263,6 +2311,7 @@ class AnytimeBleManager(
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
                 Log.i(TAG, "Connected to ${gatt.device?.address}")
+                consecutiveConnectTimeouts = 0
                 cancelReconnect()
                 clearGattCallbacks()
                 mBluetoothGatt = gatt
@@ -2290,6 +2339,14 @@ class AnytimeBleManager(
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
                 Log.i(TAG, "Disconnected (status=$status)")
+                // A disconnect out of CONNECTING never reached the transmitter, so
+                // status 147 here is the 30-second direct-connect timer, not a lost
+                // link. Anything that did connect resets the count.
+                consecutiveConnectTimeouts = if (phase == Phase.CONNECTING && isConnectTimeoutStatus(status)) {
+                    consecutiveConnectTimeouts + 1
+                } else {
+                    0
+                }
                 phase = Phase.IDLE
                 streamingSinceMs = 0L
                 writeInFlight = false
@@ -2332,7 +2389,14 @@ class AnytimeBleManager(
                         ct5EndCycleSsnInFlight = false
                     }
                     if (!stop) {
-                        scheduleReconnect("GATT disconnect status=$status")
+                        scheduleReconnect(
+                            "GATT disconnect status=$status",
+                            connectRetryDelayMs(
+                                consecutiveConnectTimeouts = consecutiveConnectTimeouts,
+                                baseDelayMs = ACTIVE_SESSION_RECONNECT_DELAY_MS,
+                                readingIntervalMs = profile.readingIntervalMinutes * 60L * 1000L,
+                            ),
+                        )
                     }
                 }
                 UiRefreshBus.requestStatusRefresh()
@@ -4633,7 +4697,7 @@ class AnytimeBleManager(
         }
         handler.postDelayed({
             if (!stop) connectDevice(0)
-        }, 250L)
+        }, SOFT_RECONNECT_SETTLE_MS)
         UiRefreshBus.requestStatusRefresh()
     }
 
