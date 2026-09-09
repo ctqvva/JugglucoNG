@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.BuildConfig
 import tk.glucodata.DataSmoothing
+import tk.glucodata.Libre2ReadingInterval
 import tk.glucodata.Natives
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
@@ -163,6 +164,7 @@ fun ExpressiveSettingsScreen(
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showFactoryResetDialog by remember { mutableStateOf(false) }
+    var showLibre2IntervalDialog by remember { mutableStateOf(false) }
     var isClearing by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var pendingSettingsImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -173,6 +175,9 @@ fun ExpressiveSettingsScreen(
     // Advanced settings
     var turbo by remember { mutableStateOf(Natives.getpriority()) }
     var autoConnect by remember { mutableStateOf(Natives.getAndroid13()) }
+    var libre2IntervalMinutes by remember {
+        mutableIntStateOf(Libre2ReadingInterval.getMinutes(context))
+    }
     val handoverPrefs = remember {
         context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -542,6 +547,15 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.MIDDLE,
                     onCheckedChange = { SensorBluetooth.setAutoconnect(it); autoConnect = it }
                 )
+                SettingsItem(
+                    title = stringResource(R.string.libre2_interval_title),
+                    subtitle = stringResource(R.string.minutes_short_format, libre2IntervalMinutes),
+                    showArrow = true,
+                    icon = Icons.Default.Schedule,
+                    iconTint = advColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showLibre2IntervalDialog = true }
+                )
                 SettingsSwitchItem(
                     title = stringResource(R.string.sensor_handover_title),
                     subtitle = stringResource(R.string.sensor_handover_desc),
@@ -756,6 +770,15 @@ fun ExpressiveSettingsScreen(
         context.findActivity()?.hardRestart() 
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
+    if (showLibre2IntervalDialog) Libre2IntervalPickerDialog(
+        currentMinutes = libre2IntervalMinutes,
+        onSelect = {
+            Libre2ReadingInterval.setMinutes(context, it)
+            libre2IntervalMinutes = it
+            showLibre2IntervalDialog = false
+        },
+        onDismiss = { showLibre2IntervalDialog = false }
+    )
     if (showSensorHandoverActionDialog) SensorHandoverActionPickerDialog(
         currentAction = sensorHandoverAction,
         onSelect = {
@@ -1824,6 +1847,64 @@ private fun ThemePickerDialog(current: ThemeMode, onSelect: (ThemeMode) -> Unit,
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Libre2IntervalPickerDialog(
+    currentMinutes: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Text(
+                    text = stringResource(R.string.libre2_interval_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                Text(
+                    text = stringResource(R.string.libre2_interval_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                )
+                Libre2ReadingInterval.options().forEach { minutes ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable { onSelect(minutes) }
+                            .padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = currentMinutes == minutes, onClick = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            text = if (minutes == Libre2ReadingInterval.DEFAULT_MINUTES) {
+                                stringResource(R.string.libre2_interval_default_option)
+                            } else {
+                                stringResource(R.string.minutes_short_format, minutes)
+                            },
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }

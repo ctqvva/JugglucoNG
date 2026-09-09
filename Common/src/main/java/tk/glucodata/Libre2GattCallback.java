@@ -65,6 +65,7 @@ import static tk.glucodata.Natives.processTooth;
 
 public class Libre2GattCallback extends SuperGattCallback {
 	private int conphase = 0;
+	private final Libre2ReadingIntervalGate readingIntervalGate = new Libre2ReadingIntervalGate();
 
        static private final UUID mADCCustomServiceUUID = UUID.fromString("0000fde3-0000-1000-8000-00805f9b34fb");
 	static private final String LOG_ID = "Libre2GattCallback";
@@ -463,7 +464,13 @@ private	void oldonCharacteristicChanged(byte[] value) {
 						if(newpacket!=null) {
 							long res = processTooth(dataptr, newpacket);
 							if(res!=1L) {
-								handleGlucoseResult(res,timmsec);
+								final int glucose = (int) (res & 0xFFFFFFFFL);
+								if(glucose == 0 || readingIntervalGate.shouldPublish(Libre2ReadingInterval.getMinutes())) {
+									handleGlucoseResult(res,timmsec);
+									}
+								else if(doLog) {
+									Log.i(LOG_ID, SerialNumber + " reading suppressed by Libre 2 interval");
+									}
 								}
 							}
 						datatime=timmsec;
