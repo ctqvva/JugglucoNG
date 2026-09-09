@@ -22,6 +22,14 @@ public final class SensorTraceRing {
 	 */
 	private static final int CAPACITY = 400;
 
+	/**
+	 * Long enough for every line anyone reads -- a full CT5 reading line with its learned scale
+	 * runs about a hundred characters. Without it one driver dumping a payload could pin
+	 * megabytes here for as long as the process lives, which is the whole thing this is
+	 * supposed not to do.
+	 */
+	private static final int MAX_MESSAGE_CHARS = 256;
+
 	private static final Object lock = new Object();
 	private static final long[] times = new long[CAPACITY];
 	private static final char[] levels = new char[CAPACITY];
@@ -55,11 +63,16 @@ public final class SensorTraceRing {
 			return;
 		}
 		final long seconds = System.currentTimeMillis() / 1000L;
+		// Only a line already over the cap pays for a copy, and the copy is the point: it lets
+		// the original be collected instead of held for the next four hundred lines.
+		final String kept = message.length() <= MAX_MESSAGE_CHARS
+				? message
+				: message.substring(0, MAX_MESSAGE_CHARS) + "…";
 		synchronized (lock) {
 			times[next] = seconds;
 			levels[next] = level;
 			tags[next] = tag;
-			messages[next] = message;
+			messages[next] = kept;
 			if (++next == CAPACITY) {
 				next = 0;
 				wrapped = true;

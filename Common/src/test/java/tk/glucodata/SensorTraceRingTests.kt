@@ -69,4 +69,31 @@ class SensorTraceRingTests {
     fun anEmptyRingReadsAsNothingRatherThanBlankLines() {
         assertEquals(0, SensorTraceRing.snapshot().size)
     }
+
+    @Test
+    fun aRunawayLineIsTruncatedRatherThanPinnedWhole() {
+        SensorTraceRing.add('D', "Anytime", "payload " + "AB".repeat(4_000))
+        val line = SensorTraceRing.snapshot().single()
+
+        assertTrue("expected an ellipsis marking the cut, got ${line.takeLast(8)}", line.endsWith("…"))
+        // prefix + the 256 kept characters + the marker, nothing like the 8k that went in.
+        assertTrue("line was ${line.length} chars", line.length < 320)
+        assertTrue(line.contains("D/Anytime payload AB"))
+    }
+
+    @Test
+    fun whatTheRingHoldsDoesNotGrowWithUptime() {
+        repeat(400) { SensorTraceRing.add('I', "Anytime", "reading $it") }
+        val afterOnePass = SensorTraceRing.snapshot().sumOf { it.length }
+
+        repeat(40_000) { SensorTraceRing.add('I', "Anytime", "reading $it") }
+        val afterManyMore = SensorTraceRing.snapshot().sumOf { it.length }
+
+        assertEquals(400, SensorTraceRing.snapshot().size)
+        // Same shape of line either way, so a hundred times the traffic is the same footprint.
+        assertTrue(
+            "held $afterOnePass chars then $afterManyMore",
+            afterManyMore < afterOnePass * 2,
+        )
+    }
 }
