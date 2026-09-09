@@ -65,7 +65,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 
-import androidx.compose.material.icons.filled.AccessTime
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
@@ -122,37 +121,6 @@ fun InfoRow(label: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-    }
-}
-
-private enum class SensorReadingAgeUnit {
-    SECONDS,
-    MINUTES
-}
-
-private data class SensorReadingAge(
-    val amount: Int,
-    val unit: SensorReadingAgeUnit
-)
-
-private fun sensorReadingAge(nowMillis: Long, readingMillis: Long): SensorReadingAge {
-    val ageSeconds = ((nowMillis - readingMillis).coerceAtLeast(0L) / 1000L)
-    return if (ageSeconds < 60L) {
-        SensorReadingAge(ageSeconds.toInt(), SensorReadingAgeUnit.SECONDS)
-    } else {
-        SensorReadingAge(
-            (ageSeconds / 60L).coerceAtLeast(1L).toInt(),
-            SensorReadingAgeUnit.MINUTES
-        )
-    }
-}
-
-private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Long {
-    val ageSeconds = ((nowMillis - readingMillis).coerceAtLeast(0L) / 1000L)
-    return if (ageSeconds < 60L) {
-        1_000L
-    } else {
-        ((60L - (ageSeconds % 60L)) * 1_000L).coerceAtLeast(1_000L)
     }
 }
 
@@ -403,27 +371,6 @@ private fun SensorCurrentValueChip(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    var nowMillis by remember(snapshot.timeMillis) { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(snapshot.timeMillis) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(nextSensorReadingAgeDelay(nowMillis, snapshot.timeMillis))
-        }
-    }
-    val readingAge = remember(nowMillis, snapshot.timeMillis) {
-        sensorReadingAge(nowMillis, snapshot.timeMillis)
-    }
-    val ageText = when (readingAge.unit) {
-        SensorReadingAgeUnit.SECONDS -> stringResource(
-            R.string.sensor_reading_age_seconds,
-            readingAge.amount
-        )
-        SensorReadingAgeUnit.MINUTES -> stringResource(
-            R.string.sensor_reading_age_minutes,
-            readingAge.amount
-        )
-    }
-
     Surface(
         modifier = modifier.widthIn(max = 220.dp),
         shape = RoundedCornerShape(14.dp),
@@ -455,24 +402,11 @@ private fun SensorCurrentValueChip(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccessTime,
-                    contentDescription = null,
-                    tint = accentColor.copy(alpha = 0.82f),
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = ageText,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
+            tk.glucodata.ui.util.SensorReadingAgeLabel(
+                readingMillis = snapshot.timeMillis,
+                iconTint = accentColor.copy(alpha = 0.82f),
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 //            Spacer(modifier = Modifier.width(6.dp))
 //            Icon(
 //                imageVector = getTrendIcon(snapshot.rate),
