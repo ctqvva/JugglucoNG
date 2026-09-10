@@ -48,6 +48,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v24 — recorded main value keyed by the minute rather than by sensor
  *   v25 — discards main values sealed against the wrong sensor
  *   v26 — discards main values sealed against a sensor the user never selected
+ *   v27 — discards main values backdated over history nobody watched
  */
 @Database(
     entities = [
@@ -63,7 +64,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -636,6 +637,28 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        /**
+         * v27 -> discard main values backdated over history nobody watched.
+         *
+         * The first seal pass walked the whole stored timeline and stamped the
+         * preference in force at that moment onto every minute back to the
+         * beginning. A record is meant to say what was on screen; those rows say
+         * what today's main sensor would have shown, backdated. It is why the
+         * main line past the grace window would not release the past to a newly
+         * swapped-in sensor.
+         *
+         * The pass now reaches back one grace window and no further, so these
+         * cannot be rewritten in place — insert-or-ignore — and are dropped.
+         * Minutes older than the window simply keep no record and derive live,
+         * which is what they did before any of this existed.
+         */
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM reading_display")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -667,7 +690,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_22_23,
                     MIGRATION_23_24,
                     MIGRATION_24_25,
-                    MIGRATION_25_26
+                    MIGRATION_25_26,
+                    MIGRATION_26_27
                 )
                 .build().also { INSTANCE = it }
             }

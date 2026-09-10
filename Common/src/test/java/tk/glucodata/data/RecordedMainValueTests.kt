@@ -118,6 +118,33 @@ class RecordedMainValueTests {
     }
 
     /**
+     * A record claims "this is what was on screen". A pass that walks the whole
+     * stored timeline cannot know that — it only has the preference in force
+     * now, which it would stamp on every minute back to the beginning. That is
+     * today's opinion backdated, and it is why a sensor made main at breakfast
+     * ended up owning last week.
+     */
+    @Test
+    fun theSealNeverReachesFurtherBackThanOneGraceWindow() {
+        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val pass = repo.substringAfter("suspend fun sealDueMainValues")
+            .substringBefore("\n    private fun")
+
+        assertTrue(
+            "the backfill floor bounds how far back a pass may write",
+            pass.contains("horizon - ReadingDisplay.DISPLAY_SEAL_GRACE_MS"),
+        )
+        assertTrue(
+            "resuming must never start earlier than that floor",
+            pass.contains("maxOf(watermark, backfillFloor)"),
+        )
+        assertFalse(
+            "no mode may seal from the beginning of the timeline",
+            pass.contains("val resumeAfter = if (full) {\n                    0L"),
+        )
+    }
+
+    /**
      * The write side must not be gated on a calibration being active, or a store
      * with calibration off records nothing and the setting protects nothing.
      */

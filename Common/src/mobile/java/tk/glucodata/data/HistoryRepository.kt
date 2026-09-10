@@ -1946,10 +1946,10 @@ class HistoryRepository(context: Context = Applic.app) {
      * @param preferredSerial the sensor the dashboard is currently drawing as
      *   main; the merge decides ownership the same way the chart does, and the
      *   decision is then frozen into the row.
-     * @param full re-examine the whole timeline instead of resuming after the
-     *   newest recorded minute. Needed after an import or a native backfill,
-     *   which can add readings for minutes that are already behind the
-     *   watermark.
+     * @param full re-examine minutes behind the watermark as well, for an
+     *   import or native backfill that added readings to minutes already passed.
+     *   Still bounded by the backfill limit below — there is no whole-history
+     *   mode, deliberately.
      * @return how many minutes were newly recorded.
      */
     suspend fun sealDueMainValues(
@@ -1960,15 +1960,34 @@ class HistoryRepository(context: Context = Applic.app) {
             try {
                 val nowMs = System.currentTimeMillis()
                 val horizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+                // Never seal history this app did not watch go past.
+                //
+                // A record claims "this is the number that was on screen". A
+                // pass that walks the whole stored timeline cannot know that: all
+                // it has is the preference in force *now*, which it then stamps
+                // on every minute back to the beginning. That is not a record of
+                // what was shown, it is today's opinion backdated — and it is why
+                // a sensor made main at breakfast ended up owning last week, and
+                // why swapping the main sensor appeared not to release the past.
+                //
+                // So the pass only ever reaches back one grace window, which is
+                // exactly the stretch that has aged out since it last ran and
+                // whose values this process saw settle. Minutes older than that
+                // keep no record and derive live, which is honest: nobody knows
+                // what they showed, so nothing claims to.
+                val watermark = runCatching { displayDao.getNewestSealedMinute() }.getOrNull() ?: 0L
+                val backfillFloor = horizon - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
                 val resumeAfter = if (full) {
-                    0L
+                    backfillFloor
                 } else {
-                    runCatching { displayDao.getNewestSealedMinute() }.getOrNull() ?: 0L
+                    maxOf(watermark, backfillFloor)
                 }
 
-                // HistoryDisplayMerge must see the whole stored timeline: given a
-                // slice it truncates the coverage segments and hands minutes to a
-                // sensor that did not own them. Slice after merging, never before.
+                // HistoryDisplayMerge must still see the whole stored timeline:
+                // given a slice it truncates the coverage segments and hands
+                // minutes to a sensor that did not own them. Slice after merging,
+                // never before — the bound above applies to what is written, not
+                // to what the merge is shown.
                 val readings = dao.getReadingsSince(0L)
                 if (readings.isEmpty()) return@withContext 0
 
