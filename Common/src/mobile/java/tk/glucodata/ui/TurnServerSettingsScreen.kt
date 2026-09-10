@@ -58,6 +58,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
     var useLocalDiscovery by remember {
         mutableStateOf(initialIceConfig.useLocalDiscovery)
     }
+    var preferIPv4 by remember { mutableStateOf(initialIceConfig.preferIPv4) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -143,6 +144,14 @@ fun TurnServerSettingsScreen(navController: NavController) {
             )
 
             SectionLabel(stringResource(R.string.clone_ice_services))
+            SettingsSwitchItem(
+                title = stringResource(R.string.clone_prefer_ipv4),
+                subtitle = stringResource(R.string.clone_prefer_ipv4_summary),
+                checked = preferIPv4,
+                onCheckedChange = { preferIPv4 = it },
+                position = CardPosition.SINGLE,
+            )
+            Spacer(Modifier.height(8.dp))
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_local_discovery),
                 subtitle = stringResource(R.string.clone_local_discovery_summary),
@@ -282,6 +291,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             verifyRendezvousCertificate = !useCustomRendezvous ||
                                 verifyRendezvousCertificate,
                             useLocalDiscovery = useLocalDiscovery,
+                            preferIPv4 = preferIPv4,
                         )
                         Natives.setTurnServer(0, cleanTurnHost, portNum, user, password)
                         val iceSaved = CloneIceNetworkConfigStore.save(
@@ -303,8 +313,11 @@ fun TurnServerSettingsScreen(navController: NavController) {
                             Toast.makeText(context, context.getString(R.string.savefailed), Toast.LENGTH_LONG).show()
                             return@Button
                         }
+                        val turnDetailsChanged = if (previousTurn == null) {
+                            cleanTurnHost.isNotEmpty()
+                        } else !previousTurn.contentEquals(nextTurn)
                         val serverDetailsChanged =
-                            previousTurn?.contentEquals(nextTurn) != true ||
+                            turnDetailsChanged ||
                                 initialIceConfig.rendezvousHost != nextIceConfig.rendezvousHost ||
                                 initialIceConfig.rendezvousPort != nextIceConfig.rendezvousPort
                         if (serverDetailsChanged) Natives.resetnetwork()

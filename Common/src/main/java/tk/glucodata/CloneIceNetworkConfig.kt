@@ -8,6 +8,7 @@ data class CloneIceNetworkConfig(
     val useTurnForStun: Boolean = false,
     val verifyRendezvousCertificate: Boolean = true,
     val useLocalDiscovery: Boolean = true,
+    val preferIPv4: Boolean = false,
 ) {
     init {
         require(rendezvousHost.length <= MAX_HOST_LENGTH)
@@ -29,6 +30,7 @@ object CloneIceNetworkConfigStore {
     private const val KEY_USE_TURN_FOR_STUN = "use_turn_for_stun"
     private const val KEY_VERIFY_RENDEZVOUS_CERTIFICATE = "verify_rendezvous_certificate"
     private const val KEY_USE_LOCAL_DISCOVERY = "use_local_discovery"
+    private const val KEY_PREFER_IPV4 = "prefer_ipv4"
 
     @JvmStatic
     fun load(context: Context): CloneIceNetworkConfig {
@@ -54,6 +56,7 @@ object CloneIceNetworkConfigStore {
                 true,
             ),
             useLocalDiscovery = prefs.getBoolean(KEY_USE_LOCAL_DISCOVERY, true),
+            preferIPv4 = prefs.getBoolean(KEY_PREFER_IPV4, false),
         )
     }
 
@@ -79,6 +82,7 @@ object CloneIceNetworkConfigStore {
                 normalized.verifyRendezvousCertificate,
             )
             .putBoolean(KEY_USE_LOCAL_DISCOVERY, normalized.useLocalDiscovery)
+            .putBoolean(KEY_PREFER_IPV4, normalized.preferIPv4)
             .commit()
         if (committed) applyToNative(normalized)
         return committed
@@ -110,6 +114,7 @@ object CloneIceNetworkConfigStore {
             config.useTurnForStun,
             config.verifyRendezvousCertificate,
             config.useLocalDiscovery,
+            config.preferIPv4,
         )
     }
 }

@@ -463,6 +463,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
+    <string name="clone_prefer_ipv4">IPv4-г илүүд үзэх</string>
+    <string name="clone_prefer_ipv4_summary">Шинэ холболтод IPv4-г илүүд үзэж, IPv6-г нөөцөөр ашиглана. Хоёр утсан дээр идэвхжүүлнэ үү. Одоогийн холболтууд өөрчлөгдөхгүй.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
     <string name="clone_signaling">Илрүүлэлт</string>
     <string name="clone_signaling_lan">LAN</string>

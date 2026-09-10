@@ -347,9 +347,12 @@ class CloneReceptionSafetyTests {
             screen.indexOf("val serverDetailsChanged", save),
             conditionalReset,
         )
-        assertTrue(serverComparison.contains("previousTurn?.contentEquals(nextTurn)"))
+        assertTrue(serverComparison.contains("turnDetailsChanged"))
+        assertTrue(screen.contains("val turnDetailsChanged = if (previousTurn == null) { cleanTurnHost.isNotEmpty() } else !previousTurn.contentEquals(nextTurn)"))
         assertTrue(serverComparison.contains("initialIceConfig.rendezvousHost != nextIceConfig.rendezvousHost"))
         assertFalse(serverComparison.contains("useLocalDiscovery"))
+        assertFalse(serverComparison.contains("preferIPv4"))
+        assertTrue(screen.contains("onCheckedChange = { preferIPv4 = it }"))
         assertFalse(serverComparison.contains("useTurnForStun"))
         assertFalse(serverComparison.contains("verifyRendezvousCertificate"))
         assertTrue(screen.contains("stringResource(R.string.hybrid_save_behavior)"))

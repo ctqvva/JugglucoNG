@@ -990,6 +990,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_ice_services">ICE-Dienste</string>
     <string name="clone_local_discovery">Gekoppelte Clones im lokalen Netzwerk finden</string>
     <string name="clone_local_discovery_summary">Bekannte Hybrid-Paare im selben lokalen Netzwerk ohne Rendezvous-Server verbinden. Kopplungsgeheimnisse werden nicht angekündigt.</string>
+    <string name="clone_prefer_ipv4">IPv4 bevorzugen</string>
+    <string name="clone_prefer_ipv4_summary">IPv4 für neue Verbindungen bevorzugen; IPv6 bleibt als Ausweichmöglichkeit verfügbar. Auf beiden Telefonen aktivieren. Bestehende Verbindungen bleiben unverändert.</string>
     <string name="clone_lan_discovery_status">LAN-Suche</string>
     <string name="clone_signaling">Erkennung</string>
     <string name="clone_signaling_lan">LAN</string>

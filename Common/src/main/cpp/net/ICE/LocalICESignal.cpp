@@ -19,6 +19,48 @@
 #include <utility>
 #include <vector>
 
+#ifdef __ANDROID__
+#include <jni.h>
+extern JNIEnv *getenv();
+namespace {
+std::mutex multicastBridgeMutex;
+jclass multicastClass{};
+jmethodID multicastAcquire{}, multicastRelease{};
+bool multicastLease(bool acquire) {
+    const std::lock_guard<std::mutex> lock(multicastBridgeMutex);
+    auto *env = getenv();
+    if (!env || !multicastClass) return false;
+    bool held = false;
+    if (acquire) held = env->CallStaticBooleanMethod(multicastClass, multicastAcquire);
+    else env->CallStaticVoidMethod(multicastClass, multicastRelease);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return false;
+    }
+    return held;
+}
+}
+
+// Resolve on the Java configuration thread, not a native receiver thread whose
+// FindClass would use the system class loader.
+void initializeLocalICEMulticast(JNIEnv *env) {
+    const std::lock_guard<std::mutex> lock(multicastBridgeMutex);
+    if (multicastClass) return;
+    auto cls = env->FindClass("tk/glucodata/CloneMulticastLock");
+    if (cls) {
+        multicastAcquire = env->GetStaticMethodID(cls, "acquire", "()Z");
+        if (!env->ExceptionCheck())
+            multicastRelease = env->GetStaticMethodID(cls, "release", "()V");
+        if (!env->ExceptionCheck() && multicastAcquire && multicastRelease)
+            multicastClass = static_cast<jclass>(env->NewGlobalRef(cls));
+        env->DeleteLocalRef(cls);
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+}
+#else
+namespace { bool multicastLease(bool) { return false; } }
+#endif
+
 #include <ascon.h>
 #include <zlib.h>
 
@@ -130,6 +172,35 @@ std::vector<sockaddr_in> broadcastDestinations(uint16_t port) {
     return destinations;
 }
 
+in6_addr multicastGroup(std::string_view label) {
+    // Transient, link-local group with a dynamically chosen 32-bit group ID
+    // (RFC 3307). The pairing label selects a group; AEAD authenticates peers.
+    in6_addr group{};
+    group.s6_addr[0] = 0xff;
+    group.s6_addr[1] = 0x12;
+    const uint32_t id = htonl(0x80000000u | crc32(0,
+        reinterpret_cast<const Bytef *>(label.data()), label.size()));
+    std::memcpy(group.s6_addr + 12, &id, sizeof(id));
+    return group;
+}
+
+std::vector<unsigned> multicastInterfaces() {
+    std::vector<unsigned> interfaces;
+    ifaddrs *addresses = nullptr;
+    if (getifaddrs(&addresses) != 0) return interfaces;
+    for (const auto *entry = addresses; entry; entry = entry->ifa_next) {
+        if (!entry->ifa_addr || entry->ifa_addr->sa_family != AF_INET6 ||
+            !entry->ifa_name || !(entry->ifa_flags & IFF_UP) ||
+            !(entry->ifa_flags & IFF_MULTICAST) || (entry->ifa_flags & IFF_LOOPBACK))
+            continue;
+        const auto index = if_nametoindex(entry->ifa_name);
+        if (index && std::find(interfaces.begin(), interfaces.end(), index) == interfaces.end())
+            interfaces.push_back(index);
+    }
+    freeifaddrs(addresses);
+    return interfaces;
+}
+
 }  // namespace
 
 struct LocalICESignalSession::Impl {
@@ -158,6 +229,13 @@ struct LocalICESignalSession::Impl {
     std::string promotionProbeToken;
     std::atomic_bool promotionProbeActive{false};
     int socketFd{-1};
+    int multicastFd{-1};
+    std::vector<unsigned> joinedInterfaces; // Protected by sendMutex.
+    bool multicastLockHeld{false};
+    // The same authenticated datagram is sent twice on each discovery family.
+    // Ignore those copies, but allow retry snapshots with fresh nonces.
+    std::array<std::array<uint8_t, nonceLength>, 64> receivedNonces{};
+    size_t receivedNonceCount{}, nextReceivedNonce{}; // Receiver thread only.
     std::jthread receiveThread;
 
     Impl(int index, juice_agent_t *candidate, uint64_t generation,
@@ -173,7 +251,7 @@ struct LocalICESignalSession::Impl {
           port(localPortForLabel(connectionLabel)),
           localGeneration(connectionGeneration) {}
 
-    bool createSocket() {
+    bool createIPv4Socket() {
         socketFd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
         if (socketFd < 0)
             return false;
@@ -201,6 +279,61 @@ struct LocalICESignalSession::Impl {
             return false;
         }
         return true;
+    }
+
+    bool createIPv6Socket() {
+        multicastFd = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+        if (multicastFd < 0) return false;
+        int enabled = 1;
+        setsockopt(multicastFd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
+        // A separate v6-only socket cannot steal IPv4 broadcasts from the
+        // existing listener. Either family may fail without disabling the other.
+        const int hops = 1;
+        sockaddr_in6 address{};
+        address.sin6_family = AF_INET6;
+        address.sin6_port = htons(port);
+        if (setsockopt(multicastFd, IPPROTO_IPV6, IPV6_V6ONLY, &enabled, sizeof(enabled)) != 0 ||
+            setsockopt(multicastFd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops)) != 0 ||
+            bind(multicastFd, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) != 0) {
+            close(multicastFd);
+            multicastFd = -1;
+            return false;
+        }
+        return true;
+    }
+
+    void refreshMemberships() {
+        if (multicastFd < 0) return;
+        const auto interfaces = multicastInterfaces();
+        const std::lock_guard<std::mutex> lock(sendMutex);
+        ipv6_mreq request{};
+        request.ipv6mr_multiaddr = multicastGroup(label);
+        for (auto it = joinedInterfaces.begin(); it != joinedInterfaces.end();) {
+            if (std::find(interfaces.begin(), interfaces.end(), *it) != interfaces.end()) {
+                ++it;
+                continue;
+            }
+            request.ipv6mr_interface = *it;
+            setsockopt(multicastFd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &request, sizeof(request));
+            it = joinedInterfaces.erase(it);
+        }
+        for (auto index : interfaces) {
+            if (std::find(joinedInterfaces.begin(), joinedInterfaces.end(), index) != joinedInterfaces.end())
+                continue;
+            request.ipv6mr_interface = index;
+            if (setsockopt(multicastFd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &request, sizeof(request)) == 0) {
+                joinedInterfaces.push_back(index);
+                LOGGERLOCALICE("joined IPv6 interface %u\n", index);
+            }
+        }
+    }
+
+    bool createSocket() {
+        const bool ipv4 = createIPv4Socket();
+        const bool ipv6 = createIPv6Socket();
+        refreshMemberships();
+        LOGGERLOCALICE("discovery listeners IPv4=%d IPv6=%d\n", ipv4, ipv6);
+        return ipv4 || ipv6;
     }
 
     std::vector<uint8_t> makePacket(MessageType type, std::string_view data,
@@ -249,7 +382,7 @@ struct LocalICESignalSession::Impl {
 
     void sendPacket(MessageType type, std::string_view data = {},
                     std::string_view explicitEcho = {}) {
-        if (stopping.load(std::memory_order_acquire) || socketFd < 0)
+        if (stopping.load(std::memory_order_acquire))
             return;
         std::string echo;
         {
@@ -262,11 +395,25 @@ struct LocalICESignalSession::Impl {
             return;
         const auto destinations = broadcastDestinations(port);
         const std::lock_guard<std::mutex> lock(sendMutex);
+        if (stopping.load(std::memory_order_acquire)) return;
+        if (socketFd >= 0)
         for (const auto &destination : destinations) {
             for (int attempt = 0; attempt < 2; ++attempt)
                 sendto(socketFd, packet.data(), packet.size(), MSG_NOSIGNAL,
                        reinterpret_cast<const sockaddr *>(&destination),
                        sizeof(destination));
+        }
+        if (multicastFd >= 0) {
+            sockaddr_in6 destination{};
+            destination.sin6_family = AF_INET6;
+            destination.sin6_port = htons(port);
+            destination.sin6_addr = multicastGroup(label);
+            for (auto index : joinedInterfaces) {
+                destination.sin6_scope_id = index;
+                for (int attempt = 0; attempt < 2; ++attempt)
+                    sendto(multicastFd, packet.data(), packet.size(), MSG_NOSIGNAL,
+                           reinterpret_cast<const sockaddr *>(&destination), sizeof(destination));
+            }
         }
     }
 
@@ -359,6 +506,14 @@ struct LocalICESignalSession::Impl {
             dataLength);
         if (receivedLabel != label || !isGenerationToken(generation))
             return;
+
+        std::array<uint8_t, nonceLength> nonce;
+        std::memcpy(nonce.data(), packet + wireMagic.size(), nonce.size());
+        const auto end = receivedNonces.begin() + receivedNonceCount;
+        if (std::find(receivedNonces.begin(), end, nonce) != end) return;
+        receivedNonces[nextReceivedNonce] = nonce;
+        nextReceivedNonce = (nextReceivedNonce + 1) % receivedNonces.size();
+        receivedNonceCount = std::min(receivedNonceCount + 1, receivedNonces.size());
 
         const bool echoMatches = echo == localGeneration;
         bool peerChanged = false;
@@ -476,23 +631,30 @@ struct LocalICESignalSession::Impl {
     void run(std::stop_token stopToken) {
         std::array<uint8_t, 8192> packet{};
         auto nextHello = std::chrono::steady_clock::now();
+        auto nextInterfaces = nextHello;
         while (!stopToken.stop_requested() &&
                !stopping.load(std::memory_order_acquire)) {
             const auto now = std::chrono::steady_clock::now();
+            if (now >= nextInterfaces) {
+                refreshMemberships();
+                nextInterfaces = now + std::chrono::seconds(2);
+            }
             if (!connected.load(std::memory_order_acquire) && now >= nextHello) {
                 // UDP publication can be lost after the Hello handshake has
                 // completed. Retry the saved signaling data, not just identity.
                 sendSnapshot({}, SnapshotKind::Retry);
                 nextHello = now + snapshotRetryInterval;
             }
-            pollfd descriptor{socketFd, POLLIN, 0};
-            const int result = poll(&descriptor, 1, 250);
-            if (result <= 0 || !(descriptor.revents & POLLIN))
-                continue;
-            const ssize_t received = recvfrom(socketFd, packet.data(),
+            pollfd descriptors[]{{socketFd, POLLIN, 0}, {multicastFd, POLLIN, 0}};
+            const int result = poll(descriptors, 2, 250);
+            if (result <= 0) continue;
+            for (const auto &descriptor : descriptors) {
+                if (!(descriptor.revents & POLLIN)) continue;
+                const ssize_t received = recvfrom(descriptor.fd, packet.data(),
                                               packet.size(), 0, nullptr, nullptr);
-            if (received > 0)
-                handlePacket(packet.data(), static_cast<size_t>(received));
+                if (received > 0)
+                    handlePacket(packet.data(), static_cast<size_t>(received));
+            }
         }
     }
 };
@@ -507,15 +669,12 @@ LocalICESignalSession::LocalICESignalSession(
 LocalICESignalSession::~LocalICESignalSession() { stop(); }
 
 bool LocalICESignalSession::start() {
+    if (!isGenerationToken(impl->localGeneration)) return false;
     if (!impl->createSocket()) {
         LOGGERLOCALICE("could not bind UDP port %u\n", impl->port);
         return false;
     }
-    if (!isGenerationToken(impl->localGeneration)) {
-        close(impl->socketFd);
-        impl->socketFd = -1;
-        return false;
-    }
+    impl->multicastLockHeld = multicastLease(true);
     impl->receiveThread =
         std::jthread([state = impl.get()](std::stop_token token) {
             state->run(token);
@@ -530,11 +689,22 @@ void LocalICESignalSession::stop() {
         impl->receiveThread.request_stop();
     if (impl->socketFd >= 0)
         shutdown(impl->socketFd, SHUT_RDWR);
+    if (impl->multicastFd >= 0)
+        shutdown(impl->multicastFd, SHUT_RDWR);
     if (impl->receiveThread.joinable())
         impl->receiveThread.join();
+    const std::lock_guard<std::mutex> lock(impl->sendMutex);
     if (impl->socketFd >= 0) {
         close(impl->socketFd);
         impl->socketFd = -1;
+    }
+    if (impl->multicastFd >= 0) {
+        close(impl->multicastFd);
+        impl->multicastFd = -1;
+    }
+    if (impl->multicastLockHeld) {
+        multicastLease(false);
+        impl->multicastLockHeld = false;
     }
 }
 

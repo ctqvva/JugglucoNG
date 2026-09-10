@@ -92,13 +92,14 @@ ICEConfigSnapshot currentICEConfig() {
 
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
                      bool useTurnForStun, bool verifyRendezvousCertificate,
-                     bool useLocalDiscovery) {
+                     bool useLocalDiscovery, bool preferIPv4) {
     const std::lock_guard<std::mutex> lock(ice_config_mutex);
     ice_config.rendezvousHost=std::move(rendezvousHost);
     ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
     ice_config.useTurnForStun=useTurnForStun;
     ice_config.verifyRendezvousCertificate=verifyRendezvousCertificate;
     ice_config.useLocalDiscovery=useLocalDiscovery;
+    ice_config.preferIPv4=preferIPv4;
     }
 
 RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
@@ -1284,7 +1285,8 @@ juice_agent *createAgent(int allindex) {
             .cb_candidate = on_candidate1,
             .cb_gathering_done = on_gathering_done1,
             .cb_recv = on_recv1,
-            .user_ptr=(void*)(long)allindex
+            .user_ptr=(void*)(long)allindex,
+            .prefer_ipv4=networkConfig.preferIPv4
             };
        auto*ret= juice_create(&config1);
        LOGGER("end createAgent(%d)=%p\n",allindex,ret);

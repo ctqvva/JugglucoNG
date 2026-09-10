@@ -905,6 +905,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_ice_services">ICE services</string>
     <string name="clone_local_discovery">Find paired Clones on local network</string>
     <string name="clone_local_discovery_summary">Connect to known Hybrid pairs on the same local network without a rendezvous server. Pairing secrets are never announced.</string>
+    <string name="clone_prefer_ipv4">Preferir IPv4</string>
+    <string name="clone_prefer_ipv4_summary">Preferir IPv4 para novas ligações, mantendo IPv6 como alternativa. Ative nos dois telemóveis. As ligações existentes não são alteradas.</string>
     <string name="clone_lan_discovery_status">LAN discovery</string>
     <string name="clone_signaling">Descoberta</string>
     <string name="clone_signaling_lan">LAN</string>
