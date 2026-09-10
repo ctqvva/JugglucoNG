@@ -46,6 +46,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v22 — durable cross-device journal recovery tombstones
  *   v23 — transactional history recovery import receipts
  *   v24 — recorded main value keyed by the minute rather than by sensor
+ *   v25 — discards main values sealed against the wrong sensor
  */
 @Database(
     entities = [
@@ -61,7 +62,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -595,6 +596,26 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        /**
+         * v24 -> v25: discard main values sealed against the wrong sensor.
+         *
+         * The v24 seal pass ran once with no preferred sensor, so the merge
+         * picked the richest row per timestamp rather than the sensor the
+         * dashboard draws — arbitrary, wherever two sensors share a minute. The
+         * table's write is insert-or-ignore by design, which is what makes a
+         * recorded value durable, and also means those rows would never be
+         * corrected. They are dropped so the corrected pass can record them.
+         *
+         * Only reachable by a build that ran the v24 pass; on any other store
+         * the table is already empty and this is a no-op.
+         */
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM reading_display")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -624,7 +645,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_20_21,
                     MIGRATION_21_22,
                     MIGRATION_22_23,
-                    MIGRATION_23_24
+                    MIGRATION_23_24,
+                    MIGRATION_24_25
                 )
                 .build().also { INSTANCE = it }
             }

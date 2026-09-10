@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 24"))
+        assertTrue(source.contains("version = 25"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
@@ -84,5 +84,18 @@ class HistoryDatabaseSafetyTests {
         assertTrue(source.contains("DROP TABLE IF EXISTS reading_display"))
         assertFalse(source.contains("DROP TABLE IF EXISTS history_readings"))
         assertFalse(source.contains("DROP TABLE IF EXISTS reading_uncertainty"))
+    }
+
+    @Test
+    fun mainValuesSealedAgainstTheWrongSensorAreDiscarded() {
+        val source = historyDatabaseSource()
+
+        // Insert-or-ignore is what makes a recorded value durable, and also what
+        // stops a bad row ever being corrected in place. Clearing the table is
+        // the only way to retire the coin-flip ownership the first pass wrote.
+        assertTrue(source.contains("Migration(24, 25)"))
+        assertTrue(source.contains("MIGRATION_24_25"))
+        assertTrue(source.contains("DELETE FROM reading_display"))
+        assertFalse(source.contains("DELETE FROM history_readings"))
     }
 }
