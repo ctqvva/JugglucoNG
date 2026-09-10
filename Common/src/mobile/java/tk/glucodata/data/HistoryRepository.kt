@@ -695,12 +695,6 @@ class HistoryRepository(context: Context = Applic.app) {
                         )
                     )
                 }
-                recordDisplayValueForStoredReading(
-                    sensorSerial = serial,
-                    timestamp = timestamp,
-                    value = value,
-                    rawValue = rawValue
-                )
             } catch (e: Exception) {
                 Log.e(TAG, "Error storing reading", e)
             }
@@ -716,51 +710,6 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
-    /**
-     * Records what a freshly stored reading displays as.
-     *
-     * The projection this performs used to be applied to the reading itself, on
-     * the way into the database — so a reading's stored value depended on the
-     * calibration configured the instant it arrived, and no later correction
-     * could tell the two apart. Recording it separately keeps the measurement
-     * and the presentation distinct.
-     */
-    private suspend fun recordDisplayValueForStoredReading(
-        sensorSerial: String,
-        timestamp: Long,
-        value: Float,
-        rawValue: Float
-    ) {
-        if (!CalibrationManager.shouldFreezeDisplayedValues()) return
-
-        val viewMode = resolveSensorViewMode(sensorSerial)
-        val isRawMode = viewMode == 1 || viewMode == 3
-        val baseValue = if (isRawMode) rawValue else value
-        if (!baseValue.isFinite() || baseValue <= 0f) return
-        if (!CalibrationManager.hasActiveCalibration(isRawMode, sensorSerial)) return
-
-        val calibrated = CalibrationManager.getCalibratedValue(
-            value = baseValue,
-            timestamp = timestamp,
-            isRawMode = isRawMode,
-            sensorIdOverride = sensorSerial
-        )
-        if (!calibrated.isFinite() || calibrated <= 0f) return
-
-        runCatching {
-            displayDao.insert(
-                ReadingDisplay(
-                    sensorSerial = sensorSerial,
-                    timestamp = timestamp,
-                    displayMgdl = calibrated,
-                    viewMode = viewMode,
-                    calibrationFingerprint = CalibrationManager
-                        .getIntegratedCalibrationFingerprint(sensorSerial, isRawMode),
-                    recordedAt = System.currentTimeMillis()
-                )
-            )
-        }.onFailure { Log.e(TAG, "Failed recording display value for $sensorSerial", it) }
-    }
 
     /**
      * Store multiple readings at once (used for backfill).
@@ -1084,7 +1033,7 @@ class HistoryRepository(context: Context = Applic.app) {
     ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> =
         kotlinx.coroutines.flow.combine(
             points,
-            displayDao.getFlowForSensors(serials, startTime)
+            displayDao.getFlow(startTime)
         ) { mapped, display ->
             if (display.isEmpty() ||
                 !runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
@@ -1094,8 +1043,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 val nowMs = System.currentTimeMillis()
                 val indexed = display.indexedDisplay()
                 mapped.map { point ->
-                    val serial = point.sensorSerial ?: return@map point
-                    val sealed = indexed[displayKey(serial, point.timestamp)]
+                    val sealed = indexed[displayKey(point.timestamp)]
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
                         ?: return@map point
                     point.copy(sealedDisplayValue = sealed.displayMgdl)
@@ -1202,8 +1150,11 @@ class HistoryRepository(context: Context = Applic.app) {
             displayDao.getFlow(startTime),
         ) { readings, display ->
             val indexed = display.indexedDisplay()
+            val freezeEnabled = indexed.isNotEmpty() &&
+                runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+            val nowMs = System.currentTimeMillis()
             mergeQueryReadings(readings, preferredSerial).map { reading ->
-                mapReadingForStats(reading, indexed)
+                mapReadingForStats(reading, indexed, freezeEnabled, nowMs)
             }
         }.flowOn(Dispatchers.IO)
     }
@@ -1243,7 +1194,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapReadings(
                     mergeQueryReadings(readings, serial),
                     uncertaintyFor(serials, startTime),
-                    displayRecordsFor(serials, startTime)
+                    displayRecordsFor(startTime)
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting history for sensor $serial", e)
@@ -1261,7 +1212,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapReadings(
                     mergeQueryReadings(readings, serial),
                     uncertaintyFor(serials, startTime),
-                    displayRecordsFor(serials, startTime)
+                    displayRecordsFor(startTime)
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting display history for sensor $serial", e)
@@ -1274,10 +1225,10 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val readings = dao.getReadingsSince(startTime)
-                val display = runCatching { displayDao.getAllSince(startTime).indexedDisplay() }
-                    .getOrDefault(emptyMap())
+                val display = displayRecordsFor(startTime)
+                val nowMs = System.currentTimeMillis()
                 mergeQueryReadings(readings, preferredSerial).map { reading ->
-                    mapReadingForStats(reading, display)
+                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting stats display history", e)
@@ -1499,7 +1450,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 readings,
                 preferredSerial,
                 uncertaintyFor(serials, tailStart),
-                displayRecordsFor(serials, tailStart)
+                displayRecordsFor(tailStart)
             )
         } catch (e: Exception) {
             Log.e(TAG, "First-paint history query failed", e)
@@ -1582,7 +1533,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 sealedDisplayValue = if (!freezeEnabled) {
                     null
                 } else {
-                    display[displayKey(reading.sensorSerial, reading.timestamp)]
+                    display[displayKey(reading.timestamp)]
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
                         ?.displayMgdl
                 },
@@ -1590,23 +1541,24 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
-    /** Display records for [serials] since [startTime], indexed by [displayKey]. */
-    private suspend fun displayRecordsFor(
-        serials: List<String>,
-        startTime: Long
-    ): Map<Long, ReadingDisplay> {
-        if (serials.isEmpty()) return emptyMap()
+    /**
+     * Recorded main values since [startTime], indexed by [displayKey].
+     *
+     * Not scoped to a sensor: the record describes the minute the dashboard
+     * drew, whichever sensor won it. Scoping this by serial is what made a
+     * two-sensor store fall back to live derivation for every minute the other
+     * sensor owned.
+     */
+    private suspend fun displayRecordsFor(startTime: Long): Map<Long, ReadingDisplay> {
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
             return emptyMap()
         }
-        return runCatching {
-            displayDao.getForSensors(serials, startTime)
-                .associateBy { displayKey(it.sensorSerial, it.timestamp) }
-        }.getOrDefault(emptyMap())
+        return runCatching { displayDao.getAllSince(startTime).indexedDisplay() }
+            .getOrDefault(emptyMap())
     }
 
     private fun List<ReadingDisplay>.indexedDisplay(): Map<Long, ReadingDisplay> =
-        if (isEmpty()) emptyMap() else associateBy { displayKey(it.sensorSerial, it.timestamp) }
+        if (isEmpty()) emptyMap() else associateBy { displayKey(it.timestamp) }
 
     /**
      * Intervals are keyed by sensor and **minute**, not by exact timestamp.
@@ -1654,11 +1606,18 @@ class HistoryRepository(context: Context = Applic.app) {
             .onFailure { Log.w(TAG, "clearUncertaintyForSensor failed for $serial", it) }
     }
 
+    /**
+     * @param freezeEnabled must be the same answer the chart got. This used to
+     *   apply the record unconditionally while [mapReadings] gated it on the
+     *   setting, so turning the freeze off un-froze the line and left the
+     *   statistics summarising numbers that were no longer on screen.
+     */
     private fun mapReadingForStats(
         reading: HistoryReading,
-        display: Map<Long, ReadingDisplay> = emptyMap()
+        display: Map<Long, ReadingDisplay> = emptyMap(),
+        freezeEnabled: Boolean = false,
+        nowMs: Long = System.currentTimeMillis()
     ): GlucosePoint {
-        val nowMs = System.currentTimeMillis()
         return GlucosePoint(
             value = reading.value,
             time = "",
@@ -1667,9 +1626,13 @@ class HistoryRepository(context: Context = Applic.app) {
             rate = reading.rate,
             sensorSerial = reading.sensorSerial,
             source = reading.source,
-            sealedDisplayValue = display[displayKey(reading.sensorSerial, reading.timestamp)]
-                ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
-                ?.displayMgdl,
+            sealedDisplayValue = if (!freezeEnabled) {
+                null
+            } else {
+                display[displayKey(reading.timestamp)]
+                    ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                    ?.displayMgdl
+            },
         )
     }
 
@@ -1951,179 +1914,146 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
-    /**
-     * Records what each of this sensor's readings currently displays as, without
-     * touching the readings themselves.
-     *
-     * This replaces `rewriteSensorValuesWithCalibration`, which did the opposite
-     * of its name's promise: it read `history_readings.value`, calibrated it, and
-     * wrote the result back into `value` — then mirrored that into the native
-     * store. Because its input was its own previous output, every calibration
-     * edit and every toggle re-calibrated an already-calibrated number, raw mode
-     * wrote calibrated values into the `rawValue` column, and turning calibration
-     * off could not undo any of it: the sensor's own number was gone.
-     *
-     * Two changes make this safe. The derivation always starts from the
-     * immutable stored value, so replaying the pass converges rather than
-     * drifting. And the result goes to `reading_display`, so nothing the sensor
-     * measured is overwritten and disabling calibration simply stops consulting
-     * the record.
-     *
-     * Sealed records are left alone unless [recomputeFromTimestamp] is given —
-     * rewriting values the user has already read is a deliberate act, never a
-     * side effect of flipping a switch.
-     *
-     * @return how many records were written.
-     */
-    suspend fun recordCalibratedDisplayValues(
-        sensorSerial: String,
-        isRawMode: Boolean,
-        startTimestamp: Long = 0L,
-        recomputeFromTimestamp: Long? = null
-    ): Int {
-        if (sensorSerial.isBlank()) return 0
-        if (!CalibrationManager.shouldFreezeDisplayedValues()) return 0
-        if (!CalibrationManager.hasActiveCalibration(isRawMode, sensorSerial)) return 0
-        val effectiveStartTimestamp = if (CalibrationManager.shouldLockPastHistory()) {
-            startTimestamp.coerceAtLeast(0L)
-        } else {
-            0L
-        }
 
+
+    /**
+     * Records the main value for every minute that has left the grace window,
+     * and never touches a minute that already has one.
+     *
+     * This replaces three separate write paths that between them recorded
+     * almost nothing. One ran only on the single-reading insert, so backfill,
+     * native re-sync and Nightscout pulls recorded nothing at all. All three
+     * refused to write unless a calibration was already active, so a store with
+     * calibration off — or one whose readings arrived before the user ever
+     * calibrated — had no record to protect and the past moved freely. And all
+     * three keyed the record by sensor, which cannot express which sensor the
+     * dashboard actually drew.
+     *
+     * Three rules make this one honest:
+     *
+     * 1. **Unconditional.** A minute is recorded whether or not a calibration
+     *    applies to it. The setting decides whether the record is *consulted*,
+     *    never whether it is *kept* — otherwise turning the freeze on protects
+     *    nothing that has not already been recorded, and turning it off loses
+     *    the interval for good.
+     * 2. **Post-horizon only.** Rows are written for minutes already older than
+     *    [ReadingDisplay.DISPLAY_SEAL_GRACE_MS] and for no others, so a stored
+     *    row and a settling minute can never disagree.
+     * 3. **Insert-or-ignore.** A minute that already has a record keeps it,
+     *    whatever today's settings would compute. Replaying this pass is a
+     *    no-op, which is the property that makes the guarantee a guarantee.
+     *
+     * @param preferredSerial the sensor the dashboard is currently drawing as
+     *   main; the merge decides ownership the same way the chart does, and the
+     *   decision is then frozen into the row.
+     * @param full re-examine the whole timeline instead of resuming after the
+     *   newest recorded minute. Needed after an import or a native backfill,
+     *   which can add readings for minutes that are already behind the
+     *   watermark.
+     * @return how many minutes were newly recorded.
+     */
+    suspend fun sealDueMainValues(
+        preferredSerial: String? = null,
+        full: Boolean = false
+    ): Int {
         return withContext(Dispatchers.IO) {
             try {
-                val serials = resolveQuerySensorSerials(sensorSerial).ifEmpty { listOf(sensorSerial) }
-                val readings = dao.getReadingsSinceForSensor(sensorSerial, effectiveStartTimestamp)
-                if (readings.isEmpty()) return@withContext 0
-
                 val nowMs = System.currentTimeMillis()
-                val existing = runCatching {
-                    displayDao.getForSensors(serials, effectiveStartTimestamp)
-                }.getOrDefault(emptyList()).associateBy { displayKey(it.sensorSerial, it.timestamp) }
-                val fingerprint = runCatching {
-                    CalibrationManager.getIntegratedCalibrationFingerprint(sensorSerial, isRawMode)
-                }.getOrDefault(0L)
-                val viewMode = if (isRawMode) 1 else 0
+                val horizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+                val resumeAfter = if (full) {
+                    0L
+                } else {
+                    runCatching { displayDao.getNewestSealedMinute() }.getOrNull() ?: 0L
+                }
 
-                val rows = ArrayList<ReadingDisplay>(readings.size)
-                readings.forEach { reading ->
-                    // Always the sensor's own number, never a previous derivation.
-                    val baseValue = if (isRawMode) reading.rawValue else reading.value
-                    if (!baseValue.isFinite() || baseValue <= 0f) return@forEach
+                // HistoryDisplayMerge must see the whole stored timeline: given a
+                // slice it truncates the coverage segments and hands minutes to a
+                // sensor that did not own them. Slice after merging, never before.
+                val readings = dao.getReadingsSince(0L)
+                if (readings.isEmpty()) return@withContext 0
+                val merged = HistoryDisplayMerge.mergeReadings(readings, preferredSerial)
 
-                    val recorded = existing[displayKey(reading.sensorSerial, reading.timestamp)]
-                    val allowed = if (recomputeFromTimestamp != null) {
-                        ReadingDisplayPolicy.shouldRecomputeExplicitly(
-                            recorded = recorded,
-                            fromTimestampMs = recomputeFromTimestamp,
-                            readingTimestampMs = reading.timestamp
-                        )
-                    } else {
-                        ReadingDisplayPolicy.shouldRecord(recorded, nowMs, freezeEnabled = true)
-                    }
-                    if (!allowed) return@forEach
+                val viewModes = HashMap<String, Int>()
+                val fingerprints = HashMap<String, Long>()
+                val claimed = HashSet<Long>()
+                val rows = ArrayList<ReadingDisplay>()
 
-                    val calibrated = CalibrationManager.getCalibratedValue(
-                        value = baseValue,
-                        timestamp = reading.timestamp,
-                        isRawMode = isRawMode,
-                        sensorIdOverride = sensorSerial
-                    )
-                    if (!calibrated.isFinite() || calibrated <= 0f) return@forEach
-                    if (recorded != null &&
-                        recorded.viewMode == viewMode &&
-                        kotlin.math.abs(recorded.displayMgdl - calibrated) < 0.01f
+                merged.forEach { reading ->
+                    if (reading.timestamp > horizon) return@forEach
+                    val minute = ReadingDisplay.minuteOf(reading.timestamp)
+                    if (minute <= resumeAfter) return@forEach
+                    if (!claimed.add(minute)) return@forEach
+                    val serial = reading.sensorSerial?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: return@forEach
+
+                    val viewMode = viewModes.getOrPut(serial) { resolveSensorViewMode(serial) }
+                    val isRawMode = viewMode == 1 || viewMode == 3
+                    val base = if (isRawMode) reading.rawValue else reading.value
+                    if (!base.isFinite() || base <= 0f) return@forEach
+
+                    // The number the dashboard would have drawn: the sensor's own
+                    // value, projected through whatever calibration applies. When
+                    // none applies this is the sensor's value unchanged, and that
+                    // is just as much a fact worth keeping.
+                    val shown = if (
+                        runCatching {
+                            CalibrationManager.hasActiveCalibration(isRawMode, serial)
+                        }.getOrDefault(false)
                     ) {
-                        return@forEach
+                        runCatching {
+                            CalibrationManager.getCalibratedValue(
+                                value = base,
+                                timestamp = reading.timestamp,
+                                isRawMode = isRawMode,
+                                sensorIdOverride = serial
+                            )
+                        }.getOrDefault(base).takeIf { it.isFinite() && it > 0f } ?: base
+                    } else {
+                        base
                     }
 
                     rows.add(
                         ReadingDisplay(
-                            sensorSerial = reading.sensorSerial,
-                            timestamp = reading.timestamp,
-                            displayMgdl = calibrated,
+                            timestamp = minute,
+                            sensorSerial = serial,
+                            displayMgdl = shown,
                             viewMode = viewMode,
-                            calibrationFingerprint = fingerprint,
-                            // A recompute re-dates the record, so its own grace
-                            // window starts now rather than being instantly sealed
-                            // at a time the user never saw it.
-                            recordedAt = recorded?.recordedAt?.takeIf { recomputeFromTimestamp == null } ?: nowMs
+                            calibrationFingerprint = fingerprints.getOrPut(serial) {
+                                runCatching {
+                                    CalibrationManager
+                                        .getIntegratedCalibrationFingerprint(serial, isRawMode)
+                                }.getOrDefault(0L)
+                            },
+                            recordedAt = nowMs
                         )
                     )
                 }
 
-                if (rows.isNotEmpty()) {
-                    displayDao.insertAll(rows)
-                    UiRefreshBus.requestDataRefresh()
-                    Log.d(
-                        TAG,
-                        "Recorded ${rows.size} display values for $sensorSerial " +
-                            "(raw=$isRawMode, start=$effectiveStartTimestamp, recompute=$recomputeFromTimestamp)"
-                    )
+                if (rows.isEmpty()) return@withContext 0
+                var inserted = 0
+                rows.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
+                    inserted += displayDao.sealAll(chunk).count { it >= 0L }
                 }
-                rows.size
+                if (inserted > 0) {
+                    UiRefreshBus.requestDataRefresh()
+                    Log.d(TAG, "Sealed $inserted main values (full=$full, after=$resumeAfter)")
+                }
+                inserted
             } catch (e: Exception) {
-                Log.e(TAG, "Failed recording display values for $sensorSerial", e)
+                Log.e(TAG, "Failed sealing main values", e)
                 0
             }
         }
     }
 
     /**
-     * Seeds the display record for stores that ran with the old destructive
-     * "overwrite sensor values" switch.
+     * The recorded main value's key: the minute, and nothing else.
      *
-     * Those stores cannot be repaired: the sensor's own numbers were written
-     * over and are not recoverable from Room. But whatever sits in `value` today
-     * *is* what the user was shown, so copying it into the record preserves
-     * exactly that, and stops the drift there. Readings written since are left
-     * alone — they are already honest.
-     *
-     * Runs once, gated by the same preference migration that retires the switch.
+     * It used to mix the sensor in — `(minute * 31) + sensorSerial.hashCode()`
+     * — which made the record per-sensor and therefore unable to say which
+     * sensor the dashboard actually showed. See [ReadingDisplay].
      */
-    suspend fun seedDisplayRecordsFromOverwrittenHistory() {
-        withContext(Dispatchers.IO) {
-            try {
-                if (!CalibrationManager.migrateOverwriteSensorValuesToFreeze()) return@withContext
-                if (displayDao.getCount() > 0) return@withContext
-
-                val nowMs = System.currentTimeMillis()
-                // Anything inside the grace window is still settling; seeding it
-                // would freeze a value that has not finished being one.
-                val cutoff = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
-                val readings = dao.getReadingsSince(0L).filter { it.timestamp < cutoff }
-                if (readings.isEmpty()) return@withContext
-
-                readings.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
-                    displayDao.insertAll(
-                        chunk.mapNotNull { reading ->
-                            reading.value
-                                .takeIf { it.isFinite() && it > 0f }
-                                ?.let { value ->
-                                    ReadingDisplay(
-                                        sensorSerial = reading.sensorSerial,
-                                        timestamp = reading.timestamp,
-                                        displayMgdl = value,
-                                        viewMode = 0,
-                                        calibrationFingerprint = 0L,
-                                        // Dated before the grace window so these
-                                        // are sealed on arrival: they describe
-                                        // what was already shown.
-                                        recordedAt = reading.timestamp
-                                    )
-                                }
-                        }
-                    )
-                }
-                Log.i(TAG, "Seeded ${readings.size} display records from previously overwritten history")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed seeding display records", e)
-            }
-        }
-    }
-
-    private fun displayKey(sensorSerial: String, timestamp: Long): Long =
-        (timestamp / 60_000L) * 31L + sensorSerial.hashCode()
+    private fun displayKey(timestamp: Long): Long = ReadingDisplay.minuteOf(timestamp)
 
     private fun linkedSetOfSensors(
         activeSensors: Array<String?>?,

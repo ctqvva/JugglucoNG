@@ -160,16 +160,18 @@ fun CalibrationListScreen(
         !calibrationUiPrefs.getBoolean(CalibrationMasterCardSeenPref, false)
     }
     /**
-     * Keeps the display record current after a calibration change.
+     * Seals any minute that has left the grace window since the last pass.
      *
-     * Formerly gated on the "overwrite sensor values" switch, which rewrote the
-     * stored readings in place from its own previous output. Recording is
-     * non-destructive and idempotent, so it no longer needs a switch to protect
-     * the data from it.
+     * A calibration change does **not** rewrite what is already recorded — that
+     * is the guarantee, and there is deliberately no code path that could. What
+     * it does mean is that the minutes about to leave the window should be
+     * sealed against the calibration now in force rather than waiting for the
+     * next background pass, so the boundary sits where the user just acted.
+     * Insert-or-ignore, so calling it after every edit is free.
      */
     suspend fun recordDisplayValues() {
         if (currentSensor.isBlank()) return
-        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
+        historyRepository.sealDueMainValues(currentSensor)
     }
 
     var showImportExportSheet by rememberSaveable { mutableStateOf(false) }
@@ -372,46 +374,21 @@ fun CalibrationListScreen(
                             calibrateFromJournal = calibrateFromJournal,
                             onToggle = { enabled ->
                                 CalibrationManager.setEnabledForMode(isRawMode, enabled, currentSensor)
-                                if (enabled && overwriteSensorValues && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             },
                             onToggleHideInitial = { enabled ->
                                 CalibrationManager.setHideInitialWhenCalibrated(enabled)
                             },
                             onToggleApplyToPast = { enabled ->
                                 CalibrationManager.setApplyToPast(enabled)
-                                if (overwriteSensorValues && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             },
                             onToggleLockPastHistory = { enabled ->
                                 CalibrationManager.setLockPastHistory(enabled)
-                                if (overwriteSensorValues && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             },
                             onToggleKeepDisabledHistory = { enabled ->
                                 CalibrationManager.setKeepDisabledHistory(enabled)
-                                if (overwriteSensorValues && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             },
                             onToggleOverwriteSensorValues = { enabled ->
                                 CalibrationManager.setOverwriteSensorValues(enabled)
-                                if (enabled && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             },
                             onToggleVisualContinuity = { enabled ->
                                 CalibrationManager.setVisualContinuity(enabled)
@@ -433,11 +410,6 @@ fun CalibrationListScreen(
                             },
                             onSelectWeightMode = { mode ->
                                 CalibrationManager.setWeightMode(mode)
-                                if (overwriteSensorValues && currentSensor.isNotBlank()) {
-                                    scope.launch {
-                                        historyRepository.recordCalibratedDisplayValues(currentSensor, isRawMode)
-                                    }
-                                }
                             }
                         )
                     }

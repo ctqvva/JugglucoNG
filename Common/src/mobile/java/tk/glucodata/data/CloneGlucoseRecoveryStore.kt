@@ -144,11 +144,9 @@ internal class CloneGlucoseRecoveryStore(
 
     private suspend fun exportDisplay(sink: CloneRecoveryPackageIO.RecordSink) {
         var afterTimestamp = 0L
-        var afterSensorSerial = ""
         while (true) {
             val page = displayDao.getRecoveryPage(
                 afterTimestamp = afterTimestamp,
-                afterSensorSerial = afterSensorSerial,
                 limit = PAGE_SIZE,
             )
             if (page.isEmpty()) return
@@ -158,9 +156,7 @@ internal class CloneGlucoseRecoveryStore(
                     CloneGlucoseRecoveryRecords.encode(display),
                 )
             }
-            val last = page.last()
-            afterTimestamp = last.timestamp
-            afterSensorSerial = last.sensorSerial
+            afterTimestamp = page.last().timestamp
         }
     }
 
@@ -260,9 +256,9 @@ internal class CloneGlucoseRecoveryStore(
             if (display.isEmpty()) return
             val candidates = CloneGlucoseRecoveryMergePolicy.displayToInsert(
                 rows = display,
-                existingReadingKeys = existingReadingKeysForDisplay(display),
+                existingReadingMinutes = existingReadingMinutesForDisplay(display),
             )
-            if (candidates.isNotEmpty()) displayDao.insertAllIgnoring(candidates)
+            if (candidates.isNotEmpty()) displayDao.sealAll(candidates)
             display.clear()
         }
 
@@ -308,17 +304,19 @@ internal class CloneGlucoseRecoveryStore(
             return existing
         }
 
-        private suspend fun existingReadingKeysForDisplay(
+        /** The minutes these records describe that this store has a reading for. */
+        private suspend fun existingReadingMinutesForDisplay(
             rows: List<ReadingDisplay>,
-        ): Set<Pair<String, Long>> {
-            val existing = mutableSetOf<Pair<String, Long>>()
-            rows.groupBy(ReadingDisplay::sensorSerial).forEach { (serial, serialRows) ->
-                serialRows.map(ReadingDisplay::timestamp).distinct().chunked(SQL_IN_LIMIT)
-                    .forEach { timestamps ->
-                        historyDao.getSensorReadingsAtTimestamps(serial, timestamps)
-                            .forEach { reading -> existing += serial to reading.timestamp }
+        ): Set<Long> {
+            val existing = mutableSetOf<Long>()
+            rows.map { ReadingDisplay.minuteOf(it.timestamp) }.distinct().chunked(SQL_IN_LIMIT)
+                .forEach { minutes ->
+                    val from = minutes.min()
+                    val to = minutes.max() + ReadingDisplay.MINUTE_MS
+                    historyDao.getReadingsBetween(from, to).forEach { reading ->
+                        existing += ReadingDisplay.minuteOf(reading.timestamp)
                     }
-            }
+                }
             return existing
         }
     }

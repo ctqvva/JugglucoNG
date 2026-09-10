@@ -133,18 +133,17 @@ fun CalibrationBottomSheet(
     } ?: initialValueAuto
 
     /**
-     * Records what the readings now display as. Non-destructive: the sensor's own
-     * stored values are never touched, and readings already sealed keep the
-     * number they were shown as.
+     * Seals the minutes that have just left the grace window.
+     *
+     * Nothing already recorded is touched — a calibration edit cannot move a
+     * value the dashboard has already shown, and no code path exists that would
+     * let it. [startTimestamp] is ignored and kept only so the call sites read
+     * the same; the seal boundary is the grace window, not the edit.
      */
-    fun triggerRewriteOverwrittenHistory(startTimestamp: Long = 0L) {
+    fun sealMainValuesNowDue(startTimestamp: Long = 0L) {
         if (currentSensor.isBlank()) return
         CoroutineScope(Dispatchers.IO).launch {
-            historyRepository.recordCalibratedDisplayValues(
-                sensorSerial = currentSensor,
-                isRawMode = isRawMode,
-                startTimestamp = startTimestamp
-            )
+            historyRepository.sealDueMainValues(currentSensor)
         }
     }
 
@@ -294,7 +293,7 @@ fun CalibrationBottomSheet(
                             onClick = {
                                 scope.launch {
                                     CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
-                                    triggerRewriteOverwrittenHistory(editingEntity!!.timestamp)
+                                    sealMainValuesNowDue(editingEntity!!.timestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(
@@ -319,7 +318,7 @@ fun CalibrationBottomSheet(
                                      CalibrationManager.deleteCalibration(editingEntity!!)
                                      selectedTimestamp = System.currentTimeMillis()
                                      onDismiss()
-                                     triggerRewriteOverwrittenHistory(deletedTimestamp)
+                                     sealMainValuesNowDue(deletedTimestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -527,7 +526,7 @@ fun CalibrationBottomSheet(
                                     )
                                 )
                                 onDismiss()
-                                triggerRewriteOverwrittenHistory(minOf(previousTimestamp, selectedTimestamp))
+                                sealMainValuesNowDue(minOf(previousTimestamp, selectedTimestamp))
                             } else {
                                 // New
                                 CalibrationManager.addCalibration(
@@ -547,7 +546,7 @@ fun CalibrationBottomSheet(
                                         .takeIf { it.isFinite() && it > 0f } ?: 0f
                                 )
                                 onDismiss()
-                                triggerRewriteOverwrittenHistory(selectedTimestamp)
+                                sealMainValuesNowDue(selectedTimestamp)
                             }
                         }
                     },

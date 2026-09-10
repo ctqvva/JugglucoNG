@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 23"))
+        assertTrue(source.contains("version = 24"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
@@ -68,5 +68,21 @@ class HistoryDatabaseSafetyTests {
         assertTrue(source.contains("index_clone_journal_recovery_tombstones_recoveryId"))
         assertTrue(source.contains("MIGRATION_21_22"))
         assertFalse(source.contains("DROP TABLE clone_journal_tombstones"))
+    }
+
+    @Test
+    fun recordedMainValueMigrationIsRegisteredAndKeyedByTheMinute() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("Migration(23, 24)"))
+        assertTrue(source.contains("MIGRATION_23_24"))
+        // The whole point of the migration: one row per minute, so the record can
+        // say which sensor the dashboard drew instead of what each would have.
+        assertTrue(source.contains("PRIMARY KEY(timestamp)"))
+        // Rebuilding this one table is deliberate and is the only table the
+        // migration is allowed to drop.
+        assertTrue(source.contains("DROP TABLE IF EXISTS reading_display"))
+        assertFalse(source.contains("DROP TABLE IF EXISTS history_readings"))
+        assertFalse(source.contains("DROP TABLE IF EXISTS reading_uncertainty"))
     }
 }

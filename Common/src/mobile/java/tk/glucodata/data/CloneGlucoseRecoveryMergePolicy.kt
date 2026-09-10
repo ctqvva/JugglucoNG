@@ -28,10 +28,20 @@ internal object CloneGlucoseRecoveryMergePolicy {
         (it.sensorSerial to it.timestamp) in existingReadingMinuteKeys
     }
 
+    /**
+     * Keeps only the recorded main values whose minute this store actually has a
+     * reading for.
+     *
+     * Matched on the **minute**, not on an exact reading timestamp: a recorded
+     * main value is keyed by the minute it describes (see [ReadingDisplay]),
+     * while a reading carries the millisecond it arrived. Comparing the two
+     * directly matches almost nothing, which would silently drop every imported
+     * record instead of guarding against orphans.
+     */
     fun displayToInsert(
         rows: List<ReadingDisplay>,
-        existingReadingKeys: Set<Pair<String, Long>>,
+        existingReadingMinutes: Set<Long>,
     ): List<ReadingDisplay> = rows.filter {
-        (it.sensorSerial to it.timestamp) in existingReadingKeys
+        ReadingDisplay.minuteOf(it.timestamp) in existingReadingMinutes
     }
 }

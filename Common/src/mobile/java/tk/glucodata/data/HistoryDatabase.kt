@@ -45,6 +45,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v21 — durable journal recovery identity independent of local database row ids
  *   v22 — durable cross-device journal recovery tombstones
  *   v23 — transactional history recovery import receipts
+ *   v24 — recorded main value keyed by the minute rather than by sensor
  */
 @Database(
     entities = [
@@ -60,7 +61,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -556,6 +557,44 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        /**
+         * v23 -> v24: key the recorded main value by the minute, not the sensor.
+         *
+         * The old table stored what each sensor would have displayed and never
+         * which sensor won the minute, so the dashboard's main value still moved
+         * whenever the merge ranking changed — which, with two sensors reporting
+         * in the same minute, is most of a real timeline. The decision is now
+         * part of the record.
+         *
+         * The old rows cannot be carried over: they are per-sensor, several can
+         * claim one minute, and nothing in them says which was on screen.
+         * Guessing would bake the very ambiguity this migration removes, so the
+         * table is rebuilt empty and the seal pass repopulates it going forward.
+         */
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS reading_display")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        timestamp INTEGER NOT NULL,
+                        sensorSerial TEXT NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_sensorSerial " +
+                        "ON reading_display (sensorSerial)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -584,7 +623,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_19_20,
                     MIGRATION_20_21,
                     MIGRATION_21_22,
-                    MIGRATION_22_23
+                    MIGRATION_22_23,
+                    MIGRATION_23_24
                 )
                 .build().also { INSTANCE = it }
             }

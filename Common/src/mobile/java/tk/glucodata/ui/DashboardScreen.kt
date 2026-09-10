@@ -387,10 +387,12 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         tk.glucodata.data.calibration.CalibrationManager.init(context)
         tk.glucodata.data.calibration.CalibrationManager.loadCalibrations()
-        // Retires the old "overwrite sensor values" switch and, for stores that
-        // ran with it on, records what was already displayed before anything
-        // else can move it — see HistoryRepository.
-        tk.glucodata.data.HistoryRepository(context).seedDisplayRecordsFromOverwrittenHistory()
+        // Records the main value for every minute that has left the grace
+        // window, so a store that has never sealed one — a fresh install, or an
+        // upgrade from before the record existed — is covered from its whole
+        // stored history rather than only from now on. Insert-or-ignore, so this
+        // cannot move a minute that already has a record. See HistoryRepository.
+        tk.glucodata.data.HistoryRepository(context).sealDueMainValues(full = true)
         // Journal BG entries can arrive while the app is not running — a meter
         // handing over its stored readings, a Nightscout pull — so the derived
         // calibrations are re-paired once here rather than only on a live edit.

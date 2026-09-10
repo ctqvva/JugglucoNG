@@ -84,7 +84,7 @@ class CloneGlucoseRecoveryMergePolicyTests {
         assertTrue(
             CloneGlucoseRecoveryMergePolicy.displayToInsert(
                 rows = listOf(display),
-                existingReadingKeys = emptySet(),
+                existingReadingMinutes = emptySet(),
             ).isEmpty(),
         )
     }
