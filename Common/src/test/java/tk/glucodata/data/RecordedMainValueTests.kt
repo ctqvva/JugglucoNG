@@ -86,6 +86,38 @@ class RecordedMainValueTests {
     }
 
     /**
+     * A recorded main value is mg/dL. Every consumer that works in display units
+     * has to convert it, and one of them did not: the statistics overlay wrote
+     * 292 where 16.2 belonged, the plausibility check rejected it, and the point
+     * was dropped — so a recorded reading disappeared from the statistics
+     * entirely and only the unsealed tail survived.
+     */
+    @Test
+    fun everyConsumerConvertsTheRecordedValueOutOfMgdl() {
+        val stats = File("src/mobile/java/tk/glucodata/ui/stats/StatsViewModel.kt").readText()
+        val overlay = stats.substringAfter("point.sealedDisplayValue").substringBefore("\n        }")
+        assertTrue(
+            "the statistics overlay works in display units and must convert",
+            overlay.contains("displayFromMgDl"),
+        )
+
+        val export = File("src/mobile/java/tk/glucodata/data/ExportCalibration.kt").readText()
+        assertTrue(
+            "the export renders display units and must convert",
+            export.contains("GlucoseFormatter.displayFromMgDl(it, isMmol)"),
+        )
+
+        // The chart's points are converted wholesale by inDisplayUnit, which has
+        // to carry the recorded value across with them or the line and the
+        // record end up in different units.
+        val formatter = File("src/main/java/tk/glucodata/ui/util/GlucoseFormatter.kt").readText()
+        assertTrue(
+            "inDisplayUnit must convert the recorded value alongside the reading",
+            formatter.contains("sealedDisplayValue = sealedDisplayValue?.let(GlucoseFormatter::mgToMmol)"),
+        )
+    }
+
+    /**
      * The write side must not be gated on a calibration being active, or a store
      * with calibration off records nothing and the setting protects nothing.
      */
