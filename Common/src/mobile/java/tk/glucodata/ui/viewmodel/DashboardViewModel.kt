@@ -1157,32 +1157,7 @@ class DashboardViewModel(
                 _activeSensorList.value = config.selectedSensorIds
                 _sensorViewModes.value = config.sensorViewModes
 
-                val declaredPeers = config.selectedSensorIds.drop(1)
-                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
-
-                // The primary's own past, over the stretch it is not the main
-                // line for.
-                //
-                // After a main-sensor swap the new main keeps its main style
-                // going forward, while the record still names the old sensor for
-                // every minute past the grace window. Across that stretch the new
-                // main was drawn nowhere: not the record's owner, so not the main
-                // line, and the primary, so not a peer either — its history ended
-                // an hour back. It is drawn there the way it looked then, as a
-                // peer, and only there. Adding it to the peer set outright draws
-                // it twice, main line and peer over the top of each other, which
-                // is what a first attempt shipped.
-                val primary = config.primarySensorId?.takeIf { it.isNotBlank() }
-                val primaryPastMinutes = if (primary == null) {
-                    emptySet()
-                } else {
-                    historyRepository.recordedMinutesNotOwnedBy(primary, startTimeMs)
-                }
-                val peerSensors = if (primary != null && primaryPastMinutes.isNotEmpty()) {
-                    declaredPeers + primary
-                } else {
-                    declaredPeers
-                }
+                val peerSensors = config.selectedSensorIds.drop(1)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1190,6 +1165,7 @@ class DashboardViewModel(
                 }
 
                 var hasSeenPeerEmission = false
+                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
@@ -1199,19 +1175,10 @@ class DashboardViewModel(
                         }
                         hasSeenPeerEmission = true
                         val converted = withContext(Dispatchers.Default) {
-                            rawHistory
-                                .filter { point ->
-                                    // Every other sensor passes through; the
-                                    // primary only where the main line is not its
-                                    // own, so the two never overlap.
-                                    primary == null ||
-                                        !SensorIdentity.matches(point.sensorSerial, primary) ||
-                                        tk.glucodata.data.ReadingDisplay.minuteOf(point.timestamp) in primaryPastMinutes
-                                }
-                                .inDisplayUnit(config.unit)
+                            rawHistory.inDisplayUnit(config.unit)
                         }
                         _multiSensorRawHistory.value = PeerRawHistory(config.selectedSensorIds, peerSensors, converted)
-                        refreshPeerCurrentReadings(declaredPeers)
+                        refreshPeerCurrentReadings(peerSensors)
                     }
                 }
         }
