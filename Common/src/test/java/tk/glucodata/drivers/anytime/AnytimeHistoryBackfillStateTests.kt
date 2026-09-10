@@ -7,6 +7,9 @@ import org.junit.Test
 
 class AnytimeHistoryBackfillStateTests {
 
+    private val HOUR_MS = 60L * 60L * 1000L
+    private val DAY_MS = 24L * HOUR_MS
+
     @Test
     fun ct5ProfileHorizonDoesNotStopLiveBoundedHistory() {
         assertFalse(
@@ -93,6 +96,102 @@ class AnytimeHistoryBackfillStateTests {
                 liveId = 8_176,
                 previousMaxId = 8_175,
                 haveTimelineStart = restored > 0L,
+            )
+        )
+    }
+
+    @Test
+    fun aPushWithoutGlucoseStillCountsAsProofTheLinkWorks() {
+        // 2026-09-10: the 15:14:19 push decoded cleanly and carried err=2 and no reading.
+        // The alarm armed from the 15:11:19 reading fired at 15:17:09 and tore the link
+        // down; 170s after a push is well inside a 3-minute cadence.
+        val cadencePlusSlack = 3L * 60_000L + 90_000L
+        assertTrue(hasRecentSensorData(lastSensorDataAtMs = 170_000L, nowMs = 340_000L, withinMs = cadencePlusSlack))
+    }
+
+    @Test
+    fun aSensorThatHasReallyGoneSilentIsNotDefended() {
+        val cadencePlusSlack = 3L * 60_000L + 90_000L
+        assertFalse(hasRecentSensorData(lastSensorDataAtMs = 1_000L, nowMs = 600_000L, withinMs = cadencePlusSlack))
+        assertFalse(hasRecentSensorData(lastSensorDataAtMs = 0L, nowMs = 600_000L, withinMs = cadencePlusSlack))
+    }
+
+    @Test
+    fun anAdvancingIdKeepsPaceWithTheSensorsOwnAge() {
+        val interval = 3L * 60_000L
+        // id 8175 at cadence is 17.03 days of sensor; a sensor that age is not frozen.
+        val idTimeline = 8_176L * interval
+        assertEquals(0L, frozenIdAgeMs(sensorAgeMs = idTimeline, lastGlucoseId = 8_175, intervalMs = interval))
+    }
+
+    @Test
+    fun aRepeatedIdShowsUpAsTheGapBetweenTheClocks() {
+        val interval = 3L * 60_000L
+        val idTimeline = 8_176L * interval
+        assertEquals(
+            26L * 60L * 60_000L,
+            frozenIdAgeMs(
+                sensorAgeMs = idTimeline + 26L * 60L * 60_000L,
+                lastGlucoseId = 8_175,
+                intervalMs = interval,
+            )
+        )
+    }
+
+    @Test
+    fun aSensorPastItsLifeStillAdvancingIdsIsNotFinished() {
+        // CT5 ids run past the nominal 7695 horizon; age alone must never end a sensor.
+        assertFalse(
+            isCt5SensorFinished(
+                sensorAgeMs = 17L * DAY_MS,
+                ratedLifetimeMs = 16L * DAY_MS,
+                frozenIdAgeMs = 0L,
+                frozenGraceMs = HOUR_MS,
+            )
+        )
+    }
+
+    @Test
+    fun aBriefRepeatInsideTheRatedLifeIsNotFinished() {
+        assertFalse(
+            isCt5SensorFinished(
+                sensorAgeMs = 9L * DAY_MS,
+                ratedLifetimeMs = 16L * DAY_MS,
+                frozenIdAgeMs = 6L * HOUR_MS,
+                frozenGraceMs = HOUR_MS,
+            )
+        )
+        // And a repeat too short to be anything but a hiccup, even past the rated life.
+        assertFalse(
+            isCt5SensorFinished(
+                sensorAgeMs = 17L * DAY_MS,
+                ratedLifetimeMs = 16L * DAY_MS,
+                frozenIdAgeMs = 20L * 60_000L,
+                frozenGraceMs = HOUR_MS,
+            )
+        )
+    }
+
+    @Test
+    fun ratedLifeOverAndTheIdStandingStillIsFinished() {
+        assertTrue(
+            isCt5SensorFinished(
+                sensorAgeMs = 18L * DAY_MS,
+                ratedLifetimeMs = 16L * DAY_MS,
+                frozenIdAgeMs = 26L * HOUR_MS,
+                frozenGraceMs = HOUR_MS,
+            )
+        )
+    }
+
+    @Test
+    fun anUnknownRatedLifeNeverEndsASensor() {
+        assertFalse(
+            isCt5SensorFinished(
+                sensorAgeMs = 40L * DAY_MS,
+                ratedLifetimeMs = 0L,
+                frozenIdAgeMs = 40L * DAY_MS,
+                frozenGraceMs = HOUR_MS,
             )
         )
     }
