@@ -1160,28 +1160,29 @@ class DashboardViewModel(
                 val declaredPeers = config.selectedSensorIds.drop(1)
                 val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
 
-                // The primary's own past, over the stretch it is not the main
-                // line for.
+                // Being a peer is a property of the minute, not of the sensor.
                 //
-                // After a main-sensor swap the new main keeps its main style
-                // going forward, while the record still names the old sensor for
-                // every minute past the grace window. Across that stretch the new
-                // main was drawn nowhere: not the record's owner, so not the main
-                // line, and the primary, so not a peer either — its history ended
-                // an hour back. It is drawn there the way it looked then, as a
-                // peer, and only there. Adding it to the peer set outright draws
-                // it twice, main line and peer over the top of each other, which
-                // is what a first attempt shipped.
+                // The main line follows the recorded main value, so its owner
+                // changes over time — after a swap the old sensor still owns
+                // everything past the grace window, because that is what was on
+                // screen. Deciding the peer set once per sensor contradicted that
+                // twice over: the sensor owning a past minute was drawn as the
+                // main line *and* as a peer, so its value appeared twice in the
+                // scrub chip; and the sensor owning the present was drawn nowhere
+                // across the past, because it is the primary and so was excluded
+                // from the peer set entirely.
+                //
+                // Asked per minute both fall out. Every selected sensor is a
+                // candidate peer, and each of its points is kept only where some
+                // other sensor owns the main line. Exactly one main line and one
+                // line per other sensor, at every minute, whichever way the swap
+                // went.
+                val ownersByMinute = historyRepository.mainLineOwnersByMinute(startTimeMs)
                 val primary = config.primarySensorId?.takeIf { it.isNotBlank() }
-                val primaryPastMinutes = if (primary == null) {
-                    emptySet()
-                } else {
-                    historyRepository.recordedMinutesNotOwnedBy(primary, startTimeMs)
-                }
-                val peerSensors = if (primary != null && primaryPastMinutes.isNotEmpty()) {
-                    declaredPeers + primary
-                } else {
+                val peerSensors = if (ownersByMinute.isEmpty()) {
                     declaredPeers
+                } else {
+                    config.selectedSensorIds
                 }
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
@@ -1201,12 +1202,15 @@ class DashboardViewModel(
                         val converted = withContext(Dispatchers.Default) {
                             rawHistory
                                 .filter { point ->
-                                    // Every other sensor passes through; the
-                                    // primary only where the main line is not its
-                                    // own, so the two never overlap.
-                                    primary == null ||
-                                        !SensorIdentity.matches(point.sensorSerial, primary) ||
-                                        tk.glucodata.data.ReadingDisplay.minuteOf(point.timestamp) in primaryPastMinutes
+                                    if (ownersByMinute.isEmpty()) return@filter true
+                                    val minute =
+                                        tk.glucodata.data.ReadingDisplay.minuteOf(point.timestamp)
+                                    // No record yet means the minute is still
+                                    // settling, and the current primary is the
+                                    // main line there.
+                                    val owner = ownersByMinute[minute] ?: primary
+                                    owner == null ||
+                                        !SensorIdentity.matches(point.sensorSerial, owner)
                                 }
                                 .inDisplayUnit(config.unit)
                         }

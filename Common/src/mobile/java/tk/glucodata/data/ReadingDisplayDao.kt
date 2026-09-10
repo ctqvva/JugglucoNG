@@ -6,6 +6,12 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** Which sensor owned the main line for one minute. */
+data class ReadingDisplayOwner(
+    val timestamp: Long,
+    val sensorSerial: String,
+)
+
 /**
  * Reads and writes [ReadingDisplay] rows.
  *
@@ -42,18 +48,17 @@ interface ReadingDisplayDao {
     fun getFlow(startTime: Long): Flow<List<ReadingDisplay>>
 
     /**
-     * The minutes since [startTime] whose recorded main value belongs to a
-     * sensor other than [serials].
+     * Which sensor owns the main line, minute by minute, since [startTime].
      *
-     * This is the stretch a sensor's history has to be drawn over in its
-     * non-main style: it is not the main line there, so it is drawn the way it
-     * looked when it was not the main line.
+     * The main line's owner changes over time — that is the whole point of the
+     * record — so "is this sensor a peer?" is a question per minute, not per
+     * sensor. Asked once per sensor it produced two contradictions at the same
+     * time: the sensor that owns a past minute was drawn as the main line *and*
+     * as a peer, so its value appeared twice; and the sensor that owns the
+     * present was drawn nowhere across the past.
      */
-    @Query(
-        "SELECT timestamp FROM reading_display " +
-            "WHERE timestamp >= :startTime AND sensorSerial NOT IN (:serials)"
-    )
-    suspend fun minutesNotOwnedBy(serials: List<String>, startTime: Long): List<Long>
+    @Query("SELECT timestamp, sensorSerial FROM reading_display WHERE timestamp >= :startTime")
+    suspend fun mainLineOwners(startTime: Long): List<ReadingDisplayOwner>
 
     /** The newest minute already recorded, so a seal pass resumes rather than rescans. */
     @Query("SELECT MAX(timestamp) FROM reading_display")
