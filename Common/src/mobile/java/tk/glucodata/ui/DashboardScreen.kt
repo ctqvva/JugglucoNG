@@ -571,7 +571,24 @@ fun DashboardScreen(
         if (multiSensorDisplay.isEmpty || !predictionSettings.enabled) {
             emptyMap()
         } else {
-            multiSensorDisplay.series.associate { peer ->
+            // Only series that are still running get a prediction.
+            //
+            // A prediction extends a line forward from its last point, so a
+            // series that stopped in the past projects a curve out of the middle
+            // of the chart — a simulation of a future that has already happened.
+            // Any retired sensor could do this; what made it routine is the
+            // historical fragment drawn for a swapped-in main sensor, which by
+            // construction ends at the grace-window boundary, so the leftover
+            // curves appeared exactly an hour back every time.
+            //
+            // The chart's own gap rule is the freshness test: a series whose
+            // last point is further behind than the chart would bridge is not
+            // producing readings, and nothing should be extrapolated from it.
+            val predictionFreshnessCutoff =
+                System.currentTimeMillis() - tk.glucodata.GlucoseChartGap.THRESHOLD_MS
+            multiSensorDisplay.series.filter { peer ->
+                (peer.points.lastOrNull()?.timestamp ?: 0L) >= predictionFreshnessCutoff
+            }.associate { peer ->
                 peer.sensorId to buildPredictionSeriesForChart(
                     points = peer.points,
                     journalEntries = if (journalEnabled) scopedJournalEntries else emptyList(),
