@@ -43,7 +43,7 @@ bool multicastLease(bool acquire) {
 
 // Resolve on the Java configuration thread, not a native receiver thread whose
 // FindClass would use the system class loader.
-void initializeLocalICEMulticast(JNIEnv *env) {
+extern "C" void initializeLocalICEMulticast(JNIEnv *env) {
     const std::lock_guard<std::mutex> lock(multicastBridgeMutex);
     if (multicastClass) return;
     auto cls = env->FindClass("tk/glucodata/CloneMulticastLock");
