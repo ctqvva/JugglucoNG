@@ -6,7 +6,7 @@ import org.junit.Test
 
 class CloneIPv4PreferenceTests {
     private fun source(path: String): String {
-        val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+        val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
             .first { File(it, "Common/src").isDirectory }
         return File(root, path).readText()
     }

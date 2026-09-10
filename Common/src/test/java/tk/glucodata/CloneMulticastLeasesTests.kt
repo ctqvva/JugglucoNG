@@ -2,6 +2,7 @@ package tk.glucodata
 
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicReference
 
 class CloneMulticastLeasesTests {
     @Test fun listenersShareLockUntilLastSessionStops() {
@@ -40,11 +41,16 @@ class CloneMulticastLeasesTests {
         var acquisitions = 0
         var releases = 0
         val leases = CloneMulticastLeases({ acquisitions++; true }, { releases++ })
+        val failure = AtomicReference<Throwable?>()
         val threads = List(8) {
-            Thread { repeat(100) { assertTrue(leases.acquire()); leases.release() } }
+            Thread {
+                try { repeat(100) { assertTrue(leases.acquire()); leases.release() } }
+                catch (error: Throwable) { failure.compareAndSet(null, error) }
+            }
         }
         threads.forEach { it.start() }
         threads.forEach { it.join() }
+        failure.get()?.let { throw AssertionError("Concurrent lease operation failed", it) }
         assertTrue(acquisitions > 0)
         assertEquals(acquisitions, releases)
     }
