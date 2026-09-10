@@ -2060,27 +2060,35 @@ class HistoryRepository(context: Context = Applic.app) {
     }
 
     /**
-     * Which sensor owns the main line, minute by minute, since [startTime].
+     * The minutes since [startTime] where the main line belongs to some sensor
+     * other than [serial].
      *
-     * Callers use it to answer "is this sensor the main line *here*", which is a
-     * question about the minute rather than about the sensor. A sensor is drawn
-     * in its main style over the minutes it owns and in its non-main style over
-     * the minutes it does not, so a main-sensor swap shows the old sensor
-     * continuing to own the past and the new one drawing its own past beside it
-     * — each exactly once.
+     * After a main-sensor swap the new main keeps its main style going forward,
+     * and the record still names the old sensor for every minute past the grace
+     * window — correctly, that is what was on screen. What went missing is the
+     * new main's *own past*: across that stretch it is not the record's owner,
+     * so it is not the main line, and it is the primary, so it is not in the
+     * peer set either. Its history simply ended an hour back.
      *
-     * Empty when the freeze is off or nothing is recorded, in which case the
-     * current primary is the main line everywhere and nothing changes.
+     * It has to be drawn there the way it looked then — in its non-main style —
+     * and only there. Adding the primary to the peer set outright instead draws
+     * it twice, as the main line and again over the top of itself, which is what
+     * a first attempt shipped. This answers exactly which minutes it does not
+     * own, so the second line covers the past and stops where the main line
+     * becomes its own.
+     *
+     * Empty when the freeze is off or nothing is recorded, so no swap and no
+     * setting means no second line.
      */
-    suspend fun mainLineOwnersByMinute(startTime: Long): Map<Long, String> {
+    suspend fun recordedMinutesNotOwnedBy(serial: String, startTime: Long): Set<Long> {
+        if (serial.isBlank()) return emptySet()
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
-            return emptyMap()
+            return emptySet()
         }
+        val serials = resolveQuerySensorSerials(serial).ifEmpty { listOf(serial) }
         return withContext(Dispatchers.IO) {
-            runCatching {
-                displayDao.mainLineOwners(startTime)
-                    .associate { it.timestamp to it.sensorSerial }
-            }.getOrDefault(emptyMap())
+            runCatching { displayDao.minutesNotOwnedBy(serials, startTime).toHashSet() }
+                .getOrDefault(hashSetOf())
         }
     }
 
