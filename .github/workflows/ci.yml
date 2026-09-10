@@ -2,9 +2,15 @@
 # main: the whole JVM unit suite, and a phone + wear + release compile including
 # the native side.
 #
-# Deliberately NOT here: lint (2358 issues, 530 of them errors -- see AGENTS.md
-# "Continuous integration"), instrumentation tests (no androidTest tree exists),
-# and all-ABI builds (nightly's job, not a PR's).
+# Deliberately NOT here: lint (lintMobileDebug reports ~2358 issues, ~530 of them
+# errors, so gating on it needs a committed baseline first), instrumentation
+# tests (no androidTest source set exists), and all-ABI builds.
+#
+# The APKs this produces are a compile check, not a build. Common/src/main/jniLibs
+# is gitignored, so a clean checkout has none of the prebuilt vendor .so files --
+# liblibre3extension.so, libcalibrat2.so, libinit.so and the rest. They are loaded
+# at runtime, so their absence never fails a build; it just means nothing built
+# here is installable as a working app. Don't wire these outputs into a release.
 name: CI
 
 on:
