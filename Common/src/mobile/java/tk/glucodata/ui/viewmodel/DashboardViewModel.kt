@@ -1157,25 +1157,7 @@ class DashboardViewModel(
                 _activeSensorList.value = config.selectedSensorIds
                 _sensorViewModes.value = config.sensorViewModes
 
-                // The primary draws its own thin line too, not just the peers.
-                //
-                // The main line is whatever the recorded main value says owned
-                // each minute, which after a main-sensor swap is the *old*
-                // sensor for everything past the grace window — correctly, since
-                // that is what was on screen. But the new primary was then drawn
-                // nowhere at all: not the record's owner, so not the main line,
-                // and dropped from the peer set here, so not a thin line either.
-                // Its history simply vanished beyond the boundary.
-                //
-                // Including it means every selected sensor has its own line. In
-                // the recent window the primary's line and the main line carry
-                // the same numbers and converge; past the boundary they separate,
-                // which is exactly the handover the swap made.
-                val peerSensors = if (config.selectedSensorIds.size > 1) {
-                    config.selectedSensorIds
-                } else {
-                    config.selectedSensorIds.drop(1)
-                }
+                val peerSensors = config.selectedSensorIds.drop(1)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
