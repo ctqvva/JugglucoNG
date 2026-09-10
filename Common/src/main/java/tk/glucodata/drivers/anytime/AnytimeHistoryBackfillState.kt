@@ -87,6 +87,39 @@ internal fun liveIdLooksRolledBack(
  * Keyed on the previous highest id, which a genuine restart resets to -1, so a re-activation
  * anchors from its own first id exactly as before.
  */
+/**
+ * How long the transmitter's own clock has stood still, in wall-clock terms.
+ *
+ * One id is one cadence tick, so a working sensor's id timeline `(id + 1) * interval`
+ * tracks its actual age. When the firmware stops advancing the id the two diverge, and
+ * the gap is exactly how long it has been repeating itself. This only reads true once
+ * the timeline anchor is stable — while the anchor was being re-derived from every push
+ * it walked forward in step with the repeats and hid the divergence completely.
+ */
+internal fun frozenIdAgeMs(sensorAgeMs: Long, lastGlucoseId: Int, intervalMs: Long): Long {
+    if (sensorAgeMs <= 0L || lastGlucoseId < 0 || intervalMs <= 0L) return 0L
+    val idTimelineMs = (lastGlucoseId.toLong() + 1L) * intervalMs
+    return (sensorAgeMs - idTimelineMs).coerceAtLeast(0L)
+}
+
+/**
+ * True when a sensor has stopped being one.
+ *
+ * Both conditions are needed. Past its rated life a CT5 may still be advancing ids and
+ * reading perfectly well, so age alone means nothing; and a transmitter can repeat an id
+ * briefly inside its life without being finished. Together — rated life over, and the id
+ * standing still for [frozenGraceMs] on top of that — there is no reading left to have.
+ */
+internal fun isCt5SensorFinished(
+    sensorAgeMs: Long,
+    ratedLifetimeMs: Long,
+    frozenIdAgeMs: Long,
+    frozenGraceMs: Long,
+): Boolean =
+    ratedLifetimeMs > 0L &&
+        sensorAgeMs >= ratedLifetimeMs &&
+        frozenIdAgeMs >= frozenGraceMs
+
 internal fun shouldReanchorTimeline(
     liveId: Int,
     previousMaxId: Int,
@@ -428,10 +461,25 @@ internal fun shouldDeferLossOfSignalReconnect(
     streamingSinceMs: Long,
     nowMs: Long,
     graceMs: Long,
-): Boolean {
-    if (streamingSinceMs <= 0L) return false
-    val age = nowMs - streamingSinceMs
-    return age in 0 until graceMs
+): Boolean = isWithinWindow(streamingSinceMs, nowMs, graceMs)
+
+/**
+ * True when the sensor has been heard from inside [withinMs].
+ *
+ * The shared alarm is armed from the last *reading*, so a sensor pushing on cadence
+ * without producing glucose — a terminated CT5 does this for days — reads to it as
+ * silence, and it tears down a working link. A decoded push is proof the link works
+ * whether or not it carried a reading.
+ */
+internal fun hasRecentSensorData(
+    lastSensorDataAtMs: Long,
+    nowMs: Long,
+    withinMs: Long,
+): Boolean = isWithinWindow(lastSensorDataAtMs, nowMs, withinMs)
+
+private fun isWithinWindow(sinceMs: Long, nowMs: Long, windowMs: Long): Boolean {
+    if (sinceMs <= 0L) return false
+    return (nowMs - sinceMs) in 0 until windowMs
 }
 
 /**

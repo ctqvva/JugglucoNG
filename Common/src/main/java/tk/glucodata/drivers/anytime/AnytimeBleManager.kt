@@ -93,6 +93,15 @@ class AnytimeBleManager(
          * attempts would be the real fix.
          */
         private const val SOFT_RECONNECT_SETTLE_MS = 750L
+
+        /**
+         * How long a CT5 already past its rated life must keep repeating one id before
+         * the driver stops estimating readings for it.
+         *
+         * An hour is twenty pushes at cadence — long past a hiccup, and short enough
+         * that a finished sensor is not left inventing values for a whole evening.
+         */
+        private const val CT5_FROZEN_ID_END_OF_LIFE_MS = 60L * 60L * 1000L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 15_000L
         private const val SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS = 5_000L
         private const val SERVICE_DISCOVERY_RETRY_DELAY_MS = 1_500L
@@ -284,6 +293,9 @@ class AnytimeBleManager(
 
     /** What direct connects to this transmitter have actually achieved so far. */
     private val connectMode = AnytimeConnectModeState()
+
+    /** Keeps the end-of-life notice to once per sensor rather than once per push. */
+    @Volatile private var ct5FinishedLogged: Boolean = false
 
     @Volatile private var pendingFingerstickMgdl: Int = -1
     @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
@@ -1716,6 +1728,38 @@ class AnytimeBleManager(
      * field is in-memory only, so after an app restart a days-old sensor looked
      * like it was warming up until its next push.
      */
+    /**
+     * True once this CT5 is finished: past its rated life and no longer advancing its id.
+     *
+     * Requires the persisted timeline anchor. Without one, sensor age is a guess, and a
+     * guess must not be what stops a sensor reporting.
+     */
+    private fun isCt5Finished(): Boolean {
+        if (!isCt5()) return false
+        if (glucoseTimelineStartAtMs <= 0L) return false
+        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
+        val ageMs = ct5SensorAgeMs()
+        return isCt5SensorFinished(
+            sensorAgeMs = ageMs,
+            ratedLifetimeMs = profile.ratedLifetimeMs(),
+            frozenIdAgeMs = frozenIdAgeMs(ageMs, lastGlucoseId, intervalMs),
+            frozenGraceMs = CT5_FROZEN_ID_END_OF_LIFE_MS,
+        )
+    }
+
+    private fun noteCt5Finished() {
+        if (ct5FinishedLogged) return
+        ct5FinishedLogged = true
+        Log.w(
+            TAG,
+            "CT5 $SerialNumber has repeated id=$lastGlucoseId for over " +
+                    "${CT5_FROZEN_ID_END_OF_LIFE_MS / 60_000L}min past its " +
+                    "${profile.ratedLifetimeDays}-day rated life; it is finished. No further " +
+                    "readings will be estimated from its working current."
+        )
+        UiRefreshBus.requestStatusRefresh()
+    }
+
     private fun isCt5WarmingUp(): Boolean {
         if (!isCt5()) return false
         if (lastGlucoseAtMs > 0L) return false
@@ -2001,16 +2045,41 @@ class AnytimeBleManager(
      * means "handled, no scan needed" — the link is up.
      */
     override fun reconnect(now: Long): Boolean {
-        if (!stop &&
-            phase == Phase.STREAMING &&
-            shouldDeferLossOfSignalReconnect(streamingSinceMs, now, reconnectGraceMs())
-        ) {
-            Log.i(
-                TAG,
-                "Ignoring loss-of-signal reconnect: streaming session is only " +
-                        "${(now - streamingSinceMs) / 1000}s old; waiting for the next " +
-                        "${profile.readingIntervalMinutes}-minute push"
-            )
+        if (!stop && phase == Phase.STREAMING) {
+            if (shouldDeferLossOfSignalReconnect(streamingSinceMs, now, reconnectGraceMs())) {
+                Log.i(
+                    TAG,
+                    "Ignoring loss-of-signal reconnect: streaming session is only " +
+                            "${(now - streamingSinceMs) / 1000}s old; waiting for the next " +
+                            "${profile.readingIntervalMinutes}-minute push"
+                )
+                return true
+            }
+            // A push that carried no glucose is still proof the link works. The alarm
+            // is armed from the last reading and cannot see the difference; the driver
+            // can, and noDataWatchdog has always used exactly this timestamp.
+            val lastDataMs = lastSensorDataAtMs()
+            if (hasRecentSensorData(lastDataMs, now, reconnectGraceMs())) {
+                Log.i(
+                    TAG,
+                    "Ignoring loss-of-signal reconnect: last push was " +
+                            "${(now - lastDataMs) / 1000}s ago, inside the " +
+                            "${profile.readingIntervalMinutes}-minute cadence"
+                )
+                return true
+            }
+        }
+        // Genuinely out of contact. Take the disconnect ourselves rather than letting
+        // the base class disconnect and open a new connection in the same breath: the
+        // GATT is closed on the disconnect callback, and scheduleReconnect from there
+        // reconnects in a defined order with the usual backoff.
+        val gatt = mBluetoothGatt
+        if (!stop && gatt != null) {
+            Log.i(TAG, "Loss-of-signal reconnect: closing the link before reconnecting")
+            noteLossOfSignal(now)
+            runCatching { gatt.disconnect() }
+                .onFailure { Log.stack(TAG, "reconnect(disconnect)", it) }
+            UiRefreshBus.requestStatusRefresh()
             return true
         }
         return super.reconnect(now)
@@ -3564,6 +3633,9 @@ class AnytimeBleManager(
             // moves: a transmitter still advancing its id is a working sensor having a bad
             // reading, and a working sensor's bad readings must be dropped, not invented.
             val idAdvanced = record.glucoseId > lastGlucoseId
+            // An id that moves again is a sensor that is not finished after all; let a
+            // later end-of-life notice be reported rather than swallowed as a repeat.
+            if (idAdvanced) ct5FinishedLogged = false
             if (idAdvanced) lastGlucoseId = record.glucoseId
             persistAlgorithmState()
             if (!idAdvanced && emitCt5RawEstimate(record, now, intervalMs)) return
@@ -3584,6 +3656,10 @@ class AnytimeBleManager(
                     if (isCt5WarmingUp() && remainingMin >= 0L) " ~${remainingMin}min left" else "",
                 ),
             )
+            // The sensor is talking on schedule; only the reading is missing. Without
+            // this the shared loss-of-signal alarm reads the silence in charcha[1] as a
+            // dead link and tears down a working one.
+            noteLiveFrameWithoutReading(now)
             armNoDataWatchdog()
             armPullFallback()
             maybeRunReconnectTelemetryAfterLivePush()
@@ -3647,6 +3723,15 @@ class AnytimeBleManager(
         // Warm-up genuinely has no glucose to estimate: the electrode has not settled,
         // and a scale learned from a previous sensor would be a fabrication.
         if (isCt5WarmingUp()) return false
+        // A finished sensor still reports a working current, and the learned scale will
+        // still turn it into a plausible number: this one produced 51 mg/dL from 3.84nA
+        // three minutes after the same electrode read 0.13nA. Estimating through that is
+        // how a dead sensor raises a hypo alarm, so the estimate stops when the sensor
+        // does. The frame is still logged and its telemetry still shown.
+        if (isCt5Finished()) {
+            noteCt5Finished()
+            return false
+        }
         val estimate = ct5RawScale.estimateMgdl(record.iwNa)
         if (!estimate.isFinite()) return false
 
@@ -5094,7 +5179,9 @@ class AnytimeBleManager(
             Phase.CONNECTING -> "Connecting"
             Phase.DISCOVERING -> "Discovering"
             Phase.HANDSHAKING -> "Handshaking"
-            Phase.STREAMING -> if (isCt5WarmingUp()) {
+            Phase.STREAMING -> if (isCt5Finished()) {
+                Applic.app?.getString(R.string.sensor_expired_text) ?: "Sensor expired"
+            } else if (isCt5WarmingUp()) {
                 warmingUpStatus()
             } else if (historyBackfillActive) {
                 historyProgressStatus()

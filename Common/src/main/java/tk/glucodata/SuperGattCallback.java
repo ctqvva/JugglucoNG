@@ -154,6 +154,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     protected final void markLocalReadingAccepted(long sampleTimeMs) {
         WearSensorClaim.onLocalReadingAccepted(SerialNumber, sampleTimeMs);
         SensorOwnershipRuntime.noteLocalReading(SerialNumber, sampleTimeMs);
+        // charcha[0] is the shared "last successful glucose" slot, read by
+        // shouldreconnect() and by connectionStatusOutdated() to tell a stale "Loss of
+        // signal" label from a current one. The classic drivers set it from their own
+        // onCharacteristicChanged; a managed driver publishes through
+        // processExternalCurrentReading and never reached that line, so for those
+        // sensors the slot stayed 0 and both checks read every session as if no reading
+        // had ever arrived.
+        charcha[0] = sampleTimeMs;
     }
 
     public void disconnect() {
@@ -188,6 +196,28 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             Log.i(LOG_ID, "setPause " + pause);
     }
 
+    /**
+     * Record the shared "Loss of signal" state. Extracted so a driver that recovers the
+     * link its own way still reports it the same to the UI and the error history.
+     */
+    protected final void noteLossOfSignal(long now) {
+        constatstatusstr = "Loss of signal";
+        constatchange[1] = now;
+        BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+    }
+
+    /**
+     * A frame arrived from the sensor that carried no usable glucose.
+     *
+     * charcha[1] is the shared "last failed glucose attempt" slot and the only thing
+     * holding {@link #reconnect} back, so a driver that decodes its own frames has to
+     * report this or a sensor talking on schedule without producing readings looks, to
+     * the loss-of-signal alarm, exactly like a sensor that has gone silent.
+     */
+    protected final void noteLiveFrameWithoutReading(long whenMs) {
+        charcha[1] = whenMs;
+    }
+
     public boolean reconnect(long now) {
         final var old = now - showtime + 20;
         if (charcha[1] < old && connectTime < (now - 60 * 1000)) {
@@ -196,9 +226,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     Log.i(LOG_ID, "reconnect " + SerialNumber);
                 }
                 ;
-                constatstatusstr = "Loss of signal";
-                constatchange[1] = now;
-                BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+                noteLossOfSignal(now);
                 final var thegatt = mBluetoothGatt;
                 if (thegatt != null) {
                     thegatt.disconnect();
