@@ -41,6 +41,20 @@ interface ReadingDisplayDao {
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     fun getFlow(startTime: Long): Flow<List<ReadingDisplay>>
 
+    /**
+     * The minutes since [startTime] whose recorded main value belongs to a
+     * sensor other than [serials].
+     *
+     * This is the stretch a sensor's history has to be drawn over in its
+     * non-main style: it is not the main line there, so it is drawn the way it
+     * looked when it was not the main line.
+     */
+    @Query(
+        "SELECT timestamp FROM reading_display " +
+            "WHERE timestamp >= :startTime AND sensorSerial NOT IN (:serials)"
+    )
+    suspend fun minutesNotOwnedBy(serials: List<String>, startTime: Long): List<Long>
+
     /** The newest minute already recorded, so a seal pass resumes rather than rescans. */
     @Query("SELECT MAX(timestamp) FROM reading_display")
     suspend fun getNewestSealedMinute(): Long?
