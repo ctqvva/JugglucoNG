@@ -346,6 +346,35 @@ private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
         }
     }
 
+    /**
+     * What the calibration in force would make of this reading, ignoring what
+     * was recorded.
+     *
+     * The main line deliberately does not move under a calibration edit — it
+     * draws the recorded main value. That makes a calibration entered against a
+     * past fingerstick invisible, and seeing what it does to the curve is the
+     * whole reason for entering one there. So the projection is drawn as its own
+     * thin line beside the main one rather than replacing it: the record stays
+     * the record, and the preview stays a preview.
+     *
+     * Returns NaN when there is nothing to preview — no calibration, or no value
+     * in the lane it applies to.
+     */
+    fun previewAt(index: Int, isRawMode: Boolean): Float {
+        if (index !in points.indices) return Float.NaN
+        val point = points[index]
+        val baseValue = if (isRawMode) point.rawValue else point.value
+        if (!baseValue.isFinite() || baseValue <= 0.1f) return Float.NaN
+        if (!hasCalibration(isRawMode, point.sensorSerial)) return Float.NaN
+        val projected = tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
+            baseValue,
+            point.timestamp,
+            isRawMode,
+            sensorIdOverride = point.sensorSerial
+        )
+        return if (projected.isFinite() && projected > 0.1f) projected else Float.NaN
+    }
+
     fun valueAt(index: Int, isRawMode: Boolean): Float {
         if (index !in points.indices) return Float.NaN
         val computed = if (isRawMode) rawComputed else autoComputed
@@ -1025,6 +1054,7 @@ fun InteractiveGlucoseChart(
     val uncertaintyRibbonEnabled = GlucoseUncertaintyDisplay.isRibbonEnabled()
 
     val reusablePath = remember { Path() }
+    val reusablePreviewPath = remember { Path() }
     val reusablePeerPath = remember { Path() }
     val reusableRawPath = remember { Path() }
     val reusableAutoPath = remember { Path() }
@@ -2715,6 +2745,9 @@ fun InteractiveGlucoseChart(
                     val rawStrokeWidth = if (hasCalibration || viewMode == 2) 2.dp.toPx() else 3.dp.toPx()
                     val autoStrokeWidth = if (hasCalibration || viewMode == 3) 2.dp.toPx() else 3.dp.toPx()
                     val calStrokeWidth = 3.dp.toPx()
+                    // Deliberately thinner than the main line: the preview is a
+                    // question, not a record, and must never read as the value.
+                    val previewStrokeWidth = 1.dp.toPx()
 
                     // Reset Paths
                     if (drawRaw) {
@@ -2725,9 +2758,13 @@ fun InteractiveGlucoseChart(
                     }
                     if (hasCalibration) {
                         reusablePath.rewind()
+                        reusablePreviewPath.rewind()
                     }
 
                     // Unified Loop State
+                    var previewFirst = true
+                    var previewLastTimestamp = 0L
+                    var hasPreview = false
                     var rawFirst = true
                     var rawLastX = -10000f
                     var rawLastY = -10000f // Track Y for spike detection
@@ -2912,6 +2949,31 @@ fun InteractiveGlucoseChart(
                                     calLastTimestamp = renderPoint.timestamp
                                 }
                             }
+
+                            // The projection, beside the recorded line rather
+                            // than instead of it. Only drawn where the two
+                            // actually differ — while the record and today's
+                            // calibration agree there is nothing to preview, and
+                            // a second line tracing the first is just noise.
+                            val preview = calibratedValueResolver.previewAt(i, isRawModeChart)
+                            if (preview.isFinite() && kotlin.math.abs(preview - v) > 0.05f) {
+                                val previewY = (chartHeight - ((preview - cYMin) * yScale))
+                                    .coerceIn(-2000f, chartHeight + 2000f)
+                                if (previewY.isFinite()) {
+                                    if (previewFirst ||
+                                        (renderPoint.timestamp - previewLastTimestamp) > gapThreshold
+                                    ) {
+                                        reusablePreviewPath.moveTo(px, previewY)
+                                        previewFirst = false
+                                    } else {
+                                        reusablePreviewPath.lineTo(px, previewY)
+                                    }
+                                    previewLastTimestamp = renderPoint.timestamp
+                                    hasPreview = true
+                                }
+                            } else {
+                                previewFirst = true
+                            }
                         }
 
                         lastSensorSerial = renderPoint.sensorSerial
@@ -2949,6 +3011,15 @@ fun InteractiveGlucoseChart(
                         drawIsolated(autoRun, autoColor, autoStrokeWidth)
                     }
                     if (hasCalibration) {
+                        // Preview first, so the recorded line draws over it and
+                        // stays the one the eye lands on.
+                        if (hasPreview) {
+                            drawPath(
+                                reusablePreviewPath,
+                                primaryColor.copy(alpha = 0.45f),
+                                style = Stroke(width = previewStrokeWidth, cap = strokeCap, join = strokeJoin)
+                            )
+                        }
                         if (doTintCal) {
                             drawPath(reusablePath, brush = gradientBrush, style = Stroke(width = calStrokeWidth, cap = strokeCap, join = strokeJoin))
                         } else {
