@@ -47,6 +47,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v23 — transactional history recovery import receipts
  *   v24 — recorded main value keyed by the minute rather than by sensor
  *   v25 — discards main values sealed against the wrong sensor
+ *   v26 — discards main values sealed against a sensor the user never selected
  */
 @Database(
     entities = [
@@ -62,7 +63,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 25,
+    version = 26,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -616,6 +617,25 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        /**
+         * v26 -> discard main values sealed against a sensor the user never selected.
+         *
+         * The seal resolved its preferred sensor without passing the user's
+         * selected main, so it fell through to the managed sensor or to whichever
+         * serial native listed first. Ownership was frozen against that, which is
+         * how a sensor that was never on screen came to own the past while the
+         * one that was disappeared from it.
+         *
+         * Insert-or-ignore means those rows would never be corrected, so they go
+         * and the fixed pass records them again.
+         */
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM reading_display")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -646,7 +666,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_21_22,
                     MIGRATION_22_23,
                     MIGRATION_23_24,
-                    MIGRATION_24_25
+                    MIGRATION_24_25,
+                    MIGRATION_25_26
                 )
                 .build().also { INSTANCE = it }
             }

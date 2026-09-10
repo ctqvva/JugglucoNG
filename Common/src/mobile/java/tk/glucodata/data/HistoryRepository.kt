@@ -2069,8 +2069,17 @@ class HistoryRepository(context: Context = Applic.app) {
      * different sensor than the screen does.
      */
     private fun resolvePreferredSerialForSeal(): String? = runCatching {
+        // resolveMainSensor() is the user's selected main, and it has to be
+        // passed. Called with selectedMain = null this falls through to the
+        // managed sensor or, failing that, to whichever serial native happens to
+        // list first — a preference that is not the user's. The seal then froze
+        // ownership against the wrong sensor, so a main that was never on screen
+        // owned the past and the one that was disappeared from it.
+        //
+        // Same inputs as DashboardViewModel.refreshSensorSnapshot, so the record
+        // names the sensor the dashboard was actually drawing.
         SensorIdentity.resolveAvailableMainSensor(
-            selectedMain = null,
+            selectedMain = SensorIdentity.resolveMainSensor(),
             preferredSensorId = null,
             activeSensors = Natives.activeSensors()
         )

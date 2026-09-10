@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 25"))
+        assertTrue(source.contains("version = 26"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
