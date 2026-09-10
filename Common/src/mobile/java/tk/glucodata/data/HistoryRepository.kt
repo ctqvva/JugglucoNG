@@ -1971,7 +1971,20 @@ class HistoryRepository(context: Context = Applic.app) {
                 // sensor that did not own them. Slice after merging, never before.
                 val readings = dao.getReadingsSince(0L)
                 if (readings.isEmpty()) return@withContext 0
-                val merged = HistoryDisplayMerge.mergeReadings(readings, preferredSerial)
+
+                // Never merge with no preference. HistoryDisplayMerge skips
+                // preferred-sensor dominance entirely when it is not given one
+                // and falls back to picking the richest row per timestamp, tie
+                // broken by row id — which is not the sensor the dashboard
+                // draws, and with two sensors reporting in the same minute it is
+                // effectively arbitrary. Sealing that choice freezes the wrong
+                // sensor's number into the record permanently, so resolving the
+                // preference here is not a nicety, it is the difference between
+                // recording what was on screen and recording a coin flip.
+                val preferred = preferredSerial?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: resolvePreferredSerialForSeal()
+                    ?: return@withContext 0
+                val merged = HistoryDisplayMerge.mergeReadings(readings, preferred)
 
                 val viewModes = HashMap<String, Int>()
                 val fingerprints = HashMap<String, Long>()
@@ -2045,6 +2058,23 @@ class HistoryRepository(context: Context = Applic.app) {
             }
         }
     }
+
+    /**
+     * The sensor the dashboard would draw as main right now.
+     *
+     * Resolved the same way the dashboard resolves it, so a seal pass with no
+     * caller-supplied preference records the same ownership the user is looking
+     * at. Returns null when nothing can be resolved — the seal is skipped rather
+     * than run with no preference, because a merge with no preference picks a
+     * different sensor than the screen does.
+     */
+    private fun resolvePreferredSerialForSeal(): String? = runCatching {
+        SensorIdentity.resolveAvailableMainSensor(
+            selectedMain = null,
+            preferredSensorId = null,
+            activeSensors = Natives.activeSensors()
+        )
+    }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
 
     /**
      * The recorded main value's key: the minute, and nothing else.
