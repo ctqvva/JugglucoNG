@@ -39,8 +39,8 @@ interface ReadingDisplayDao {
      *
      * The seal is enforced here, in SQL, rather than by whichever caller
      * remembers to check: `timestamp > :sealHorizon` is the whole guarantee, and
-     * a caller that gets the horizon wrong can only fail to revise a live
-     * minute, never rewrite a sealed one. There is deliberately no other update
+     * the caller supplies the horizon from the current clock and grace window.
+     * A stale or incorrect horizon would weaken this bound. There is no other update
      * and no REPLACE anywhere in this DAO.
      */
     @Query(

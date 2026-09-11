@@ -12,14 +12,32 @@ import tk.glucodata.chart.HistoryChartModelBuilder
  */
 object NotificationChartModelSource {
 
+    internal fun smoothPoints(points: List<GlucosePoint>, minutes: Int, collapse: Boolean): List<GlucosePoint> =
+        GlucoseSmoothing.smooth(
+            points, minutes, collapse,
+            timestamp = { it.timestamp }, value = { it.value }, rawValue = { it.rawValue },
+            sensorSerial = { it.sensorSerial },
+            withValues = { source, auto, raw ->
+                GlucosePoint(source.timestamp, auto, raw).also {
+                    it.sensorSerial = source.sensorSerial
+                    it.sealedDisplayValue = source.sealedDisplayValue
+                    it.sealedDisplayViewMode = source.sealedDisplayViewMode
+                    it.color = source.color
+                }
+            },
+        )
+
     @JvmStatic
+    @JvmOverloads
     fun build(
+        context: android.content.Context,
         primaryPoints: List<GlucosePoint>,
         primarySensorId: String?,
         primaryViewMode: Int,
         hasCalibration: Boolean,
         peers: List<NotificationChartDrawer.PeerSeries>,
         startTimeMs: Long,
+        allowCalibration: Boolean = true,
     ): HistoryChartModel? {
         val primary = primarySensorId?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (primaryPoints.isEmpty() && peers.isEmpty()) return null
@@ -27,6 +45,8 @@ object NotificationChartModelSource {
         val ownership = runCatching { HistoryRepositoryAccess.getMainSensorOwnership(startTimeMs) }
             .getOrDefault(tk.glucodata.chart.MainSensorOwnership.NONE)
 
+        val smoothingMinutes = DataSmoothing.graphSmoothingMinutes(context)
+        val collapse = smoothingMinutes > 0 && DataSmoothing.collapseChunks(context)
         val inputs = ArrayList<HistoryChartModelBuilder.SeriesInput>(peers.size + 1)
         inputs.add(
             HistoryChartModelBuilder.SeriesInput(
@@ -34,7 +54,7 @@ object NotificationChartModelSource {
                 isPrimary = true,
                 viewMode = primaryViewMode,
                 colorArgb = SensorVisuals.colorArgb(primary),
-                points = primaryPoints,
+                points = smoothPoints(primaryPoints, smoothingMinutes, collapse),
             )
         )
         peers.forEach { peer ->
@@ -45,14 +65,14 @@ object NotificationChartModelSource {
                     isPrimary = false,
                     viewMode = peer.viewMode,
                     colorArgb = peer.color,
-                    points = peer.points,
+                    points = smoothPoints(peer.points, smoothingMinutes, collapse),
                     hasCalibration = CalibrationAccess.hasActiveCalibration(peerIsRaw, peer.sensorId),
                 )
             )
         }
 
         val calibration = HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
-            if (!hasCalibration) return@Calibration null
+            if (!allowCalibration) return@Calibration null
             if (!CalibrationAccess.hasActiveCalibration(isRaw, sensorId)) return@Calibration null
             CalibrationAccess.getCalibratedValue(base, timestamp, isRaw, false, sensorId)
         }

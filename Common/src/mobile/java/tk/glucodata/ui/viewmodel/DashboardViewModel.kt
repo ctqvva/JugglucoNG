@@ -126,7 +126,8 @@ class DashboardViewModel(
          * everything the chart actually draws.
          */
         val uncertaintyCount: Int,
-        val lastUncertaintyBits: Long
+        val lastUncertaintyBits: Long,
+        val recordedDisplayHash: Int,
     )
 
     private data class DashboardHistoryCacheKey(
@@ -1308,7 +1309,8 @@ class DashboardViewModel(
             lastUncertaintyBits = last?.uncertainty?.let { uncertainty ->
                 (java.lang.Float.floatToRawIntBits(uncertainty.lower).toLong() shl 32) or
                     (java.lang.Float.floatToRawIntBits(uncertainty.upper).toLong() and 0xffffffffL)
-            } ?: 0L
+            } ?: 0L,
+            recordedDisplayHash = tk.glucodata.ui.recordedDisplaySignature(points),
         )
     }
 

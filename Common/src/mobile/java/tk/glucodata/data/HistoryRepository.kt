@@ -1983,12 +1983,12 @@ class HistoryRepository(context: Context = Applic.app) {
      * happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
-     * @return how many minutes were newly recorded.
+     * @return newly inserted minutes, or null if disabled or the transaction failed.
      */
-    suspend fun recordPresentedMinutes(entries: List<PresentedMinute>): Int {
+    suspend fun recordPresentedMinutes(entries: List<PresentedMinute>): Int? {
         if (entries.isEmpty()) return 0
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
-            return 0
+            return null
         }
         return withContext(Dispatchers.IO) {
             try {
@@ -2017,26 +2017,18 @@ class HistoryRepository(context: Context = Applic.app) {
                 }
                 if (rows.isEmpty()) return@withContext 0
 
-                var inserted = 0
-                rows.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
-                    inserted += displayDao.sealAll(chunk).count { it >= 0L }
-                }
-                // Anything that already had a record and is still settling takes
-                // the newer number. The database refuses the rest.
-                rows.forEach { row ->
-                    if (row.timestamp > sealHorizon) {
-                        runCatching {
-                            displayDao.reviseIfUnsealed(
-                                timestamp = row.timestamp,
-                                sensorSerial = row.sensorSerial,
-                                displayMgdl = row.displayMgdl,
-                                viewMode = row.viewMode,
-                                calibrationFingerprint = row.calibrationFingerprint,
-                                recordedAt = row.recordedAt,
-                                sealHorizon = sealHorizon,
-                            )
-                        }
+                val inserted = database.withTransaction {
+                    var count = 0
+                    rows.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
+                        count += displayDao.sealAll(chunk).count { it >= 0L }
                     }
+                    rows.filter { it.timestamp > sealHorizon }.forEach { row ->
+                        displayDao.reviseIfUnsealed(
+                            row.timestamp, row.sensorSerial, row.displayMgdl, row.viewMode,
+                            row.calibrationFingerprint, row.recordedAt, sealHorizon,
+                        )
+                    }
+                    count
                 }
                 // No data refresh here. Recording a presentation changes nothing
                 // that is displayed — the value written is the value already on
@@ -2055,10 +2047,12 @@ class HistoryRepository(context: Context = Applic.app) {
                         "${rows.size - inserted} already held, horizon=$sealHorizon"
                 )
                 inserted
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 tk.glucodata.Log.e(TAG, "Failed recording presented minutes: ${e.message}")
                 Log.e(TAG, "Failed recording presented minutes", e)
-                0
+                null
             }
         }
     }

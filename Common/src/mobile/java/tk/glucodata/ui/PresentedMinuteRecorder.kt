@@ -52,13 +52,20 @@ internal object PresentedMinuteRecorder {
     suspend fun recordVisible(
         repository: HistoryRepository,
         visible: List<HistoryRepository.PresentedMinute>,
+    ): Int = recordVisible(visible, repository::recordPresentedMinutes)
+
+    internal suspend fun recordVisible(
+        visible: List<HistoryRepository.PresentedMinute>,
+        write: suspend (List<HistoryRepository.PresentedMinute>) -> Int?,
     ): Int {
         if (visible.isEmpty()) return 0
         // A minute still inside its grace window is resubmitted every pass, since
         // its value can still change; the database decides whether that lands.
-        val unseen = visible.filter { it.minuteMs !in presented }
+        val unseen = visible.map { it.copy(minuteMs = tk.glucodata.data.ReadingDisplay.minuteOf(it.minuteMs)) }
+            .distinctBy { it.minuteMs }
+            .filter { it.minuteMs !in presented }
         if (unseen.isEmpty()) return 0
-        val recorded = repository.recordPresentedMinutes(unseen)
+        val recorded = write(unseen) ?: return 0
         presented.addAll(unseen.map { it.minuteMs })
         return recorded
     }

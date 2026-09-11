@@ -189,8 +189,7 @@ class RecordedMainValueTests {
         )
         assertTrue(
             "only the model's runs inside the drawn viewport are offered",
-            chart.contains("pts.binarySearchBy(viewportStart) { it.timestamp }") &&
-                chart.contains("pts.binarySearchBy(viewportEnd) { it.timestamp }"),
+            chart.contains("chartModel.presentedMainValues(viewportStart, viewportEnd)"),
         )
         assertTrue(
             "a backgrounded chart presents nothing",
@@ -199,8 +198,8 @@ class RecordedMainValueTests {
         // The value recorded is the value the model drew; the chart resolves
         // nothing of its own on the way to the record.
         assertTrue(
-            "the recorded value comes from the model's primary series",
-            chart.contains("val primarySeries = chartModel.primary ?: return@LaunchedEffect"),
+            "the recorded owner comes from each resolved point",
+            chart.contains("sensorSerial = p.sensorId"),
         )
     }
 }

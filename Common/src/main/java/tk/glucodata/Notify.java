@@ -3725,7 +3725,7 @@ public class Notify {
         // painter paints what it is handed.
         final tk.glucodata.chart.HistoryChartModel chartModel =
                 (showChartCollapsed || showChart)
-                        ? NotificationChartModelSource.build(chartPoints, activeSensorSerial, viewMode,
+                        ? NotificationChartModelSource.build(safeContext, chartPoints, activeSensorSerial, viewMode,
                                 hasCalibration, peerChartSeries, startT)
                         : null;
 
@@ -3912,8 +3912,8 @@ public class Notify {
             // minute the user has already been shown. No peers here and no
             // calibration, as before.
             final tk.glucodata.chart.HistoryChartModel startupModel = NotificationChartModelSource.build(
-                    chartPoints, activeSensorSerial, viewMode, false,
-                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT);
+                    safeContext, chartPoints, activeSensorSerial, viewMode, false,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT, false);
 
             // Collapsed: Compact Mode = TRUE, Height 48dp
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
