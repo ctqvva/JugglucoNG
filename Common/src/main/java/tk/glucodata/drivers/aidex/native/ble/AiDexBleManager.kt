@@ -2294,25 +2294,11 @@ class AiDexBleManager(
                     scheduleDeferredBondCompletionCheck(gatt, attempt = 1)
                 }
                 else -> {
-                    if (persistedPairKey != null) {
-                        Log.i(TAG, "Saved PAIR credential present without Android bond; requesting SMP bond only")
-                        keyExchangePendingBond = true
-                        val started = runCatching { gatt.device.createBond() }.getOrDefault(false)
-                        if (started) {
-                            scheduleDeferredBondCompletionCheck(gatt, attempt = 1)
-                        } else {
-                            Log.w(TAG, "Could not start Android bond; retaining PAIR credential and using broadcast fallback")
-                            enterBroadcastOnlyFallback(
-                                reason = "saved-key-android-bond-unavailable",
-                                statusText = "Pairing key safe — Broadcast Only",
-                            )
-                        }
-                    } else {
-                        // This connection began unbonded and has no saved key: it is the only
-                        // path allowed to perform a fresh F001 exchange.
-                        Log.i(TAG, "New unbonded AiDex sensor — starting one-time PAIR exchange")
-                        startFreshPairKeyExchange(gatt)
-                    }
+                    // Unbonded: the fresh chain enabled F001, and writing the challenge is
+                    // what makes the sensor initiate pairing. Never createBond() from the
+                    // phone side — the sensor refuses that (BOND_NONE, then status 22).
+                    Log.i(TAG, "Unbonded AiDex link — starting PAIR exchange; the sensor will request bonding")
+                    startFreshPairKeyExchange(gatt)
                 }
             }
         }
@@ -2862,6 +2848,7 @@ class AiDexBleManager(
 
     private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction =
         AiDexRuntimePolicy.decidePairKeyStartAction(
+            bondStateAtConnection = bondStateAtConnection,
             hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
             savedKeyExhausted = savedKeyExhausted,
             explicitPairRequested = explicitPairRequested,

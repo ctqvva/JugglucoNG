@@ -15,11 +15,11 @@ class AiDexRuntimePolicyTests {
         // F001 on every connect until now, so it simply does it once more after the update.
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
-            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false)
+            AiDexRuntimePolicy.decidePairKeyStartAction(bondStateAtConnection = BluetoothDevice.BOND_BONDED, hasSavedPairKey = false)
         )
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
-            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false, savedKeyExhausted = true)
+            AiDexRuntimePolicy.decidePairKeyStartAction(bondStateAtConnection = BluetoothDevice.BOND_BONDED, hasSavedPairKey = false, savedKeyExhausted = true)
         )
     }
 
@@ -27,17 +27,30 @@ class AiDexRuntimePolicyTests {
     fun pairKeyStartAction_aSavedKeyIsAlwaysUsedAndNeverRotatedByPair() {
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true)
+            AiDexRuntimePolicy.decidePairKeyStartAction(bondStateAtConnection = BluetoothDevice.BOND_BONDED, hasSavedPairKey = true)
         )
         // Pair on a keyed sensor that is still working must not run F001 against it.
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, explicitPairRequested = true)
+            AiDexRuntimePolicy.decidePairKeyStartAction(bondStateAtConnection = BluetoothDevice.BOND_BONDED, hasSavedPairKey = true, explicitPairRequested = true)
         )
         // Nothing automatic replaces a key either, even after it has failed its retries.
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, savedKeyExhausted = true)
+            AiDexRuntimePolicy.decidePairKeyStartAction(bondStateAtConnection = BluetoothDevice.BOND_BONDED, hasSavedPairKey = true, savedKeyExhausted = true)
+        )
+    }
+
+    @Test
+    fun pairKeyStartAction_anUnbondedPhoneRunsTheFreshChainEvenWithARestoredKey() {
+        // Enabling F001 is what makes the sensor initiate pairing; a restored key on a
+        // phone the sensor has never bonded cannot skip that.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                bondStateAtConnection = BluetoothDevice.BOND_NONE,
+                hasSavedPairKey = true,
+            )
         )
     }
 
@@ -46,6 +59,7 @@ class AiDexRuntimePolicyTests {
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
             AiDexRuntimePolicy.decidePairKeyStartAction(
+                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
                 hasSavedPairKey = true,
                 savedKeyExhausted = true,
                 explicitPairRequested = true,
