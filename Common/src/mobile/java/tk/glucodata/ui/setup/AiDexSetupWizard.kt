@@ -16,9 +16,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,12 +33,17 @@ import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.drivers.aidex.AiDexProvisioningStore
+import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
 
 enum class AiDexSetupStep {
     SCAN,
+    KEY_MANAGEMENT,
     CONNECTING,
     SUCCESS
 }
@@ -55,8 +61,12 @@ fun AiDexSetupWizard(
     var selectedDeviceName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    BackHandler {
+    var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
+    val navigateBack = {
         if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
+    }
+    BackHandler {
+        navigateBack()
     }
 
     LaunchedEffect(currentStep) {
@@ -71,8 +81,8 @@ fun AiDexSetupWizard(
             TopAppBar(
                 title = { Text(stringResource(R.string.aidex_setup_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
+                    IconButton(onClick = navigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
                     }
                 }
             )
@@ -87,6 +97,7 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
+                    onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
@@ -105,7 +116,10 @@ fun AiDexSetupWizard(
                             // Initiate Connection Logic
                             scope.launch {
                                 try {
-                                    // 1. Add to Persistence & SensorBluetooth
+                                    // Saved material is optional. With none present, the BLE driver
+                                    // always tries the serial-derived key first and reports a
+                                    // missing-key status only if the sensor rejects it.
+                                    AiDexProvisioningStore.installSaved(context, name)
                                     SensorBluetooth.addAiDexSensor(context, name, address)
 
                                     // 2. Wait a bit then show success
@@ -123,6 +137,14 @@ fun AiDexSetupWizard(
                             currentStep = AiDexSetupStep.SCAN
                         }
                     }
+                )
+                AiDexSetupStep.KEY_MANAGEMENT -> AiDexKeyManagementScreen(
+                    ui = ui,
+                    initialSerial = selectedDeviceName,
+                    signedIn = signedIn,
+                    onSignedIn = { signedIn = true },
+                    onSignedOut = { signedIn = false },
+                    onClose = { currentStep = AiDexSetupStep.SCAN },
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -151,6 +173,7 @@ fun AiDexSetupWizard(
 fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
+    onManageKeys: () -> Unit,
     onDeviceSelected: (String, String) -> Unit
 ) {
     data class ScanCandidate(
@@ -234,15 +257,28 @@ fun AiDexScanStep(
                 )
 
                 if (!showAllDevices && !candidate.isLikelyAiDex) return@startScan
-                if (devices.none { it.address == address }) {
-                    devices = devices + ScanCandidate(
-                        address = address,
-                        rawName = candidate.displayName,
-                        selectionName = candidate.selectionName,
-                        serial = candidate.serial,
-                        isLikelyAiDex = candidate.isLikelyAiDex,
-                        detectedViaFf30 = candidate.detectedViaFf30,
-                    )
+                val next = ScanCandidate(
+                    address = address,
+                    rawName = candidate.displayName,
+                    selectionName = candidate.selectionName,
+                    serial = candidate.serial,
+                    isLikelyAiDex = candidate.isLikelyAiDex,
+                    detectedViaFf30 = candidate.detectedViaFf30,
+                )
+                val existing = devices.firstOrNull { it.address == address }
+                devices = if (existing == null) {
+                    devices + next
+                } else {
+                    val preferNextIdentity = next.serial != null && existing.serial == null
+                    devices.map { current ->
+                        if (current.address != address) current else current.copy(
+                            rawName = if (preferNextIdentity) next.rawName else current.rawName,
+                            selectionName = if (preferNextIdentity) next.selectionName else current.selectionName,
+                            serial = if (preferNextIdentity) next.serial else current.serial,
+                            isLikelyAiDex = current.isLikelyAiDex || next.isLikelyAiDex,
+                            detectedViaFf30 = current.detectedViaFf30 || next.detectedViaFf30,
+                        )
+                    }
                 }
             },
             onError = { error ->
@@ -334,7 +370,7 @@ fun AiDexScanStep(
                 }
             }
         }
-        LazyColumn {
+        LazyColumn(modifier = Modifier.weight(1f)) {
             items(devices) { device ->
                 val name = device.rawName.ifBlank { stringResource(R.string.unknown) }
                 val serial = device.serial
@@ -362,37 +398,31 @@ fun AiDexScanStep(
                     },
                     leadingContent = { Icon(Icons.Default.Bluetooth, null) },
                     modifier = Modifier.clickable(enabled = canSelect) {
-                        onDeviceSelected(device.selectionName, device.address)
+                        onDeviceSelected(
+                            device.selectionName,
+                            device.address,
+                        )
                     }
                 )
                 HorizontalDivider()
             }
         }
+        SettingsItem(
+            title = stringResource(R.string.aidex_key_management_title),
+            subtitle = stringResource(R.string.aidex_key_management_entry_desc),
+            showArrow = true,
+            icon = Icons.Default.Key,
+            iconTint = MaterialTheme.colorScheme.primary,
+            position = CardPosition.SINGLE,
+            onClick = onManageKeys,
+            modifier = Modifier
+                .padding(
+                    start = ui.horizontalPadding,
+                    end = ui.horizontalPadding,
+                    bottom = ui.spacerMedium,
+                ),
+        )
     }
-}
-
-private fun normalizeAiDexSerial(rawName: String): String? {
-    val xPrefixed = Regex("X\\s*-?\\s*([A-Z0-9]{8,})", RegexOption.IGNORE_CASE)
-    val xMatch = xPrefixed.find(rawName)
-    if (xMatch != null) {
-        val body = xMatch.groupValues[1].uppercase()
-        return "X-$body"
-    }
-
-    // Some AiDex family sensors advertise with a product prefix (for example "Vista-...")
-    // instead of the canonical "X-..." serial format used internally by the app.
-    val familyPrefixed = Regex("(?:AIDEX|LINX|LUMI|VISTA)\\s*[-_]?\\s*([A-Z0-9]{8,})", RegexOption.IGNORE_CASE)
-    val familyMatch = familyPrefixed.find(rawName)
-    if (familyMatch != null) {
-        val body = familyMatch.groupValues[1].uppercase()
-        return "X-$body"
-    }
-
-    val cleaned = rawName.trim().replace(" ", "")
-    if (cleaned.length == 11 && cleaned.all { it.isLetterOrDigit() }) {
-        return "X-${cleaned.uppercase()}"
-    }
-    return null
 }
 
 private data class AiDexScanDetection(
@@ -416,11 +446,14 @@ private fun detectAiDexCandidate(
 ): AiDexScanDetection {
     val localName = extractAiDexLocalName(scanRecordBytes)
     val names = linkedSetOf<String>()
-    listOf(deviceName, scanRecordName, localName)
+    listOf(scanRecordName, localName, deviceName)
         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
         .forEach { names.add(it) }
 
-    val serial = names.firstNotNullOfOrNull { normalizeAiDexSerial(it) }
+    val recognizedName = names.firstOrNull {
+        AiDexSerialIdentity.canonicalFromAdvertisement(it) != null
+    }
+    val serial = recognizedName?.let(AiDexSerialIdentity::canonicalFromAdvertisement)
     val nameLooksAiDex = names.any(::looksLikeAiDexFamilyName)
     val hasFf30 = advertisedServiceUuids?.contains(AIDEX_FF30_SERVICE_UUID) == true ||
         scanRecordAdvertises16BitService(scanRecordBytes, 0xFF30)
@@ -429,8 +462,8 @@ private fun detectAiDexCandidate(
             scanRecordAdvertises16BitService(scanRecordBytes, 0x181F) ||
             scanRecordAdvertises16BitService(scanRecordBytes, 0xF000)
     val isLikelyAiDex = serial != null || nameLooksAiDex || hasFf30 || hasPrimaryServiceHint
-    val displayName = names.firstOrNull() ?: address
-    val selectionName = serial ?: fallbackAiDexSerial(address)
+    val displayName = recognizedName ?: names.firstOrNull() ?: address
+    val selectionName = serial ?: AiDexSerialIdentity.fallbackCanonicalFromAddress(address)
     return AiDexScanDetection(
         displayName = displayName,
         selectionName = selectionName,
@@ -446,11 +479,6 @@ private fun looksLikeAiDexFamilyName(rawName: String): Boolean {
         lowered.contains("linx") ||
         lowered.contains("lumi") ||
         lowered.contains("vista")
-}
-
-private fun fallbackAiDexSerial(address: String): String {
-    val body = address.filter(Char::isLetterOrDigit).uppercase()
-    return "X-$body"
 }
 
 private fun extractAiDexLocalName(scanRecord: ByteArray?): String? {

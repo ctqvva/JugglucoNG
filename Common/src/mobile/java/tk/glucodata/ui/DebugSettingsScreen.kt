@@ -377,8 +377,8 @@ fun DebugSettingsScreen(navController: NavController) {
                             Natives.dologcat(enabled)
                         }
                     }
-                )
-            }
+                }
+            )
 
             val logTypeLabels = mapOf(
                 LogType.TRACE to stringResource(R.string.trace_log),
