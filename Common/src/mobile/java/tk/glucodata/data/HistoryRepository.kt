@@ -1045,6 +1045,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapped.map { point ->
                     val sealed = indexed[displayKey(point.timestamp)]
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                        ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
                         ?: return@map point
                     point.copy(sealedDisplayValue = sealed.displayMgdl)
                 }
@@ -1530,13 +1531,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 sensorSerial = reading.sensorSerial,
                 source = reading.source,
                 uncertainty = uncertainty[uncertaintyKey(reading)]?.toGlucoseUncertainty(),
-                sealedDisplayValue = if (!freezeEnabled) {
-                    null
-                } else {
-                    display[displayKey(reading.timestamp)]
-                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
-                        ?.displayMgdl
-                },
+                sealedDisplayValue = if (!freezeEnabled) null else sealedValueForLine(reading, display, nowMs),
             )
         }
     }
@@ -2053,6 +2048,28 @@ class HistoryRepository(context: Context = Applic.app) {
             }.getOrDefault(emptyMap())
         }
         return MainSensorOwnership(recorded, nowMs)
+    }
+
+    /**
+     * The recorded value for [reading], if the record is about this reading.
+     *
+     * A record says "sensor X showed V at minute M". V belongs on X's line and
+     * nowhere else. Attached by minute alone it landed on whichever sensor's
+     * reading the merge produced for that minute — so after a swap, the new
+     * main's line snapped to the old main's recorded numbers wherever the
+     * calibrated lane consulted the record, with a cliff where the records
+     * stopped. Statistics are different: they want the main value shown at the
+     * minute whoever showed it, and take the record without this check.
+     */
+    private fun sealedValueForLine(
+        reading: HistoryReading,
+        display: Map<Long, ReadingDisplay>,
+        nowMs: Long
+    ): Float? {
+        val record = display[displayKey(reading.timestamp)] ?: return null
+        if (!record.isUsable || !record.isSealedAt(nowMs)) return null
+        if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
+        return record.displayMgdl
     }
 
     /**

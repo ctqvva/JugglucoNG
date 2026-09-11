@@ -146,6 +146,31 @@ class RecordedMainValueTests {
     }
 
     /**
+     * A record says "sensor X showed V at minute M". V belongs on X's line and
+     * nowhere else. Attached by minute alone, it landed on whichever sensor's
+     * reading the merge produced — so after a swap the new main's line snapped
+     * to the old main's recorded numbers wherever the calibrated lane read it.
+     */
+    @Test
+    fun aRecordedValueIsOnlyAttachedToItsOwnSensorsLine() {
+        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val helper = repo.substringAfter("private fun sealedValueForLine").substringBefore("\n    }")
+        assertTrue(
+            "the line helper must check the record's owner against the reading's sensor",
+            helper.contains("SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)"),
+        )
+        val flow = repo.substringAfter("private fun withSealedDisplay").substringBefore("\n    }")
+        assertTrue(
+            "the flow path must apply the same owner check",
+            flow.contains("SensorIdentity.matches(point.sensorSerial, it.sensorSerial)"),
+        )
+        // Statistics want the main value shown at the minute whoever showed it,
+        // and deliberately do not carry this check.
+        val stats = repo.substringAfter("private fun mapReadingForStats").substringBefore("\n    }")
+        assertFalse(stats.contains("SensorIdentity.matches"))
+    }
+
+    /**
      * Only what was on screen may be recorded — the chart holds far more than it
      * draws, and a minute it merely queried was presented to nobody.
      */
