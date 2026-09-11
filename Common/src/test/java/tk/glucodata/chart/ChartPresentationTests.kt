@@ -40,4 +40,18 @@ class ChartPresentationTests {
         )
         assertEquals(listOf(PresentedChartValue(minute, 100f, "A", 0)), model.presentedMainValues(0, 2*minute))
     }
+    @Test fun boundsIncludeCalibratedPeersAndPreviewButExcludeOffscreenPoints() {
+        val model = HistoryChartModel(listOf(
+            ChartSeriesModel("A", true, 0, 0,
+                listOf(ChartRun(ChartLook.MAIN, listOf(ChartPointModel(minute, 100f)))),
+                listOf(ChartLane(ChartLaneKind.CALIBRATION_PREVIEW,
+                    listOf(ChartRun(ChartLook.SECONDARY, listOf(ChartPointModel(minute, 300f))))))),
+            ChartSeriesModel("B", false, 0, 0,
+                listOf(ChartRun(ChartLook.SECONDARY,
+                    listOf(ChartPointModel(0, 450f), ChartPointModel(minute, 50f))))),
+        ))
+        assertEquals(50f to 300f, model.visibleValueRange(minute, minute))
+        assertEquals(null to null, model.visibleValueRange(2*minute, 3*minute))
+    }
+
 }

@@ -94,6 +94,28 @@ data class HistoryChartModel(
     val primary: ChartSeriesModel? get() = series.firstOrNull { it.isPrimary }
     val peers: List<ChartSeriesModel> get() = series.filter { !it.isPrimary }
 
+    /** Includes every painted lane, so a preview or calibrated peer cannot be clipped. */
+    fun visibleValueRange(startTime: Long, endTime: Long): Pair<Float?, Float?> {
+        var low = Float.POSITIVE_INFINITY
+        var high = Float.NEGATIVE_INFINITY
+        for (s in series) {
+            val runs = s.runs + s.secondaryLanes.flatMap { it.runs }
+            for (run in runs) {
+                val pts = run.points
+                val from = pts.binarySearchBy(startTime) { it.timestamp }.let { if (it >= 0) it else -it - 1 }
+                val to = pts.binarySearchBy(endTime) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
+                for (i in from until to) {
+                    val value = pts[i].value
+                    if (value.isFinite() && value > 0.1f) {
+                        low = minOf(low, value)
+                        high = maxOf(high, value)
+                    }
+                }
+            }
+        }
+        return low.takeIf { it.isFinite() } to high.takeIf { it.isFinite() }
+    }
+
     /** Main points actually inside the viewport, excluding borrowed stroke boundaries. */
     fun presentedMainValues(startTime: Long, endTime: Long): List<PresentedChartValue> {
         val values = LinkedHashMap<Long, PresentedChartValue>()
