@@ -3902,14 +3902,24 @@ public class Notify {
             if (collapsedHeight < 48)
                 collapsedHeight = 48;
 
+            // The same resolved model as the main notification and the
+            // dashboard, so this surface cannot disagree with them about a
+            // minute the user has already been shown. No peers here and no
+            // calibration, as before.
+            final tk.glucodata.chart.HistoryChartModel startupModel = NotificationChartModelSource.build(
+                    chartPoints, activeSensorSerial, viewMode, false,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT);
+
             // Collapsed: Compact Mode = TRUE, Height 48dp
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, true, false, true, activeSensorSerial);
+                    viewMode, true, false, true, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
 
             // Expanded: Compact Mode = FALSE, Height 256dp (via 0)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, true, false, false, activeSensorSerial);
+                    viewMode, true, false, false, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
         }
 
         Bitmap arrowBitmap;
