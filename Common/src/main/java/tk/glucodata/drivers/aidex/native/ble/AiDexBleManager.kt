@@ -64,6 +64,19 @@ internal fun aiDexDeviceNameMatchesSerial(deviceName: String, serialNumber: Stri
 
 internal fun aiDexPairingKeyProblemStatusRes(usedSavedKey: Boolean): Int =
     if (usedSavedKey) R.string.aidex_key_rejected else R.string.aidex_key_missing
+/**
+ * Pick the name a sensor card should be titled with.
+ *
+ * The advertised BLE name ("AiDEX X-2222267V4E") is preferred when the stack has seen one.
+ * [SuperGattCallback.mygetDeviceName] otherwise falls back to the MAC address and then "?",
+ * both of which are populated before the first connect attempt and neither of which is a
+ * sensor name; those collapse to the serial instead.
+ */
+internal fun aiDexDisplayName(advertisedName: String?, deviceAddress: String?, serialNumber: String): String {
+    val name = advertisedName?.trim().orEmpty()
+    if (name.isEmpty() || name == "?" || name.equals(deviceAddress, ignoreCase = true)) return serialNumber
+    return name
+}
 
 internal fun aiDexExtractLocalName(scanRecord: ByteArray): String? {
     var offset = 0
@@ -1633,6 +1646,9 @@ class AiDexBleManager(
         if (deviceName == null) return false
         return aiDexDeviceNameMatchesSerial(deviceName, SerialNumber)
     }
+
+    override fun mygetDeviceName(): String =
+        aiDexDisplayName(super.mygetDeviceName(), mActiveDeviceAddress, SerialNumber)
 
     override fun getService(): UUID = SERVICE_F000
 
