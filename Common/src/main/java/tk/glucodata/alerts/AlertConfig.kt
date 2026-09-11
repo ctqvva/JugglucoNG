@@ -127,9 +127,10 @@ data class AlertConfig(
     // covers the projected overshoot x this factor. 0 = off. Never applied to
     // PRE_LOW - insulin makes a predicted low MORE likely.
     val iobCoverageFactor: Float? = null,
-    // PERSISTENT_HIGH only: suppress while the value falls at least this fast
-    // (mg/dl per minute, magnitude). The alert exists to say "your correction
-    // was not enough"; a steep fall is direct proof it was. 0 = off.
+    // PERSISTENT_HIGH: suppress while the value falls at least this fast
+    // (mg/dl per minute, magnitude). HIGH uses any positive value only as the
+    // opt-in marker for suppressing while its displayed arrow points down.
+    // 0/null = off.
     val fallRateSuppress: Float? = null,
 
     // Delta-counter settings (FALLING_FAST / RISING_FAST): GDH-style robust rate-of-change alarm.
@@ -284,40 +285,17 @@ object AlertDefaults {
     const val THRESHOLD_REARM_MARGIN_MGDL = 10f
     const val THRESHOLD_REARM_MARGIN_MMOL = 0.6f
 
-    // PERSISTENT_HIGH: silent while falling at least this fast (mg/dl/min).
     /**
-     * One scale for both high alerts, in whole arrows, because that is the only precision the
-     * number behind it has: it is a regression over the last ten to twenty minutes, not a
-     * measurement of this minute. The steps are this app's own vocabulary, the same ones it
-     * tells other apps through ExchangeTrend: one is a 45 degree fall, two is falling, three
-     * is falling fast.
-     *
-     * PERSISTENT_HIGH's default is the first of them. It used to be half, which this app draws
-     * as level, so the change makes it suppress less and alarm more.
+     * PERSISTENT_HIGH's adjustable fall threshold. It has already waited out a duration, so a
+     * configurable minimum is useful here; ordinary HIGH instead follows its visible arrow.
      */
     const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 1.0f
 
-    /** The step the scale moves in, so the slider and the floor cannot drift apart. */
+    /** The step the PERSISTENT_HIGH slider moves in. */
     const val FALL_RATE_STEP_MGDL_PER_MIN = 1.0f
 
-    /** The furthest the scale goes: a fall this app calls fast. */
+    /** The furthest the PERSISTENT_HIGH scale goes: a fall this app calls fast. */
     const val FALL_RATE_MAX_MGDL_PER_MIN = 3.0f
-
-    /**
-     * HIGH's bar, and it is a different question. That alert fires the moment the line is
-     * crossed and is the one somebody relies on to hear about a high at all, so silencing it
-     * needs a fall this app would actually call a fall. Its own vocabulary: TrendArrowAngle
-     * draws anything under 0.5 as level, and ExchangeTrend, which is what it tells other
-     * apps, does not say "falling" until 2.0 and "falling fast" until 3.0. Two is a real
-     * downward arrow, around 120 mg/dl an hour.
-     */
-    const val HIGH_FALL_RATE_MGDL_PER_MIN = 2.0f
-
-    /**
-     * And nothing quieter than this may silence a high, whatever is stored: one is where this
-     * app stops calling the movement level. A setting below it is treated as this.
-     */
-    const val HIGH_FALL_RATE_FLOOR_MGDL_PER_MIN = 1.0f
 
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
     // full projected overshoot (factor 1.0). Conservative: only a complete
@@ -365,9 +343,9 @@ object AlertDefaults {
                 // Off unless asked for. The same rule as PERSISTENT_HIGH, but this is the
                 // alarm somebody relies on to hear about a high at all, and it is on by
                 // default: switching it to conditional under everybody who upgrades is not
-                // a decision to make on their behalf. The slider turns it on, and the
-                // magnitude it lands on is the flat-arrow boundary, so a drift the app draws
-                // as level does not silence anything unless that is what was asked for.
+                // a decision to make on their behalf. The toggle turns it on; once enabled,
+                // the displayed arrow is the contract, so a flat arrow never silences it and
+                // a downward arrow always does.
                 fallRateSuppress = null,
                 defaultSnoozeMinutes = 30
             )

@@ -32,6 +32,7 @@ object AlertRuntimeManager {
     private var persistentHighStartedAtMs: Long = 0L
     private var lastLoggedExpiryEndMs: Long = Long.MIN_VALUE
     private var warnedForecastRateUntrusted = false
+    private var preLowSuppressionReason: String? = null
     private var preHighIobSuppressed = false
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
@@ -214,9 +215,12 @@ object AlertRuntimeManager {
         val glucoseValue = currentGlucoseValueLocked() ?: return AlertRuntimeEvaluation()
         val rate = currentRateLocked()
         val configs = standardGlucoseAlertTypes.associateWith { AlertRepository.loadConfig(it) }
-        val activeConditions = suppressIobCoveredPreHigh(
-            resolveActiveStandardGlucoseAlerts(glucoseValue, rate, configs),
-            configs
+        val activeConditions = suppressPreLow(
+            suppressIobCoveredPreHigh(
+                resolveActiveStandardGlucoseAlerts(glucoseValue, rate, configs),
+                configs
+            ),
+            rate
         )
         val activeTypes = activeConditions.keys
         val transition = standardEpisodes.update(activeTypes)
@@ -229,8 +233,8 @@ object AlertRuntimeManager {
             ?: return AlertRuntimeEvaluation()
         val condition = activeConditions[type] ?: return AlertRuntimeEvaluation()
 
-        // Coming down fast enough that the alert's own sentence is being disproved as it is
-        // read. It waits rather than resolves: the episode stays open, so a dismissal and
+        // The opted-in alert would be shown beside a downward arrow, contradicting its own
+        // sentence. It waits rather than resolves: the episode stays open, so a dismissal and
         // whatever was queued on it survive, and the moment the fall stops it can speak
         // without waiting out a fresh episode. Anything already repeating stops now.
         if (type == AlertType.HIGH &&
@@ -294,6 +298,38 @@ object AlertRuntimeManager {
             wasConditionActive = standardEpisodes::isActive,
             forecastRateTrusted = forecastRateTrusted
         )
+    }
+
+    private fun suppressPreLow(
+        conditions: Map<AlertType, StandardGlucoseAlertCondition>,
+        rate: Float
+    ): Map<AlertType, StandardGlucoseAlertCondition> {
+        preLowSuppressionReason = null
+        val condition = conditions[AlertType.PRE_LOW] ?: return conditions
+        if (!ForecastLowSuppression.hasDownwardArrow(rate)) {
+            preLowSuppressionReason = "forecast-low-not-falling"
+            return conditions - AlertType.PRE_LOW
+        }
+        val covered = try {
+            val nowMs = System.currentTimeMillis()
+            val cobGrams = tk.glucodata.JournalIobAccess.snapshot(nowMs)?.getOrNull(2) ?: Float.NaN
+            val prefs = Applic.app.getSharedPreferences(
+                "tk.glucodata_preferences", android.content.Context.MODE_PRIVATE
+            )
+            val profile = tk.glucodata.data.prediction.PredictionModelProfileStore.parametersAt(prefs, nowMs)
+            ForecastLowSuppression.cobCoversLow(
+                condition.evaluatedValue, condition.threshold, Applic.unit == 1,
+                cobGrams, profile.carbRatioGramsPerUnit, profile.insulinSensitivityMgDlPerUnit
+            )
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "suppressPreLow", t)
+            false
+        }
+        if (covered) {
+            preLowSuppressionReason = "forecast-cob-covered"
+            return conditions - AlertType.PRE_LOW
+        }
+        return conditions
     }
 
     /**
@@ -390,6 +426,9 @@ object AlertRuntimeManager {
     ): String {
         if (type != AlertType.PRE_LOW && type != AlertType.PRE_HIGH) {
             return "standard-condition-cleared"
+        }
+        if (type == AlertType.PRE_LOW) {
+            preLowSuppressionReason?.let { return it }
         }
         if (type == AlertType.PRE_HIGH && preHighIobSuppressed) {
             return "forecast-iob-covered"

@@ -90,6 +90,10 @@ interface ReadingDisplayDao {
     @Query("DELETE FROM reading_display WHERE timestamp < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
 
+    /** A removed sensor takes its recorded display values with it when its history goes. */
+    @Query("DELETE FROM reading_display WHERE sensorSerial IN (:serials)")
+    suspend fun deleteForSensors(serials: List<String>)
+
     @Query("DELETE FROM reading_display")
     suspend fun deleteAll()
 
