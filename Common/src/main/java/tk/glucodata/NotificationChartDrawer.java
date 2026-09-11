@@ -402,72 +402,64 @@ public class NotificationChartDrawer {
             float lineAlpha,
             float thresholdAlpha) {
         int size = Math.min(timestamps.size(), values.size());
-        if (size < 2) {
+        if (size < 1) {
             return;
         }
 
         long previousTimestamp = 0L;
         float previousValue = 0f;
         boolean hasPrevious = false;
+        // Whether the point currently held in previous* ever got a line drawn to or from it.
+        // A reading with no neighbour close enough to join strokes nothing, so it is drawn as
+        // a dot instead of vanishing — the same rule ChartLineRun applies on the Compose side,
+        // and the nvgCircle the native renderer draws for a one-point run.
+        boolean previousConnected = false;
 
         for (int index = 0; index < size; index++) {
             float currentValue = values.get(index);
             long currentTimestamp = timestamps.get(index);
             boolean valid = Float.isFinite(currentValue) && currentValue > 0.1f;
             if (!valid) {
+                if (hasPrevious && !previousConnected) {
+                    drawIsolatedPoint(canvas, linePaint, previousTimestamp, previousValue, startTime, duration,
+                            chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, targetLow, targetHigh,
+                            veryLowThreshold, veryHighThreshold, isMmol, inRangeColor, useThresholdColors,
+                            thresholdTintColor, lineAlpha, thresholdAlpha);
+                }
                 hasPrevious = false;
+                previousConnected = false;
                 continue;
             }
 
-            if (hasPrevious) {
+            // A hole in the data has to look like a hole. Without this the line was drawn
+            // straight across however long the sensor had been silent, so a dropout the
+            // dashboard broke on read as an unremarkable stretch of glucose in the
+            // notification, the widget and the AOD overlay. Same constant as the Compose
+            // chart's ChartGap, so the two cannot drift apart again.
+            boolean joins = hasPrevious && joinsAcross(previousTimestamp, currentTimestamp);
+            if (hasPrevious && !joins) {
+                if (!previousConnected) {
+                    drawIsolatedPoint(canvas, linePaint, previousTimestamp, previousValue, startTime, duration,
+                            chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, targetLow, targetHigh,
+                            veryLowThreshold, veryHighThreshold, isMmol, inRangeColor, useThresholdColors,
+                            thresholdTintColor, lineAlpha, thresholdAlpha);
+                }
+                hasPrevious = false;
+                previousConnected = false;
+            }
+
+            if (joins) {
                 float startX = chartLeft + ((previousTimestamp - startTime) / (float) duration) * chartWidth;
                 float startY = chartBottom - ((previousValue - minY) / yRange) * chartHeight;
                 float endX = chartLeft + ((currentTimestamp - startTime) / (float) duration) * chartWidth;
                 float endY = chartBottom - ((currentValue - minY) / yRange) * chartHeight;
                 if (useThresholdColors) {
-                    int startColor;
-                    int endColor;
-                    if (lineAlpha < 1f || thresholdAlpha < 1f || thresholdTintColor != 0) {
-                        startColor = resolvePrimaryPointColor(
-                                previousValue,
-                                targetLow,
-                                targetHigh,
-                                veryLowThreshold,
-                                veryHighThreshold,
-                                inRangeColor,
-                                thresholdTintColor,
-                                isMmol,
-                                lineAlpha,
-                                thresholdAlpha);
-                        endColor = resolvePrimaryPointColor(
-                                currentValue,
-                                targetLow,
-                                targetHigh,
-                                veryLowThreshold,
-                                veryHighThreshold,
-                                inRangeColor,
-                                thresholdTintColor,
-                                isMmol,
-                                lineAlpha,
-                                thresholdAlpha);
-                    } else {
-                        startColor = resolveThresholdPointColor(
-                                previousValue,
-                                targetLow,
-                                targetHigh,
-                                veryLowThreshold,
-                                veryHighThreshold,
-                                inRangeColor,
-                                isMmol);
-                        endColor = resolveThresholdPointColor(
-                                currentValue,
-                                targetLow,
-                                targetHigh,
-                                veryLowThreshold,
-                                veryHighThreshold,
-                                inRangeColor,
-                                isMmol);
-                    }
+                    int startColor = pointColor(previousValue, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, inRangeColor, true, thresholdTintColor,
+                            lineAlpha, thresholdAlpha);
+                    int endColor = pointColor(currentValue, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, inRangeColor, true, thresholdTintColor,
+                            lineAlpha, thresholdAlpha);
                     if (startColor == endColor) {
                         linePaint.setShader(null);
                         linePaint.setColor(startColor);
@@ -491,8 +483,107 @@ public class NotificationChartDrawer {
 
             previousTimestamp = currentTimestamp;
             previousValue = currentValue;
+            previousConnected = joins;
             hasPrevious = true;
         }
+
+        if (hasPrevious && !previousConnected) {
+            drawIsolatedPoint(canvas, linePaint, previousTimestamp, previousValue, startTime, duration,
+                    chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, targetLow, targetHigh,
+                    veryLowThreshold, veryHighThreshold, isMmol, inRangeColor, useThresholdColors,
+                    thresholdTintColor, lineAlpha, thresholdAlpha);
+        }
+    }
+
+    /**
+     * Whether two consecutive readings are close enough in time for the line to join them.
+     *
+     * The same rule, from the same constant, that the Compose charts apply through
+     * ui.ChartGap — so a hole reads as a hole on every surface, and the two cannot drift.
+     */
+    static boolean joinsAcross(long previousTimestamp, long currentTimestamp) {
+        return (currentTimestamp - previousTimestamp) <= GlucoseChartGap.THRESHOLD_MS;
+    }
+
+    /** The colour one reading contributes to the line, matching the series' colouring mode. */
+    private static int pointColor(
+            float value,
+            float targetLow,
+            float targetHigh,
+            float veryLowThreshold,
+            float veryHighThreshold,
+            boolean isMmol,
+            int inRangeColor,
+            boolean useThresholdColors,
+            int thresholdTintColor,
+            float lineAlpha,
+            float thresholdAlpha) {
+        if (!useThresholdColors) {
+            return lineAlpha < 1f ? withAlpha(inRangeColor, lineAlpha) : inRangeColor;
+        }
+        if (lineAlpha < 1f || thresholdAlpha < 1f || thresholdTintColor != 0) {
+            return resolvePrimaryPointColor(
+                    value,
+                    targetLow,
+                    targetHigh,
+                    veryLowThreshold,
+                    veryHighThreshold,
+                    inRangeColor,
+                    thresholdTintColor,
+                    isMmol,
+                    lineAlpha,
+                    thresholdAlpha);
+        }
+        return resolveThresholdPointColor(
+                value,
+                targetLow,
+                targetHigh,
+                veryLowThreshold,
+                veryHighThreshold,
+                inRangeColor,
+                isMmol);
+    }
+
+    /**
+     * A reading with no neighbour close enough to connect to, drawn as a dot.
+     *
+     * Adding the gap rule above without this would have swapped one wrong picture for
+     * another: a reading either side of a long silence would simply stop being drawn.
+     */
+    private static void drawIsolatedPoint(
+            Canvas canvas,
+            Paint linePaint,
+            long timestamp,
+            float value,
+            long startTime,
+            long duration,
+            float chartLeft,
+            float chartBottom,
+            float chartWidth,
+            float chartHeight,
+            float minY,
+            float yRange,
+            float targetLow,
+            float targetHigh,
+            float veryLowThreshold,
+            float veryHighThreshold,
+            boolean isMmol,
+            int inRangeColor,
+            boolean useThresholdColors,
+            int thresholdTintColor,
+            float lineAlpha,
+            float thresholdAlpha) {
+        float x = chartLeft + ((timestamp - startTime) / (float) duration) * chartWidth;
+        float y = chartBottom - ((value - minY) / yRange) * chartHeight;
+        linePaint.setShader(null);
+        linePaint.setColor(pointColor(value, targetLow, targetHigh, veryLowThreshold, veryHighThreshold,
+                isMmol, inRangeColor, useThresholdColors, thresholdTintColor, lineAlpha, thresholdAlpha));
+        // The line paint strokes; a stroked circle of this radius would draw a ring around
+        // nothing. Fill for the dot and hand the paint back as it was found.
+        Paint.Style style = linePaint.getStyle();
+        linePaint.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(x, y, linePaint.getStrokeWidth() / 2f, linePaint);
+        linePaint.setStyle(style);
     }
 
     private static void drawNotificationSourceSeries(
