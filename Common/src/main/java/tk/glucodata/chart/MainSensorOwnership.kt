@@ -57,6 +57,16 @@ class MainSensorOwnership(
     /** Whether the record has anything to say inside this window at all. */
     val hasRecordedOwnership: Boolean get() = recorded.isNotEmpty()
 
+    // Equal when they would answer every question the same way: same record,
+    // same minute of horizon. A refresh that found nothing new is then equal to
+    // the last one, and a chart keyed on this does not rebuild for it.
+    override fun equals(other: Any?): Boolean =
+        other is MainSensorOwnership &&
+            other.recorded == recorded &&
+            minuteOf(other.sealHorizonMs) == minuteOf(sealHorizonMs)
+
+    override fun hashCode(): Int = 31 * recorded.hashCode() + minuteOf(sealHorizonMs).hashCode()
+
     companion object {
         const val MINUTE_MS = 60_000L
 

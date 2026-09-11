@@ -912,9 +912,23 @@ public class NotificationChartDrawer {
         canvas.drawPath(predictionPath, predictionPaint);
     }
 
-    /** A secondary lane of the primary: the raw signal a touch fainter than the auto one. */
-    private static float notificationLaneAlpha(boolean rawLane) {
-        return rawLane ? 0.55f : 0.7f;
+    /**
+     * Which grey a lane of the primary is drawn in — the same table the legacy
+     * auto/raw lanes used. In a dual mode the other signal is secondary, and a
+     * calibrated main line demotes its own source to secondary with the other
+     * signal to tertiary; in a single mode the calibrated source is secondary.
+     */
+    private static int primaryLaneGrey(
+            boolean rawLane, int viewMode, boolean hasCalibration, int secondary, int tertiary) {
+        if (viewMode == 2) {
+            if (hasCalibration) return rawLane ? tertiary : secondary;
+            return secondary;
+        }
+        if (viewMode == 3) {
+            if (hasCalibration) return rawLane ? secondary : tertiary;
+            return secondary;
+        }
+        return secondary;
     }
 
     /**
@@ -942,7 +956,10 @@ public class NotificationChartDrawer {
             boolean isMmol,
             boolean isDark,
             int mainLineColor,
-            boolean useThresholdColors,
+            int laneColorSecondary,
+            int laneColorTertiary,
+            int viewMode,
+            boolean hasCalibration,
             int primaryIdentityColor) {
         float baseStrokeWidth = linePaint.getStrokeWidth();
         // Lanes beside the main run first, underneath it. For the primary that
@@ -962,13 +979,25 @@ public class NotificationChartDrawer {
                     values.add(p.getValue());
                 }
                 if (series.isPrimary()) {
+                    // The legacy lane colours, by the same table the legacy lanes
+                    // used: which lane is the secondary grey and which the
+                    // tertiary depends on the view mode and whether a calibration
+                    // has taken over as the main line. Alpha and stroke follow
+                    // the grey, as before; in a multi-sensor chart the grey is
+                    // then tinted toward the sensor's identity, as the main line
+                    // already is, so the lanes read as the same sensor's.
                     boolean rawLane = lane.getKind() == tk.glucodata.chart.ChartLaneKind.RAW;
+                    int laneGrey = primaryLaneGrey(rawLane, viewMode, hasCalibration, laneColorSecondary, laneColorTertiary);
+                    float alpha = notificationLineAlpha(laneGrey, mainLineColor, laneColorSecondary);
+                    float scale = notificationStrokeScale(laneGrey, mainLineColor, laneColorSecondary);
+                    int laneColor = primaryIdentityColor != 0
+                            ? SensorVisuals.blendArgb(laneGrey, primaryIdentityColor, DASHBOARD_PRIMARY_IDENTITY_TINT)
+                            : laneGrey;
                     linePaint.setStrokeWidth(baseStrokeWidth);
                     drawNotificationSourceSeries(
                             canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
                             chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
-                            veryHighThreshold, isMmol, mainLineColor, false, primaryIdentityColor,
-                            notificationLaneAlpha(rawLane), notificationLaneAlpha(rawLane), 0.72f);
+                            veryHighThreshold, isMmol, laneColor, false, 0, alpha, alpha, scale);
                 } else {
                     linePaint.setStrokeWidth(baseStrokeWidth * 0.66f);
                     drawSubtlePeerSeries(
@@ -988,11 +1017,14 @@ public class NotificationChartDrawer {
                 values.add(p.getValue());
             }
             if (run.getLook() == tk.glucodata.chart.ChartLook.MAIN) {
+                // The main look: range colours on, as the legacy main lane always
+                // had them whichever lane it was. Gating this on "has a
+                // calibration" lost the range colours everywhere that had none.
                 linePaint.setStrokeWidth(baseStrokeWidth);
                 drawNotificationSourceSeries(
                         canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
                         chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
-                        veryHighThreshold, isMmol, mainLineColor, useThresholdColors, primaryIdentityColor,
+                        veryHighThreshold, isMmol, mainLineColor, true, primaryIdentityColor,
                         DASHBOARD_PRIMARY_LINE_ALPHA, DASHBOARD_PRIMARY_THRESHOLD_ALPHA, DASHBOARD_PRIMARY_STROKE_SCALE);
             } else {
                 linePaint.setStrokeWidth(baseStrokeWidth * 0.78f);
@@ -2172,7 +2204,8 @@ public class NotificationChartDrawer {
             for (tk.glucodata.chart.ChartSeriesModel series : model.getPeers()) {
                 paintRuns(canvas, linePaint, series, startTime, chartDuration, chartLeft, chartBottom, chartWidth,
                         chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold, veryHighThreshold,
-                        isMmol, isDark, lineColor, thresholdColorCalibrated, primaryIdentityColor);
+                        isMmol, isDark, lineColor, lineColorSecondary, lineColorTertiary, viewMode, hasCalibration,
+                        primaryIdentityColor);
             }
         } else if (!visiblePeerSeries.isEmpty()) {
             float primaryStrokeWidth = linePaint.getStrokeWidth();
@@ -2399,7 +2432,8 @@ public class NotificationChartDrawer {
             }
             paintRuns(canvas, linePaint, model.getPrimary(), startTime, chartDuration, chartLeft, chartBottom,
                     chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
-                    veryHighThreshold, isMmol, isDark, lineColor, thresholdColorCalibrated, primaryIdentityColor);
+                    veryHighThreshold, isMmol, isDark, lineColor, lineColorSecondary, lineColorTertiary, viewMode,
+                    hasCalibration, primaryIdentityColor);
         }
         // Draw Calibrated Line (Primary)
         if (!modelDrivesPrimary && hasCalibration && !visibleRenderPoints.isEmpty()) {

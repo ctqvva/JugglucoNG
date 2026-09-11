@@ -204,6 +204,7 @@ private fun buildDashboardChartModel(
     renderData: List<GlucosePoint>,
     peers: List<PeerSensorChartSeries>,
     primarySerial: String?,
+    primaryColorArgb: Int,
     viewMode: Int,
     ownership: tk.glucodata.chart.MainSensorOwnership,
     hasCalibration: Boolean,
@@ -223,7 +224,7 @@ private fun buildDashboardChartModel(
             sensorId = primary,
             isPrimary = true,
             viewMode = viewMode,
-            colorArgb = tk.glucodata.SensorVisuals.colorArgb(primary),
+            colorArgb = primaryColorArgb,
             points = renderData.map(::toShared),
         )
     )
@@ -991,12 +992,13 @@ fun InteractiveGlucoseChart(
     // what this says; nothing below decides.
     val chartModel = remember(
         renderData, peerChartSeries, mainSensorOwnership, calibrationRevision,
-        viewMode, hasCalibration, hideInitialWhenCalibrated, primarySerial,
+        viewMode, hasCalibration, hideInitialWhenCalibrated, primarySerial, primaryIdentityColor,
     ) {
         buildDashboardChartModel(
             renderData = renderData,
             peers = peerChartSeries,
             primarySerial = primarySerial,
+            primaryColorArgb = primaryIdentityColor.toArgb(),
             viewMode = viewMode,
             ownership = mainSensorOwnership,
             hasCalibration = hasCalibration,
@@ -2719,15 +2721,23 @@ fun InteractiveGlucoseChart(
                     val mainStroke = 3.dp.toPx()
                     val laneStroke = 2.dp.toPx()
                     val doTintMain = true
-                    // Lane colours: the other signal beside the main line.
-                    val rawLaneColor = when {
-                        hasCalibration && viewMode == 2 -> tertiaryColor
-                        else -> secondaryColor
-                    }
-                    val autoLaneColor = when {
-                        hasCalibration && viewMode == 3 -> tertiaryColor
-                        else -> secondaryColor
-                    }
+                    // Lane colours: the other signal beside the main line. The
+                    // theme greys when the primary is the only sensor and has no
+                    // picked colour — as before — and otherwise the sensor's own
+                    // colour toned toward neutral, the way a peer's lanes are, so
+                    // a sensor's lanes read as that sensor's. The tertiary lane
+                    // is the fainter of the two either way.
+                    val laneIdentity = primaryPickedColor
+                        ?: primaryIdentityColor.takeIf { chartModel.peers.isNotEmpty() }
+                    fun laneColor(tertiary: Boolean): Color =
+                        if (laneIdentity == null) {
+                            if (tertiary) tertiaryColor else secondaryColor
+                        } else {
+                            androidx.compose.ui.graphics.lerp(laneIdentity, peerNeutralBase, 0.46f)
+                                .copy(alpha = if (tertiary) 0.45f else 0.8f)
+                        }
+                    val rawLaneColor = laneColor(tertiary = hasCalibration && viewMode == 2)
+                    val autoLaneColor = laneColor(tertiary = hasCalibration && viewMode == 3)
                     // The primary drawn where it is not main: its own identity
                     // colour, thin, faded — the same treatment a peer gets.
                     val demotedColor = androidx.compose.ui.graphics.lerp(
