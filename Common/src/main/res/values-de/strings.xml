@@ -1661,10 +1661,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Zielwert für Dosierung</string>
     <string name="predictive_dose_target_explanation">Insulin- und Kohlenhydratvorschläge korrigieren auf diesen Wert. Er ist unabhängig vom Zielbereich im Diagramm.</string>
-    <string name="state_dose_hint_title">Dosishinweis</string>
-    <string name="state_dose_hint_desc">Schlägt Kohlenhydrate vor, wenn der Wert unter den Dosis-Zielwert läuft, und eine Korrektur, wenn er hoch bleibt und nicht fällt. Vorhandenes IOB wird abgezogen; auch bei null IOB ist eine Berechnung möglich. Die Mengen werden aus Sensitivität und Kohlenhydratfaktor des Modellprofils berechnet; diese also zuerst einstellen.</string>
-    <string name="state_dose_hint_in_range_title">Auch im oberen Zielbereich korrigieren</string>
-    <string name="state_dose_hint_in_range_desc">Schlägt auch dann eine Korrektur vor, wenn der Wert deutlich über dem Dosis-Zielwert steht und dort bleibt. Nicht eingetragene Kohlenhydrate können einen flachen Verlauf vortäuschen, während noch Nahrung resorbiert wird; die Korrektur käme dann obendrauf. Die Zahl ist eine Rechnung aus dem Profil, keine Empfehlung.</string>
+    <string name="state_dose_hint_title">Dosishinweise</string>
+    <string name="state_dose_hint_desc">Kohlenhydrate bei Tiefs und Korrekturen bei Hochs vorschlagen</string>
+    <string name="state_dose_hint_in_range_title">Korrekturen im Zielbereich erlauben</string>
+    <string name="state_dose_hint_in_range_desc">Korrekturen über dem Dosisziel erlauben, solange der Wert noch im Zielbereich liegt</string>
+    <string name="journal_model_suggestions_section">Vorschläge</string>
+    <string name="journal_model_desc">Profil, Aufnahme und aktives Insulin</string>
+    <string name="journal_model_title">Modell</string>
     <string name="state_dose_hint_horizon">Vorlauf des Dosishinweises</string>
     <string name="state_dose_hint_horizon_explanation">Wie weit der Kohlenhydratvorschlag bei fallendem Wert vorausschaut. Kürzer meldet sich später und seltener, länger früher und öfter.</string>
     <string name="state_dose_hint_profile_notice_title">Modellprofil prüfen</string>
@@ -1676,7 +1679,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dosisrechner</string>
     <string name="journal_food_macros_title">Erweiterte Nahrungsaufnahme</string>
-    <string name="journal_food_macros_desc">Optional Protein und Fett für verzögerte Essenskurven und Dosismathematik nutzen</string>
+    <string name="journal_food_macros_desc">Protein und Fett für verzögerte Nahrungsaufnahme nutzen</string>
     <string name="journal_aaps_import_title">AAPS-Behandlungen importieren</string>
     <string name="journal_aaps_import_desc">AAPS-Behandlungs-Broadcasts empfangen und Insulin sowie Kohlenhydrate ins Journal eintragen</string>
     <string name="journal_aaps_carbs_title">AAPS-Kohlenhydrate</string>
@@ -1712,7 +1715,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_food_save_to_library">In Bibliothek speichern</string>
     <string name="journal_food_protein_short">%1$s g Protein</string>
     <string name="journal_food_fat_short">%1$s g Fett</string>
-    <string name="journal_dose_calculator_desc">Insulin oder Kohlenhydrate aus Modellprofil und aktivem Insulin vorschlagen</string>
+    <string name="journal_dose_calculator_desc">Insulin oder Kohlenhydrate anhand deines Modells vorschlagen</string>
     <string name="journal_meal_shape">Mahlzeitenkurve</string>
     <string name="journal_meal_shape_fast">Schnell</string>
     <string name="journal_meal_shape_mixed">Gemischt</string>
@@ -1750,8 +1753,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_active_now_percent">%1$d%% aktiv</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s E</string>
-    <string name="journal_eiob_display_title">Effektives IOB (eIOB) anzeigen</string>
-    <string name="journal_eiob_display_desc">Aktivitätsbasiertes Insulin neben IOB anzeigen</string>
+    <string name="journal_eiob_display_title">Effektives IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Aktivitätsbereinigtes Insulin neben IOB anzeigen</string>
     <string name="journal_dashboard_quickadd_title">Schnelleintrag auf dem Dashboard</string>
     <string name="journal_dashboard_quickadd_desc">Plus-Taste für das Journal anzeigen</string>
     <string name="journal_quickadd_always_now_title">Aktuelle Zeit verwenden</string>

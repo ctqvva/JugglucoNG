@@ -1870,10 +1870,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_absorption_value">%1$.0f g/saacaddii</string>
     <string name="predictive_dose_target">Bartilmaameedka qiyaasta</string>
     <string name="predictive_dose_target_explanation">Talooyinka insuliinta iyo kaarbohaydraytka waxay saxaan ilaa qiimahan. Wuu ka duwan yahay xadka bartilmaameedka ee garaafka lagu muujiyay.</string>
-    <string name="state_dose_hint_title">Talo qiyaas ah</string>
-    <string name="state_dose_hint_desc">Waxay soo jeedisaa kaarbohaydrayt marka qiimuhu ku sii socdo hoosta bartilmaameedka qiyaasta, iyo saxid marka uu sarreeyo oo aanu hoos u dhacayn. Insuliinta jirka ku hadhay waa laga jaraa; xisaabinta waa la samayn karaa xitaa marka IOB uu eber yahay. Tirooyinka waxaa laga xisaabiyaa dareenka iyo saamiga kaarbohaydraytka ee astaanta modelka; marka hore dejiso.</string>
-    <string name="state_dose_hint_in_range_title">Saxid xitaa qaybta sare ee xadka</string>
-    <string name="state_dose_hint_in_range_desc">Waxay sidoo kale soo jeedisaa saxid marka qiimuhu si cad uga sarreeyo bartilmaameedka qiyaasta oo uu halkaas ku sii jiro. Kaarbohaydrayt aan la diiwaangelin waxay ka dhigi kartaa xariiqda mid siman iyadoo cuntadu wali nuugmayso, saxiddana way ku soo kordhi lahayd. Tirada waa xisaab ka timid astaantaada, ma aha talo.</string>
+    <string name="state_dose_hint_title">Talooyinka qiyaasta</string>
+    <string name="state_dose_hint_desc">Ku soo jeedi karbohaydrayt marka hoos u dhacayo iyo sixid marka sarreeyo</string>
+    <string name="state_dose_hint_in_range_title">Oggolow sixid gudaha inta la beegsanayo</string>
+    <string name="state_dose_hint_in_range_desc">Oggolow sixid ka sarreysa bartilmaameedka qiyaasta inta qiimuhu weli gudaha yahay</string>
+    <string name="journal_model_suggestions_section">Talooyin</string>
+    <string name="journal_model_desc">Astaan, nuugis iyo insulin firfircoon</string>
+    <string name="journal_model_title">Qaab</string>
     <string name="state_dose_hint_horizon">Muddada talada</string>
     <string name="state_dose_hint_horizon_explanation">Inta ay talada kaarbohaydraytku hore u fiiriso marka qiimuhu hoos u dhacayo. Gaaban: goor dambe oo yar; dheer: goor hore oo badan.</string>
     <string name="state_dose_hint_profile_notice_title">Hubi astaanta modelka</string>
@@ -1885,7 +1888,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_horizon_value">%1$d daq</string>
     <string name="journal_dose_math_title">Xisaabiyaha qiyaasta</string>
     <string name="journal_food_macros_title">Nuugista cuntada horumarsan</string>
-    <string name="journal_food_macros_desc">U isticmaal borotiinka iyo dufanka ikhtiyaariga ah qalooca cuntada iyo xisaabta qiyaasta daahista</string>
+    <string name="journal_food_macros_desc">Isticmaal borotiinka iyo dufanka nuugista cuntada ee daahda</string>
     <string name="journal_aaps_import_title">Soo deji daawaynta AAPS</string>
     <string name="journal_aaps_import_desc">Hel baahinta daawaynta AAPS oo ku dar insulin iyo karbohaydraytyada joornaalka</string>
     <string name="journal_aaps_carbs_title">karbohaydraytyada AAPS</string>
@@ -1921,7 +1924,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_food_save_to_library">Ku keydi maktabadda</string>
     <string name="journal_food_protein_short">%1$s g borotiinka</string>
     <string name="journal_food_fat_short">%1$s g dufan</string>
-    <string name="journal_dose_calculator_desc">Soo jeedi qaddarka insuliinta ama karbohaydraytka ku lammaan iyadoo lagu salaynayo astaanta moodelka iyo insuliinta firfircoon</string>
+    <string name="journal_dose_calculator_desc">Ku soo jeedi insulin ama karbohaydrayt qaabkaaga</string>
     <string name="journal_meal_shape">Qallooca cuntada</string>
     <string name="journal_meal_shape_fast">Degdeg ah</string>
     <string name="journal_meal_shape_mixed">Isku dhafan</string>
@@ -1958,8 +1961,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_metric_activity_today">Hawsha maanta</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">Muuji IOB wax ku ool ah (eIOB)</string>
-    <string name="journal_eiob_display_desc">Sidoo kale muuji insuliinta ku salaysan dhaqdhaqaaqa ee jirka ku jirta, kana barbar dhig IOB-ga caadiga ah</string>
+    <string name="journal_eiob_display_title">IOB wax ku ool ah (eIOB)</string>
+    <string name="journal_eiob_display_desc">Muuji insulinta hawlaha lagu hagaajiyey ee IOB dhinaceeda</string>
     <string name="journal_dashboard_quickadd_title">Ku dar degdeg ah dashboard-ka</string>
     <string name="journal_dashboard_quickadd_desc">Muuji badhanka + ee joornaalka</string>
     <string name="journal_quickadd_always_now_title">Isticmaal wakhtiga hadda</string>

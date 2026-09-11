@@ -79,6 +79,7 @@ import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalFoodLibraryScreen
 import tk.glucodata.ui.journal.JournalInsulinLibraryScreen
+import tk.glucodata.ui.journal.JournalModelSettingsScreen
 import tk.glucodata.ui.journal.JournalScreen
 import tk.glucodata.ui.journal.JournalSettingsScreen
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -908,6 +909,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                     composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
                     composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
                     composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
+                    composable("settings/journal/model") { JournalModelSettingsScreen(navController, dashboardViewModel) }
                     composable("settings/journal/history") {
                         JournalSettingsHistoryRoute(
                             dashboardViewModel = dashboardViewModel,
@@ -1062,6 +1064,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                 composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
                 composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
                 composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
+                composable("settings/journal/model") { JournalModelSettingsScreen(navController, dashboardViewModel) }
                 composable("settings/journal/history") {
                     JournalSettingsHistoryRoute(
                         dashboardViewModel = dashboardViewModel,

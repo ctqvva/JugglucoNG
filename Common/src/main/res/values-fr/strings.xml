@@ -1593,10 +1593,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Cible de dose</string>
     <string name="predictive_dose_target_explanation">Les suggestions d\'insuline et de glucides corrigent vers cette valeur. Elle est distincte de la plage cible affichée sur le graphique.</string>
-    <string name="state_dose_hint_title">Suggestion de dose</string>
-    <string name="state_dose_hint_desc">Propose des glucides quand la valeur descend sous la cible de dose, et une correction quand elle reste haute sans baisser. L\'insuline à bord est déduite ; le calcul reste possible avec un IOB nul. Les quantités sont calculées à partir de la sensibilité et du ratio glucidique du profil du modèle : réglez-les d\'abord.</string>
-    <string name="state_dose_hint_in_range_title">Corriger aussi dans le haut de la plage</string>
-    <string name="state_dose_hint_in_range_desc">Propose aussi une correction quand la valeur reste nettement au-dessus de la cible de dose et n\'en bouge plus. Des glucides non enregistrés peuvent donner une courbe plate pendant que la digestion se poursuit, et la correction s\'ajouterait alors. Le chiffre est un calcul issu de votre profil, pas une recommandation.</string>
+    <string name="state_dose_hint_title">Suggestions de dose</string>
+    <string name="state_dose_hint_desc">Suggérer des glucides en cas de baisse et des corrections en cas de hausse</string>
+    <string name="state_dose_hint_in_range_title">Autoriser les corrections dans la plage</string>
+    <string name="state_dose_hint_in_range_desc">Autoriser les corrections au-dessus de la cible de dose tant que la valeur reste dans la plage</string>
+    <string name="journal_model_suggestions_section">Suggestions</string>
+    <string name="journal_model_desc">Profil, absorption et insuline active</string>
+    <string name="journal_model_title">Modèle</string>
     <string name="state_dose_hint_horizon">Horizon de la suggestion</string>
     <string name="state_dose_hint_horizon_explanation">Jusqu\'où la suggestion de glucides regarde en avant quand la valeur baisse. Plus court : plus tard et plus rare ; plus long : plus tôt et plus souvent.</string>
     <string name="state_dose_hint_profile_notice_title">Vérifiez votre profil de modèle</string>
@@ -1608,7 +1611,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Calculateur de dose</string>
     <string name="journal_food_macros_title">Absorption alimentaire avancée</string>
-    <string name="journal_food_macros_desc">Utiliser les protéines et lipides optionnels pour les courbes retardées et le calcul de dose</string>
+    <string name="journal_food_macros_desc">Utiliser les protéines et lipides pour l’absorption retardée des aliments</string>
     <string name="journal_aaps_import_title">Importer les traitements AAPS</string>
     <string name="journal_aaps_import_desc">Recevoir les diffusions de traitements AAPS et ajouter insuline et glucides au journal</string>
     <string name="journal_aaps_carbs_title">Glucides AAPS</string>
@@ -1644,7 +1647,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Enregistrer dans la bibliothèque</string>
     <string name="journal_food_protein_short">%1$s g protéines</string>
     <string name="journal_food_fat_short">%1$s g lipides</string>
-    <string name="journal_dose_calculator_desc">Suggérer l\'insuline ou les glucides associés selon le profil et l\'insuline active</string>
+    <string name="journal_dose_calculator_desc">Suggérer l’insuline ou les glucides à partir de votre modèle</string>
     <string name="journal_meal_shape">Courbe du repas</string>
     <string name="journal_meal_shape_fast">Rapide</string>
     <string name="journal_meal_shape_mixed">Mixte</string>
@@ -1682,7 +1685,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">%1$d%% actif</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">Afficher l’IOB effectif (eIOB)</string>
+    <string name="journal_eiob_display_title">IOB effectif (eIOB)</string>
     <string name="journal_eiob_display_desc">Afficher l’insuline ajustée à l’activité à côté de l’IOB</string>
     <string name="journal_iob_expanded">IoB restant : %1$s U</string>
     <string name="journal_eiob_expanded">eIoB actif : %1$s U</string>
