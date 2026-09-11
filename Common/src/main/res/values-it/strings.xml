@@ -1573,10 +1573,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Obiettivo per la dose</string>
     <string name="predictive_dose_target_explanation">I suggerimenti di insulina e carboidrati correggono verso questo valore. È separato dall\'intervallo target mostrato sul grafico.</string>
-    <string name="state_dose_hint_title">Suggerimento di dose</string>
-    <string name="state_dose_hint_desc">Propone carboidrati quando il valore sta scendendo sotto il target di dose, e una correzione quando resta alto senza scendere. L\'insulina a bordo viene sottratta; il calcolo è possibile anche con IOB pari a zero. Le quantità sono calcolate da sensibilità e rapporto carboidrati del profilo del modello: impostali prima.</string>
-    <string name="state_dose_hint_in_range_title">Correggi anche nella parte alta dell\'intervallo</string>
-    <string name="state_dose_hint_in_range_desc">Propone una correzione anche quando il valore resta ben sopra il target di dose e non si muove più. Carboidrati non registrati possono far sembrare piatta la curva mentre il cibo è ancora in assorbimento, e la correzione si aggiungerebbe. Il numero è un calcolo dal profilo, non una raccomandazione.</string>
+    <string name="state_dose_hint_title">Suggerimenti di dose</string>
+    <string name="state_dose_hint_desc">Suggerisci carboidrati per le ipo e correzioni per le iper</string>
+    <string name="state_dose_hint_in_range_title">Consenti correzioni nel range</string>
+    <string name="state_dose_hint_in_range_desc">Consenti correzioni sopra il target di dose mentre il valore è ancora nel range</string>
+    <string name="journal_calculations_suggestions_section">Suggerimenti</string>
+    <string name="journal_calculations_desc">Profilo, assorbimento, insulina attiva e suggerimenti di dose</string>
+    <string name="journal_calculations_title">Calcoli</string>
     <string name="state_dose_hint_horizon">Orizzonte del suggerimento</string>
     <string name="state_dose_hint_horizon_explanation">Quanto avanti guarda il suggerimento di carboidrati mentre il valore scende. Più corto: più tardi e più raro; più lungo: prima e più spesso.</string>
     <string name="state_dose_hint_profile_notice_title">Controlla il profilo del modello</string>
@@ -1588,7 +1591,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Calcolatore dose</string>
     <string name="journal_food_macros_title">Assorbimento alimentare avanzato</string>
-    <string name="journal_food_macros_desc">Usa proteine e grassi opzionali per curve alimentari ritardate e calcolo dose</string>
+    <string name="journal_food_macros_desc">Usa proteine e grassi per l’assorbimento ritardato del cibo</string>
     <string name="journal_aaps_import_title">Importa trattamenti AAPS</string>
     <string name="journal_aaps_import_desc">Ricevi i broadcast dei trattamenti AAPS e aggiungi insulina e carboidrati al diario</string>
     <string name="journal_aaps_carbs_title">Carboidrati AAPS</string>
@@ -1624,7 +1627,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Salva nella libreria</string>
     <string name="journal_food_protein_short">%1$s g proteine</string>
     <string name="journal_food_fat_short">%1$s g grassi</string>
-    <string name="journal_dose_calculator_desc">Suggerisci insulina o carboidrati abbinati dal profilo modello e dall\'insulina attiva</string>
+    <string name="journal_dose_calculator_desc">Suggerisci insulina o carboidrati in base al tuo modello</string>
     <string name="journal_meal_shape">Curva pasto</string>
     <string name="journal_meal_shape_fast">Rapida</string>
     <string name="journal_meal_shape_mixed">Mista</string>
@@ -1662,7 +1665,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">%1$d%% attivo</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">Mostra IOB effettivo (eIOB)</string>
+    <string name="journal_eiob_display_title">IOB effettivo (eIOB)</string>
     <string name="journal_eiob_display_desc">Mostra l’insulina corretta per l’attività accanto all’IOB</string>
     <string name="journal_iob_expanded">IoB residuo: %1$s U</string>
     <string name="journal_eiob_expanded">eIoB attivo: %1$s U</string>

@@ -1585,9 +1585,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_dose_target">Тунгийн зорилтот утга</string>
     <string name="predictive_dose_target_explanation">Инсулин болон нүүрс усны зөвлөмж энэ утга руу залруулна. Энэ нь графикт харуулсан зорилтот мужаас тусдаа.</string>
     <string name="state_dose_hint_title">Тунгийн зөвлөмж</string>
-    <string name="state_dose_hint_desc">Утга тунгийн зорилтоос доош чиглэж байвал нүүрс ус, буурахгүй өндөр хэвээр байвал залруулга санал болгоно. Биед үлдсэн инсулиныг хасна; IOB тэг байсан ч тооцоолж болно. Хэмжээг загварын профилийн мэдрэг байдал ба нүүрс усны харьцаанаас тооцно; эхлээд тэдгээрийг тохируулна уу.</string>
-    <string name="state_dose_hint_in_range_title">Зорилтот мужийн дээд хэсэгт ч залруулах</string>
-    <string name="state_dose_hint_in_range_desc">Утга тунгийн зорилтоос мэдэгдэхүйц дээгүүр тогтсон үед ч залруулга санал болгоно. Бүртгээгүй нүүрс ус хоол шингэж байхад муруйг тэгш мэт харагдуулж болох бөгөөд залруулга дээр нь нэмэгдэнэ. Тоо бол профилаас гарсан тооцоо, зөвлөмж биш.</string>
+    <string name="state_dose_hint_desc">Буурахад нүүрс ус, өндөр үед залруулга санал болгох</string>
+    <string name="state_dose_hint_in_range_title">Хүрээн доторх залруулгыг зөвшөөрөх</string>
+    <string name="state_dose_hint_in_range_desc">Утга хүрээн дотор байхад тунгийн зорилтоос дээш залруулгыг зөвшөөрөх</string>
+    <string name="journal_calculations_suggestions_section">Зөвлөмж</string>
+    <string name="journal_calculations_desc">Профайл, шингээлт, идэвхтэй инсулин ба тунгийн зөвлөмж</string>
+    <string name="journal_calculations_title">Тооцоолол</string>
     <string name="state_dose_hint_horizon">Тунгийн зөвлөмжийн хугацаа</string>
     <string name="state_dose_hint_horizon_explanation">Утга буурч байхад нүүрс усны санал хэр хол урагш харахыг заана. Богино нь хожуу, урт нь эрт мэдэгдэнэ.</string>
     <string name="state_dose_hint_profile_notice_title">Загварын профилээ шалгана уу</string>
@@ -1599,7 +1602,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dose calculator</string>
     <string name="journal_food_macros_title">Advanced food absorption</string>
-    <string name="journal_food_macros_desc">Use optional protein and fat for delayed food curves and dose math</string>
+    <string name="journal_food_macros_desc">Хойшилсон хоол шингээлтэд уураг, өөх тосыг ашиглах</string>
     <string name="journal_aaps_import_title">AAPS эмчилгээг импортлох</string>
     <string name="journal_aaps_import_desc">AAPS эмчилгээний broadcast-уудыг хүлээн авч, инсулин болон нүүрс усыг журналд нэмэх</string>
     <string name="journal_aaps_carbs_title">AAPS нүүрс ус</string>
@@ -1635,7 +1638,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_food_save_to_library">Санд хадгалах</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fat</string>
-    <string name="journal_dose_calculator_desc">Suggest paired insulin or carbs from model profile and active insulin</string>
+    <string name="journal_dose_calculator_desc">Таны загварт үндэслэн инсулин эсвэл нүүрс ус санал болгох</string>
     <string name="journal_meal_shape">Meal curve</string>
     <string name="journal_meal_shape_fast">Fast</string>
     <string name="journal_meal_shape_mixed">Mixed</string>
@@ -1674,7 +1677,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_active_now_percent">%1$d%% идэвхтэй</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">Үр дүнтэй IOB (eIOB)-г харуулах</string>
+    <string name="journal_eiob_display_title">Бодит IOB (eIOB)</string>
     <string name="journal_eiob_display_desc">Идэвхээр тохируулсан инсулиныг IOB-ийн хажууд харуулах</string>
     <string name="journal_iob_expanded">IoB %1$s U үлдсэн</string>
     <string name="journal_eiob_expanded">eIoB %1$s U үйлчилж байна</string>

@@ -1618,10 +1618,13 @@
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Cel dawkowania</string>
     <string name="predictive_dose_target_explanation">Sugestie insuliny i węglowodanów korygują do tej wartości. Jest niezależna od zakresu docelowego na wykresie.</string>
-    <string name="state_dose_hint_title">Podpowiedź dawki</string>
-    <string name="state_dose_hint_desc">Proponuje węglowodany, gdy wartość zmierza poniżej celu dawkowania, i korektę, gdy pozostaje wysoka i nie spada. Pozostała insulina jest odejmowana; obliczenie jest możliwe także przy zerowym IOB. Ilości wynikają z wrażliwości i przelicznika węglowodanowego w profilu modelu; ustaw je najpierw.</string>
-    <string name="state_dose_hint_in_range_title">Koryguj też w górnej części zakresu</string>
-    <string name="state_dose_hint_in_range_desc">Proponuje korektę także wtedy, gdy wartość stoi wyraźnie powyżej celu dawkowania i nie rusza się. Niezapisane węglowodany mogą upodobnić wykres do płaskiego, gdy jedzenie wciąż się wchłania, a korekta doszłaby wtedy na wierzch. Liczba to wyliczenie z profilu, nie zalecenie.</string>
+    <string name="state_dose_hint_title">Podpowiedzi dawki</string>
+    <string name="state_dose_hint_desc">Sugeruj węglowodany przy niskich i korekty przy wysokich wartościach</string>
+    <string name="state_dose_hint_in_range_title">Zezwalaj na korekty w zakresie</string>
+    <string name="state_dose_hint_in_range_desc">Zezwalaj na korekty powyżej celu dawki, gdy wartość jest jeszcze w zakresie</string>
+    <string name="journal_calculations_suggestions_section">Sugestie</string>
+    <string name="journal_calculations_desc">Profil, wchłanianie, aktywna insulina i podpowiedzi dawki</string>
+    <string name="journal_calculations_title">Obliczenia</string>
     <string name="state_dose_hint_horizon">Horyzont podpowiedzi</string>
     <string name="state_dose_hint_horizon_explanation">Jak daleko wprzód patrzy propozycja węglowodanów przy spadającej wartości. Krócej: później i rzadziej; dłużej: wcześniej i częściej.</string>
     <string name="state_dose_hint_profile_notice_title">Sprawdź profil modelu</string>
@@ -1633,7 +1636,7 @@
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Kalkulator dawki</string>
     <string name="journal_food_macros_title">Zaawansowane wchłanianie posiłku</string>
-    <string name="journal_food_macros_desc">Opcjonalnie uwzględniaj białko i tłuszcz w opóźnionej krzywej posiłku i dawkowaniu</string>
+    <string name="journal_food_macros_desc">Uwzględniaj białko i tłuszcz przy opóźnionym wchłanianiu posiłku</string>
     <string name="journal_aaps_import_title">Importuj terapie AAPS</string>
     <string name="journal_aaps_import_desc">Odbieraj transmisje terapii AAPS i dodawaj insulinę oraz węglowodany do dziennika</string>
     <string name="journal_aaps_carbs_title">Węglowodany AAPS</string>
@@ -1669,7 +1672,7 @@
     <string name="journal_food_save_to_library">Zapisz w bibliotece</string>
     <string name="journal_food_protein_short">%1$s g białka</string>
     <string name="journal_food_fat_short">%1$s g tłuszczu</string>
-    <string name="journal_dose_calculator_desc">Sugeruj sparowaną insulinę lub węglowodany z profilu modelu i aktywnej insuliny</string>
+    <string name="journal_dose_calculator_desc">Sugeruj insulinę lub węglowodany na podstawie modelu</string>
     <string name="journal_meal_shape">Krzywa posiłku</string>
     <string name="journal_meal_shape_fast">Szybko</string>
     <string name="journal_meal_shape_mixed">Mieszane</string>
@@ -1707,8 +1710,8 @@
     <string name="journal_active_now_percent">%1$d%% aktywne</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s j.</string>
-    <string name="journal_eiob_display_title">Pokaż efektywne IOB (eIOB)</string>
-    <string name="journal_eiob_display_desc">Pokaż insulinę skorygowaną o aktywność obok IOB</string>
+    <string name="journal_eiob_display_title">Efektywne IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Pokazuj insulinę skorygowaną o aktywność obok IOB</string>
     <string name="journal_iob_expanded">Pozostałe IoB: %1$s j.</string>
     <string name="journal_eiob_expanded">Aktywne eIoB: %1$s j.</string>
     <string name="journal_dashboard_quickadd_title">Szybkie dodawanie na pulpicie</string>

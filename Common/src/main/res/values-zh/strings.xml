@@ -1600,9 +1600,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target">剂量目标</string>
     <string name="predictive_dose_target_explanation">胰岛素和碳水化合物建议以此数值为校正目标。它与图表上显示的目标范围无关。</string>
     <string name="state_dose_hint_title">剂量提示</string>
-    <string name="state_dose_hint_desc">当血糖正走向剂量目标以下时建议碳水，当血糖持续偏高且没有下降时建议校正。计算会减去体内剩余胰岛素，IOB 为零时也可计算。数值由模型配置中的敏感系数和碳水系数算出，请先设好它们。</string>
-    <string name="state_dose_hint_in_range_title">在目标区间上半段也校正</string>
-    <string name="state_dose_hint_in_range_desc">当血糖明显高于剂量目标并持续不降时，也给出校正建议。未记录的碳水可能让曲线看起来平稳，而食物其实仍在吸收，校正就会叠加上去。这个数字是按你的配置算出来的，不是医嘱。</string>
+    <string name="state_dose_hint_desc">偏低时建议碳水，偏高时建议校正</string>
+    <string name="state_dose_hint_in_range_title">允许范围内校正</string>
+    <string name="state_dose_hint_in_range_desc">血糖仍在范围内但高于剂量目标时也允许校正</string>
+    <string name="journal_calculations_suggestions_section">建议</string>
+    <string name="journal_calculations_desc">配置、吸收、活性胰岛素与剂量提示</string>
+    <string name="journal_calculations_title">计算</string>
     <string name="state_dose_hint_horizon">剂量提示前瞻时长</string>
     <string name="state_dose_hint_horizon_explanation">血糖下降时碳水建议向前看多远。越短越晚提示、提示越少；越长越早提示、提示越多。</string>
     <string name="state_dose_hint_profile_notice_title">检查模型配置</string>
@@ -1614,7 +1617,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d 分钟</string>
     <string name="journal_dose_math_title">剂量计算器</string>
     <string name="journal_food_macros_title">高级食物吸收</string>
-    <string name="journal_food_macros_desc">使用可选蛋白质和脂肪计算延迟食物曲线与剂量</string>
+    <string name="journal_food_macros_desc">使用蛋白质和脂肪计算延迟的食物吸收</string>
     <string name="journal_aaps_import_title">导入 AAPS 治疗</string>
     <string name="journal_aaps_import_desc">接收 AAPS 治疗广播，并将胰岛素和碳水添加到日志</string>
     <string name="journal_aaps_carbs_title">AAPS 碳水</string>
@@ -1650,7 +1653,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">保存到食物库</string>
     <string name="journal_food_protein_short">%1$s 克蛋白质</string>
     <string name="journal_food_fat_short">%1$s 克脂肪</string>
-    <string name="journal_dose_calculator_desc">根据模型配置和活性胰岛素建议配对的胰岛素或碳水</string>
+    <string name="journal_dose_calculator_desc">根据你的模型建议胰岛素或碳水</string>
     <string name="journal_meal_shape">餐食曲线</string>
     <string name="journal_meal_shape_fast">快速</string>
     <string name="journal_meal_shape_mixed">混合</string>
@@ -1688,8 +1691,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">%1$d%% 活跃</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">显示有效 IOB (eIOB)</string>
-    <string name="journal_eiob_display_desc">在 IOB 旁显示活动校正后的胰岛素</string>
+    <string name="journal_eiob_display_title">有效 IOB（eIOB）</string>
+    <string name="journal_eiob_display_desc">在 IOB 旁显示按活动调整的胰岛素</string>
     <string name="journal_iob_expanded">剩余 IoB：%1$s U</string>
     <string name="journal_eiob_expanded">有效 eIoB：%1$s U</string>
     <string name="journal_dashboard_quickadd_title">在仪表板快速添加</string>

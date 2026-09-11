@@ -2078,10 +2078,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Dose target</string>
     <string name="predictive_dose_target_explanation">Insulin and carb suggestions correct toward this value. It is separate from the in-range band shown on the chart.</string>
-    <string name="state_dose_hint_title">Dose hint</string>
-    <string name="state_dose_hint_desc">Suggests carbs when the value is heading below the dose target, and a correction when it stays high without falling. Any insulin on board is subtracted; zero IOB is allowed. The amounts are computed from the sensitivity and carb ratio in the model profile, so set those first.</string>
-    <string name="state_dose_hint_in_range_title">Correct inside the target range</string>
-    <string name="state_dose_hint_in_range_desc">Also suggests a correction when the value sits well above the dose target and holds there. Carbs that were not logged can make a trace look settled while food is still being absorbed, and the correction would land on top of that. The figure is a calculation from your profile, not a recommendation.</string>
+    <string name="state_dose_hint_title">Dose hints</string>
+    <string name="state_dose_hint_desc">Suggest carbs for lows and corrections for highs</string>
+    <string name="state_dose_hint_in_range_title">Allow in-range corrections</string>
+    <string name="state_dose_hint_in_range_desc">Allow corrections above the dose target while still in range</string>
+    <string name="journal_calculations_suggestions_section">Suggestions</string>
+    <string name="journal_calculations_desc">Profile, absorption, active insulin and dose hints</string>
+    <string name="journal_calculations_title">Calculations</string>
     <string name="state_dose_hint_horizon">Dose hint horizon</string>
     <string name="state_dose_hint_horizon_explanation">How far ahead the carb suggestion looks while the value is falling. Shorter reacts later and says less; longer reacts earlier and says more.</string>
     <string name="state_dose_hint_profile_notice_title">Check your model profile</string>
@@ -2093,7 +2096,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dose calculator</string>
     <string name="journal_food_macros_title">Advanced food absorption</string>
-    <string name="journal_food_macros_desc">Use optional protein and fat for delayed food curves and dose math</string>
+    <string name="journal_food_macros_desc">Use protein and fat for delayed food absorption</string>
     <string name="journal_aaps_import_title">Import AAPS treatments</string>
     <string name="journal_aaps_import_desc">Receive AAPS treatment broadcasts and add insulin and carbs to the journal</string>
     <string name="journal_aaps_carbs_title">AAPS carbs</string>
@@ -2129,7 +2132,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Save to library</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fat</string>
-    <string name="journal_dose_calculator_desc">Suggest paired insulin or carbs from model profile and active insulin</string>
+    <string name="journal_dose_calculator_desc">Suggest insulin or carbs using your model</string>
     <string name="journal_meal_shape">Meal curve</string>
     <string name="journal_meal_shape_fast">Fast</string>
     <string name="journal_meal_shape_mixed">Mixed</string>
@@ -2168,8 +2171,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">%1$d%% active</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s U</string>
-    <string name="journal_eiob_display_title">Show effective IOB (eIOB)</string>
-    <string name="journal_eiob_display_desc">Show activity-based insulin next to IOB</string>
+    <string name="journal_eiob_display_title">Effective IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Show activity-adjusted insulin next to IOB</string>
     <string name="journal_dashboard_quickadd_title">Dashboard quick add</string>
     <string name="journal_dashboard_quickadd_desc">Show the Journal + button</string>
     <string name="journal_quickadd_always_now_title">Use the current time</string>

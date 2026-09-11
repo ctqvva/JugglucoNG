@@ -1653,10 +1653,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Мэтавае значэнне для дозы</string>
     <string name="predictive_dose_target_explanation">Прапановы інсуліну і вугляводаў карэктуюць да гэтага значэння. Яно не звязана з мэтавым дыяпазонам на графіку.</string>
-    <string name="state_dose_hint_title">Падказка па дозе</string>
-    <string name="state_dose_hint_desc">Прапануе вугляводы, калі значэнне ідзе ніжэй за мэту дозы, і карэкцыю, калі яно застаецца высокім і не зніжаецца. Рэшткавы інсулін адымаецца; разлік магчымы і пры нулявым IOB. Колькасці разлічваюцца з адчувальнасці і вугляводнага каэфіцыента мадэльнага профілю; спачатку задайце іх.</string>
-    <string name="state_dose_hint_in_range_title">Карэктаваць і ў верхняй частцы дыяпазону</string>
-    <string name="state_dose_hint_in_range_desc">Прапануе карэкцыю таксама тады, калі значэнне стаіць прыкметна вышэй за мэту дазавання і трымаецца там. Незанесеныя вугляводы могуць рабіць графік роўным, пакуль ежа яшчэ ўсмоктваецца; карэкцыя тады ляжа зверху. Лічба, гэта разлік з профілю, а не рэкамендацыя.</string>
+    <string name="state_dose_hint_title">Падказкі дозы</string>
+    <string name="state_dose_hint_desc">Прапаноўваць вугляводы пры зніжэнні і карэкцыю пры высокіх значэннях</string>
+    <string name="state_dose_hint_in_range_title">Дазволіць карэкцыі ў мэтавым дыяпазоне</string>
+    <string name="state_dose_hint_in_range_desc">Дазваляць карэкцыі вышэй за мэтавае значэнне дозы, пакуль паказчык яшчэ ў дыяпазоне</string>
+    <string name="journal_calculations_suggestions_section">Падказкі</string>
+    <string name="journal_calculations_desc">Профіль, засваенне, актыўны інсулін і падказкі дозы</string>
+    <string name="journal_calculations_title">Разлікі</string>
     <string name="state_dose_hint_horizon">Гарызонт падказкі па дозе</string>
     <string name="state_dose_hint_horizon_explanation">Наколькі далёка наперад глядзіць вугляводная прапанова пры падзенні значэння. Карацей — пазней і радзей, даўжэй — раней і часцей.</string>
     <string name="state_dose_hint_profile_notice_title">Праверце мадэльны профіль</string>
@@ -1668,7 +1671,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d хв</string>
     <string name="journal_dose_math_title">Калькулятар дозы</string>
     <string name="journal_food_macros_title">Пашыранае засваенне ежы</string>
-    <string name="journal_food_macros_desc">Улічваць неабавязковыя бялок і тлушч для адкладзеных крывых ежы і разліку дозы</string>
+    <string name="journal_food_macros_desc">Улічваць бялкі і тлушчы для запаволенага засваення ежы</string>
     <string name="journal_aaps_import_title">Імпартаваць тэрапію AAPS</string>
     <string name="journal_aaps_import_desc">Прымаць трансляцыі тэрапіі AAPS і дадаваць інсулін і вугляводы ў журнал</string>
     <string name="journal_aaps_carbs_title">Вугляводы AAPS</string>
@@ -1704,7 +1707,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Захаваць у базу</string>
     <string name="journal_food_protein_short">%1$s г бялку</string>
     <string name="journal_food_fat_short">%1$s г тлушчу</string>
-    <string name="journal_dose_calculator_desc">Прапаноўваць парны інсулін або вугляводы з профілю мадэлі і актыўнага інсуліну</string>
+    <string name="journal_dose_calculator_desc">Прапаноўваць інсулін або вугляводы паводле вашай мадэлі</string>
     <string name="journal_meal_shape">Крывая ежы</string>
     <string name="journal_meal_shape_fast">Хутка</string>
     <string name="journal_meal_shape_mixed">Змешана</string>
@@ -1742,7 +1745,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">Актыўна %1$d%%</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s АД</string>
-    <string name="journal_eiob_display_title">Паказваць эфектыўны IOB (eIOB)</string>
+    <string name="journal_eiob_display_title">Эфектыўны IOB (eIOB)</string>
     <string name="journal_eiob_display_desc">Паказваць інсулін з улікам актыўнасці побач з IOB</string>
     <string name="journal_iob_expanded">Засталося IoB: %1$s АД</string>
     <string name="journal_eiob_expanded">Дзейнічае eIoB: %1$s АД</string>

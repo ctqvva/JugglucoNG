@@ -1611,10 +1611,13 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Doz hedefi</string>
     <string name="predictive_dose_target_explanation">İnsülin ve karbonhidrat önerileri bu değere göre düzeltir. Grafikteki hedef aralıktan ayrıdır.</string>
-    <string name="state_dose_hint_title">Doz ipucu</string>
-    <string name="state_dose_hint_desc">Değer doz hedefinin altına doğru giderken karbonhidrat, düşmeden yüksek kalıyorsa düzeltme önerir. Vücuttaki kalan insülin çıkarılır; IOB sıfırken de hesaplama yapılabilir. Miktarlar model profilindeki duyarlılık ve karbonhidrat oranından hesaplanır; önce onları ayarlayın.</string>
-    <string name="state_dose_hint_in_range_title">Hedef aralığın üst kısmında da düzelt</string>
-    <string name="state_dose_hint_in_range_desc">Değer doz hedefinin belirgin şekilde üzerinde durup orada kaldığında da bir düzeltme önerir. Kaydedilmemiş karbonhidratlar, yemek hâlâ emilirken eğriyi durgun gösterebilir; düzeltme o zaman bunun üstüne biner. Sayı profilinizden yapılan bir hesaptır, öneri değildir.</string>
+    <string name="state_dose_hint_title">Doz ipuçları</string>
+    <string name="state_dose_hint_desc">Düşüşte karbonhidrat, yükseklerde düzeltme öner</string>
+    <string name="state_dose_hint_in_range_title">Aralık içinde düzeltmeye izin ver</string>
+    <string name="state_dose_hint_in_range_desc">Değer hâlâ aralıktayken doz hedefinin üzerinde düzeltmeye izin ver</string>
+    <string name="journal_calculations_suggestions_section">Öneriler</string>
+    <string name="journal_calculations_desc">Profil, emilim, aktif insülin ve doz ipuçları</string>
+    <string name="journal_calculations_title">Hesaplamalar</string>
     <string name="state_dose_hint_horizon">Doz ipucu ufku</string>
     <string name="state_dose_hint_horizon_explanation">Değer düşerken karbonhidrat önerisinin ne kadar ileriye baktığı. Kısa: daha geç ve daha seyrek; uzun: daha erken ve daha sık.</string>
     <string name="state_dose_hint_profile_notice_title">Model profilinizi kontrol edin</string>
@@ -1626,7 +1629,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_horizon_value">%1$d dk</string>
     <string name="journal_dose_math_title">Doz hesaplayıcı</string>
     <string name="journal_food_macros_title">Gelişmiş yiyecek emilimi</string>
-    <string name="journal_food_macros_desc">Gecikmeli yemek eğrileri ve doz hesabı için isteğe bağlı protein ve yağ kullan</string>
+    <string name="journal_food_macros_desc">Gecikmeli besin emilimi için protein ve yağı kullan</string>
     <string name="journal_aaps_import_title">AAPS tedavilerini içe aktar</string>
     <string name="journal_aaps_import_desc">AAPS tedavi yayınlarını alıp insülin ve karbonhidratı günlüğe ekle</string>
     <string name="journal_aaps_carbs_title">AAPS karbonhidratı</string>
@@ -1662,7 +1665,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_food_save_to_library">Kitaplığa kaydet</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g yağ</string>
-    <string name="journal_dose_calculator_desc">Model profili ve aktif insülinden eşleşen insülin veya karbonhidrat öner</string>
+    <string name="journal_dose_calculator_desc">Modelinize göre insülin veya karbonhidrat öner</string>
     <string name="journal_meal_shape">Öğün eğrisi</string>
     <string name="journal_meal_shape_fast">Hızlı</string>
     <string name="journal_meal_shape_mixed">Karışık</string>
@@ -1700,8 +1703,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_active_now_percent">%1$d%% aktif</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s Ü</string>
-    <string name="journal_eiob_display_title">Etkin IOB’yi (eIOB) göster</string>
-    <string name="journal_eiob_display_desc">Etkinliğe göre ayarlanmış insülini IOB’nin yanında göster</string>
+    <string name="journal_eiob_display_title">Etkin IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Aktiviteye göre ayarlanmış insülini IOB yanında göster</string>
     <string name="journal_iob_expanded">Kalan IoB: %1$s Ü</string>
     <string name="journal_eiob_expanded">Etkin eIoB: %1$s Ü</string>
     <string name="journal_dashboard_quickadd_title">Panoda hızlı ekleme</string>

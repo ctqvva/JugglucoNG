@@ -1626,10 +1626,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Doelwaarde voor dosering</string>
     <string name="predictive_dose_target_explanation">Insuline- en koolhydraatsuggesties corrigeren naar deze waarde. Die staat los van het streefbereik op de grafiek.</string>
-    <string name="state_dose_hint_title">Doseringshint</string>
-    <string name="state_dose_hint_desc">Stelt koolhydraten voor als de waarde onder het doseerdoel zakt, en een correctie als ze hoog blijft zonder te dalen. Aanwezige insuline wordt afgetrokken; berekening is ook mogelijk bij nul IOB. De hoeveelheden komen uit de gevoeligheid en koolhydraatratio van het modelprofiel; stel die eerst in.</string>
-    <string name="state_dose_hint_in_range_title">Ook in het bovenste deel van het bereik corrigeren</string>
-    <string name="state_dose_hint_in_range_desc">Stelt ook een correctie voor als de waarde ruim boven het doseerdoel blijft staan. Niet-gelogde koolhydraten kunnen een vlakke lijn voorspiegelen terwijl er nog voedsel wordt opgenomen; de correctie komt er dan bovenop. Het getal is een berekening uit je profiel, geen advies.</string>
+    <string name="state_dose_hint_title">Dosishints</string>
+    <string name="state_dose_hint_desc">Koolhydraten voorstellen bij lage en correcties bij hoge waarden</string>
+    <string name="state_dose_hint_in_range_title">Correcties binnen bereik toestaan</string>
+    <string name="state_dose_hint_in_range_desc">Correcties boven het dosisdoel toestaan terwijl de waarde nog binnen bereik is</string>
+    <string name="journal_calculations_suggestions_section">Suggesties</string>
+    <string name="journal_calculations_desc">Profiel, opname, actieve insuline en dosishints</string>
+    <string name="journal_calculations_title">Berekeningen</string>
     <string name="state_dose_hint_horizon">Horizon van de hint</string>
     <string name="state_dose_hint_horizon_explanation">Hoe ver het koolhydraatvoorstel vooruitkijkt bij een dalende waarde. Korter meldt later en minder vaak, langer eerder en vaker.</string>
     <string name="state_dose_hint_profile_notice_title">Controleer je modelprofiel</string>
@@ -1641,7 +1644,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dosiscalculator</string>
     <string name="journal_food_macros_title">Geavanceerde voedselabsorptie</string>
-    <string name="journal_food_macros_desc">Gebruik optioneel eiwit en vet voor vertraagde voedselcurves en dosisberekening</string>
+    <string name="journal_food_macros_desc">Eiwit en vet gebruiken voor vertraagde voedselopname</string>
     <string name="journal_aaps_import_title">AAPS-behandelingen importeren</string>
     <string name="journal_aaps_import_desc">Ontvang AAPS-behandelbroadcasts en voeg insuline en koolhydraten toe aan het dagboek</string>
     <string name="journal_aaps_carbs_title">AAPS-koolhydraten</string>
@@ -1677,7 +1680,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_food_save_to_library">Opslaan in bibliotheek</string>
     <string name="journal_food_protein_short">%1$s g eiwit</string>
     <string name="journal_food_fat_short">%1$s g vet</string>
-    <string name="journal_dose_calculator_desc">Gekoppelde insuline of koolhydraten voorstellen op basis van modelprofiel en actieve insuline</string>
+    <string name="journal_dose_calculator_desc">Insuline of koolhydraten voorstellen op basis van je model</string>
     <string name="journal_meal_shape">Maaltijdcurve</string>
     <string name="journal_meal_shape_fast">Snel</string>
     <string name="journal_meal_shape_mixed">Gemengd</string>
@@ -1715,8 +1718,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_active_now_percent">%1$d%% actief</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s E</string>
-    <string name="journal_eiob_display_title">Effectieve IOB (eIOB) tonen</string>
-    <string name="journal_eiob_display_desc">Toon activiteitsgecorrigeerde insuline naast IOB</string>
+    <string name="journal_eiob_display_title">Effectieve IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Activiteitsgecorrigeerde insuline naast IOB tonen</string>
     <string name="journal_iob_expanded">Resterende IoB: %1$s E</string>
     <string name="journal_eiob_expanded">Actieve eIoB: %1$s E</string>
     <string name="journal_dashboard_quickadd_title">Snel toevoegen op het dashboard</string>
