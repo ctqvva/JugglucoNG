@@ -1642,11 +1642,19 @@ class HistoryRepository(context: Context = Applic.app) {
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap(),
         display: Map<Long, ReadingDisplay> = emptyMap()
     ): List<GlucosePoint> {
-        return mapReadings(
-            HistoryDisplayMerge.mergeReadings(readings, preferredSerial),
-            uncertainty,
-            display
-        )
+        val merged = HistoryDisplayMerge.mergeReadings(readings, preferredSerial)
+        // The merge decides ownership from today's facts. For minutes the user
+        // has already been shown, the recorded owner overrides it — see
+        // RecordedOwnerMerge for why painting the recorded value onto whichever
+        // sensor the merge picked was not persistence at all.
+        val owned = if (display.isEmpty() ||
+            !runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+        ) {
+            merged
+        } else {
+            RecordedOwnerMerge.apply(merged, readings, display, System.currentTimeMillis())
+        }
+        return mapReadings(owned, uncertainty, display)
     }
 
     private fun mergeQueryReadings(
@@ -2007,8 +2015,18 @@ class HistoryRepository(context: Context = Applic.app) {
                     }
                 }
                 if (inserted > 0) UiRefreshBus.requestDataRefresh()
+                // tk.glucodata.Log, not android.util.Log: only the former reaches
+                // the trace ring the exported log is built from. A 20k-line trace
+                // of a run where this had supposedly executed contained nothing
+                // from this class, because nothing here could be seen.
+                tk.glucodata.Log.i(
+                    TAG,
+                    "presented ${entries.size} minutes: recorded $inserted new, " +
+                        "${rows.size - inserted} already held, horizon=$sealHorizon"
+                )
                 inserted
             } catch (e: Exception) {
+                tk.glucodata.Log.e(TAG, "Failed recording presented minutes: ${e.message}")
                 Log.e(TAG, "Failed recording presented minutes", e)
                 0
             }
