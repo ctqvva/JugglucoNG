@@ -1161,15 +1161,32 @@ private fun AlertSettingsExpanded(
                     )
                 }
 
-                // === Falling-value suppression ===
-                // These alerts say the value is not coming down; a steep fall proves it is.
-                // Slider in tenths of mg/dl per minute; 0 = off. VERY_HIGH is not among them:
-                // there the number itself is the problem.
-                if (config.type == AlertType.PERSISTENT_HIGH || config.type == AlertType.HIGH) {
-                    // One scale for both, in whole arrows: that is all the precision the
-                    // number behind it has, and it is the app's own vocabulary for what an
-                    // arrow means. Each step names itself, so the setting can be read
-                    // without knowing what a rate in mg/dL per minute looks like.
+                // HIGH follows the exact arrow shown on its alarm screen. A saved positive
+                // value from the former slider counts as enabled, so existing opt-ins do not
+                // need a preference migration.
+                if (config.type == AlertType.HIGH) {
+                    ClickableToggleRow(
+                        icon = Icons.AutoMirrored.Filled.TrendingDown,
+                        title = stringResource(R.string.persistent_high_fall_suppress_label),
+                        checked = (config.fallRateSuppress ?: 0f) > 0f,
+                        onCheckedChange = { enabled ->
+                            onConfigChange(
+                                config.copy(
+                                    fallRateSuppress = if (enabled) {
+                                        AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+                                    } else {
+                                        null
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+
+                // PERSISTENT_HIGH has already waited out a duration and keeps its adjustable
+                // fall threshold. VERY_HIGH is excluded because there the number itself is
+                // the problem, whichever way it is moving.
+                if (config.type == AlertType.PERSISTENT_HIGH) {
                     DurationSlider(
                         label = stringResource(R.string.persistent_high_fall_suppress_label),
                         value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
