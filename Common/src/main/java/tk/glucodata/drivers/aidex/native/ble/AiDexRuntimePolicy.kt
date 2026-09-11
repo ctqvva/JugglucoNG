@@ -27,25 +27,24 @@ internal object AiDexRuntimePolicy {
     /**
      * Which credential the next key exchange starts from.
      *
-     * A saved key skips F001 only on a phone that is already bonded to the sensor — the
-     * upstream Juggluco rule. Enabling F001 is what makes the sensor initiate SMP pairing;
-     * a phone-initiated createBond() with no F001 in the chain is refused (BOND_NONE, then
-     * status 22), so an unbonded phone always runs the fresh chain even when it holds a key.
-     * If the sensor then hands back the same key nothing changes; a different one replaces
-     * the stored copy only after it has decrypted a CRC-valid live frame.
+     * A saved key is used whenever one exists, bonded or not. F002 and F003 accept CCCD
+     * writes over an unencrypted link — the sensor's security there is the app-layer AES
+     * with the PAIR key, not SMP — and only F001 demands a bond. So an unbonded phone that
+     * holds the key reads F002 with it and never touches F001 or asks for a bond: that is
+     * the recovery after a network-settings reset (new phone identity, sensor's one bond
+     * slot still taken) and the cross-device restore. Never createBond() from the phone
+     * side; the sensor refuses that (BOND_NONE, then status 22).
      *
-     * The other exception is a saved key that has already failed [savedKeyExhausted] times.
-     * Nothing automatic replaces it, but the user pressing Pair may run a fresh F001 —
-     * without that a stale key would park the sensor in broadcast-only for good.
+     * Without a saved key the sensor is paired fresh over F001, which is what makes it
+     * initiate pairing. A saved key that has failed [savedKeyExhausted] times is replaced
+     * only when the user presses Pair; nothing automatic rotates a stored credential.
      */
     fun decidePairKeyStartAction(
-        bondStateAtConnection: Int,
         hasSavedPairKey: Boolean,
         savedKeyExhausted: Boolean = false,
         explicitPairRequested: Boolean = false,
     ): PairKeyStartAction = when {
         !hasSavedPairKey -> PairKeyStartAction.FRESH_PAIR
-        bondStateAtConnection != BluetoothDevice.BOND_BONDED -> PairKeyStartAction.FRESH_PAIR
         explicitPairRequested && savedKeyExhausted -> PairKeyStartAction.FRESH_PAIR
         else -> PairKeyStartAction.USE_SAVED_KEY
     }

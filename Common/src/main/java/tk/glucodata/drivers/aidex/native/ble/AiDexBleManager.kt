@@ -2294,11 +2294,12 @@ class AiDexBleManager(
                     scheduleDeferredBondCompletionCheck(gatt, attempt = 1)
                 }
                 else -> {
-                    // Unbonded: the fresh chain enabled F001, and writing the challenge is
-                    // what makes the sensor initiate pairing. Never createBond() from the
-                    // phone side — the sensor refuses that (BOND_NONE, then status 22).
-                    Log.i(TAG, "Unbonded AiDex link — starting PAIR exchange; the sensor will request bonding")
-                    startFreshPairKeyExchange(gatt)
+                    // Unbonded. With a saved key, read F002 with it right here — F002/F003
+                    // do not need link encryption, and asking for a bond is what the sensor
+                    // refuses (BOND_NONE, then status 22). Without one, the fresh chain has
+                    // F001 enabled and writing the challenge makes the sensor initiate pairing.
+                    Log.i(TAG, "Unbonded AiDex link — starting key exchange without requesting a bond")
+                    startKeyExchangeForCurrentConnection(gatt)
                 }
             }
         }
@@ -2848,7 +2849,6 @@ class AiDexBleManager(
 
     private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction =
         AiDexRuntimePolicy.decidePairKeyStartAction(
-            bondStateAtConnection = bondStateAtConnection,
             hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
             savedKeyExhausted = savedKeyExhausted,
             explicitPairRequested = explicitPairRequested,
