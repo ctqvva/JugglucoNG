@@ -340,6 +340,35 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun candidateCompletionRequiresCurrentConnectedAgent() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+        val reader = ice.substring(ice.indexOf("static void getAddressesThread"),
+            ice.indexOf("static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr) {"))
+        assertTrue(reader.contains("readRendezvousCandidates(active"))
+        assertTrue(reader.contains("!con->endConnect.load()"))
+        assertTrue(reader.contains("!con->remoteDescriptionWasLocal.load()"))
+        assertTrue(reader.contains("cancellation->load(std::memory_order_acquire)"))
+        assertTrue(reader.contains("if(!active()) return;"))
+        assertTrue(reader.contains("CandidateStreamResult::ConnectedEnd&&con->isConnected.load()"))
+        assertFalse(reader.contains("resbody.size()>= (sizeof(BackDescription )+20)"))
+    }
+
+    @Test
+    fun recoveryTraceSeparatesSuspendFromActiveWaitWithoutWakeLock() {
+        val trace = source("Common/src/main/cpp/net/ICE/RecoveryTrace.hpp")
+        assertTrue(trace.contains("CLOCK_MONOTONIC"))
+        assertTrue(trace.contains("elapsedRealtimeMilliseconds()"))
+        assertTrue(trace.contains("boot_ms=%lld mono_ms=%lld"))
+        assertTrue(trace.contains("#ifndef NOLOG"))
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+        listOf("restart-requested", "restart-notified", "receiver-wait-begin", "receiver-wait-end",
+            "receiver-commands-returned", "receiver-retry-pause-begin", "receiver-retry-pause-end",
+            "receiver-connect-begin", "receiver-connect-end").forEach {
+            assertTrue("Missing recovery stage $it", ice.contains("\"$it\""))
+        }
+    }
+
+    @Test
     fun fastLocalConnectionPreservesTheFirstPeerRequest() {
         val transport = source("Common/src/main/cpp/net/ICE/ICE_data.hpp")
             .replace(Regex("\\s+"), " ")

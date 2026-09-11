@@ -19,6 +19,7 @@
 #include <thread>
 #include <vector>
 #include "net/ICE/GenerationWatchRetry.hpp"
+#include "net/ICE/RendezvousCandidateStream.hpp"
 
 // Access the production receive loop without binding a real Wi-Fi interface.
 #define private public
@@ -558,6 +559,112 @@ static void generationWatchCancellationStopsRetries() {
     require(requests == 0, "disabled watcher made an HTTP request");
 }
 
+static std::vector<char> candidateReply(std::string_view candidate) {
+    std::vector<char> body(sizeof(uint32_t), 0);
+    body.insert(body.end(), candidate.begin(), candidate.end());
+    body.push_back('\0');
+    return body;
+}
+
+static void emptyRepliesDoNotFinishPendingCandidates() {
+    int requests = 0, waits = 0, pending = 0;
+    bool connected = false;
+    std::vector<std::string> accepted;
+    const std::string candidates[] = {
+        "a=candidate:1 1 UDP 2116026367 192.168.0.106 40000 typ host",
+        "a=candidate:2 1 UDP 1679818239 198.51.100.2 40000 typ srflx raddr 0.0.0.0 rport 0",
+        "a=candidate:3 1 UDP 2096383 203.0.113.4 40001 typ relay raddr 0.0.0.0 rport 0",
+    };
+    const auto result = readRendezvousCandidates([] { return true; },
+        [&] { return connected; }, [&] {
+            ++requests;
+            // Replay the captured ordering, including enough virtual elapsed
+            // time to exceed the old prematurely completed attempt's deadline.
+            if (requests <= 50)
+                return std::pair{requests % 2 ? std::vector<char>{'{', '}', '\n'} :
+                                              candidateReply(""), 200};
+            if (requests <= 53) return std::pair{candidateReply(candidates[requests - 51]), 200};
+            return std::pair{std::vector<char>{'{', '}'}, 200};
+        }, [&](std::string_view candidate) {
+            accepted.emplace_back(candidate);
+            if (accepted.size() == 3) connected = true;
+            return true;
+        }, [&](int seconds) { require(seconds == 2, "empty response busy-looped"); ++waits; return true; },
+        [&](size_t) { ++pending; });
+    require(result == CandidateStreamResult::ConnectedEnd && requests == 54 &&
+            waits == 50 && pending == 50, "empty reply prematurely finished candidate stream");
+    require(accepted == std::vector<std::string>(std::begin(candidates), std::end(candidates)),
+            "late host/reflexive/TURN candidates were lost");
+}
+
+static void candidateReaderStopsOnCancellationAndStaleResponse() {
+    bool active = true;
+    int requests = 0, accepted = 0, waits = 0;
+    auto result = readRendezvousCandidates([&] { return active; }, [] { return false; }, [&] {
+        ++requests;
+        return std::pair{std::vector<char>{}, 200};
+    }, [&](std::string_view) { ++accepted; return true; }, [&](int) {
+        ++waits; active = false; return false;
+    }, [](size_t) {});
+    require(result == CandidateStreamResult::Cancelled && requests == 1 && waits == 1,
+            "cancelled pending reader continued polling");
+    active = true;
+    result = readRendezvousCandidates([&] { return active; }, [] { return true; }, [&] {
+        active = false; // Old HTTP response finishes after session replacement.
+        return std::pair{candidateReply("a=candidate:old"), 200};
+    }, [&](std::string_view) { ++accepted; return true; }, [](int) { return true; }, [](size_t) {});
+    require(result == CandidateStreamResult::Cancelled && accepted == 0,
+            "stale response altered replacement agent");
+}
+
+static void connectedCandidateReaderPreservesLegacyCompletion() {
+    int requests = 0, accepted = 0;
+    const auto result = readRendezvousCandidates([] { return true; }, [] { return true; }, [&] {
+        ++requests;
+        return std::pair{requests == 1 ? candidateReply("a=candidate:late-relay") :
+                                       std::vector<char>{'{', '}'}, 200};
+    }, [&](std::string_view) { ++accepted; return true; }, [](int) {
+        throw std::runtime_error("connected completion unnecessarily waited"); return false;
+    }, [](size_t) {});
+    require(result == CandidateStreamResult::ConnectedEnd && accepted == 1 && requests == 2,
+            "connected reader dropped queued candidates or ignored legacy end");
+}
+
+static void candidateReaderErrorsRemainBounded() {
+    int requests = 0, waits = 0;
+    const auto result = readRendezvousCandidates([] { return true; }, [] { return false; }, [&] {
+        ++requests;
+        return std::pair{std::vector<char>{}, requests % 2 ? 400 : -1};
+    }, [](std::string_view) { return true; }, [&](int seconds) {
+        require(seconds == (requests % 2 ? 2 : 10), "HTTP error backoff changed");
+        ++waits; return true;
+    }, [](size_t) {});
+    require(result == CandidateStreamResult::Unavailable && requests == 5 && waits == 4,
+            "failed stream never returned for session recovery");
+}
+
+static void candidateBodiesAreBoundedBeforeIceParsing() {
+    require(!rendezvousCandidate(std::vector<char>{'{', '}'}), "empty JSON parsed as candidate");
+    auto body = candidateReply("a=candidate:valid");
+    require(rendezvousCandidate(body) == "a=candidate:valid", "valid candidate rejected");
+    body.pop_back();
+    require(!rendezvousCandidate(body), "unterminated candidate accepted");
+    body = candidateReply("not-a-candidate");
+    require(!rendezvousCandidate(body), "unrelated payload accepted");
+    body = candidateReply("a=candidate:valid");
+    body.insert(body.end() - 1, '\0');
+    require(!rendezvousCandidate(body), "embedded NUL accepted");
+    require(!legacyEmptyCandidateReply(body), "malformed candidate was treated as legacy completion");
+    int requests = 0;
+    const auto result = readRendezvousCandidates([] { return true; }, [] { return true; }, [&] {
+        ++requests;
+        return std::pair{body, 200};
+    }, [](std::string_view) { throw std::runtime_error("malformed candidate reached ICE"); return false; },
+       [](int) { return true; }, [](size_t) {});
+    require(result == CandidateStreamResult::Unavailable && requests == 5,
+            "malformed HTTP 200 completed a connected checklist");
+}
+
 int main() {
     const std::pair<const char *, std::function<void()>> tests[] = {
         {"lost offer after peer authentication", [] { recoverLostDescription(0); }},
@@ -584,6 +691,11 @@ int main() {
         {"changed answer leaves offerer stable", changedAnswerDoesNotRestartOfferer},
         {"generation watch retries past long outages with bounded backoff", generationWatchRetriesPastLongOutages},
         {"generation watch cancellation stops retries", generationWatchCancellationStopsRetries},
+        {"empty replies do not finish pending candidates", emptyRepliesDoNotFinishPendingCandidates},
+        {"candidate reader cancels and rejects stale responses", candidateReaderStopsOnCancellationAndStaleResponse},
+        {"connected reader preserves queued candidates and legacy completion", connectedCandidateReaderPreservesLegacyCompletion},
+        {"candidate reader HTTP failures return for recovery", candidateReaderErrorsRemainBounded},
+        {"candidate bodies are bounded before ICE parsing", candidateBodiesAreBoundedBeforeIceParsing},
     };
     int failures = 0;
     for (const auto &[name, test] : tests) {

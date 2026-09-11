@@ -62,6 +62,8 @@ using namespace std::literals;
 #include "PlaceBuf.hpp"
 #include "ICEConnect.hpp"
 #include "GenerationWatchRetry.hpp"
+#include "RendezvousCandidateStream.hpp"
+#include "RecoveryTrace.hpp"
 #include "net/makerandom.hpp"
 
 extern std::mutex turn_server_mutex;
@@ -288,6 +290,7 @@ static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        const char *reason) {
     if(!con->requestReconnectIfCurrent(agent,generation))
         return false;
+    traceIceRecovery(allindex,generation,"restart-requested");
     const passhost_t &host=getBackupHosts()[allindex];
     LOGGERICE("%s %d: restart rejected negotiation: %s\n",
               host.getICEname().data(),host.side,reason);
@@ -297,6 +300,7 @@ static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
     con->wakeReceiver=true;
     }
     con->receiveThreadCon.notify_one();
+    traceIceRecovery(allindex,generation,"restart-notified");
     return true;
     }
 const char *juiceErrorString(int error) {
@@ -539,54 +543,54 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
                                uint16_t rendezvousPort) {
    static std::string_view address{"/address"};
    CreateAgentData addressdata(commonLabel,side,"") ;
-   int errors=0;
-   while(errors<5) {
-            ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-            if(!con||!con->isCurrentAgent(agent,generation))
-                return;
-            LOGGERICE("getaddress %s %d\n",commonLabel.data(),side);
-            auto [resbody,code]=ContextHTTPS::getContext().getRequest(
-                hostname,rendezvousPort,address,addressdata.getSpan(),{},
-                rendezvousRequestOptions(con));
-            if(!con->isCurrentAgent(agent,generation))
-                return;
-            switch(code) {
-                case 200: {
-                if(resbody.size()>= (sizeof(BackDescription )+20)) {
-                    errors=0;
-                    const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
-                    #ifndef NOLOG
-                    int res=
-                    #endif
-                    juice_add_remote_candidate(agent, other->description);
-                    LOGGERICE("%s %d: getaddress %s res=%d\n",commonLabel.data(),side,other->description,res);
-                    }
-                 else {
-                    juice_set_remote_gathering_done(agent);
-                    LOGGERICE("getaddress %s %d: juice_set_remote_gathering_done\n",commonLabel.data(),side);
-                    return;
-                    }
-                };break;
-              case 400: {
-                LOGGERICE("getaddress %s %d: ERROR try again\n",commonLabel.data(),side);
-                ++errors;
-                if(!waitForCurrentAgent(con,agent,2))
-                    return;
-                  };break;
-              default: {
-                LOGGERICE("getaddress %s %d: Http error\n",commonLabel.data(),side);
-                ++errors;
-                if(!waitForCurrentAgent(con,agent,10))
-                    return;
-                };break;
-                };
-          }
-      LOGGERICE("getaddress %s %d: end thread\n",commonLabel.data(),side);
-      ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-      if(!con||con->isConnected.load())
-          return;
-      restartRejectedNegotiation(con,agent,generation,allindex,
-                                 "remote candidate stream unavailable");
+   ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+   if(!con||!con->isCurrentAgent(agent,generation)) return;
+   const auto cancellation=con->currentRendezvousCancellation();
+   const auto active=[&] {
+       return connections[allindex]==con&&con->isCurrentAgent(agent,generation)&&!con->endConnect.load()&&
+           !con->remoteDescriptionWasLocal.load()&&
+           !(cancellation&&cancellation->load(std::memory_order_acquire));
+   };
+   const auto result=readRendezvousCandidates(active,
+       [&] { return con->isConnected.load(); },
+       [&] {
+           LOGGERICE("getaddress host=%d gen=%llu\n",allindex,
+                     static_cast<unsigned long long>(generation));
+           auto response=ContextHTTPS::getContext().getRequest(
+               hostname,rendezvousPort,address,addressdata.getSpan(),{},
+               rendezvousRequestOptions(con));
+           LOGGERICE("getaddress response host=%d code=%d bytes=%zu\n",
+                     allindex,response.second,response.first.size());
+           return response;
+       },[&](std::string_view candidate) {
+           const std::string terminated(candidate);
+           const int res=juice_add_remote_candidate(agent,terminated.c_str());
+           LOGGERICE("getaddress host=%d candidate res=%d\n",allindex,res);
+           return res==JUICE_ERR_SUCCESS||res==JUICE_ERR_IGNORED;
+       },[&](int seconds) {
+           const auto deadline=elapsedRealtimeMilliseconds()+seconds*1000;
+           while(active()) {
+               const auto remaining=deadline-elapsedRealtimeMilliseconds();
+               if(remaining<=0) return true;
+               std::this_thread::sleep_for(
+                   std::chrono::milliseconds(std::min<int64_t>(remaining,250)));
+           }
+           return false;
+       },[&](size_t bytes) {
+           LOGGERICE("getaddress host=%d ambiguous reply bytes=%zu; still negotiating\n",allindex,bytes);
+           traceIceRecovery(allindex,generation,"candidate-stream-pending");
+       });
+   if(!active()) return;
+   if(result==CandidateStreamResult::ConnectedEnd&&con->isConnected.load()) {
+       // Legacy completion is ambiguous, but this agent has independently
+       // proved connectivity. Never use an empty reply to finish a pending ICE
+       // checklist or close its candidate reader before late candidates arrive.
+       juice_set_remote_gathering_done(agent);
+       LOGGERICE("getaddress host=%d: connected stream ended\n",allindex);
+   } else if(result==CandidateStreamResult::Unavailable&&!con->isConnected.load()) {
+       restartRejectedNegotiation(con,agent,generation,allindex,
+                                  "remote candidate stream unavailable");
+   }
      } 
 
 
@@ -928,11 +932,13 @@ void ICEConnect::receiverThread(int argindex) {
             }
 
         LOGGER("receiverThread  before wait_for %d seconds\n",waitsec);
+        traceIceRecovery(argindex,currentAgentGeneration(),"receiver-wait-begin");
         {
         std::unique_lock<std::mutex> lck(receiveThreadMutex);
         receiveThreadCon.wait_for(lck,std::chrono::seconds(waitsec), [this] {return wakeReceiver.load(); });
         }
         wakeReceiver=false;
+        traceIceRecovery(argindex,currentAgentGeneration(),"receiver-wait-end");
         if(host.deactivated) {
             LOGGERICE("allindex=%d receiverThread parked: host deactivated\n",allindex);
             waitsec=5*60;
@@ -943,7 +949,10 @@ void ICEConnect::receiverThread(int argindex) {
             if(receiveConnect(&host)) {
                 LOGARICE("running receiverthread");
                 receiverthread(&host,argindex);
+                traceIceRecovery(argindex,currentAgentGeneration(),"receiver-commands-returned");
+                traceIceRecovery(argindex,currentAgentGeneration(),"receiver-retry-pause-begin");
                 sleep(1);
+                traceIceRecovery(argindex,currentAgentGeneration(),"receiver-retry-pause-end");
 //                icedata[1].reStarted();
                 waitsec=70;
                 }
@@ -961,7 +970,10 @@ void ICEConnect::receiverThread(int argindex) {
                     LOGARICE("receiverThread: allindex changed 2, return");
                     return;
                     }
-                switch(connect(&host)) {
+                traceIceRecovery(argindex,currentAgentGeneration(),"receiver-connect-begin");
+                const int connectedResult=connect(&host);
+                traceIceRecovery(argindex,currentAgentGeneration(),"receiver-connect-end");
+                switch(connectedResult) {
                     case 1: {
                            LOGGERICE("side=%d receiverThread: connected\n",host.side);
                            waitsec=2*60;
