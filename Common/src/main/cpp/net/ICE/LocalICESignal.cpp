@@ -115,6 +115,31 @@ bool isGenerationToken(std::string_view token) {
            });
 }
 
+// Compare ICE credentials, not whole SDP: candidate trickling and formatting
+// changes do not mean the peer replaced its agent. Reject missing/ambiguous
+// credentials rather than letting a malformed offer tear down a connection.
+std::optional<std::pair<std::string_view, std::string_view>> iceCredentials(
+        std::string_view description) {
+    std::string_view ufrag, password;
+    while (!description.empty()) {
+        const auto end = description.find('\n');
+        auto line = description.substr(0, end);
+        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+        auto attribute = [&](std::string_view prefix, std::string_view &value) {
+            if (!line.starts_with(prefix)) return true;
+            if (!value.empty()) return false;
+            value = line.substr(prefix.size());
+            return !value.empty() && value.find_first_of(" \t\r") == std::string_view::npos;
+        };
+        if (!attribute("a=ice-ufrag:", ufrag) || !attribute("a=ice-pwd:", password))
+            return std::nullopt;
+        if (end == std::string_view::npos) break;
+        description.remove_prefix(end + 1);
+    }
+    if (ufrag.empty() || password.empty()) return std::nullopt;
+    return std::pair{ufrag, password};
+}
+
 std::optional<std::string> makeProbeToken() {
     std::array<uint8_t, 16> random{};
     if (!makerandom(random.data(), random.size()))
@@ -221,6 +246,7 @@ struct LocalICESignalSession::Impl {
     std::string localGeneration;
     std::string peerGeneration;
     std::string localDescription;
+    std::string acceptedRemoteDescription;
     std::vector<std::string> localCandidates;
     bool localGatheringDone{false};
     std::vector<std::string> pendingRemoteCandidates;
@@ -593,6 +619,20 @@ struct LocalICESignalSession::Impl {
             return;
         switch (type) {
             case MessageType::Description:
+                if (side) {
+                    bool replacement = false;
+                    {
+                        const std::lock_guard<std::mutex> lock(stateMutex);
+                        const auto accepted = iceCredentials(acceptedRemoteDescription);
+                        const auto incoming = iceCredentials(data);
+                        replacement = accepted && incoming && *accepted != *incoming;
+                    }
+                    if (replacement) {
+                        LOGARLOCALICE("authenticated replacement offer differs from accepted ICE credentials");
+                        localICEPeerGenerationChanged(allindex, agent, agentGeneration);
+                        return;
+                    }
+                }
                 if (!remoteDescriptionApplied.load() &&
                     applyLocalICEDescription(allindex, agent, agentGeneration,
                                              data, generation)) {
@@ -714,6 +754,11 @@ void LocalICESignalSession::publishDescription(std::string_view description) {
         impl->localDescription.assign(description);
     }
     impl->sendPacket(MessageType::Description, description);
+}
+
+void LocalICESignalSession::setAcceptedRemoteDescription(std::string_view description) {
+    const std::lock_guard<std::mutex> lock(impl->stateMutex);
+    impl->acceptedRemoteDescription.assign(description);
 }
 
 void LocalICESignalSession::publishCandidate(std::string_view candidate) {

@@ -21,6 +21,7 @@ public:
     bool start();
     void stop();
     void publishDescription(std::string_view description);
+    void setAcceptedRemoteDescription(std::string_view description);
     void publishCandidate(std::string_view candidate);
     void publishGatheringDone();
     void markConnected();

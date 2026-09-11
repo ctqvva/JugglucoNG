@@ -300,6 +300,27 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun acceptedIceIdentityAndPersistentWatchAreWiredIntoRecovery() {
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+        val applyDescription = ice.substring(
+            ice.indexOf("static bool applyRemoteDescription"),
+            ice.indexOf("bool applyLocalICEDescription"),
+        )
+        assertTrue(applyDescription.indexOf("local->setAcceptedRemoteDescription(description)") >
+            applyDescription.indexOf("if(result!=JUICE_ERR_SUCCESS)"))
+        val watch = ice.substring(
+            ice.indexOf("static void watchPeerGeneration"),
+            ice.indexOf("static void publishRendezvousGeneration"),
+        )
+        assertTrue(watch.contains("runGenerationWatchRequests(active"))
+        assertFalse(watch.contains("transientErrors"))
+        assertTrue(watch.substringAfter("if(code!=200)").substringBefore("generationWatchCapability")
+            .contains("return GenerationWatchResult::Retry"))
+        assertTrue(watch.substringAfter("},[&](int seconds)").contains("while(active())"))
+        assertTrue(watch.contains("cancellation->load(std::memory_order_acquire)"))
+    }
+
+    @Test
     fun rendezvousReceiverStillPublishesItsDescriptionAfterFetchingThePeer() {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")

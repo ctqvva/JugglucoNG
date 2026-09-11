@@ -18,6 +18,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "net/ICE/GenerationWatchRetry.hpp"
 
 // Access the production receive loop without binding a real Wi-Fi interface.
 #define private public
@@ -200,7 +201,10 @@ bool applyLocalICEDescription(int index, juice_agent_t *, uint64_t,
     if (description.empty() || generation.size() != 32)
         throw std::runtime_error("invalid description at ICE boundary");
     int expected = 0;
-    return Link::active->peers[index].winner.compare_exchange_strong(expected, 1);
+    if (!Link::active->peers[index].winner.compare_exchange_strong(expected, 1))
+        return false;
+    Link::active->sessions[index]->setAcceptedRemoteDescription(description);
+    return true;
 }
 
 void applyLocalICECandidate(int index, juice_agent_t *, uint64_t, std::string_view candidate) {
@@ -441,6 +445,119 @@ static void multicastMembershipRetryAndDeduplication() {
             "different pairs use identical groups");
 }
 
+static const std::string oldOffer = "a=ice-ufrag:old1\r\na=ice-pwd:old-password\r\n";
+static const std::string newOffer = "a=ice-ufrag:new1\r\na=ice-pwd:new-password\r\n";
+
+static void replacementOfferWithoutLanHistory(bool ipv4, bool ipv6) {
+    Link link(ipv4, ipv6);
+    // The receiver's current offer arrived via Rendezvous while off-LAN.
+    // Sender has since created a replacement agent. No receiver UI or
+    // connectivity callback participates in recognizing the replacement.
+    link.peers[1].winner = 2;
+    link.sessions[1]->setAcceptedRemoteDescription(oldOffer);
+    link.sessions[1]->markConnected();
+    require(!link.sessions[1]->hasAuthenticatedPeer(), "unexpected prior LAN peer");
+    link.sessions[0]->publishDescription(newOffer);
+    link.start();
+    require(waitUntil([&] { return link.peers[1].restarts > 0; }),
+            "receiver ignored replacement offer without prior LAN history");
+    require(link.sessions[1]->hasAuthenticatedPeer(), "restart preceded authentication");
+    require(link.peers[0].restarts == 0, "replacement offer restarted its own sender");
+    require(link.peers[1].winner == 2, "new SDP was mixed into the old ICE agent");
+}
+
+static void firstLanContactPreservesAcceptedCredentials() {
+    Link link;
+    link.peers[1].winner = 2;
+    link.sessions[1]->setAcceptedRemoteDescription(oldOffer);
+    link.sessions[1]->markConnected();
+    // Same ICE session, different line endings and additional trickled data.
+    link.sessions[0]->publishDescription(
+        "a=ice-pwd:old-password\na=ice-ufrag:old1\na=candidate:extra\n");
+    link.start();
+    require(waitUntil([&] { return link.confirmed(); }), "first LAN contact failed");
+    std::this_thread::sleep_for(1200ms);
+    require(link.peers[1].restarts == 0 && link.peers[1].winner == 2,
+            "first LAN contact replaced a healthy Rendezvous connection");
+}
+
+static void replacementOffersRequireAuthenticatedCompleteCredentials() {
+    Link link;
+    link.peers[1].winner = 2;
+    link.sessions[1]->setAcceptedRemoteDescription(oldOffer);
+    link.sessions[1]->markConnected();
+    auto deliver = [&](std::string_view offer, std::string_view echo, bool tamper = false) {
+        auto packet = link.sessions[0]->impl->makePacket(MessageType::Description, offer, echo);
+        if (tamper) packet.back() ^= 1;
+        link.sessions[1]->impl->handlePacket(packet.data(), packet.size());
+    };
+    const std::string echo(32, 'b');
+    deliver(newOffer, "");
+    deliver(newOffer, std::string(32, 'c'));
+    deliver(newOffer, echo, true);
+    deliver("a=ice-ufrag:new1\r\n", echo);
+    deliver("a=ice-ufrag:new1\na=ice-pwd:\n", echo);
+    deliver(newOffer + "a=ice-ufrag:duplicate\r\n", echo);
+    deliver("a=ice-ufrag:new1\na=ice-pwd:invalid password\n", echo);
+    require(link.peers[1].restarts == 0 && link.peers[1].winner == 2,
+            "invalid or unconfirmed replacement offer interrupted the old agent");
+    deliver(newOffer, echo);
+    require(link.peers[1].restarts == 1, "valid replacement was not recognized");
+}
+
+static void changedAnswerDoesNotRestartOfferer() {
+    Link link;
+    link.peers[0].winner = 2;
+    link.sessions[0]->setAcceptedRemoteDescription(oldOffer);
+    auto packet = link.sessions[1]->impl->makePacket(
+        MessageType::Description, newOffer, std::string(32, 'a'));
+    link.sessions[0]->impl->handlePacket(packet.data(), packet.size());
+    require(link.peers[0].restarts == 0 && link.peers[0].winner == 2,
+            "answerer independently replaced the offerer");
+}
+
+static void generationWatchRetriesPastLongOutages() {
+    int requests = 0;
+    std::vector<int> delays;
+    runGenerationWatchRequests([] { return true; }, [&] {
+        ++requests;
+        if (requests == 1001) return GenerationWatchResult::Continue;
+        if (requests == 1003) return GenerationWatchResult::Stop;
+        return GenerationWatchResult::Retry;
+    }, [&](int seconds) { delays.push_back(seconds); return true; });
+    require(requests == 1003 && delays.size() == 1001,
+            "watcher gave up before service recovery or retried a terminal result");
+    require(delays[0] == 2 && delays[1] == 4 && delays[2] == 8 && delays[3] == 16,
+            "retry delay does not back off");
+    for (size_t i = 4; i < 1000; ++i)
+        require(delays[i] == 30, "retry delay does not remain bounded");
+    require(delays.back() == 2, "successful response did not reset backoff");
+}
+
+static void generationWatchCancellationStopsRetries() {
+    bool active = true;
+    int requests = 0, waits = 0;
+    runGenerationWatchRequests([&] { return active; }, [&] {
+        ++requests;
+        return GenerationWatchResult::Retry;
+    }, [&](int) { ++waits; active = false; return false; });
+    require(requests == 1 && waits == 1, "cancellation during backoff sent more requests");
+    active = true;
+    requests = waits = 0;
+    runGenerationWatchRequests([&] { return active; }, [&] {
+        ++requests;
+        active = false; // Session was replaced while HTTP was in flight.
+        return GenerationWatchResult::Retry;
+    }, [&](int) { ++waits; return true; });
+    require(requests == 1 && waits == 0, "stale HTTP response entered backoff");
+    requests = 0;
+    runGenerationWatchRequests([] { return false; }, [&] {
+        ++requests;
+        return GenerationWatchResult::Continue;
+    }, [](int) { return true; });
+    require(requests == 0, "disabled watcher made an HTTP request");
+}
+
 int main() {
     const std::pair<const char *, std::function<void()>> tests[] = {
         {"lost offer after peer authentication", [] { recoverLostDescription(0); }},
@@ -459,6 +576,14 @@ int main() {
         {"simultaneous IPv4 and IPv6 discovery stays connected", [] { exchangeIPv6Candidate(true, true); }},
         {"dual-stack discovery preserves Rendezvous winner", [] { rendezvousWinnerIsPreserved(true); }},
         {"IPv6 memberships retry and deduplicate interface addresses", multicastMembershipRetryAndDeduplication},
+        {"IPv4 replacement offer recovers without LAN history", [] { replacementOfferWithoutLanHistory(true, false); }},
+        {"IPv6 replacement offer recovers without LAN history", [] { replacementOfferWithoutLanHistory(false, true); }},
+        {"dual-stack replacement offer recovers without LAN history", [] { replacementOfferWithoutLanHistory(true, true); }},
+        {"first LAN contact preserves accepted ICE credentials", firstLanContactPreservesAcceptedCredentials},
+        {"replacement requires authenticated complete credentials", replacementOffersRequireAuthenticatedCompleteCredentials},
+        {"changed answer leaves offerer stable", changedAnswerDoesNotRestartOfferer},
+        {"generation watch retries past long outages with bounded backoff", generationWatchRetriesPastLongOutages},
+        {"generation watch cancellation stops retries", generationWatchCancellationStopsRetries},
     };
     int failures = 0;
     for (const auto &[name, test] : tests) {

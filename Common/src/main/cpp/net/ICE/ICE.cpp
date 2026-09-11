@@ -61,6 +61,7 @@ using namespace std::literals;
 #include "destruct.hpp"
 #include "PlaceBuf.hpp"
 #include "ICEConnect.hpp"
+#include "GenerationWatchRetry.hpp"
 #include "net/makerandom.hpp"
 
 extern std::mutex turn_server_mutex;
@@ -186,6 +187,8 @@ static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
                   juiceErrorString(result),result);
         return false;
         }
+    if(auto local=con->currentLocalSignal())
+        local->setAcceptedRemoteDescription(description);
     if(fromLocalNetwork) {
         con->cancelRendezvous();
         }
@@ -400,13 +403,14 @@ static void watchPeerGeneration(
         std::shared_ptr<const std::atomic_bool> cancellation) {
     static constexpr std::string_view path="/generation";
     std::string observedPeer;
-    int transientErrors=0;
-    while(true) {
+    const auto active=[&] {
         ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
-        if(!con||!con->isCurrentAgent(agent,agentGeneration)||
-           con->endConnect.load()||
-           (cancellation&&cancellation->load(std::memory_order_acquire)))
-            return;
+        return con&&con->isCurrentAgent(agent,agentGeneration)&&
+           !con->endConnect.load()&&
+           !(cancellation&&cancellation->load(std::memory_order_acquire));
+    };
+    runGenerationWatchRequests(active,[&] {
+        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
         std::string requestGeneration=localGeneration;
         if(!observedPeer.empty()) {
             requestGeneration.push_back(':');
@@ -422,31 +426,27 @@ static void watchPeerGeneration(
         if(!con->isCurrentAgent(agent,agentGeneration)||
            con->endConnect.load()||
            (cancellation&&cancellation->load(std::memory_order_acquire)))
-            return;
+            return GenerationWatchResult::Stop;
         if(code==400) {
             con->generationWatchCapability.store(-1,std::memory_order_release);
             LOGARICE("peer generation watch unsupported");
-            return;
+            return GenerationWatchResult::Stop;
         }
         if(code!=200) {
-            if(++transientErrors>=3)
-                return;
-            if(!waitForCurrentAgent(con,agent,2))
-                return;
-            continue;
+            LOGGERICE("peer generation watch request failed code=%d; retrying\n",code);
+            return GenerationWatchResult::Retry;
         }
         con->generationWatchCapability.store(1,std::memory_order_release);
-        transientErrors=0;
         const auto peer=generationResponseToken(body);
         if(!peer)
-            continue;
+            return GenerationWatchResult::Retry;
         const std::string acceptedLocalPeer=
             con->currentAcceptedLocalPeerGeneration();
         // While a LAN description is being applied, its authenticated peer
         // generation is not yet visible. Ignore this response and let the
         // next long-poll reconcile against the copied generation token.
         if(con->remoteDescriptionWasLocal.load()&&acceptedLocalPeer.empty())
-            continue;
+            return GenerationWatchResult::Continue;
         switch(classifyPeerGenerationUpdate(observedPeer,acceptedLocalPeer,
                                              *peer)) {
             case PeerGenerationUpdate::Observe:
@@ -462,9 +462,19 @@ static void watchPeerGeneration(
                 LOGARICE("peer generation changed");
                 restartRejectedNegotiation(con,agent,agentGeneration,allindex,
                                            "peer generation changed");
-                return;
+                return GenerationWatchResult::Stop;
         }
-    }
+        return GenerationWatchResult::Continue;
+    },[&](int seconds) {
+        const int64_t deadline=elapsedRealtimeMilliseconds()+seconds*1000;
+        while(active()) {
+            const int64_t remaining=deadline-elapsedRealtimeMilliseconds();
+            if(remaining<=0) return true;
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(std::min<int64_t>(remaining,250)));
+        }
+        return false;
+    });
 }
 
 static void publishRendezvousGeneration(
