@@ -505,7 +505,7 @@ fun SensorCard(
     var showReconnectDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
     var wipeDataChecked by remember { mutableStateOf(false) }
-    var keepDataChecked by remember { mutableStateOf(false) }
+    var removeHistoryChecked by remember { mutableStateOf(false) }
 
     // Sibionics Calibration Bottom Sheet
     var showSibionicsCalSheet by remember { mutableStateOf(false) }
@@ -697,7 +697,7 @@ fun SensorCard(
             AlertDialog(
                 onDismissRequest = {
                     showTerminateDialog = false
-                    keepDataChecked = false
+                    removeHistoryChecked = false
                 },
                 title = { Text(stringResource(R.string.disconnect_sensor_title)) },
                 text = {
@@ -706,24 +706,31 @@ fun SensorCard(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
-                                checked = keepDataChecked,
-                                onCheckedChange = { keepDataChecked = it }
+                                checked = removeHistoryChecked,
+                                onCheckedChange = { removeHistoryChecked = it }
                             )
-                            Text(stringResource(R.string.keep_data))
+                            Text(stringResource(R.string.remove_sensor_history))
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        viewModel.terminateSensor(sensor.serial, !keepDataChecked)
+                        val removed = viewModel.terminateSensor(sensor.serial, removeHistoryChecked)
                         showTerminateDialog = false
-                        keepDataChecked = false
+                        removeHistoryChecked = false
+                        if (!removed) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.disconnect_sensor_failed),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
                     }) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         showTerminateDialog = false
-                        keepDataChecked = false
+                        removeHistoryChecked = false
                     }) { Text(stringResource(R.string.cancel)) }
                 }
             )
