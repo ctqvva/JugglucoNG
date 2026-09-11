@@ -979,6 +979,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="writedown">Write down!</string>
     <string name="xdrip_compatible_desc">Совместимый с AAPS</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Отправлять показания глюкозы в Health Connect для совместимых приложений здоровья</string>
     <string name="xdrip_compatible_title">Трансляция xDrip</string>
     <string name="zero">0</string>
 

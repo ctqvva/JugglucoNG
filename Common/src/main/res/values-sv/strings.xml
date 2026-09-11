@@ -939,6 +939,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Skicka glukosvärden till Health Connect för kompatibla hälsoappar</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 

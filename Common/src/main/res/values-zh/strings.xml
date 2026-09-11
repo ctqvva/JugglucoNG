@@ -955,6 +955,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">将血糖读数发送到 Health Connect，供兼容的健康应用使用</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 

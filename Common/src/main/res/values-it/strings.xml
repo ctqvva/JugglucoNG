@@ -928,6 +928,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="writedown">Write down!</string>
     <string name="wrongformat">"Wrong format "</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Invia le letture della glicemia a Health Connect per le app di salute compatibili</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="xdripbroadcast">xDrip broadcast</string>
     <string name="zero">0</string>

@@ -1009,6 +1009,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="very_low">Sehr niedrig</string>
     <string name="wipe_data">Sensordaten löschen</string>
     <string name="xdrip_compatible_desc">AAPS-kompatibel</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Glukosewerte an Health Connect senden, damit kompatible Gesundheits-Apps sie nutzen können</string>
     <string name="xdrip_compatible_title">xDrip Broadcast</string>
     <string name="zero">0</string>
 

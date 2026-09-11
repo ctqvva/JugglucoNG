@@ -974,6 +974,8 @@
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Zapisz!</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Wysyłaj odczyty glukozy do Health Connect dla zgodnych aplikacji zdrowotnych</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 

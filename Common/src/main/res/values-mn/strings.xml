@@ -214,6 +214,8 @@
     <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Тохирох эрүүл мэндийн аппуудад зориулж глюкозын хэмжилтийг Health Connect руу илгээх</string>
     <string name="sensorpermission">Мэдрэгчийн зөвшөөрөл</string>
     <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
     <string name="floatglucose">Хөвөгч глюкоз</string>
