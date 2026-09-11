@@ -229,6 +229,30 @@ class JournalTreatmentUploaderTests {
         )
     }
 
+    @Test
+    fun v3DeletesArePermanentSoLegacyTreatmentReadsCannotShowTheStaleCopy() {
+        assertEquals(
+            "https://ns.example.com/api/v3/treatments/jng-j-1a7-18bcfe56800?permanent=true",
+            JournalTreatmentUploader.treatmentDeleteUrl(
+                "https://ns.example.com",
+                "jng-j-1a7-18bcfe56800",
+                useV3 = true
+            )
+        )
+    }
+
+    @Test
+    fun v1DeletesKeepTheirExistingEndpoint() {
+        assertEquals(
+            "https://ns.example.com/api/v1/treatments/65a1",
+            JournalTreatmentUploader.treatmentDeleteUrl(
+                "https://ns.example.com",
+                "65a1",
+                useV3 = false
+            )
+        )
+    }
+
     /** Written before the time was part of the name: created once under the new name. */
     @Test
     fun anEntryStoredUnderTheOlderNameIsCreatedAfresh() {

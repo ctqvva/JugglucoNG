@@ -87,6 +87,7 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -114,9 +115,12 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
@@ -126,6 +130,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -167,6 +175,8 @@ private const val PREVIEW_WINDOW_DURATION_MS = 24L * 60L * 60L * 1000L
 private const val ACTIVE_INSULIN_MAX_WIDTH_FRACTION = 0.46f
 private const val ACTIVE_INSULIN_EXPANDED_MAX_WIDTH_FRACTION = 0.58f
 private val PreviewWindowHeight = 58.dp
+// Band edges soften over this fraction of the preview strip's height.
+private const val PREVIEW_BAND_FADE_FRACTION = 0.025f
 private val PreviewWindowOuterPadding = 12.dp
 
 private data class ChartRangeThresholds(
@@ -175,6 +185,77 @@ private data class ChartRangeThresholds(
     val high: Float,
     val veryHigh: Float
 )
+
+private data class ChartRangePalette(
+    val veryLow: Color,
+    val low: Color,
+    val inRange: Color,
+    val high: Color,
+    val veryHigh: Color
+)
+
+/**
+ * Feeds the dashboard's inputs to the shared builder. The chart's points are in
+ * display units with the recorded value already converted alongside; the
+ * builder's point type is the shared one, so they are mapped once here, per
+ * data change, and never per frame.
+ */
+private fun buildDashboardChartModel(
+    renderData: List<GlucosePoint>,
+    peers: List<PeerSensorChartSeries>,
+    primarySerial: String?,
+    primaryColorArgb: Int,
+    viewMode: Int,
+    ownership: tk.glucodata.chart.MainSensorOwnership,
+    hasCalibration: Boolean,
+    hideInitialWhenCalibrated: Boolean,
+): tk.glucodata.chart.HistoryChartModel {
+    fun toShared(point: GlucosePoint): tk.glucodata.GlucosePoint =
+        tk.glucodata.GlucosePoint(point.timestamp, point.value, point.rawValue).also {
+            it.sealedDisplayValue = point.sealedDisplayValue ?: Float.NaN
+            it.sealedDisplayViewMode = point.sealedDisplayViewMode ?: -1
+            it.sensorSerial = point.sensorSerial
+        }
+    val primary = primarySerial?.trim()?.takeIf { it.isNotEmpty() }
+        ?: renderData.lastOrNull()?.sensorSerial
+        ?: return tk.glucodata.chart.HistoryChartModel.EMPTY
+    val inputs = ArrayList<tk.glucodata.chart.HistoryChartModelBuilder.SeriesInput>(peers.size + 1)
+    inputs.add(
+        tk.glucodata.chart.HistoryChartModelBuilder.SeriesInput(
+            sensorId = primary,
+            isPrimary = true,
+            viewMode = viewMode,
+            colorArgb = primaryColorArgb,
+            points = renderData.map(::toShared),
+        )
+    )
+    peers.forEach { peer ->
+        val peerIsRaw = peer.viewMode == 1 || peer.viewMode == 3
+        inputs.add(
+            tk.glucodata.chart.HistoryChartModelBuilder.SeriesInput(
+                sensorId = peer.sensorId,
+                isPrimary = false,
+                viewMode = peer.viewMode,
+                colorArgb = peer.color.toArgb(),
+                points = peer.points.map(::toShared),
+                hasCalibration = tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(peerIsRaw, peer.sensorId),
+            )
+        )
+    }
+    val active = HashMap<Pair<Boolean, String>, Boolean>()
+    val calibration = tk.glucodata.chart.HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
+        val applies = active.getOrPut(isRaw to sensorId) {
+            tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)
+        }
+        if (!applies) return@Calibration null
+        tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(base, timestamp, isRaw, sensorIdOverride = sensorId)
+    }
+    return tk.glucodata.chart.HistoryChartModelBuilder.build(
+        inputs, ownership, calibration,
+        hasCalibration = hasCalibration,
+        hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+    )
+}
 
 private data class PeerSensorChartSeries(
     val sensorId: String,
@@ -204,6 +285,29 @@ private fun chartRangeThresholds(
         veryHigh = veryHigh
     )
 }
+
+// The five band colors a glucose trace is stroked with. The dashboard resolves
+// this once and hands it to the preview navigator, so the strip cannot drift
+// from the trace above it.
+//
+// [lowTintBase] / [highTintBase] are the out-of-range tones used when the
+// app-range-color setting is off. They are parameters rather than
+// GlucoseRangeColors lookups because the caller owns them: today the dashboard
+// happens to define them as exactly that, but retuning them there must move
+// both surfaces, not silently split them.
+private fun chartRangePalette(
+    isDark: Boolean,
+    appChartRangeColors: Boolean,
+    primaryColor: Color,
+    lowTintBase: Color,
+    highTintBase: Color
+): ChartRangePalette = ChartRangePalette(
+    veryLow = Color(GlucoseRangeColors.veryLow(isDark)),
+    low = if (appChartRangeColors) Color(GlucoseRangeColors.low(isDark)) else lowTintBase,
+    inRange = if (appChartRangeColors) Color(GlucoseRangeColors.inRange(isDark)) else primaryColor,
+    high = if (appChartRangeColors) Color(GlucoseRangeColors.high(isDark)) else highTintBase,
+    veryHigh = Color(GlucoseRangeColors.veryHigh(isDark))
+)
 
 internal fun coerceChartYToDrawableRange(
     value: Float,
@@ -272,103 +376,16 @@ private fun buildSmoothedChartData(
     }
 )
 
-private class CalibratedValueResolver(private val points: List<GlucosePoint>) {
-    private val rawComputed = BooleanArray(points.size)
-    private val autoComputed = BooleanArray(points.size)
-    private val rawValues = FloatArray(points.size)
-    private val autoValues = FloatArray(points.size)
-    private val rawCalibrationActive = HashMap<String?, Boolean>()
-    private val autoCalibrationActive = HashMap<String?, Boolean>()
-
-    /**
-     * Timestamp to index, built once.
-     *
-     * [valueForPoint] used to find its index with `points.indexOf(point)` — a
-     * linear scan comparing every field of a data class — from inside the
-     * per-dot draw loop. That is visible-dots times total-history equality
-     * checks per frame, so it degraded as the database grew rather than as the
-     * chart got busier, which is the shape of the jank that showed up on a
-     * long-lived store. Timestamps are unique per rendered series here (the
-     * merge collapses minute buckets before this sees them); a collision would
-     * only pick the other point with the same timestamp, which is what the scan
-     * did too.
-     */
-    private val indexByTimestamp: Map<Long, Int> by lazy(LazyThreadSafetyMode.NONE) {
-        HashMap<Long, Int>(points.size * 2).apply {
-            points.forEachIndexed { index, point -> putIfAbsent(point.timestamp, index) }
-        }
-    }
-
-    fun hasCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
-        val cache = if (isRawMode) rawCalibrationActive else autoCalibrationActive
-        return cache.getOrPut(sensorId) {
-            tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawMode, sensorId)
-        }
-    }
-
-    fun valueAt(index: Int, isRawMode: Boolean): Float {
-        if (index !in points.indices) return Float.NaN
-        val computed = if (isRawMode) rawComputed else autoComputed
-        val values = if (isRawMode) rawValues else autoValues
-        if (computed[index]) {
-            return values[index]
-        }
-        val point = points[index]
-        val baseValue = if (isRawMode) point.rawValue else point.value
-        // A reading whose displayed value was recorded draws at that value, so
-        // the line does not move under a calibration edit — see ReadingDisplay.
-        val resolved = point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
-            ?: if (
-                baseValue.isFinite() &&
-                baseValue > 0.1f &&
-                hasCalibration(isRawMode, point.sensorSerial)
-            ) {
-                tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                    baseValue,
-                    point.timestamp,
-                    isRawMode,
-                    sensorIdOverride = point.sensorSerial
-                )
-            } else {
-                baseValue
-            }
-        values[index] = resolved
-        computed[index] = true
-        return resolved
-    }
-
-    fun valueForPoint(point: GlucosePoint, isRawMode: Boolean): Float {
-        val pointIndex = indexByTimestamp[point.timestamp] ?: -1
-        return if (pointIndex >= 0) valueAt(pointIndex, isRawMode) else {
-            val baseValue = if (isRawMode) point.rawValue else point.value
-            point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
-                ?: if (
-                    baseValue.isFinite() &&
-                    baseValue > 0.1f &&
-                    hasCalibration(isRawMode, point.sensorSerial)
-                ) {
-                    tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(
-                        baseValue,
-                        point.timestamp,
-                        isRawMode,
-                        sensorIdOverride = point.sensorSerial
-                    )
-                } else {
-                    baseValue
-                }
-        }
-    }
-}
 
 @Composable
 private fun PreviewWindowNavigator(
     modifier: Modifier = Modifier,
     renderData: List<GlucosePoint>,
-    calibratedValueResolver: CalibratedValueResolver,
+    chartModel: tk.glucodata.chart.HistoryChartModel,
     previewCenterTime: Long,
     viewMode: Int,
-    targetLow: Float,
-    targetHigh: Float,
+    rangeThresholds: ChartRangeThresholds,
+    rangePalette: ChartRangePalette,
     isMmol: Boolean,
     currentCenterTime: Long,
     currentVisibleDuration: Long
@@ -377,7 +394,6 @@ private fun PreviewWindowNavigator(
     val previewHalfDuration = previewDuration / 2
     val previewStart = previewCenterTime - previewHalfDuration
     val previewEnd = previewCenterTime + previewHalfDuration
-    val lineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
     val secondaryLineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
     val isDark = isSystemInDarkTheme()
     val paletteRevision = GlucosePaletteState.revision
@@ -389,15 +405,12 @@ private fun PreviewWindowNavigator(
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
     val minimumWindowWidthPx = with(LocalDensity.current) { 12.dp.toPx() }
     val isRawMode = viewMode == 1 || viewMode == 3
-    val hasCalibration = calibratedValueResolver.hasCalibration(isRawMode)
 
+    // The main-line value is the model's, resolved once; nothing here derives.
     fun activeValue(index: Int): Float {
-        return if (hasCalibration) {
-            calibratedValueResolver.valueAt(index, isRawMode)
-        } else {
-            val renderPoint = renderData[index]
-            if (isRawMode) renderPoint.rawValue else renderPoint.value
-        }
+        val renderPoint = renderData[index]
+        return chartModel.primary?.valueAt(renderPoint.timestamp)
+            ?: if (isRawMode) renderPoint.rawValue else renderPoint.value
     }
 
     fun windowBoundsPx(width: Float): Pair<Float, Float> {
@@ -435,8 +448,8 @@ private fun PreviewWindowNavigator(
                     .let { if (it < 0) -it else it + 1 }
                     .coerceIn(startIdx + 1, renderData.size)
 
-                var minValue = targetLow
-                var maxValue = targetHigh
+                var minValue = rangeThresholds.low
+                var maxValue = rangeThresholds.high
                 for (index in startIdx until endExclusive) {
                     val value = activeValue(index)
                     if (value.isFinite() && value > 0.1f) {
@@ -462,8 +475,37 @@ private fun PreviewWindowNavigator(
                 fun valueToY(value: Float): Float =
                     heightPx - (((value - minValue) / yRange) * heightPx)
 
-                val bandTop = valueToY(targetHigh).coerceIn(0f, heightPx)
-                val bandBottom = valueToY(targetLow).coerceIn(0f, heightPx)
+                // Same band geometry as the main chart, so the preview reads as a
+                // miniature of the trace above it instead of a flat primary line.
+                // GlucoseChartBands fades a band into the in-range tone over a
+                // fixed pixel distance, tuned for the full-height chart. This
+                // strip squeezes the same value span into ~42.dp, where 18px is
+                // most of a mmol/L: the low tone would start bleeding in around
+                // 4.5 on a 3.5 target, which reads as the preview ignoring the
+                // target range. Fade over a slice of the strip instead.
+                val previewFadePx = (heightPx * PREVIEW_BAND_FADE_FRACTION)
+                    .coerceIn(1f, GlucoseChartBands.DEFAULT_FADE_PX)
+                val rangeStops = GlucoseChartBands.verticalStops(
+                    veryHigh = rangePalette.veryHigh,
+                    high = rangePalette.high,
+                    inRange = rangePalette.inRange,
+                    low = rangePalette.low,
+                    veryLow = rangePalette.veryLow,
+                    yVeryHigh = valueToY(rangeThresholds.veryHigh),
+                    yHigh = valueToY(rangeThresholds.high),
+                    yLow = valueToY(rangeThresholds.low),
+                    yVeryLow = valueToY(rangeThresholds.veryLow),
+                    chartHeightPx = heightPx,
+                    fadePx = previewFadePx
+                )
+                val rangeBrush = Brush.verticalGradient(
+                    *rangeStops.toTypedArray(),
+                    startY = 0f,
+                    endY = heightPx
+                )
+
+                val bandTop = valueToY(rangeThresholds.high).coerceIn(0f, heightPx)
+                val bandBottom = valueToY(rangeThresholds.low).coerceIn(0f, heightPx)
                 drawRoundRect(
                     color = targetBandColor,
                     topLeft = Offset(0f, minOf(bandTop, bandBottom)),
@@ -507,11 +549,11 @@ private fun PreviewWindowNavigator(
                 val previewStroke = 2.5.dp.toPx()
                 drawPath(
                     path = previewPath,
-                    color = lineColor,
+                    brush = rangeBrush,
                     style = Stroke(width = previewStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
                 previewRun.isolatedPoints.forEach { point ->
-                    drawCircle(color = lineColor, radius = previewStroke / 2f, center = point)
+                    drawCircle(brush = rangeBrush, radius = previewStroke / 2f, center = point)
                 }
 
                 val currentStart = currentCenterTime - currentVisibleDuration / 2
@@ -595,6 +637,7 @@ fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
+    mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
@@ -640,6 +683,7 @@ fun DashboardChartSection(
                     InteractiveGlucoseChart(
                         fullData = glucoseHistory,
                         multiSensorDisplay = multiSensorDisplay,
+                        mainSensorOwnership = mainSensorOwnership,
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
@@ -714,6 +758,7 @@ fun DashboardChartSection(
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
+    mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
@@ -800,6 +845,23 @@ fun InteractiveGlucoseChart(
     // Adjusting alpha for visibility on graph background
     val lowOutOfRangeTintBase = TirLowColor
     val highOutOfRangeTintBase = TirHighColor
+    // Resolved once for the trace and the preview strip below it.
+    val chartBandPalette = remember(
+        isDark,
+        appChartRangeColors,
+        primaryColor,
+        lowOutOfRangeTintBase,
+        highOutOfRangeTintBase,
+        glucosePaletteRevision
+    ) {
+        chartRangePalette(
+            isDark,
+            appChartRangeColors,
+            primaryColor,
+            lowOutOfRangeTintBase,
+            highOutOfRangeTintBase
+        )
+    }
     // Neutral target for desaturating peer (secondary sensor) traces — theme
     // token so it adapts to light/dark and dynamic color.
     val peerNeutralBase = MaterialTheme.colorScheme.onSurfaceVariant
@@ -907,12 +969,41 @@ fun InteractiveGlucoseChart(
         val logical = SensorIdentity.resolveAppSensorId(primarySerial) ?: primarySerial
         SensorColors.getColor(logical.orEmpty())
     }
+    // A colour the user picked for a sensor replaces the range colouring of its own trace.
+    // Automatic (hash-assigned) colours deliberately do not, or every trace would lose the
+    // low/high banding by default.
+    val primaryPickedColor = tk.glucodata.SensorVisuals.colorOverrideArgb(primarySerial)
+        ?.let { Color(it) }
     val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
         if (graphSmoothingMinutes > 0) renderData else safeData
     }
     val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
-    val calibratedValueResolver = remember(renderData, calibrationRevision) {
-        CalibratedValueResolver(renderData)
+    val isRawModeChart = viewMode == 1 || viewMode == 3
+    // A fact, not a decision: whether a calibration applies to the primary lane.
+    val hasCalibration = remember(calibrationRevision, isRawModeChart, primarySerial) {
+        tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeChart, primarySerial)
+    }
+    val hideInitialWhenCalibrated = hasCalibration &&
+        tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
+
+    // The resolved chart. Every decision — the value each point draws, who is
+    // main at each minute, which lanes exist, where runs break — is made here,
+    // once, by the same builder the notification uses. Everything below paints
+    // what this says; nothing below decides.
+    val chartModel = remember(
+        renderData, peerChartSeries, mainSensorOwnership, calibrationRevision,
+        viewMode, hasCalibration, hideInitialWhenCalibrated, primarySerial, primaryIdentityColor,
+    ) {
+        buildDashboardChartModel(
+            renderData = renderData,
+            peers = peerChartSeries,
+            primarySerial = primarySerial,
+            primaryColorArgb = primaryIdentityColor.toArgb(),
+            viewMode = viewMode,
+            ownership = mainSensorOwnership,
+            hasCalibration = hasCalibration,
+            hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+        )
     }
     val calibrationIsRawMode = viewMode == 1 || viewMode == 3
     val visibleCalibrations = remember(calibrationRevision, calibrationIsRawMode, primarySerial) {
@@ -935,6 +1026,7 @@ fun InteractiveGlucoseChart(
     val uncertaintyRibbonEnabled = GlucoseUncertaintyDisplay.isRibbonEnabled()
 
     val reusablePath = remember { Path() }
+    val reusableDemotedPath = remember { Path() }
     val reusablePeerPath = remember { Path() }
     val reusableRawPath = remember { Path() }
     val reusableAutoPath = remember { Path() }
@@ -1271,11 +1363,6 @@ fun InteractiveGlucoseChart(
     )
     val minYAxisSpan = if (isMmol) 6f else 108f
 
-    val isRawModeChart = viewMode == 1 || viewMode == 3
-    val hasCalibration = calibratedValueResolver.hasCalibration(isRawModeChart)
-    val hideInitialWhenCalibrated = hasCalibration &&
-        tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
-
     val visibleValueRange = remember(
         renderData,
         peerChartSeries,
@@ -1286,7 +1373,7 @@ fun InteractiveGlucoseChart(
         viewMode,
         hasCalibration,
         hideInitialWhenCalibrated,
-        calibratedValueResolver
+        chartModel
     ) {
         val viewportStart = centerTime - visibleDuration / 2L
         val viewportEnd = centerTime + visibleDuration / 2L
@@ -1300,34 +1387,9 @@ fun InteractiveGlucoseChart(
             }
         }
 
-        fun visibleIndices(points: List<GlucosePoint>): IntRange? {
-            if (points.isEmpty()) return null
-            val start = points.binarySearchBy(viewportStart) { it.timestamp }
-                .let { if (it >= 0) it else -it - 1 }
-            val endExclusive = points.binarySearchBy(viewportEnd) { it.timestamp }
-                .let { if (it >= 0) it + 1 else -it - 1 }
-                .coerceAtMost(points.size)
-            return if (start < endExclusive) start until endExclusive else null
-        }
-
-        val drawRaw = !hideInitialWhenCalibrated && (viewMode == 1 || viewMode == 2 || viewMode == 3)
-        val drawAuto = !hideInitialWhenCalibrated && (viewMode == 0 || viewMode == 2 || viewMode == 3)
-        visibleIndices(renderData)?.forEach { index ->
-            val point = renderData[index]
-            if (drawRaw) include(point.rawValue)
-            if (drawAuto) include(point.value)
-            if (hasCalibration) include(calibratedValueResolver.valueAt(index, isRawModeChart))
-        }
-
-        peerChartSeries.forEach { series ->
-            val drawRawPeer = series.viewMode == 1 || series.viewMode == 2 || series.viewMode == 3
-            val drawAutoPeer = series.viewMode == 0 || series.viewMode == 2 || series.viewMode == 3
-            visibleIndices(series.points)?.forEach { index ->
-                val point = series.points[index]
-                if (drawRawPeer) include(point.rawValue)
-                if (drawAutoPeer) include(point.value)
-            }
-        }
+        val (modelMin, modelMax) = chartModel.visibleValueRange(viewportStart, viewportEnd)
+        modelMin?.let(::include)
+        modelMax?.let(::include)
 
         fun includePredictions(series: List<GlucosePredictionSeries>) {
             series.forEach { prediction ->
@@ -1342,6 +1404,47 @@ fun InteractiveGlucoseChart(
         }
 
         visibleMin.takeIf { it.isFinite() } to visibleMax.takeIf { it.isFinite() }
+    }
+
+    // Record the main value for the minutes actually on screen.
+    //
+    // Keyed on the viewport rather than on the data, and gated on the chart being
+    // resumed, because the record's claim is "this was presented" — see
+    // PresentedMinuteRecorder for why a query, a prefetch or a point held
+    // off-screen does not count. The settle delay is what separates a stretch the
+    // user stopped to read from one a fling swept past.
+    val presentedRecorderRepository = remember(context) { tk.glucodata.data.HistoryRepository(context) }
+    val isMmolForRecord = remember(unit) { GlucoseFormatter.isMmol(unit) }
+    LaunchedEffect(
+        isResumed,
+        centerTime,
+        visibleDuration,
+        viewMode,
+        chartModel,
+    ) {
+        if (!isResumed || renderData.isEmpty()) return@LaunchedEffect
+        kotlinx.coroutines.delay(PresentedMinuteRecorder.SETTLE_MS)
+
+        val viewportStart = centerTime - visibleDuration / 2L
+        val viewportEnd = centerTime + visibleDuration / 2L
+        val nowMs = System.currentTimeMillis()
+        // A minute inside its grace window can still change, so let it be
+        // resubmitted; the database decides whether the revision lands.
+        PresentedMinuteRecorder.releaseUnsealed(
+            nowMs - tk.glucodata.data.ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+        )
+
+        val visible = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            chartModel.presentedMainValues(viewportStart, viewportEnd).map { p ->
+                tk.glucodata.data.HistoryRepository.PresentedMinute(
+                    minuteMs = p.minuteMs,
+                    displayMgdl = if (isMmolForRecord) GlucoseFormatter.mmolToMg(p.value) else p.value,
+                    sensorSerial = p.sensorId,
+                    viewMode = p.viewMode,
+                )
+            }
+        }
+        PresentedMinuteRecorder.recordVisible(presentedRecorderRepository, visible)
     }
 
     // Manual scaling establishes the baseline; visible outliers may temporarily expand it.
@@ -1514,7 +1617,7 @@ fun InteractiveGlucoseChart(
     val currentSafeData by rememberUpdatedState(safeData)
     val currentInteractionData by rememberUpdatedState(interactionData)
     val currentViewMode by rememberUpdatedState(viewMode)
-    val currentCalibratedValueResolver by rememberUpdatedState(calibratedValueResolver)
+    val currentChartModel by rememberUpdatedState(chartModel)
     val currentRenderedYMin by rememberUpdatedState(renderedYMin)
     val currentRenderedYMax by rememberUpdatedState(renderedYMax)
     // The pointerInput lambda below is keyed on previewWindowReservedIntPx and otherwise
@@ -1610,6 +1713,7 @@ fun InteractiveGlucoseChart(
         }
     }
 
+    val activeJournalMarkerPointers = remember { mutableSetOf<PointerId>() }
 
 
 
@@ -1644,6 +1748,7 @@ fun InteractiveGlucoseChart(
                             // FIX: Use requireUnconsumed = true (default) to respect z-order.
                             // This prevents the chart from hijacking touches meant for the floating buttons.
                             val down = awaitFirstDown()
+                            val startedOnJournalMarker = down.id in activeJournalMarkerPointers
                             val gestureStartTime = System.currentTimeMillis()
                             lastInteractionTimestamp = gestureStartTime
                             cancelAutoScroll()
@@ -1767,7 +1872,8 @@ fun InteractiveGlucoseChart(
                             // 1. Previous gesture was a tap (not a scroll)
                             // 2. Short duration since then (<300ms)
                             // 3. Close spatial proximity (<100px)
-                            val isDoubleTapStart = gestureStartTime >= suppressDoubleTapUntil &&
+                            val isDoubleTapStart = !startedOnJournalMarker &&
+                                    gestureStartTime >= suppressDoubleTapUntil &&
                                     lastGestureWasTap &&
                                     (gestureStartTime - lastTapTime < 300) &&
                                     (down.position - lastTapPos).getDistance() < 100.dp.toPx()
@@ -1829,7 +1935,9 @@ fun InteractiveGlucoseChart(
                             var yGestureStartMax = 0f
                             var yGestureAdjustsMax = false
                             var lastPointerCount = 1
-                            val longPressJob = if (onTimelineTap != null && !isDoubleTapStart) {
+                            val longPressJob = if (
+                                onTimelineTap != null && !isDoubleTapStart && !startedOnJournalMarker
+                            ) {
                                 coroutineScope.launch {
                                     kotlinx.coroutines.delay(viewConfiguration.longPressTimeoutMillis.toLong())
                                     if (!longPressTriggered && totalDragDistance < viewConfiguration.touchSlop) {
@@ -1847,19 +1955,16 @@ fun InteractiveGlucoseChart(
                             }
 
                             // Only allow scrubbing if purely single tap start (not double tap sequence)
-                            isScrubbing = if (pointAtTouch != null && !isOneFingerZoom) {
+                            isScrubbing = if (
+                                !startedOnJournalMarker && pointAtTouch != null && !isOneFingerZoom
+                            ) {
                                 val timeDiff = timeAtTouch - pointAtTouch.timestamp
                                 if (timeDiff > 15 * 60 * 1000) false else {
                                     // When calibration is on and is primary, use calibrated value for touch target
                                     val isRawMode = currentViewMode == 1 || currentViewMode == 3
-                                    val hasCalibration = currentCalibratedValueResolver.hasCalibration(isRawMode)
-                                    val v = if (hasCalibration) {
-                                        currentCalibratedValueResolver.valueForPoint(pointAtTouch, isRawMode)
-                                    } else if (isRawMode) {
-                                        pointAtTouch.rawValue
-                                    } else {
-                                        pointAtTouch.value
-                                    }
+                                    // The touch target is the main line, which is the model's.
+                                    val v = currentChartModel.primary?.valueAt(pointAtTouch.timestamp)
+                                        ?: if (isRawMode) pointAtTouch.rawValue else pointAtTouch.value
                                     val liveYMin = currentRenderedYMin
                                     val liveYMax = currentRenderedYMax
                                     val dataY =
@@ -2017,7 +2122,8 @@ fun InteractiveGlucoseChart(
                             }
 
                             // ON UP
-                            val wasTap = totalDragDistance < viewConfiguration.touchSlop
+                            val wasTap = !startedOnJournalMarker &&
+                                totalDragDistance < viewConfiguration.touchSlop
                             longPressJob?.cancel()
                             lastGestureWasTap = wasTap && !isOneFingerZoom && !isScrubbing && !longPressTriggered
 
@@ -2165,17 +2271,47 @@ fun InteractiveGlucoseChart(
                 limitYLow,
                 limitYVeryLow,
                 chartHeightPx,
-                primaryColor,
-                highOutOfRangeTintBase,
-                lowOutOfRangeTintBase,
+                chartBandPalette,
                 primaryLineTintFraction,
                 primaryIdentityColor,
                 appChartRangeColors,
                 appRangeDark,
+                primaryPickedColor,
+                peerNeutralBase,
                 glucosePaletteRevision
             ) {
                 if (chartHeightPx <= 0f) {
                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                } else if (primaryPickedColor != null) {
+                    // A picked colour is applied the way a peer trace is: the identity colour
+                    // toned toward the neutral token, re-tinted at each band so a low still
+                    // reads as a low. Blended less than a peer because this is the main trace.
+                    val base = androidx.compose.ui.graphics.lerp(
+                        primaryPickedColor,
+                        peerNeutralBase,
+                        tk.glucodata.SensorVisuals.PRIMARY_TEXT_BLEND,
+                    )
+                    val stops = GlucoseChartBands.verticalStops(
+                        veryHigh = androidx.compose.ui.graphics.lerp(
+                            base, Color(GlucoseRangeColors.veryHigh(appRangeDark)), 0.58f,
+                        ),
+                        high = androidx.compose.ui.graphics.lerp(base, highOutOfRangeTintBase, 0.48f),
+                        inRange = base,
+                        low = androidx.compose.ui.graphics.lerp(base, lowOutOfRangeTintBase, 0.48f),
+                        veryLow = androidx.compose.ui.graphics.lerp(
+                            base, Color(GlucoseRangeColors.veryLow(appRangeDark)), 0.58f,
+                        ),
+                        yVeryHigh = limitYVeryHigh,
+                        yHigh = limitYHigh,
+                        yLow = limitYLow,
+                        yVeryLow = limitYVeryLow,
+                        chartHeightPx = chartHeightPx,
+                    )
+                    Brush.verticalGradient(
+                        *stops.toTypedArray(),
+                        startY = 0f,
+                        endY = chartHeightPx,
+                    )
                 } else {
                     fun identityTinted(color: Color): Color =
                         if (primaryLineTintFraction > 0f) {
@@ -2186,26 +2322,11 @@ fun InteractiveGlucoseChart(
 
                     // Range-color mode uses the same five effective colors shown
                     // in settings, including every per-band override.
-                    val veryHighTint = identityTinted(
-                        if (appChartRangeColors) Color(GlucoseRangeColors.veryHigh(appRangeDark))
-                        else Color(GlucoseRangeColors.veryHigh(isDark))
-                    )
-                    val highTint = identityTinted(
-                        if (appChartRangeColors) Color(GlucoseRangeColors.high(appRangeDark))
-                        else highOutOfRangeTintBase
-                    )
-                    val lowTint = identityTinted(
-                        if (appChartRangeColors) Color(GlucoseRangeColors.low(appRangeDark))
-                        else lowOutOfRangeTintBase
-                    )
-                    val veryLowTint = identityTinted(
-                        if (appChartRangeColors) Color(GlucoseRangeColors.veryLow(appRangeDark))
-                        else Color(GlucoseRangeColors.veryLow(isDark))
-                    )
-                    val inRangeTint = identityTinted(
-                        if (appChartRangeColors) Color(GlucoseRangeColors.inRange(appRangeDark))
-                        else primaryColor
-                    )
+                    val veryHighTint = identityTinted(chartBandPalette.veryHigh)
+                    val highTint = identityTinted(chartBandPalette.high)
+                    val lowTint = identityTinted(chartBandPalette.low)
+                    val veryLowTint = identityTinted(chartBandPalette.veryLow)
+                    val inRangeTint = identityTinted(chartBandPalette.inRange)
                     // Stop geometry lives in GlucoseChartBands so the watch's
                     // curve bands on the same lines this one does.
                     val stops = GlucoseChartBands.verticalStops(
@@ -2440,100 +2561,76 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
-                if (peerChartSeries.isNotEmpty()) {
-                    val peerGapThreshold = ChartGap.THRESHOLD_MS
+                // --- PEER LINES (from the resolved model) ---
+                if (chartModel.peers.isNotEmpty()) {
                     val peerStroke = 2.dp.toPx()
-                    fun drawPeerSeriesLine(
-                        series: PeerSensorChartSeries,
-                        useRaw: Boolean,
-                        alpha: Float,
-                        strokeWidth: Float
-                    ) {
-                        val points = series.points
-                        if (points.size < 2) return
-                        val peerStartIdx = points.binarySearchBy(searchStart) { it.timestamp }
-                            .let { if (it < 0) -it - 2 else it }
-                            .coerceIn(0, points.size)
-                        val peerEndIdx = points.binarySearchBy(searchEnd) { it.timestamp }
-                            .let { if (it < 0) -it else it + 1 }
-                            .coerceIn(peerStartIdx, points.size)
-                        if (peerEndIdx <= peerStartIdx) return
-
-                        reusablePeerPath.rewind()
-                        var first = true
-                        var hasPath = false
-                        var lastTimestamp = 0L
-                        val peerRun = ChartLineRun()
-                        for (i in peerStartIdx until peerEndIdx) {
-                            val point = points[i]
-                            val value = if (useRaw) point.rawValue else point.value
-                            if (!value.isFinite() || value <= 0.1f) {
-                                // No value in this lane is not a hole in it — the gap check
-                                // below still measures elapsed time. See the main chart's
-                                // AUTO branch.
-                                continue
-                            }
-                            val px = timeToDataX(point.timestamp)
-                            val py = valToY(value)
-                            if (!px.isFinite() || !py.isFinite()) {
-                                first = true
-                                continue
-                            }
-                            if (!first && point.timestamp - lastTimestamp > peerGapThreshold) {
-                                first = true
-                            }
-                            if (first) {
-                                reusablePeerPath.moveTo(px, py)
-                                peerRun.begin(px, py)
-                                first = false
-                            } else {
-                                reusablePeerPath.lineTo(px, py)
-                                peerRun.extend()
-                            }
-                            hasPath = true
-                            lastTimestamp = point.timestamp
-                        }
-                        if (!hasPath) return
-                        peerRun.flush()
-                        val peerDotColor = androidx.compose.ui.graphics.lerp(series.color, peerNeutralBase, 0.46f)
-                            .copy(alpha = 0.5f * alpha)
-                        peerRun.isolatedPoints.forEach { dot ->
-                            drawCircle(color = peerDotColor, radius = strokeWidth / 2f, center = dot)
-                        }
+                    val mainStroke = 3.dp.toPx()
+                    val cullMargin = ChartGap.THRESHOLD_MS
+                    for (series in chartModel.peers) {
+                        val color = Color(series.colorArgb)
                         val brush = peerBrushes[series.sensorId]
-                        if (brush != null) {
-                            drawPath(
-                                path = reusablePeerPath,
-                                brush = brush,
-                                alpha = alpha,
-                                style = Stroke(
-                                    width = strokeWidth,
-                                    cap = StrokeCap.Round,
-                                    join = StrokeJoin.Round
-                                )
-                            )
-                        } else {
-                            drawPath(
-                                path = reusablePeerPath,
-                                color = androidx.compose.ui.graphics.lerp(series.color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * alpha),
-                                style = Stroke(
-                                    width = strokeWidth,
-                                    cap = StrokeCap.Round,
-                                    join = StrokeJoin.Round
-                                )
-                            )
-                        }
-                    }
-                    peerChartSeries.forEach { series ->
-                        val drawRawPeer = series.viewMode == 1 || series.viewMode == 2 || series.viewMode == 3
-                        val drawAutoPeer = series.viewMode == 0 || series.viewMode == 2 || series.viewMode == 3
-                        when {
-                            drawRawPeer && drawAutoPeer -> {
-                                drawPeerSeriesLine(series, useRaw = true, alpha = 0.68f, strokeWidth = peerStroke * 0.84f)
-                                drawPeerSeriesLine(series, useRaw = false, alpha = 0.88f, strokeWidth = peerStroke)
+                        // The peer's other lane first, under its main run: the
+                        // same subtle treatment, a touch fainter and thinner so
+                        // the two lanes of one sensor still read as one sensor.
+                        for (lane in series.secondaryLanes) {
+                            if (lane.kind == tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue
+                            for (run in lane.runs) {
+                                reusablePeerPath.rewind()
+                                var first = true
+                                var hasPath = false
+                                for (point in run.points) {
+                                    if (point.timestamp < searchStart - cullMargin || point.timestamp > searchEnd + cullMargin) continue
+                                    val px = timeToDataX(point.timestamp)
+                                    val py = valToY(point.value)
+                                    if (!px.isFinite() || !py.isFinite()) { first = true; continue }
+                                    if (first) { reusablePeerPath.moveTo(px, py); first = false } else reusablePeerPath.lineTo(px, py)
+                                    hasPath = true
+                                }
+                                if (!hasPath) continue
+                                val style = Stroke(width = peerStroke * 0.84f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                if (brush != null) {
+                                    drawPath(path = reusablePeerPath, brush = brush, alpha = 0.68f, style = style)
+                                } else {
+                                    drawPath(
+                                        path = reusablePeerPath,
+                                        color = androidx.compose.ui.graphics.lerp(color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * 0.68f),
+                                        style = style
+                                    )
+                                }
                             }
-                            drawRawPeer -> drawPeerSeriesLine(series, useRaw = true, alpha = 0.88f, strokeWidth = peerStroke)
-                            drawAutoPeer -> drawPeerSeriesLine(series, useRaw = false, alpha = 0.88f, strokeWidth = peerStroke)
+                        }
+                        for (run in series.runs) {
+                            reusablePeerPath.rewind()
+                            val peerRun = ChartLineRun()
+                            var hasPath = false
+                            var first = true
+                            for (point in run.points) {
+                                if (point.timestamp < searchStart - cullMargin || point.timestamp > searchEnd + cullMargin) continue
+                                val px = timeToDataX(point.timestamp)
+                                val py = valToY(point.value)
+                                if (!px.isFinite() || !py.isFinite()) { first = true; continue }
+                                if (first) { reusablePeerPath.moveTo(px, py); peerRun.begin(px, py); first = false }
+                                else { reusablePeerPath.lineTo(px, py); peerRun.extend() }
+                                hasPath = true
+                            }
+                            if (!hasPath) continue
+                            peerRun.flush()
+                            if (run.look == tk.glucodata.chart.ChartLook.MAIN) {
+                                // The main look, exactly as the primary line gets it.
+                                val style = Stroke(width = mainStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                drawPath(path = reusablePeerPath, brush = gradientBrush, style = style)
+                                peerRun.isolatedPoints.forEach { dot -> drawCircle(color = primaryColor, radius = mainStroke / 2f, center = dot) }
+                            } else {
+                                val alpha = 0.88f
+                                val style = Stroke(width = peerStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                val dotColor = androidx.compose.ui.graphics.lerp(color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * alpha)
+                                peerRun.isolatedPoints.forEach { dot -> drawCircle(color = dotColor, radius = peerStroke / 2f, center = dot) }
+                                if (brush != null) {
+                                    drawPath(path = reusablePeerPath, brush = brush, alpha = alpha, style = style)
+                                } else {
+                                    drawPath(path = reusablePeerPath, color = dotColor, style = style)
+                                }
+                            }
                         }
                     }
                 }
@@ -2546,7 +2643,7 @@ fun InteractiveGlucoseChart(
                     (viewMode == 0 || viewMode == 2 || viewMode == 3)
                 ) {
                     val ribbonIsRawMode = viewMode == 1 || viewMode == 3
-                    val ribbonHasCalibration = calibratedValueResolver.hasCalibration(ribbonIsRawMode)
+                    val ribbonHasCalibration = hasCalibration
                     with(GlucoseUncertaintyRibbon) {
                         drawUncertaintyRibbon(
                             renderData = renderData,
@@ -2560,289 +2657,124 @@ fun InteractiveGlucoseChart(
                             gapThresholdMs = ChartGap.THRESHOLD_MS,
                             color = primaryColor,
                             centerValueAt = { index ->
-                                if (ribbonHasCalibration) {
-                                    calibratedValueResolver.valueAt(index, ribbonIsRawMode)
-                                } else {
-                                    renderData[index].value
-                                }
+                                chartModel.primary?.valueAt(renderData[index].timestamp) ?: renderData[index].value
                             },
                         )
                     }
                 }
 
-                // --- 3. DATA LINES (Unified & Optimized) ---
-                if (endIdx > startIdx) {
-                    val gapThreshold = ChartGap.THRESHOLD_MS
-
-                    val hideRawSource = hideInitialWhenCalibrated && isRawModeChart
-                    val hideAutoSource = hideInitialWhenCalibrated && !isRawModeChart
-                    val drawRaw = !hideRawSource && (viewMode == 1 || viewMode == 2 || viewMode == 3)
-                    val drawAuto = !hideAutoSource && (viewMode == 0 || viewMode == 2 || viewMode == 3)
-
-                    // Only tint the main/active line using gradient. No density check as requested.
-                    val doTintRaw = !hasCalibration && (viewMode == 1 || viewMode == 3)
-                    val doTintAuto = !hasCalibration && (viewMode == 0 || viewMode == 2)
-                    val doTintCal = hasCalibration
-                    
-                    val needsGradient = doTintRaw || doTintAuto || doTintCal
-                    
-                    // Colors
-                    val rawColor = when {
-                        hasCalibration && viewMode == 2 -> tertiaryColor
-                        hasCalibration || viewMode == 2 -> secondaryColor
-                        else -> primaryColor // Used if not tinted
-                    }
-                    val autoColor = when {
-                        hasCalibration && viewMode == 3 -> tertiaryColor
-                        hasCalibration || viewMode == 3 -> secondaryColor
-                        else -> primaryColor // Used if not tinted
-                    }
-                    
-                    // Stroke Widths
-                    val rawStrokeWidth = if (hasCalibration || viewMode == 2) 2.dp.toPx() else 3.dp.toPx()
-                    val autoStrokeWidth = if (hasCalibration || viewMode == 3) 2.dp.toPx() else 3.dp.toPx()
-                    val calStrokeWidth = 3.dp.toPx()
-
-                    // Reset Paths
-                    if (drawRaw) {
-                        reusableRawPath.rewind()
-                    }
-                    if (drawAuto) {
-                        reusableAutoPath.rewind()
-                    }
-                    if (hasCalibration) {
-                        reusablePath.rewind()
-                    }
-
-                    // Unified Loop State
-                    var rawFirst = true
-                    var rawLastX = -10000f
-                    var rawLastY = -10000f // Track Y for spike detection
-                    var rawLastTimestamp = 0L
-
-                    var autoFirst = true
-                    var autoLastX = -10000f
-                    var autoLastY = -10000f
-                    var autoLastTimestamp = 0L
-                    
-                    var calFirst = true
-                    var calLastX = -10000f
-                    var calLastY = -10000f
-                    var calLastTimestamp = 0L
-                    var lastSensorSerial: String? = null
-
-                    // A run of a single point strokes as nothing; keep those visible as
-                    // dots so readings that stand alone between gaps are not lost.
-                    val rawRun = ChartLineRun()
-                    val autoRun = ChartLineRun()
-                    val calRun = ChartLineRun()
-
-                    // Optimization: Pre-calculate scaling factors to avoid repeated division in valToY/timeToDataX
-                    val timeScale = dataWidth / animDur
-                    val yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange
-                    
-                    // Use Round caps/joins for better visuals
+                // --- 3. DATA LINES (from the resolved model) ---
+                //
+                // Nothing here resolves a value or decides a look. The model's
+                // runs already carry both; this maps them to pixels and strokes.
+                run {
+                    val primarySeries = chartModel.primary ?: return@run
+                    if (primarySeries.isEmpty) return@run
                     val strokeCap = StrokeCap.Round
                     val strokeJoin = StrokeJoin.Round
+                    val timeScale = dataWidth / animDur
+                    val yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange
+                    val cullMargin = ChartGap.THRESHOLD_MS
 
-                    for (i in startIdx until endIdx) {
-                        val renderPoint = renderData[i]
-                        val sensorChanged = lastSensorSerial != null &&
-                            renderPoint.sensorSerial != null &&
-                            renderPoint.sensorSerial != lastSensorSerial
-                        if (sensorChanged) {
-                            rawFirst = true
-                            autoFirst = true
-                            calFirst = true
+                    val mainStroke = 3.dp.toPx()
+                    val laneStroke = 2.dp.toPx()
+                    val doTintMain = true
+                    // Lane colours: the other signal beside the main line. The
+                    // theme greys when the primary is the only sensor and has no
+                    // picked colour — as before — and otherwise the sensor's own
+                    // colour toned toward neutral, the way a peer's lanes are, so
+                    // a sensor's lanes read as that sensor's. The tertiary lane
+                    // is the fainter of the two either way.
+                    val laneIdentity = primaryPickedColor
+                        ?: primaryIdentityColor.takeIf { chartModel.peers.isNotEmpty() }
+                    fun laneColor(tertiary: Boolean): Color =
+                        if (laneIdentity == null) {
+                            if (tertiary) tertiaryColor else secondaryColor
+                        } else {
+                            androidx.compose.ui.graphics.lerp(laneIdentity, peerNeutralBase, 0.46f)
+                                .copy(alpha = if (tertiary) 0.45f else 0.8f)
                         }
-                        // X is shared for all lines at this timestamp
-                        val px = (renderPoint.timestamp - viewportStart) * timeScale
-                        
-                        if (!px.isFinite()) continue
+                    val rawLaneColor = laneColor(tertiary = hasCalibration && viewMode == 2)
+                    val autoLaneColor = laneColor(tertiary = hasCalibration && viewMode == 3)
+                    // The primary drawn where it is not main: its own identity
+                    // colour, thin, faded — the same treatment a peer gets.
+                    val demotedColor = androidx.compose.ui.graphics.lerp(
+                        Color(primarySeries.colorArgb),
+                        peerNeutralBase,
+                        0.46f
+                    ).copy(alpha = 0.44f)
 
-                        // --- RAW LINE ---
-                        if (drawRaw) {
-                            // FAST PATH DECIMATION: Check X proximity first
-                            if (!rawFirst && kotlin.math.abs(px - rawLastX) < 0.8f) {
-                                // If horizontally close, check vertical spike using CHEAP value (raw/auto)
-                                val rawV = renderPoint.rawValue
-                                val rawY = chartHeight - ((rawV - cYMin) * yScale)
-                                if (kotlin.math.abs(rawY - rawLastY) < 1.0f) {
-                                    continue // SKIP drawing this point
-                                }
-                            }
-
-                            val v = renderPoint.rawValue
-                            if (v.isNaN() || v < 0.1f) {
-                                // Nothing to say about the raw line, which is not the same as
-                                // a break in it — see the AUTO branch below. NFC 15-minute
-                                // history records carry an algorithm value and no raw lane.
+                    fun addRun(path: Path, run: tk.glucodata.chart.ChartRun, lineRun: ChartLineRun) {
+                        var first = true
+                        var lastX = -10000f
+                        var lastY = -10000f
+                        for (point in run.points) {
+                            if (point.timestamp < viewportStart - cullMargin || point.timestamp > viewportEnd + cullMargin) continue
+                            val px = (point.timestamp - viewportStart) * timeScale
+                            val py = (chartHeight - ((point.value - cYMin) * yScale)).coerceIn(-2000f, chartHeight + 2000f)
+                            if (!px.isFinite() || !py.isFinite()) { first = true; continue }
+                            // Decimation: nothing to see between two points that
+                            // land on the same pixel.
+                            if (!first && kotlin.math.abs(px - lastX) < 0.8f && kotlin.math.abs(py - lastY) < 1.0f) continue
+                            if (first) {
+                                path.moveTo(px, py); lineRun.begin(px, py); first = false
                             } else {
-                                val rawY = chartHeight - ((v - cYMin) * yScale)
-                                val py = rawY.coerceIn(-2000f, chartHeight + 2000f)
-                                
-                                if (!py.isFinite()) {
-                                    rawFirst = true
-                                } else {
-                                    if (!rawFirst && (renderPoint.timestamp - rawLastTimestamp) > gapThreshold) {
-                                        rawFirst = true
-                                    }
-                                    
-                                    if (rawFirst) {
-                                        reusableRawPath.moveTo(px, py)
-                                        rawRun.begin(px, py)
-                                        rawFirst = false
-                                    } else {
-                                        reusableRawPath.lineTo(px, py)
-                                        rawRun.extend()
-                                    }
-                                    rawLastX = px
-                                    rawLastY = py
-                                    rawLastTimestamp = renderPoint.timestamp
-                                }
+                                path.lineTo(px, py); lineRun.extend()
                             }
+                            lastX = px; lastY = py
                         }
-
-                        // --- AUTO LINE ---
-                        if (drawAuto) {
-                            if (!autoFirst && kotlin.math.abs(px - autoLastX) < 0.8f) {
-                                val autoV = renderPoint.value
-                                val autoY = chartHeight - ((autoV - cYMin) * yScale)
-                                if (kotlin.math.abs(autoY - autoLastY) < 1.0f) {
-                                    continue
-                                }
-                            }
-
-                            val v = renderPoint.value
-                            if (v.isNaN() || v < 0.1f) {
-                                // A point with no value for THIS series is not a hole in it.
-                                // The two lanes are populated by different sources: an NFC
-                                // scan's per-minute trend is raw-only (saveScanTrend() in
-                                // share/savehistory.cpp — only Abbott's library can turn a
-                                // raw sample into a reading, and only for the current
-                                // minute), while 15-minute history records are algorithm-only.
-                                // Breaking here made every history point in NFC-only mode a
-                                // single-point run between two raw-only minutes, which is
-                                // what drew the chart as a field of dots (issue #166).
-                                //
-                                // Skipping keeps the real rule intact: gapThreshold below
-                                // still measures elapsed time against the last point that
-                                // actually had a value, and a minute with neither value
-                                // never becomes a point at all (appendPollHistory() in
-                                // g.cpp), so genuine holes are still holes.
-                            } else {
-                                val autoY = chartHeight - ((v - cYMin) * yScale)
-                                val py = autoY.coerceIn(-2000f, chartHeight + 2000f)
-                                
-                                if (!py.isFinite()) {
-                                    autoFirst = true
-                                } else {
-                                    if (!autoFirst && (renderPoint.timestamp - autoLastTimestamp) > gapThreshold) {
-                                        autoFirst = true
-                                    }
-                                    
-                                    if (autoFirst) {
-                                        reusableAutoPath.moveTo(px, py)
-                                        autoRun.begin(px, py)
-                                        autoFirst = false
-                                    } else {
-                                        reusableAutoPath.lineTo(px, py)
-                                        autoRun.extend()
-                                    }
-                                    autoLastX = px
-                                    autoLastY = py
-                                    autoLastTimestamp = renderPoint.timestamp
-                                }
-                            }
-                        }
-                        
-                        // --- CALIBRATION LINE ---
-                        if (hasCalibration) {
-                            val baseV = if (isRawModeChart) renderPoint.rawValue else renderPoint.value
-                            if (!baseV.isFinite() || baseV <= 0.1f) {
-                                // No value in the lane calibration is applied to: skip the
-                                // point rather than break the line — see the AUTO branch.
-                                continue
-                            }
-                            if (!calFirst && kotlin.math.abs(px - calLastX) < 0.8f) {
-                                val proxyY = chartHeight - ((baseV - cYMin) * yScale)
-                                if (kotlin.math.abs(proxyY - calLastY) < 1.0f) {
-                                     continue
-                                }
-                            }
-
-                            val v = calibratedValueResolver.valueAt(i, isRawModeChart)
-                            
-                            if (v.isNaN() || v < 0.1f) {
-                                calFirst = true
-                            } else {
-                                val calY = chartHeight - ((v - cYMin) * yScale)
-                                val py = calY.coerceIn(-2000f, chartHeight + 2000f)
-                                
-                                if (!py.isFinite()) {
-                                    calFirst = true
-                                } else {
-                                    if (!calFirst && (renderPoint.timestamp - calLastTimestamp) > gapThreshold) {
-                                        calFirst = true
-                                    }
-                                    
-                                    if (calFirst) {
-                                        reusablePath.moveTo(px, py)
-                                        calRun.begin(px, py)
-                                        calFirst = false
-                                    } else {
-                                        reusablePath.lineTo(px, py)
-                                        calRun.extend()
-                                    }
-                                    calLastX = px
-                                    calLastY = py
-                                    calLastTimestamp = renderPoint.timestamp
-                                }
-                            }
-                        }
-
-                        lastSensorSerial = renderPoint.sensorSerial
                     }
-
-                    rawRun.flush()
-                    autoRun.flush()
-                    calRun.flush()
-
-                    // --- DRAW PATHS ---
-                    // Using Gradient Brush for primary/active lines for smooth transition
-
                     fun drawIsolated(run: ChartLineRun, color: Color, strokeWidth: Float) {
-                        if (run.isolatedPoints.isEmpty()) return
-                        val radius = strokeWidth / 2f
-                        run.isolatedPoints.forEach { point ->
-                            drawCircle(color = color, radius = radius, center = point)
+                        run.isolatedPoints.forEach { point -> drawCircle(color = color, radius = strokeWidth / 2f, center = point) }
+                    }
+
+                    // Secondary lanes first, under everything.
+                    for (lane in primarySeries.secondaryLanes) {
+                        val path = when (lane.kind) {
+                            tk.glucodata.chart.ChartLaneKind.RAW -> reusableRawPath
+                            tk.glucodata.chart.ChartLaneKind.AUTO -> reusableAutoPath
+                            tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW -> reusableDemotedPath
+                        }
+                        path.rewind()
+                        val lineRun = ChartLineRun()
+                        lane.runs.forEach { addRun(path, it, lineRun) }
+                        lineRun.flush()
+                        when (lane.kind) {
+                            tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW -> {
+                                // A question, not a record: faint and thin, so
+                                // it can never read as the value.
+                                val previewColor = primaryColor.copy(alpha = 0.45f)
+                                val previewStroke = 1.dp.toPx()
+                                drawPath(path, previewColor, style = Stroke(width = previewStroke, cap = strokeCap, join = strokeJoin))
+                                drawIsolated(lineRun, previewColor, previewStroke)
+                            }
+                            else -> {
+                                val color = if (lane.kind == tk.glucodata.chart.ChartLaneKind.RAW) rawLaneColor else autoLaneColor
+                                drawPath(path, color, style = Stroke(width = laneStroke, cap = strokeCap, join = strokeJoin))
+                                drawIsolated(lineRun, color, laneStroke)
+                            }
                         }
                     }
 
-                    if (drawRaw) {
-                        if (doTintRaw) {
-                            drawPath(reusableRawPath, brush = gradientBrush, style = Stroke(width = rawStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusableRawPath, rawColor, style = Stroke(width = rawStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        }
-                        drawIsolated(rawRun, rawColor, rawStrokeWidth)
+                    // Then the primary where it is not main, then where it is.
+                    reusableDemotedPath.rewind()
+                    reusablePath.rewind()
+                    val demotedRun = ChartLineRun()
+                    val mainRun = ChartLineRun()
+                    for (run in primarySeries.runs) {
+                        if (run.look == tk.glucodata.chart.ChartLook.MAIN) addRun(reusablePath, run, mainRun)
+                        else addRun(reusableDemotedPath, run, demotedRun)
                     }
-                    if (drawAuto) {
-                        if (doTintAuto) {
-                            drawPath(reusableAutoPath, brush = gradientBrush, style = Stroke(width = autoStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusableAutoPath, autoColor, style = Stroke(width = autoStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        }
-                        drawIsolated(autoRun, autoColor, autoStrokeWidth)
+                    demotedRun.flush()
+                    mainRun.flush()
+                    drawPath(reusableDemotedPath, demotedColor, style = Stroke(width = laneStroke, cap = strokeCap, join = strokeJoin))
+                    drawIsolated(demotedRun, demotedColor, laneStroke)
+                    if (doTintMain) {
+                        drawPath(reusablePath, brush = gradientBrush, style = Stroke(width = mainStroke, cap = strokeCap, join = strokeJoin))
+                    } else {
+                        drawPath(reusablePath, primaryColor, style = Stroke(width = mainStroke, cap = strokeCap, join = strokeJoin))
                     }
-                    if (hasCalibration) {
-                        if (doTintCal) {
-                            drawPath(reusablePath, brush = gradientBrush, style = Stroke(width = calStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusablePath, primaryColor, style = Stroke(width = calStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        }
-                        drawIsolated(calRun, primaryColor, calStrokeWidth)
-                    }
+                    drawIsolated(mainRun, primaryColor, mainStroke)
                 }
 
                 fun addSmoothedPredictionOffsets(path: Path, samples: List<Offset>, moveToFirst: Boolean) {
@@ -2880,13 +2812,13 @@ fun InteractiveGlucoseChart(
                 }
 
                 val predictionRawColor = when {
-                    calibratedValueResolver.hasCalibration(viewMode == 1 || viewMode == 3) && viewMode == 2 -> tertiaryColor
-                    calibratedValueResolver.hasCalibration(viewMode == 1 || viewMode == 3) || viewMode == 2 -> secondaryColor
+                    hasCalibration && viewMode == 2 -> tertiaryColor
+                    hasCalibration || viewMode == 2 -> secondaryColor
                     else -> primaryColor
                 }
                 val predictionAutoColor = when {
-                    calibratedValueResolver.hasCalibration(viewMode == 1 || viewMode == 3) && viewMode == 3 -> tertiaryColor
-                    calibratedValueResolver.hasCalibration(viewMode == 1 || viewMode == 3) || viewMode == 3 -> secondaryColor
+                    hasCalibration && viewMode == 3 -> tertiaryColor
+                    hasCalibration || viewMode == 3 -> secondaryColor
                     else -> primaryColor
                 }
 
@@ -3033,7 +2965,7 @@ fun InteractiveGlucoseChart(
                         // If showing Raw (Mode 1) or Raw-Primary (Mode 3), prioritize Raw
                         val useRaw = viewMode == 1 || viewMode == 3
                         val v = if (hideInitialWhenCalibrated) {
-                            calibratedValueResolver.valueAt(i, useRaw)
+                            chartModel.primary?.valueAt(p.timestamp) ?: Float.NaN
                         } else {
                             if (useRaw) p.rawValue else p.value
                         }
@@ -3325,9 +3257,13 @@ fun InteractiveGlucoseChart(
                     selectedPoint?.let { p ->
                         val dotRadius = 5.dp.toPx()
                         val isRawModeDot = viewMode == 1 || viewMode == 3
-                        val hasCalibrationDot = calibratedValueResolver.hasCalibration(isRawModeDot)
-                        val hideRawDot = hideInitialWhenCalibrated && isRawModeDot
-                        val hideAutoDot = hideInitialWhenCalibrated && !isRawModeDot
+                        val resolvedDot = chartModel.primary?.valueAt(p.timestamp)
+                        val hasCalibrationDot = hasCalibration ||
+                            (resolvedDot != null && resolvedDot != (if (isRawModeDot) p.rawValue else p.value))
+                        val hideSourceDot = hasCalibrationDot &&
+                            tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
+                        val hideRawDot = hideSourceDot && isRawModeDot
+                        val hideAutoDot = hideSourceDot && !isRawModeDot
 
                         // Draw dots for active lines (demoted when calibration active)
                          if (!hideRawDot && (viewMode == 1 || viewMode == 2 || viewMode == 3) && p.rawValue > 0.1f) {
@@ -3343,7 +3279,7 @@ fun InteractiveGlucoseChart(
 
                          // Draw calibrated dot on top (primary when active)
                          if (hasCalibrationDot) {
-                             val calibratedV = calibratedValueResolver.valueForPoint(p, isRawModeDot)
+                             val calibratedV = chartModel.primary?.valueAt(p.timestamp) ?: Float.NaN
                              if (calibratedV.isFinite() && calibratedV > 0.1f) {
                                  val py = valToY(calibratedV)
                                  if (py.isFinite()) drawCircle(primaryColor, dotRadius, Offset(cursorX, py))
@@ -3567,6 +3503,7 @@ fun InteractiveGlucoseChart(
                 }
                 JournalMarkerChip(
                     marker = marker,
+                    activePointerIds = activeJournalMarkerPointers,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .zIndex(1.5f)
@@ -3892,10 +3829,9 @@ fun InteractiveGlucoseChart(
 
                 // Compute calibrated value for tooltip
                 val isRawModeTT = viewMode == 1 || viewMode == 3
-                val hasCalibrationTT = calibratedValueResolver.hasCalibration(isRawModeTT)
-                val calibratedValueTT = if (hasCalibrationTT) {
-                    calibratedValueResolver.valueForPoint(point, isRawModeTT).takeIf { it > 0.1f }
-                } else null
+                val calibratedValueTT = chartModel.primary?.valueAt(point.timestamp)
+                    ?.takeIf { it.isFinite() && it > 0.1f }
+                    ?.takeIf { hasCalibration || it != (if (isRawModeTT) point.rawValue else point.value) }
                 val dvs = getDisplayValues(point, viewMode, unit, calibratedValueTT)
                 val tooltipPeerPoints = peerPointsByBucket[MultiSensorDisplay.bucketKeyForTimestamp(point.timestamp)]
                     .orEmpty()
@@ -4030,7 +3966,14 @@ fun InteractiveGlucoseChart(
                         // range; the artifact line is phrased as a possibility,
                         // because an elevated posterior probability is not the
                         // same as an artifact having occurred.
-                        point.uncertainty?.takeIf { it.isUsable }?.let { uncertainty ->
+                        // Gated on the same preference as the ribbon, not just
+                        // on the point carrying an interval. Stored bands outlive
+                        // a switch away from Adaptive V2, so without this the
+                        // range kept appearing here for a model that never
+                        // produced one.
+                        point.uncertainty
+                            ?.takeIf { it.isUsable && uncertaintyRibbonEnabled }
+                            ?.let { uncertainty ->
                             val isMmolTooltip = GlucoseFormatter.isMmol(unit)
                             Text(
                                 text = stringResource(
@@ -4394,11 +4337,11 @@ fun InteractiveGlucoseChart(
                 PreviewWindowNavigator(
                     modifier = Modifier.fillMaxWidth(),
                     renderData = renderData,
-                    calibratedValueResolver = calibratedValueResolver,
+                    chartModel = chartModel,
                     previewCenterTime = previewCenterTime,
                     viewMode = viewMode,
-                    targetLow = targetLow,
-                    targetHigh = targetHigh,
+                    rangeThresholds = rangeThresholds,
+                    rangePalette = chartBandPalette,
                     isMmol = isMmol,
                     currentCenterTime = centerTime,
                     currentVisibleDuration = visibleDuration
@@ -4716,13 +4659,13 @@ fun InteractiveGlucoseChart(
 @Composable
 private fun JournalMarkerChip(
     marker: JournalChartMarker,
+    activePointerIds: MutableSet<PointerId>,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val tint = Color(marker.accentColor)
     Surface(
-        modifier = modifier,
-        onClick = onClick,
+        modifier = modifier.journalMarkerInput(activePointerIds, onClick),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, tint.copy(alpha = 0.18f)),
@@ -4756,6 +4699,53 @@ private fun JournalMarkerChip(
         }
     }
 }
+
+private fun Modifier.journalMarkerInput(
+    activePointerIds: MutableSet<PointerId>,
+    activateMarker: () -> Unit
+): Modifier = this
+    .minimumInteractiveComponentSize()
+    .semantics(mergeDescendants = true) {
+        role = Role.Button
+        onClick(action = {
+            activateMarker()
+            true
+        })
+    }
+    .pointerInput(activePointerIds, activateMarker) {
+        awaitEachGesture {
+            val down = awaitFirstDown(
+                requireUnconsumed = false,
+                pass = PointerEventPass.Initial
+            )
+            val gate = JournalMarkerGestureGate(viewConfiguration.touchSlop)
+            activePointerIds.add(down.id)
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    if (change == null) {
+                        gate.cancel()
+                        break
+                    }
+                    gate.observe(
+                        displacementX = change.position.x - down.position.x,
+                        displacementY = change.position.y - down.position.y,
+                        pointerCount = event.changes.size
+                    )
+                    if (!change.pressed) {
+                        if (gate.shouldClick(change.changedToUp())) {
+                            change.consume()
+                            activateMarker()
+                        }
+                        break
+                    }
+                }
+            } finally {
+                activePointerIds.remove(down.id)
+            }
+        }
+    }
 
 /**
  * Countdown next to the clock glyph on the active-insulin chip. Rendered as "2 h 40 min"

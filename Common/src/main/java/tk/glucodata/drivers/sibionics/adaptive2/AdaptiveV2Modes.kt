@@ -106,16 +106,16 @@ internal object AdaptiveV2ModeModel {
      */
     private val PROCESS_NOISE: Array<DoubleArray> = arrayOf(
         // STEADY
-        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 2.0e-5,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 1.0e-1,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // DYNAMIC
-        noise(velocity = 1.2e-3, jerk = 3.0e-6, interstitial = 2.0e-5,
+        noise(velocity = 1.2e-3, jerk = 3.0e-6, interstitial = 1.0e-1,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 1.0e-6),
         // ARTIFACT
-        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 2.0e-5,
+        noise(velocity = 3.0e-7, jerk = 3.0e-8, interstitial = 1.0e-1,
             logSensitivity = 1.0e-9, bias = 2.0e-8, artifact = 2.5e-2),
         // DRIFT
-        noise(velocity = 5.0e-7, jerk = 5.0e-8, interstitial = 2.0e-5,
+        noise(velocity = 5.0e-7, jerk = 5.0e-8, interstitial = 1.0e-1,
             logSensitivity = 2.0e-8, bias = 1.0e-6, artifact = 1.0e-6),
     )
 
@@ -205,12 +205,21 @@ internal object AdaptiveV2ModeModel {
     fun glucoseBlock(mode: AdaptiveV2Mode, dtMinutes: Double, out: DoubleArray) {
         val qv = PROCESS_NOISE[mode.ordinal][V2.V]
         val qa = PROCESS_NOISE[mode.ordinal][V2.ACC]
+        // Level drive on the state the observation actually reads.
+        //
+        // predict() adds the diagonal q only for states outside the B/V/ACC
+        // block, so the level entry never reached B at all: B grew about 1e-7
+        // per minute from the velocity term alone and was far too stiff for the
+        // observation to move it, which showed up as a same-minute step
+        // response of 0.49. Tracking bandwidth has to live on whichever state
+        // the observation constrains, and that is now B.
+        val qLevel = PROCESS_NOISE[mode.ordinal][V2.I]
         val dt2 = dtMinutes * dtMinutes
         val dt3 = dt2 * dtMinutes
         val dt4 = dt3 * dtMinutes
         val dt5 = dt4 * dtMinutes
 
-        out[0] = qv * dt3 / 3.0 + qa * dt5 / 20.0
+        out[0] = qv * dt3 / 3.0 + qa * dt5 / 20.0 + qLevel * dtMinutes
         out[1] = qv * dt2 / 2.0 + qa * dt4 / 8.0
         out[2] = qa * dt3 / 6.0
         out[3] = out[1]
@@ -249,6 +258,10 @@ internal object AdaptiveV2ModeModel {
      *   minute; a shorter substep is interpolated toward the identity so mode
      *   persistence scales with real time instead of with call count.
      */
+    /** Artifact evidence for one sample as a scalar, for consumers outside the mode prior. */
+    fun artifactEvidenceFor(impedanceDisturbance: Float, vendorArtifactHint: Float): Float =
+        artifactPrior.artifactEvidence(impedanceDisturbance, vendorArtifactHint).coerceIn(0f, 1f)
+
     fun transition(
         from: AdaptiveV2Mode,
         impedanceDisturbance: Float,

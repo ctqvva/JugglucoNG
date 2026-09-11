@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -9,6 +10,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -16,15 +19,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -57,9 +67,15 @@ import androidx.compose.ui.draw.alpha
 
 import androidx.compose.material.icons.filled.AccessTime
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
+import tk.glucodata.SensorTypeName
+import tk.glucodata.SensorVendor
+import tk.glucodata.SensorVisuals
+import tk.glucodata.SensorBadge
+import tk.glucodata.sensorBadge
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
@@ -69,12 +85,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.roundToInt
 import java.util.Locale
 
@@ -140,6 +158,244 @@ private fun nextSensorReadingAgeDelay(nowMillis: Long, readingMillis: Long): Lon
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
+
+private val SensorBadgeWidth = 50.dp
+private val SensorBadgeHeight = 40.dp
+
+/**
+ * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
+ */
+@Composable
+private fun BadgeLabel(
+    text: String,
+    sizes: List<TextUnit>,
+    weight: FontWeight,
+    color: Color,
+    maxWidth: Dp,
+) {
+    val measurer = rememberTextMeasurer()
+    val base = MaterialTheme.typography.labelSmall
+    val density = LocalDensity.current
+    val maxWidthPx = with(density) { maxWidth.roundToPx() }
+    val style = remember(text, sizes, maxWidthPx, base) {
+        val candidates = sizes.map {
+            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp)
+        }
+        candidates.firstOrNull { candidate ->
+            measurer.measure(text, candidate, softWrap = false).size.width <= maxWidthPx
+        } ?: candidates.last()
+    }
+    Text(
+        text = text,
+        style = style,
+        fontWeight = weight,
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+    )
+}
+
+/**
+ * Vendor tile: brand and model on one line where they fit — "SIBI 2", "LIBRE 3" — and stacked
+ * only when they do not, so a one-character model never gets a row of its own. Fixed width so
+ * every card's name starts on the same x, tinted with the sensor's colour.
+ */
+@Composable
+private fun SensorModelBadge(
+    badge: SensorBadge,
+    vendor: SensorVendor,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val vendorName = stringResource(vendor.labelRes)
+    val innerWidth = SensorBadgeWidth - 8.dp
+    Box(
+        modifier = modifier
+            .size(width = SensorBadgeWidth, height = SensorBadgeHeight)
+            .clip(RoundedCornerShape(12.dp))
+            .background(color.copy(alpha = 0.16f))
+            .clearAndSetSemantics { contentDescription = vendorName },
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            badge.brand.isEmpty() -> Icon(
+                imageVector = Icons.Default.Sensors,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp),
+            )
+            !badge.stacked -> BadgeLabel(
+                text = badge.inlineText,
+                sizes = listOf(12.sp, 11.sp, 10.sp, 9.sp),
+                weight = FontWeight.Black,
+                color = color,
+                maxWidth = innerWidth,
+            )
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                BadgeLabel(
+                    text = badge.brand,
+                    sizes = listOf(9.sp, 8.sp),
+                    weight = FontWeight.Bold,
+                    color = color,
+                    maxWidth = innerWidth,
+                )
+                BadgeLabel(
+                    text = badge.model,
+                    sizes = listOf(12.sp, 11.sp, 10.sp),
+                    weight = FontWeight.Black,
+                    color = color,
+                    maxWidth = innerWidth,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The sensor's name lives inside its own control: the check on the left decides whether this
+ * sensor feeds the rest of the app — chart, notifications, reading row, outputs — and the
+ * split-off segment on the right opens its colour.
+ */
+@Composable
+private fun SensorIdentityControl(
+    name: String,
+    selected: Boolean,
+    selectable: Boolean,
+    color: Color,
+    onToggle: () -> Unit,
+    onPickColor: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+        val leadShape = RoundedCornerShape(
+            topStart = 22.dp,
+            bottomStart = 22.dp,
+            topEnd = 6.dp,
+            bottomEnd = 6.dp,
+        )
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(leadShape)
+                .background(
+                    when {
+                        // Nothing to toggle with one sensor, so the name sits on the same
+                        // quiet surface as the reading chip instead of looking pressable.
+                        !selectable -> MaterialTheme.colorScheme.surfaceContainer
+                        selected -> color.copy(alpha = 0.18f)
+                        else -> MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                    }
+                )
+                .then(
+                    if (selectable) {
+                        Modifier.toggleable(
+                            value = selected,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggle() },
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(start = 10.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selectable) {
+                Icon(
+                    imageVector = if (selected) {
+                        Icons.Rounded.CheckCircle
+                    } else {
+                        Icons.Rounded.RadioButtonUnchecked
+                    },
+                    contentDescription = stringResource(
+                        if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
+                    ),
+                    tint = if (selected) color else color.copy(alpha = 0.55f),
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            SensorNameText(
+                name = name,
+                muted = selectable && !selected,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+        Spacer(modifier = Modifier.width(2.dp))
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .fillMaxHeight()
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 6.dp,
+                        bottomStart = 6.dp,
+                        topEnd = 22.dp,
+                        bottomEnd = 22.dp,
+                    )
+                )
+                .background(color.copy(alpha = 0.12f))
+                .clickable(onClick = onPickColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.ShowChart,
+                contentDescription = stringResource(R.string.sensor_color_title),
+                tint = color,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The serial is the card's identity, so it steps down a couple of sizes to stay whole rather
+ * than ellipsizing the moment the controls beside it need room.
+ */
+@Composable
+private fun SensorNameText(
+    name: String,
+    muted: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val measurer = rememberTextMeasurer()
+    val baseStyle = MaterialTheme.typography.titleLarge
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier = modifier) {
+        val availablePx = with(density) { maxWidth.roundToPx() }
+        val style = remember(name, availablePx, baseStyle) {
+            val candidates = listOf(22.sp, 20.sp, 18.sp, 16.sp).map { baseStyle.copy(fontSize = it) }
+            candidates.firstOrNull { candidate ->
+                measurer.measure(name, candidate, softWrap = false).size.width <= availablePx
+            } ?: candidates.last()
+        }
+        Text(
+            text = name,
+            style = style,
+            color = if (muted) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
+}
+
+
+internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? {
+    if (eventAtMs <= 0L) return null
+    val clamped = eventAtMs.coerceAtMost(nowMs)
+    return clamped.takeIf { nowMs - it <= BLE_ERROR_CARD_WINDOW_MS }
+}
+
+internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
+    val age = relativeAge?.toString()?.trim().orEmpty()
+    return if (age.isEmpty()) status else "$status · $age"
+}
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -249,15 +505,18 @@ fun SensorCard(
     var showReconnectDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
     var wipeDataChecked by remember { mutableStateOf(false) }
-    var keepDataChecked by remember { mutableStateOf(false) }
+    var removeHistoryChecked by remember { mutableStateOf(false) }
 
     // Sibionics Calibration Bottom Sheet
     var showSibionicsCalSheet by remember { mutableStateOf(false) }
+    var showColorSheet by remember { mutableStateOf(false) }
 
     // AiDex Maintenance Dialogs
     var showAiDexClearDialog by remember { mutableStateOf(false) }
     var showSensorCalibrateDialog by remember { mutableStateOf(false) }
     var showAnytimeClearCalibrationDialog by remember { mutableStateOf(false) }
+    var showAnytimeHistoryDialog by remember { mutableStateOf(false) }
+    var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
@@ -269,7 +528,40 @@ fun SensorCard(
     var aiDexBiasChecked by remember(sensor.serial, sensor.resetCompensationActive) { mutableStateOf(sensor.resetCompensationActive) }
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
+    // A lone sensor with no colour of its own is drawn the way the dashboard trace is —
+    // the theme accent — rather than a palette hue assigned by a hash nobody chose. A second
+    // sensor, or a colour the user picked, is what makes identity colour worth showing.
+    val hasPickedColor = SensorVisuals.colorOverrideArgb(sensor.serial) != null
+    val sensorTint = if (sensorCount > 1 || hasPickedColor) {
+        sensor.color
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     val scope = rememberCoroutineScope() // Fix: Add missing scope
+    var pendingAnytimeCredentialBackup by remember { mutableStateOf<String?>(null) }
+    val anytimeCredentialExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val payload = pendingAnytimeCredentialBackup
+        pendingAnytimeCredentialBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.export_successful else R.string.export_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
 
@@ -277,6 +569,63 @@ fun SensorCard(
     // disconnectSensor (soft). The old soft-disconnect left zombie "is finished" entries —
     // bond/keys preserved, prefs not cleaned, sensor reappeared. terminateSensor calls
     // forgetVendor() + removeAiDexFromPrefs() + finishSensor() + sensorEnded() = full cleanup.
+    if (showAnytimeCredentialBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeCredentialBackupDialog = false },
+            title = { Text(stringResource(R.string.anytime_credentials_backup)) },
+            text = { Text(stringResource(R.string.anytime_credentials_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.anytime.AnytimeRegistry
+                            .exportCt5Credentials(context, sensor.serial)
+                        showAnytimeCredentialBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.export_failed,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAnytimeCredentialBackup = payload
+                            val safeId = sensor.serial.filter(Char::isLetterOrDigit)
+                                .ifBlank { "CT5" }
+                            anytimeCredentialExportLauncher.launch(
+                                "JugglucoNG-Anytime-$safeId.json"
+                            )
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeCredentialBackupDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showAnytimeHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeHistoryDialog = false },
+            title = { Text(stringResource(R.string.streamhistory)) },
+            text = { Text(stringResource(R.string.anytime_history_fetch_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.requestAnytimeHistory(sensor.serial)
+                        showAnytimeHistoryDialog = false
+                    }
+                ) { Text(stringResource(R.string.streamhistory)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeHistoryDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showTerminateDialog) {
         if (sensor.isAidex) {
             AlertDialog(
@@ -348,7 +697,7 @@ fun SensorCard(
             AlertDialog(
                 onDismissRequest = {
                     showTerminateDialog = false
-                    keepDataChecked = false
+                    removeHistoryChecked = false
                 },
                 title = { Text(stringResource(R.string.disconnect_sensor_title)) },
                 text = {
@@ -357,24 +706,31 @@ fun SensorCard(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
-                                checked = keepDataChecked,
-                                onCheckedChange = { keepDataChecked = it }
+                                checked = removeHistoryChecked,
+                                onCheckedChange = { removeHistoryChecked = it }
                             )
-                            Text(stringResource(R.string.keep_data))
+                            Text(stringResource(R.string.remove_sensor_history))
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        viewModel.terminateSensor(sensor.serial, !keepDataChecked)
+                        val removed = viewModel.terminateSensor(sensor.serial, removeHistoryChecked)
                         showTerminateDialog = false
-                        keepDataChecked = false
+                        removeHistoryChecked = false
+                        if (!removed) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.disconnect_sensor_failed),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
                     }) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         showTerminateDialog = false
-                        keepDataChecked = false
+                        removeHistoryChecked = false
                     }) { Text(stringResource(R.string.cancel)) }
                 }
             )
@@ -456,11 +812,22 @@ fun SensorCard(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text(stringResource(R.string.reset_sensor_title)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (sensor.isAnytime) R.string.anytime_restart_title
+                        else R.string.reset_sensor_title
+                    )
+                )
+            },
             text = {
                 Text(
                     stringResource(
-                        if (sensor.isSibionics2) R.string.reset_sensor_desc else R.string.unified_reset_desc
+                        when {
+                            sensor.isAnytime -> R.string.anytime_restart_warning
+                            sensor.isSibionics2 -> R.string.reset_sensor_desc
+                            else -> R.string.unified_reset_desc
+                        }
                     )
                 )
             },
@@ -468,7 +835,14 @@ fun SensorCard(
                 TextButton(onClick = {
                     viewModel.resetSensor(sensor.serial)
                     showResetDialog = false
-                }) { Text(stringResource(R.string.reset_sensor)) }
+                }) {
+                    Text(
+                        stringResource(
+                            if (sensor.isAnytime) R.string.anytime_restart_action
+                            else R.string.reset_sensor
+                        )
+                    )
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) { Text(stringResource(R.string.cancel)) }
@@ -696,6 +1070,30 @@ fun SensorCard(
                 ) { Text(stringResource(R.string.cancel)) }
             }
         }
+    }
+
+    if (showColorSheet) {
+        val pinnedColor = remember(sensor.serial) {
+            SensorVisuals.colorOverrideArgb(sensor.serial)
+        }
+        ExpressiveColorPickerDialog(
+            title = stringResource(R.string.sensor_color_title),
+            initialColor = sensorTint.toArgb(),
+            showOpacity = false,
+            onDismiss = { showColorSheet = false },
+            onReset = if (pinnedColor != null) {
+                {
+                    viewModel.setSensorColor(sensor.serial, null)
+                    showColorSheet = false
+                }
+            } else {
+                null
+            },
+            onConfirm = { picked ->
+                viewModel.setSensorColor(sensor.serial, picked or 0xFF000000.toInt())
+                showColorSheet = false
+            },
+        )
     }
 
     // Independent, immediately applied sensor-algorithm features.
@@ -1248,6 +1646,18 @@ fun SensorCard(
     // Visual Feedback: Darken card when disconnected/paused
     val containerColor = if (isStreaming) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     val contentAlpha = if (isStreaming) 1f else 0.9f
+    var bleErrorNow by remember(sensor.connectionStatusAtMs) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    LaunchedEffect(sensor.connectionStatusAtMs) {
+        while (sensor.connectionStatusAtMs > 0L) {
+            bleErrorNow = System.currentTimeMillis()
+            val remaining = BLE_ERROR_CARD_WINDOW_MS -
+                (bleErrorNow - sensor.connectionStatusAtMs).coerceAtLeast(0L)
+            if (remaining < 0L) break
+            delay(min(60_000L, remaining + 1L).coerceAtLeast(1_000L))
+        }
+    }
 
 
     Card(
@@ -1301,130 +1711,42 @@ fun SensorCard(
                         .width(4.dp)
                         .fillMaxHeight()
                         .background(
-                            sensor.color.copy(alpha = if (sensor.isActive) 1f else 0.4f),
+                            sensorTint.copy(alpha = if (sensor.isActive) 1f else 0.4f),
                             RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
                         )
                 )
 
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
-                    val statusText = if (isStreaming) stringResource(R.string.enabled_status) else stringResource(R.string.disabled_status)
+                    val pausedText = stringResource(R.string.disabled_status)
 
+                    val displayName = sensor.displayName.ifBlank { sensor.serial }
+                    val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel) {
+                        sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel)
+                    }
+                    val canToggleEnabled = sensorCount > 1
+
+                    // Identity and the controls that belong to it stay together on the left; the
+                    // pause button is the one thing pinned to the far edge.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            val serialTextStyle = when {
-                                else -> MaterialTheme.typography.titleLarge
-                            }
-                            val enabledTextStyle = when {
-                                else -> MaterialTheme.typography.titleMedium
-                            }
-                            // Title with optional "Active" badge
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = sensor.displayName.ifBlank { sensor.serial },
-                                    style = serialTextStyle,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                )
-                                // Toggle Main Sensor Badge
-                                Spacer(modifier = Modifier.width(8.dp))
-                                val isMain = sensor.isActive
-                                val isSelectedForDisplay = sensor.isSelectedForDisplay
-
-                                val badgeColor = if (isSelectedForDisplay) sensor.color else sensor.color.copy(alpha = 0.6f)
-                                val badgeBg = when {
-                                    isMain -> sensor.color.copy(alpha = 0.16f)
-                                    isSelectedForDisplay -> sensor.color.copy(alpha = 0.10f)
-                                    else -> Color.Transparent
-                                }
-                                val badgeBorder = if (isSelectedForDisplay) {
-                                    null
-                                } else {
-                                    androidx.compose.foundation.BorderStroke(1.dp, sensor.color.copy(alpha = 0.3f))
-                                }
-
-                                if (sensorCount > 1) {
-                                    val selectedDescription = stringResource(R.string.sensor_display_selected)
-                                    val selectDescription = stringResource(R.string.sensor_display_select)
-                                    // Multi-sensor: interactive badge with Surface background
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(androidx.compose.foundation.shape.CircleShape)
-                                            .clickable { viewModel.toggleDisplaySelection(sensor.serial) }
-                                            .defaultMinSize(minWidth = 26.dp, minHeight = 26.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Surface(
-                                            color = badgeBg,
-                                            shape = androidx.compose.foundation.shape.CircleShape,
-                                            border = badgeBorder
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSelectedForDisplay) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                                contentDescription = if (isSelectedForDisplay) selectedDescription else selectDescription,
-                                                tint = badgeColor,
-                                                modifier = Modifier
-                                                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                                                    .size(18.dp)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    // Single sensor: slim inline checkmark, no touch target
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = "Active",
-                                        tint = badgeColor,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Text(
-                                    text = statusText,
-                                    style = enabledTextStyle,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                            // Feature: Detailed Sensor Status
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                val sensorStatusText = when {
-                                    sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
-                                    sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
-                                    else -> null
-                                }
-
-                                currentSnapshot?.let { snapshot ->
-                                    SensorCurrentValueChip(
-                                        snapshot = snapshot,
-                                        accentColor = sensor.color
-                                    )
-                                }
-                                sensorStatusText?.let { status ->
-                                    Text(
-                                        text = status,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                }
-                            }
-                        }
+                        SensorModelBadge(
+                            badge = badge,
+                            vendor = sensor.vendor,
+                            color = sensorTint,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SensorIdentityControl(
+                            name = displayName,
+                            selected = sensor.isSelectedForDisplay,
+                            selectable = canToggleEnabled,
+                            color = sensorTint,
+                            onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
+                            onPickColor = { showColorSheet = true },
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         if (isHandedOff) {
                             IconButton(
@@ -1444,7 +1766,8 @@ fun SensorCard(
                                 )
                             }
                         } else {
-                            // Logic: Show Pause if running, Play if stopped (to resume)
+                            // Show Pause while running, Play once stopped. A paused sensor gets
+                            // the accent container so the way back to streaming is the loud thing.
                             IconButton(
                                 onClick = {
                                     if (isLocallyStreaming) {
@@ -1457,13 +1780,66 @@ fun SensorCard(
                                 },
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceDim.copy(alpha=0.5f), CircleShape)
+                                    .background(
+                                        if (isLocallyStreaming) {
+                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                        } else {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        },
+                                        CircleShape,
+                                    )
                             ) {
                                 Icon(
                                     imageVector = if (isLocallyStreaming) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Toggle Sensor",
+                                    contentDescription = stringResource(
+                                        if (isLocallyStreaming) R.string.sensor_pause_streaming
+                                        else R.string.sensor_resume_streaming
+                                    ),
                                     modifier = Modifier.size(26.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
+                                    tint = if (isLocallyStreaming) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    // One status line, not two: a paused sensor's last connection state is stale
+                    // trivia, so the paused label takes the slot instead of sitting in the header
+                    // repeating what the play button already says.
+                    val sensorStatusText = when {
+                        !isStreaming -> pausedText
+                        sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
+                        sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
+                        else -> null
+                    }
+                    if (currentSnapshot != null || sensorStatusText != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            currentSnapshot?.let { snapshot ->
+                                SensorCurrentValueChip(
+                                    snapshot = snapshot,
+                                    accentColor = sensorTint
+                                )
+                            }
+                            sensorStatusText?.let { status ->
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (isStreaming) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                             }
                         }
@@ -1555,9 +1931,32 @@ fun SensorCard(
                     }
 
                     val connectedStatus = stringResource(R.string.status_connected)
-                    if (sensor.connectionStatus.isNotEmpty() &&
+                    val errorEventAt = bleErrorEventTimeForDisplay(
+                        sensor.connectionStatusAtMs,
+                        bleErrorNow,
+                    )
+                    if (errorEventAt != null &&
+                        sensor.connectionStatus.isNotEmpty() &&
                         !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
                     ) {
+                        DataRow(
+                            stringResource(R.string.last_ble_error),
+                            bleErrorValue(
+                                sensor.connectionStatus,
+                                DateUtils.getRelativeTimeSpanString(
+                                    errorEventAt,
+                                    bleErrorNow,
+                                    DateUtils.MINUTE_IN_MILLIS,
+                                ),
+                            ),
+                        )
+                    } else if (sensor.connectionStatusAtMs <= 0L &&
+                        sensor.connectionStatus.isNotEmpty() &&
+                        !sensor.connectionStatus.equals(connectedStatus, ignoreCase = true)
+                    ) {
+                        // Managed drivers can publish a current diagnostic status without an
+                        // event timestamp. Keep that live status; only timestamped history ages
+                        // off after the one-hour card window.
                         DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
                     }
                     DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
@@ -2408,7 +2807,98 @@ fun SensorCard(
                 }
             }
 
-            if (!sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
+            if (sensor.isAnytime) {
+                val hasExportableCredentials = tk.glucodata.drivers.anytime.AnytimeRegistry
+                    .exportCt5Credentials(context, sensor.serial) != null
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilledTonalButton(
+                        onClick = { showResetDialog = true },
+                        enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_restart_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { showAnytimeHistoryDialog = true },
+                        enabled = sensor.isVendorConnected,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.anytime_history_action),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { showAnytimeCredentialBackupDialog = true },
+                        enabled = hasExportableCredentials,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.export),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            if (!sensor.isAnytime && !sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
                     enabled = sensor.isVendorConnected,

@@ -98,11 +98,26 @@ public class NightscoutIobDeviceStatus {
     // the journal has data of that kind. All values are insulin units and
     // grams; glucose units play no role here.
     static String buildDocument(long nowMillis, float iob, float eiob, float cob) {
+        return buildDocument(nowMillis, iob, eiob, cob, false);
+    }
+
+    /**
+     * @param useV3 v3 stores one document rather than an array, and rejects one without an
+     *              "app" field ("Bad or missing app field"). The payload itself is the same
+     *              either way, so only the wrapper and those required fields differ.
+     */
+    static String buildDocument(long nowMillis, float iob, float eiob, float cob, boolean useV3) {
         if (!Float.isFinite(iob))
             return null;
         final String timestamp = isoTimestamp(nowMillis);
-        final StringBuilder out = new StringBuilder(224);
-        out.append("[{\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp)
+        final StringBuilder out = new StringBuilder(256);
+        if (useV3) {
+            out.append("{\"app\":\"JugglucoNG\",\"date\":").append(nowMillis)
+                    .append(",\"utcOffset\":0,\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp);
+        } else {
+            out.append("[{\"device\":\"JugglucoNG\",\"created_at\":\"").append(timestamp);
+        }
+        out
                 .append("\",\"openaps\":{\"iob\":{\"iob\":").append(formatUnits(iob))
                 .append(",\"timestamp\":\"").append(timestamp)
                 .append("\"}},\"jugglucong\":{\"iob\":").append(formatUnits(iob));
@@ -110,7 +125,7 @@ public class NightscoutIobDeviceStatus {
             out.append(",\"eiob\":").append(formatUnits(eiob));
         if (Float.isFinite(cob))
             out.append(",\"cob\":").append(formatUnits(cob));
-        out.append("}}]");
+        out.append(useV3 ? "}}" : "}}]");
         return out.toString();
     }
 

@@ -91,7 +91,8 @@ object AlertRepository {
         return prefs.getFloat(key, 0f).takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: default
     }
 
-    // PERSISTENT_HIGH only: fall-rate suppression (mg/dl/min). 0 = off.
+    // HIGH: positive = opt in to down-arrow suppression. PERSISTENT_HIGH: configured
+    // fall-rate magnitude (mg/dl/min). 0 = off for either type.
     private fun keyFallRateSuppress(type: AlertType) = "alert_${type.id}_fallRateSuppress"
 
     private fun readFallRateSuppress(type: AlertType, default: Float?): Float? {

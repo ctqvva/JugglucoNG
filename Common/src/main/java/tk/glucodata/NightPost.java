@@ -198,10 +198,17 @@ static private String uploadstatus=nothing;
  * act on it. Empty when the last request never got an answer.
  */
 private static volatile String lastPrimaryResponseBody="";
+/** Response paired with the native uploader's status code, kept separate from treatments. */
+private static volatile String lastNativeUploadResponseBody="";
 
 @Keep
 static public String getLastPrimaryResponseBody() {
     return lastPrimaryResponseBody;
+    }
+
+@Keep
+static public String getLastNativeUploadResponseBody() {
+    return lastNativeUploadResponseBody;
     }
 
 /**
@@ -546,7 +553,9 @@ static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
                 iobStatusLastEiob,
                 iobStatusLastCob))
             return true;
-        final String document=NightscoutIobDeviceStatus.buildDocument(now,values[0],values[1],values[2]);
+        //The endpoint the native side picks follows the same setting, so the document has to
+        //agree with it: v3 takes a single document with an "app" field, v1 an array.
+        final String document=NightscoutIobDeviceStatus.buildDocument(now,values[0],values[1],values[2],Natives.getnightscoutV3());
         if(document==null)
             return true;
         if(uploadDeviceStatusAsync(httpurl,document.getBytes(java.nio.charset.StandardCharsets.UTF_8),secret,false,true)) {
@@ -575,6 +584,14 @@ static public int upload(String httpurl,byte[] postdata,String secret,boolean pu
             true,
             "primary"
     );
+    }
+
+/** Native entries upload, with a response body that stays paired with its native status. */
+@Keep
+static public int uploadNative(String httpurl,byte[] postdata,String secret,boolean put) {
+    final int code=upload(httpurl,postdata,secret,put);
+    lastNativeUploadResponseBody=lastPrimaryResponseBody;
+    return code;
     }
 
 /** Partial API v3 document update at a concrete identifier endpoint. */

@@ -35,6 +35,8 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         changes stop rewriting the sensor's own stored numbers
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
+ *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — recorded main value keyed by the minute, written only on presentation
  */
 @Database(
     entities = [
@@ -47,7 +49,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 16,
+    version = 18,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -58,6 +60,8 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun readingDisplayDao(): ReadingDisplayDao
 
     companion object {
+        private const val DATABASE_NAME = "glucose_history.db"
+
         @Volatile
         private var INSTANCE: HistoryDatabase? = null
 
@@ -387,6 +391,20 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v16 → v17: track LibreView delivery independently from Nightscout delivery.
+         *
+         * The column check also accepts databases created by an installed build of the
+         * original PR branch, where this column briefly occupied version 13.
+         */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "journal_entries", "lvUploadedAt")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN lvUploadedAt INTEGER")
+                }
+            }
+        }
+
         /** What the database actually holds, rather than what its version number implies. */
         private fun hasColumn(db: SupportSQLiteDatabase, table: String, column: String): Boolean {
             val cursor = db.query("PRAGMA table_info(`$table`)")
@@ -404,12 +422,53 @@ abstract class HistoryDatabase : RoomDatabase() {
             return false
         }
 
+
+        /**
+         * v17 -> v18: the recorded main value, keyed by the minute.
+         *
+         * The v15 table stored what each sensor would have displayed and never
+         * which sensor won the minute, so the dashboard's main value still moved
+         * whenever the merge ranking changed — which, with two sensors reporting
+         * in the same minute, is most of a real timeline. The decision is now
+         * part of the record: one row per minute, the winning sensor as
+         * provenance.
+         *
+         * Rows are written only when a minute is actually presented to the user
+         * (see ReadingDisplayDao), never by a background pass replaying stored
+         * readings — that replay is not reproducible and produced backdated
+         * ownership. The old rows cannot be carried over for the same reason:
+         * several can claim one minute and none says which was on screen. The
+         * table is rebuilt empty.
+         */
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS reading_display")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        timestamp INTEGER NOT NULL,
+                        sensorSerial TEXT NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_sensorSerial " +
+                        "ON reading_display (sensorSerial)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     HistoryDatabase::class.java,
-                    "glucose_history.db"
+                    DATABASE_NAME
                 )
                 .addMigrations(
                     MIGRATION_2_3,
@@ -425,10 +484,28 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_12_13,
                     MIGRATION_13_14,
                     MIGRATION_14_15,
-                    MIGRATION_15_16
+                    MIGRATION_15_16,
+                    MIGRATION_16_17,
+                    MIGRATION_17_18
                 )
-                .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }
             }
+
+        @JvmStatic
+        fun isCompatibleAtStartup(context: Context): Boolean {
+            if (!context.getDatabasePath(DATABASE_NAME).isFile) return true
+
+            return try {
+                getInstance(context).openHelper.writableDatabase
+                true
+            } catch (error: RuntimeException) {
+                android.util.Log.e(
+                    "HistoryDatabase",
+                    "Existing history database is incompatible with this build",
+                    error
+                )
+                false
+            }
+        }
     }
 }

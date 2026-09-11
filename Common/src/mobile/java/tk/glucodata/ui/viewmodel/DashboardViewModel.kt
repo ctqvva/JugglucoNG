@@ -126,7 +126,8 @@ class DashboardViewModel(
          * everything the chart actually draws.
          */
         val uncertaintyCount: Int,
-        val lastUncertaintyBits: Long
+        val lastUncertaintyBits: Long,
+        val recordedDisplayHash: Int,
     )
 
     private data class DashboardHistoryCacheKey(
@@ -301,6 +302,20 @@ class DashboardViewModel(
     private val _multiSensorDisplay =
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
     val multiSensorDisplay = _multiSensorDisplay.asStateFlow()
+
+    /**
+     * Who is the main sensor, minute by minute, over the chart's history window.
+     *
+     * The chart draws what this says. See [tk.glucodata.chart.MainSensorOwnership]
+     * for the rule; this only keeps it current with the record and the selected
+     * primary.
+     */
+    private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.chart.MainSensorOwnership.NONE)
+    val mainSensorOwnership = _mainSensorOwnership.asStateFlow()
+
+    private suspend fun refreshMainSensorOwnership(startTimeMs: Long) {
+        _mainSensorOwnership.value = historyRepository.mainSensorOwnership(startTime = startTimeMs)
+    }
 
     // Raw (display-unit) peer history kept separate from view-mode resolution so
     // the display data rebuilds when a peer's auto/raw mode changes natively,
@@ -532,7 +547,9 @@ class DashboardViewModel(
     private fun stopJournalEntriesObservation() {
         journalEntriesJob?.cancel()
         journalEntriesJob = null
-        _journalEntries.value = emptyList()
+        // The enabled state controls visibility at the UI boundary. Keep the
+        // last Room emission while observation is paused so a receiver or
+        // sensor-mode refresh cannot masquerade as an empty database.
     }
 
     private fun ensureJournalPresetsObserved() {
@@ -900,6 +917,9 @@ class DashboardViewModel(
                     sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
                     sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
                     fallbackDurationDays = fallbackDurationDays,
+                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
+                        managedSnapshot.expectedEndMs > 0L &&
+                        !managedSnapshot.isSensorExpired,
                     nowMs = System.currentTimeMillis()
                 )
                 _sensorProgress.value = lifecycle.progress
@@ -916,6 +936,9 @@ class DashboardViewModel(
                     sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
                     sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
                     fallbackDurationDays = fallbackDurationDays,
+                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
+                        managedSnapshot.expectedEndMs > 0L &&
+                        !managedSnapshot.isSensorExpired,
                     nowMs = System.currentTimeMillis()
                 )
                 _sensorProgress.value = lifecycle.progress
@@ -1150,6 +1173,12 @@ class DashboardViewModel(
                 _sensorViewModes.value = config.sensorViewModes
 
                 val peerSensors = config.selectedSensorIds.drop(1)
+                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
+                // Ownership is resolved here, beside the peer history, because
+                // both change on the same events: a swap, or the record gaining
+                // a minute. With a single sensor there is nothing to contest,
+                // but the answer is still the record's to give.
+                refreshMainSensorOwnership(startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1157,7 +1186,6 @@ class DashboardViewModel(
                 }
 
                 var hasSeenPeerEmission = false
-                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
@@ -1171,6 +1199,7 @@ class DashboardViewModel(
                         }
                         _multiSensorRawHistory.value = PeerRawHistory(config.selectedSensorIds, peerSensors, converted)
                         refreshPeerCurrentReadings(peerSensors)
+                        refreshMainSensorOwnership(startTimeMs)
                     }
                 }
         }
@@ -1280,7 +1309,8 @@ class DashboardViewModel(
             lastUncertaintyBits = last?.uncertainty?.let { uncertainty ->
                 (java.lang.Float.floatToRawIntBits(uncertainty.lower).toLong() shl 32) or
                     (java.lang.Float.floatToRawIntBits(uncertainty.upper).toLong() and 0xffffffffL)
-            } ?: 0L
+            } ?: 0L,
+            recordedDisplayHash = tk.glucodata.ui.recordedDisplaySignature(points),
         )
     }
 

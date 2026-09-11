@@ -370,18 +370,39 @@ internal class AdaptiveV2LagEstimator {
  * re-applying the scaling. Its prior is therefore tight by construction.
  */
 internal object AdaptiveV2ObservationModel {
+    /**
+     * The calibrated observation constrains the *displayed* level directly.
+     *
+     * It used to read [V2.I], the interstitial compartment, which sits behind
+     * [V2.B] through a first-order lag. That put a low-pass stage in front of
+     * the output: the observation could only reach the displayed state through
+     * the B/I covariance, so each minute's movement arrived attenuated and the
+     * remainder arrived later. Measured on the device trace, the median
+     * same-minute step response was 0.85 and a fifth of all moving minutes
+     * delivered under half their move — the temporal smearing seen at 14:18,
+     * where the observation moved +0.46 and the estimate +0.24.
+     *
+     * No smoothing was ever asked for. Reading [V2.B] makes a valid new minute
+     * constrain the level on that minute, at full gain. Drift correction,
+     * artifact rejection and uncertainty all still act here; what is gone is
+     * the compartment that made a current observation arrive late.
+     *
+     * [V2.I] remains in the state as the trailing interstitial estimate, which
+     * is what a lead correction is computed against — a correction applied on
+     * top of a current level, never a filter in front of it.
+     */
     fun jacobian(out: DoubleArray, state: DoubleArray) {
         val sensitivity = exp(state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S))
         out.fill(0.0)
-        out[V2.I] = sensitivity
-        out[V2.LOG_S] = sensitivity * state[V2.I]
+        out[V2.B] = sensitivity
+        out[V2.LOG_S] = sensitivity * state[V2.B]
         out[V2.BIAS] = 1.0
         out[V2.ARTIFACT] = 1.0
     }
 
     fun predicted(state: DoubleArray): Double {
         val sensitivity = exp(state[V2.LOG_S].coerceIn(MIN_LOG_S, MAX_LOG_S))
-        return sensitivity * state[V2.I] + state[V2.BIAS] + state[V2.ARTIFACT]
+        return sensitivity * state[V2.B] + state[V2.BIAS] + state[V2.ARTIFACT]
     }
 
     /** Reference (fingerstick) anchors observe blood-equivalent glucose directly. */

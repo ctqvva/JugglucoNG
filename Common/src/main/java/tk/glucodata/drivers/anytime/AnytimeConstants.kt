@@ -119,6 +119,9 @@ object AnytimeConstants {
     /** CT5 encrypted QR/KR query. Body: {0x3F, 0x55, 0xAA, sum}. */
     const val TX_CT5_QUERY_SSN: Byte = 0x3F
 
+    /** CT5 end-cycle/unbind request. Body: {0x0A, temporaryId[4], sum}. */
+    const val TX_CT5_END_CYCLE: Byte = TX_UNBIND
+
     // ---- Sensor → phone notification opcodes (RX) ----
 
     const val RX_VERSION: Byte = 0x01
@@ -144,6 +147,9 @@ object AnytimeConstants {
 
     /** Unbind ack. */
     const val RX_UNBIND_ACK: Byte = 0x0A
+
+    /** Ack for the SDK's family-less `unBindRequest()` — `{0x58, 0x55, 0xAA, 0x57}`. */
+    const val RX_UNBIND_ACK_GENERIC: Byte = 0x58
 
     /** K/R upload ack. */
     const val RX_INPUT_KR_ACK: Byte = 0x0B
@@ -302,8 +308,9 @@ object AnytimeConstants {
     /**
      * Per-prefix descriptor. `algorithm` is the int the JNI uses to dispatch into
      * the correct chemistry-specific pipeline inside libalgorithm-jni.so.
-     * `endNumber` is the approximate maximum 3-minute record count before the
-     * session ends (vendor tables include a small initialization allowance).
+     * `endNumber` is the vendor's nominal record horizon (vendor tables include
+     * a small initialization allowance). CT5 firmware may continue emitting
+     * live ids beyond this value, so it is not a hard BLE/history boundary.
      */
     data class FamilyEntry(
         val prefix: String,
@@ -484,8 +491,15 @@ object AnytimeConstants {
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "anytime_temp_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
+
+    /** Learned mg/dL-per-nA for a CT5, and how many readings taught it. */
+    const val PREF_CT5_RAW_SCALE_PREFIX = "anytime_ct5_raw_scale_"
+    const val PREF_CT5_RAW_SCALE_SAMPLES_PREFIX = "anytime_ct5_raw_scale_n_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"
+    const val PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX = "anytime_ct5_recovery_cipher_"
+    const val PREF_CT5_RECOVERY_RANDOM_B_PREFIX = "anytime_ct5_recovery_randomb_"
+    const val PREF_CT5_RECOVERY_TEMP_ID_PREFIX = "anytime_ct5_recovery_tempid_"
 
     /**
      * Highest CT5 glucose id whose computed record we have actually imported.
@@ -498,4 +512,12 @@ object AnytimeConstants {
      *  repair survives a process restart instead of being replayed from zero. */
     const val PREF_CT5_GAP_FROM_PREFIX = "anytime_ct5_gap_from_"
     const val PREF_CT5_GAP_STOP_BEFORE_PREFIX = "anytime_ct5_gap_stop_"
+
+    /** Auto-repair ids the transmitter repeatedly proved it cannot currently serve. */
+    const val PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX = "anytime_ct5_skipped_history_ids_"
+    /** CT5 history ids the transmitter returned, including points already present in Room. */
+    const val PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX = "anytime_ct5_resolved_history_ids_"
+    const val PREF_CT5_GAP_FAILURE_FROM_PREFIX = "anytime_ct5_gap_failure_from_"
+    const val PREF_CT5_GAP_FAILURE_STOP_PREFIX = "anytime_ct5_gap_failure_stop_"
+    const val PREF_CT5_GAP_FAILURE_COUNT_PREFIX = "anytime_ct5_gap_failure_count_"
 }

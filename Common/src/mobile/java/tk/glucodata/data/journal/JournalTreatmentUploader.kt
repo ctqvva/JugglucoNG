@@ -494,8 +494,18 @@ object JournalTreatmentUploader {
             ?: "[]"
     }
 
-    private fun treatmentDeleteUrl(baseUrl: String, remoteId: String, useV3: Boolean): String =
-        baseUrl + (if (useV3) "/api/v3/treatments/" else "/api/v1/treatments/") + remoteId
+    /**
+     * API v3 deletes are soft by default. That is invisible to v3 searches, but Nightscout's
+     * legacy v1 treatment reads can still return the invalid document and show the stale copy
+     * in the web UI. These deletes represent an explicit local deletion or a copy superseded by
+     * a successful write, so remove the v3 document permanently after the safety checks above.
+     */
+    internal fun treatmentDeleteUrl(baseUrl: String, remoteId: String, useV3: Boolean): String =
+        baseUrl + if (useV3) {
+            "/api/v3/treatments/$remoteId?permanent=true"
+        } else {
+            "/api/v1/treatments/$remoteId"
+        }
 
     private fun uploadViaNightPost(
         baseUrl: String,

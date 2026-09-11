@@ -93,7 +93,17 @@ class MultiSensorDisplayTests {
             SensorVisuals.colorArgbForSelected(peerSerial, listOf(primarySerial, peerSerial)),
             data.series.single().colorArgb
         )
-        assertNotEquals(SensorVisuals.colorArgb(peerSerial), data.series.single().colorArgb)
+        // The two share a slot, so one is bumped — but which one is a property of
+        // the pair, not of who is main today. Swapping the selection order must
+        // give the peer the same colour it had.
+        assertEquals(
+            data.series.single().colorArgb,
+            SensorVisuals.colorArgbForSelected(peerSerial, listOf(peerSerial, primarySerial))
+        )
+        assertNotEquals(
+            SensorVisuals.colorArgbForSelected(primarySerial, listOf(primarySerial, peerSerial)),
+            data.series.single().colorArgb
+        )
     }
 
     @Test
