@@ -53,6 +53,8 @@ import android.app.KeyguardManager;
 import android.app.AlarmManager;
 import android.view.View;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap; // Added Import
@@ -591,6 +593,12 @@ public class Notify {
         notificationManager = (NotificationManager) Applic.app.getSystemService(NOTIFICATION_SERVICE);
         createNotificationChannel(Applic.app);
         mkpaint();
+        if (!isWearable) {
+            // Notify is a process singleton; use the application context for its receiver.
+            androidx.core.content.ContextCompat.registerReceiver(Applic.app, screenOnReceiver,
+                    new IntentFilter(Intent.ACTION_SCREEN_ON), null, glucoseRefreshHandler,
+                    androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+        }
     }
 
     private static final String NUMALARM = "MedicationReminder";
@@ -910,8 +918,10 @@ public class Notify {
                 if (hasvalue) {
                     if (keeprunning.started)
                         novalue();
-                    else
+                    else {
                         notificationManager.cancel(glucosenotificationid);
+                        notificationChartsDeferred = false;
+                    }
                 }
             }
         } else {
@@ -1080,6 +1090,47 @@ public class Notify {
             return true;
         }
     }
+
+    private boolean isScreenOffChartPauseEnabled() {
+        return Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+                .getBoolean("notification_chart_pause_screen_off", false);
+    }
+
+    private volatile boolean notificationChartsDeferred;
+
+    private boolean canRenderNotificationCharts(boolean chartsEnabled) {
+        if (isWearable || !isScreenOffChartPauseEnabled()) {
+            notificationChartsDeferred = false;
+            return chartsEnabled;
+        }
+        final boolean interactive = isScreenInteractive();
+        notificationChartsDeferred = chartsEnabled && !interactive;
+        return chartsEnabled && interactive;
+    }
+
+    private final BroadcastReceiver screenOnReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || !notificationChartsDeferred
+                    || !isScreenInteractive() || !shouldKeepForegroundGlucoseNotification()) {
+                return;
+            }
+            try {
+                // Rebuild from the latest stored readings even if no new sensor reading arrives.
+                // This only replaces the service notification; it never re-evaluates alerts.
+                final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
+                if (current == null || current.getPrimaryValue() < 2.0f) {
+                    fornotify(getforgroundnotification());
+                } else {
+                    postForegroundGlucoseNotification(FOREGROUND_GLUCOSE_NOTIFICATION_KIND,
+                            current.getPrimaryValue(), format(usedlocale, glucoseformat, current.getPrimaryValue()),
+                            toLegacyGlucose(current));
+                }
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "screenOnReceiver", th);
+            }
+        }
+    };
 
     private final Runnable glucoseRefreshRunnable = new Runnable() {
         @Override
@@ -2816,6 +2867,7 @@ public class Notify {
     private void canceller() {
         glucoseRefreshHandler.removeCallbacks(glucoseRefreshRunnable);
         notificationManager.cancel(glucosenotificationid);
+        notificationChartsDeferred = false;
         notificationManager.cancel(numalarmid);
     }
 
@@ -3481,10 +3533,13 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
+        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
+        final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
+        showChart &= renderCharts;
+        showChartCollapsed &= renderCharts;
         final boolean shadeNight = (Applic.app.getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
         boolean showTargetRange = prefs.getBoolean("notification_chart_target_range", true);
 
         // Optional GDH-style traffic coloring of the value (and arrow): green
@@ -3869,7 +3924,7 @@ public class Notify {
         // Check if chart is enabled
         android.content.SharedPreferences prefs = Applic.app
                 .getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
-        boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
+        boolean showChart = canRenderNotificationCharts(prefs.getBoolean("notification_chart_enabled", true));
         float fontSize = prefs.getFloat("notification_font_size", 1.0f);
         int fontWeight = prefs.getInt("notification_font_weight", 400);
         int fontFamily = prefs.getInt("notification_font_family", 0); // 0=App, 1=System

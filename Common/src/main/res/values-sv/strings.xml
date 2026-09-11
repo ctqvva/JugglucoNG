@@ -2182,6 +2182,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">Mättnad</string>
     <string name="glucose_palette_brightness">Ljusstyrka</string>
     <string name="notification_charts_section">Diagram</string>
+    <string name="notification_chart_pause_screen_off">Pausa diagrammet när skärmen är av</string>
+    <string name="notification_chart_pause_screen_off_summary">Ritas om när skärmen slås på. Diagrammet kan vara dolt en kort stund.</string>
     <string name="notification_status_line_section">Statusrad</string>
     <string name="display_colors_title">Visning</string>
     <string name="display_colors_desc">Färger, översiktsvärden och diagram</string>

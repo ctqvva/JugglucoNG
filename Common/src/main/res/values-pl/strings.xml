@@ -2216,6 +2216,8 @@
     <string name="glucose_palette_saturation">Nasycenie</string>
     <string name="glucose_palette_brightness">Jasność</string>
     <string name="notification_charts_section">Wykresy</string>
+    <string name="notification_chart_pause_screen_off">Wstrzymaj wykres przy wyłączonym ekranie</string>
+    <string name="notification_chart_pause_screen_off_summary">Wykres jest odświeżany po włączeniu ekranu. Może być przez chwilę niewidoczny.</string>
     <string name="notification_status_line_section">Wiersz stanu</string>
     <string name="display_colors_title">Wyświetlanie</string>
     <string name="display_colors_desc">Kolory, wartości pulpitu i wykresy</string>

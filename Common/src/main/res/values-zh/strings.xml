@@ -2198,6 +2198,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">饱和度</string>
     <string name="glucose_palette_brightness">亮度</string>
     <string name="notification_charts_section">图表</string>
+    <string name="notification_chart_pause_screen_off">屏幕关闭时暂停图表</string>
+    <string name="notification_chart_pause_screen_off_summary">屏幕亮起时重新绘制。图表可能会短暂隐藏。</string>
     <string name="notification_status_line_section">状态行</string>
     <string name="display_colors_title">显示</string>
     <string name="display_colors_desc">颜色、仪表板数值和图表</string>

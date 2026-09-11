@@ -2289,6 +2289,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucose_palette_saturation">Өнгөний ханалт</string>
     <string name="glucose_palette_brightness">Гэрэлтэлт</string>
     <string name="notification_charts_section">Графикууд</string>
+    <string name="notification_chart_pause_screen_off">Дэлгэц унтарсан үед графикийг түр зогсоох</string>
+    <string name="notification_chart_pause_screen_off_summary">Дэлгэц асахад графикийг дахин зурна. График түр зуур харагдахгүй байж болно.</string>
     <string name="notification_status_line_section">Төлөвийн мөр</string>
     <string name="display_colors_title">Дэлгэц</string>
     <string name="display_colors_desc">Өнгө, хяналтын самбарын утга болон график</string>

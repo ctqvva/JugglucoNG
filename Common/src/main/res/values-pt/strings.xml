@@ -2183,6 +2183,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">Saturação</string>
     <string name="glucose_palette_brightness">Brilho</string>
     <string name="notification_charts_section">Gráficos</string>
+    <string name="notification_chart_pause_screen_off">Pausar o gráfico com o ecrã desligado</string>
+    <string name="notification_chart_pause_screen_off_summary">O gráfico é redesenhado ao ligar o ecrã. Pode ficar oculto por um instante.</string>
     <string name="notification_status_line_section">Linha de estado</string>
     <string name="display_colors_title">Ecrã</string>
     <string name="display_colors_desc">Cores, valores do painel e gráficos</string>

@@ -2188,6 +2188,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">Saturation</string>
     <string name="glucose_palette_brightness">Luminosité</string>
     <string name="notification_charts_section">Graphiques</string>
+    <string name="notification_chart_pause_screen_off">Suspendre le graphique quand l’écran est éteint</string>
+    <string name="notification_chart_pause_screen_off_summary">Le graphique est redessiné à l’allumage de l’écran. Il peut être brièvement masqué.</string>
     <string name="notification_status_line_section">Ligne d’état</string>
     <string name="display_colors_title">Affichage</string>
     <string name="display_colors_desc">Couleurs, valeurs du tableau de bord et graphiques</string>

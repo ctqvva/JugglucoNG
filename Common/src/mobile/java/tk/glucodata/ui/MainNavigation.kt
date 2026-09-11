@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -699,16 +700,15 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         }
     }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+    LifecycleStartEffect(currentRoute, dashboardViewModel) {
         dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
+        onStopOrDispose {
+            dashboardViewModel.setCollectionMode(DashboardViewModel.CollectionMode.INACTIVE)
+        }
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         dashboardViewModel.onResume()
-    }
-
-    LaunchedEffect(currentRoute) {
-        dashboardViewModel.setCollectionMode(collectionModeForRoute(currentRoute))
     }
 
     // A screen asked for from outside Compose — a notification's tap — is parked in

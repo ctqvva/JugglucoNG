@@ -2224,6 +2224,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="glucose_palette_saturation">Sättigung</string>
     <string name="glucose_palette_brightness">Helligkeit</string>
     <string name="notification_charts_section">Diagramme</string>
+    <string name="notification_chart_pause_screen_off">Diagramm bei ausgeschaltetem Bildschirm pausieren</string>
+    <string name="notification_chart_pause_screen_off_summary">Wird beim Einschalten des Bildschirms neu gezeichnet. Das Diagramm kann kurz fehlen.</string>
     <string name="notification_status_line_section">Statuszeile</string>
     <string name="display_colors_title">Anzeige</string>
     <string name="display_colors_desc">Farben, Dashboard-Werte und Diagramme</string>
