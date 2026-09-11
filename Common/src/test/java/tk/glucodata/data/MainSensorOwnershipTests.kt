@@ -8,7 +8,8 @@ import org.junit.Test
 
 /**
  * The guarantee: the identity of the main sensor is a fact about the minute,
- * not about the current selection. One test per branch of the rule.
+ * not about the current selection — and where nothing was recorded, the record
+ * says nothing rather than guessing.
  */
 class MainSensorOwnershipTests {
 
@@ -19,62 +20,54 @@ class MainSensorOwnershipTests {
         val SETTLING = NOW - 10L * MINUTE          // ten minutes ago
     }
 
-    private fun ownership(
-        recorded: Map<Long, String>,
-        primary: String? = "B",
-    ) = MainSensorOwnership(recorded, primary, NOW)
+    private fun ownership(recorded: Map<Long, String>) = MainSensorOwnership(recorded, NOW)
 
     @Test
     fun aSealedMinuteWithARecordIsOwnedByTheRecordedSensor() {
         // A was on screen when this minute was first presented; the user has
         // since made B the main sensor. The minute does not follow them.
-        val o = ownership(mapOf(ReadingDisplay.minuteOf(SEALED) to "A"), primary = "B")
+        val o = ownership(mapOf(ReadingDisplay.minuteOf(SEALED) to "A"))
         assertEquals("A", o.mainSensorAt(SEALED))
-        assertTrue(o.isMainAt("A", SEALED))
-        assertFalse(o.isMainAt("B", SEALED))
+        assertEquals(true, o.isMainAt("A", SEALED))
+        assertEquals(false, o.isMainAt("B", SEALED))
     }
 
     @Test
-    fun aMinuteInsideTheGraceWindowFollowsTheCurrentPrimaryEvenIfRecorded() {
+    fun aMinuteInsideTheGraceWindowHasNoOpinionEvenIfRecorded() {
         // Presentation writes revisable records for settling minutes too. They
-        // do not decide anything yet; the current primary does.
-        val o = ownership(mapOf(ReadingDisplay.minuteOf(SETTLING) to "A"), primary = "B")
-        assertEquals("B", o.mainSensorAt(SETTLING))
-        assertTrue(o.isMainAt("B", SETTLING))
+        // decide nothing yet; the live merge does.
+        val o = ownership(mapOf(ReadingDisplay.minuteOf(SETTLING) to "A"))
+        assertNull(o.mainSensorAt(SETTLING))
+        assertNull(o.isMainAt("A", SETTLING))
+        assertNull(o.isMainAt("B", SETTLING))
     }
 
     @Test
-    fun aSealedMinuteWithNoRecordFallsBackToTheCurrentPrimary() {
-        // Nobody has been shown this minute. Nothing is invented for it; it
-        // simply reads as the current primary until it is first presented.
-        val o = ownership(emptyMap(), primary = "B")
-        assertEquals("B", o.mainSensorAt(SEALED))
-        assertTrue(o.isMainAt("B", SEALED))
+    fun aSealedMinuteWithNoRecordHasNoOpinion() {
+        // Nobody has been shown this minute. Answering "current primary" here
+        // demoted a retired sensor's whole history — the only line there —
+        // because its serial was not today's primary. The live merge already
+        // chose it as the main line; the record has nothing to add.
+        val o = ownership(emptyMap())
+        assertNull(o.mainSensorAt(SEALED))
+        assertNull(o.isMainAt("retired-sensor", SEALED))
         assertFalse(o.hasRecordedOwnership)
     }
 
     @Test
-    fun theFallbackPersistsNothing() {
-        // The predicate has no write side at all: asking it does not record.
+    fun thePredicatePersistsNothing() {
         val recorded = HashMap<Long, String>()
-        val o = MainSensorOwnership(recorded, "B", NOW)
+        val o = MainSensorOwnership(recorded, NOW)
         o.mainSensorAt(SEALED)
         o.isMainAt("B", SEALED)
         assertTrue(recorded.isEmpty())
     }
 
     @Test
-    fun withNoPrimaryAndNoRecordNothingIsMain() {
-        val o = ownership(emptyMap(), primary = null)
-        assertNull(o.mainSensorAt(SEALED))
-        assertFalse(o.isMainAt("A", SEALED))
-    }
-
-    @Test
-    fun aBlankSensorIsNeverMain() {
+    fun aBlankSensorIsNeverMainWhereTheRecordHasAnOpinion() {
         val o = ownership(mapOf(ReadingDisplay.minuteOf(SEALED) to "A"))
-        assertFalse(o.isMainAt(null, SEALED))
-        assertFalse(o.isMainAt("  ", SEALED))
+        assertEquals(false, o.isMainAt(null, SEALED))
+        assertEquals(false, o.isMainAt("  ", SEALED))
     }
 
     @Test
@@ -85,10 +78,9 @@ class MainSensorOwnershipTests {
             mapOf(
                 ReadingDisplay.minuteOf(justSealed) to "A",
                 ReadingDisplay.minuteOf(justSettling) to "A",
-            ),
-            primary = "B",
+            )
         )
         assertEquals("A", o.mainSensorAt(justSealed))
-        assertEquals("B", o.mainSensorAt(justSettling))
+        assertNull(o.mainSensorAt(justSettling))
     }
 }

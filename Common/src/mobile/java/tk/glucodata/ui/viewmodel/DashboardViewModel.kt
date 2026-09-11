@@ -312,11 +312,8 @@ class DashboardViewModel(
     private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.data.MainSensorOwnership.NONE)
     val mainSensorOwnership = _mainSensorOwnership.asStateFlow()
 
-    private suspend fun refreshMainSensorOwnership(primary: String?, startTimeMs: Long) {
-        _mainSensorOwnership.value = historyRepository.mainSensorOwnership(
-            currentPrimary = primary?.takeIf { it.isNotBlank() },
-            startTime = startTimeMs,
-        )
+    private suspend fun refreshMainSensorOwnership(startTimeMs: Long) {
+        _mainSensorOwnership.value = historyRepository.mainSensorOwnership(startTime = startTimeMs)
     }
 
     // Raw (display-unit) peer history kept separate from view-mode resolution so
@@ -1180,7 +1177,7 @@ class DashboardViewModel(
                 // both change on the same events: a swap, or the record gaining
                 // a minute. With a single sensor there is nothing to contest,
                 // but the answer is still the record's to give.
-                refreshMainSensorOwnership(config.primarySensorId, startTimeMs)
+                refreshMainSensorOwnership(startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1201,7 +1198,7 @@ class DashboardViewModel(
                         }
                         _multiSensorRawHistory.value = PeerRawHistory(config.selectedSensorIds, peerSensors, converted)
                         refreshPeerCurrentReadings(peerSensors)
-                        refreshMainSensorOwnership(config.primarySensorId, startTimeMs)
+                        refreshMainSensorOwnership(startTimeMs)
                     }
                 }
         }

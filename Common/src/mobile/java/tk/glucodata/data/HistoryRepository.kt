@@ -2037,24 +2037,22 @@ class HistoryRepository(context: Context = Applic.app) {
     /**
      * The main-sensor ownership for every minute since [startTime].
      *
-     * Only sealed records are consulted; a minute still inside the grace window
-     * follows the current primary regardless of what has been recorded for it,
-     * and the predicate applies that rule itself. See [MainSensorOwnership].
+     * Only sealed records carry an opinion; everywhere else the predicate says
+     * nothing and the live merge stands. See [MainSensorOwnership].
      */
     suspend fun mainSensorOwnership(
-        currentPrimary: String?,
         startTime: Long,
         nowMs: Long = System.currentTimeMillis()
     ): MainSensorOwnership {
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
-            return MainSensorOwnership(emptyMap(), currentPrimary, nowMs)
+            return MainSensorOwnership.NONE
         }
         val recorded = withContext(Dispatchers.IO) {
             runCatching {
                 displayDao.mainLineOwners(startTime).associate { it.timestamp to it.sensorSerial }
             }.getOrDefault(emptyMap())
         }
-        return MainSensorOwnership(recorded, currentPrimary, nowMs)
+        return MainSensorOwnership(recorded, nowMs)
     }
 
     /**

@@ -2659,6 +2659,11 @@ fun InteractiveGlucoseChart(
                 // the predicate assigns it. The line stays continuous across a
                 // change of ownership because it is one path either way.
                 val ownershipPadPx = (timeToDataX(viewportStart + 30_000L) - timeToDataX(viewportStart)).coerceAtLeast(0.5f)
+                // "The main look" is whatever the main line itself is drawn with:
+                // the range gradient when the chart tints, the primary colour
+                // otherwise. Same decision the data-lines block makes below.
+                val mainLookUsesGradient =
+                    calibratedValueResolver.hasCalibration(viewMode == 1 || viewMode == 3) || viewMode in 0..3
                 fun ownershipRanges(
                     points: List<GlucosePoint>,
                     wantMain: Boolean,
@@ -2674,7 +2679,10 @@ fun InteractiveGlucoseChart(
                     var runEnd = Float.NaN
                     for (point in points) {
                         if (point.timestamp < viewportStart - 60_000L || point.timestamp > viewportEnd + 60_000L) continue
-                        val matches = mainSensorOwnership.isMainAt(serialOf(point), point.timestamp) == wantMain
+                        // Null means the record has no opinion here; the point
+                        // keeps whatever look it already has.
+                        val opinion = mainSensorOwnership.isMainAt(serialOf(point), point.timestamp)
+                        val matches = opinion != null && opinion == wantMain
                         val px = timeToDataX(point.timestamp)
                         if (!px.isFinite()) continue
                         if (matches) {
@@ -2784,7 +2792,11 @@ fun InteractiveGlucoseChart(
                         if (promoted.isNotEmpty()) {
                             val mainStyle = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                             drawWithin(promoted) {
-                                drawPath(path = reusablePeerPath, color = series.color, style = mainStyle)
+                                if (mainLookUsesGradient) {
+                                    drawPath(path = reusablePeerPath, brush = gradientBrush, style = mainStyle)
+                                } else {
+                                    drawPath(path = reusablePeerPath, color = primaryColor, style = mainStyle)
+                                }
                             }
                         }
                     }
@@ -3121,8 +3133,11 @@ fun InteractiveGlucoseChart(
                     // reads as what it was.
                     val demoted = ownershipRanges(renderData, wantMain = false) { it.sensorSerial }
                     val demotedStroke = Stroke(width = 2.dp.toPx(), cap = strokeCap, join = strokeJoin)
+                    val demotedSerial = renderData.firstOrNull { point ->
+                        mainSensorOwnership.isMainAt(point.sensorSerial, point.timestamp) == false
+                    }?.sensorSerial ?: ""
                     val demotedColor = androidx.compose.ui.graphics.lerp(
-                        Color(tk.glucodata.SensorVisuals.colorArgb(mainSensorOwnership.primary ?: "")),
+                        Color(tk.glucodata.SensorVisuals.colorArgb(demotedSerial)),
                         peerNeutralBase,
                         0.46f
                     ).copy(alpha = 0.44f)
