@@ -244,7 +244,6 @@ private fun buildDashboardChartModel(
     }
     val active = HashMap<Pair<Boolean, String>, Boolean>()
     val calibration = tk.glucodata.chart.HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
-        if (!hasCalibration) return@Calibration null
         val applies = active.getOrPut(isRaw to sensorId) {
             tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)
         }
@@ -981,8 +980,8 @@ fun InteractiveGlucoseChart(
     val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
     val isRawModeChart = viewMode == 1 || viewMode == 3
     // A fact, not a decision: whether a calibration applies to the primary lane.
-    val hasCalibration = remember(calibrationRevision, isRawModeChart) {
-        tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeChart)
+    val hasCalibration = remember(calibrationRevision, isRawModeChart, primarySerial) {
+        tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeChart, primarySerial)
     }
     val hideInitialWhenCalibrated = hasCalibration &&
         tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
@@ -1460,32 +1459,15 @@ fun InteractiveGlucoseChart(
             nowMs - tk.glucodata.data.ReadingDisplay.DISPLAY_SEAL_GRACE_MS
         )
 
-        val primarySeries = chartModel.primary ?: return@LaunchedEffect
         val visible = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            val out = ArrayList<tk.glucodata.data.HistoryRepository.PresentedMinute>()
-            // Exactly what the main line drew: the model's runs, only the
-            // stretch inside the viewport. Runs are ordered, so each is cut by
-            // binary search rather than walked end to end.
-            for (run in primarySeries.runs) {
-                val pts = run.points
-                var from = pts.binarySearchBy(viewportStart) { it.timestamp }.let { if (it >= 0) it else -it - 1 }
-                var to = pts.binarySearchBy(viewportEnd) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
-                from = from.coerceIn(0, pts.size); to = to.coerceIn(from, pts.size)
-                for (k in from until to) {
-                    val p = pts[k]
-                    out.add(
-                        tk.glucodata.data.HistoryRepository.PresentedMinute(
-                            minuteMs = p.timestamp,
-                            // Stored in mg/dL like every reading; the chart works
-                            // in display units, so this converts rather than assuming.
-                            displayMgdl = if (isMmolForRecord) GlucoseFormatter.mmolToMg(p.value) else p.value,
-                            sensorSerial = primarySeries.sensorId,
-                            viewMode = viewMode,
-                        )
-                    )
-                }
+            chartModel.presentedMainValues(viewportStart, viewportEnd).map { p ->
+                tk.glucodata.data.HistoryRepository.PresentedMinute(
+                    minuteMs = p.minuteMs,
+                    displayMgdl = if (isMmolForRecord) GlucoseFormatter.mmolToMg(p.value) else p.value,
+                    sensorSerial = p.sensorId,
+                    viewMode = p.viewMode,
+                )
             }
-            out
         }
         PresentedMinuteRecorder.recordVisible(presentedRecorderRepository, visible)
     }
@@ -3300,9 +3282,13 @@ fun InteractiveGlucoseChart(
                     selectedPoint?.let { p ->
                         val dotRadius = 5.dp.toPx()
                         val isRawModeDot = viewMode == 1 || viewMode == 3
-                        val hasCalibrationDot = hasCalibration
-                        val hideRawDot = hideInitialWhenCalibrated && isRawModeDot
-                        val hideAutoDot = hideInitialWhenCalibrated && !isRawModeDot
+                        val resolvedDot = chartModel.primary?.valueAt(p.timestamp)
+                        val hasCalibrationDot = hasCalibration ||
+                            (resolvedDot != null && resolvedDot != (if (isRawModeDot) p.rawValue else p.value))
+                        val hideSourceDot = hasCalibrationDot &&
+                            tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
+                        val hideRawDot = hideSourceDot && isRawModeDot
+                        val hideAutoDot = hideSourceDot && !isRawModeDot
 
                         // Draw dots for active lines (demoted when calibration active)
                          if (!hideRawDot && (viewMode == 1 || viewMode == 2 || viewMode == 3) && p.rawValue > 0.1f) {
@@ -3868,9 +3854,9 @@ fun InteractiveGlucoseChart(
 
                 // Compute calibrated value for tooltip
                 val isRawModeTT = viewMode == 1 || viewMode == 3
-                val calibratedValueTT = if (hasCalibration) {
-                    chartModel.primary?.valueAt(point.timestamp)?.takeIf { it > 0.1f }
-                } else null
+                val calibratedValueTT = chartModel.primary?.valueAt(point.timestamp)
+                    ?.takeIf { it.isFinite() && it > 0.1f }
+                    ?.takeIf { hasCalibration || it != (if (isRawModeTT) point.rawValue else point.value) }
                 val dvs = getDisplayValues(point, viewMode, unit, calibratedValueTT)
                 val tooltipPeerPoints = peerPointsByBucket[MultiSensorDisplay.bucketKeyForTimestamp(point.timestamp)]
                     .orEmpty()

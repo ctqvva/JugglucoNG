@@ -598,7 +598,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             // values, ownership, lanes decided once — so the always-on display
             // cannot disagree with them about a minute already shown.
             val chartModel = tk.glucodata.NotificationChartModelSource.build(
-                overlayChartPoints, activeSensorSerial, viewMode, hasCalibration, peerChartSeries, startT
+                this, overlayChartPoints, activeSensorSerial, viewMode, hasCalibration, peerChartSeries, startT
             )
 
             val chartBitmap = NotificationChartDrawer.drawChartWithPrediction(

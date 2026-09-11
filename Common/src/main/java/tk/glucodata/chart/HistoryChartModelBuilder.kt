@@ -118,6 +118,7 @@ object HistoryChartModelBuilder {
         var current = ArrayList<ChartPointModel>()
         var currentLook: ChartLook? = null
         var lastTimestamp = Long.MIN_VALUE
+        var lastSensorId: String? = null
 
         fun flush() {
             if (current.size >= 1 && currentLook != null) {
@@ -127,9 +128,12 @@ object HistoryChartModelBuilder {
         }
 
         for (point in input.points) {
-            val value = resolveValue(point, isRawMode, input.sensorId, calibration) ?: continue
-            if (input.isPrimary && hasCalibration) {
-                val live = liveCalibratedValue(point, isRawMode, input.sensorId, calibration)
+            val sensorId = point.sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: input.sensorId
+            val value = resolveValue(point, isRawMode, sensorId, calibration) ?: continue
+            val sensorChanged = lastSensorId != null && !tk.glucodata.SensorIdentity.matches(lastSensorId, sensorId)
+            if (sensorChanged) { flushPreview(); previewLast = Long.MIN_VALUE }
+            if (input.isPrimary) {
+                val live = liveCalibratedValue(point, isRawMode, sensorId, calibration)
                 val differs = live != null && kotlin.math.abs(live - value) > PREVIEW_DIFFERENCE
                 if (differs) {
                     if (previewLast != Long.MIN_VALUE && point.timestamp - previewLast > gapThresholdMs) flushPreview()
@@ -140,15 +144,15 @@ object HistoryChartModelBuilder {
                     previewLast = Long.MIN_VALUE
                 }
             }
-            val look = when (ownership.isMainAt(input.sensorId, point.timestamp)) {
+            val look = when (ownership.isMainAt(sensorId, point.timestamp)) {
                 true -> ChartLook.MAIN
                 false -> ChartLook.SECONDARY
                 null -> defaultLook
             }
-            val model = ChartPointModel(point.timestamp, value)
+            val model = ChartPointModel(point.timestamp, value, sensorId, look)
 
             val gap = lastTimestamp != Long.MIN_VALUE && (point.timestamp - lastTimestamp) > gapThresholdMs
-            if (gap) {
+            if (gap || sensorChanged) {
                 flush()
                 currentLook = look
             } else if (currentLook != null && look != currentLook) {
@@ -163,6 +167,7 @@ object HistoryChartModelBuilder {
             }
             current.add(model)
             lastTimestamp = point.timestamp
+            lastSensorId = sensorId
         }
         flush()
         flushPreview()
@@ -185,15 +190,19 @@ object HistoryChartModelBuilder {
         val runs = ArrayList<ChartRun>()
         var current = ArrayList<ChartPointModel>()
         var lastTimestamp = Long.MIN_VALUE
+        var lastSensorId: String? = null
         for (point in points) {
             val value = if (kind == ChartLaneKind.RAW) point.rawValue else point.value
             if (value.isNaN() || value <= 0.1f) continue
-            if (lastTimestamp != Long.MIN_VALUE && point.timestamp - lastTimestamp > gapThresholdMs) {
+            val sensorChanged = lastSensorId != null && point.sensorSerial != null &&
+                !tk.glucodata.SensorIdentity.matches(lastSensorId, point.sensorSerial)
+            if (sensorChanged || (lastTimestamp != Long.MIN_VALUE && point.timestamp - lastTimestamp > gapThresholdMs)) {
                 if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
                 current = ArrayList()
             }
             current.add(ChartPointModel(point.timestamp, value))
             lastTimestamp = point.timestamp
+            lastSensorId = point.sensorSerial
         }
         if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
         return runs

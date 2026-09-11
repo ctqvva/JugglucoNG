@@ -24,6 +24,10 @@ enum class ChartLook {
 data class ChartPointModel(
     val timestamp: Long,
     val value: Float,
+    /** The reading's owner; a merged primary series can contain several sensors. */
+    val sensorId: String? = null,
+    /** A shared boundary point retains its own look in both adjacent runs. */
+    val look: ChartLook = ChartLook.MAIN,
 )
 
 /**
@@ -90,7 +94,32 @@ data class HistoryChartModel(
     val primary: ChartSeriesModel? get() = series.firstOrNull { it.isPrimary }
     val peers: List<ChartSeriesModel> get() = series.filter { !it.isPrimary }
 
+    /** Main points actually inside the viewport, excluding borrowed stroke boundaries. */
+    fun presentedMainValues(startTime: Long, endTime: Long): List<PresentedChartValue> {
+        val values = LinkedHashMap<Long, PresentedChartValue>()
+        for (s in series) for (run in s.runs) {
+            if (run.look != ChartLook.MAIN) continue
+            val pts = run.points
+            val from = pts.binarySearchBy(startTime) { it.timestamp }.let { if (it >= 0) it else -it - 1 }
+            val to = pts.binarySearchBy(endTime) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
+            for (i in from until to) {
+                val p = pts[i]
+                if (p.look != ChartLook.MAIN) continue
+                val minute = MainSensorOwnership.minuteOf(p.timestamp)
+                values.putIfAbsent(minute, PresentedChartValue(minute, p.value, p.sensorId ?: s.sensorId, s.viewMode))
+            }
+        }
+        return values.values.toList()
+    }
+
     companion object {
         val EMPTY = HistoryChartModel(emptyList())
     }
 }
+
+data class PresentedChartValue(
+    val minuteMs: Long,
+    val value: Float,
+    val sensorId: String,
+    val viewMode: Int,
+)

@@ -1913,7 +1913,11 @@ public class NotificationChartDrawer {
         }
         if (model != null) {
             for (tk.glucodata.chart.ChartSeriesModel series : model.getSeries()) {
-                for (tk.glucodata.chart.ChartRun run : series.getRuns()) {
+                ArrayList<tk.glucodata.chart.ChartRun> visibleRuns = new ArrayList<>(series.getRuns());
+                for (tk.glucodata.chart.ChartLane lane : series.getSecondaryLanes()) {
+                    visibleRuns.addAll(lane.getRuns());
+                }
+                for (tk.glucodata.chart.ChartRun run : visibleRuns) {
                     for (tk.glucodata.chart.ChartPointModel p : run.getPoints()) {
                         if (p.getTimestamp() < startTime || p.getValue() <= 0.1f) continue;
                         minY = Math.min(minY, p.getValue());

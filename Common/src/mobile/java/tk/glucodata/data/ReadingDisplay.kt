@@ -77,8 +77,8 @@ data class ReadingDisplay(
      *
      * Inside the window a minute is still settling — native backfill can arrive
      * late, a second sensor can still claim the minute, a fingerstick entered
-     * after the fact should still reshape the line around it. Rows are therefore
-     * only ever written for minutes already past it.
+     * after the fact should still reshape the line around it. Presented minutes
+     * inside the window are recorded too, but remain revisable until they age out.
      */
     fun isSealedAt(nowMs: Long): Boolean = (nowMs - timestamp) >= DISPLAY_SEAL_GRACE_MS
 

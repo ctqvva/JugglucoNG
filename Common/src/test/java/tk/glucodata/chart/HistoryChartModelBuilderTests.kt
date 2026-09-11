@@ -180,4 +180,30 @@ class HistoryChartModelBuilderTests {
         assertEquals(2, runs.size)
         assertTrue(runs[0].points.last() != runs[1].points.first())
     }
+    @Test
+    fun mergedHistoryUsesEachReadingsCalibrationAndRecordedOwner() {
+        val old = point(SEALED_START, 100f, "A")
+        val current = point(SEALED_START + MINUTE, 200f, "B")
+        val ownership = MainSensorOwnership(mapOf(SEALED_START to "A"), NOW)
+        val calibration = HistoryChartModelBuilder.Calibration { value, _, _, sensor ->
+            value + if (sensor == "A") 10f else 20f
+        }
+        val result = HistoryChartModelBuilder.build(
+            listOf(series("B", true, old, current)), ownership, calibration,
+        ).primary!!
+        assertEquals(110f, result.valueAt(old.timestamp)!!, 0.001f)
+        assertEquals(220f, result.valueAt(current.timestamp)!!, 0.001f)
+        assertEquals(ChartLook.MAIN, result.runs.first().look)
+    }
+
+    @Test
+    fun mergedHistoryDoesNotJoinDifferentSensorsEvenWithinTheGapThreshold() {
+        val result = HistoryChartModelBuilder.build(
+            listOf(series("B", true, point(NOW, 100f, "A"), point(NOW + MINUTE, 200f, "B"))),
+            MainSensorOwnership.NONE, noCalibration,
+        ).primary!!
+        assertEquals(2, result.runs.size)
+        assertEquals(listOf(1, 1), result.runs.map { it.points.size })
+    }
+
 }
