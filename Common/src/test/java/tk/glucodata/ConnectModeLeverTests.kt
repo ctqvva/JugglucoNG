@@ -12,10 +12,15 @@ import org.junit.Test
  * constructor overwrites from Natives.getAndroid13(); while the connectGatt call sites read it
  * directly no driver could choose its own mode, and the 2026-08-01 jamming storm accordingly
  * logged 103 connect attempts (52 + 51, two Ottai sensors) at autoConnect=true and none at false.
- * useAutoConnect() makes a per-driver choice expressible — deliberately with no override anywhere
- * yet, because the modelled effect of a direct connect on these sensors ranges from 1071s saved to
- * 280s lost and nothing in the dataset decides between them. These are source scans because the
- * classes involved need the Android runtime and the native library to be constructed at all.
+ * useAutoConnect() makes a per-driver choice expressible, and the 2026-09-09 CT5 trace is the
+ * first measurement that decides it for one peripheral: after a lowPower frame the transmitter is
+ * only connectable near its 3-minute push, and three direct connects in a row reported their first
+ * callback at 30016ms, 30027ms and 30038ms — Android's connect timer expiring, status 147 — for 96
+ * seconds of dead air. That is the number noteFirstGattCallback exists to collect, so the Anytime
+ * driver may answer it; every other driver still has nothing in the dataset deciding between the
+ * modes (a modelled 1071s saved to 280s lost) and keeps inheriting the application-wide setting.
+ * These are source scans because the classes involved need the Android runtime and the native
+ * library to be constructed at all.
  */
 class ConnectModeLeverTests {
 
@@ -57,17 +62,52 @@ class ConnectModeLeverTests {
     }
 
     @Test
-    fun noDriverOverridesTheDefault() {
+    fun noUnmeasuredDriverOverridesTheDefault() {
         // R2(a) is a lever, not a change of behaviour: an override appearing here means some
-        // driver now connects in a mode the 2026-08-01 dataset never measured.
+        // driver now connects in a mode the 2026-08-01 dataset never measured. The Anytime
+        // files are listed because the 2026-09-09 CT5 trace did measure it — see the next test
+        // for what that override is still held to.
+        val measured = setOf(
+            "AnytimeBleManager.kt",
+            "AnytimeConnectRetryPolicy.kt",
+            "AnytimeConnectRetryPolicyTests.kt",
+        )
         val overriders = sources("Common/src")
             .filter { it.name != "SuperGattCallback.java" && it.name != "ConnectModeLeverTests.kt" }
             .filter { it.readText().contains("useAutoConnect") }
             .map { it.name }
         assertTrue(
             "no driver may override useAutoConnect() without field measurements of the other " +
-                "mode; found $overriders",
-            overriders.isEmpty(),
+                "mode; found ${overriders - measured}",
+            (overriders - measured).isEmpty(),
+        )
+    }
+
+    @Test
+    fun theMeasuredOverrideStaysGatedOnAnObservedTimeout() {
+        // The measurement licenses reacting to a direct connect that demonstrably failed, not
+        // switching modes generally: a session that connects keeps the user's setting.
+        val text = File(
+            repoRoot(),
+            "Common/src/main/java/tk/glucodata/drivers/anytime/AnytimeBleManager.kt",
+        ).readText().replace(Regex("\\s+"), " ")
+        assertTrue(
+            "the Anytime override must start from the application-wide setting and go " +
+                "through the measured-timeout policy",
+            text.contains(
+                "override fun useAutoConnect(): Boolean = " +
+                    "connectMode.useAutoConnect(super.useAutoConnect())"
+            ),
+        )
+        val policy = File(
+            repoRoot(),
+            "Common/src/main/java/tk/glucodata/drivers/anytime/AnytimeConnectRetryPolicy.kt",
+        ).readText()
+        assertEquals(
+            "the mode may only be changed where an observed timeout and a successful " +
+                "direct connect decide it; AnytimeConnectModeState is that one place",
+            2,
+            Regex("directConnectUnreachable = (true|false)").findAll(policy).count(),
         )
     }
 
