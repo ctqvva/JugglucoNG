@@ -45,8 +45,8 @@ public class JournalIobAccess {
     }
 
     // [classicIob, eiob, cob] in units/grams, NaN marking "no data of that
-    // kind"; null when unavailable. Public: the PRE_HIGH IOB-coverage check
-    // in tk.glucodata.alerts reads the classic IOB through this bridge.
+    // kind"; null when unavailable. Public: compression-low hold and
+    // PRE_HIGH IOB coverage in tk.glucodata.alerts both read classic IOB.
     public static float[] snapshot(long atMillis) {
         try {
             if (!snapshotResolved) {
@@ -60,6 +60,30 @@ public class JournalIobAccess {
         } catch (Throwable e) {
             snapshotMethod = null;
             return null;
+        }
+    }
+
+    private static java.lang.reflect.Method peakMethod;
+    private static boolean peakResolved;
+
+    // Whether the newest journal insulin dose is past its curve-derived
+    // activity peak at atMillis: 1 = past, 0 = not yet, -1 = unknown (no
+    // journal on this variant, main thread with a cold cache, or any
+    // failure). The compression-low hold treats anything but 1 as "the fall
+    // could still be insulin ramping up" and does not hold.
+    public static int lastDosePeakPassed(long atMillis) {
+        try {
+            if (!peakResolved) {
+                peakResolved = true;
+                peakMethod = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
+                        .getMethod("lastDosePeakPassed", long.class);
+            }
+            if (peakMethod == null)
+                return -1;
+            return (int) (Integer) peakMethod.invoke(null, atMillis);
+        } catch (Throwable e) {
+            peakMethod = null;
+            return -1;
         }
     }
 
