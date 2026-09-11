@@ -41,26 +41,65 @@ object HistoryChartModelBuilder {
         fun apply(baseValue: Float, timestamp: Long, isRawMode: Boolean, sensorId: String): Float?
     }
 
+    /**
+     * @param hasCalibration whether a calibration applies to the primary — this
+     *   decides whether the primary's own lane also appears as an uncalibrated
+     *   source lane beside the calibrated main line.
+     * @param hideInitialWhenCalibrated the user's "hide source values" setting.
+     */
     fun build(
         inputs: List<SeriesInput>,
         ownership: MainSensorOwnership,
         calibration: Calibration,
+        hasCalibration: Boolean = false,
+        hideInitialWhenCalibrated: Boolean = true,
         gapThresholdMs: Long = GlucoseChartGap.THRESHOLD_MS,
     ): HistoryChartModel {
         if (inputs.isEmpty()) return HistoryChartModel.EMPTY
         return HistoryChartModel(
-            inputs.map { input -> buildSeries(input, ownership, calibration, gapThresholdMs) }
+            inputs.map { input ->
+                buildSeries(input, ownership, calibration, hasCalibration, hideInitialWhenCalibrated, gapThresholdMs)
+            }
         )
+    }
+
+    /**
+     * Which lanes are drawn thin beside the primary's main line.
+     *
+     * The other signal in a dual view mode is always beside it. The primary's
+     * own signal appears beside it only when a calibration has replaced it as
+     * the main line and the user has not hidden source values — otherwise it
+     * *is* the main line, and drawing it again would double it.
+     */
+    fun secondaryLaneKinds(viewMode: Int, hasCalibration: Boolean, hideInitialWhenCalibrated: Boolean): List<ChartLaneKind> {
+        val primaryIsRaw = viewMode == 1 || viewMode == 3
+        val hideSource = hasCalibration && hideInitialWhenCalibrated
+        val out = ArrayList<ChartLaneKind>(2)
+        val rawShown = viewMode == 1 || viewMode == 2 || viewMode == 3
+        val autoShown = viewMode == 0 || viewMode == 2 || viewMode == 3
+        if (rawShown && (if (primaryIsRaw) hasCalibration && !hideSource else true)) out.add(ChartLaneKind.RAW)
+        if (autoShown && (if (!primaryIsRaw) hasCalibration && !hideSource else true)) out.add(ChartLaneKind.AUTO)
+        return out
     }
 
     private fun buildSeries(
         input: SeriesInput,
         ownership: MainSensorOwnership,
         calibration: Calibration,
+        hasCalibration: Boolean,
+        hideInitialWhenCalibrated: Boolean,
         gapThresholdMs: Long,
     ): ChartSeriesModel {
         val isRawMode = input.viewMode == 1 || input.viewMode == 3
         val defaultLook = if (input.isPrimary) ChartLook.MAIN else ChartLook.SECONDARY
+
+        val secondaryLanes = if (input.isPrimary) {
+            secondaryLaneKinds(input.viewMode, hasCalibration, hideInitialWhenCalibrated).map { kind ->
+                ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs))
+            }
+        } else {
+            emptyList()
+        }
 
         val runs = ArrayList<ChartRun>()
         var current = ArrayList<ChartPointModel>()
@@ -108,7 +147,27 @@ object HistoryChartModelBuilder {
             viewMode = input.viewMode,
             colorArgb = input.colorArgb,
             runs = runs,
+            secondaryLanes = secondaryLanes,
         )
+    }
+
+    /** A secondary lane: the sensor's own values in that lane, thin, split only at gaps. */
+    private fun segmentLane(points: List<GlucosePoint>, kind: ChartLaneKind, gapThresholdMs: Long): List<ChartRun> {
+        val runs = ArrayList<ChartRun>()
+        var current = ArrayList<ChartPointModel>()
+        var lastTimestamp = Long.MIN_VALUE
+        for (point in points) {
+            val value = if (kind == ChartLaneKind.RAW) point.rawValue else point.value
+            if (value.isNaN() || value <= 0.1f) continue
+            if (lastTimestamp != Long.MIN_VALUE && point.timestamp - lastTimestamp > gapThresholdMs) {
+                if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
+                current = ArrayList()
+            }
+            current.add(ChartPointModel(point.timestamp, value))
+            lastTimestamp = point.timestamp
+        }
+        if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
+        return runs
     }
 
     /**

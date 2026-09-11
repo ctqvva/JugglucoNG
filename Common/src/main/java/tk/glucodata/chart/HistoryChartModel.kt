@@ -36,6 +36,19 @@ data class ChartRun(
     val points: List<ChartPointModel>,
 )
 
+enum class ChartLaneKind { RAW, AUTO }
+
+/**
+ * A lane drawn thin beside the main line: the other signal in a dual-lane
+ * view mode, or the uncalibrated source behind a calibrated main line. Never
+ * the main line itself — the builder leaves that out so a renderer cannot draw
+ * it twice.
+ */
+data class ChartLane(
+    val kind: ChartLaneKind,
+    val runs: List<ChartRun>,
+)
+
 data class ChartSeriesModel(
     val sensorId: String,
     /** Whether this is the currently selected primary sensor's series. */
@@ -43,8 +56,19 @@ data class ChartSeriesModel(
     val viewMode: Int,
     val colorArgb: Int,
     val runs: List<ChartRun>,
+    /** Secondary lanes beside the main line; only the primary series has any. */
+    val secondaryLanes: List<ChartLane> = emptyList(),
 ) {
     val isEmpty: Boolean get() = runs.all { it.points.isEmpty() }
+
+    /** The main-line value at a timestamp, for lookups that are not drawing. */
+    private val valueByTimestamp: Map<Long, Float> by lazy(LazyThreadSafetyMode.NONE) {
+        HashMap<Long, Float>().also { map ->
+            runs.forEach { run -> run.points.forEach { p -> map.putIfAbsent(p.timestamp, p.value) } }
+        }
+    }
+
+    fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
 }
 
 data class HistoryChartModel(

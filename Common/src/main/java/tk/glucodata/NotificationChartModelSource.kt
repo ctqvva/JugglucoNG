@@ -54,6 +54,12 @@ object NotificationChartModelSource {
             if (!CalibrationAccess.hasActiveCalibration(isRaw, sensorId)) return@Calibration null
             CalibrationAccess.getCalibratedValue(base, timestamp, isRaw, false, sensorId)
         }
-        return HistoryChartModelBuilder.build(inputs, ownership, calibration)
+        return HistoryChartModelBuilder.build(
+            inputs,
+            ownership,
+            calibration,
+            hasCalibration = hasCalibration,
+            hideInitialWhenCalibrated = CalibrationAccess.shouldHideInitialWhenCalibrated(),
+        )
     }
 }
