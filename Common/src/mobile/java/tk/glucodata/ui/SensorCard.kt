@@ -562,6 +562,39 @@ fun SensorCard(
             }
         }
     }
+    // Restore a pairing-key backup for this sensor. The vault keys by serial, so a file for a
+    // different sensor is refused here rather than silently filed away. On success the driver
+    // reloads the key and reconnects with it.
+    val aiDexKeyImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val message = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val payload = runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull() ?: return@withContext R.string.aidex_pairing_key_restore_failed
+                    val record = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup.decode(payload)
+                        ?: return@withContext R.string.aidex_pairing_key_restore_failed
+                    val thisSerial = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
+                        .canonicalBareSerial(sensor.serial)
+                    if (record.bareSerial != thisSerial) return@withContext R.string.aidex_pairing_key_restore_failed
+                    when (tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.importPayload(context, payload)) {
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.SAVED,
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.ALREADY_PRESENT -> {
+                            viewModel.rePairAiDexSensor(sensor.serial)
+                            R.string.aidex_pairing_key_restored
+                        }
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.CONFLICT ->
+                            R.string.aidex_pairing_key_conflict
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.INVALID ->
+                            R.string.aidex_pairing_key_restore_failed
+                    }
+                }
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     // Edit 74: Removed LocalContext.current that was added in Edit 73 for Toasts (rejected by user).
     // Status feedback now goes through getDetailedBleStatus() via vendorActionStatus field.
 
@@ -2548,11 +2581,7 @@ fun SensorCard(
                             if (hasExportablePairKey) {
                                 showAiDexKeyBackupDialog = true
                             } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    R.string.aidex_pairing_key_unavailable,
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
+                                aiDexKeyImportLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -3152,7 +3181,8 @@ fun SensorCard(
  * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
  *
  * Both halves share one container, as a split button does; the trailing key glyph alone
- * carries state — the app's in-range green while a verified key is held, error while none is.
+ * carries state — the app's in-range green while a verified key is held (tap: back it up),
+ * error while none is (tap: restore one from a backup file).
  */
 @Composable
 private fun AiDexPairSplitButton(
@@ -3226,7 +3256,7 @@ private fun AiDexPairSplitButton(
             Icon(
                 imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
                 contentDescription = stringResource(
-                    if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_pairing_key_unavailable
+                    if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
                 ),
                 modifier = Modifier.size(22.dp),
             )

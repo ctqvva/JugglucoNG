@@ -5872,6 +5872,14 @@ class AiDexBleManager(
         Log.i(TAG, "rePairSensor: reconnecting without discarding PAIR credential for $SerialNumber")
         consecutiveSetupDisconnects = 0
         keyExchange.reset()
+        // A backup may have been restored since this manager loaded its key.
+        AiDexPairKeyVault.load(Applic.app, SerialNumber)?.let { restored ->
+            if (persistedPairKey?.contentEquals(restored) != true) {
+                Log.i(TAG, "rePairSensor: picked up a restored PAIR credential from storage")
+                persistedPairKey = restored
+                savedKeyExhausted = false
+            }
+        }
         // The user asked for a pairing: give it a full set of retries, and let it replace a
         // saved key only if that key has already been proven dead.
         keyExchangeFailures = 0
