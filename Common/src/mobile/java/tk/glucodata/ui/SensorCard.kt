@@ -18,6 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -2527,23 +2530,53 @@ fun SensorCard(
                             maxLines = 1
                         )
                     }
+                    // Pairing-key backup — the middle segment of the Reset | key | Unpair group.
+                    // It doubles as the key's status: the app's in-range green while a verified
+                    // credential is held, the error pair while there is nothing to back up.
                     val hasExportablePairKey = remember(sensor.serial, sensor.isVendorPaired) {
                         tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
                             .exportPayload(context, sensor.serial) != null
                     }
+                    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(isSystemInDarkTheme()))
+                    val keyContainer by animateColorAsState(
+                        targetValue = if (hasExportablePairKey) {
+                            keyHeldColor.copy(alpha = 0.22f)
+                                .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        label = "aidexKeyContainer"
+                    )
+                    val keyContent by animateColorAsState(
+                        targetValue = if (hasExportablePairKey) keyHeldColor else MaterialTheme.colorScheme.onErrorContainer,
+                        label = "aidexKeyContent"
+                    )
                     FilledTonalIconButton(
-                        onClick = { showAiDexKeyBackupDialog = true },
-                        enabled = hasExportablePairKey,
-                        modifier = Modifier.size(48.dp),
+                        onClick = {
+                            if (hasExportablePairKey) {
+                                showAiDexKeyBackupDialog = true
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    R.string.aidex_pairing_key_unavailable,
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        },
+                        // Same height as the buttons either side; a square would stand proud of them.
+                        modifier = Modifier.width(48.dp).height(ButtonDefaults.MinHeight),
                         shape = RoundedCornerShape(4.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            containerColor = keyContainer,
+                            contentColor = keyContent
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = stringResource(R.string.aidex_pairing_key_backup),
+                            imageVector = if (hasExportablePairKey) Icons.Default.Key else Icons.Default.KeyOff,
+                            contentDescription = stringResource(
+                                if (hasExportablePairKey) R.string.aidex_pairing_key_backup
+                                else R.string.aidex_pairing_key_unavailable
+                            ),
                             modifier = Modifier.size(20.dp)
                         )
                     }
