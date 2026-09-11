@@ -26,4 +26,12 @@ data class GlucosePoint(
     val sensorSerial: String? = null,
     val uncertainty: GlucoseUncertainty? = null,
     val sealedDisplayValue: Float? = null,
+    /**
+     * The view mode in force when [sealedDisplayValue] was recorded — which
+     * lane the number belongs to (0/2 auto, 1/3 raw). A record is a fact about
+     * a minute *and a lane*: a value shown on the raw line says nothing about
+     * what the auto line showed, and a renderer resolving the other lane must
+     * not take it. Null when nothing was recorded.
+     */
+    val sealedDisplayViewMode: Int? = null,
 )

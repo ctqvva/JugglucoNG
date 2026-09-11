@@ -383,6 +383,7 @@ class HistoryRepository(context: Context = Applic.app) {
                         // already been shown.
                         tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue).also { out ->
                             out.sealedDisplayValue = p.sealedDisplayValue ?: Float.NaN
+                            out.sealedDisplayViewMode = p.sealedDisplayViewMode ?: -1
                             out.sensorSerial = p.sensorSerial
                         }
                     }
@@ -956,7 +957,7 @@ class HistoryRepository(context: Context = Applic.app) {
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
                         ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
                         ?: return@map point
-                    point.copy(sealedDisplayValue = sealed.displayMgdl)
+                    point.copy(sealedDisplayValue = sealed.displayMgdl, sealedDisplayViewMode = sealed.viewMode)
                 }
             }
         }.flowOn(Dispatchers.IO)
@@ -1428,6 +1429,7 @@ class HistoryRepository(context: Context = Applic.app) {
         val freezeEnabled = display.isNotEmpty() &&
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
         return readings.map { reading ->
+            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs)
             GlucosePoint(
                 value = reading.value,
                 time = formatTime(reading.timestamp),
@@ -1436,7 +1438,8 @@ class HistoryRepository(context: Context = Applic.app) {
                 rate = reading.rate,
                 sensorSerial = reading.sensorSerial,
                 uncertainty = uncertainty[uncertaintyKey(reading)]?.toGlucoseUncertainty(),
-                sealedDisplayValue = if (!freezeEnabled) null else sealedValueForLine(reading, display, nowMs),
+                sealedDisplayValue = sealed?.displayMgdl,
+                sealedDisplayViewMode = sealed?.viewMode,
             )
         }
     }
@@ -1963,15 +1966,15 @@ class HistoryRepository(context: Context = Applic.app) {
      * stopped. Statistics are different: they want the main value shown at the
      * minute whoever showed it, and take the record without this check.
      */
-    private fun sealedValueForLine(
+    private fun sealedRecordForLine(
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay>,
         nowMs: Long
-    ): Float? {
+    ): ReadingDisplay? {
         val record = display[displayKey(reading.timestamp)] ?: return null
         if (!record.isUsable || !record.isSealedAt(nowMs)) return null
         if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
-        return record.displayMgdl
+        return record
     }
 
     /**

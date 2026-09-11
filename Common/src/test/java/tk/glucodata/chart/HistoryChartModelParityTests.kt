@@ -31,12 +31,19 @@ class HistoryChartModelParityTests {
 
     private data class Resolved(val timestamp: Long, val value: Float, val look: ChartLook)
 
-    private fun point(ts: Long, auto: Float, raw: Float, serial: String, sealed: Float = Float.NaN) =
-        GlucosePoint(ts, auto, raw).also { it.sensorSerial = serial; it.sealedDisplayValue = sealed }
+    private fun point(ts: Long, auto: Float, raw: Float, serial: String, sealed: Float = Float.NaN, sealedMode: Int = -1) =
+        GlucosePoint(ts, auto, raw).also {
+            it.sensorSerial = serial; it.sealedDisplayValue = sealed; it.sealedDisplayViewMode = sealedMode
+        }
 
-    /** The dashboard's former per-point value rule. */
+    /**
+     * The dashboard's former per-point value rule, plus the one deliberate
+     * change since: a record applies only to the lane it was shown on.
+     */
     private fun oracleValue(p: GlucosePoint, isRaw: Boolean, cal: ((Float, Long) -> Float)?): Float? {
-        if (!p.sealedDisplayValue.isNaN() && p.sealedDisplayValue > 0.1f) return p.sealedDisplayValue
+        val recordedIsRaw = p.sealedDisplayViewMode == 1 || p.sealedDisplayViewMode == 3
+        val laneMatches = p.sealedDisplayViewMode < 0 || recordedIsRaw == isRaw
+        if (!p.sealedDisplayValue.isNaN() && p.sealedDisplayValue > 0.1f && laneMatches) return p.sealedDisplayValue
         val base = if (isRaw) p.rawValue else p.value
         if (base.isNaN() || base <= 0.1f) return null
         return cal?.invoke(base, p.timestamp) ?: base
@@ -92,13 +99,18 @@ class HistoryChartModelParityTests {
 
     @Test
     fun recordedThenCalibratedThenOwnPreferenceMatchesAcrossAMixedSeries() {
+        // Records alternate between lanes, so every view mode below meets both
+        // a matching and a mismatching record.
         val points = (0 until 60).map { i ->
             val sealed = if (i % 7 == 0) 4f + i * 0.01f else Float.NaN
-            point(ts(i), 5f + i * 0.02f, 6f + i * 0.02f, "A", sealed)
+            val mode = if (i % 14 == 0) 0 else 1
+            point(ts(i), 5f + i * 0.02f, 6f + i * 0.02f, "A", sealed, sealedMode = mode)
         }
         val cal: (Float, Long) -> Float = { v, _ -> v * 1.1f }
         assertParity(points, "A", true, 0, MainSensorOwnership.NONE, cal)
         assertParity(points, "A", true, 1, MainSensorOwnership.NONE, cal)
+        assertParity(points, "A", true, 2, MainSensorOwnership.NONE, cal)
+        assertParity(points, "A", true, 3, MainSensorOwnership.NONE, cal)
         assertParity(points, "A", true, 0, MainSensorOwnership.NONE, null)
     }
 

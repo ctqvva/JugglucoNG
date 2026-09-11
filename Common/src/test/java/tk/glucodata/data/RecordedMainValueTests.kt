@@ -154,7 +154,7 @@ class RecordedMainValueTests {
     @Test
     fun aRecordedValueIsOnlyAttachedToItsOwnSensorsLine() {
         val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val helper = repo.substringAfter("private fun sealedValueForLine").substringBefore("\n    }")
+        val helper = repo.substringAfter("private fun sealedRecordForLine").substringBefore("\n    }")
         assertTrue(
             "the line helper must check the record's owner against the reading's sensor",
             helper.contains("SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)"),

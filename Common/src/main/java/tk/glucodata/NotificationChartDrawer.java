@@ -957,7 +957,10 @@ public class NotificationChartDrawer {
             boolean isRawMode,
             String calibrationSensorId) {
         float sealed = p.sealedDisplayValue;
-        if (!Float.isNaN(sealed) && sealed > 0.1f) return sealed;
+        if (!Float.isNaN(sealed) && sealed > 0.1f
+                && tk.glucodata.chart.HistoryChartModelBuilder.INSTANCE.recordAppliesToLane(p.sealedDisplayViewMode, isRawMode)) {
+            return sealed;
+        }
         float baseVal = isRawMode ? p.rawValue : p.value;
         if (baseVal <= 0f) return 0f;
         return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);

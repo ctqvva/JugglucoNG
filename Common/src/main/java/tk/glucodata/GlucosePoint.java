@@ -13,6 +13,12 @@ public class GlucosePoint {
      * chart could only ever show today's derivation of yesterday's line.
      */
     public float sealedDisplayValue = Float.NaN;
+    /**
+     * The view mode in force when {@link #sealedDisplayValue} was recorded, so a
+     * renderer knows which lane the number belongs to (0/2 auto, 1/3 raw).
+     * -1 when nothing was recorded.
+     */
+    public int sealedDisplayViewMode = -1;
     /** The sensor that produced this reading, when known. */
     public String sensorSerial;
 

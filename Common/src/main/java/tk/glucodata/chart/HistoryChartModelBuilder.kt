@@ -199,6 +199,22 @@ object HistoryChartModelBuilder {
         return runs
     }
 
+    /**
+     * A record is a fact about a minute *and a lane*. It was written from the
+     * main line, whose lane is the view mode's: auto for 0/2, raw for 1/3. A
+     * value the user was shown on the raw line says nothing about what the
+     * auto line showed, so resolving the other lane must not take it — that
+     * lane derives as if nothing had been recorded. Without this, sealing a
+     * minute in raw mode and then switching to auto drew the raw number on the
+     * auto line. An unknown lane (a record from before the lane was kept) is
+     * taken at face value rather than discarded.
+     */
+    fun recordAppliesToLane(sealedDisplayViewMode: Int, isRawMode: Boolean): Boolean {
+        if (sealedDisplayViewMode < 0) return true
+        val recordedIsRaw = sealedDisplayViewMode == 1 || sealedDisplayViewMode == 3
+        return recordedIsRaw == isRawMode
+    }
+
     /** Below this the record and the live calibration are the same number, in any unit. */
     private const val PREVIEW_DIFFERENCE = 0.05f
 
@@ -227,7 +243,9 @@ object HistoryChartModelBuilder {
         calibration: Calibration,
     ): Float? {
         val sealed = point.sealedDisplayValue
-        if (!sealed.isNaN() && sealed > 0.1f) return sealed
+        if (!sealed.isNaN() && sealed > 0.1f && recordAppliesToLane(point.sealedDisplayViewMode, isRawMode)) {
+            return sealed
+        }
         val base = if (isRawMode) point.rawValue else point.value
         if (base.isNaN() || base <= 0.1f) return null
         val calibrated = calibration.apply(base, point.timestamp, isRawMode, sensorId)
