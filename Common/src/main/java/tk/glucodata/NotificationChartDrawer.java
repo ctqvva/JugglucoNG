@@ -821,6 +821,148 @@ public class NotificationChartDrawer {
         canvas.drawPath(predictionPath, predictionPaint);
     }
 
+    /**
+     * Which grey a lane of the primary is drawn in — the same table the legacy
+     * auto/raw lanes used. In a dual mode the other signal is secondary, and a
+     * calibrated main line demotes its own source to secondary with the other
+     * signal to tertiary; in a single mode the calibrated source is secondary.
+     */
+    private static int primaryLaneGrey(
+            boolean rawLane, int viewMode, boolean hasCalibration, int secondary, int tertiary) {
+        if (viewMode == 2) {
+            if (hasCalibration) return rawLane ? tertiary : secondary;
+            return secondary;
+        }
+        if (viewMode == 3) {
+            if (hasCalibration) return rawLane ? secondary : tertiary;
+            return secondary;
+        }
+        return secondary;
+    }
+
+    /**
+     * Paints one series of the resolved model: each run with the look the model
+     * assigned it. A MAIN run is drawn exactly as the primary calibrated line
+     * is; a SECONDARY run exactly as a peer is, in the series' own identity
+     * colour. Nothing is resolved here.
+     */
+    private static void paintRuns(
+            Canvas canvas,
+            Paint linePaint,
+            tk.glucodata.chart.ChartSeriesModel series,
+            long startTime,
+            long chartDuration,
+            float chartLeft,
+            float chartBottom,
+            float chartWidth,
+            float chartHeight,
+            float minY,
+            float yRange,
+            float targetLow,
+            float targetHigh,
+            float veryLowThreshold,
+            float veryHighThreshold,
+            boolean isMmol,
+            boolean isDark,
+            int mainLineColor,
+            int laneColorSecondary,
+            int laneColorTertiary,
+            int viewMode,
+            boolean hasCalibration,
+            int primaryIdentityColor) {
+        float baseStrokeWidth = linePaint.getStrokeWidth();
+        // Lanes beside the main run first, underneath it. For the primary that
+        // is the other signal and the source behind a calibration, drawn as the
+        // legacy lanes were; for a peer it is its other signal, drawn as a
+        // fainter pass of the same subtle treatment. The preview lane is the
+        // caller's, drawn separately so it sits under everything.
+        for (tk.glucodata.chart.ChartLane lane : series.getSecondaryLanes()) {
+            if (lane.getKind() == tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue;
+            for (tk.glucodata.chart.ChartRun run : lane.getRuns()) {
+                List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
+                if (pts.size() < 2) continue;
+                ArrayList<Long> timestamps = new ArrayList<>(pts.size());
+                ArrayList<Float> values = new ArrayList<>(pts.size());
+                for (tk.glucodata.chart.ChartPointModel p : pts) {
+                    timestamps.add(p.getTimestamp());
+                    values.add(p.getValue());
+                }
+                if (series.isPrimary()) {
+                    // The legacy lane colours, by the same table the legacy lanes
+                    // used: which lane is the secondary grey and which the
+                    // tertiary depends on the view mode and whether a calibration
+                    // has taken over as the main line. Alpha and stroke follow
+                    // the grey, as before; in a multi-sensor chart the grey is
+                    // then tinted toward the sensor's identity, as the main line
+                    // already is, so the lanes read as the same sensor's.
+                    boolean rawLane = lane.getKind() == tk.glucodata.chart.ChartLaneKind.RAW;
+                    int laneGrey = primaryLaneGrey(rawLane, viewMode, hasCalibration, laneColorSecondary, laneColorTertiary);
+                    float alpha = notificationLineAlpha(laneGrey, mainLineColor, laneColorSecondary);
+                    float scale = notificationStrokeScale(laneGrey, mainLineColor, laneColorSecondary);
+                    int laneColor = primaryIdentityColor != 0
+                            ? SensorVisuals.blendArgb(laneGrey, primaryIdentityColor, DASHBOARD_PRIMARY_IDENTITY_TINT)
+                            : laneGrey;
+                    linePaint.setStrokeWidth(baseStrokeWidth);
+                    drawNotificationSourceSeries(
+                            canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, laneColor, false, 0, alpha, alpha, scale);
+                } else {
+                    linePaint.setStrokeWidth(baseStrokeWidth * 0.66f);
+                    drawSubtlePeerSeries(
+                            canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, series.getColorArgb(), isDark, 0.68f);
+                }
+            }
+        }
+        for (tk.glucodata.chart.ChartRun run : series.getRuns()) {
+            List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
+            if (pts.size() < 2) continue;
+            ArrayList<Long> timestamps = new ArrayList<>(pts.size());
+            ArrayList<Float> values = new ArrayList<>(pts.size());
+            for (tk.glucodata.chart.ChartPointModel p : pts) {
+                timestamps.add(p.getTimestamp());
+                values.add(p.getValue());
+            }
+            if (run.getLook() == tk.glucodata.chart.ChartLook.MAIN) {
+                // The main look: range colours on, as the legacy main lane always
+                // had them whichever lane it was. Gating this on "has a
+                // calibration" lost the range colours everywhere that had none.
+                linePaint.setStrokeWidth(baseStrokeWidth);
+                drawNotificationSourceSeries(
+                        canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                        chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                        veryHighThreshold, isMmol, mainLineColor, true, primaryIdentityColor,
+                        DASHBOARD_PRIMARY_LINE_ALPHA, DASHBOARD_PRIMARY_THRESHOLD_ALPHA, DASHBOARD_PRIMARY_STROKE_SCALE);
+            } else {
+                linePaint.setStrokeWidth(baseStrokeWidth * 0.78f);
+                drawSubtlePeerSeries(
+                        canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                        chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                        veryHighThreshold, isMmol, series.getColorArgb(), isDark, 0.88f);
+            }
+        }
+        linePaint.setStrokeWidth(baseStrokeWidth);
+    }
+
+    /**
+     * The value the calibrated line draws for a point: the recorded one if the
+     * point has it, otherwise today's calibration of the sensor's value. The
+     * same preference the dashboard's resolver makes, so the two charts agree
+     * on a minute the user has already been shown.
+     */
+    private static float resolveCalibratedValue(
+            GlucosePoint p,
+            boolean isRawMode,
+            String calibrationSensorId) {
+        float sealed = p.sealedDisplayValue;
+        if (!Float.isNaN(sealed) && sealed > 0.1f) return sealed;
+        float baseVal = isRawMode ? p.rawValue : p.value;
+        if (baseVal <= 0f) return 0f;
+        return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);
+    }
+
     @SuppressWarnings("unchecked")
     private static List<NotificationPredictionSeries> resolvePredictionOverlay(
             Context context,
@@ -1435,7 +1577,21 @@ public class NotificationChartDrawer {
             boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
             String calibrationSensorId, List<PeerSeries> peerSeries) {
         return drawChartInternal(context, data, widthHint, heightHint, isMmol, viewMode, showTargetRange,
-                hasCalibration, compactMode, calibrationSensorId, DEFAULT_CHART_DURATION_MS, true, peerSeries);
+                hasCalibration, compactMode, calibrationSensorId, DEFAULT_CHART_DURATION_MS, true, peerSeries, null);
+    }
+
+    /**
+     * Draws from a resolved model. The primary line and every peer come from
+     * {@code model} — values already decided, main/secondary look already
+     * decided per minute — and this painter paints what it is handed. The raw
+     * {@code data} and {@code peerSeries} are still used for the axis, the
+     * source lanes behind a calibration, and the prediction overlay.
+     */
+    public static Bitmap drawChartWithPrediction(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
+            boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
+            String calibrationSensorId, List<PeerSeries> peerSeries, tk.glucodata.chart.HistoryChartModel model) {
+        return drawChartInternal(context, data, widthHint, heightHint, isMmol, viewMode, showTargetRange,
+                hasCalibration, compactMode, calibrationSensorId, DEFAULT_CHART_DURATION_MS, true, peerSeries, model);
     }
 
     private static Bitmap drawChartInternal(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
@@ -1443,12 +1599,18 @@ public class NotificationChartDrawer {
             String calibrationSensorId, long durationMs, boolean showPredictionOverlay) {
         return drawChartInternal(context, data, widthHint, heightHint, isMmol, viewMode, showTargetRange,
                 hasCalibration, compactMode, calibrationSensorId, durationMs, showPredictionOverlay,
-                Collections.emptyList());
+                Collections.emptyList(), null);
     }
 
     private static Bitmap drawChartInternal(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
             boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
-            String calibrationSensorId, long durationMs, boolean showPredictionOverlay, List<PeerSeries> peerSeries) {
+            String calibrationSensorId, long durationMs, boolean showPredictionOverlay, List<PeerSeries> peerSeries,
+            tk.glucodata.chart.HistoryChartModel model) {
+        // When a resolved model drives the primary line, the auto/raw lanes are
+        // only ever the source lanes behind a calibration. Without one they
+        // would be the main line, and the model already is.
+        final boolean modelDrivesPrimary = model != null && model.getPrimary() != null && !model.getPrimary().isEmpty();
+        final boolean modelDrivesPeers = model != null && !model.getPeers().isEmpty();
         sTrafficLineColors = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
                 .getBoolean("glucose_chart_range_colors_enabled", false);
         sTrafficLineDark = useLightOnTransparentPalette(context);
@@ -1552,8 +1714,10 @@ public class NotificationChartDrawer {
         // Determine which lines to show
         boolean hideRawSource = hideInitialWhenCalibrated && isRawModeForCal;
         boolean hideAutoSource = hideInitialWhenCalibrated && !isRawModeForCal;
-        boolean showAuto = !hideAutoSource && (viewMode == 0 || viewMode == 2 || viewMode == 3);
-        boolean showRaw = !hideRawSource && (viewMode == 1 || viewMode == 2 || viewMode == 3);
+        // With a model every lane comes from it — the other signal in a dual
+        // mode, the source behind a calibration — so the legacy lanes are off.
+        boolean showAuto = !modelDrivesPrimary && !hideAutoSource && (viewMode == 0 || viewMode == 2 || viewMode == 3);
+        boolean showRaw = !modelDrivesPrimary && !hideRawSource && (viewMode == 1 || viewMode == 2 || viewMode == 3);
 
         // Determine line colors based on ViewMode and Calibration
         int autoColor = lineColor; // Default Primary
@@ -1744,20 +1908,22 @@ public class NotificationChartDrawer {
                 }
             }
         }
-        if (hasCalibration) {
-            for (GlucosePoint p : visiblePoints) {
-                float baseVal = isRawModeForCal ? p.rawValue : p.value;
-                if (baseVal > 0) {
-                    float calVal = CalibrationAccess.getCalibratedValue(
-                            baseVal,
-                            p.timestamp,
-                            isRawModeForCal,
-                            false,
-                            calibrationSensorId);
-                    if (calVal > 0.1f) {
-                        minY = Math.min(minY, calVal);
-                        maxY = Math.max(maxY, calVal);
+        if (model != null) {
+            for (tk.glucodata.chart.ChartSeriesModel series : model.getSeries()) {
+                for (tk.glucodata.chart.ChartRun run : series.getRuns()) {
+                    for (tk.glucodata.chart.ChartPointModel p : run.getPoints()) {
+                        if (p.getTimestamp() < startTime || p.getValue() <= 0.1f) continue;
+                        minY = Math.min(minY, p.getValue());
+                        maxY = Math.max(maxY, p.getValue());
                     }
+                }
+            }
+        } else if (hasCalibration) {
+            for (GlucosePoint p : visiblePoints) {
+                float calVal = resolveCalibratedValue(p, isRawModeForCal, calibrationSensorId);
+                if (calVal > 0.1f) {
+                    minY = Math.min(minY, calVal);
+                    maxY = Math.max(maxY, calVal);
                 }
             }
         }
@@ -1943,7 +2109,14 @@ public class NotificationChartDrawer {
             cal.add(Calendar.HOUR_OF_DAY, 1);
         }
 
-        if (!visiblePeerSeries.isEmpty()) {
+        if (modelDrivesPeers) {
+            for (tk.glucodata.chart.ChartSeriesModel series : model.getPeers()) {
+                paintRuns(canvas, linePaint, series, startTime, chartDuration, chartLeft, chartBottom, chartWidth,
+                        chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold, veryHighThreshold,
+                        isMmol, isDark, lineColor, lineColorSecondary, lineColorTertiary, viewMode, hasCalibration,
+                        primaryIdentityColor);
+            }
+        } else if (!visiblePeerSeries.isEmpty()) {
             float primaryStrokeWidth = linePaint.getStrokeWidth();
             linePaint.setStrokeWidth(primaryStrokeWidth * 0.78f);
             for (PeerSeries series : visiblePeerSeries) {
@@ -2144,24 +2317,42 @@ public class NotificationChartDrawer {
                     notificationStrokeScale(rawColor, lineColor, lineColorSecondary));
         }
 
+        // Draw the primary line from the model — values and look already decided.
+        if (modelDrivesPrimary) {
+            // The calibration preview underneath, where the model has one: the
+            // live calibration where it differs from the frozen line, faint and
+            // thin so it never reads as the value.
+            for (tk.glucodata.chart.ChartLane lane : model.getPrimary().getSecondaryLanes()) {
+                if (lane.getKind() != tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue;
+                float baseStroke = linePaint.getStrokeWidth();
+                for (tk.glucodata.chart.ChartRun run : lane.getRuns()) {
+                    List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
+                    if (pts.size() < 2) continue;
+                    ArrayList<Long> ts = new ArrayList<>(pts.size());
+                    ArrayList<Float> vs = new ArrayList<>(pts.size());
+                    for (tk.glucodata.chart.ChartPointModel p : pts) { ts.add(p.getTimestamp()); vs.add(p.getValue()); }
+                    drawNotificationSourceSeries(
+                            canvas, linePaint, ts, vs, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, lineColor, false, primaryIdentityColor,
+                            0.45f, 0.45f, 0.5f);
+                }
+                linePaint.setStrokeWidth(baseStroke);
+            }
+            paintRuns(canvas, linePaint, model.getPrimary(), startTime, chartDuration, chartLeft, chartBottom,
+                    chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                    veryHighThreshold, isMmol, isDark, lineColor, lineColorSecondary, lineColorTertiary, viewMode,
+                    hasCalibration, primaryIdentityColor);
+        }
         // Draw Calibrated Line (Primary)
-        if (hasCalibration && !visibleRenderPoints.isEmpty()) {
+        if (!modelDrivesPrimary && hasCalibration && !visibleRenderPoints.isEmpty()) {
             boolean isRawModeforCal = (viewMode == 1 || viewMode == 3);
             ArrayList<Long> timestamps = new ArrayList<>(visibleRenderPoints.size());
             ArrayList<Float> values = new ArrayList<>(visibleRenderPoints.size());
 
             for (GlucosePoint renderPoint : visibleRenderPoints) {
-                float baseVal = isRawModeforCal ? renderPoint.rawValue : renderPoint.value;
-                float val = baseVal > 0
-                        ? CalibrationAccess.getCalibratedValue(
-                                baseVal,
-                                renderPoint.timestamp,
-                                isRawModeforCal,
-                                false,
-                                calibrationSensorId)
-                        : 0f;
                 timestamps.add(renderPoint.timestamp);
-                values.add(val);
+                values.add(resolveCalibratedValue(renderPoint, isRawModeforCal, calibrationSensorId));
             }
 
             drawNotificationSourceSeries(

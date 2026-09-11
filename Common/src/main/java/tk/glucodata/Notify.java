@@ -3715,6 +3715,14 @@ public class Notify {
                 (showChartCollapsed || showChart)
                         ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
                         : java.util.Collections.emptyList();
+        // The resolved chart: values and main/secondary look decided once, by
+        // the same builder the dashboard uses, from the same record. The
+        // painter paints what it is handed.
+        final tk.glucodata.chart.HistoryChartModel chartModel =
+                (showChartCollapsed || showChart)
+                        ? NotificationChartModelSource.build(chartPoints, activeSensorSerial, viewMode,
+                                hasCalibration, peerChartSeries, startT)
+                        : null;
 
         if (showChartCollapsed) {
             // Collapsed chart: Limit height to 48dp based on SYSTEM density
@@ -3726,14 +3734,14 @@ public class Notify {
             // Use safeContext and explicit height
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChart) {
             // Expanded chart: Use safely resolved density context (default 0 ->
             // 256*density)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChartCollapsed && chartBitmapCollapsed != null) {
