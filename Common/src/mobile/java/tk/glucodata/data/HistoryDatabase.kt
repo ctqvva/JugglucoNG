@@ -46,6 +46,10 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v22 — durable cross-device journal recovery tombstones
  *   v23 — transactional history recovery import receipts
  *   v24 — recorded main value keyed by the minute, written only on presentation
+ *   v25–v28 — interim cleanups of that table during development; the schema
+ *             never changed after v24, so they are bridged, not replayed
+ *   v29 — the same schema as v24; exists only so a device that ran an interim
+ *         build is not asked to downgrade
  */
 @Database(
     entities = [
@@ -61,7 +65,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 24,
+    version = 29,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -559,7 +563,7 @@ abstract class HistoryDatabase : RoomDatabase() {
 
 
         /**
-         * v23 -> v24: the recorded main value, keyed by the minute.
+         * v23 -> v29: the recorded main value, keyed by the minute.
          *
          * The old table stored what each sensor would have displayed and never
          * which sensor won the minute, so the dashboard's main value still moved
@@ -575,7 +579,7 @@ abstract class HistoryDatabase : RoomDatabase() {
          * several can claim one minute and none says which was on screen. The
          * table is rebuilt empty.
          */
-        private val MIGRATION_23_24 = object : Migration(23, 24) {
+        private val MIGRATION_23_29 = object : Migration(23, 29) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS reading_display")
                 db.execSQL(
@@ -601,6 +605,18 @@ abstract class HistoryDatabase : RoomDatabase() {
 
 
 
+
+
+        /**
+         * v24 through v28 all hold the same reading_display schema as v29. Each
+         * interim version differed only in which rows had been cleared, and a
+         * device that ran one of those builds must be able to open the store
+         * without being asked to downgrade — which Room refuses, by design. These
+         * bridge it forward and touch nothing.
+         */
+        private fun bridgeToCurrent(from: Int) = object : Migration(from, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) = Unit
+        }
 
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
@@ -631,7 +647,12 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_20_21,
                     MIGRATION_21_22,
                     MIGRATION_22_23,
-                    MIGRATION_23_24
+                    MIGRATION_23_29,
+                    bridgeToCurrent(24),
+                    bridgeToCurrent(25),
+                    bridgeToCurrent(26),
+                    bridgeToCurrent(27),
+                    bridgeToCurrent(28)
                 )
                 .build().also { INSTANCE = it }
             }

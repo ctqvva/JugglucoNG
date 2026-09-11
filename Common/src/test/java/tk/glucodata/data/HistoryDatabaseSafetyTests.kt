@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 24"))
+        assertTrue(source.contains("version = 29"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
@@ -74,8 +74,8 @@ class HistoryDatabaseSafetyTests {
     fun recordedMainValueMigrationIsRegisteredAndKeyedByTheMinute() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("Migration(23, 24)"))
-        assertTrue(source.contains("MIGRATION_23_24"))
+        assertTrue(source.contains("Migration(23, 29)"))
+        assertTrue(source.contains("MIGRATION_23_29"))
         // The whole point of the migration: one row per minute, so the record can
         // say which sensor the dashboard drew instead of what each would have.
         assertTrue(source.contains("PRIMARY KEY(timestamp)"))
@@ -84,6 +84,11 @@ class HistoryDatabaseSafetyTests {
         assertTrue(source.contains("DROP TABLE IF EXISTS reading_display"))
         assertFalse(source.contains("DROP TABLE IF EXISTS history_readings"))
         assertFalse(source.contains("DROP TABLE IF EXISTS reading_uncertainty"))
+        // A device that ran an interim build sits at v24..v28 with the same
+        // schema. It must open, never be asked to downgrade, and lose nothing.
+        for (from in 24..28) {
+            assertTrue("bridge from v$from", source.contains("bridgeToCurrent($from)"))
+        }
     }
 
 }
