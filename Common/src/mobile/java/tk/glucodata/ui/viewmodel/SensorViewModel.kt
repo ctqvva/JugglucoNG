@@ -828,6 +828,17 @@ class SensorViewModel : ViewModel() {
         }
     }
 
+    private fun deleteStoredHistory(serial: String) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                tk.glucodata.data.HistoryRepository().deleteAllHistoryForSensor(serial)
+                UiRefreshBus.requestDataRefresh()
+            } catch (t: Throwable) {
+                android.util.Log.e("SensorViewModel", "deleteStoredHistory($serial) failed: ${t.message}", t)
+            }
+        }
+    }
+
     private fun forceDeleteSensorDirectory(serial: String) {
         if (serial.isEmpty()) {
             android.util.Log.w("SensorViewModel", "forceDeleteSensorDirectory called with empty serial")
@@ -995,9 +1006,12 @@ class SensorViewModel : ViewModel() {
             }
         }
 
-        // Delete local files only after the durable sensor record is confirmed inactive.
+        // Delete local files and stored history only after the durable sensor record is
+        // confirmed inactive. The chart and statistics read Room, not the native polls, so
+        // without this the checkbox only ever cleared native counters.
         if (removed && wipeData) {
             forceDeleteSensorDirectory(serial)
+            deleteStoredHistory(serial)
         }
 
         refreshSensorsWithDeviceSync()

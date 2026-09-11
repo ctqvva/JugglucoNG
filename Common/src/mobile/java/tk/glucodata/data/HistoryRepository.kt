@@ -56,6 +56,25 @@ class HistoryRepository(context: Context = Applic.app) {
     
     companion object {
         private const val TAG = "HistoryRepo"
+
+        /**
+         * Every serial a sensor's rows may be stored under: the id the caller
+         * holds, the ids Room queries resolve it to, and the native names the
+         * sync wrote with. Order is kept so logs read naturally; blanks and
+         * repeats are dropped.
+         */
+        internal fun historyDeletionTargets(
+            serial: String,
+            roomQueryIds: List<String>,
+            nativeNames: List<String>,
+        ): List<String> {
+            val targets = LinkedHashSet<String>()
+            (listOf(serial) + roomQueryIds + nativeNames)
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .forEach(targets::add)
+            return targets.toList()
+        }
         private const val SENSOR_MINUTE_BUCKET_MS = 60_000L
         private const val NATIVE_BACKFILL_OVERLAP_MS = 6L * 60L * 60L * 1000L
         private const val HISTORY_COVERAGE_TOLERANCE_MS = 5L * 60L * 1000L
@@ -1769,6 +1788,36 @@ class HistoryRepository(context: Context = Applic.app) {
                 Log.e(TAG, "Error deleting data for sensor $serial", e)
             }
         }
+    }
+
+    /**
+     * Forget a removed sensor's glucose history: readings, uncertainty bands and
+     * the recorded display values, under every id the rows may have been stored
+     * with. Unlike [deleteForSensor] nothing re-syncs afterwards — the sensor is
+     * no longer in [tk.glucodata.Natives.activeSensors], which is what the sync
+     * iterates — so this is the deletion the "Delete glucose history" checkbox
+     * promises. Returns the serials that were cleared.
+     */
+    suspend fun deleteAllHistoryForSensor(serial: String): List<String> {
+        val targets = historyDeletionTargets(
+            serial,
+            resolveQuerySensorSerials(serial),
+            SensorIdentity.resolveNativeHistorySensorNames(serial),
+        )
+        if (targets.isEmpty()) return emptyList()
+        withContext(Dispatchers.IO) {
+            try {
+                database.withTransaction {
+                    targets.forEach { dao.deleteForSensor(it) }
+                    uncertaintyDao.deleteForSensors(targets)
+                    displayDao.deleteForSensors(targets)
+                }
+                Log.i(TAG, "Deleted all Room history for sensor $serial as $targets")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting all history for sensor $serial", e)
+            }
+        }
+        return targets
     }
 
     suspend fun deleteReading(timestamp: Long, sensorSerial: String): Int {
