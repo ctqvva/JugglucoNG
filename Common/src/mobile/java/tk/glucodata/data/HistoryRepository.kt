@@ -1642,19 +1642,20 @@ class HistoryRepository(context: Context = Applic.app) {
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap(),
         display: Map<Long, ReadingDisplay> = emptyMap()
     ): List<GlucosePoint> {
-        val merged = HistoryDisplayMerge.mergeReadings(readings, preferredSerial)
-        // The merge decides ownership from today's facts. For minutes the user
-        // has already been shown, the recorded owner overrides it — see
-        // RecordedOwnerMerge for why painting the recorded value onto whichever
-        // sensor the merge picked was not persistence at all.
-        val owned = if (display.isEmpty() ||
-            !runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
-        ) {
-            merged
-        } else {
-            RecordedOwnerMerge.apply(merged, readings, display, System.currentTimeMillis())
-        }
-        return mapReadings(owned, uncertainty, display)
+        // The merge decides ownership from today's facts, and the recorded
+        // owner is deliberately NOT applied here. Substituting it per minute
+        // shattered the main line: the record is sparse, so the series
+        // alternated sensors at every boundary between a recorded minute and
+        // an unrecorded one, and GlucosePointSegments breaks the line on a
+        // sensor change — holes, fragments, single-minute dots. Freezing who
+        // owns a minute is a rendering problem that has to understand the
+        // record; it cannot be done by rewriting sensor identity underneath a
+        // chart that was not told.
+        return mapReadings(
+            HistoryDisplayMerge.mergeReadings(readings, preferredSerial),
+            uncertainty,
+            display
+        )
     }
 
     private fun mergeQueryReadings(
