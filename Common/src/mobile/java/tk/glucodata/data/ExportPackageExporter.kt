@@ -2,11 +2,14 @@ package tk.glucodata.data
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.BuildConfig
+import tk.glucodata.GlucoseReadingSource
+import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
@@ -23,6 +26,7 @@ import java.util.concurrent.TimeUnit
 object ExportPackageExporter {
     private const val SCHEMA = "tk.glucodata.export-package"
     private const val SCHEMA_VERSION = 1
+    private const val SQLITE_BIND_CHUNK = 900
 
     data class ExportRequest(
         val includeSettings: Boolean,
@@ -426,7 +430,19 @@ object ExportPackageExporter {
         val foods = history.optJSONArray("journalFoods").toFoods()
 
         if (readings.isNotEmpty()) {
-            database.historyDao().insertAll(readings)
+            database.withTransaction {
+                val dao = database.historyDao()
+                val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
+                readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+                    rows.map(HistoryReading::timestamp).distinct().chunked(SQLITE_BIND_CHUNK)
+                        .forEach { timestamps ->
+                            dao.getSensorReadingsAtTimestamps(serial, timestamps).forEach { existing ->
+                                existingByKey[serial to existing.timestamp] = existing
+                            }
+                        }
+                }
+                dao.insertAll(preserveImportedHistoryProvenance(readings, existingByKey))
+            }
         }
         if (foods.isNotEmpty()) {
             database.journalDao().insertFoods(foods)
@@ -572,6 +588,8 @@ object ExportPackageExporter {
             .put("rawValueMgDl", rawValue.toDouble())
             .put("calibratedValueMgDl", calibratedMgDl?.toDouble() ?: JSONObject.NULL)
             .put("rate", rate?.toDouble() ?: JSONObject.NULL)
+            .put("source", source)
+            .put("firstStoredAt", firstStoredAt)
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
@@ -657,11 +675,29 @@ object ExportPackageExporter {
                         sensorSerial = sensorSerial,
                         value = value,
                         rawValue = rawValue,
-                        rate = item.optNullableFloat("rate")
+                        rate = item.optNullableFloat("rate"),
+                        source = item.optString("source", GlucoseReadingSource.SENSOR)
+                            .ifBlank { GlucoseReadingSource.SENSOR },
+                        firstStoredAt = item.optLong("firstStoredAt", System.currentTimeMillis())
+                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
                     )
                 )
             }
         }
+    }
+
+    internal fun preserveImportedHistoryProvenance(
+        incoming: List<HistoryReading>,
+        existingByKey: Map<Pair<String, Long>, HistoryReading>,
+    ): List<HistoryReading> = incoming.map { reading ->
+        val existing = existingByKey[reading.sensorSerial to reading.timestamp]
+        reading.copy(
+            source = HistorySourceProvenance.stableSource(existing?.source, reading.source),
+            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                existing?.firstStoredAt,
+                reading.firstStoredAt,
+            ),
+        )
     }
 
     private fun JSONArray?.toJournalEntries(): List<JournalEntryEntity> {

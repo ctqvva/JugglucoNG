@@ -810,6 +810,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     Log.i(LOG_ID, "RAW mode during warmup: using raw=" + glucoseToUse + " mgdl=" + mgdlToUse);
                 }
 
+                CloneSensorRegistry.markLocalSensor(SerialNumber);
                 markLocalReadingAccepted(timmsec);
                 dowithglucose(SerialNumber, mgdlToUse, glucoseToUse, rate, alarm, timmsec, sensorstartmsec, showtime, sensorgen);
                 charcha[0] = timmsec;
@@ -888,6 +889,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 mgdlToUse = (int) Math.round(glucoseToUse * (Applic.unit == 1 ? mgdLmult : 1.0f));
             }
 
+            CloneSensorRegistry.markLocalSensor(SerialNumber);
             markLocalReadingAccepted(timmsec);
             dowithglucose(SerialNumber, mgdlToUse, glucoseToUse, rate, alarm, timmsec, sensorstartmsec, showtime,
                     sensorgen);
