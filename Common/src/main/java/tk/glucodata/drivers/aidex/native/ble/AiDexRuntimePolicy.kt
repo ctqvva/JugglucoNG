@@ -4,9 +4,19 @@ import android.bluetooth.BluetoothDevice
 
 internal object AiDexRuntimePolicy {
 
+    enum class PairKeyStartAction {
+        USE_SAVED_KEY,
+        FRESH_PAIR_ONCE,
+        BROADCAST_ONLY,
+    }
+
+    enum class SavedKeyFailureAction {
+        RETRY_CLEAN_GATT,
+        BROADCAST_ONLY,
+    }
+
     enum class InvalidSetupRecoveryAction {
         RECONNECT,
-        REMOVE_BOND_AND_RECONNECT,
     }
 
     enum class MissingCccdCallbackAction {
@@ -14,6 +24,35 @@ internal object AiDexRuntimePolicy {
         WAIT,
         ASSUME_COMPLETE,
     }
+
+    /**
+     * A bond without a saved key is never probed automatically — but the user pressing Pair
+     * is the explicit, informed action that path exists for. Without it a sensor paired
+     * before the vault existed (every sensor at upgrade time), or one whose first pairing
+     * hiccuped after Android already bonded, is stuck in broadcast-only for good.
+     */
+    fun decidePairKeyStartAction(
+        bondStateAtConnection: Int,
+        hasSavedPairKey: Boolean,
+        explicitPairRequested: Boolean = false,
+    ): PairKeyStartAction = when {
+        hasSavedPairKey -> PairKeyStartAction.USE_SAVED_KEY
+        explicitPairRequested -> PairKeyStartAction.FRESH_PAIR_ONCE
+        bondStateAtConnection != BluetoothDevice.BOND_BONDED -> PairKeyStartAction.FRESH_PAIR_ONCE
+        else -> PairKeyStartAction.BROADCAST_ONLY
+    }
+
+    fun decideSavedKeyFailureAction(
+        consecutiveFailures: Int,
+        maxFailures: Int,
+    ): SavedKeyFailureAction = if (consecutiveFailures >= maxFailures) {
+        SavedKeyFailureAction.BROADCAST_ONLY
+    } else {
+        SavedKeyFailureAction.RETRY_CLEAN_GATT
+    }
+
+    fun shouldClearPersistedPairKey(deleteBondPending: Boolean, responseStatus: Int): Boolean =
+        deleteBondPending && responseStatus == 0x00
 
     fun connectedWarmupStatus(
         connectionPart: String,
@@ -278,14 +317,9 @@ internal object AiDexRuntimePolicy {
         bondResetThreshold: Int,
         bondValidatedByStreaming: Boolean,
     ): InvalidSetupRecoveryAction {
-        return if (
-            bondState == BluetoothDevice.BOND_BONDED &&
-            !bondValidatedByStreaming &&
-            consecutiveRecoveries >= bondResetThreshold
-        ) {
-            InvalidSetupRecoveryAction.REMOVE_BOND_AND_RECONNECT
-        } else {
-            InvalidSetupRecoveryAction.RECONNECT
-        }
+        // Transport/setup failures are not proof that either the Android SMP bond or the
+        // sensor's stable PAIR credential is invalid. Automatic bond removal can force an
+        // unnecessary F001 PAIR exchange, so recovery is always non-destructive.
+        return InvalidSetupRecoveryAction.RECONNECT
     }
 }

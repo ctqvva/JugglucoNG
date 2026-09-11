@@ -2825,4 +2825,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_certificate">Сертыфікат</string>
     <string name="webserver_cert_export_with_key">Сертыфікат і прыватны ключ</string>
     <string name="webserver_cert_export_key_warning">Прыватны ключ дазваляе іншай прыладзе выдаваць сябе за гэты сервер. Трымайце яго ў сакрэце.</string>
+    <string name="aidex_pairing_key_backup">Рэзервовая копія ключа спалучэння</string>
+    <string name="aidex_pairing_key_backup_warning">Гэты файл змяшчае ўліковыя даныя спалучэння датчыка. Захоўвайце яго прыватна; з яго дапамогай можна аднавіць той жа датчык на іншай прыладзе.</string>
+    <string name="aidex_pairing_key_saved">Рэзервовая копія ключа спалучэння захавана</string>
+    <string name="aidex_pairing_key_unavailable">Правераны ключ спалучэння пакуль недаступны</string>
+    <string name="aidex_restore_pairing_key">Аднавіць ключ спалучэння з копіі</string>
+    <string name="aidex_pairing_key_restored">Ключ спалучэння адноўлены. Выберыце адпаведны датчык.</string>
+    <string name="aidex_pairing_key_restore_failed">Гэта не сапраўдная рэзервовая копія ключа спалучэння AiDex</string>
+    <string name="aidex_pairing_key_conflict">Для гэтага датчыка ўжо захаваны іншы ключ; нічога не перазапісана</string>
 </resources>

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +56,30 @@ fun AiDexSetupWizard(
     var selectedDeviceName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val pairingKeyImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val payload = runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull() ?: return@withContext tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.INVALID
+                    tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.importPayload(context, payload)
+                }
+                val message = when (result) {
+                    tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.SAVED,
+                    tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.ALREADY_PRESENT ->
+                        R.string.aidex_pairing_key_restored
+                    tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.CONFLICT ->
+                        R.string.aidex_pairing_key_conflict
+                    tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.INVALID ->
+                        R.string.aidex_pairing_key_restore_failed
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     BackHandler {
         if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
     }
@@ -87,6 +112,9 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
+                    onRestorePairingKey = {
+                        pairingKeyImportLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
+                    },
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
@@ -151,6 +179,7 @@ fun AiDexSetupWizard(
 fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
+    onRestorePairingKey: () -> Unit,
     onDeviceSelected: (String, String) -> Unit
 ) {
     data class ScanCandidate(
@@ -286,6 +315,18 @@ fun AiDexScanStep(
                     }
                 )
             }
+        }
+        TextButton(
+            onClick = onRestorePairingKey,
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Key,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.aidex_restore_pairing_key))
         }
         if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
             Spacer(Modifier.height(ui.spacerMedium))

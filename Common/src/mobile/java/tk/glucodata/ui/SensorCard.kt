@@ -488,6 +488,7 @@ fun SensorCard(
     var showAnytimeHistoryDialog by remember { mutableStateOf(false) }
     var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
+    var showAiDexKeyBackupDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
     var connectionLogExpanded by remember(sensor.serial) { mutableStateOf(false) }
@@ -528,6 +529,29 @@ fun SensorCard(
                 android.widget.Toast.makeText(
                     context,
                     if (saved) R.string.export_successful else R.string.export_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    var pendingAiDexKeyBackup by remember { mutableStateOf<String?>(null) }
+    val aiDexKeyExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val payload = pendingAiDexKeyBackup
+        pendingAiDexKeyBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.aidex_pairing_key_saved else R.string.export_failed,
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             }
@@ -1577,6 +1601,40 @@ fun SensorCard(
         }
     }
 
+    if (showAiDexKeyBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAiDexKeyBackupDialog = false },
+            title = { Text(stringResource(R.string.aidex_pairing_key_backup)) },
+            text = { Text(stringResource(R.string.aidex_pairing_key_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial)
+                        showAiDexKeyBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.aidex_pairing_key_unavailable,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAiDexKeyBackup = payload
+                            val bareSerial = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
+                                .canonicalBareSerial(sensor.serial)
+                            aiDexKeyExportLauncher.launch("JugglucoNG-AiDex-$bareSerial.aidexkey")
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showAiDexUnpairDialog) {
         AlertDialog(
             onDismissRequest = { showAiDexUnpairDialog = false },
@@ -2467,6 +2525,26 @@ fun SensorCard(
                         Text(
                             if (sensor.resetCompensationActive) stringResource(R.string.correcting) else stringResource(R.string.resettitle),
                             maxLines = 1
+                        )
+                    }
+                    val hasExportablePairKey = remember(sensor.serial, sensor.isVendorPaired) {
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial) != null
+                    }
+                    FilledTonalIconButton(
+                        onClick = { showAiDexKeyBackupDialog = true },
+                        enabled = hasExportablePairKey,
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = stringResource(R.string.aidex_pairing_key_backup),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     // Pair / Unpair toggle — right (weight 1f = fills remaining space, prominent)

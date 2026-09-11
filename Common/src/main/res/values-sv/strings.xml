@@ -2755,4 +2755,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_certificate">Certifikat</string>
     <string name="webserver_cert_export_with_key">Certifikat och privat nyckel</string>
     <string name="webserver_cert_export_key_warning">Den privata nyckeln låter en annan enhet utge sig för att vara den här servern. Håll den hemlig.</string>
+    <string name="aidex_pairing_key_backup">Säkerhetskopia av parkopplingsnyckel</string>
+    <string name="aidex_pairing_key_backup_warning">Filen innehåller sensorns parkopplingsnyckel. Förvara den privat och säkert; den kan återställa samma sensor på en annan enhet.</string>
+    <string name="aidex_pairing_key_saved">Säkerhetskopian av parkopplingsnyckeln har sparats</string>
+    <string name="aidex_pairing_key_unavailable">Ingen verifierad parkopplingsnyckel är tillgänglig ännu</string>
+    <string name="aidex_restore_pairing_key">Återställ parkopplingsnyckel</string>
+    <string name="aidex_pairing_key_restored">Parkopplingsnyckeln har återställts. Välj motsvarande sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">Detta är inte en giltig säkerhetskopia av en AiDex-nyckel</string>
+    <string name="aidex_pairing_key_conflict">En annan nyckel är redan sparad för sensorn; ingenting skrevs över</string>
 </resources>
