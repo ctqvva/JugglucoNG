@@ -11,6 +11,10 @@ import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
+import tk.glucodata.data.meal.MealDao
+import tk.glucodata.data.meal.MealEntity
+import tk.glucodata.data.meal.MealItemEntity
+import tk.glucodata.data.meal.MealProductEntity
 
 /**
  * Room database for independent glucose history storage.
@@ -36,6 +40,10 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
  *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — meals (composition + product cache) and the mealId correlation on journal entries
+ *   v19 — contributedAt on the product cache (sent to Open Food Facts)
+ *   v20 — saturated fat, salt and an OFF category on the product cache (Nutri-Score inputs)
+ *   v21 — editable package piece counts for product and meal quantity resolution
  */
 @Database(
     entities = [
@@ -46,9 +54,12 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalEntryEntity::class,
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
-        JournalPendingDeleteEntity::class
+        JournalPendingDeleteEntity::class,
+        MealEntity::class,
+        MealItemEntity::class,
+        MealProductEntity::class
     ],
-    version = 17,
+    version = 21,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -57,7 +68,8 @@ abstract class HistoryDatabase : RoomDatabase() {
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
     abstract fun readingDisplayDao(): ReadingDisplayDao
-
+    abstract fun mealDao(): MealDao
+    
     companion object {
         private const val DATABASE_NAME = "glucose_history.db"
 
@@ -421,6 +433,151 @@ abstract class HistoryDatabase : RoomDatabase() {
             return false
         }
 
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Earlier meal builds used v14-v17 for meal tables. Repair the
+                // upstream fields they skipped before adding the meal schema.
+                MIGRATION_15_16.migrate(db)
+                MIGRATION_16_17.migrate(db)
+                if (!hasColumn(db, "journal_entries", "mealId")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN mealId INTEGER")
+                }
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_mealId ON journal_entries (mealId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        label TEXT NOT NULL,
+                        servings REAL,
+                        cookedWeightGrams REAL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        archivedAt INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meals_archivedAt ON meals (archivedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meals_updatedAt ON meals (updatedAt)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_items (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        mealId INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        barcode TEXT,
+                        source TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        brand TEXT,
+                        basis TEXT NOT NULL,
+                        carbsGrams REAL NOT NULL,
+                        proteinGrams REAL,
+                        fatGrams REAL,
+                        fiberGrams REAL,
+                        sugarsGrams REAL,
+                        polyolsGrams REAL,
+                        kcal REAL,
+                        netQuantity REAL,
+                        netUnit TEXT,
+                        servingText TEXT,
+                        servingQuantity REAL,
+                        servingUnit TEXT,
+                        servingPieces REAL,
+                        servingPieceLabel TEXT,
+                        servingsPerBatch REAL,
+                        densityGramsPerMl REAL,
+                        pieceGrams REAL,
+                        quantityText TEXT NOT NULL,
+                        factor REAL,
+                        amountGrams REAL,
+                        amountMilliliters REAL,
+                        plausibilityFlags TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_items_mealId ON meal_items (mealId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_items_barcode ON meal_items (barcode)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_products (
+                        barcode TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        brand TEXT,
+                        basis TEXT NOT NULL,
+                        carbsGrams REAL NOT NULL,
+                        proteinGrams REAL,
+                        fatGrams REAL,
+                        fiberGrams REAL,
+                        sugarsGrams REAL,
+                        polyolsGrams REAL,
+                        kcal REAL,
+                        netQuantity REAL,
+                        netUnit TEXT,
+                        servingText TEXT,
+                        servingQuantity REAL,
+                        servingUnit TEXT,
+                        servingPieces REAL,
+                        servingPieceLabel TEXT,
+                        densityGramsPerMl REAL,
+                        pieceGrams REAL,
+                        plausibilityFlags TEXT,
+                        fetchedAt INTEGER NOT NULL,
+                        lastUsedAt INTEGER NOT NULL,
+                        PRIMARY KEY(barcode)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_products_lastUsedAt ON meal_products (lastUsedAt)")
+            }
+        }
+
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "meal_products", "contributedAt")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN contributedAt INTEGER")
+                }
+            }
+        }
+
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "meal_products", "saturatedFatGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "saltGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "offCategory")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+                }
+            }
+        }
+
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!hasColumn(db, "meal_items", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_items", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_items", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_products", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -443,7 +600,11 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
-                    MIGRATION_16_17
+                    MIGRATION_16_17,
+                    MIGRATION_17_18,
+                    MIGRATION_18_19,
+                    MIGRATION_19_20,
+                    MIGRATION_20_21
                 )
                 .build().also { INSTANCE = it }
             }

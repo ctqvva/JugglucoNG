@@ -63,7 +63,8 @@ data class JournalEntry(
     val source: JournalEntrySource,
     val sourceRecordId: String?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val mealId: Long? = null
 )
 
 data class JournalEntryInput(
@@ -83,7 +84,8 @@ data class JournalEntryInput(
     val fatGrams: Float? = null,
     val source: JournalEntrySource = JournalEntrySource.MANUAL,
     val sourceRecordId: String? = null,
-    val nsRemoteId: String? = null
+    val nsRemoteId: String? = null,
+    val mealId: Long? = null
 )
 
 data class JournalFood(
@@ -176,7 +178,8 @@ data class JournalChartMarker(
     val durationMinutes: Int? = null,
     val curvePoints: List<JournalCurvePoint> = emptyList(),
     val activeStartMillis: Long? = null,
-    val activeEndMillis: Long? = null
+    val activeEndMillis: Long? = null,
+    val mealId: Long? = null
 )
 
 data class JournalActiveInsulinSummary(

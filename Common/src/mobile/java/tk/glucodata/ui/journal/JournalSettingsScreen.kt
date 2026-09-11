@@ -47,12 +47,15 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.QrCodeScanner
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,6 +112,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.hypot
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import tk.glucodata.data.meal.MealContributionLog
+import tk.glucodata.data.meal.MealContributionSettings
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalBuiltInCurveProfile
 import tk.glucodata.data.journal.JournalCurvePoint
@@ -173,6 +180,7 @@ fun JournalSettingsScreen(
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
     val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsState()
+    val journalMealOnlineLookup by viewModel.journalMealOnlineLookup.collectAsState()
     val journalDashboardQuickAddButton by viewModel.journalDashboardQuickAddButton.collectAsState()
     val journalHealthConnectActivityEnabled by viewModel.journalHealthConnectActivityEnabled.collectAsState()
     val aapsJournalImportEnabled by viewModel.aapsJournalImportEnabled.collectAsState()
@@ -303,7 +311,7 @@ fun JournalSettingsScreen(
                         subtitle = stringResource(R.string.journal_food_macros_desc),
                         checked = journalFoodMacrosEnabled,
                         onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Default.LunchDining,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE,
                         enabled = journalEnabled
@@ -360,7 +368,7 @@ fun JournalSettingsScreen(
                         ),
                         showArrow = true,
                         onClick = { navController.navigate("settings/journal/foods") },
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Default.LunchDining,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP
                     )
@@ -371,8 +379,109 @@ fun JournalSettingsScreen(
                         onClick = { navController.navigate("settings/journal/insulin") },
                         icon = Icons.Default.Vaccines,
                         iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.BOTTOM
+                        position = CardPosition.MIDDLE
                     )
+                    SettingsItem(
+                        title = stringResource(R.string.meal_settings_entry),
+                        subtitle = stringResource(R.string.meal_settings_entry_desc),
+                        showArrow = true,
+                        onClick = { navController.navigate("journal/meals") },
+                        icon = Icons.Default.Restaurant,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.meal_online_lookup_title),
+                        subtitle = stringResource(R.string.meal_online_lookup_desc),
+                        checked = journalMealOnlineLookup,
+                        onCheckedChange = { viewModel.setJournalMealOnlineLookup(it) },
+                        icon = Icons.Default.QrCodeScanner,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE
+                    )
+                    MealContributionSettingsItems()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Opt-in: send products read from a label photo back to Open Food Facts. Credentials live in
+ * their own preferences file; the switch is off by default and nothing is sent before the user
+ * has confirmed the values in the product form.
+ */
+@Composable
+private fun MealContributionSettingsItems() {
+    val context = LocalContext.current
+    var settings by remember { mutableStateOf(MealContributionSettings.load(context)) }
+    fun update(next: MealContributionSettings) {
+        settings = next
+        MealContributionSettings.save(context, next)
+    }
+    SettingsSwitchItem(
+        title = stringResource(R.string.meal_contribute_title),
+        subtitle = stringResource(R.string.meal_contribute_desc),
+        checked = settings.enabled,
+        onCheckedChange = { update(settings.copy(enabled = it)) },
+        icon = Icons.Default.CloudUpload,
+        iconTint = MaterialTheme.colorScheme.secondary,
+        position = if (settings.enabled) CardPosition.MIDDLE else CardPosition.BOTTOM
+    )
+    AnimatedVisibility(visible = settings.enabled, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = settings.userId,
+                        onValueChange = { update(settings.copy(userId = it)) },
+                        label = { Text(stringResource(R.string.meal_contribute_user)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = settings.password,
+                        onValueChange = { update(settings.copy(password = it)) },
+                        label = { Text(stringResource(R.string.meal_contribute_password)) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            SettingsSwitchItem(
+                title = stringResource(R.string.meal_contribute_photos_title),
+                subtitle = stringResource(R.string.meal_contribute_photos_desc),
+                checked = settings.uploadPhotos,
+                onCheckedChange = { update(settings.copy(uploadPhotos = it)) },
+                icon = Icons.Default.CloudUpload,
+                iconTint = MaterialTheme.colorScheme.secondary,
+                position = CardPosition.MIDDLE
+            )
+            val log = remember(settings) { MealContributionLog.entries(context) }
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.meal_contribute_log_title), style = MaterialTheme.typography.titleSmall)
+                    if (log.isEmpty()) {
+                        Text(stringResource(R.string.meal_contribute_log_empty), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    log.take(15).forEach { e ->
+                        Text(
+                            text = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(e.at)) +
+                                "  " + (if (e.ok) "✓" else "✗") + "  " + e.name.ifBlank { e.barcode } + " — " + e.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (e.ok) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -472,7 +581,7 @@ private fun JournalIntelligenceCard(
             JournalIntelligenceRow(
                 title = stringResource(R.string.journal_food_macros_title),
                 subtitle = stringResource(R.string.journal_food_macros_desc),
-                icon = Icons.Default.Restaurant,
+                icon = Icons.Default.LunchDining,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 checked = foodMacrosEnabled,
                 enabled = journalEnabled,
@@ -554,7 +663,7 @@ private fun JournalLibraryHub(
         JournalLibraryTile(
             title = stringResource(R.string.journal_food_library),
             subtitle = stringResource(R.string.journal_food_library_count, activeFoods, totalFoods),
-            icon = Icons.Default.Restaurant,
+            icon = Icons.Default.LunchDining,
             tint = MaterialTheme.colorScheme.secondary,
             shape = RoundedCornerShape(topStart = 34.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 28.dp),
             modifier = Modifier.weight(1f),
@@ -709,7 +818,7 @@ fun JournalFoodLibraryScreen(
                     subtitle = stringResource(R.string.journal_food_choose_desc),
                     checked = foodLibraryEnabled,
                     onCheckedChange = { viewModel.setJournalFoodLibraryEnabled(it) },
-                    icon = Icons.Default.Restaurant,
+                    icon = Icons.Default.LunchDining,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.SINGLE
                 )
@@ -1058,7 +1167,7 @@ private fun JournalFoodRow(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Restaurant,
+                        imageVector = Icons.Default.LunchDining,
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(22.dp)
