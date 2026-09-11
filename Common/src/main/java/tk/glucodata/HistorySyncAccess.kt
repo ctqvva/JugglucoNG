@@ -8,6 +8,7 @@ object HistorySyncAccess {
     private const val TAG = "HistorySyncAccess"
     private const val SYNC_CLASS_NAME = "tk.glucodata.data.HistorySync"
     private const val REPOSITORY_CLASS_NAME = "tk.glucodata.data.HistoryRepository"
+    private const val JOURNAL_SNAPSHOT_CLASS_NAME = "tk.glucodata.OutboundApiJournalSnapshot"
     private const val DEFAULT_AIDEX_SOURCE = 4
 
     private val syncHolder by lazy { runCatching { Class.forName(SYNC_CLASS_NAME) }.getOrNull() }
@@ -58,6 +59,19 @@ object HistorySyncAccess {
             )
         }.getOrNull()
     }
+    private val storeReadingWithSourceMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod(
+                "storeReadingWithSourceAsync",
+                Long::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType,
+                String::class.java,
+                String::class.java
+            )
+        }.getOrNull()
+    }
     private val storeHistoryBatchMethod by lazy {
         runCatching {
             repositoryHolder?.getMethod(
@@ -77,6 +91,18 @@ object HistorySyncAccess {
                 LongArray::class.java,
                 FloatArray::class.java,
                 FloatArray::class.java
+            )
+        }.getOrNull()
+    }
+    private val storeHistoryBatchWithSourceBlockingMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod(
+                "storeHistoryBatchWithSourceBlocking",
+                String::class.java,
+                LongArray::class.java,
+                FloatArray::class.java,
+                FloatArray::class.java,
+                String::class.java
             )
         }.getOrNull()
     }
@@ -108,6 +134,96 @@ object HistorySyncAccess {
         runCatching {
             repositoryHolder?.getField("GLUCODATA_SOURCE_AIDEX")?.getInt(null)
         }.getOrNull() ?: DEFAULT_AIDEX_SOURCE
+    }
+    private val journalSnapshotHolder by lazy {
+        runCatching { Class.forName(JOURNAL_SNAPSHOT_CLASS_NAME) }.getOrNull()
+    }
+    private val exportCloneIobMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "cloneIobSnapshotJson",
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val importCloneIobMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod("importCloneIobSnapshot", String::class.java)
+        }.getOrNull()
+    }
+    private val exportCloneJournalMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "cloneJournalSnapshotJson",
+                Long::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+    private val importCloneJournalMethod by lazy {
+        runCatching {
+            journalSnapshotHolder?.getMethod(
+                "importCloneJournalSnapshot",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+    }
+
+    /** Called only by the native mirror receiver before it imports remote sensor files. */
+    @JvmStatic
+    fun markCloneSensor(serial: String?, transportCode: Int, connectionIdentity: String?): Boolean =
+        CloneSensorRegistry.markCloneSensor(serial, transportCode, connectionIdentity)
+
+    @JvmStatic
+    fun reconcilePrimaryCloneSensor(serial: String?) {
+        if (!CloneSensorRegistry.isReceptionEnabled()) return
+        CloneSensorRegistry.reconcilePrimaryCloneSensor(serial)
+    }
+
+    @JvmStatic
+    fun exportCloneIobSnapshot(): String {
+        val method = exportCloneIobMethod ?: return ""
+        return runCatching {
+            method.invoke(null, System.currentTimeMillis()) as? String ?: ""
+        }.onFailure {
+            Log.w(TAG, "exportCloneIobSnapshot failed", it)
+        }.getOrDefault("")
+    }
+
+    @JvmStatic
+    fun importCloneIobSnapshot(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val method = importCloneIobMethod ?: return false
+        return CloneSensorRegistry.whileReceptionEnabled {
+            runCatching {
+                method.invoke(null, raw) as? Boolean ?: false
+            }.onFailure {
+                Log.w(TAG, "importCloneIobSnapshot failed", it)
+            }.getOrDefault(false)
+        } ?: false
+    }
+
+    @JvmStatic
+    fun exportCloneJournalSnapshot(): String {
+        val method = exportCloneJournalMethod ?: return ""
+        return runCatching {
+            method.invoke(null, System.currentTimeMillis()) as? String ?: ""
+        }.onFailure {
+            Log.w(TAG, "exportCloneJournalSnapshot failed", it)
+        }.getOrDefault("")
+    }
+
+    @JvmStatic
+    fun importCloneJournalSnapshot(raw: String?, transportCode: Int): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val method = importCloneJournalMethod ?: return false
+        return CloneSensorRegistry.whileReceptionEnabled {
+            runCatching {
+                method.invoke(null, raw, transportCode) as? Boolean ?: false
+            }.onFailure {
+                Log.w(TAG, "importCloneJournalSnapshot failed", it)
+            }.getOrDefault(false)
+        } ?: false
     }
 
     @JvmStatic
@@ -249,6 +365,37 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
+    fun storeCurrentReadingWithSourceAsync(
+        timestamp: Long,
+        valueMgdl: Float,
+        rawValueMgdl: Float,
+        rate: Float,
+        sensorSerial: String?,
+        source: String
+    ) {
+        if (timestamp <= 0L || sensorSerial.isNullOrBlank()) return
+        val method = storeReadingWithSourceMethod
+        if (method == null) {
+            Log.w(TAG, "source-aware current storage unavailable; using sensor default for $sensorSerial")
+            storeCurrentReadingAsync(timestamp, valueMgdl, rawValueMgdl, rate, sensorSerial)
+            return
+        }
+        runCatching {
+            method.invoke(
+                null,
+                timestamp,
+                valueMgdl,
+                rawValueMgdl,
+                rate,
+                sensorSerial,
+                source,
+            )
+        }.onFailure {
+            Log.w(TAG, "source-aware current storage failed for serial=$sensorSerial timestamp=$timestamp", it)
+        }
+    }
+
+    @JvmStatic
     fun storeSensorHistoryBatchAsync(
         sensorSerial: String?,
         timestamps: LongArray,
@@ -307,6 +454,35 @@ object HistorySyncAccess {
                 "storeSensorHistoryBatchBlocking failed for serial=$sensorSerial size=${timestamps.size}",
                 it
             )
+        }.getOrDefault(false)
+    }
+
+    @JvmStatic
+    fun storeSensorHistoryBatchWithSourceBlocking(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        source: String
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank()) return false
+        if (timestamps.isEmpty()) return true
+        val method = storeHistoryBatchWithSourceBlockingMethod
+        if (method == null) {
+            Log.w(TAG, "source-aware history storage unavailable; using sensor default for $sensorSerial")
+            return storeSensorHistoryBatchBlocking(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
+        }
+        return runCatching {
+            method.invoke(
+                null,
+                sensorSerial,
+                timestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                source,
+            ) as? Boolean ?: false
+        }.onFailure {
+            Log.w(TAG, "source-aware history storage failed for serial=$sensorSerial size=${timestamps.size}", it)
         }.getOrDefault(false)
     }
 

@@ -12,7 +12,8 @@
 #define d2i_X509_fp d2i_X509_fpptr
 #define X509_STORE_add_cert X509_STORE_add_certptr
 #define ERR_get_error ERR_get_errorptr
-
+#define X509_check_host X509_check_hostptr
+#define X509_check_ip_asc X509_check_ip_ascptr
 
 
 

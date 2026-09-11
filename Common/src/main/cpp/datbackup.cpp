@@ -91,6 +91,66 @@ int updateone::sendCalibrate() {
     return sensors->sendCalibrates(getcrypt(), con,ind,startSendCalibrate);
     }
 
+int updateone::sendCloneIobSnapshot() {
+    const passhost_t &host = backup->getHosts()[allindex];
+    if (!host.ICE)
+        return 2;
+    Connect *connect = getConnect();
+    if (!connect)
+        return 0;
+    extern std::string javaExportCloneIobSnapshot();
+    const std::string json = javaExportCloneIobSnapshot();
+    if (json.empty())
+        return 2;
+    static constexpr std::string_view path = "mirror/iob.json";
+    if (!connect->senddata(
+            getcrypt(), 0,
+            reinterpret_cast<const senddata_t *>(json.data()),
+            static_cast<int>(json.size()), path)) {
+        LOGGER("sendCloneIobSnapshot failed for host=%d\n", allindex);
+        return 0;
+    }
+    return 1;
+}
+
+int updateone::sendCloneJournalSnapshot() {
+    const passhost_t &host = backup->getHosts()[allindex];
+    if (!host.ICE)
+        return 2;
+    Connect *connect = getConnect();
+    if (!connect)
+        return 0;
+    extern std::string javaExportCloneJournalSnapshot();
+    const std::string json = javaExportCloneJournalSnapshot();
+    if (json.empty())
+        return 2;
+
+    // A journal snapshot is stable until a local treatment changes. Avoid
+    // resending it with every glucose update, but resend after ICE creates a
+    // new agent so a restarted receiver is backfilled immediately.
+    static std::string lastPayload[maxallhosts];
+    static uint64_t lastConnectionGeneration[maxallhosts] = {};
+    const uint64_t connectionGeneration = connect->senderConnectionGeneration();
+    if (allindex >= 0 && allindex < maxallhosts &&
+        lastPayload[allindex] == json &&
+        lastConnectionGeneration[allindex] == connectionGeneration) {
+        return 2;
+    }
+    static constexpr std::string_view path = "mirror/journal.json";
+    if (!connect->senddata(
+            getcrypt(), 0,
+            reinterpret_cast<const senddata_t *>(json.data()),
+            static_cast<int>(json.size()), path)) {
+        LOGGER("sendCloneJournalSnapshot failed for host=%d\n", allindex);
+        return 0;
+    }
+    if (allindex >= 0 && allindex < maxallhosts) {
+        lastPayload[allindex] = json;
+        lastConnectionGeneration[allindex] = connectionGeneration;
+    }
+    return 1;
+}
+
 
 #ifndef WEAROS
 int updateone::numbertypes() {
@@ -224,6 +284,16 @@ int updateone::update() {
     updatesettings=update;
     if(int iobret=updateiob()) {
         ret|=iobret;
+        }
+    else
+        return 0;
+    if(int cloneIobRet=sendCloneIobSnapshot()) {
+        ret|=cloneIobRet;
+        }
+    else
+        return 0;
+    if(int cloneJournalRet=sendCloneJournalSnapshot()) {
+        ret|=cloneJournalRet;
         }
     else
         return 0;
