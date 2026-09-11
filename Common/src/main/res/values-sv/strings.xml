@@ -1693,6 +1693,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">Anpassa aviseringspanelen</string>
     <string name="lock_screen_aod">Låsskärm (AOD)</string>
     <string name="aod_settings_title">AOD-inställningar</string>
+    <string name="aod_show_on_lockscreen">Visa på låsskärmen</string>
+    <string name="aod_show_on_lockscreen_desc">Visa även när skärmen är på och låst</string>
     <string name="customize_always_on_display">Anpassa alltid-på-skärmen</string>
     <string name="enable_overlay_service">Aktivera överlagringstjänst</string>
     <string name="accessibility_service_enabled">Tillgänglighetstjänst aktiverad</string>

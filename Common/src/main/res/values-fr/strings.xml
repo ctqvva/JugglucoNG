@@ -1699,6 +1699,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">Personnaliser le panneau de notifications</string>
     <string name="lock_screen_aod">Écran de verrouillage (AOD)</string>
     <string name="aod_settings_title">Paramètres AOD</string>
+    <string name="aod_show_on_lockscreen">Afficher sur l’écran de verrouillage</string>
+    <string name="aod_show_on_lockscreen_desc">Afficher aussi lorsque l’écran est allumé et verrouillé</string>
     <string name="customize_always_on_display">Personnaliser l\'affichage permanent</string>
     <string name="enable_overlay_service">Activer le service de superposition</string>
     <string name="accessibility_service_enabled">Service d\'accessibilité activé</string>

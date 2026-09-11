@@ -1728,6 +1728,8 @@
     <string name="notification_settings_subtitle">Dostosuj panel powiadomień</string>
     <string name="lock_screen_aod">Ekran blokady (AOD)</string>
     <string name="aod_settings_title">Ustawienia AOD</string>
+    <string name="aod_show_on_lockscreen">Pokazuj na ekranie blokady</string>
+    <string name="aod_show_on_lockscreen_desc">Pokazuj także, gdy ekran jest włączony i zablokowany</string>
     <string name="customize_always_on_display">Dostosuj always-on display</string>
     <string name="enable_overlay_service">Włącz usługę nakładki</string>
     <string name="accessibility_service_enabled">Usługa ułatwień dostępu włączona</string>

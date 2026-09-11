@@ -1683,6 +1683,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_subtitle">Personalizza l\'area notifiche</string>
     <string name="lock_screen_aod">Schermata di blocco (AOD)</string>
     <string name="aod_settings_title">Impostazioni AOD</string>
+    <string name="aod_show_on_lockscreen">Mostra nella schermata di blocco</string>
+    <string name="aod_show_on_lockscreen_desc">Mostra anche quando lo schermo è acceso e bloccato</string>
     <string name="customize_always_on_display">Personalizza always-on display</string>
     <string name="enable_overlay_service">Abilita servizio overlay</string>
     <string name="accessibility_service_enabled">Servizio di accessibilità attivo</string>

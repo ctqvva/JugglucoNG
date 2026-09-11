@@ -1,6 +1,8 @@
 package tk.glucodata.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.app.WallpaperManager
+import android.app.WallpaperColors
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -9,6 +11,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -49,6 +52,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         /** Two periodic drivers feed one refresh; anything sooner than this is the other one. */
         private const val PERIODIC_MIN_INTERVAL_MS = 30_000L
         const val ACTION_IMMEDIATE_REFRESH = "tk.glucodata.action.AOD_IMMEDIATE_REFRESH"
+        /** Whether the overlay is also shown while the screen is on and locked. */
+        const val PREF_SHOW_ON_LOCKSCREEN = "aod_show_on_lockscreen"
+        const val DEFAULT_SHOW_ON_LOCKSCREEN = true
 
         /**
          * A slow ellipse for burn-in, in dp. Consecutive entries always differ, so every
@@ -122,10 +128,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
                 Intent.ACTION_TIME_TICK -> refreshPeriodic("aod.overlay.refresh.tick")
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenOn = false
-                    updateVisibility()
+                    showOverlay()
                 }
                 Intent.ACTION_SCREEN_ON -> {
-                    isScreenOn = true
                     // Immediately check keyguard state - faster than waiting for USER_PRESENT
                     checkAndUpdateLockState()
                     // Also schedule quick rechecks to catch unlock faster
@@ -170,6 +175,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         return keyguardManager.isDeviceLocked || keyguardManager.isKeyguardLocked
     }
+
+    private fun resolveScreenOn(): Boolean =
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
 
     private fun checkAndUpdateLockState() {
         isLocked = resolveDeviceLocked()
@@ -225,6 +233,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             }
         }
         
+        isScreenOn = resolveScreenOn()
         isLocked = resolveDeviceLocked()
         updateVisibility()
     }
@@ -233,17 +242,48 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         // View creation is handled by showOverlay() when needed.
     }
 
+    private fun showOnLockscreen(): Boolean =
+        getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+            .getBoolean(PREF_SHOW_ON_LOCKSCREEN, DEFAULT_SHOW_ON_LOCKSCREEN)
+
     private fun updateVisibility() {
-        // Timeout-driven AOD can arrive before the full keyguard UI is considered "showing".
-        // Keep the historical screen-off behavior so ambient mode still appears, and rely on
-        // the unlock/window-state path to hide again as soon as the user returns to an app.
-        val shouldShow = isLocked || !isScreenOn
-        
+        // SCREEN_ON can also be sent while entering ambient mode on some devices.
+        // isInteractive distinguishes that non-interactive AOD state from the lock screen.
+        isScreenOn = resolveScreenOn()
+        // Ambient mode always shows. The interactive lock screen is opt-out, because the
+        // overlay sits on top of the keyguard's own notification UI there.
+        val shouldShow = !isScreenOn || (isLocked && showOnLockscreen())
         if (shouldShow) {
             showOverlay()
         } else {
             hideOverlay()
         }
+    }
+
+    /**
+     * The palette the overlay draws with. Ambient mode is black, so it is always light there.
+     * On the interactive lock screen the overlay sits on the wallpaper instead, so it asks
+     * Android what that wallpaper wants — the same signal that decides the keyguard clock.
+     */
+    private fun resolveUsesLightPalette(): Boolean {
+        if (!isScreenOn) return true
+        var supportsDarkText: Boolean? = null
+        var primaryColor: Int? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            try {
+                val colors = (getSystemService(Context.WALLPAPER_SERVICE) as? WallpaperManager)
+                    ?.getWallpaperColors(WallpaperManager.FLAG_LOCK)
+                if (colors != null) {
+                    primaryColor = colors.primaryColor.toArgb()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        supportsDarkText =
+                            (colors.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0
+                    }
+                }
+            } catch (e: Exception) {
+            }
+        }
+        return AodPalette.usesLightPalette(isScreenOn, supportsDarkText, primaryColor)
     }
     
 
@@ -289,6 +329,13 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             val inflater = LayoutInflater.from(this)
             overlayView = inflater.inflate(R.layout.aod_overlay, null)
             overlayView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // The overlay always draws a light-on-transparent palette, so an
+            // automatic dark conversion (platform force-dark, or a vendor
+            // "expanded dark mode") only inverts the value into black on the
+            // always-on display. Opt the whole hierarchy out of it.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                overlayView?.isForceDarkAllowed = false
+            }
             
             params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -456,6 +503,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
 
     private fun updateOverlayContent() {
         val view = overlayView ?: return
+        NotificationChartDrawer.setAodUsesLightPalette(resolveUsesLightPalette())
 
         // 1. Fetch Data
         val endT = System.currentTimeMillis()

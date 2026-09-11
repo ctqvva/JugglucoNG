@@ -1721,6 +1721,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_settings_subtitle">Bildirim panelini özelleştir</string>
     <string name="lock_screen_aod">Kilit ekranı (AOD)</string>
     <string name="aod_settings_title">AOD ayarları</string>
+    <string name="aod_show_on_lockscreen">Kilit ekranında göster</string>
+    <string name="aod_show_on_lockscreen_desc">Ekran açık ve kilitliyken de göster</string>
     <string name="customize_always_on_display">Her zaman açık ekranı özelleştir</string>
     <string name="enable_overlay_service">Yer paylaşımı hizmetini etkinleştir</string>
     <string name="accessibility_service_enabled">Erişilebilirlik hizmeti etkin</string>

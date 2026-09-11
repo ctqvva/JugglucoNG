@@ -1736,6 +1736,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_settings_subtitle">Notificatiepaneel aanpassen</string>
     <string name="lock_screen_aod">Vergrendelscherm (AOD)</string>
     <string name="aod_settings_title">AOD-instellingen</string>
+    <string name="aod_show_on_lockscreen">Op het vergrendelscherm tonen</string>
+    <string name="aod_show_on_lockscreen_desc">Ook tonen als het scherm aan en vergrendeld is</string>
     <string name="customize_always_on_display">Always-on-display aanpassen</string>
     <string name="enable_overlay_service">Overlayservice inschakelen</string>
     <string name="accessibility_service_enabled">Toegankelijkheidsservice ingeschakeld</string>
