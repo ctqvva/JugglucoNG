@@ -45,11 +45,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v21 — durable journal recovery identity independent of local database row ids
  *   v22 — durable cross-device journal recovery tombstones
  *   v23 — transactional history recovery import receipts
- *   v24 — recorded main value keyed by the minute rather than by sensor
- *   v25 — discards main values sealed against the wrong sensor
- *   v26 — discards main values sealed against a sensor the user never selected
- *   v27 — discards main values backdated over history nobody watched
- *   v28 — discards every record written by a background pass
+ *   v24 — recorded main value keyed by the minute, written only on presentation
  */
 @Database(
     entities = [
@@ -65,7 +61,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 28,
+    version = 24,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -563,18 +559,21 @@ abstract class HistoryDatabase : RoomDatabase() {
 
 
         /**
-         * v23 -> v24: key the recorded main value by the minute, not the sensor.
+         * v23 -> v24: the recorded main value, keyed by the minute.
          *
          * The old table stored what each sensor would have displayed and never
          * which sensor won the minute, so the dashboard's main value still moved
          * whenever the merge ranking changed — which, with two sensors reporting
          * in the same minute, is most of a real timeline. The decision is now
-         * part of the record.
+         * part of the record: one row per minute, the winning sensor as
+         * provenance.
          *
-         * The old rows cannot be carried over: they are per-sensor, several can
-         * claim one minute, and nothing in them says which was on screen.
-         * Guessing would bake the very ambiguity this migration removes, so the
-         * table is rebuilt empty and the seal pass repopulates it going forward.
+         * Rows are written only when a minute is actually presented to the user
+         * (see ReadingDisplayDao), never by a background pass replaying stored
+         * readings — that replay is not reproducible and produced backdated
+         * ownership. The old rows cannot be carried over for the same reason:
+         * several can claim one minute and none says which was on screen. The
+         * table is rebuilt empty.
          */
         private val MIGRATION_23_24 = object : Migration(23, 24) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -600,87 +599,8 @@ abstract class HistoryDatabase : RoomDatabase() {
         }
 
 
-        /**
-         * v24 -> v25: discard main values sealed against the wrong sensor.
-         *
-         * The v24 seal pass ran once with no preferred sensor, so the merge
-         * picked the richest row per timestamp rather than the sensor the
-         * dashboard draws — arbitrary, wherever two sensors share a minute. The
-         * table's write is insert-or-ignore by design, which is what makes a
-         * recorded value durable, and also means those rows would never be
-         * corrected. They are dropped so the corrected pass can record them.
-         *
-         * Only reachable by a build that ran the v24 pass; on any other store
-         * the table is already empty and this is a no-op.
-         */
-        private val MIGRATION_24_25 = object : Migration(24, 25) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DELETE FROM reading_display")
-            }
-        }
 
 
-        /**
-         * v26 -> discard main values sealed against a sensor the user never selected.
-         *
-         * The seal resolved its preferred sensor without passing the user's
-         * selected main, so it fell through to the managed sensor or to whichever
-         * serial native listed first. Ownership was frozen against that, which is
-         * how a sensor that was never on screen came to own the past while the
-         * one that was disappeared from it.
-         *
-         * Insert-or-ignore means those rows would never be corrected, so they go
-         * and the fixed pass records them again.
-         */
-        private val MIGRATION_25_26 = object : Migration(25, 26) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DELETE FROM reading_display")
-            }
-        }
-
-
-        /**
-         * v27 -> discard main values backdated over history nobody watched.
-         *
-         * The first seal pass walked the whole stored timeline and stamped the
-         * preference in force at that moment onto every minute back to the
-         * beginning. A record is meant to say what was on screen; those rows say
-         * what today's main sensor would have shown, backdated. It is why the
-         * main line past the grace window would not release the past to a newly
-         * swapped-in sensor.
-         *
-         * The pass now reaches back one grace window and no further, so these
-         * cannot be rewritten in place — insert-or-ignore — and are dropped.
-         * Minutes older than the window simply keep no record and derive live,
-         * which is what they did before any of this existed.
-         */
-        private val MIGRATION_26_27 = object : Migration(26, 27) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DELETE FROM reading_display")
-            }
-        }
-
-
-        /**
-         * v28 -> discard every record written by a background pass.
-         *
-         * Records are now written only where the chart actually drew a minute.
-         * Everything a background pass wrote was produced by replaying the merge
-         * over stored readings, which cannot reproduce the decision it is
-         * imitating: HistoryDisplayMerge ranks sensors by how recently each last
-         * read and builds coverage from whatever readings exist at query time, so
-         * one later reading, or one backfill row inside a fifteen-minute gap,
-         * changes who owned a minute last week.
-         *
-         * Those rows are plausible and unfalsifiable, which is worse than absent.
-         * Insert-or-ignore cannot replace them, so they go, and the minutes are
-         * recorded again the next time they are on screen.
-         */
-        private val MIGRATION_27_28 = object : Migration(27, 28) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DELETE FROM reading_display")
-            }
-        }
 
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
@@ -711,11 +631,7 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_20_21,
                     MIGRATION_21_22,
                     MIGRATION_22_23,
-                    MIGRATION_23_24,
-                    MIGRATION_24_25,
-                    MIGRATION_25_26,
-                    MIGRATION_26_27,
-                    MIGRATION_27_28
+                    MIGRATION_23_24
                 )
                 .build().also { INSTANCE = it }
             }

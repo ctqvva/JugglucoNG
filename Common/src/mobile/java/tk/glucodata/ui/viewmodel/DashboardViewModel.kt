@@ -302,6 +302,23 @@ class DashboardViewModel(
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
     val multiSensorDisplay = _multiSensorDisplay.asStateFlow()
 
+    /**
+     * Who is the main sensor, minute by minute, over the chart's history window.
+     *
+     * The chart draws what this says. See [tk.glucodata.data.MainSensorOwnership]
+     * for the rule; this only keeps it current with the record and the selected
+     * primary.
+     */
+    private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.data.MainSensorOwnership.NONE)
+    val mainSensorOwnership = _mainSensorOwnership.asStateFlow()
+
+    private suspend fun refreshMainSensorOwnership(primary: String?, startTimeMs: Long) {
+        _mainSensorOwnership.value = historyRepository.mainSensorOwnership(
+            currentPrimary = primary?.takeIf { it.isNotBlank() },
+            startTime = startTimeMs,
+        )
+    }
+
     // Raw (display-unit) peer history kept separate from view-mode resolution so
     // the display data rebuilds when a peer's auto/raw mode changes natively,
     // without re-querying Room.
@@ -1158,6 +1175,12 @@ class DashboardViewModel(
                 _sensorViewModes.value = config.sensorViewModes
 
                 val peerSensors = config.selectedSensorIds.drop(1)
+                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
+                // Ownership is resolved here, beside the peer history, because
+                // both change on the same events: a swap, or the record gaining
+                // a minute. With a single sensor there is nothing to contest,
+                // but the answer is still the record's to give.
+                refreshMainSensorOwnership(config.primarySensorId, startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1165,7 +1188,6 @@ class DashboardViewModel(
                 }
 
                 var hasSeenPeerEmission = false
-                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
@@ -1179,6 +1201,7 @@ class DashboardViewModel(
                         }
                         _multiSensorRawHistory.value = PeerRawHistory(config.selectedSensorIds, peerSensors, converted)
                         refreshPeerCurrentReadings(peerSensors)
+                        refreshMainSensorOwnership(config.primarySensorId, startTimeMs)
                     }
                 }
         }

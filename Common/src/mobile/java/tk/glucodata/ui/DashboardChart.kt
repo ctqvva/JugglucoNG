@@ -115,6 +115,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.changedToUp
@@ -692,6 +693,7 @@ fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
+    mainSensorOwnership: tk.glucodata.data.MainSensorOwnership = tk.glucodata.data.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
@@ -737,6 +739,7 @@ fun DashboardChartSection(
                     InteractiveGlucoseChart(
                         fullData = glucoseHistory,
                         multiSensorDisplay = multiSensorDisplay,
+                        mainSensorOwnership = mainSensorOwnership,
                         peerPredictionSeries = peerPredictionSeries,
                         journalMarkers = journalMarkers,
                         activeInsulinSummary = activeInsulinSummary,
@@ -811,6 +814,7 @@ fun DashboardChartSection(
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
+    mainSensorOwnership: tk.glucodata.data.MainSensorOwnership = tk.glucodata.data.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
@@ -2641,6 +2645,66 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
+                // --- OWNERSHIP: who is main, minute by minute ---
+                //
+                // The chart does not decide this. MainSensorOwnership does, from
+                // the record and the current primary, and the chart draws what it
+                // says: over minutes where a series' sensor is the main sensor it
+                // gets the main look, elsewhere the secondary look. Thickness and
+                // colour are only how that answer is visualised.
+                //
+                // Applied at the draw step, by clipping, rather than inside the
+                // path-building loops: each path is built exactly as before and
+                // drawn twice, once with each style, each clipped to the x-ranges
+                // the predicate assigns it. The line stays continuous across a
+                // change of ownership because it is one path either way.
+                val ownershipPadPx = (timeToDataX(viewportStart + 30_000L) - timeToDataX(viewportStart)).coerceAtLeast(0.5f)
+                fun ownershipRanges(
+                    points: List<GlucosePoint>,
+                    wantMain: Boolean,
+                    // The main series can carry filler points from another
+                    // sensor where the primary had no coverage, so the question
+                    // is asked of each point's own sensor, never of one serial
+                    // for the whole series.
+                    serialOf: (GlucosePoint) -> String?,
+                ): List<ClosedFloatingPointRange<Float>> {
+                    if (!mainSensorOwnership.hasRecordedOwnership) return emptyList()
+                    val ranges = ArrayList<ClosedFloatingPointRange<Float>>()
+                    var runStart = Float.NaN
+                    var runEnd = Float.NaN
+                    for (point in points) {
+                        if (point.timestamp < viewportStart - 60_000L || point.timestamp > viewportEnd + 60_000L) continue
+                        val matches = mainSensorOwnership.isMainAt(serialOf(point), point.timestamp) == wantMain
+                        val px = timeToDataX(point.timestamp)
+                        if (!px.isFinite()) continue
+                        if (matches) {
+                            if (runStart.isNaN()) runStart = px
+                            runEnd = px
+                        } else if (!runStart.isNaN()) {
+                            ranges.add((runStart - ownershipPadPx)..(runEnd + ownershipPadPx))
+                            runStart = Float.NaN
+                        }
+                    }
+                    if (!runStart.isNaN()) ranges.add((runStart - ownershipPadPx)..(runEnd + ownershipPadPx))
+                    return ranges
+                }
+                fun drawWithin(ranges: List<ClosedFloatingPointRange<Float>>, block: () -> Unit) {
+                    for (range in ranges) {
+                        clipRect(left = range.start, top = -1e6f, right = range.endInclusive, bottom = 1e6f) { block() }
+                    }
+                }
+                fun drawOutside(ranges: List<ClosedFloatingPointRange<Float>>, block: () -> Unit) {
+                    if (ranges.isEmpty()) { block(); return }
+                    var cursor = -1e6f
+                    for (range in ranges.sortedBy { it.start }) {
+                        if (range.start > cursor) {
+                            clipRect(left = cursor, top = -1e6f, right = range.start, bottom = 1e6f) { block() }
+                        }
+                        cursor = maxOf(cursor, range.endInclusive)
+                    }
+                    clipRect(left = cursor, top = -1e6f, right = 1e6f, bottom = 1e6f) { block() }
+                }
+
                 if (peerChartSeries.isNotEmpty()) {
                     val peerGapThreshold = ChartGap.THRESHOLD_MS
                     val peerStroke = 2.dp.toPx()
@@ -2702,27 +2766,26 @@ fun InteractiveGlucoseChart(
                             drawCircle(color = peerDotColor, radius = strokeWidth / 2f, center = dot)
                         }
                         val brush = peerBrushes[series.sensorId]
-                        if (brush != null) {
-                            drawPath(
-                                path = reusablePeerPath,
-                                brush = brush,
-                                alpha = alpha,
-                                style = Stroke(
-                                    width = strokeWidth,
-                                    cap = StrokeCap.Round,
-                                    join = StrokeJoin.Round
+                        val secondaryStyle = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        fun drawSecondary() {
+                            if (brush != null) {
+                                drawPath(path = reusablePeerPath, brush = brush, alpha = alpha, style = secondaryStyle)
+                            } else {
+                                drawPath(
+                                    path = reusablePeerPath,
+                                    color = androidx.compose.ui.graphics.lerp(series.color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * alpha),
+                                    style = secondaryStyle
                                 )
-                            )
-                        } else {
-                            drawPath(
-                                path = reusablePeerPath,
-                                color = androidx.compose.ui.graphics.lerp(series.color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * alpha),
-                                style = Stroke(
-                                    width = strokeWidth,
-                                    cap = StrokeCap.Round,
-                                    join = StrokeJoin.Round
-                                )
-                            )
+                            }
+                        }
+                        // Where this sensor is the main sensor, it gets the main look.
+                        val promoted = ownershipRanges(points, wantMain = true) { series.sensorId }
+                        drawOutside(promoted, ::drawSecondary)
+                        if (promoted.isNotEmpty()) {
+                            val mainStyle = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            drawWithin(promoted) {
+                                drawPath(path = reusablePeerPath, color = series.color, style = mainStyle)
+                            }
                         }
                     }
                     peerChartSeries.forEach { series ->
@@ -3052,20 +3115,34 @@ fun InteractiveGlucoseChart(
                         }
                     }
 
-                    if (drawRaw) {
-                        if (doTintRaw) {
-                            drawPath(reusableRawPath, brush = gradientBrush, style = Stroke(width = rawStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusableRawPath, rawColor, style = Stroke(width = rawStrokeWidth, cap = strokeCap, join = strokeJoin))
+                    // Where the primary is not the main sensor, its line gets the
+                    // secondary look: its own identity colour, thin, faded — the
+                    // same treatment a peer gets — so a swapped-out sensor's past
+                    // reads as what it was.
+                    val demoted = ownershipRanges(renderData, wantMain = false) { it.sensorSerial }
+                    val demotedStroke = Stroke(width = 2.dp.toPx(), cap = strokeCap, join = strokeJoin)
+                    val demotedColor = androidx.compose.ui.graphics.lerp(
+                        Color(tk.glucodata.SensorVisuals.colorArgb(mainSensorOwnership.primary ?: "")),
+                        peerNeutralBase,
+                        0.46f
+                    ).copy(alpha = 0.44f)
+                    fun drawMainLane(path: Path, brush: Brush?, color: Color, width: Float) {
+                        drawOutside(demoted) {
+                            if (brush != null) {
+                                drawPath(path, brush = brush, style = Stroke(width = width, cap = strokeCap, join = strokeJoin))
+                            } else {
+                                drawPath(path, color, style = Stroke(width = width, cap = strokeCap, join = strokeJoin))
+                            }
                         }
+                        drawWithin(demoted) { drawPath(path, demotedColor, style = demotedStroke) }
+                    }
+
+                    if (drawRaw) {
+                        drawMainLane(reusableRawPath, if (doTintRaw) gradientBrush else null, rawColor, rawStrokeWidth)
                         drawIsolated(rawRun, rawColor, rawStrokeWidth)
                     }
                     if (drawAuto) {
-                        if (doTintAuto) {
-                            drawPath(reusableAutoPath, brush = gradientBrush, style = Stroke(width = autoStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusableAutoPath, autoColor, style = Stroke(width = autoStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        }
+                        drawMainLane(reusableAutoPath, if (doTintAuto) gradientBrush else null, autoColor, autoStrokeWidth)
                         drawIsolated(autoRun, autoColor, autoStrokeWidth)
                     }
                     if (hasCalibration) {
@@ -3078,11 +3155,7 @@ fun InteractiveGlucoseChart(
                                 style = Stroke(width = previewStrokeWidth, cap = strokeCap, join = strokeJoin)
                             )
                         }
-                        if (doTintCal) {
-                            drawPath(reusablePath, brush = gradientBrush, style = Stroke(width = calStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        } else {
-                            drawPath(reusablePath, primaryColor, style = Stroke(width = calStrokeWidth, cap = strokeCap, join = strokeJoin))
-                        }
+                        drawMainLane(reusablePath, if (doTintCal) gradientBrush else null, primaryColor, calStrokeWidth)
                         drawIsolated(calRun, primaryColor, calStrokeWidth)
                     }
                 }

@@ -310,6 +310,7 @@ fun DashboardScreen(
     val daysRemaining by viewModel.daysRemaining.collectAsState()
     val glucoseHistory by viewModel.glucoseHistory.collectAsState()
     val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsState()
+    val mainSensorOwnership by viewModel.mainSensorOwnership.collectAsState()
     val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsState()
     val selectedSensorIds by viewModel.selectedSensorIds.collectAsState()
     val sensorViewModes by viewModel.sensorViewModes.collectAsState()
@@ -1526,6 +1527,7 @@ fun DashboardScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     glucoseHistory = glucoseHistory,
                                     multiSensorDisplay = multiSensorDisplay,
+                                    mainSensorOwnership = mainSensorOwnership,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
@@ -1759,6 +1761,7 @@ fun DashboardScreen(
                                         .padding(bottom = 0.dp),
                                     glucoseHistory = glucoseHistory,
                                     multiSensorDisplay = multiSensorDisplay,
+                                    mainSensorOwnership = mainSensorOwnership,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,

@@ -6,6 +6,12 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** Which sensor owned the main line for one minute. */
+data class ReadingDisplayOwner(
+    val timestamp: Long,
+    val sensorSerial: String,
+)
+
 /**
  * Reads and writes [ReadingDisplay] rows.
  *
@@ -69,6 +75,10 @@ interface ReadingDisplayDao {
 
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     fun getFlow(startTime: Long): Flow<List<ReadingDisplay>>
+
+    /** Which sensor owned the main line, minute by minute, since [startTime]. */
+    @Query("SELECT timestamp, sensorSerial FROM reading_display WHERE timestamp >= :startTime")
+    suspend fun mainLineOwners(startTime: Long): List<ReadingDisplayOwner>
 
     /** The newest minute already recorded, so a seal pass resumes rather than rescans. */
     @Query("SELECT MAX(timestamp) FROM reading_display")
