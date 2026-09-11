@@ -874,7 +874,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="select_export_format">Select Export Format</string>
     <string name="sendfrom">"Send from: "</string>
     <string name="sensor_address">Address</string>
-    <string name="sensor_index">Index du capteur</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_not_init">Sensor not initialized. Use \'Scan Sensor\' first.</string>

@@ -1719,7 +1719,7 @@ fun SensorCard(
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
                     val pausedText = stringResource(R.string.disabled_status)
 
-                    val displayName = sensor.serial
+                    val displayName = sensor.displayName.ifBlank { sensor.serial }
                     val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel) {
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel)
                     }
@@ -1958,9 +1958,6 @@ fun SensorCard(
                         // event timestamp. Keep that live status; only timestamped history ages
                         // off after the one-hour card window.
                         DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
-                    }
-                    if (sensor.sensorIndex >= 0) {
-                        DataRow(stringResource(R.string.sensor_index), sensor.sensorIndex.toString())
                     }
                     DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
                     

@@ -934,7 +934,6 @@
     <string name="scan_accuchek">Zeskanuj Accu-Chek</string>
     <string name="scan_caresens_air">Zeskanuj CareSens Air</string>
     <string name="sensor_address">Address</string>
-    <string name="sensor_index">Indeks sensora</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>
