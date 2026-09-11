@@ -1170,13 +1170,14 @@ internal fun PinnedStatsStrip(
     LaunchedEffect(context) { StatsLayoutStore.ensureLoaded(context) }
     val layout by StatsLayoutStore.state.collectAsStateWithLifecycle()
     val pinned = layout.dashboardMetrics
+    if (pinned.isEmpty()) return
     val statsViewModel: StatsViewModel = rememberStatsViewModel()
     var window by windowState
     // Tells the view model how far back to read. Without this the strip showed numbers
     // for whatever range the statistics screen was last left on, whatever the pill said.
     LaunchedEffect(window) { statsViewModel.setPinnedWindow(window) }
     val pinnedState by statsViewModel.pinnedState.collectAsStateWithLifecycle()
-    if (pinned.isEmpty() || pinnedState.summary.readingCount == 0) return
+    if (pinnedState.summary.readingCount == 0) return
     val adaptiveMetrics = rememberAdaptiveWindowMetrics()
     val view = LocalView.current
 
