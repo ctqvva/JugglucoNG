@@ -213,6 +213,7 @@ private fun buildDashboardChartModel(
     fun toShared(point: GlucosePoint): tk.glucodata.GlucosePoint =
         tk.glucodata.GlucosePoint(point.timestamp, point.value, point.rawValue).also {
             it.sealedDisplayValue = point.sealedDisplayValue ?: Float.NaN
+            it.sealedDisplayViewMode = point.sealedDisplayViewMode ?: -1
             it.sensorSerial = point.sensorSerial
         }
     val primary = primarySerial?.trim()?.takeIf { it.isNotEmpty() }

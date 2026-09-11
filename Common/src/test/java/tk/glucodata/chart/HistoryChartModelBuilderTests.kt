@@ -28,6 +28,30 @@ class HistoryChartModelBuilderTests {
     private val plusOne = HistoryChartModelBuilder.Calibration { v, _, _, _ -> v + 1f }
 
     @Test
+    fun aRecordSpeaksOnlyForTheLaneItWasShownOn() {
+        // Sealed while the raw lane was main (mode 1): the record is the raw
+        // line's number. Resolving the auto lane must not take it.
+        val p = GlucosePoint(NOW, 5f, 9f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 9.5f; it.sealedDisplayViewMode = 1
+        }
+        assertEquals(9.5f, HistoryChartModelBuilder.resolveValue(p, isRawMode = true, "A", plusOne)!!, 0.001f)
+        assertEquals(6f, HistoryChartModelBuilder.resolveValue(p, isRawMode = false, "A", plusOne)!!, 0.001f)
+        // Auto+raw (mode 2) is an auto-main mode; its record is the auto line's.
+        val q = GlucosePoint(NOW, 5f, 9f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 5.5f; it.sealedDisplayViewMode = 2
+        }
+        assertEquals(5.5f, HistoryChartModelBuilder.resolveValue(q, isRawMode = false, "A", plusOne)!!, 0.001f)
+        assertEquals(10f, HistoryChartModelBuilder.resolveValue(q, isRawMode = true, "A", plusOne)!!, 0.001f)
+    }
+
+    @Test
+    fun aRecordWithNoLaneIsTakenAtFaceValue() {
+        val p = point(NOW, 5f, "A", sealed = 7f) // sealedDisplayViewMode left at -1
+        assertEquals(7f, HistoryChartModelBuilder.resolveValue(p, false, "A", plusOne)!!, 0.001f)
+        assertEquals(7f, HistoryChartModelBuilder.resolveValue(p, true, "A", plusOne)!!, 0.001f)
+    }
+
+    @Test
     fun aRecordedValueWinsOverTheCalibration() {
         val p = point(NOW, 5f, "A", sealed = 7f)
         assertEquals(7f, HistoryChartModelBuilder.resolveValue(p, false, "A", plusOne)!!, 0.001f)
