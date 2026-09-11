@@ -81,6 +81,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.RectangleShape
@@ -290,6 +291,7 @@ fun DashboardScreen(
     // push the whole dashboard down by one gap whenever there is no update to announce.
     val appUpdateBannerVisible = rememberAppUpdateBannerVisible()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
     val dashboardPrefs = remember(context) {
         context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
@@ -304,25 +306,25 @@ fun DashboardScreen(
     LaunchedEffect(timeRange) {
         dashboardPrefs.edit().putString("dashboard_chart_time_range", timeRange.name).apply()
     }
-    val currentGlucose by viewModel.currentGlucose.collectAsState()
-    val currentRate by viewModel.currentRate.collectAsState()
-    val sensorName by viewModel.sensorName.collectAsState()
-    val daysRemaining by viewModel.daysRemaining.collectAsState()
-    val glucoseHistory by viewModel.glucoseHistory.collectAsState()
-    val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsState()
-    val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsState()
-    val selectedSensorIds by viewModel.selectedSensorIds.collectAsState()
-    val sensorViewModes by viewModel.sensorViewModes.collectAsState()
+    val currentGlucose by viewModel.currentGlucose.collectAsStateWithLifecycle()
+    val currentRate by viewModel.currentRate.collectAsStateWithLifecycle()
+    val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
+    val daysRemaining by viewModel.daysRemaining.collectAsStateWithLifecycle()
+    val glucoseHistory by viewModel.glucoseHistory.collectAsStateWithLifecycle()
+    val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsStateWithLifecycle()
+    val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsStateWithLifecycle()
+    val selectedSensorIds by viewModel.selectedSensorIds.collectAsStateWithLifecycle()
+    val sensorViewModes by viewModel.sensorViewModes.collectAsStateWithLifecycle()
     // Multi-sensor mode is active whenever more than one sensor is selected —
     // stable across new readings, so per-row tinting never flashes uncolored.
     val multiSensorActive = selectedSensorIds.size > 1
-    val unit by viewModel.unit.collectAsState()
-    val graphLow by viewModel.graphLow.collectAsState()
-    val graphHigh by viewModel.graphHigh.collectAsState()
-    val targetLow by viewModel.targetLow.collectAsState()
-    val targetHigh by viewModel.targetHigh.collectAsState()
-    val veryLowThreshold by viewModel.veryLowThreshold.collectAsState()
-    val veryHighThreshold by viewModel.veryHighThreshold.collectAsState()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
+    val graphLow by viewModel.graphLow.collectAsStateWithLifecycle()
+    val graphHigh by viewModel.graphHigh.collectAsStateWithLifecycle()
+    val targetLow by viewModel.targetLow.collectAsStateWithLifecycle()
+    val targetHigh by viewModel.targetHigh.collectAsStateWithLifecycle()
+    val veryLowThreshold by viewModel.veryLowThreshold.collectAsStateWithLifecycle()
+    val veryHighThreshold by viewModel.veryHighThreshold.collectAsStateWithLifecycle()
     // Read outside the lazy list: an item that renders nothing still costs the list's
     // inter-item spacing, so the row has to be omitted rather than emitted empty.
     val showPinnedStats = tk.glucodata.ui.stats.hasPinnedStats()
@@ -332,10 +334,10 @@ fun DashboardScreen(
     val pinnedStatsWindow = rememberSaveable {
         mutableStateOf(tk.glucodata.ui.stats.PinnedWindow.TODAY)
     }
-    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
+    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
+    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
     // The chart's window and the reading's window, resolved once from the same switches.
     // The chart is presentation; everything else on this screen is what the app is going
     // to reason with, so it gets the window the notification and the alarms use.
@@ -348,40 +350,40 @@ fun DashboardScreen(
         graphOnly = dataSmoothingGraphOnly,
         exchangeOutputsOnly = dataSmoothingExchangeOnly
     )
-    val previewWindowMode by viewModel.previewWindowMode.collectAsState()
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
-    val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsState()
-    val journalDashboardQuickAdd by viewModel.journalDashboardQuickAddButton.collectAsState()
-    val glucoseRangeColorsDisplayEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsState()
-    val glucoseArrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsState()
-    val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsState()
-    val dashboardShowDelta by viewModel.dashboardShowDelta.collectAsState()
-    val dashboardRowsShowDelta by viewModel.dashboardRowsShowDelta.collectAsState()
-    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsState()
-    val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
-    val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
-    val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
-    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
-    val predictionTrendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsState()
-    val predictionCarbRatioGramsPerUnit by viewModel.predictionCarbRatioGramsPerUnit.collectAsState()
-    val predictionInsulinSensitivityMgDlPerUnit by viewModel.predictionInsulinSensitivityMgDlPerUnit.collectAsState()
-    val predictionModelProfile by viewModel.predictionModelProfile.collectAsState()
-    val predictionDoseTargetMgDl by viewModel.predictionDoseTargetMgDl.collectAsState()
-    val predictionCarbAbsorptionGramsPerHour by viewModel.predictionCarbAbsorptionGramsPerHour.collectAsState()
-    val predictionHorizonMinutes by viewModel.predictionHorizonMinutes.collectAsState()
-    val journalEntries by viewModel.journalEntries.collectAsState()
-    val journalInsulinPresets by viewModel.journalInsulinPresets.collectAsState()
-    val journalFoods by viewModel.journalFoods.collectAsState()
-    val sensorStatus by viewModel.sensorStatus.collectAsState()
-    val sensorProgress by viewModel.sensorProgress.collectAsState()
-    val viewMode by viewModel.viewMode.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val activeSensorList by viewModel.activeSensorList.collectAsState()
-    val sensorHoursRemaining by viewModel.sensorHoursRemaining.collectAsState()
-    val currentDay by viewModel.currentDay.collectAsState()
-    val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsState(initial = 0L)
-    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
+    val previewWindowMode by viewModel.previewWindowMode.collectAsStateWithLifecycle()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsStateWithLifecycle()
+    val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsStateWithLifecycle()
+    val journalDashboardQuickAdd by viewModel.journalDashboardQuickAddButton.collectAsStateWithLifecycle()
+    val glucoseRangeColorsDisplayEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
+    val glucoseArrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsStateWithLifecycle()
+    val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
+    val dashboardShowDelta by viewModel.dashboardShowDelta.collectAsStateWithLifecycle()
+    val dashboardRowsShowDelta by viewModel.dashboardRowsShowDelta.collectAsStateWithLifecycle()
+    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsStateWithLifecycle()
+    val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
+    val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
+    val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
+    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
+    val predictionTrendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsStateWithLifecycle()
+    val predictionCarbRatioGramsPerUnit by viewModel.predictionCarbRatioGramsPerUnit.collectAsStateWithLifecycle()
+    val predictionInsulinSensitivityMgDlPerUnit by viewModel.predictionInsulinSensitivityMgDlPerUnit.collectAsStateWithLifecycle()
+    val predictionModelProfile by viewModel.predictionModelProfile.collectAsStateWithLifecycle()
+    val predictionDoseTargetMgDl by viewModel.predictionDoseTargetMgDl.collectAsStateWithLifecycle()
+    val predictionCarbAbsorptionGramsPerHour by viewModel.predictionCarbAbsorptionGramsPerHour.collectAsStateWithLifecycle()
+    val predictionHorizonMinutes by viewModel.predictionHorizonMinutes.collectAsStateWithLifecycle()
+    val journalEntries by viewModel.journalEntries.collectAsStateWithLifecycle()
+    val journalInsulinPresets by viewModel.journalInsulinPresets.collectAsStateWithLifecycle()
+    val journalFoods by viewModel.journalFoods.collectAsStateWithLifecycle()
+    val sensorStatus by viewModel.sensorStatus.collectAsStateWithLifecycle()
+    val sensorProgress by viewModel.sensorProgress.collectAsStateWithLifecycle()
+    val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val activeSensorList by viewModel.activeSensorList.collectAsStateWithLifecycle()
+    val sensorHoursRemaining by viewModel.sensorHoursRemaining.collectAsStateWithLifecycle()
+    val currentDay by viewModel.currentDay.collectAsStateWithLifecycle()
+    val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
+    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsStateWithLifecycle()
 
     // Initialize Calibration Manager
     LaunchedEffect(Unit) {
@@ -622,12 +624,15 @@ fun DashboardScreen(
         }
     }
 
-    LaunchedEffect(journalEnabled) {
-        journalNow = System.currentTimeMillis()
-        if (!journalEnabled) return@LaunchedEffect
-        while (true) {
-            delay(30_000L)
+    LaunchedEffect(journalEnabled, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             journalNow = System.currentTimeMillis()
+            if (journalEnabled) {
+                while (true) {
+                    delay(30_000L)
+                    journalNow = System.currentTimeMillis()
+                }
+            }
         }
     }
 
@@ -873,7 +878,7 @@ fun DashboardScreen(
                     if (tail.timestamp >= previous.timestamp) tail else glucoseHistory.maxByOrNull { it.timestamp }
                 }
             }
-            val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+            val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
             val hasSensorContext = sensorName.isNotBlank() || activeSensorList.isNotEmpty() || sensorStatus.isNotBlank()
             val dashboardCurrentSnapshot = remember(
                 refreshRevision,
@@ -891,12 +896,15 @@ fun DashboardScreen(
                 initialValue = System.currentTimeMillis(),
                 key1 = hasSensorContext,
                 key2 = dashboardCurrentSnapshot?.timeMillis,
-                key3 = latestPoint?.timestamp
+                key3 = lifecycleOwner
             ) {
                 if (!hasSensorContext) return@produceState
-                while (true) {
-                    delay(15_000L)
+                lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                     value = System.currentTimeMillis()
+                    while (true) {
+                        delay(15_000L)
+                        value = System.currentTimeMillis()
+                    }
                 }
             }
             val dashboardDataState = remember(
