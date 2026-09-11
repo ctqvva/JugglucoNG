@@ -1,4 +1,4 @@
-package tk.glucodata.data
+package tk.glucodata.chart
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,7 +14,7 @@ import org.junit.Test
 class MainSensorOwnershipTests {
 
     private companion object {
-        const val MINUTE = ReadingDisplay.MINUTE_MS
+        const val MINUTE = MainSensorOwnership.MINUTE_MS
         const val NOW = 1_800_000_000_000L
         val SEALED = NOW - 3L * 60L * MINUTE       // three hours ago
         val SETTLING = NOW - 10L * MINUTE          // ten minutes ago
@@ -26,7 +26,7 @@ class MainSensorOwnershipTests {
     fun aSealedMinuteWithARecordIsOwnedByTheRecordedSensor() {
         // A was on screen when this minute was first presented; the user has
         // since made B the main sensor. The minute does not follow them.
-        val o = ownership(mapOf(ReadingDisplay.minuteOf(SEALED) to "A"))
+        val o = ownership(mapOf(MainSensorOwnership.minuteOf(SEALED) to "A"))
         assertEquals("A", o.mainSensorAt(SEALED))
         assertEquals(true, o.isMainAt("A", SEALED))
         assertEquals(false, o.isMainAt("B", SEALED))
@@ -36,7 +36,7 @@ class MainSensorOwnershipTests {
     fun aMinuteInsideTheGraceWindowHasNoOpinionEvenIfRecorded() {
         // Presentation writes revisable records for settling minutes too. They
         // decide nothing yet; the live merge does.
-        val o = ownership(mapOf(ReadingDisplay.minuteOf(SETTLING) to "A"))
+        val o = ownership(mapOf(MainSensorOwnership.minuteOf(SETTLING) to "A"))
         assertNull(o.mainSensorAt(SETTLING))
         assertNull(o.isMainAt("A", SETTLING))
         assertNull(o.isMainAt("B", SETTLING))
@@ -65,19 +65,19 @@ class MainSensorOwnershipTests {
 
     @Test
     fun aBlankSensorIsNeverMainWhereTheRecordHasAnOpinion() {
-        val o = ownership(mapOf(ReadingDisplay.minuteOf(SEALED) to "A"))
+        val o = ownership(mapOf(MainSensorOwnership.minuteOf(SEALED) to "A"))
         assertEquals(false, o.isMainAt(null, SEALED))
         assertEquals(false, o.isMainAt("  ", SEALED))
     }
 
     @Test
     fun theBoundaryIsTheGraceWindowMeasuredFromTheMinute() {
-        val justSealed = NOW - ReadingDisplay.DISPLAY_SEAL_GRACE_MS - MINUTE
-        val justSettling = NOW - ReadingDisplay.DISPLAY_SEAL_GRACE_MS + MINUTE
+        val justSealed = NOW - MainSensorOwnership.SEAL_GRACE_MS - MINUTE
+        val justSettling = NOW - MainSensorOwnership.SEAL_GRACE_MS + MINUTE
         val o = ownership(
             mapOf(
-                ReadingDisplay.minuteOf(justSealed) to "A",
-                ReadingDisplay.minuteOf(justSettling) to "A",
+                MainSensorOwnership.minuteOf(justSealed) to "A",
+                MainSensorOwnership.minuteOf(justSettling) to "A",
             )
         )
         assertEquals("A", o.mainSensorAt(justSealed))

@@ -693,7 +693,7 @@ fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
-    mainSensorOwnership: tk.glucodata.data.MainSensorOwnership = tk.glucodata.data.MainSensorOwnership.NONE,
+    mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,
@@ -814,7 +814,7 @@ fun DashboardChartSection(
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
-    mainSensorOwnership: tk.glucodata.data.MainSensorOwnership = tk.glucodata.data.MainSensorOwnership.NONE,
+    mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
     journalMarkers: List<JournalChartMarker> = emptyList(),
     activeInsulinSummary: JournalActiveInsulinSummary? = null,

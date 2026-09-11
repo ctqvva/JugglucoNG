@@ -2,6 +2,7 @@ package tk.glucodata.data
 
 import android.content.Context
 import android.util.Log
+import tk.glucodata.chart.MainSensorOwnership
 import androidx.annotation.Keep
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
@@ -391,6 +392,20 @@ class HistoryRepository(context: Context = Applic.app) {
             }
         }
         
+        /**
+         * Blocking ownership for shared/main renderers, so the notification
+         * resolves who is main at each minute from the same record the
+         * dashboard does rather than approximating it.
+         */
+        @Keep
+        @JvmStatic
+        fun getMainSensorOwnershipForNotification(startTime: Long): MainSensorOwnership {
+            return kotlinx.coroutines.runBlocking {
+                runCatching { HistoryRepository().mainSensorOwnership(startTime = startTime) }
+                    .getOrDefault(MainSensorOwnership.NONE)
+            }
+        }
+
         /**
          * Blocking version for Notify.java returning raw mg/dL.
          * Filters by main sensor serial.

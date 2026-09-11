@@ -1,4 +1,4 @@
-package tk.glucodata.data
+package tk.glucodata.chart
 
 import tk.glucodata.SensorIdentity
 
@@ -28,18 +28,18 @@ import tk.glucodata.SensorIdentity
  * one definition and a test for each branch.
  */
 class MainSensorOwnership(
-    /** Recorded owner per minute, keyed by [ReadingDisplay.minuteOf]. */
+    /** Recorded owner per minute, keyed by [minuteOf]. */
     private val recorded: Map<Long, String>,
     private val nowMs: Long,
 ) {
-    private val sealHorizonMs: Long = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+    private val sealHorizonMs: Long = nowMs - SEAL_GRACE_MS
 
     /**
      * The recorded main sensor at [timestampMs], or null where the record has
      * no opinion — inside the grace window, or with nothing recorded.
      */
     fun mainSensorAt(timestampMs: Long): String? {
-        val minute = ReadingDisplay.minuteOf(timestampMs)
+        val minute = minuteOf(timestampMs)
         if (minute > sealHorizonMs) return null
         return recorded[minute]
     }
@@ -58,6 +58,20 @@ class MainSensorOwnership(
     val hasRecordedOwnership: Boolean get() = recorded.isNotEmpty()
 
     companion object {
+        const val MINUTE_MS = 60_000L
+
+        /**
+         * How long a presented minute stays revisable before it is history.
+         *
+         * An hour, so that a calibration entered well after the fingerstick it
+         * refers to still moves the line it was meant to correct. The single
+         * definition; the record's own constant points here.
+         */
+        const val SEAL_GRACE_MS = 60L * 60L * 1000L
+
+        /** The minute a timestamp belongs to. */
+        fun minuteOf(timestampMs: Long): Long = (timestampMs / MINUTE_MS) * MINUTE_MS
+
         /** Nothing recorded: no opinion anywhere. */
         val NONE = MainSensorOwnership(emptyMap(), 0L)
     }

@@ -52,6 +52,7 @@
 -keepclassmembers class tk.glucodata.data.HistoryRepository {
     public static void resetBackfillFlag();
     public static java.util.List getHistoryForNotificationForSensor(java.lang.String,long,boolean);
+    public static tk.glucodata.chart.MainSensorOwnership getMainSensorOwnershipForNotification(long);
     public static long getLatestTimestampForSensorBlocking(java.lang.String);
     public static long[] getHistoryTimestampsForSensorBlocking(java.lang.String,long,long);
     public static int deleteReadingsForSensorAfterBlocking(java.lang.String,long);

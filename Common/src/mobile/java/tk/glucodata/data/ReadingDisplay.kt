@@ -89,11 +89,11 @@ data class ReadingDisplay(
          * An hour, so that a calibration entered well after the fingerstick it
          * refers to still moves the line it was meant to correct.
          */
-        const val DISPLAY_SEAL_GRACE_MS = 60L * 60L * 1000L
+        const val DISPLAY_SEAL_GRACE_MS = tk.glucodata.chart.MainSensorOwnership.SEAL_GRACE_MS
 
-        const val MINUTE_MS = 60_000L
+        const val MINUTE_MS = tk.glucodata.chart.MainSensorOwnership.MINUTE_MS
 
         /** The minute a timestamp belongs to — the table's key. */
-        fun minuteOf(timestampMs: Long): Long = (timestampMs / MINUTE_MS) * MINUTE_MS
+        fun minuteOf(timestampMs: Long): Long = tk.glucodata.chart.MainSensorOwnership.minuteOf(timestampMs)
     }
 }

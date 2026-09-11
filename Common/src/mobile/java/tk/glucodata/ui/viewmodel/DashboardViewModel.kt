@@ -305,11 +305,11 @@ class DashboardViewModel(
     /**
      * Who is the main sensor, minute by minute, over the chart's history window.
      *
-     * The chart draws what this says. See [tk.glucodata.data.MainSensorOwnership]
+     * The chart draws what this says. See [tk.glucodata.chart.MainSensorOwnership]
      * for the rule; this only keeps it current with the record and the selected
      * primary.
      */
-    private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.data.MainSensorOwnership.NONE)
+    private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.chart.MainSensorOwnership.NONE)
     val mainSensorOwnership = _mainSensorOwnership.asStateFlow()
 
     private suspend fun refreshMainSensorOwnership(startTimeMs: Long) {
