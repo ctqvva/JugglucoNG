@@ -163,6 +163,7 @@ import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalExpandableFab
+import tk.glucodata.ui.journal.rememberJournalCob
 import tk.glucodata.ui.journal.JournalFloatingActionMenu
 import tk.glucodata.ui.journal.JournalInlineChip
 import tk.glucodata.ui.journal.JournalSettingsScreen
@@ -459,6 +460,7 @@ fun DashboardScreen(
         }
     }
     val activeInsulinFromRemote = remoteInsulin != null && activeInsulinSummary != null
+    val activeCarbsGrams = if (journalEnabled) rememberJournalCob(journalNow, scopedJournalEntries) else null
     val predictionSettings = remember(
         predictiveSimulationEnabled,
         predictionTrendMomentumEnabled,
@@ -1532,6 +1534,7 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    activeCarbsGrams = activeCarbsGrams,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
                                     forecastDoseRecommendation = forecastDoseRecommendation,
@@ -1592,6 +1595,7 @@ fun DashboardScreen(
                                 JournalFloatingActionMenu(
                                     visible = journalEnabled,
                                     selectedTimestamp = actionTimestamp,
+                                    onDismissRequest = { clearJournalAction() },
                                     viewportSnapshot = dashboardChartViewport,
                                     onTypeSelected = {
                                         lastJournalType = it
@@ -1766,6 +1770,7 @@ fun DashboardScreen(
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
+                                    activeCarbsGrams = activeCarbsGrams,
                                     activeInsulinFromRemote = activeInsulinFromRemote,
                                     showEiob = journalEiobDisplayEnabled,
                                     forecastDoseRecommendation = forecastDoseRecommendation,
@@ -1827,6 +1832,7 @@ fun DashboardScreen(
                                 JournalFloatingActionMenu(
                                     visible = journalEnabled,
                                     selectedTimestamp = actionTimestamp,
+                                    onDismissRequest = { clearJournalAction() },
                                     viewportSnapshot = dashboardChartViewport,
                                     onTypeSelected = {
                                         lastJournalType = it
