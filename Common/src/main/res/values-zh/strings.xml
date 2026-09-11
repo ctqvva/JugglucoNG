@@ -2772,7 +2772,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_with_key">证书和私钥</string>
     <string name="webserver_cert_export_key_warning">私钥可让其他设备冒充本服务器，请妥善保管。</string>
     <string name="aidex_pairing_key_backup">配对密钥备份</string>
-    <string name="aidex_pairing_key_backup_warning">此文件包含传感器配对凭据。请妥善私密保存；它可用于在其他设备上恢复同一传感器。</string>
+    <string name="aidex_pairing_key_backup_warning">此文件包含传感器配对凭据。请妥善私密保存。</string>
     <string name="aidex_pairing_key_saved">配对密钥备份已保存</string>
     <string name="aidex_pairing_key_unavailable">尚无已验证的配对密钥</string>
     <string name="aidex_restore_pairing_key">恢复配对密钥备份</string>

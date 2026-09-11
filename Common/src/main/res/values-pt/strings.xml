@@ -2757,7 +2757,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_with_key">Certificado e chave privada</string>
     <string name="webserver_cert_export_key_warning">A chave privada permite que outro dispositivo se faça passar por este servidor. Mantenha-a privada.</string>
     <string name="aidex_pairing_key_backup">Cópia da chave de emparelhamento</string>
-    <string name="aidex_pairing_key_backup_warning">Este ficheiro contém a credencial de emparelhamento do sensor. Guarde-o de forma privada e segura; permite restaurar o mesmo sensor noutro dispositivo.</string>
+    <string name="aidex_pairing_key_backup_warning">Este ficheiro contém a credencial de emparelhamento do sensor. Guarde-o de forma privada e segura.</string>
     <string name="aidex_pairing_key_saved">Cópia da chave de emparelhamento guardada</string>
     <string name="aidex_pairing_key_unavailable">Ainda não existe uma chave de emparelhamento verificada</string>
     <string name="aidex_restore_pairing_key">Restaurar chave de emparelhamento</string>

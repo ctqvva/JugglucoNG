@@ -2784,7 +2784,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="webserver_cert_export_with_key">Sertifika ve özel anahtar</string>
     <string name="webserver_cert_export_key_warning">Özel anahtar, başka bir cihazın bu sunucu gibi davranmasına izin verir. Gizli tutun.</string>
     <string name="aidex_pairing_key_backup">Eşleştirme anahtarı yedeği</string>
-    <string name="aidex_pairing_key_backup_warning">Bu dosya sensörün eşleştirme anahtarını içerir. Gizli ve güvenli saklayın; aynı sensörü başka bir cihazda geri yükleyebilir.</string>
+    <string name="aidex_pairing_key_backup_warning">Bu dosya sensörün eşleştirme anahtarını içerir. Gizli ve güvenli saklayın.</string>
     <string name="aidex_pairing_key_saved">Eşleştirme anahtarı yedeği kaydedildi</string>
     <string name="aidex_pairing_key_unavailable">Henüz doğrulanmış bir eşleştirme anahtarı yok</string>
     <string name="aidex_restore_pairing_key">Eşleştirme anahtarını geri yükle</string>

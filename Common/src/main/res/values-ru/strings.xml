@@ -2802,7 +2802,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_with_key">Сертификат и закрытый ключ</string>
     <string name="webserver_cert_export_key_warning">Закрытый ключ позволяет другому устройству выдать себя за этот сервер. Храните его в секрете.</string>
     <string name="aidex_pairing_key_backup">Резервная копия ключа сопряжения</string>
-    <string name="aidex_pairing_key_backup_warning">Этот файл содержит ключ сопряжения датчика. Храните его конфиденциально: с его помощью можно восстановить тот же датчик на другом устройстве.</string>
+    <string name="aidex_pairing_key_backup_warning">Этот файл содержит ключ сопряжения датчика. Храните его конфиденциально.</string>
     <string name="aidex_pairing_key_saved">Резервная копия ключа сопряжения сохранена</string>
     <string name="aidex_pairing_key_unavailable">Проверенный ключ сопряжения пока недоступен</string>
     <string name="aidex_restore_pairing_key">Восстановить ключ сопряжения</string>

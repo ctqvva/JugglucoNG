@@ -2762,7 +2762,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="webserver_cert_export_with_key">Certificat et clé privée</string>
     <string name="webserver_cert_export_key_warning">La clé privée permet à un autre appareil de se faire passer pour ce serveur. Gardez-la secrète.</string>
     <string name="aidex_pairing_key_backup">Sauvegarde de la clé d’association</string>
-    <string name="aidex_pairing_key_backup_warning">Ce fichier contient l’identifiant d’association du capteur. Conservez-le en lieu sûr et privé ; il permet de restaurer le même capteur sur un autre appareil.</string>
+    <string name="aidex_pairing_key_backup_warning">Ce fichier contient l’identifiant d’association du capteur. Conservez-le en lieu sûr et privé.</string>
     <string name="aidex_pairing_key_saved">Sauvegarde de la clé d’association enregistrée</string>
     <string name="aidex_pairing_key_unavailable">Aucune clé d’association vérifiée n’est encore disponible</string>
     <string name="aidex_restore_pairing_key">Restaurer une clé d’association</string>

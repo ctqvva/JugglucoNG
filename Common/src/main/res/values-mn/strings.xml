@@ -2870,7 +2870,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="webserver_cert_export_with_key">Гэрчилгээ ба хувийн түлхүүр</string>
     <string name="webserver_cert_export_key_warning">Хувийн түлхүүр нь өөр төхөөрөмжид энэ сервер мэт дүр эсгэх боломж олгоно. Нууц байлгана уу.</string>
     <string name="aidex_pairing_key_backup">Хослуулах түлхүүрийн нөөц</string>
-    <string name="aidex_pairing_key_backup_warning">Энэ файл мэдрэгчийн хослуулах түлхүүрийг агуулна. Нууц, аюулгүй хадгална уу; өөр төхөөрөмж дээр ижил мэдрэгчийг сэргээхэд ашиглаж болно.</string>
+    <string name="aidex_pairing_key_backup_warning">Энэ файл мэдрэгчийн хослуулах түлхүүрийг агуулна. Нууц, аюулгүй хадгална уу.</string>
     <string name="aidex_pairing_key_saved">Хослуулах түлхүүрийн нөөцийг хадгаллаа</string>
     <string name="aidex_pairing_key_unavailable">Баталгаажсан хослуулах түлхүүр хараахан алга</string>
     <string name="aidex_restore_pairing_key">Хослуулах түлхүүрийн нөөцийг сэргээх</string>
