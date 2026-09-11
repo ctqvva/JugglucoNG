@@ -46,35 +46,114 @@ class JournalRepository {
     }
 
     suspend fun upsertEntry(input: JournalEntryInput): Long {
-        val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
-        val existing = input.id?.let { dao.getEntryById(it) }
-            ?: sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
-        val now = System.currentTimeMillis()
-        val entity = JournalEntryEntity(
-            id = existing?.id ?: (input.id ?: 0L),
-            timestamp = input.timestamp,
-            sensorSerial = input.sensorSerial?.takeIf { it.isNotBlank() },
-            entryType = input.type.storageValue,
-            title = input.title.trim(),
-            note = input.note?.trim()?.takeIf { it.isNotBlank() },
-            amount = input.amount,
-            glucoseValueMgDl = input.glucoseValueMgDl,
-            durationMinutes = input.durationMinutes,
-            intensity = input.intensity?.storageValue,
-            insulinPresetId = input.insulinPresetId,
-            source = input.source.storageValue,
-            sourceRecordId = sourceRecordId,
-            createdAt = existing?.createdAt ?: now,
-            updatedAt = now,
-            foodId = input.foodId,
-            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-            fatGrams = input.fatGrams?.coerceAtLeast(0f),
-            nsUploadedAt = existing?.nsUploadedAt,
-            nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() } ?: existing?.nsRemoteId
-        )
-        val id = dao.upsertEntry(entity)
+        val (id, entity, existing) = database.withTransaction {
+            val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
+            val recoveryId = CloneJournalIdentity.normalizeRecoveryId(input.recoveryId)
+            val nsRemoteId = input.nsRemoteId?.takeIf { it.isNotBlank() }
+            val idMatch = input.id?.let { dao.getEntryById(it) }
+            val recoveryMatch = recoveryId?.let { dao.getEntryByRecoveryId(it) }
+            val sourceMatch = sourceRecordId?.let { dao.getEntryBySourceRecordId(it) }
+            val remoteMatches = nsRemoteId?.let {
+                dao.getEntriesByNightscoutRemoteIdAndType(it, input.type.storageValue)
+            }.orEmpty()
+            val remoteMatch = remoteMatches.firstOrNull()
+            val overlap = if (idMatch == null && recoveryMatch == null) {
+                cloneNightscoutOverlap(
+                    sourceMatch = sourceMatch,
+                    remoteMatches = remoteMatches,
+                    incomingNsRemoteId = nsRemoteId,
+                    incomingEntryType = input.type.storageValue,
+                )
+            } else {
+                null
+            }
+            val existing = idMatch
+                ?: recoveryMatch
+                ?: overlap?.keeper
+                ?: sourceMatch
+                ?: remoteMatch
+            val writeIdentity = preserveMirroredJournalIdentity(
+                existingSource = existing?.source,
+                existingSourceRecordId = existing?.sourceRecordId,
+                incomingSource = input.source,
+                incomingSourceRecordId = sourceRecordId,
+            )
+            val redundantOverlap = overlap?.redundantRows.orEmpty()
+            val remoteIdentityMatch = existing?.takeIf {
+                it.sourceRecordId != writeIdentity.sourceRecordId &&
+                    isSameNightscoutJournalKind(
+                        existingNsRemoteId = it.nsRemoteId,
+                        incomingNsRemoteId = nsRemoteId,
+                        existingEntryType = it.entryType,
+                        incomingEntryType = input.type.storageValue,
+                    )
+            }
+            val cloneIdentityMatch = existing?.takeIf {
+                isSameCloneJournalRecord(
+                    existingSource = it.source,
+                    incomingSource = writeIdentity.source,
+                    existingSourceRecordId = it.sourceRecordId,
+                    incomingSourceRecordId = writeIdentity.sourceRecordId,
+                )
+            }
+            val preservedIdentity = remoteIdentityMatch ?: cloneIdentityMatch
+            val now = System.currentTimeMillis()
+            val entity = JournalEntryEntity(
+                id = existing?.id ?: (input.id ?: 0L),
+                timestamp = input.timestamp,
+                sensorSerial = input.sensorSerial?.takeIf { it.isNotBlank() },
+                entryType = input.type.storageValue,
+                title = input.title.trim(),
+                note = input.note?.trim()?.takeIf { it.isNotBlank() },
+                amount = input.amount,
+                glucoseValueMgDl = input.glucoseValueMgDl,
+                durationMinutes = input.durationMinutes,
+                intensity = input.intensity?.storageValue,
+                insulinPresetId = input.insulinPresetId,
+                // Clone and Nightscout can deliver the same treatment in either
+                // order. Preserve the first observed route and storage identity
+                // instead of changing icons or creating a duplicate later.
+                source = preservedIdentity?.source ?: writeIdentity.source.storageValue,
+                originSource = resolveJournalOriginSource(
+                    existingOriginSource = existing?.originSource,
+                    storedSource = writeIdentity.source,
+                    incomingSource = input.source,
+                    incomingOriginSource = input.originSource,
+                ),
+                sourceRecordId = preservedIdentity?.sourceRecordId ?: writeIdentity.sourceRecordId,
+                recoveryId = when {
+                    idMatch != null && recoveryMatch != null && idMatch.id != recoveryMatch.id ->
+                        idMatch.recoveryId ?: CloneJournalIdentity.newRecoveryId()
+                    recoveryId != null -> recoveryId
+                    existing?.recoveryId != null -> existing.recoveryId
+                    else -> CloneJournalIdentity.newRecoveryId()
+                },
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+                foodId = input.foodId,
+                proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
+                fatGrams = input.fatGrams?.coerceAtLeast(0f),
+                nsUploadedAt = existing?.nsUploadedAt,
+                nsRemoteId = nsRemoteId ?: existing?.nsRemoteId
+            )
+            val rowId = dao.upsertEntry(entity)
+            if (isCloneJournalExportSource(entity.source)) {
+                dao.deleteCloneJournalTombstone(rowId)
+            }
+            // A Clone row can arrive before the sender learns its Nightscout ID while
+            // the Nightscout follower imports the same treatment independently. Once
+            // both identities meet, retain the first local row and remove only the
+            // redundant local copy. This must never create a remote delete tombstone.
+            redundantOverlap.forEach { dao.deleteEntryById(it.id) }
+            Triple(rowId, entity, existing)
+        }
+        val mirroredWrite = isExternalJournalMirrorSource(JournalEntrySource.fromStorage(entity.source))
         if (affectsIob(entity.entryType) || affectsIob(existing?.entryType)) {
-            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            if (mirroredWrite) {
+                tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+            } else {
+                tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            }
         }
         if (entity.glucoseValueMgDl != null || existing?.glucoseValueMgDl != null) {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
@@ -82,8 +161,11 @@ class JournalRepository {
         // Every kind of entry, not only the ones that move IOB: a fingerstick or a note is
         // sent to Nightscout too, and nothing else will wake the uploader for it. What came
         // from another system is never sent back, so importing from one does not wake it.
-        if (!isMirroredSource(input.source)) {
+        if (!mirroredWrite) {
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
+            if (!affectsIob(entity.entryType) && !affectsIob(existing?.entryType)) {
+                tk.glucodata.Natives.wakebackup()
+            }
         }
         return id
     }
@@ -158,6 +240,7 @@ class JournalRepository {
                 existing.copy(
                     timestamp = timestampMillis,
                     source = JournalEntrySource.PEN.storageValue,
+                    originSource = JournalEntrySource.PEN.storageValue,
                     sourceRecordId = id,
                     updatedAt = System.currentTimeMillis()
                 )
@@ -188,10 +271,21 @@ class JournalRepository {
     suspend fun deleteEntry(entryId: Long) {
         var deletedType: String? = null
         var deletedGlucose: Float? = null
+        var cloneDeleteQueued = false
         database.withTransaction {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
             deletedGlucose = existing?.glucoseValueMgDl
+            if (existing != null && isCloneJournalExportSource(existing.source)) {
+                dao.upsertCloneJournalTombstone(
+                    CloneJournalTombstoneEntity(
+                        entryId = existing.id,
+                        deletedAt = System.currentTimeMillis(),
+                        recoveryId = existing.recoveryId,
+                    )
+                )
+                cloneDeleteQueued = true
+            }
             val remoteId = existing?.nightscoutDeleteRemoteId()
             if (remoteId != null) {
                 dao.enqueuePendingNightscoutDelete(
@@ -204,7 +298,7 @@ class JournalRepository {
             }
             dao.deleteEntryById(entryId)
         }
-        if (affectsIob(deletedType)) {
+        if (cloneDeleteQueued || affectsIob(deletedType)) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
         }
         if (deletedGlucose != null) {
@@ -212,6 +306,51 @@ class JournalRepository {
         }
         // A deletion queues a tombstone, which is the uploader's to carry out.
         tk.glucodata.NightscoutUploadWake.afterJournalChange()
+    }
+
+    /** Applies sender tombstones without turning a receiver-side delete into outbound work. */
+    suspend fun deleteMirroredCloneEntriesBySourceRecordIds(sourceRecordIds: List<String>): Int {
+        val ids = sourceRecordIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return 0
+        val deleted = database.withTransaction {
+            val rows = dao.getEntriesBySourceRecordIds(ids).filter { row ->
+                isCloneJournalSource(JournalEntrySource.fromStorage(row.source))
+            }
+            rows.forEach { dao.deleteEntryById(it.id) }
+            rows
+        }
+        if (deleted.isEmpty()) return 0
+        tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+        if (deleted.any { it.glucoseValueMgDl != null }) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        return deleted.size
+    }
+
+    /** Applies a Clone deletion using its durable identity, with legacy ids as fallback. */
+    suspend fun deleteMirroredCloneEntries(
+        recoveryIds: List<String>,
+        sourceRecordIds: List<String>,
+    ): Int {
+        val durableIds = recoveryIds.mapNotNull(CloneJournalIdentity::normalizeRecoveryId).distinct()
+        val legacyIds = sourceRecordIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (durableIds.isEmpty() && legacyIds.isEmpty()) return 0
+        val deleted = database.withTransaction {
+            val rows = buildList {
+                if (durableIds.isNotEmpty()) addAll(dao.getEntriesByRecoveryIds(durableIds))
+                if (legacyIds.isNotEmpty()) addAll(dao.getEntriesBySourceRecordIds(legacyIds))
+            }.distinctBy { it.id }.filter { row ->
+                isCloneJournalSource(JournalEntrySource.fromStorage(row.source))
+            }
+            rows.forEach { dao.deleteEntryById(it.id) }
+            rows
+        }
+        if (deleted.isEmpty()) return 0
+        tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+        if (deleted.any { it.glucoseValueMgDl != null }) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        return deleted.size
     }
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
@@ -245,9 +384,7 @@ class JournalRepository {
 
     /** Rows this app mirrors from elsewhere; the uploader skips them, so a wake is wasted. */
     private fun isMirroredSource(source: JournalEntrySource): Boolean =
-        source == JournalEntrySource.AAPS ||
-            source == JournalEntrySource.NIGHTSCOUT ||
-            source == JournalEntrySource.API
+        isExternalJournalMirrorSource(source)
 
     private fun affectsIob(entryType: String?): Boolean {
         return entryType == JournalEntryType.INSULIN.storageValue ||
@@ -522,13 +659,125 @@ class JournalRepository {
     }
 }
 
-private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? {
-    nsRemoteId?.takeIf { it.isNotBlank() }?.let { return it }
-    if (source != JournalEntrySource.NIGHTSCOUT.storageValue) return null
-    val parts = sourceRecordId?.split(":") ?: return null
-    if (parts.size != 4 || parts[0] != "nightscout") return null
-    val baseId = parts[2].takeIf { it.isNotBlank() } ?: return null
-    return baseId.takeUnless { it.startsWith("hash", ignoreCase = true) }
+internal fun isSameNightscoutJournalKind(
+    existingNsRemoteId: String?,
+    incomingNsRemoteId: String?,
+    existingEntryType: String,
+    incomingEntryType: String,
+): Boolean = incomingNsRemoteId != null &&
+    existingNsRemoteId == incomingNsRemoteId &&
+    existingEntryType == incomingEntryType
+
+internal fun isSameCloneJournalRecord(
+    existingSource: String,
+    incomingSource: JournalEntrySource,
+    existingSourceRecordId: String?,
+    incomingSourceRecordId: String?,
+): Boolean = existingSourceRecordId != null &&
+    existingSourceRecordId == incomingSourceRecordId &&
+    isCloneJournalSource(JournalEntrySource.fromStorage(existingSource)) &&
+    isCloneJournalSource(incomingSource)
+
+internal data class JournalWriteIdentity(
+    val source: JournalEntrySource,
+    val sourceRecordId: String?,
+)
+
+internal fun preserveMirroredJournalIdentity(
+    existingSource: String?,
+    existingSourceRecordId: String?,
+    incomingSource: JournalEntrySource,
+    incomingSourceRecordId: String?,
+): JournalWriteIdentity {
+    val storedSource = existingSource?.let(JournalEntrySource::fromStorage)
+    return if (storedSource != null && isExternalJournalMirrorSource(storedSource)) {
+        JournalWriteIdentity(storedSource, existingSourceRecordId)
+    } else {
+        JournalWriteIdentity(incomingSource, incomingSourceRecordId)
+    }
+}
+
+internal fun isExternalJournalMirrorSource(source: JournalEntrySource): Boolean =
+    source == JournalEntrySource.AAPS ||
+        source == JournalEntrySource.NIGHTSCOUT ||
+        source == JournalEntrySource.API ||
+        isCloneJournalSource(source)
+
+internal fun isCloneJournalSource(source: JournalEntrySource): Boolean = when (source) {
+    JournalEntrySource.CLONE,
+    JournalEntrySource.CLONE_LOCAL_ICE,
+    JournalEntrySource.CLONE_TURN -> true
+    else -> false
+}
+
+internal fun isCloneJournalExportSource(source: String): Boolean = when (JournalEntrySource.fromStorage(source)) {
+    JournalEntrySource.MANUAL,
+    JournalEntrySource.HEALTH_CONNECT,
+    JournalEntrySource.METER,
+    JournalEntrySource.PEN -> true
+    else -> false
+}
+
+internal fun resolveJournalOriginSource(
+    existingOriginSource: String?,
+    storedSource: JournalEntrySource,
+    incomingSource: JournalEntrySource,
+    incomingOriginSource: JournalEntrySource?,
+): String? = if (isExternalJournalMirrorSource(storedSource)) {
+    incomingOriginSource?.storageValue ?: existingOriginSource
+} else {
+    (incomingOriginSource ?: incomingSource).storageValue
+}
+
+internal data class JournalOverlap(
+    val keeper: JournalEntryEntity,
+    val redundantRows: List<JournalEntryEntity>,
+)
+
+internal fun cloneNightscoutOverlap(
+    sourceMatch: JournalEntryEntity?,
+    remoteMatches: List<JournalEntryEntity>,
+    incomingNsRemoteId: String?,
+    incomingEntryType: String,
+): JournalOverlap? {
+    if (sourceMatch == null || incomingNsRemoteId == null) return null
+    if (sourceMatch.entryType != incomingEntryType) return null
+    val overlapping = remoteMatches.filter { candidate ->
+        candidate.id != sourceMatch.id &&
+            candidate.nsRemoteId == incomingNsRemoteId &&
+            candidate.entryType == incomingEntryType &&
+            isCloneNightscoutPair(sourceMatch.source, candidate.source)
+    }
+    if (overlapping.isEmpty()) return null
+    val allRows = listOf(sourceMatch) + overlapping
+    val keeper = allRows.reduce { first, second ->
+        if (isEarlierJournalRow(first.createdAt, first.id, second.createdAt, second.id)) first else second
+    }
+    return JournalOverlap(keeper, allRows.filter { it.id != keeper.id })
+}
+
+internal fun isCloneNightscoutPair(firstSource: String, secondSource: String): Boolean {
+    val first = JournalEntrySource.fromStorage(firstSource)
+    val second = JournalEntrySource.fromStorage(secondSource)
+    return (isCloneJournalSource(first) && second == JournalEntrySource.NIGHTSCOUT) ||
+        (first == JournalEntrySource.NIGHTSCOUT && isCloneJournalSource(second))
+}
+
+internal fun isEarlierJournalRow(
+    firstCreatedAt: Long,
+    firstId: Long,
+    secondCreatedAt: Long,
+    secondId: Long,
+): Boolean = firstCreatedAt < secondCreatedAt ||
+    (firstCreatedAt == secondCreatedAt && firstId <= secondId)
+
+private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
+    nightscoutDeleteRemoteId(source, nsRemoteId)
+
+internal fun nightscoutDeleteRemoteId(source: String, nsRemoteId: String?): String? {
+    val entrySource = JournalEntrySource.fromStorage(source)
+    if (isExternalJournalMirrorSource(entrySource)) return null
+    return nsRemoteId?.takeIf { it.isNotBlank() }
 }
 
 private fun JournalEntryEntity.toModel(): JournalEntry {
@@ -550,7 +799,8 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         source = JournalEntrySource.fromStorage(source),
         sourceRecordId = sourceRecordId,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        originSource = originSource?.let(JournalEntrySource::fromStorage),
     )
 }
 

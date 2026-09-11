@@ -11,6 +11,8 @@ import org.json.JSONObject
 import tk.glucodata.BuildConfig
 import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
+import tk.glucodata.data.journal.CloneJournalTombstoneEntity
+import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
@@ -350,6 +352,19 @@ object SettingsExporter {
                     journalDao.getFoods().forEach { array.put(it.toJson()) }
                 }
             )
+            .put(
+                "cloneTombstones",
+                JSONArray().also { array ->
+                    journalDao.getCloneJournalTombstones().forEach { tombstone ->
+                        array.put(
+                            JSONObject()
+                                .put("entryId", tombstone.entryId)
+                                .putNullable("recoveryId", tombstone.recoveryId)
+                                .put("deletedAt", tombstone.deletedAt)
+                        )
+                    }
+                }
+            )
     }
 
     private suspend fun importJournalData(context: Context, journalData: JSONObject?): JournalImportSummary {
@@ -358,10 +373,12 @@ object SettingsExporter {
         val insulinPresets = journalData.optJSONArray("insulinPresets").toInsulinPresets()
         val hasFoods = journalData.has("foods")
         val foods = journalData.optJSONArray("foods").toFoods()
+        val cloneTombstones = journalData.optJSONArray("cloneTombstones").toCloneTombstones()
         val journalDao = HistoryDatabase.getInstance(context).journalDao()
 
         journalDao.deleteAllEntries()
         journalDao.deleteAllInsulinPresets()
+        journalDao.deleteAllCloneJournalTombstones()
         if (hasFoods) {
             journalDao.deleteAllFoods()
             if (foods.isNotEmpty()) {
@@ -373,6 +390,9 @@ object SettingsExporter {
         }
         if (entries.isNotEmpty()) {
             journalDao.upsertEntries(entries)
+        }
+        if (cloneTombstones.isNotEmpty()) {
+            journalDao.upsertCloneJournalTombstones(cloneTombstones)
         }
         return JournalImportSummary(
             entries = entries.size,
@@ -398,7 +418,9 @@ object SettingsExporter {
             .putNullable("proteinGrams", proteinGrams)
             .putNullable("fatGrams", fatGrams)
             .put("source", source)
+            .putNullable("originSource", originSource)
             .putNullable("sourceRecordId", sourceRecordId)
+            .putNullable("recoveryId", recoveryId)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
     }
@@ -456,11 +478,37 @@ object SettingsExporter {
                         proteinGrams = item.optNullableFloat("proteinGrams"),
                         fatGrams = item.optNullableFloat("fatGrams"),
                         source = item.optString("source", "import"),
+                        originSource = item.optNullableString("originSource"),
                         sourceRecordId = item.optNullableString("sourceRecordId"),
+                        recoveryId = CloneJournalIdentity.normalizeRecoveryId(
+                            item.optNullableString("recoveryId")
+                        ) ?: CloneJournalIdentity.newRecoveryId(),
                         createdAt = item.optLong("createdAt", item.getLong("timestamp")),
                         updatedAt = item.optLong("updatedAt", item.getLong("timestamp"))
                     )
                 )
+            }
+        }
+    }
+
+    private fun JSONArray?.toCloneTombstones(): List<CloneJournalTombstoneEntity> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                val entryId = item.optLong("entryId", 0L)
+                val deletedAt = item.optLong("deletedAt", 0L)
+                if (entryId > 0L && deletedAt > 0L) {
+                    add(
+                        CloneJournalTombstoneEntity(
+                            entryId = entryId,
+                            deletedAt = deletedAt,
+                            recoveryId = CloneJournalIdentity.normalizeRecoveryId(
+                                item.optNullableString("recoveryId")
+                            ),
+                        )
+                    )
+                }
             }
         }
     }
