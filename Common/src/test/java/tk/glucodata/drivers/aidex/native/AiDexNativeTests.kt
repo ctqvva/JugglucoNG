@@ -15,6 +15,7 @@ import tk.glucodata.drivers.aidex.native.crypto.Crc8Maxim
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
 import tk.glucodata.drivers.aidex.native.ble.aiDexActivationTimeZone
 import tk.glucodata.drivers.aidex.native.ble.aiDexDeviceNameMatchesSerial
+import tk.glucodata.drivers.aidex.native.ble.aiDexDisplayName
 import tk.glucodata.drivers.aidex.native.data.*
 import tk.glucodata.drivers.aidex.native.protocol.AiDexCommandBuilder
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDpCatalogProvider
@@ -273,6 +274,43 @@ class DeviceNameMatchingTests {
     @Test
     fun testAiDexDeviceNameRejectsDifferentSerial() {
         assertFalse(aiDexDeviceNameMatchesSerial("AiDEX x-2222293NWA", "X-222228AWH2"))
+    }
+}
+
+class DisplayNameTests {
+
+    @Test
+    fun brandWordIsDroppedFromAdvertisedName() {
+        // The card's family chip already says AIDEX; the title keeps only the "X-" serial.
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDEX X-2222293NWA", "C0:AB:12:34:56:78", "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("aidex x-2222293NWA".uppercase(), null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDex-X-2222293NWA", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun unbrandedAdvertisedNameIsKeptVerbatim() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("X-2222293NWA", null, "2222293NWA"))
+        assertEquals("Linx 12345678", aiDexDisplayName("Linx 12345678", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun brandWordAloneCollapsesToSerial() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDEX ", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun macAddressFallbackCollapsesToSerial() {
+        // SuperGattCallback.mygetDeviceName() returns the MAC before the first connect attempt.
+        assertEquals("X-2222293NWA", aiDexDisplayName("C0:AB:12:34:56:78", "C0:AB:12:34:56:78", "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("c0:ab:12:34:56:78", "C0:AB:12:34:56:78", "X-2222293NWA"))
+    }
+
+    @Test
+    fun placeholderAndBlankCollapseToSerial() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("?", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("   ", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName(null, null, "X-2222293NWA"))
     }
 }
 
