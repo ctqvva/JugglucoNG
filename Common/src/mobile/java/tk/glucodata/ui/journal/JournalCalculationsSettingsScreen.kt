@@ -49,14 +49,14 @@ import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlin.math.roundToInt
 
 /**
- * The metabolic model and the features that read it. The profile (carb ratio, sensitivity,
- * absorption, dose target) is the source of parameters; the dose calculator, dose hints,
- * IOB/eIOB and food absorption all consume it. Journal setup keeps only the journal-facing
- * switches and links here for everything model-shaped.
+ * Everything computed from the model profile: the profile itself (carb ratio, sensitivity,
+ * absorption, dose target) is the source of parameters, and food absorption, IOB/eIOB and
+ * the dose hints all read it. Journal setup keeps only the journal-facing switches and
+ * links here for the rest.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun JournalModelSettingsScreen(
+fun JournalCalculationsSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
@@ -72,7 +72,7 @@ fun JournalModelSettingsScreen(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.journal_model_title)) },
+                title = { Text(stringResource(R.string.journal_calculations_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -139,7 +139,7 @@ fun JournalModelSettingsScreen(
 
             item(key = "suggestions") {
                 Column {
-                    SectionLabel(text = stringResource(R.string.journal_model_suggestions_section), topPadding = 8.dp)
+                    SectionLabel(text = stringResource(R.string.journal_calculations_suggestions_section), topPadding = 8.dp)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         SettingsSwitchItem(
                             title = stringResource(R.string.state_dose_hint_title),

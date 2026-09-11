@@ -1863,9 +1863,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="state_dose_hint_desc">Ku soo jeedi karbohaydrayt marka hoos u dhacayo iyo sixid marka sarreeyo</string>
     <string name="state_dose_hint_in_range_title">Oggolow sixid gudaha inta la beegsanayo</string>
     <string name="state_dose_hint_in_range_desc">Oggolow sixid ka sarreysa bartilmaameedka qiyaasta inta qiimuhu weli gudaha yahay</string>
-    <string name="journal_model_suggestions_section">Talooyin</string>
-    <string name="journal_model_desc">Astaan, nuugis iyo insulin firfircoon</string>
-    <string name="journal_model_title">Qaab</string>
+    <string name="journal_calculations_suggestions_section">Talooyin</string>
+    <string name="journal_calculations_desc">Astaan, nuugis, insulin firfircoon iyo talooyinka qiyaasta</string>
+    <string name="journal_calculations_title">Xisaabinta</string>
     <string name="state_dose_hint_horizon">Muddada talada</string>
     <string name="state_dose_hint_horizon_explanation">Inta ay talada kaarbohaydraytku hore u fiiriso marka qiimuhu hoos u dhacayo. Gaaban: goor dambe oo yar; dheer: goor hore oo badan.</string>
     <string name="state_dose_hint_profile_notice_title">Hubi astaanta modelka</string>

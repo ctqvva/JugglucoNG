@@ -276,13 +276,13 @@ fun JournalSettingsScreen(
                         enabled = journalEnabled
                     )
                     // The profile, absorption, eIOB and the dose hints all live behind one
-                    // row: they are the model and its readers, not journal tools.
+                    // row: they are calculations on the profile, not journal tools.
                     SettingsItem(
-                        title = stringResource(R.string.journal_model_title),
-                        subtitle = stringResource(R.string.journal_model_desc),
+                        title = stringResource(R.string.journal_calculations_title),
+                        subtitle = stringResource(R.string.journal_calculations_desc),
                         showArrow = true,
                         onClick = if (journalEnabled) {
-                            { navController.navigate("settings/journal/model") }
+                            { navController.navigate("settings/journal/calculations") }
                         } else {
                             null
                         },

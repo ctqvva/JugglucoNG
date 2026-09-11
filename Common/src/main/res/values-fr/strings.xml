@@ -1593,9 +1593,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Suggérer des glucides en cas de baisse et des corrections en cas de hausse</string>
     <string name="state_dose_hint_in_range_title">Autoriser les corrections dans la plage</string>
     <string name="state_dose_hint_in_range_desc">Autoriser les corrections au-dessus de la cible de dose tant que la valeur reste dans la plage</string>
-    <string name="journal_model_suggestions_section">Suggestions</string>
-    <string name="journal_model_desc">Profil, absorption et insuline active</string>
-    <string name="journal_model_title">Modèle</string>
+    <string name="journal_calculations_suggestions_section">Suggestions</string>
+    <string name="journal_calculations_desc">Profil, absorption, insuline active et suggestions de dose</string>
+    <string name="journal_calculations_title">Calculs</string>
     <string name="state_dose_hint_horizon">Horizon de la suggestion</string>
     <string name="state_dose_hint_horizon_explanation">Jusqu\'où la suggestion de glucides regarde en avant quand la valeur baisse. Plus court : plus tard et plus rare ; plus long : plus tôt et plus souvent.</string>
     <string name="state_dose_hint_profile_notice_title">Vérifiez votre profil de modèle</string>

@@ -1661,9 +1661,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="state_dose_hint_desc">Kohlenhydrate bei Tiefs und Korrekturen bei Hochs vorschlagen</string>
     <string name="state_dose_hint_in_range_title">Korrekturen im Zielbereich erlauben</string>
     <string name="state_dose_hint_in_range_desc">Korrekturen über dem Dosisziel erlauben, solange der Wert noch im Zielbereich liegt</string>
-    <string name="journal_model_suggestions_section">Vorschläge</string>
-    <string name="journal_model_desc">Profil, Aufnahme und aktives Insulin</string>
-    <string name="journal_model_title">Modell</string>
+    <string name="journal_calculations_suggestions_section">Vorschläge</string>
+    <string name="journal_calculations_desc">Profil, Aufnahme, aktives Insulin und Dosishinweise</string>
+    <string name="journal_calculations_title">Berechnungen</string>
     <string name="state_dose_hint_horizon">Vorlauf des Dosishinweises</string>
     <string name="state_dose_hint_horizon_explanation">Wie weit der Kohlenhydratvorschlag bei fallendem Wert vorausschaut. Kürzer meldet sich später und seltener, länger früher und öfter.</string>
     <string name="state_dose_hint_profile_notice_title">Modellprofil prüfen</string>

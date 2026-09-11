@@ -1588,9 +1588,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="state_dose_hint_desc">Буурахад нүүрс ус, өндөр үед залруулга санал болгох</string>
     <string name="state_dose_hint_in_range_title">Хүрээн доторх залруулгыг зөвшөөрөх</string>
     <string name="state_dose_hint_in_range_desc">Утга хүрээн дотор байхад тунгийн зорилтоос дээш залруулгыг зөвшөөрөх</string>
-    <string name="journal_model_suggestions_section">Зөвлөмж</string>
-    <string name="journal_model_desc">Профайл, шингээлт ба идэвхтэй инсулин</string>
-    <string name="journal_model_title">Загвар</string>
+    <string name="journal_calculations_suggestions_section">Зөвлөмж</string>
+    <string name="journal_calculations_desc">Профайл, шингээлт, идэвхтэй инсулин ба тунгийн зөвлөмж</string>
+    <string name="journal_calculations_title">Тооцоолол</string>
     <string name="state_dose_hint_horizon">Тунгийн зөвлөмжийн хугацаа</string>
     <string name="state_dose_hint_horizon_explanation">Утга буурч байхад нүүрс усны санал хэр хол урагш харахыг заана. Богино нь хожуу, урт нь эрт мэдэгдэнэ.</string>
     <string name="state_dose_hint_profile_notice_title">Загварын профилээ шалгана уу</string>

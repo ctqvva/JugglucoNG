@@ -1577,9 +1577,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Suggerisci carboidrati per le ipo e correzioni per le iper</string>
     <string name="state_dose_hint_in_range_title">Consenti correzioni nel range</string>
     <string name="state_dose_hint_in_range_desc">Consenti correzioni sopra il target di dose mentre il valore è ancora nel range</string>
-    <string name="journal_model_suggestions_section">Suggerimenti</string>
-    <string name="journal_model_desc">Profilo, assorbimento e insulina attiva</string>
-    <string name="journal_model_title">Modello</string>
+    <string name="journal_calculations_suggestions_section">Suggerimenti</string>
+    <string name="journal_calculations_desc">Profilo, assorbimento, insulina attiva e suggerimenti di dose</string>
+    <string name="journal_calculations_title">Calcoli</string>
     <string name="state_dose_hint_horizon">Orizzonte del suggerimento</string>
     <string name="state_dose_hint_horizon_explanation">Quanto avanti guarda il suggerimento di carboidrati mentre il valore scende. Più corto: più tardi e più raro; più lungo: prima e più spesso.</string>
     <string name="state_dose_hint_profile_notice_title">Controlla il profilo del modello</string>
