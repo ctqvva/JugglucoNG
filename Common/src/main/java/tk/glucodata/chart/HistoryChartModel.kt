@@ -69,7 +69,7 @@ data class ChartSeriesModel(
     val viewMode: Int,
     val colorArgb: Int,
     val runs: List<ChartRun>,
-    /** Secondary lanes beside the main line; only the primary series has any. */
+    /** Lanes drawn thin beside this series' main run: the other signal in a dual mode, a source lane, a preview. */
     val secondaryLanes: List<ChartLane> = emptyList(),
 ) {
     val isEmpty: Boolean get() = runs.all { it.points.isEmpty() }

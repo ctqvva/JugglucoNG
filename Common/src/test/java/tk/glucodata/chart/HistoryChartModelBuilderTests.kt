@@ -126,6 +126,25 @@ class HistoryChartModelBuilderTests {
     }
 
     @Test
+    fun aPeerInADualViewModeKeepsItsOtherLane() {
+        // Sibionics as a peer in auto+raw: its main run is the auto lane, and
+        // its raw signal is a lane beside it — it must not vanish because it is
+        // not the primary.
+        val b = HistoryChartModelBuilder.SeriesInput(
+            sensorId = "B", isPrimary = false, viewMode = 2, colorArgb = 0,
+            points = listOf(
+                GlucosePoint(NOW, 5f, 2.8f).also { it.sensorSerial = "B" },
+                GlucosePoint(NOW + MINUTE, 5.1f, 2.9f).also { it.sensorSerial = "B" },
+            ),
+        )
+        val model = HistoryChartModelBuilder.build(listOf(b), MainSensorOwnership.NONE, noCalibration)
+        val peer = model.peers.single()
+        assertEquals(listOf(5f, 5.1f), peer.runs.flatMap { it.points }.map { it.value })
+        val raw = peer.secondaryLanes.single { it.kind == ChartLaneKind.RAW }
+        assertEquals(listOf(2.8f, 2.9f), raw.runs.flatMap { it.points }.map { it.value })
+    }
+
+    @Test
     fun aGapBreaksTheRunWithoutSharingAPoint() {
         val a = series(
             "A", primary = true,

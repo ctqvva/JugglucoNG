@@ -38,6 +38,7 @@ object NotificationChartModelSource {
             )
         )
         peers.forEach { peer ->
+            val peerIsRaw = peer.viewMode == 1 || peer.viewMode == 3
             inputs.add(
                 HistoryChartModelBuilder.SeriesInput(
                     sensorId = peer.sensorId,
@@ -45,6 +46,7 @@ object NotificationChartModelSource {
                     viewMode = peer.viewMode,
                     colorArgb = peer.color,
                     points = peer.points,
+                    hasCalibration = CalibrationAccess.hasActiveCalibration(peerIsRaw, peer.sensorId),
                 )
             )
         }

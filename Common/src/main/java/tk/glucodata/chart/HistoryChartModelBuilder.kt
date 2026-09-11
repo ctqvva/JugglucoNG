@@ -34,6 +34,8 @@ object HistoryChartModelBuilder {
         val viewMode: Int,
         val colorArgb: Int,
         val points: List<GlucosePoint>,
+        /** Whether a calibration applies to this sensor's own primary lane. */
+        val hasCalibration: Boolean = false,
     )
 
     /** `(baseValue, timestamp, isRawMode, sensorId) -> calibrated`, or null when no calibration applies. */
@@ -93,11 +95,13 @@ object HistoryChartModelBuilder {
         val isRawMode = input.viewMode == 1 || input.viewMode == 3
         val defaultLook = if (input.isPrimary) ChartLook.MAIN else ChartLook.SECONDARY
 
+        // Every series has its lanes, not only the primary: a peer in a dual
+        // view mode shows both signals, exactly as the primary does. The first
+        // version gave peers one lane and their second signal simply vanished.
         val secondaryLanes = ArrayList<ChartLane>()
-        if (input.isPrimary) {
-            secondaryLaneKinds(input.viewMode, hasCalibration, hideInitialWhenCalibrated).forEach { kind ->
-                secondaryLanes.add(ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs)))
-            }
+        val seriesHasCalibration = if (input.isPrimary) hasCalibration else input.hasCalibration
+        secondaryLaneKinds(input.viewMode, seriesHasCalibration, hideInitialWhenCalibrated).forEach { kind ->
+            secondaryLanes.add(ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs)))
         }
 
         val runs = ArrayList<ChartRun>()

@@ -912,6 +912,11 @@ public class NotificationChartDrawer {
         canvas.drawPath(predictionPath, predictionPaint);
     }
 
+    /** A secondary lane of the primary: the raw signal a touch fainter than the auto one. */
+    private static float notificationLaneAlpha(boolean rawLane) {
+        return rawLane ? 0.55f : 0.7f;
+    }
+
     /**
      * Paints one series of the resolved model: each run with the look the model
      * assigned it. A MAIN run is drawn exactly as the primary calibrated line
@@ -940,6 +945,39 @@ public class NotificationChartDrawer {
             boolean useThresholdColors,
             int primaryIdentityColor) {
         float baseStrokeWidth = linePaint.getStrokeWidth();
+        // Lanes beside the main run first, underneath it. For the primary that
+        // is the other signal and the source behind a calibration, drawn as the
+        // legacy lanes were; for a peer it is its other signal, drawn as a
+        // fainter pass of the same subtle treatment. The preview lane is the
+        // caller's, drawn separately so it sits under everything.
+        for (tk.glucodata.chart.ChartLane lane : series.getSecondaryLanes()) {
+            if (lane.getKind() == tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue;
+            for (tk.glucodata.chart.ChartRun run : lane.getRuns()) {
+                List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
+                if (pts.size() < 2) continue;
+                ArrayList<Long> timestamps = new ArrayList<>(pts.size());
+                ArrayList<Float> values = new ArrayList<>(pts.size());
+                for (tk.glucodata.chart.ChartPointModel p : pts) {
+                    timestamps.add(p.getTimestamp());
+                    values.add(p.getValue());
+                }
+                if (series.isPrimary()) {
+                    boolean rawLane = lane.getKind() == tk.glucodata.chart.ChartLaneKind.RAW;
+                    linePaint.setStrokeWidth(baseStrokeWidth);
+                    drawNotificationSourceSeries(
+                            canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, mainLineColor, false, primaryIdentityColor,
+                            notificationLaneAlpha(rawLane), notificationLaneAlpha(rawLane), 0.72f);
+                } else {
+                    linePaint.setStrokeWidth(baseStrokeWidth * 0.66f);
+                    drawSubtlePeerSeries(
+                            canvas, linePaint, timestamps, values, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, series.getColorArgb(), isDark, 0.68f);
+                }
+            }
+        }
         for (tk.glucodata.chart.ChartRun run : series.getRuns()) {
             List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
             if (pts.size() < 2) continue;
@@ -1735,10 +1773,10 @@ public class NotificationChartDrawer {
         // Determine which lines to show
         boolean hideRawSource = hideInitialWhenCalibrated && isRawModeForCal;
         boolean hideAutoSource = hideInitialWhenCalibrated && !isRawModeForCal;
-        boolean showAuto = !hideAutoSource && (viewMode == 0 || viewMode == 2 || viewMode == 3)
-                && (!modelDrivesPrimary || hasCalibration);
-        boolean showRaw = !hideRawSource && (viewMode == 1 || viewMode == 2 || viewMode == 3)
-                && (!modelDrivesPrimary || hasCalibration);
+        // With a model every lane comes from it — the other signal in a dual
+        // mode, the source behind a calibration — so the legacy lanes are off.
+        boolean showAuto = !modelDrivesPrimary && !hideAutoSource && (viewMode == 0 || viewMode == 2 || viewMode == 3);
+        boolean showRaw = !modelDrivesPrimary && !hideRawSource && (viewMode == 1 || viewMode == 2 || viewMode == 3);
 
         // Determine line colors based on ViewMode and Calibration
         int autoColor = lineColor; // Default Primary

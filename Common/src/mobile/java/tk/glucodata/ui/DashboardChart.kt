@@ -228,6 +228,7 @@ private fun buildDashboardChartModel(
         )
     )
     peers.forEach { peer ->
+        val peerIsRaw = peer.viewMode == 1 || peer.viewMode == 3
         inputs.add(
             tk.glucodata.chart.HistoryChartModelBuilder.SeriesInput(
                 sensorId = peer.sensorId,
@@ -235,6 +236,7 @@ private fun buildDashboardChartModel(
                 viewMode = peer.viewMode,
                 colorArgb = peer.color.toArgb(),
                 points = peer.points.map(::toShared),
+                hasCalibration = tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(peerIsRaw, peer.sensorId),
             )
         )
     }
@@ -2607,6 +2609,36 @@ fun InteractiveGlucoseChart(
                     for (series in chartModel.peers) {
                         val color = Color(series.colorArgb)
                         val brush = peerBrushes[series.sensorId]
+                        // The peer's other lane first, under its main run: the
+                        // same subtle treatment, a touch fainter and thinner so
+                        // the two lanes of one sensor still read as one sensor.
+                        for (lane in series.secondaryLanes) {
+                            if (lane.kind == tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue
+                            for (run in lane.runs) {
+                                reusablePeerPath.rewind()
+                                var first = true
+                                var hasPath = false
+                                for (point in run.points) {
+                                    if (point.timestamp < searchStart - cullMargin || point.timestamp > searchEnd + cullMargin) continue
+                                    val px = timeToDataX(point.timestamp)
+                                    val py = valToY(point.value)
+                                    if (!px.isFinite() || !py.isFinite()) { first = true; continue }
+                                    if (first) { reusablePeerPath.moveTo(px, py); first = false } else reusablePeerPath.lineTo(px, py)
+                                    hasPath = true
+                                }
+                                if (!hasPath) continue
+                                val style = Stroke(width = peerStroke * 0.84f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                if (brush != null) {
+                                    drawPath(path = reusablePeerPath, brush = brush, alpha = 0.68f, style = style)
+                                } else {
+                                    drawPath(
+                                        path = reusablePeerPath,
+                                        color = androidx.compose.ui.graphics.lerp(color, peerNeutralBase, 0.46f).copy(alpha = 0.5f * 0.68f),
+                                        style = style
+                                    )
+                                }
+                            }
+                        }
                         for (run in series.runs) {
                             reusablePeerPath.rewind()
                             val peerRun = ChartLineRun()
