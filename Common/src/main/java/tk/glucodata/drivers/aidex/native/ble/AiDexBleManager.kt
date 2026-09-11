@@ -59,6 +59,23 @@ internal fun aiDexDeviceNameMatchesSerial(deviceName: String, serialNumber: Stri
             deviceName.contains(serialNumber, ignoreCase = true)
 }
 
+private val AIDEX_BRAND_PREFIX = Regex("^aidex(?:[\\s-]+|$)", RegexOption.IGNORE_CASE)
+
+/**
+ * Pick the name a sensor card should be titled with.
+ *
+ * The card already carries an AIDEX family chip, so the brand word the sensor advertises
+ * ("AiDEX X-2222267V4E") is dropped from the title the same way Sibionics strips its managed
+ * prefix; "X-2222267V4E" is what remains. [SuperGattCallback.mygetDeviceName] falls back to
+ * the MAC address and then "?" before the first connect attempt — neither is a sensor name,
+ * so those collapse to the serial instead.
+ */
+internal fun aiDexDisplayName(advertisedName: String?, deviceAddress: String?, serialNumber: String): String {
+    val name = advertisedName?.trim().orEmpty()
+    if (name.isEmpty() || name == "?" || name.equals(deviceAddress, ignoreCase = true)) return serialNumber
+    return name.replace(AIDEX_BRAND_PREFIX, "").trim().ifEmpty { serialNumber }
+}
+
 internal fun aiDexExtractLocalName(scanRecord: ByteArray): String? {
     var offset = 0
     while (offset < scanRecord.size - 1) {
@@ -1617,6 +1634,9 @@ class AiDexBleManager(
         if (deviceName == null) return false
         return aiDexDeviceNameMatchesSerial(deviceName, SerialNumber)
     }
+
+    override fun mygetDeviceName(): String =
+        aiDexDisplayName(super.mygetDeviceName(), mActiveDeviceAddress, SerialNumber)
 
     override fun getService(): UUID = SERVICE_F000
 
