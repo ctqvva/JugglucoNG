@@ -10,6 +10,21 @@ import tk.glucodata.data.journal.JournalTreatmentUploader.TombstoneAction
 import tk.glucodata.data.journal.JournalTreatmentUploader.tombstoneAction
 
 class JournalTreatmentUploaderTests {
+    @Test
+    fun cloneJournalRowsAreNeverUploadedToNightscout() {
+        assertTrue(JournalTreatmentUploader.isExternalMirrorSource(JournalEntrySource.CLONE.storageValue))
+        assertTrue(
+            JournalTreatmentUploader.isExternalMirrorSource(
+                JournalEntrySource.CLONE_LOCAL_ICE.storageValue
+            )
+        )
+        assertTrue(
+            JournalTreatmentUploader.isExternalMirrorSource(
+                JournalEntrySource.CLONE_TURN.storageValue
+            )
+        )
+    }
+
     private fun preset(countsTowardIob: Boolean) = JournalInsulinPresetEntity(
         id = 1,
         displayName = "Test insulin",

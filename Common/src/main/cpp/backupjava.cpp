@@ -20,15 +20,20 @@
 
 #include "datbackup.hpp"
 #include "fromjava.h"
+#include "net/ICE/ICEConfig.hpp"
 #include "net/netstuff.hpp"
 #include <alloca.h>
 #include <cstring>
 #include <jni.h>
+#include <mutex>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 extern jclass JNIString;
 extern jstring myNewStringUTF(JNIEnv *env, const std::string_view str);
 extern bool networkpresent;
+void wakeICEReceiversForNetworkChange(bool resetConnections);
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(backuphasrestore)(JNIEnv *env,
                                                                  jclass cl) {
@@ -37,6 +42,19 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(backuphasrestore)(JNIEnv *env,
 extern "C" JNIEXPORT jint JNICALL fromjava(backuphostNr)(JNIEnv *env,
                                                          jclass cl) {
   return backup->gethostnr();
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(activeBackupHostNr)(JNIEnv *env,
+                                                               jclass cl) {
+  if (!backup)
+    return 0;
+  const auto *updated = backup->getupdatedata();
+  int active = 0;
+  for (int pos = 0; pos < updated->hostnr; ++pos) {
+    if (!updated->allhosts[pos].deactivated)
+      ++active;
+  }
+  return active;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(detectIP)(JNIEnv *envin,
@@ -218,6 +236,13 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(isWearOS)(JNIEnv *envin,
   auto ret = backup->getupdatedata()->allhosts[pos].wearos;
   LOGGER("isWearos(%d)=%d\n", pos, ret);
   return ret;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(isBackupHostPending)(JNIEnv *envin, jclass cl, jint pos) {
+  if (!backup || pos < 0 || pos >= backup->gethostnr())
+    return false;
+  return backup->getupdatedata()->allhosts[pos].newconnection;
 }
 
 bool getpassive(int pos);
@@ -444,6 +469,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
   } else
     networkpresent = true;
 
+  wakeICEReceiversForNetworkChange(false);
+
   wakeuploader();
 #if !defined(WEAROS) && !defined(TESTMENU)
   wakeaftermin(0);
@@ -453,6 +480,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
 void resetnetwork() {
   LOGSTRING("resetnetwork\n");
   if (backup) {
+    wakeICEReceiversForNetworkChange(true);
     extern void recreateAgents();
     recreateAgents();
     backup->closeallsocks();
@@ -578,6 +606,10 @@ fromjava(getHostDeactivated)(JNIEnv *envin, jclass cl, jint pos) {
   }
   return true;
 }
+extern "C" JNIEXPORT void JNICALL
+fromjava(prepareHostDeactivation)(JNIEnv *envin, jclass cl, jint pos) {
+  backup->prepareHostDeactivation(pos);
+}
 extern "C" JNIEXPORT void JNICALL fromjava(setHostDeactivated)(JNIEnv *envin,
                                                                jclass cl,
                                                                jint pos,
@@ -603,6 +635,8 @@ extern "C" JNIEXPORT jint JNICALL fromjava(makeHomeCopy)(JNIEnv *envin,
 #endif
 
 // TurnServer Implementation
+std::mutex turn_server_mutex;
+
 static updatedata::turnserver_t *getTurnServerSlot(bool create = false) {
   if (!backup) {
     return nullptr;
@@ -657,12 +691,14 @@ static void copyTurnString(JNIEnv *env, jstring val, char *dest, int maxlen) {
 
 extern "C" JNIEXPORT jint JNICALL fromjava(TurnServerNR)(JNIEnv *env,
                                                          jclass cl) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   return backup ? backup->getupdatedata()->NRturnserver : 0;
 }
 
 extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnHost)(JNIEnv *env,
                                                             jclass cl,
                                                             jint pos) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (const auto *slot = getTurnServerSlot(false)) {
       return myNewStringUTF(env, slot->hostname);
@@ -673,6 +709,7 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnHost)(JNIEnv *env,
 
 extern "C" JNIEXPORT void JNICALL fromjava(setTurnHost)(JNIEnv *env, jclass cl,
                                                          jint pos, jstring val) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (auto *slot = getTurnServerSlot(true)) {
       copyTurnString(env, val, slot->hostname,
@@ -684,6 +721,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnHost)(JNIEnv *env, jclass cl,
 
 extern "C" JNIEXPORT jint JNICALL fromjava(getTurnPort)(JNIEnv *env, jclass cl,
                                                          jint pos) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (const auto *slot = getTurnServerSlot(false)) {
       return slot->port;
@@ -694,6 +732,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getTurnPort)(JNIEnv *env, jclass cl,
 
 extern "C" JNIEXPORT void JNICALL fromjava(setTurnPort)(JNIEnv *env, jclass cl,
                                                          jint pos, jint port) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (auto *slot = getTurnServerSlot(true)) {
       slot->port = port > 0 ? port : 3478;
@@ -705,6 +744,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnPort)(JNIEnv *env, jclass cl,
 extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnUser)(JNIEnv *env,
                                                             jclass cl,
                                                             jint pos) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (const auto *slot = getTurnServerSlot(false)) {
       return myNewStringUTF(env, slot->username);
@@ -715,6 +755,7 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnUser)(JNIEnv *env,
 
 extern "C" JNIEXPORT void JNICALL fromjava(setTurnUser)(JNIEnv *env, jclass cl,
                                                          jint pos, jstring val) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (auto *slot = getTurnServerSlot(true)) {
       copyTurnString(env, val, slot->username,
@@ -727,6 +768,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnUser)(JNIEnv *env, jclass cl,
 extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnPassword)(JNIEnv *env,
                                                                 jclass cl,
                                                                 jint pos) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (const auto *slot = getTurnServerSlot(false)) {
       return myNewStringUTF(env, slot->password);
@@ -738,6 +780,7 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getTurnPassword)(JNIEnv *env,
 extern "C" JNIEXPORT void JNICALL fromjava(setTurnPassword)(JNIEnv *env,
                                                              jclass cl, jint pos,
                                                              jstring val) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (auto *slot = getTurnServerSlot(true)) {
       copyTurnString(env, val, slot->password,
@@ -747,9 +790,50 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnPassword)(JNIEnv *env,
   }
 }
 
+extern "C" JNIEXPORT void JNICALL fromjava(setTurnServer)(
+    JNIEnv *env, jclass cl, jint pos, jstring host, jint port, jstring username,
+    jstring password) {
+  if (pos != 0 || !backup) {
+    return;
+  }
+
+  updatedata::turnserver_t replacement{};
+  replacement.clear();
+  copyTurnString(env, host, replacement.hostname,
+                 updatedata::turnserver_t::maxhostname);
+  copyTurnString(env, username, replacement.username,
+                 updatedata::turnserver_t::maxusername);
+  copyTurnString(env, password, replacement.password,
+                 updatedata::turnserver_t::maxpassword);
+  replacement.port = port > 0 && port <= 65535 ? port : 3478;
+
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
+  auto *data = backup->getupdatedata();
+  data->turnserver[0] = replacement;
+  data->NRturnserver = replacement.hostname[0] ? 1 : 0;
+}
+
+extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
+    JNIEnv *env, jclass cl, jstring rendezvousHost, jint rendezvousPort,
+    jboolean useTurnForStun, jboolean verifyRendezvousCertificate) {
+  std::string host;
+  if (rendezvousHost) {
+    if (const char *value = env->GetStringUTFChars(rendezvousHost, nullptr)) {
+      host = value;
+      env->ReleaseStringUTFChars(rendezvousHost, value);
+    }
+  }
+  updateICEConfig(std::move(host),
+                  rendezvousPort > 0 && rendezvousPort <= 65535
+                      ? static_cast<uint16_t>(rendezvousPort)
+                      : static_cast<uint16_t>(6789),
+                  useTurnForStun, verifyRendezvousCertificate);
+}
+
 extern "C" JNIEXPORT void JNICALL fromjava(deleteTurnServer)(JNIEnv *env,
                                                               jclass cl,
                                                               jint pos) {
+  const std::lock_guard<std::mutex> lock(turn_server_mutex);
   if (pos == 0) {
     if (auto *slot = getTurnServerSlot(false)) {
       slot->clear();

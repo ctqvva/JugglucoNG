@@ -22,10 +22,15 @@
 #include "config.h"
 #if !defined(WEAROS)
 #include "datbackup.hpp"
+#ifdef JUGGLUCO_APP
+#include "net/ICE/ICEConfig.hpp"
+#endif
 #include <algorithm>
 #include <cstdlib>
+#include <mutex>
 #include <string>
 using namespace std::literals;
+extern std::mutex turn_server_mutex;
 template <typename OUTTYPE>
 int getownips(OUTTYPE *outips, int max, bool &haswlan);
 
@@ -67,6 +72,41 @@ std::string mkbackjson(int pos) {
     inserter = std::format_to(inserter, R"({{"ICElabel":"{}")",
                               escape(host.getICEname()));
     inserter = insertbool(inserter, "side", !host.side);
+    #ifdef JUGGLUCO_APP
+    std::string turnHostname;
+    #endif
+    {
+      const std::lock_guard<std::mutex> lock(turn_server_mutex);
+      if (back.NRturnserver && back.turnserver[0].hostname[0]) {
+        const auto &turn = back.turnserver[0];
+        #ifdef JUGGLUCO_APP
+        turnHostname=turn.hostname;
+        #endif
+        inserter = std::format_to(
+            inserter,
+            R"(,"turn":["{}",{},"{}","{}"])",
+            escape(turn.hostname), turn.port, escape(turn.username),
+            escape(turn.password));
+      }
+    }
+    #ifdef JUGGLUCO_APP
+    const auto iceConfig=currentICEConfig();
+    inserter=insertbool(inserter,"stun",
+                        iceConfig.useTurnForStun&&!turnHostname.empty());
+    if(!iceConfig.verifyRendezvousCertificate)
+      inserter=insertbool(inserter,"cv",false);
+    if(iceConfig.rendezvousHost.empty()) {
+      inserter=std::format_to(inserter,R"(,"rv":0)");
+    }
+    else if(!turnHostname.empty()&&iceConfig.rendezvousHost==turnHostname) {
+      inserter=std::format_to(inserter,R"(,"rv":{})",iceConfig.rendezvousPort);
+    }
+    else {
+      inserter=std::format_to(inserter,R"(,"rv":["{}",{}])",
+                              escape(iceConfig.rendezvousHost),
+                              iceConfig.rendezvousPort);
+    }
+    #endif
   } else if (!host.hashostname()) {
     int ipnr = 0;
     if (hasPublicHost) {
@@ -158,7 +198,6 @@ std::string mkbackjson(int pos) {
   inserter = std::copy(std::begin(mirrorJuggluco), std::end(mirrorJuggluco) - 1,
                        inserter);
   // *inserter='\0';
-  LOGGERN(uit.data(), uit.size());
   LOGGER("size=%d\n", uit.size());
   return uit;
 }
@@ -174,8 +213,7 @@ int makeHomeBackupSender() {
   passstr[passlen] = '\0';
   uint32_t starttime = 0L;
   bool testip = false, hashostname = false;
-  char label[10] = "auto";
-  makepass(label + 4, 5);
+  const char label[] = "Local Clone";
   constexpr const bool detect = true;
   jint res = backup->changehost(pos, nullptr, nullptr, 0, detect,
                                 std::string_view(nullptr, 0), nums, stream,
@@ -194,8 +232,7 @@ int makeHomeBackupReceiver() {
   passstr[passlen] = '\0';
   uint32_t starttime = 0L;
   bool testip = false, hashostname = false;
-  char label[10] = "auto";
-  makepass(label + 4, 5);
+  const char label[] = "Local Clone";
   constexpr const bool detect = true;
   jint res = backup->changehost(pos, nullptr, nullptr, 0, detect,
                                 std::string_view(nullptr, 0), nums, stream,
@@ -209,9 +246,7 @@ int makeICEBackupSender() {
   const int passlen = 16;
   char passstr[passlen + 1];
   makepass(passstr, passlen);
-  char label[17] = "ICE";
-  makepass(label + 3, 13);
-  label[16] = '\0';
+  const char label[] = "Hybrid Clone";
   char ICElabel[33];
   makepass(ICElabel, 32);
   ICElabel[32] = '\0';
@@ -229,9 +264,7 @@ int makeICEBackupReceiver() {
   const int passlen = 16;
   char passstr[passlen + 1];
   makepass(passstr, passlen);
-  char label[17] = "ICE";
-  makepass(label + 3, 13);
-  label[16] = '\0';
+  const char label[] = "Hybrid Clone";
   char ICElabel[33];
   makepass(ICElabel, 32);
   ICElabel[32] = '\0';

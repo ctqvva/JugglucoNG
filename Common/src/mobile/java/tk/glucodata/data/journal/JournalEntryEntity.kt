@@ -31,6 +31,8 @@ data class JournalEntryEntity(
     val proteinGrams: Float? = null,
     val fatGrams: Float? = null,
     val source: String,
+    /** Authoritative origin on the sending device; [source] remains the ingress transport. */
+    val originSource: String? = null,
     val sourceRecordId: String?,
     val createdAt: Long,
     val updatedAt: Long,

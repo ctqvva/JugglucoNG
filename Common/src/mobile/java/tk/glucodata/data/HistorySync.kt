@@ -11,6 +11,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
+import tk.glucodata.CloneSensorRegistry
+import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -349,6 +351,9 @@ object HistorySync {
         }
 
         val roomSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+        val readingSource = GlucoseReadingSource.forCloneTransport(
+            CloneSensorRegistry.transportForSensor(serial)
+        ).takeIf { CloneSensorRegistry.isCloneSensor(serial) } ?: GlucoseReadingSource.SENSOR
         val readings = ArrayList<HistoryReading>(NATIVE_SYNC_INSERT_CHUNK)
         var parsedCount = 0
         var storedAny = false
@@ -372,7 +377,8 @@ object HistorySync {
                         sensorSerial = roomSerial,
                         value = value,
                         rawValue = rawValue,
-                        rate = null
+                        rate = null,
+                        source = readingSource,
                     )
                 )
                 parsedCount++
