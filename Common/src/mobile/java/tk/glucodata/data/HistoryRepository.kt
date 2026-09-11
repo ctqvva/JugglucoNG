@@ -377,7 +377,17 @@ class HistoryRepository(context: Context = Applic.app) {
                 HistoryRepository()
                     .getHistoryForDisplaySensor(serial, startTime)
                     .inDisplayUnit(isMmol)
-                    .map { p -> tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue) }
+                    .map { p ->
+                        // Carry the record across. This bridge used to keep only
+                        // (timestamp, value, rawValue), so every consumer behind
+                        // it — the notification chart first among them — could
+                        // only draw today's derivation of a line the user had
+                        // already been shown.
+                        tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue).also { out ->
+                            out.sealedDisplayValue = p.sealedDisplayValue ?: Float.NaN
+                            out.sensorSerial = p.sensorSerial
+                        }
+                    }
             }
         }
         

@@ -912,6 +912,23 @@ public class NotificationChartDrawer {
         canvas.drawPath(predictionPath, predictionPaint);
     }
 
+    /**
+     * The value the calibrated line draws for a point: the recorded one if the
+     * point has it, otherwise today's calibration of the sensor's value. The
+     * same preference the dashboard's resolver makes, so the two charts agree
+     * on a minute the user has already been shown.
+     */
+    private static float resolveCalibratedValue(
+            GlucosePoint p,
+            boolean isRawMode,
+            String calibrationSensorId) {
+        float sealed = p.sealedDisplayValue;
+        if (!Float.isNaN(sealed) && sealed > 0.1f) return sealed;
+        float baseVal = isRawMode ? p.rawValue : p.value;
+        if (baseVal <= 0f) return 0f;
+        return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);
+    }
+
     @SuppressWarnings("unchecked")
     private static List<NotificationPredictionSeries> resolvePredictionOverlay(
             Context context,
@@ -1837,18 +1854,10 @@ public class NotificationChartDrawer {
         }
         if (hasCalibration) {
             for (GlucosePoint p : visiblePoints) {
-                float baseVal = isRawModeForCal ? p.rawValue : p.value;
-                if (baseVal > 0) {
-                    float calVal = CalibrationAccess.getCalibratedValue(
-                            baseVal,
-                            p.timestamp,
-                            isRawModeForCal,
-                            false,
-                            calibrationSensorId);
-                    if (calVal > 0.1f) {
-                        minY = Math.min(minY, calVal);
-                        maxY = Math.max(maxY, calVal);
-                    }
+                float calVal = resolveCalibratedValue(p, isRawModeForCal, calibrationSensorId);
+                if (calVal > 0.1f) {
+                    minY = Math.min(minY, calVal);
+                    maxY = Math.max(maxY, calVal);
                 }
             }
         }
@@ -2242,17 +2251,8 @@ public class NotificationChartDrawer {
             ArrayList<Float> values = new ArrayList<>(visibleRenderPoints.size());
 
             for (GlucosePoint renderPoint : visibleRenderPoints) {
-                float baseVal = isRawModeforCal ? renderPoint.rawValue : renderPoint.value;
-                float val = baseVal > 0
-                        ? CalibrationAccess.getCalibratedValue(
-                                baseVal,
-                                renderPoint.timestamp,
-                                isRawModeforCal,
-                                false,
-                                calibrationSensorId)
-                        : 0f;
                 timestamps.add(renderPoint.timestamp);
-                values.add(val);
+                values.add(resolveCalibratedValue(renderPoint, isRawModeforCal, calibrationSensorId));
             }
 
             drawNotificationSourceSeries(
