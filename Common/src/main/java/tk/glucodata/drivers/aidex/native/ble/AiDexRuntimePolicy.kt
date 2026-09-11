@@ -6,11 +6,10 @@ internal object AiDexRuntimePolicy {
 
     enum class PairKeyStartAction {
         USE_SAVED_KEY,
-        FRESH_PAIR_ONCE,
-        BROADCAST_ONLY,
+        FRESH_PAIR,
     }
 
-    enum class SavedKeyFailureAction {
+    enum class KeyExchangeFailureAction {
         RETRY_CLEAN_GATT,
         BROADCAST_ONLY,
     }
@@ -26,29 +25,38 @@ internal object AiDexRuntimePolicy {
     }
 
     /**
-     * A bond without a saved key is never probed automatically — but the user pressing Pair
-     * is the explicit, informed action that path exists for. Without it a sensor paired
-     * before the vault existed (every sensor at upgrade time), or one whose first pairing
-     * hiccuped after Android already bonded, is stuck in broadcast-only for good.
+     * Which credential the next key exchange starts from.
+     *
+     * A saved key is used whenever one exists — F001 is never run against a sensor whose
+     * credential we hold, so a working key is never rotated. Without a saved key the sensor
+     * is paired fresh over F001, bonded or not: the driver did exactly that on every connect
+     * before keys were persisted, so a sensor paired before the vault existed simply pairs
+     * once more after the update and keeps the key from then on.
+     *
+     * The one exception is a saved key that has already failed [savedKeyExhausted] times in
+     * a row. Nothing automatic replaces it, but the user pressing Pair is allowed to run a
+     * fresh F001; the credential that then decrypts a CRC-valid live frame replaces the dead
+     * one. Without that a stale key (vendor-app re-pair, or a sensor that does rotate) would
+     * park the sensor in broadcast-only for the rest of its life.
      */
     fun decidePairKeyStartAction(
-        bondStateAtConnection: Int,
         hasSavedPairKey: Boolean,
+        savedKeyExhausted: Boolean = false,
         explicitPairRequested: Boolean = false,
     ): PairKeyStartAction = when {
-        hasSavedPairKey -> PairKeyStartAction.USE_SAVED_KEY
-        explicitPairRequested -> PairKeyStartAction.FRESH_PAIR_ONCE
-        bondStateAtConnection != BluetoothDevice.BOND_BONDED -> PairKeyStartAction.FRESH_PAIR_ONCE
-        else -> PairKeyStartAction.BROADCAST_ONLY
+        !hasSavedPairKey -> PairKeyStartAction.FRESH_PAIR
+        explicitPairRequested && savedKeyExhausted -> PairKeyStartAction.FRESH_PAIR
+        else -> PairKeyStartAction.USE_SAVED_KEY
     }
 
-    fun decideSavedKeyFailureAction(
+    /** Both saved-key reconnects and fresh pairs retry through a clean GATT this many times. */
+    fun decideKeyExchangeFailureAction(
         consecutiveFailures: Int,
         maxFailures: Int,
-    ): SavedKeyFailureAction = if (consecutiveFailures >= maxFailures) {
-        SavedKeyFailureAction.BROADCAST_ONLY
+    ): KeyExchangeFailureAction = if (consecutiveFailures >= maxFailures) {
+        KeyExchangeFailureAction.BROADCAST_ONLY
     } else {
-        SavedKeyFailureAction.RETRY_CLEAN_GATT
+        KeyExchangeFailureAction.RETRY_CLEAN_GATT
     }
 
     fun shouldClearPersistedPairKey(deleteBondPending: Boolean, responseStatus: Int): Boolean =

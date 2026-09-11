@@ -48,7 +48,30 @@ object AiDexPairKeyVault {
             return false
         }
         if (existingCopies.size == 2) return true
+        return writeCopies(context, bareSerial, pairKey)
+    }
 
+    /**
+     * Save a credential that has just decrypted a CRC-valid live frame from the sensor.
+     *
+     * That is the only evidence strong enough to replace a stored key: the driver only runs
+     * a fresh F001 against a keyed sensor after the stored key has failed repeatedly and the
+     * user asked for a re-pair, so a different key arriving here means the stored one is dead.
+     * A matching key is a no-op; conflicting copies are healed to the validated one.
+     */
+    @Synchronized
+    fun saveValidated(context: Context, serial: String, pairKey: ByteArray): Boolean {
+        if (pairKey.size != AiDexPairKeyBackup.PAIR_KEY_BYTES) return false
+        val bareSerial = AiDexPairKeyBackup.canonicalBareSerial(serial)
+        val existingCopies = readCopies(context, bareSerial)
+        if (existingCopies.size == 2 && existingCopies.all { it.contentEquals(pairKey) }) return true
+        if (existingCopies.any { !it.contentEquals(pairKey) }) {
+            Log.w(TAG, "Replacing a stored AiDex PAIR credential for $bareSerial with one validated by live data")
+        }
+        return writeCopies(context, bareSerial, pairKey)
+    }
+
+    private fun writeCopies(context: Context, bareSerial: String, pairKey: ByteArray): Boolean {
         val payload = AiDexPairKeyBackup.encode(bareSerial, pairKey) ?: return false
         val key = entryKey(bareSerial)
         val primarySaved = context.getSharedPreferences(PRIMARY_PREFS, Context.MODE_PRIVATE)

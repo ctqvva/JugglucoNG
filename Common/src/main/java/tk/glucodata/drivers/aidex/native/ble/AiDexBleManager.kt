@@ -213,7 +213,7 @@ class AiDexBleManager(
         private const val START_TIME_REPAIR_RESPONSE_MAX_BYTES = 12
         private const val DEFAULT_PARAM_WRITE_ACK_TIMEOUT_MS = 10_000L
         private const val DEFAULT_PARAM_MAX_CHUNK_PAYLOAD_BYTES = 160
-        private const val SAVED_KEY_RECONNECT_MAX_FAILURES = 3
+        private const val KEY_EXCHANGE_MAX_FAILURES = 3
 
         // -- History Storage --
         private const val MIN_VALID_GLUCOSE_MGDL = 20
@@ -329,12 +329,15 @@ class AiDexBleManager(
     @Volatile private var persistedPairKey: ByteArray? = null
     private var keyExchangeUsingSavedPairKey = false
     private var pairKeyAwaitingLiveValidation = false
-    private var savedKeyReconnectFailures = 0
+    /** Consecutive key-exchange failures on this credential path; cleared by a valid live frame. */
+    private var keyExchangeFailures = 0
+    /** Latched once saved-key reconnects hit [KEY_EXCHANGE_MAX_FAILURES]; cleared by a valid live frame. */
+    private var savedKeyExhausted = false
     /**
-     * Set by [rePairSensor]: the user pressed Pair. That is the one explicit action allowed
-     * to run a fresh F001 exchange over a bond that has no saved credential — a sensor
-     * paired before the key vault existed, or a first pairing that failed after Android had
-     * already bonded. Consumed when the fresh exchange starts.
+     * Set by [rePairSensor]: the user pressed Pair. A saved key that has been exhausted may
+     * then be replaced by a fresh F001 exchange — the only route off a dead credential. Held
+     * across the bounded retries and cleared by a valid live frame, by giving up into
+     * broadcast-only, or by removing the sensor.
      */
     @Volatile private var explicitPairRequested = false
     private var preAuthEncryptedFrameCount = 0
@@ -423,11 +426,7 @@ class AiDexBleManager(
     private val keyExchangeWatchdog = Runnable {
         if (phase == Phase.KEY_EXCHANGE) {
             Log.e(TAG, "Key exchange watchdog FIRED — timeout after ${KEY_EXCHANGE_TIMEOUT_MS}ms")
-            if (keyExchangeUsingSavedPairKey) {
-                handleSavedKeyReconnectFailure("key-exchange-timeout")
-            } else {
-                stopFreshPairAttempt("key-exchange-timeout")
-            }
+            handleKeyExchangeFailure("key-exchange-timeout")
         }
     }
 
@@ -662,8 +661,8 @@ class AiDexBleManager(
                 refreshLiveCccds(PostCccdFollowUp.RESUME_STREAMING, "no-stream-watchdog")
             }
             AiDexStreamingPolicy.NoStreamRecoveryAction.RECONNECT -> {
-                if (keyExchangeUsingSavedPairKey) {
-                    handleSavedKeyReconnectFailure("no-valid-direct-f003")
+                if (keyExchangeUsingSavedPairKey || pairKeyAwaitingLiveValidation) {
+                    handleKeyExchangeFailure("no-valid-direct-f003")
                     return@Runnable
                 }
                 val delay = reconnect.nextReconnectDelayMs()
@@ -1549,11 +1548,7 @@ class AiDexBleManager(
             return
         }
         if (phase == Phase.KEY_EXCHANGE) {
-            if (keyExchangeUsingSavedPairKey || persistedPairKey != null) {
-                handleSavedKeyReconnectFailure(reason)
-            } else {
-                stopFreshPairAttempt(reason)
-            }
+            handleKeyExchangeFailure(reason)
             return
         }
         val bondState = currentBondState()
@@ -2144,39 +2139,23 @@ class AiDexBleManager(
         setPhase(Phase.CCCD_CHAIN)
         handler.removeCallbacks(cccdWriteWatchdog)
 
-        val hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES
-        val keyStartAction = AiDexRuntimePolicy.decidePairKeyStartAction(
-            bondStateAtConnection = bondStateAtConnection,
-            hasSavedPairKey = hasSavedPairKey,
-            explicitPairRequested = explicitPairRequested,
-        )
-        if (keyStartAction == AiDexRuntimePolicy.PairKeyStartAction.BROADCAST_ONLY) {
-            // After upgrading an already-running sensor there is no trustworthy way to recover
-            // its stable PAIR key. Never probe F001 automatically: keep broadcasts available and
-            // require an explicit, informed pairing action instead of risking sensor takeover.
-            Log.w(TAG, "Existing AiDex bond has no saved PAIR credential; refusing automatic F001 exchange")
-            enterBroadcastOnlyFallback(
-                reason = "legacy-bond-without-saved-pair-key",
-                statusText = "Pairing key unavailable — Broadcast Only",
-            )
-            return
-        }
-
+        val keyStartAction = decidePairKeyStartAction()
         Log.i(
             TAG,
-            if (hasSavedPairKey) {
-                "Services discovered. Starting saved-key CCCD chain..."
-            } else {
-                "Services discovered. Starting first-pair CCCD chain..."
+            when (keyStartAction) {
+                AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY ->
+                    "Services discovered. Starting saved-key CCCD chain..."
+                AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR ->
+                    "Services discovered. Starting fresh-pair CCCD chain..."
             }
         )
 
-        // Saved-key reconnects never touch F001. A genuinely new pairing enables F001 once so
-        // the sensor can provide its stable PAIR credential.
+        // Saved-key reconnects never touch F001. A fresh pairing enables F001 so the sensor
+        // can provide its stable PAIR credential.
         cccdQueue.clear()
         cccdQueue.add(CHAR_F003)
         cccdQueue.add(CHAR_F002)
-        if (keyStartAction == AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR_ONCE) {
+        if (keyStartAction == AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR) {
             cccdQueue.add(CHAR_F001)
         }
         cccdWriteInProgress = false
@@ -2881,23 +2860,17 @@ class AiDexBleManager(
     // Key Exchange
     // =========================================================================
 
+    private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction =
+        AiDexRuntimePolicy.decidePairKeyStartAction(
+            hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
+            savedKeyExhausted = savedKeyExhausted,
+            explicitPairRequested = explicitPairRequested,
+        )
+
     private fun startKeyExchangeForCurrentConnection(gatt: BluetoothGatt) {
-        when (
-            AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = bondStateAtConnection,
-                hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
-                explicitPairRequested = explicitPairRequested,
-            )
-        ) {
+        when (decidePairKeyStartAction()) {
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY -> startSavedPairKeyExchange(gatt)
-            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR_ONCE -> startFreshPairKeyExchange(gatt)
-            AiDexRuntimePolicy.PairKeyStartAction.BROADCAST_ONLY -> {
-                Log.w(TAG, "Refusing F001 exchange for a pre-existing bond without a saved PAIR credential")
-                enterBroadcastOnlyFallback(
-                    reason = "existing-bond-missing-pair-key",
-                    statusText = "Pairing key unavailable — Broadcast Only",
-                )
-            }
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR -> startFreshPairKeyExchange(gatt)
         }
     }
 
@@ -2932,7 +2905,6 @@ class AiDexBleManager(
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-fresh-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
         keyExchange.reset()
-        explicitPairRequested = false
         keyExchangeUsingSavedPairKey = false
         pairKeyAwaitingLiveValidation = false
         challengeWritten = false
@@ -2950,8 +2922,7 @@ class AiDexBleManager(
         val f001 = service?.getCharacteristic(CHAR_F001)
         if (service == null || f001 == null) {
             Log.e(TAG, "startFreshPairKeyExchange: SERVICE_F000 or F001 not found")
-            handler.removeCallbacks(keyExchangeWatchdog)
-            stopFreshPairAttempt("f001-unavailable")
+            handleKeyExchangeFailure("f001-unavailable")
             return
         }
 
@@ -2960,7 +2931,7 @@ class AiDexBleManager(
         challengeWritten = gatt.writeCharacteristic(f001)
         if (!challengeWritten) {
             Log.e(TAG, "Fresh PAIR challenge was rejected by Android GATT")
-            stopFreshPairAttempt("f001-write-rejected")
+            handleKeyExchangeFailure("f001-write-rejected")
         }
     }
 
@@ -3011,11 +2982,7 @@ class AiDexBleManager(
 
         if (!keyExchange.decryptBond(data)) {
             Log.e(TAG, "Key exchange: BOND decryption/CRC failed (saved=$keyExchangeUsingSavedPairKey)")
-            if (keyExchangeUsingSavedPairKey) {
-                handleSavedKeyReconnectFailure("f002-decrypt-or-crc")
-            } else {
-                stopFreshPairAttempt("fresh-f002-decrypt-or-crc")
-            }
+            handleKeyExchangeFailure("f002-decrypt-or-crc")
             return
         }
 
@@ -3026,8 +2993,15 @@ class AiDexBleManager(
         sendPostBondConfig(gatt)
     }
 
-    private fun handleSavedKeyReconnectFailure(reason: String) {
-        savedKeyReconnectFailures += 1
+    /**
+     * A key exchange — saved-key or fresh — did not produce a working session. Neither path
+     * touches the stored credential: a saved key is retained through every failure, and a
+     * fresh pair has nothing stored yet. Retry through a clean GATT a bounded number of
+     * times, then hold in broadcast-only until the user acts.
+     */
+    private fun handleKeyExchangeFailure(reason: String) {
+        val usedSavedKey = keyExchangeUsingSavedPairKey
+        keyExchangeFailures += 1
         keyExchange.reset()
         keyExchangeUsingSavedPairKey = false
         pairKeyAwaitingLiveValidation = false
@@ -3037,38 +3011,29 @@ class AiDexBleManager(
         setPhase(Phase.IDLE)
         close()
 
+        val pathName = if (usedSavedKey) "Saved-key reconnect" else "Fresh pair"
         if (
-            AiDexRuntimePolicy.decideSavedKeyFailureAction(
-                consecutiveFailures = savedKeyReconnectFailures,
-                maxFailures = SAVED_KEY_RECONNECT_MAX_FAILURES,
-            ) == AiDexRuntimePolicy.SavedKeyFailureAction.BROADCAST_ONLY
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(
+                consecutiveFailures = keyExchangeFailures,
+                maxFailures = KEY_EXCHANGE_MAX_FAILURES,
+            ) == AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY
         ) {
-            Log.w(TAG, "Saved-key reconnect failed $savedKeyReconnectFailures times ($reason); PAIR credential retained")
+            if (usedSavedKey) savedKeyExhausted = true
+            Log.w(TAG, "$pathName failed $keyExchangeFailures times ($reason); stored credential untouched")
+            explicitPairRequested = false
             enterBroadcastOnlyFallback(
-                reason = "saved-key-reconnect-failed:$reason",
-                statusText = "Pairing key safe — Broadcast Only",
+                reason = "key-exchange-failed:$reason",
+                statusText = if (usedSavedKey) "Pairing key safe — Broadcast Only" else "Pairing failed — Broadcast Only",
             )
             return
         }
         val delay = reconnect.nextReconnectDelayMs()
         Log.w(
             TAG,
-            "Saved-key reconnect failed ($reason); retaining credential and retrying clean GATT " +
-                "in ${delay}ms ($savedKeyReconnectFailures/$SAVED_KEY_RECONNECT_MAX_FAILURES)"
+            "$pathName failed ($reason); retrying clean GATT in ${delay}ms " +
+                "($keyExchangeFailures/$KEY_EXCHANGE_MAX_FAILURES)"
         )
         handler.postDelayed({ connectDevice(0) }, delay)
-    }
-
-    private fun stopFreshPairAttempt(reason: String) {
-        keyExchange.reset()
-        keyExchangeUsingSavedPairKey = false
-        pairKeyAwaitingLiveValidation = false
-        handler.removeCallbacks(keyExchangeWatchdog)
-        Log.w(TAG, "Fresh PAIR attempt stopped without retry ($reason)")
-        enterBroadcastOnlyFallback(
-            reason = "fresh-pair-stopped:$reason",
-            statusText = "Pairing stopped — Broadcast Only",
-        )
     }
 
     /**
@@ -3938,17 +3903,19 @@ class AiDexBleManager(
 
         if (pairKeyAwaitingLiveValidation) {
             val candidate = keyExchange.pairKey
-            if (candidate != null && AiDexPairKeyVault.saveIfAbsent(Applic.app, SerialNumber, candidate)) {
+            if (candidate != null && AiDexPairKeyVault.saveValidated(Applic.app, SerialNumber, candidate)) {
                 persistedPairKey = candidate.copyOf()
                 pairKeyAwaitingLiveValidation = false
                 Log.i(TAG, "Persisted AiDex PAIR credential after valid direct F003 validation")
                 UiRefreshBus.requestStatusRefresh()
             } else {
-                Log.e(TAG, "Could not persist validated AiDex PAIR credential; existing key was retained")
+                Log.e(TAG, "Could not persist validated AiDex PAIR credential; will retry on the next live frame")
             }
         }
         keyExchangeUsingSavedPairKey = false
-        savedKeyReconnectFailures = 0
+        keyExchangeFailures = 0
+        savedKeyExhausted = false
+        explicitPairRequested = false
 
         if (currentBondState() == BluetoothDevice.BOND_BONDED) {
             setBondValidatedByStreaming(true, "direct-live")
@@ -5905,7 +5872,10 @@ class AiDexBleManager(
         Log.i(TAG, "rePairSensor: reconnecting without discarding PAIR credential for $SerialNumber")
         consecutiveSetupDisconnects = 0
         keyExchange.reset()
-        explicitPairRequested = persistedPairKey == null
+        // The user asked for a pairing: give it a full set of retries, and let it replace a
+        // saved key only if that key has already been proven dead.
+        keyExchangeFailures = 0
+        explicitPairRequested = true
         softDisconnect()
         constatstatusstr = "Re-pairing..."
         UiRefreshBus.requestStatusRefresh()

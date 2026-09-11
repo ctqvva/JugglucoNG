@@ -10,60 +10,58 @@ import org.junit.Test
 class AiDexRuntimePolicyTests {
 
     @Test
-    fun pairKeyStartAction_neverFreshPairsAnExistingBondWithoutSavedKey() {
+    fun pairKeyStartAction_aSensorWithoutASavedKeyPairsFreshBondedOrNot() {
+        // Every sensor paired before the vault existed is bonded with no key. The driver did
+        // F001 on every connect until now, so it simply does it once more after the update.
         assertEquals(
-            AiDexRuntimePolicy.PairKeyStartAction.BROADCAST_ONLY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
-                hasSavedPairKey = false,
-            )
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false)
         )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false, savedKeyExhausted = true)
+        )
+    }
+
+    @Test
+    fun pairKeyStartAction_aSavedKeyIsAlwaysUsedAndNeverRotatedByPair() {
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
-                hasSavedPairKey = true,
-            )
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true)
         )
+        // Pair on a keyed sensor that is still working must not run F001 against it.
         assertEquals(
-            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR_ONCE,
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, explicitPairRequested = true)
+        )
+        // Nothing automatic replaces a key either, even after it has failed its retries.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, savedKeyExhausted = true)
+        )
+    }
+
+    @Test
+    fun pairKeyStartAction_userPressingPairIsTheOnlyWayOffADeadSavedKey() {
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
             AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = BluetoothDevice.BOND_NONE,
-                hasSavedPairKey = false,
+                hasSavedPairKey = true,
+                savedKeyExhausted = true,
+                explicitPairRequested = true,
             )
         )
     }
 
     @Test
-    fun pairKeyStartAction_userPressingPairIsTheOneWayOutOfABondWithoutAKey() {
+    fun keyExchangeFailures_retryBoundedlyThenHoldInBroadcastOnly() {
         assertEquals(
-            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR_ONCE,
-            AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
-                hasSavedPairKey = false,
-                explicitPairRequested = true,
-            )
-        )
-        // A saved key still wins: Pair on a keyed sensor must not rotate its credential.
-        assertEquals(
-            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
-            AiDexRuntimePolicy.decidePairKeyStartAction(
-                bondStateAtConnection = BluetoothDevice.BOND_BONDED,
-                hasSavedPairKey = true,
-                explicitPairRequested = true,
-            )
-        )
-    }
-
-    @Test
-    fun savedKeyFailures_retryBoundedlyThenUseBroadcastWithoutClearingKey() {
-        assertEquals(
-            AiDexRuntimePolicy.SavedKeyFailureAction.RETRY_CLEAN_GATT,
-            AiDexRuntimePolicy.decideSavedKeyFailureAction(2, 3)
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RETRY_CLEAN_GATT,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(2, 3)
         )
         assertEquals(
-            AiDexRuntimePolicy.SavedKeyFailureAction.BROADCAST_ONLY,
-            AiDexRuntimePolicy.decideSavedKeyFailureAction(3, 3)
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3)
         )
     }
 
