@@ -55,9 +55,18 @@ interface JournalDao {
         endMillis: Long
     ): List<JournalEntryEntity>
 
+    /**
+     * Blood-glucose measurements the user entered: fingersticks, and nothing else.
+     *
+     * Not "entries that have a glucose value". An insulin dose or a meal placed by
+     * tapping the chart stores the sensor value it was anchored to — that is how the
+     * dose calculator and the IOB anchor know what the user was at — and selecting on
+     * the column alone turned every such tap into a calibration point at the sensor's
+     * own value: a droplet on the line, saying the sensor agrees with itself.
+     */
     @Query(
-        "SELECT * FROM journal_entries WHERE glucoseValueMgDl IS NOT NULL AND timestamp >= :startMillis " +
-            "ORDER BY timestamp ASC, id ASC"
+        "SELECT * FROM journal_entries WHERE entryType = 'fingerstick' AND glucoseValueMgDl IS NOT NULL " +
+            "AND timestamp >= :startMillis ORDER BY timestamp ASC, id ASC"
     )
     suspend fun getGlucoseEntriesSince(startMillis: Long): List<JournalEntryEntity>
 
