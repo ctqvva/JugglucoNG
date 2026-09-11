@@ -2254,6 +2254,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">Насиченість</string>
     <string name="glucose_palette_brightness">Яскравість</string>
     <string name="notification_charts_section">Графіки</string>
+    <string name="notification_chart_pause_screen_off">Призупиняти графік, коли екран вимкнено</string>
+    <string name="notification_chart_pause_screen_off_summary">Графік перемальовується після ввімкнення екрана. Він може ненадовго зникнути.</string>
     <string name="notification_status_line_section">Рядок стану</string>
     <string name="display_colors_title">Екран</string>
     <string name="display_colors_desc">Кольори, дані на головній і графіки</string>

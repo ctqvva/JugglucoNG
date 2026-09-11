@@ -2237,6 +2237,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_saturation">Насыщенность</string>
     <string name="glucose_palette_brightness">Яркость</string>
     <string name="notification_charts_section">Графики</string>
+    <string name="notification_chart_pause_screen_off">Приостанавливать график при выключенном экране</string>
+    <string name="notification_chart_pause_screen_off_summary">График перерисовывается при включении экрана. Он может ненадолго исчезнуть.</string>
     <string name="notification_status_line_section">Строка состояния</string>
     <string name="display_colors_title">Экран</string>
     <string name="display_colors_desc">Цвета, данные на главной и графики</string>

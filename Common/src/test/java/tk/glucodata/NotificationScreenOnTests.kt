@@ -33,6 +33,25 @@ class NotificationScreenOnTests {
         assertEquals(0, h.count("livePosts"))
     }
 
+    @Test fun missingPreferenceKeepsExistingScreenOffRendering() {
+        val h = harness()
+        h.set("settingPresent", false)
+        assertTrue(h.render())
+        h.set("interactive", true)
+        h.wake()
+        assertEquals(0, h.count("livePosts"))
+    }
+
+    @Test fun optOutKeepsScreenOffRenderingAndClearsPendingWake() {
+        val h = harness()
+        assertFalse(h.render())
+        h.set("pauseEnabled", false)
+        assertTrue(h.render())
+        h.set("interactive", true)
+        h.wake()
+        assertEquals(0, h.count("livePosts"))
+    }
+
     @Test fun phoneOptimizationDoesNotChangeWearRendering() {
         val h = harness()
         h.set("isWearable", true)
@@ -80,22 +99,34 @@ class NotificationScreenOnTests {
 
     companion object {
         private val compiled: Class<*> by lazy {
-            val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
                 .first { File(it, "Common/src/main/java/tk/glucodata/Notify.java").exists() }
             val source = File(root, "Common/src/main/java/tk/glucodata/Notify.java").readText()
-            val methods = source.substring(source.indexOf("    private volatile boolean notificationChartsDeferred;"),
+            val methods = source.substring(source.indexOf("    private boolean isScreenOffChartPauseEnabled()"),
                 source.indexOf("    private final Runnable glucoseRefreshRunnable"))
             val dir = java.nio.file.Files.createTempDirectory("notify-screen-on-test").toFile()
             val file = File(dir, "NotifyScreenOnHarness.java")
             file.writeText("""
                 import static java.lang.String.format;
                 public class NotifyScreenOnHarness {
-                    public boolean interactive, isWearable, hasCurrent = true, keepNotification = true;
+                    public boolean interactive, isWearable, pauseEnabled = true, settingPresent = true,
+                        hasCurrent = true, keepNotification = true;
                     public int livePosts, startupPosts;
                     static String LOG_ID = "test", glucoseformat = "%.0f";
                     static java.util.Locale usedlocale = java.util.Locale.ROOT;
                     static int FOREGROUND_GLUCOSE_NOTIFICATION_KIND = -1;
-                    static class Context {}
+                    static class Context { static int MODE_PRIVATE = 0; }
+                    class Preferences {
+                        boolean getBoolean(String key, boolean defaultValue) {
+                            if (!key.equals("notification_chart_pause_screen_off")) throw new AssertionError(key);
+                            return settingPresent ? pauseEnabled : defaultValue;
+                        }
+                    }
+                    class App {
+                        Preferences getSharedPreferences(String name, int mode) { return new Preferences(); }
+                    }
+                    class AppAccess { App app = new App(); }
+                    AppAccess Applic = new AppAccess();
                     static class Intent {
                         static String ACTION_SCREEN_ON = "screen-on";
                         String getAction() { return ACTION_SCREEN_ON; }

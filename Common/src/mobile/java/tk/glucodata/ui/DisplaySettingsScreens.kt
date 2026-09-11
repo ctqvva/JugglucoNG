@@ -108,6 +108,7 @@ fun NotificationSettingsScreen(
     var largeArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_large_trend_arrow", false)) }
     var arrowSize by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_arrow_size", 1.0f)) }
     var collapsedChart by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
+    var pauseChartScreenOff by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_pause_screen_off", false)) }
     var showTargetRange by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     var showIob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_iob", false)) }
     var showCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_cob", false)) }
@@ -125,6 +126,7 @@ fun NotificationSettingsScreen(
             .putBoolean("notification_large_trend_arrow", largeArrow)
             .putFloat("notification_arrow_size", arrowSize)
             .putBoolean("notification_chart_collapsed", collapsedChart)
+            .putBoolean("notification_chart_pause_screen_off", pauseChartScreenOff)
             .putBoolean("notification_chart_target_range", showTargetRange)
             .putBoolean("notification_show_iob", showIob)
             .putBoolean("notification_show_cob", showCob)
@@ -269,13 +271,22 @@ fun NotificationSettingsScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.show_target_range),
-                    subtitle = stringResource(R.string.show_target_range_desc),
-                    checked = showTargetRange,
-                    onCheckedChange = { showTargetRange = it; save() },
-                    position = CardPosition.BOTTOM
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.show_target_range),
+                        subtitle = stringResource(R.string.show_target_range_desc),
+                        checked = showTargetRange,
+                        onCheckedChange = { showTargetRange = it; save() },
+                        position = CardPosition.MIDDLE
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.notification_chart_pause_screen_off),
+                        subtitle = stringResource(R.string.notification_chart_pause_screen_off_summary),
+                        checked = pauseChartScreenOff,
+                        onCheckedChange = { pauseChartScreenOff = it; save() },
+                        position = CardPosition.BOTTOM
+                    )
+                }
             }
         }
 

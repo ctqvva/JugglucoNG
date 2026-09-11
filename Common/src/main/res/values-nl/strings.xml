@@ -2225,6 +2225,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_palette_saturation">Verzadiging</string>
     <string name="glucose_palette_brightness">Helderheid</string>
     <string name="notification_charts_section">Grafieken</string>
+    <string name="notification_chart_pause_screen_off">Grafiek pauzeren als het scherm uit is</string>
+    <string name="notification_chart_pause_screen_off_summary">Wordt opnieuw getekend zodra het scherm aangaat. De grafiek kan kort verborgen zijn.</string>
     <string name="notification_status_line_section">Statusregel</string>
     <string name="display_colors_title">Weergave</string>
     <string name="display_colors_desc">Kleuren, dashboardwaarden en grafieken</string>

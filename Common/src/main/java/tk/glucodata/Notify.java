@@ -1091,10 +1091,18 @@ public class Notify {
         }
     }
 
+    private boolean isScreenOffChartPauseEnabled() {
+        return Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+                .getBoolean("notification_chart_pause_screen_off", false);
+    }
+
     private volatile boolean notificationChartsDeferred;
 
     private boolean canRenderNotificationCharts(boolean chartsEnabled) {
-        if (isWearable) return chartsEnabled;
+        if (isWearable || !isScreenOffChartPauseEnabled()) {
+            notificationChartsDeferred = false;
+            return chartsEnabled;
+        }
         final boolean interactive = isScreenInteractive();
         notificationChartsDeferred = chartsEnabled && !interactive;
         return chartsEnabled && interactive;

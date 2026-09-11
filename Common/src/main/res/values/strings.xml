@@ -2249,6 +2249,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_settings_title">Notification settings</string>
     <string name="notification_settings_subtitle">Customize notification shade</string>
     <string name="notification_charts_section">Charts</string>
+    <string name="notification_chart_pause_screen_off">Pause chart while screen is off</string>
+    <string name="notification_chart_pause_screen_off_summary">Redraws when the screen turns on. The chart may briefly be hidden.</string>
     <string name="notification_status_line_section">Status line</string>
     <string name="display_colors_title">Display</string>
     <string name="display_colors_desc">Colors, dashboard values, and charts</string>

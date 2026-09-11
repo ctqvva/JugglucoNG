@@ -2370,6 +2370,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucose_palette_saturation">Dheregsanaanta</string>
     <string name="glucose_palette_brightness">Iftiinka</string>
     <string name="notification_charts_section">Jaantusyada</string>
+    <string name="notification_chart_pause_screen_off">Hakadi jaantuska marka shaashaddu dansan tahay</string>
+    <string name="notification_chart_pause_screen_off_summary">Dib ayaa loo sawiraa marka shaashaddu shidanto. Jaantusku muddo kooban ayuu qarsoomi karaa.</string>
     <string name="notification_status_line_section">Xariiqda xaaladda</string>
     <string name="display_colors_title">Muuqaalka</string>
     <string name="wear_direct_sensor_watch_desc">Saacaddu waxay raadisaa dareemaha waxayna la wareegtaa Bluetooth ka dib akhriska ugu horreeya ee la aqbalo.</string>

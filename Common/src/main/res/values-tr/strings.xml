@@ -2210,6 +2210,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucose_palette_saturation">Doygunluk</string>
     <string name="glucose_palette_brightness">Parlaklık</string>
     <string name="notification_charts_section">Grafikler</string>
+    <string name="notification_chart_pause_screen_off">Ekran kapalıyken grafiği duraklat</string>
+    <string name="notification_chart_pause_screen_off_summary">Ekran açıldığında grafik yeniden çizilir. Kısa süreliğine gizli kalabilir.</string>
     <string name="notification_status_line_section">Durum satırı</string>
     <string name="display_colors_title">Görünüm</string>
     <string name="display_colors_desc">Renkler, pano değerleri ve grafikler</string>
