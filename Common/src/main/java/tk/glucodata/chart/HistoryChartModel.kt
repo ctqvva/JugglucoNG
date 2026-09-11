@@ -36,13 +36,26 @@ data class ChartRun(
     val points: List<ChartPointModel>,
 )
 
-enum class ChartLaneKind { RAW, AUTO }
+enum class ChartLaneKind {
+    RAW,
+    AUTO,
+    /**
+     * What the calibration in force would make of the primary, where that
+     * differs from the main line. The main line does not move under a
+     * calibration edit — it draws the recorded value — which makes a
+     * calibration entered against a past fingerstick invisible, and seeing
+     * what it does to the curve is the whole reason for entering one there.
+     * So the projection is its own faint lane beside the record, present only
+     * where the two disagree; where they agree there is nothing to preview.
+     */
+    CALIBRATION_PREVIEW,
+}
 
 /**
  * A lane drawn thin beside the main line: the other signal in a dual-lane
- * view mode, or the uncalibrated source behind a calibrated main line. Never
- * the main line itself — the builder leaves that out so a renderer cannot draw
- * it twice.
+ * view mode, the uncalibrated source behind a calibrated main line, or the
+ * calibration preview. Never the main line itself — the builder leaves that
+ * out so a renderer cannot draw it twice.
  */
 data class ChartLane(
     val kind: ChartLaneKind,

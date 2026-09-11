@@ -101,6 +101,31 @@ class HistoryChartModelBuilderTests {
     }
 
     @Test
+    fun theCalibrationPreviewExistsOnlyWhereTheRecordDisagreesWithTheLiveCalibration() {
+        // Minutes 0 and 1 are recorded at 5 while the calibration says 6; minute
+        // 2 has no record and simply draws the calibration. Only the first two
+        // have anything to preview.
+        val a = series(
+            "A", primary = true,
+            point(NOW, 5f, "A", sealed = 5f),
+            point(NOW + MINUTE, 5f, "A", sealed = 5f),
+            point(NOW + 2 * MINUTE, 5f, "A"),
+        )
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, plusOne, hasCalibration = true)
+        val preview = model.primary!!.secondaryLanes.single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }
+        val previewed = preview.runs.flatMap { it.points }
+        assertEquals(listOf(NOW, NOW + MINUTE), previewed.map { it.timestamp })
+        assertEquals(6f, previewed[0].value, 0.001f)
+    }
+
+    @Test
+    fun noPreviewLaneWhenTheRecordAndTheCalibrationAgree() {
+        val a = series("A", primary = true, point(NOW, 5f, "A", sealed = 6f), point(NOW + MINUTE, 5f, "A", sealed = 6f))
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, plusOne, hasCalibration = true)
+        assertTrue(model.primary!!.secondaryLanes.none { it.kind == ChartLaneKind.CALIBRATION_PREVIEW })
+    }
+
+    @Test
     fun aGapBreaksTheRunWithoutSharingAPoint() {
         val a = series(
             "A", primary = true,

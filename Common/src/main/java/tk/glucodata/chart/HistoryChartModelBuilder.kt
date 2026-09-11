@@ -93,15 +93,24 @@ object HistoryChartModelBuilder {
         val isRawMode = input.viewMode == 1 || input.viewMode == 3
         val defaultLook = if (input.isPrimary) ChartLook.MAIN else ChartLook.SECONDARY
 
-        val secondaryLanes = if (input.isPrimary) {
-            secondaryLaneKinds(input.viewMode, hasCalibration, hideInitialWhenCalibrated).map { kind ->
-                ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs))
+        val secondaryLanes = ArrayList<ChartLane>()
+        if (input.isPrimary) {
+            secondaryLaneKinds(input.viewMode, hasCalibration, hideInitialWhenCalibrated).forEach { kind ->
+                secondaryLanes.add(ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs)))
             }
-        } else {
-            emptyList()
         }
 
         val runs = ArrayList<ChartRun>()
+        // The preview lane is collected alongside the main runs: it exists at
+        // exactly the points where the main line drew something other than the
+        // live calibration's answer.
+        val previewRuns = ArrayList<ChartRun>()
+        var preview = ArrayList<ChartPointModel>()
+        var previewLast = Long.MIN_VALUE
+        fun flushPreview() {
+            if (preview.isNotEmpty()) previewRuns.add(ChartRun(ChartLook.SECONDARY, preview))
+            preview = ArrayList()
+        }
         var current = ArrayList<ChartPointModel>()
         var currentLook: ChartLook? = null
         var lastTimestamp = Long.MIN_VALUE
@@ -115,6 +124,18 @@ object HistoryChartModelBuilder {
 
         for (point in input.points) {
             val value = resolveValue(point, isRawMode, input.sensorId, calibration) ?: continue
+            if (input.isPrimary && hasCalibration) {
+                val live = liveCalibratedValue(point, isRawMode, input.sensorId, calibration)
+                val differs = live != null && kotlin.math.abs(live - value) > PREVIEW_DIFFERENCE
+                if (differs) {
+                    if (previewLast != Long.MIN_VALUE && point.timestamp - previewLast > gapThresholdMs) flushPreview()
+                    preview.add(ChartPointModel(point.timestamp, live!!))
+                    previewLast = point.timestamp
+                } else if (preview.isNotEmpty()) {
+                    flushPreview()
+                    previewLast = Long.MIN_VALUE
+                }
+            }
             val look = when (ownership.isMainAt(input.sensorId, point.timestamp)) {
                 true -> ChartLook.MAIN
                 false -> ChartLook.SECONDARY
@@ -140,6 +161,10 @@ object HistoryChartModelBuilder {
             lastTimestamp = point.timestamp
         }
         flush()
+        flushPreview()
+        if (previewRuns.isNotEmpty()) {
+            secondaryLanes.add(ChartLane(ChartLaneKind.CALIBRATION_PREVIEW, previewRuns))
+        }
 
         return ChartSeriesModel(
             sensorId = input.sensorId,
@@ -168,6 +193,22 @@ object HistoryChartModelBuilder {
         }
         if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
         return runs
+    }
+
+    /** Below this the record and the live calibration are the same number, in any unit. */
+    private const val PREVIEW_DIFFERENCE = 0.05f
+
+    /** The live calibration's answer for a point, ignoring any record. */
+    private fun liveCalibratedValue(
+        point: GlucosePoint,
+        isRawMode: Boolean,
+        sensorId: String,
+        calibration: Calibration,
+    ): Float? {
+        val base = if (isRawMode) point.rawValue else point.value
+        if (base.isNaN() || base <= 0.1f) return null
+        val calibrated = calibration.apply(base, point.timestamp, isRawMode, sensorId) ?: return null
+        return if (!calibrated.isNaN() && calibrated > 0.1f) calibrated else null
     }
 
     /**

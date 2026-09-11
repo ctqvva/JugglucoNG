@@ -2730,14 +2730,30 @@ fun InteractiveGlucoseChart(
 
                     // Secondary lanes first, under everything.
                     for (lane in primarySeries.secondaryLanes) {
-                        val path = if (lane.kind == tk.glucodata.chart.ChartLaneKind.RAW) reusableRawPath else reusableAutoPath
-                        val color = if (lane.kind == tk.glucodata.chart.ChartLaneKind.RAW) rawLaneColor else autoLaneColor
+                        val path = when (lane.kind) {
+                            tk.glucodata.chart.ChartLaneKind.RAW -> reusableRawPath
+                            tk.glucodata.chart.ChartLaneKind.AUTO -> reusableAutoPath
+                            tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW -> reusableDemotedPath
+                        }
                         path.rewind()
                         val lineRun = ChartLineRun()
                         lane.runs.forEach { addRun(path, it, lineRun) }
                         lineRun.flush()
-                        drawPath(path, color, style = Stroke(width = laneStroke, cap = strokeCap, join = strokeJoin))
-                        drawIsolated(lineRun, color, laneStroke)
+                        when (lane.kind) {
+                            tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW -> {
+                                // A question, not a record: faint and thin, so
+                                // it can never read as the value.
+                                val previewColor = primaryColor.copy(alpha = 0.45f)
+                                val previewStroke = 1.dp.toPx()
+                                drawPath(path, previewColor, style = Stroke(width = previewStroke, cap = strokeCap, join = strokeJoin))
+                                drawIsolated(lineRun, previewColor, previewStroke)
+                            }
+                            else -> {
+                                val color = if (lane.kind == tk.glucodata.chart.ChartLaneKind.RAW) rawLaneColor else autoLaneColor
+                                drawPath(path, color, style = Stroke(width = laneStroke, cap = strokeCap, join = strokeJoin))
+                                drawIsolated(lineRun, color, laneStroke)
+                            }
+                        }
                     }
 
                     // Then the primary where it is not main, then where it is.

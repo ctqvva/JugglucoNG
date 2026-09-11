@@ -2339,6 +2339,26 @@ public class NotificationChartDrawer {
 
         // Draw the primary line from the model — values and look already decided.
         if (modelDrivesPrimary) {
+            // The calibration preview underneath, where the model has one: the
+            // live calibration where it differs from the frozen line, faint and
+            // thin so it never reads as the value.
+            for (tk.glucodata.chart.ChartLane lane : model.getPrimary().getSecondaryLanes()) {
+                if (lane.getKind() != tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW) continue;
+                float baseStroke = linePaint.getStrokeWidth();
+                for (tk.glucodata.chart.ChartRun run : lane.getRuns()) {
+                    List<tk.glucodata.chart.ChartPointModel> pts = run.getPoints();
+                    if (pts.size() < 2) continue;
+                    ArrayList<Long> ts = new ArrayList<>(pts.size());
+                    ArrayList<Float> vs = new ArrayList<>(pts.size());
+                    for (tk.glucodata.chart.ChartPointModel p : pts) { ts.add(p.getTimestamp()); vs.add(p.getValue()); }
+                    drawNotificationSourceSeries(
+                            canvas, linePaint, ts, vs, startTime, chartDuration, chartLeft, chartBottom,
+                            chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
+                            veryHighThreshold, isMmol, lineColor, false, primaryIdentityColor,
+                            0.45f, 0.45f, 0.5f);
+                }
+                linePaint.setStrokeWidth(baseStroke);
+            }
             paintRuns(canvas, linePaint, model.getPrimary(), startTime, chartDuration, chartLeft, chartBottom,
                     chartWidth, chartHeight, minY, yRange, targetLow, targetHigh, veryLowThreshold,
                     veryHighThreshold, isMmol, isDark, lineColor, thresholdColorCalibrated, primaryIdentityColor);
