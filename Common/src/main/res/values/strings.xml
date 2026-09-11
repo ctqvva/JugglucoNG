@@ -168,6 +168,7 @@
  <string name="addsensorenddate">Add sensor end date to calendar app</string>
  <string name="enddatesensor">"End date sensor "</string>
  <string name="open">Open</string>
+ <string name="copy">Copy</string>
  <string name="share">Share</string>
  <string name="withoutsensor">Without sensor</string>
  <string name="wronglibrary">Library not functioning properly, try a different one</string>
@@ -681,6 +682,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disabled_status">Disabled</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Last BLE error</string>
+    <string name="sensor_connection_log">Connection log</string>
     <string name="sensor_address">Address</string>
     <string name="sensor_started">Started</string>
     <string name="sensor_ends_officially">Ends Officially</string>

@@ -161,6 +161,7 @@
 <string name="addsensorenddate">Aggiungi il sensore e aggiungi la data di fine al calendario</string>
 <string name="enddatesensor">"Data di fine sensore "</string>
 <string name="open">Apri</string>
+<string name="copy">Copia</string>
 <string name="share">Condividi</string>
 <string name="withoutsensor">Senza sensore</string>
 <string name="wronglibrary">Libreria non funzionante, prova con un\'altra</string>
@@ -707,6 +708,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Ultimo errore BLE</string>
+    <string name="sensor_connection_log">Registro connessione</string>
     <string name="libre_setup_done">Fatto</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Regola il comportamento sperimentale della scansione Libre 3 prima dell\'associazione.</string>

@@ -161,6 +161,11 @@ fun DebugSettingsScreen(navController: NavController) {
     }
 
     var logType by remember { mutableStateOf(LogType.TRACE) }
+    // Only the legacy GATT callbacks (Libre 2/3, Dexcom, Accu-Chek, Sibionics) route through
+    // setConStatus and record here; the managed drivers set their status directly. Offering
+    // the tab to someone whose sensors cannot produce an entry just shows them an empty view
+    // and leaves them wondering what they did wrong, so it appears once one exists.
+    var bleErrorsAvailable by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var snapshot by remember { mutableStateOf(LogSnapshot()) }
     var loading by remember { mutableStateOf(true) }
@@ -183,6 +188,16 @@ fun DebugSettingsScreen(navController: NavController) {
             LogType.BLE_ERRORS -> DebugLogExportSource.TextContent(bleErrorHistoryText())
         }
         return source.takeUnless(DebugLogExportSource::isEmpty)
+    }
+
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            val available = withContext(Dispatchers.IO) { BleErrorHistory.events().isNotEmpty() }
+            bleErrorsAvailable = available
+            // Clearing the history while it is on screen must not strand the selection.
+            if (!available && logType == LogType.BLE_ERRORS) logType = LogType.TRACE
+            delay(10_000L)
+        }
     }
 
     LaunchedEffect(logType) {
@@ -385,8 +400,11 @@ fun DebugSettingsScreen(navController: NavController) {
                 LogType.LOGCAT to stringResource(R.string.logcat),
                 LogType.BLE_ERRORS to stringResource(R.string.ble_error_history),
             )
+            val logTypes = remember(bleErrorsAvailable) {
+                LogType.entries.filter { it != LogType.BLE_ERRORS || bleErrorsAvailable }
+            }
             ConnectedButtonGroup(
-                options = LogType.entries,
+                options = logTypes,
                 selectedOption = logType,
                 onOptionSelected = { logType = it },
                 labelText = { logTypeLabels[it].orEmpty() },

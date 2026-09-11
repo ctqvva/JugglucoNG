@@ -167,6 +167,7 @@
 <string name="addsensorenddate">Ajouter date de fin de capteur dans le calendrier par l\'appli</string>
 <string name="enddatesensor">"Date de fin du capteur "</string>
 <string name="open">Ouvrir</string>
+<string name="copy">Copier</string>
 <string name="share">Partager</string>
 <string name="withoutsensor">Sans capteur</string>
 <string name="wronglibrary">La librairie ne fonctionne pas correctement, essayez une autre</string>
@@ -763,6 +764,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Dernière erreur BLE</string>
+    <string name="sensor_connection_log">Journal de connexion</string>
     <string name="libre_setup_done">Terminé</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Ajustez le comportement expérimental du scan Libre 3 avant l\'appairage.</string>

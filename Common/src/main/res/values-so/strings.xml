@@ -169,6 +169,7 @@
  <string name="enddatesensor">"Dareenka taariikhda dhamaadka"</string>
  <string name="open">Furan</string>
  <string name="withoutsensor">Dareem la\'aan</string>
+ <string name="copy">Koobi</string>
  <string name="share">Wadaag</string>
  <string name="wronglibrary">Maktabadu si fiican uma shaqaynayso, isku day mid kale</string>
  <string name="installedlibrary">Maktabada la rakibay</string>
@@ -659,6 +660,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="disabled_status">Dansan</string>
     <string name="last_ble_status">Heerka BLE ee u dambeeyay</string>
     <string name="last_ble_error">Ciladdii BLE ee u dambeysay</string>
+    <string name="sensor_connection_log">Diiwaanka isku xirka</string>
     <string name="sensor_address">Cinwaanka</string>
     <string name="sensor_started">bilaabay</string>
     <string name="sensor_ends_officially">Si Rasmi Ah U Dhamaatay</string>

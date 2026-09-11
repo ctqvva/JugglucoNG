@@ -163,6 +163,7 @@
     <string name="addsensorenddate">Мэдрэгчийн дуусах огноог календарьт нэмэх</string>
     <string name="enddatesensor">"Мэдрэгчийн дуусах огноо "</string>
     <string name="open">Нээх</string>
+    <string name="copy">Хуулах</string>
     <string name="share">Хуваалцах</string>
     <string name="withoutsensor">Мэдрэгчгүй</string>
     <string name="wronglibrary">Library зөв ажиллахгүй байна. Өөрийг туршина уу.</string>
@@ -617,6 +618,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="disabled_status">Идэвхгүй болгосон</string>
     <string name="last_ble_status">Сүүлчийн BLE төлөв</string>
     <string name="last_ble_error">Сүүлийн BLE алдаа</string>
+    <string name="sensor_connection_log">Холболтын бүртгэл</string>
     <string name="sensor_address">Хаяг</string>
     <string name="sensor_started">Эхэлсэн</string>
     <string name="sensor_ends_officially">Албан ёсоор дуусах</string>

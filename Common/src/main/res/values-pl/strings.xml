@@ -167,6 +167,7 @@
  <string name="addsensorenddate">Dodaj termin zakończenia działania sensora do kalendarza</string>
  <string name="enddatesensor">&quot;Koniec działania sensora &quot;</string>
  <string name="open">Otwórz</string>
+ <string name="copy">Kopiuj</string>
  <string name="share">Udostępnij</string>
  <string name="withoutsensor">Bez sensora</string>
  <string name="wronglibrary">Biblioteka nie działa prawidłowo, spróbuj innej</string>
@@ -851,6 +852,7 @@
     <string name="last">"Ostatni: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Ostatni błąd BLE</string>
+    <string name="sensor_connection_log">Dziennik połączenia</string>
     <string name="libre_setup_done">Gotowe</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Dostosuj eksperymentalne zachowanie skanowania Libre 3 przed parowaniem.</string>

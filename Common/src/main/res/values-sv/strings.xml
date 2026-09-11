@@ -163,6 +163,7 @@
   <string name="addsensorenddate">Lägg till sensorns slutdatum i kalenderappen</string>
   <string name="enddatesensor">"Sensorns slutdatum "</string>
   <string name="open">Öppna</string>
+  <string name="copy">Kopiera</string>
   <string name="share">Dela</string>
   <string name="withoutsensor">Utan sensor</string>
   <string name="wronglibrary">Programbiblioteket fungerar inte korrekt. Prova ett annat.</string>
@@ -794,6 +795,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="last">"Last: "</string>
     <string name="last_ble_status">Last BLE status</string>
     <string name="last_ble_error">Senaste BLE-felet</string>
+    <string name="sensor_connection_log">Anslutningslogg</string>
     <string name="libre_setup_done">Klart</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Justera det experimentella Libre 3-skanningsbeteendet innan parkoppling.</string>

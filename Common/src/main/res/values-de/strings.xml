@@ -164,6 +164,7 @@
   <string name="addsensorenddate">Enddatum des Sensors zur Kalender-App hinzufügen</string>
   <string name="enddatesensor">"Sensor-Enddatum "</string>
   <string name="open">Öffnen</string>
+  <string name="copy">Kopieren</string>
   <string name="share">Teilen</string>
   <string name="withoutsensor">Ohne Sensor</string>
   <string name="wronglibrary">Bibliothek funktioniert nicht richtig, versuche es mit einer anderen</string>
@@ -891,6 +892,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="remove_sensor_history">Glukoseverlauf löschen</string>
     <string name="last_ble_status">Letzter BLE-Status</string>
     <string name="last_ble_error">Letzter BLE-Fehler</string>
+    <string name="sensor_connection_log">Verbindungsprotokoll</string>
     <string name="libre_setup_done">Fertig</string>
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Experimentelles Scan-Verhalten für Libre 3 vor dem Koppeln anpassen.</string>
