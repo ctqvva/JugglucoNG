@@ -594,6 +594,12 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             val renderWidth = (dm.widthPixels * 1.5f).toInt()
             val renderHeight = (baseChartHeightPx * 1.5f).toInt()
             val peerChartSeries = NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
+            // The same resolved model as the notification and the dashboard —
+            // values, ownership, lanes decided once — so the always-on display
+            // cannot disagree with them about a minute already shown.
+            val chartModel = tk.glucodata.NotificationChartModelSource.build(
+                this, overlayChartPoints, activeSensorSerial, viewMode, hasCalibration, peerChartSeries, startT
+            )
 
             val chartBitmap = NotificationChartDrawer.drawChartWithPrediction(
                 this,
@@ -606,7 +612,8 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
                 hasCalibration,
                 false,
                 activeSensorSerial,
-                peerChartSeries
+                peerChartSeries,
+                chartModel
             )
             if (chartImg != null) {
                 chartImg.layoutParams = chartImg.layoutParams?.also { params ->

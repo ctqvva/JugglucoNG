@@ -2706,7 +2706,6 @@ public class Notify {
             return false;
         }
 
-        boolean incomingAlarm = alarm; // Capture initial state from Native/Caller
         AlertType alertType = null;
         AlertConfig config = null;
 
@@ -2744,35 +2743,10 @@ public class Notify {
                 deliverTriggeredAlert(kind, glvalue, message, strglucose, type);
             }
         } else {
-            // Processing for SILENT updates (alarm was false initially, OR
-            // suppressed/downgraded above)
-
-            // CRITICAL FIX: If incomingAlarm was false, it means Native logic (or caller)
-            // decided
-            // the alarm condition is NOT active (or cleared).
-            // We must RESET the AlertStateTracker so it doesn't get stuck thinking the
-            // episode is
-            // still ongoing forever (preventing future triggers).
-            if (!incomingAlarm && alertType != null) {
-                AlertStateTracker.INSTANCE.resetState(alertType);
-                cancelRetrySession(kind, "condition-cleared");
-            } else if (incomingAlarm && alertType != null) {
-                try {
-                    if (config == null) {
-                        config = AlertRepository.INSTANCE.loadConfig(alertType);
-                    }
-                    syncRetrySession(kind, glvalue, message, strglucose, type, config, false);
-                } catch (Exception e) {
-                    Log.e(LOG_ID, "Error updating retry session: " + e.toString());
-                }
-            }
-
-            if (incomingAlarm) {
-                if (doLog) {
-                    Log.i(LOG_ID, "Suppressed alert did not update UI/notification: kind=" + kind);
-                }
-                return false;
-            }
+            // This call only refreshes the displayed reading. A silent delivery is
+            // not evidence that the alert condition cleared. AlertRuntimeManager
+            // owns condition resolution; acknowledgement and snooze have their
+            // own explicit paths. Leave the episode and retry session intact.
 
             final var act = MainActivity.thisone;
             if (act != null) {
@@ -3715,6 +3689,14 @@ public class Notify {
                 (showChartCollapsed || showChart)
                         ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
                         : java.util.Collections.emptyList();
+        // The resolved chart: values and main/secondary look decided once, by
+        // the same builder the dashboard uses, from the same record. The
+        // painter paints what it is handed.
+        final tk.glucodata.chart.HistoryChartModel chartModel =
+                (showChartCollapsed || showChart)
+                        ? NotificationChartModelSource.build(safeContext, chartPoints, activeSensorSerial, viewMode,
+                                hasCalibration, peerChartSeries, startT)
+                        : null;
 
         if (showChartCollapsed) {
             // Collapsed chart: Limit height to 48dp based on SYSTEM density
@@ -3726,14 +3708,14 @@ public class Notify {
             // Use safeContext and explicit height
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChart) {
             // Expanded chart: Use safely resolved density context (default 0 ->
             // 256*density)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChartCollapsed && chartBitmapCollapsed != null) {
@@ -3894,14 +3876,24 @@ public class Notify {
             if (collapsedHeight < 48)
                 collapsedHeight = 48;
 
+            // The same resolved model as the main notification and the
+            // dashboard, so this surface cannot disagree with them about a
+            // minute the user has already been shown. No peers here and no
+            // calibration, as before.
+            final tk.glucodata.chart.HistoryChartModel startupModel = NotificationChartModelSource.build(
+                    safeContext, chartPoints, activeSensorSerial, viewMode, false,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT, false);
+
             // Collapsed: Compact Mode = TRUE, Height 48dp
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, true, false, true, activeSensorSerial);
+                    viewMode, true, false, true, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
 
             // Expanded: Compact Mode = FALSE, Height 256dp (via 0)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, true, false, false, activeSensorSerial);
+                    viewMode, true, false, false, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
         }
 
         Bitmap arrowBitmap;

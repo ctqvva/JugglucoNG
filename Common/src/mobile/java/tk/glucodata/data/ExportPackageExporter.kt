@@ -320,13 +320,13 @@ object ExportPackageExporter {
             runCatching {
                 database.readingDisplayDao().getAllSince(0L)
                     .filter { it.isUsable && it.isSealedAt(nowMs) }
-                    .associate { sealedDisplayKey(it.sensorSerial, it.timestamp) to it.displayMgdl }
+                    .associate { sealedDisplayKey(it.timestamp) to it.displayMgdl }
             }.getOrDefault(emptyMap())
         } else {
             emptyMap()
         }
         val sealedOf: (HistoryReading) -> Float? = { reading ->
-            sealedByKey[sealedDisplayKey(reading.sensorSerial, reading.timestamp)]
+            sealedByKey[sealedDisplayKey(reading.timestamp)]
         }
 
         return JSONObject()
@@ -547,9 +547,8 @@ object ExportPackageExporter {
         return rows.size
     }
 
-    /** Mirrors HistoryRepository's display key: sensor plus minute bucket. */
-    private fun sealedDisplayKey(sensorSerial: String, timestamp: Long): Long =
-        (timestamp / 60_000L) * 31L + sensorSerial.hashCode()
+    /** Mirrors HistoryRepository's display key: the minute, and nothing else. */
+    private fun sealedDisplayKey(timestamp: Long): Long = ReadingDisplay.minuteOf(timestamp)
 
     private fun HistoryReading.toJson(
         isMmol: Boolean,
