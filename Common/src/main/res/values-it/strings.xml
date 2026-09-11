@@ -1,7 +1,7 @@
 <resources>
     <string name="language">it</string>
     <string name="languagename">Lingua</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Annulla</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok non è installato sul tuo orologio. Installato dallo store di Garmin connect</string>
 
     <string name="alarm_description">Valore di glucosio troppo basso o troppo alto</string>
-    <string name="loss_description">Juggluco ha perso la connessione con il sensore</string>
+    <string name="loss_description">Glucifer ha perso la connessione con il sensore</string>
     <string name="numalarm_description">Promemoria per dose, cibo o esercizio</string>
     <string name="notification_description">Notifica del valore corrente di glucosio</string>
     <string name="ongoing_description">Programma in corso</string>
@@ -288,7 +288,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importa Cronologia</string>
-    <string name="import_history_desc">Importa i dati del glucosio da un\'esportazione JugglucoNG o da un file CSV</string>
+    <string name="import_history_desc">Importa i dati del glucosio da un\'esportazione Glucifer o da un file CSV</string>
     <string name="get_started_desc">Inizia aggiungendo il tuo sensore</string>
     <string name="select_sensor">Seleziona tipo sensore</string>
     <string name="select_sibionics_type">Scegli un sensore Sibionics</string>
@@ -335,9 +335,9 @@
     <string name="export_history_title">Esporta Cronologia</string>
     <string name="export_history_sub">Salva letture in file CSV o testo</string>
     <string name="import_history_title">Importa Cronologia</string>
-    <string name="import_history_sub">Ripristina le letture del glucosio da un\'esportazione JugglucoNG o da un file CSV</string>
+    <string name="import_history_sub">Ripristina le letture del glucosio da un\'esportazione Glucifer o da un file CSV</string>
     <string name="import_no_glucose">Questo file non contiene dati del glucosio</string>
-    <string name="import_unsupported_file">File non supportato. Seleziona un\'esportazione JugglucoNG (JSON) o una cronologia del glucosio in CSV.</string>
+    <string name="import_unsupported_file">File non supportato. Seleziona un\'esportazione Glucifer (JSON) o una cronologia del glucosio in CSV.</string>
     <string name="clear_history_title">Cancellare Cronologia?</string>
     <string name="clear_history_confirmation">Questo rimuoverà tutte le letture glucosio dal database. Azione irreversibile.</string>
     <string name="delete_reading_title">Eliminare lettura?</string>
@@ -513,7 +513,7 @@
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
     <string name="alarm_return_to_previous_app_title">Torna all\'app precedente dopo l\'allarme</string>
-    <string name="alarm_return_to_previous_app_summary">Dopo un allarme a schermo intero, torna all\'app che stavi usando invece di aprire JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">Dopo un allarme a schermo intero, torna all\'app che stavi usando invece di aprire Glucifer</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
     <string name="retry_every">Ripeti ogni</string>
     <string name="retry_if_no_reaction">Ripeti se nessuna reazione</string>
@@ -700,7 +700,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Regola il comportamento sperimentale della scansione Libre 3 prima dell\'associazione.</string>
     <string name="libre3_nfc_command_title">Comando NFC Libre 3</string>
-    <string name="libre3_nfc_command_desc">Scegli quale comando Juggluco invia durante la scansione NFC di Libre 3</string>
+    <string name="libre3_nfc_command_desc">Scegli quale comando Glucifer invia durante la scansione NFC di Libre 3</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Usa il comportamento di scansione Libre 3 predefinito di Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Attiva</string>
@@ -846,7 +846,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensornotstreamed">Nothing yet</string>
     <string name="sensors_title">Sensors</string>
     <string name="sensorstreamed"></string>
-    <string name="senthosts">Juggluco sends to maximal 6 hosts</string>
+    <string name="senthosts">Glucifer sends to maximal 6 hosts</string>
     <string name="separate">Separate</string>
     <string name="sibionics2">Sibionics 2 Split</string>
     <string name="gs3">Sibionics GS3</string>
@@ -1319,7 +1319,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Dati giornalieri insufficienti per rappresentare la tendenza.</string>
     <string name="report_no_readings_day">Nessuna lettura per questo giorno.</string>
-    <string name="report_page1_title">Rapporto clinico CGM JugglucoNG</string>
+    <string name="report_page1_title">Rapporto clinico CGM Glucifer</string>
     <string name="report_page1_subtitle">Intervallo %1$s · Letture %2$d · Finestra da %3$s a %4$s</string>
     <string name="report_estimated_a1c">A1C stimato</string>
     <string name="report_below_target">Sotto l\'obiettivo</string>
@@ -1334,7 +1334,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">Sopra: %1$s</string>
     <string name="report_agp_section_title">Profilo glicemico ambulatoriale (bande percentili delle 24 ore)</string>
     <string name="report_reference_targets">Obiettivi di riferimento: GMI &lt; 7,0%%, CV &lt;= 36%%, Tempo in range &gt;= 70%%.</string>
-    <string name="report_page2_title">JugglucoNG CGM Tendenze quotidiane e interpretazione</string>
+    <string name="report_page2_title">Glucifer CGM Tendenze quotidiane e interpretazione</string>
     <string name="report_page2_subtitle">Variabilità giornaliera, disaggregazione metrica e note interpretative</string>
     <string name="report_daily_average_trend">Andamento medio giornaliero</string>
     <string name="report_detailed_metrics">Metriche dettagliate</string>
@@ -1349,7 +1349,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">Non sono stati generati ulteriori avvisi di pattern per questo intervallo di tempo.</string>
     <string name="report_agp_consensus_title">Riferimento consenso AGP</string>
     <string name="report_agp_consensus_body">I target a cui si fa riferimento in questo rapporto seguono lo stile di consenso internazionale AGP: TIR 70-180 mg/dL (3,9-10,0 mmol/L), TBR &lt;70 e &lt;54 mg/dL, TAR &gt;180 e &gt;250 mg/dL, con obiettivo CV &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Appendice I - AGP e tabelle giornaliere</string>
+    <string name="report_page3_title">Glucifer Appendice I - AGP e tabelle giornaliere</string>
     <string name="report_page3_subtitle">Percentili orari e risultati a livello giornaliero</string>
     <string name="report_hourly_agp_table">Tabella profili AGP orari</string>
     <string name="report_hour">Ora</string>
@@ -1358,7 +1358,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">Nessun raccoglitore AGP orario disponibile in questo intervallo.</string>
     <string name="report_daily_outcomes_table">Tabella dei risultati giornalieri</string>
     <string name="report_showing_latest_days">Sono visualizzati gli ultimi %1$d di %2$d giorni.</string>
-    <string name="report_page4_title">JugglucoNG Appendice II - Eventi e profili giornalieri</string>
+    <string name="report_page4_title">Glucifer Appendice II - Eventi e profili giornalieri</string>
     <string name="report_page4_subtitle">Metriche di ipo/iperesposizione e grafici del profilo giornaliero</string>
     <string name="report_hypo_hyper_events">Eventi di ipo/iperesposizione</string>
     <string name="report_hours_per_day">Ore/giorno</string>
@@ -1388,7 +1388,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">App per orologio mancante</string>
-    <string name="wear_watch_app_missing_hint">Installa Juggluco su questo orologio, poi tocca aggiorna.</string>
+    <string name="wear_watch_app_missing_hint">Installa Glucifer su questo orologio, poi tocca aggiorna.</string>
     <string name="wear_auto_sensor_switch">Cambia sensore automaticamente</string>
     <string name="wear_auto_sensor_switch_on_desc">Telefono e orologio si passano il sensore da soli, così lo legge quello che è nel raggio d\'azione.</string>
     <string name="wear_auto_sensor_switch_off_desc">Solo il dispositivo che scegli legge il sensore.</string>
@@ -1464,7 +1464,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insight_unstable_days">Giorni instabili frequenti</string>
     <string name="insight_unstable_days_desc">In questa finestra %1$d giorni hanno avuto meno del 50%% di tempo nell’intervallo.</string>
     <string name="mq_fetch_calibration_on_add">Ripristina sessione fornitore all’aggiunta</string>
-    <string name="mq_fetch_calibration_on_add_desc">Se sono disponibili un codice QR o credenziali Glutec salvate, Juggluco prova a ripristinare lo stato della sessione MQ durante la configurazione.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Se sono disponibili un codice QR o credenziali Glutec salvate, Glucifer prova a ripristinare lo stato della sessione MQ durante la configurazione.</string>
     <string name="mq_bootstrap_button">Ripristina sessione fornitore</string>
     <string name="mq_bootstrap_dialog_title">Ripristina sessione fornitore</string>
     <string name="mq_bootstrap_dialog_desc">Ripristina lo stato della sessione del fornitore tramite Glutec. Se necessario inserisci qui il QR del sensore; account, sync e API si gestiscono nell’account MQ / Glutec.</string>
@@ -1497,9 +1497,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Sessione valida</string>
     <string name="mq_account_session_invalid">Sessione non valida</string>
     <string name="mq_manual_calibration_title">Calibrazione manuale</string>
-    <string name="mq_manual_calibration_desc">Locale a Juggluco. Inserisci un valore glicemico capillare in %1$s. Richiede un pacchetto MQ recente.</string>
+    <string name="mq_manual_calibration_desc">Locale a Glucifer. Inserisci un valore glicemico capillare in %1$s. Richiede un pacchetto MQ recente.</string>
     <string name="mq_follower_title">Follower Glutec</string>
-    <string name="mq_follower_desc">Segui un altro account Glutec tramite il cloud del fornitore. Attivandolo viene creato in Juggluco un sensore follower di sola lettura.</string>
+    <string name="mq_follower_desc">Segui un altro account Glutec tramite il cloud del fornitore. Attivandolo viene creato in Glucifer un sensore follower di sola lettura.</string>
     <string name="mq_follower_account_label">Account da seguire</string>
     <string name="mq_follower_account_desc">Inserisci il numero di telefono o l\'account Glutec da seguire.</string>
     <string name="mq_follower_enabled_summary">Follower attivo</string>
@@ -2333,11 +2333,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout mostrerà questo valore al posto del proprio calcolo basato sul profilo. eIOB e COB vengono inoltre inviati in un campo separato. Il token di accesso richiede api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valori dal dispositivo che invia i dati (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un altro sensore è ancora associato all’account Ottai. Dissocialo nell’app Ottai oppure rimuovilo qui per liberare l’associazione, quindi riprova.</string>
-    <string name="ottai_cloud_unbind_hint">Azione solo sull’account cloud. JugglucoNG non si connetterà al sensore selezionato e non lo arresterà, rimuoverà o modificherà.</string>
+    <string name="ottai_cloud_unbind_hint">Azione solo sull’account cloud. Glucifer non si connetterà al sensore selezionato e non lo arresterà, rimuoverà o modificherà.</string>
     <string name="ottai_cloud_unbind_title">Dissociare definitivamente questo sensore?</string>
-    <string name="ottai_cloud_unbind_message">%1$s verrà rimosso definitivamente da questo account Ottai. L’account non potrà più recuperare le sue credenziali e il sensore non funzionerà più nell’app Ottai ufficiale. Le credenziali e lo stato del sensore già salvati in JugglucoNG non verranno modificati. Questa operazione non può essere annullata.</string>
+    <string name="ottai_cloud_unbind_message">%1$s verrà rimosso definitivamente da questo account Ottai. L’account non potrà più recuperare le sue credenziali e il sensore non funzionerà più nell’app Ottai ufficiale. Le credenziali e lo stato del sensore già salvati in Glucifer non verranno modificati. Questa operazione non può essere annullata.</string>
     <string name="ottai_cloud_unbind_confirm">Dissocia definitivamente</string>
-    <string name="ottai_cloud_unbind_success">Sensore dissociato definitivamente da Ottai. Il sensore e le credenziali salvate in JugglucoNG non sono stati modificati.</string>
+    <string name="ottai_cloud_unbind_success">Sensore dissociato definitivamente da Ottai. Il sensore e le credenziali salvate in Glucifer non sono stati modificati.</string>
     <string name="ottai_cloud_unbind_failed">Impossibile dissociare il sensore da Ottai.</string>
     <string name="ottai_cloud_binding_checking">Verifica dell’associazione al cloud Ottai…</string>
     <string name="ottai_cloud_binding_bound">Stato cloud: associato a questo account Ottai</string>
@@ -2400,7 +2400,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Max messaggi all\'ora</string>
     <string name="sms_max_per_day">Max messaggi al giorno</string>
     <string name="sms_sent_today">Inviati nelle ultime 24 ore: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG ha bisogno del permesso di inviare SMS perché questa destinazione funzioni.</string>
+    <string name="sms_permission_desc">Glucifer ha bisogno del permesso di inviare SMS perché questa destinazione funzioni.</string>
     <string name="sms_permission_grant">Concedi</string>
     <string name="sms_no_telephony">Questo dispositivo non può inviare SMS.</string>
     <string name="sms_preview_title">Anteprima</string>
@@ -2418,7 +2418,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">Nessun dato dal sensore da %1$d min</string>
     <string name="sms_event_all_clear">Cessato allarme</string>
     <string name="sms_event_relay">Aggiornamento (nessuna connessione dati)</string>
-    <string name="sms_event_test">Messaggio di prova da JugglucoNG</string>
+    <string name="sms_event_test">Messaggio di prova da Glucifer</string>
     <string name="sms_body_no_reading">Ancora nessuna lettura</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2458,13 +2458,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Verifica del download</string>
     <string name="app_updates_verifying_body">Controllo di firma e versione prima dell\'installazione.</string>
     <string name="app_updates_ready_title">%1$s pronta per l\'installazione</string>
-    <string name="app_updates_ready_body">Android chiederà conferma. JugglucoNG si chiude e si riapre; le connessioni ai sensori riprendono da sole.</string>
+    <string name="app_updates_ready_body">Android chiederà conferma. Glucifer si chiude e si riapre; le connessioni ai sensori riprendono da sole.</string>
     <string name="app_updates_up_to_date_title">Hai già l\'ultima versione</string>
     <string name="app_updates_last_checked">Ultimo controllo %1$s</string>
     <string name="app_updates_never_checked">mai</string>
     <string name="app_updates_error_title">Controllo aggiornamenti non riuscito</string>
-    <string name="app_updates_permission_title">Consenti installazioni da JugglucoNG</string>
-    <string name="app_updates_permission_body">Android richiede un\'autorizzazione una tantum prima che JugglucoNG possa installare il proprio aggiornamento.</string>
+    <string name="app_updates_permission_title">Consenti installazioni da Glucifer</string>
+    <string name="app_updates_permission_body">Android richiede un\'autorizzazione una tantum prima che Glucifer possa installare il proprio aggiornamento.</string>
     <string name="app_updates_permission_action">Apri impostazioni</string>
     <string name="app_updates_unsupported_store_title">Gli aggiornamenti arrivano dallo store</string>
     <string name="app_updates_unsupported_store_body">Questa copia è stata installata da %1$s, che gestisce da sé gli aggiornamenti.</string>
@@ -2475,11 +2475,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">La sorgente degli aggiornamenti ha restituito qualcosa di inatteso.</string>
     <string name="app_updates_error_no_artifact">L\'ultima versione non ha un file per questa build.</string>
     <string name="app_updates_error_checksum">Il download non corrispondeva al checksum ed è stato eliminato.</string>
-    <string name="app_updates_error_signature">L\'APK scaricato è firmato con un\'altra chiave ed è stato eliminato. Installa JugglucoNG solo dalla pagina ufficiale delle versioni.</string>
+    <string name="app_updates_error_signature">L\'APK scaricato è firmato con un\'altra chiave ed è stato eliminato. Installa Glucifer solo dalla pagina ufficiale delle versioni.</string>
     <string name="app_updates_error_package">L\'APK scaricato appartiene a un\'altra app.</string>
     <string name="app_updates_error_downgrade">Quella versione non è più recente di quella installata.</string>
     <string name="app_updates_error_storage">Spazio libero insufficiente per il download.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG non può ancora installare app.</string>
+    <string name="app_updates_error_install_permission">Glucifer non può ancora installare app.</string>
     <string name="app_updates_error_install_failed">L\'installazione non è stata completata.</string>
     <string name="app_updates_error_cancelled">Installazione annullata.</string>
     <string name="app_updates_source_title">Sorgente aggiornamenti</string>
@@ -2607,5 +2607,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_history_action">Cronologia</string>
     <string name="nightscout_follow_interval_title">Cerca nuovi valori</string>
     <string name="nightscout_follow_interval_desc">Ogni quanto il follower interroga il server. È anche quanto può essere vecchio un valore, e quindi quanto può ritardare un allarme su un valore seguito. Un follower non ha un sensore proprio che tenga sveglio il telefono, quindi ogni controllo è un risveglio.</string>
-    <string name="nightscout_follow_interval_doze">Sotto i 9 minuti Android può comunque distanziare i controlli mentre il telefono è inattivo. Escludere Juggluco dall\'ottimizzazione della batteria mantiene l\'intervallo scelto.</string>
+    <string name="nightscout_follow_interval_doze">Sotto i 9 minuti Android può comunque distanziare i controlli mentre il telefono è inattivo. Escludere Glucifer dall\'ottimizzazione della batteria mantiene l\'intervallo scelto.</string>
 </resources>

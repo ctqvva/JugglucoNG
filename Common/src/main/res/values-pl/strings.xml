@@ -1,7 +1,7 @@
 <resources>
     <string name="language">pl</string>
     <string name="languagename">Język</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Anuluj</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok nie jest zainstalowany na zegarku. Można go pobrać ze sklepu Garmin Connect IQ</string>
 
     <string name="alarm_description">Zbyt niski lub wysoki poziom glukozy</string>
-    <string name="loss_description">Aplikacja Juggluco utraciła kontakt z sensorem</string>
+    <string name="loss_description">Aplikacja Glucifer utraciła kontakt z sensorem</string>
     <string name="numalarm_description">Przypomnienie o dawce, jedzeniu lub ćwiczeniach</string>
     <string name="notification_description">Informuje o aktualnej wartości stęż. glukozy</string>
     <string name="ongoing_description">Program w toku</string>
@@ -214,7 +214,7 @@
  <string name="heartrate">Tętno</string>
  <string name="xdripbroadcast">Transm. jak z xDrip</string>
  <string name="sensorpermission">Uprawnienie do dostępu do czujników potrzebne do wyświetlania tętna.</string>
- <string name="sensorpermissionmessage">Ustaw je w Ustawieniach urządzenia, Aplikacje, Uprawnienia, Juggluco</string>
+ <string name="sensorpermissionmessage">Ustaw je w Ustawieniach urządzenia, Aplikacje, Uprawnienia, Glucifer</string>
  <string name="floatglucose">Pływ. gluk.</string>
  <string name="floatglucoseshort">@string/floatglucose</string>
 
@@ -331,7 +331,7 @@
 <string name="resendwarning">Wszystkie dane zostaną przesłane ponownie, co wymaga czasu i może mieć konsekwencje dla Libreview i Kerfstok.</string>
 <string name="parseip">Błąd parsowania adresu IP</string>
 <string name="toomanyhosts">Przekroczono maksymalną liczbę hostów</string>
-<string name="senthosts">Juggluco wysyła do maksymalnie 6 hostów</string>
+<string name="senthosts">Glucifer wysyła do maksymalnie 6 hostów</string>
    <string name="clampnow">Zawsze teraz</string>
     <string name="sendfrom">&quot;Wysyłaj od: &quot;</string>
  <string name="changestartbutton">Zmień początek</string>
@@ -363,7 +363,7 @@
    <string name="photomessage">Zeskanuj kod QR sensora Dexcom G7 lub chińskiego sensora Sibionics.</string>
    <string name="dexfuture">Przewidywanie (Dexcom)</string>
    <string name="initializing">Uruchomienie</string> 
-   <string name="startjuggluco">Juggluco uruchomione na telefonie?\n\nWIFI i Bluetooth włączone?</string> 
+   <string name="startjuggluco">Glucifer uruchomione na telefonie?\n\nWIFI i Bluetooth włączone?</string>
    <string name="connected">Połączono!</string>
    <string name="useclose">Przycisk "zamknij"</string>
    <string name="alarmclock">\u23F0</string> 
@@ -490,7 +490,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importuj Historię</string>
-    <string name="import_history_desc">Importuj dane glukozy z eksportu JugglucoNG lub pliku CSV</string>
+    <string name="import_history_desc">Importuj dane glukozy z eksportu Glucifer lub pliku CSV</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
     <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
@@ -537,9 +537,9 @@
     <string name="export_history_title">Eksportuj Historię</string>
     <string name="export_history_sub">Zapisz odczyty w pliku CSV lub tekstowym</string>
     <string name="import_history_title">Importuj Historię</string>
-    <string name="import_history_sub">Przywróć odczyty glukozy z eksportu JugglucoNG lub pliku CSV</string>
+    <string name="import_history_sub">Przywróć odczyty glukozy z eksportu Glucifer lub pliku CSV</string>
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
-    <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG (JSON) lub plik CSV z historią glukozy.</string>
+    <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport Glucifer (JSON) lub plik CSV z historią glukozy.</string>
     <string name="clear_history_title">Wyczyścić Historię?</string>
     <string name="clear_history_confirmation">To usunie wszystkie odczyty glukozy z bazy danych. Tej operacji nie można cofnąć.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
@@ -715,7 +715,7 @@
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
     <string name="alarm_return_to_previous_app_title">Po alarmie wróć do poprzedniej aplikacji</string>
-    <string name="alarm_return_to_previous_app_summary">Po alarmie pełnoekranowym wróć do używanej aplikacji zamiast otwierać JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">Po alarmie pełnoekranowym wróć do używanej aplikacji zamiast otwierać Glucifer</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
     <string name="retry_every">Ponow co</string>
     <string name="retry_if_no_reaction">Ponow przy braku reakcji</string>
@@ -844,7 +844,7 @@
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Dostosuj eksperymentalne zachowanie skanowania Libre 3 przed parowaniem.</string>
     <string name="libre3_nfc_command_title">Polecenie NFC Libre 3</string>
-    <string name="libre3_nfc_command_desc">Wybierz, które polecenie Juggluco wysyła podczas skanowania NFC Libre 3</string>
+    <string name="libre3_nfc_command_desc">Wybierz, które polecenie Glucifer wysyła podczas skanowania NFC Libre 3</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Użyj domyślnego zachowania skanowania Libre 3 w Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Aktywuj</string>
@@ -1364,7 +1364,7 @@
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Za mało danych dziennych, aby wygenerować trend.</string>
     <string name="report_no_readings_day">Brak odczytów na ten dzień.</string>
-    <string name="report_page1_title">Raport kliniczny JugglucoNG CGM</string>
+    <string name="report_page1_title">Raport kliniczny Glucifer CGM</string>
     <string name="report_page1_subtitle">Zakres %1$s · Odczyty %2$d · Okno %3$s do %4$s</string>
     <string name="report_estimated_a1c">Szacunkowa wartość HbA1C</string>
     <string name="report_below_target">Poniżej celu</string>
@@ -1379,7 +1379,7 @@
     <string name="report_above_duration">Powyżej: %1$s</string>
     <string name="report_agp_section_title">Ambulatoryjny profil glukozy (24-godzinne pasma percentylowe)</string>
     <string name="report_reference_targets">Cele referencyjne: GMI &lt; 7,0%%, CV &lt;= 36%%, Czas w zakresie &gt;= 70%%.</string>
-    <string name="report_page2_title">Codzienne trendy i interpretacja JugglucoNG CGM</string>
+    <string name="report_page2_title">Codzienne trendy i interpretacja Glucifer CGM</string>
     <string name="report_page2_subtitle">Dzienna zmienność, podział miar i uwagi dotyczące interpretacji</string>
     <string name="report_daily_average_trend">Średni dzienny trend</string>
     <string name="report_detailed_metrics">Szczegółowe wskaźniki</string>
@@ -1394,7 +1394,7 @@
     <string name="report_no_generated_insights_message">Dla tego zakresu czasu nie wygenerowano żadnych dodatkowych ostrzeżeń o wzorcach.</string>
     <string name="report_agp_consensus_title">Odniesienie do konsensusu AGP</string>
     <string name="report_agp_consensus_body">Cele wymienione w tym raporcie są zgodne z międzynarodowym konsensusem AGP: TIR 70–180 mg/dl (3,9–10,0 mmol/l), TBR &lt;70 i &lt;54 mg/dl, TAR &gt;180 i &gt;250 mg/dl, z docelowym współczynnikiem CV &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Załącznik I - AGP i tabele dzienne</string>
+    <string name="report_page3_title">Glucifer Załącznik I - AGP i tabele dzienne</string>
     <string name="report_page3_subtitle">Percentyle godzinowe i wyniki na poziomie dnia</string>
     <string name="report_hourly_agp_table">Godzinowa tabela profili AGP</string>
     <string name="report_hour">Godzina</string>
@@ -1403,7 +1403,7 @@
     <string name="report_no_hourly_agp">W tym zakresie nie są dostępne żadne godzinne pojemniki AGP.</string>
     <string name="report_daily_outcomes_table">Tabela wyników dziennych</string>
     <string name="report_showing_latest_days">Wyświetlanie ostatnich %1$d z %2$d dni.</string>
-    <string name="report_page4_title">JugglucoNG Załącznik II - Wydarzenia i codzienne profile</string>
+    <string name="report_page4_title">Glucifer Załącznik II - Wydarzenia i codzienne profile</string>
     <string name="report_page4_subtitle">Wskaźniki hipo/nadmiernej ekspozycji i wykresy profili na poziomie dnia</string>
     <string name="report_hypo_hyper_events">Zdarzenia hipo/nadmiernej ekspozycji</string>
     <string name="report_hours_per_day">Godziny/dzień</string>
@@ -1433,7 +1433,7 @@
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Brak aplikacji na zegarku</string>
-    <string name="wear_watch_app_missing_hint">Zainstaluj Juggluco na tym zegarku, a potem stuknij odśwież.</string>
+    <string name="wear_watch_app_missing_hint">Zainstaluj Glucifer na tym zegarku, a potem stuknij odśwież.</string>
     <string name="wear_auto_sensor_switch">Automatyczne przełączanie czujnika</string>
     <string name="wear_auto_sensor_switch_on_desc">Telefon i zegarek same przekazują sobie czujnik, więc odczytuje go to urządzenie, które jest w zasięgu.</string>
     <string name="wear_auto_sensor_switch_off_desc">Czujnik odczytuje tylko wybrane przez Ciebie urządzenie.</string>
@@ -1509,7 +1509,7 @@
     <string name="insight_unstable_days">Czeste niestabilne dni</string>
     <string name="insight_unstable_days_desc">W tym oknie %1$d dni mialo mniej niz 50%% czasu w zakresie.</string>
     <string name="mq_fetch_calibration_on_add">Przy dodawaniu przywróć sesję producenta</string>
-    <string name="mq_fetch_calibration_on_add_desc">Jeśli dostępny jest kod QR lub zapisane dane logowania Glutec, Juggluco spróbuje przywrócić stan sesji MQ podczas konfiguracji.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Jeśli dostępny jest kod QR lub zapisane dane logowania Glutec, Glucifer spróbuje przywrócić stan sesji MQ podczas konfiguracji.</string>
     <string name="mq_bootstrap_button">Przywróć sesję producenta</string>
     <string name="mq_bootstrap_dialog_title">Przywróć sesję producenta</string>
     <string name="mq_bootstrap_dialog_desc">Przywróć stan sesji producenta przez Glutec. W razie potrzeby wpisz tutaj kod QR sensora; konto, synchronizacja i API są zarządzane w koncie MQ / Glutec.</string>
@@ -1542,9 +1542,9 @@
     <string name="mq_account_session_valid">Sesja prawidłowa</string>
     <string name="mq_account_session_invalid">Sesja nieprawidłowa</string>
     <string name="mq_manual_calibration_title">Kalibracja ręczna</string>
-    <string name="mq_manual_calibration_desc">Lokalnie w Juggluco. Wpisz wynik glukozy z palca w %1$s. Wymaga świeżego pakietu MQ na żywo.</string>
+    <string name="mq_manual_calibration_desc">Lokalnie w Glucifer. Wpisz wynik glukozy z palca w %1$s. Wymaga świeżego pakietu MQ na żywo.</string>
     <string name="mq_follower_title">Obserwator Glutec</string>
-    <string name="mq_follower_desc">Śledź inne konto Glutec przez chmurę dostawcy. Włączenie tworzy w Juggluco czujnik obserwatora tylko do odczytu.</string>
+    <string name="mq_follower_desc">Śledź inne konto Glutec przez chmurę dostawcy. Włączenie tworzy w Glucifer czujnik obserwatora tylko do odczytu.</string>
     <string name="mq_follower_account_label">Konto do obserwowania</string>
     <string name="mq_follower_account_desc">Wpisz numer telefonu lub konto Glutec, które chcesz obserwować.</string>
     <string name="mq_follower_enabled_summary">Obserwator włączony</string>
@@ -2377,11 +2377,11 @@
     <string name="nightscout_upload_iob_desc">Nightscout wyświetli tę wartość zamiast własnego obliczenia na podstawie profilu. eIOB i COB są dodatkowo wysyłane w osobnym polu. Token dostępu wymaga uprawnienia api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Wartości z urządzenia wysyłającego dane (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Z kontem Ottai nadal jest powiązany inny sensor. Odłącz go w aplikacji Ottai albo usuń ten sensor tutaj, aby zwolnić powiązanie, a następnie spróbuj ponownie.</string>
-    <string name="ottai_cloud_unbind_hint">Ta czynność dotyczy tylko konta w chmurze. JugglucoNG nie połączy się z wybranym sensorem ani go nie zatrzyma, nie usunie i nie zmodyfikuje.</string>
+    <string name="ottai_cloud_unbind_hint">Ta czynność dotyczy tylko konta w chmurze. Glucifer nie połączy się z wybranym sensorem ani go nie zatrzyma, nie usunie i nie zmodyfikuje.</string>
     <string name="ottai_cloud_unbind_title">Trwale odłączyć ten sensor?</string>
-    <string name="ottai_cloud_unbind_message">%1$s zostanie trwale usunięty z tego konta Ottai. Konto nie będzie już mogło pobrać jego danych uwierzytelniających, a sensor przestanie działać w oficjalnej aplikacji Ottai. Dane i stan sensora zapisane w JugglucoNG nie zostaną zmienione. Tej czynności nie można cofnąć.</string>
+    <string name="ottai_cloud_unbind_message">%1$s zostanie trwale usunięty z tego konta Ottai. Konto nie będzie już mogło pobrać jego danych uwierzytelniających, a sensor przestanie działać w oficjalnej aplikacji Ottai. Dane i stan sensora zapisane w Glucifer nie zostaną zmienione. Tej czynności nie można cofnąć.</string>
     <string name="ottai_cloud_unbind_confirm">Odłącz trwale</string>
-    <string name="ottai_cloud_unbind_success">Sensor został trwale odłączony od Ottai. Sensor i zapisane dane w JugglucoNG nie zostały zmienione.</string>
+    <string name="ottai_cloud_unbind_success">Sensor został trwale odłączony od Ottai. Sensor i zapisane dane w Glucifer nie zostały zmienione.</string>
     <string name="ottai_cloud_unbind_failed">Nie udało się odłączyć sensora od Ottai.</string>
     <string name="ottai_cloud_binding_checking">Sprawdzanie powiązania z chmurą Ottai…</string>
     <string name="ottai_cloud_binding_bound">Stan chmury: powiązany z tym kontem Ottai</string>
@@ -2444,7 +2444,7 @@
     <string name="sms_max_per_hour">Maks. wiadomości na godzinę</string>
     <string name="sms_max_per_day">Maks. wiadomości na dobę</string>
     <string name="sms_sent_today">Wysłano w ciągu ostatnich 24 godzin: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG potrzebuje uprawnienia do wysyłania SMS, aby ten cel działał.</string>
+    <string name="sms_permission_desc">Glucifer potrzebuje uprawnienia do wysyłania SMS, aby ten cel działał.</string>
     <string name="sms_permission_grant">Przyznaj</string>
     <string name="sms_no_telephony">To urządzenie nie może wysyłać SMS.</string>
     <string name="sms_preview_title">Podgląd</string>
@@ -2462,7 +2462,7 @@
     <string name="sms_event_no_data">Brak danych z czujnika od %1$d min</string>
     <string name="sms_event_all_clear">Odwołanie alarmu</string>
     <string name="sms_event_relay">Aktualizacja (brak transmisji danych)</string>
-    <string name="sms_event_test">Wiadomość testowa z JugglucoNG</string>
+    <string name="sms_event_test">Wiadomość testowa z Glucifer</string>
     <string name="sms_body_no_reading">Brak odczytu</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2502,13 +2502,13 @@
     <string name="app_updates_verifying_title">Weryfikacja pobranego pliku</string>
     <string name="app_updates_verifying_body">Sprawdzanie podpisu i wersji przed instalacją.</string>
     <string name="app_updates_ready_title">%1$s gotowa do instalacji</string>
-    <string name="app_updates_ready_body">Android poprosi o potwierdzenie. JugglucoNG zamknie się i uruchomi ponownie; połączenia z sensorami wrócą same.</string>
+    <string name="app_updates_ready_body">Android poprosi o potwierdzenie. Glucifer zamknie się i uruchomi ponownie; połączenia z sensorami wrócą same.</string>
     <string name="app_updates_up_to_date_title">Masz najnowszą wersję</string>
     <string name="app_updates_last_checked">Ostatnie sprawdzenie: %1$s</string>
     <string name="app_updates_never_checked">nigdy</string>
     <string name="app_updates_error_title">Nie udało się sprawdzić aktualizacji</string>
-    <string name="app_updates_permission_title">Zezwól na instalację z JugglucoNG</string>
-    <string name="app_updates_permission_body">Android wymaga jednorazowego zezwolenia, aby JugglucoNG mógł zainstalować własną aktualizację.</string>
+    <string name="app_updates_permission_title">Zezwól na instalację z Glucifer</string>
+    <string name="app_updates_permission_body">Android wymaga jednorazowego zezwolenia, aby Glucifer mógł zainstalować własną aktualizację.</string>
     <string name="app_updates_permission_action">Otwórz ustawienia</string>
     <string name="app_updates_unsupported_store_title">Aktualizacje pochodzą ze sklepu</string>
     <string name="app_updates_unsupported_store_body">Tę kopię zainstalował %1$s, który sam zarządza aktualizacjami.</string>
@@ -2519,11 +2519,11 @@
     <string name="app_updates_error_parse">Źródło aktualizacji zwróciło nieoczekiwaną odpowiedź.</string>
     <string name="app_updates_error_no_artifact">Najnowsze wydanie nie zawiera pliku dla tej kompilacji.</string>
     <string name="app_updates_error_checksum">Pobrany plik nie zgadzał się z sumą kontrolną i został usunięty.</string>
-    <string name="app_updates_error_signature">Pobrany plik APK jest podpisany innym kluczem i został usunięty. Instaluj JugglucoNG tylko z oficjalnej strony wydań.</string>
+    <string name="app_updates_error_signature">Pobrany plik APK jest podpisany innym kluczem i został usunięty. Instaluj Glucifer tylko z oficjalnej strony wydań.</string>
     <string name="app_updates_error_package">Pobrany plik APK należy do innej aplikacji.</string>
     <string name="app_updates_error_downgrade">To wydanie nie jest nowsze od zainstalowanej wersji.</string>
     <string name="app_updates_error_storage">Za mało wolnego miejsca na pobranie.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG nie ma jeszcze zgody na instalowanie aplikacji.</string>
+    <string name="app_updates_error_install_permission">Glucifer nie ma jeszcze zgody na instalowanie aplikacji.</string>
     <string name="app_updates_error_install_failed">Instalacja nie została ukończona.</string>
     <string name="app_updates_error_cancelled">Instalacja anulowana.</string>
     <string name="app_updates_source_title">Źródło aktualizacji</string>
@@ -2655,5 +2655,5 @@
     <string name="anytime_history_action">Historia</string>
     <string name="nightscout_follow_interval_title">Sprawdzanie nowych wartości</string>
     <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
-    <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
+    <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Glucifer z optymalizacji baterii zachowuje wybrany odstęp.</string>
 </resources>

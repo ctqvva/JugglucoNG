@@ -1,7 +1,7 @@
 <resources>
     <string name="language">en</string>
     <string name="languagename">Language</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok is not installed on watch. In Garmin Connect IQ store you can get it</string>
 
     <string name="alarm_description">Too low or too high glucose</string>
-    <string name="loss_description">Juggluco has lost contact with sensor</string>
+    <string name="loss_description">Glucifer has lost contact with sensor</string>
     <string name="numalarm_description">Reminder to dose, eat or exercise</string>
     <string name="notification_description">Notifies current glucose value</string>
     <string name="ongoing_description">Ongoing program</string>
@@ -221,7 +221,7 @@
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="sensorpermission">Sensors permission</string>
- <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
+ <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Glucifer</string>
  <string name="floatglucose">Floating glucose</string>
  <string name="floatglucoseshort">@string/floatglucose</string>
 
@@ -341,7 +341,7 @@
 <string name="resendwarning">All data will be sent again which takes time and can have consequences for Libreview and Kerfstok</string>
 <string name="parseip">Error parsing IP</string>
 <string name="toomanyhosts">Maximal number of hosts exceeded</string>
-<string name="senthosts">Juggluco sends to maximal 6 hosts</string>
+<string name="senthosts">Glucifer sends to maximal 6 hosts</string>
     <string name="hostname">hostname</string>
    <string name="clampnow">Now clamp</string>
     <string name="sendfrom">"Send from: "</string>
@@ -379,7 +379,7 @@
    <string name="photomessage">Scan the data matrix of a Dexcom G7/ONE+ or Sibionics GS1 sensor or the mirror QR code.</string>
    <string name="dexfuture">Predict (Dexcom)</string>
    <string name="initializing">Initializing</string> 
-   <string name="startjuggluco">Juggluco running on phone?\n\nWIFI and Bluetooth enabled?</string> 
+   <string name="startjuggluco">Glucifer running on phone?\n\nWIFI and Bluetooth enabled?</string>
    <string name="connected">Connected!</string> 
    <string name="useclose">Close button</string> 
    <string name="alarmclock">\u23F0</string> 
@@ -716,7 +716,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Adjust experimental Libre 3 scan behavior before pairing.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC command</string>
-    <string name="libre3_nfc_command_desc">Choose which command Juggluco sends during the Libre 3 NFC scan</string>
+    <string name="libre3_nfc_command_desc">Choose which command Glucifer sends during the Libre 3 NFC scan</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Use the default Libre 3 scan behavior from Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Activate</string>
@@ -880,7 +880,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Import History</string>
-    <string name="import_history_desc">Import glucose data from a JugglucoNG export or CSV file</string>
+    <string name="import_history_desc">Import glucose data from a Glucifer export or CSV file</string>
     <string name="get_started_desc">Get started by adding your sensor</string>
     <string name="select_sensor">Select Sensor Type</string>
     <string name="or_divider">"  or  "</string>
@@ -933,7 +933,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="export_history_title">Export History</string>
     <string name="export_history_sub">Save glucose readings to CSV or text file</string>
     <string name="import_history_title">Import History</string>
-    <string name="import_history_sub">Restore glucose readings from a JugglucoNG export or CSV file</string>
+    <string name="import_history_sub">Restore glucose readings from a Glucifer export or CSV file</string>
     
     <string name="clear_history_title">Clear History?</string>
     <string name="clear_history_confirmation">This will remove all glucose readings from the database. This action cannot be undone.</string>
@@ -1031,11 +1031,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_fail">Sign-in failed — check phone/code</string>
     <string name="ottai_connect_saved_fail">No account or saved materials for this cloud ID</string>
     <string name="ottai_cloud_already_binding">The Ottai account still has another sensor bound. Unbind it in the Ottai app, or remove that sensor here to release it, then try again.</string>
-    <string name="ottai_cloud_unbind_hint">Cloud account action only. JugglucoNG will not connect to, stop, remove, or modify the selected sensor.</string>
+    <string name="ottai_cloud_unbind_hint">Cloud account action only. Glucifer will not connect to, stop, remove, or modify the selected sensor.</string>
     <string name="ottai_cloud_unbind_title">Permanently unbind this sensor?</string>
-    <string name="ottai_cloud_unbind_message">%1$s will be permanently removed from this Ottai account. The account will no longer be able to fetch its credentials, and the sensor will no longer work in the official Ottai app. Credentials and sensor state already saved in JugglucoNG will not be changed. This cannot be undone.</string>
+    <string name="ottai_cloud_unbind_message">%1$s will be permanently removed from this Ottai account. The account will no longer be able to fetch its credentials, and the sensor will no longer work in the official Ottai app. Credentials and sensor state already saved in Glucifer will not be changed. This cannot be undone.</string>
     <string name="ottai_cloud_unbind_confirm">Unbind permanently</string>
-    <string name="ottai_cloud_unbind_success">Sensor permanently unbound from Ottai. The sensor and saved credentials in JugglucoNG were not changed.</string>
+    <string name="ottai_cloud_unbind_success">Sensor permanently unbound from Ottai. The sensor and saved credentials in Glucifer were not changed.</string>
     <string name="ottai_cloud_unbind_failed">Could not unbind the sensor from Ottai.</string>
     <string name="ottai_cloud_binding_checking">Checking Ottai cloud binding…</string>
     <string name="ottai_cloud_binding_bound">Cloud status: bound to this Ottai account</string>
@@ -1323,7 +1323,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
     <string name="alarm_return_to_previous_app_title">Return to previous app after alarm</string>
-    <string name="alarm_return_to_previous_app_summary">After a full-screen alarm, go back to the app you were using instead of opening JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">After a full-screen alarm, go back to the app you were using instead of opening Glucifer</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
     <string name="retry_constantly">Constantly</string>
     <string name="retry_every">Retry every</string>
@@ -1529,7 +1529,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hours_remaining">%1$d hours remaining</string>
     <string name="import_failed_with_error">Import failed: %1$s</string>
     <string name="import_no_glucose">No glucose data in this file</string>
-    <string name="import_unsupported_file">Unsupported file. Choose a JugglucoNG export (JSON) or glucose history CSV.</string>
+    <string name="import_unsupported_file">Unsupported file. Choose a Glucifer export (JSON) or glucose history CSV.</string>
     <string name="import_profile_merge">Import profile (merge)</string>
     <string name="import_profile_replace">Import profile (replace)</string>
     <string name="import_summary">Imported: %1$d, skipped: %2$d, replaced: %3$d</string>
@@ -1611,7 +1611,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
     <string name="nightscout_follow_interval_title">Check for new values</string>
     <string name="nightscout_follow_interval_desc">How often the follower asks the server. This is also how late a value can be, so it is how late an alarm raised on a followed value can be. A follower has no sensor of its own to keep the phone awake, so every check is a wake-up.</string>
-    <string name="nightscout_follow_interval_doze">Below 9 minutes, Android may still space checks further apart while the phone is idle. Excluding Juggluco from battery optimisation keeps the interval you chose.</string>
+    <string name="nightscout_follow_interval_doze">Below 9 minutes, Android may still space checks further apart while the phone is idle. Excluding Glucifer from battery optimisation keeps the interval you chose.</string>
     <string name="nightscout_follow_url_required">Enter a Nightscout URL first</string>
     <string name="nightscout_mode_upload">Upload</string>
     <string name="nightscout_mode_follow">Follow</string>
@@ -1717,7 +1717,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Not enough daily data to render trend.</string>
     <string name="report_no_readings_day">No readings for this day.</string>
-    <string name="report_page1_title">JugglucoNG CGM Clinical Report</string>
+    <string name="report_page1_title">Glucifer CGM Clinical Report</string>
     <string name="report_page1_subtitle">Range %1$s · Readings %2$d · Window %3$s to %4$s</string>
     <string name="report_estimated_a1c">Estimated A1C</string>
     <string name="report_below_target">Below target</string>
@@ -1732,7 +1732,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">Above: %1$s</string>
     <string name="report_agp_section_title">Ambulatory glucose profile (24h percentile bands)</string>
     <string name="report_reference_targets">Reference targets: GMI &lt; 7.0%%, CV &lt;= 36%%, Time in range &gt;= 70%%.</string>
-    <string name="report_page2_title">JugglucoNG CGM Daily Trends and Interpretation</string>
+    <string name="report_page2_title">Glucifer CGM Daily Trends and Interpretation</string>
     <string name="report_page2_subtitle">Daily variability, metric breakdown, and interpretation notes</string>
     <string name="report_daily_average_trend">Daily average trend</string>
     <string name="report_detailed_metrics">Detailed metrics</string>
@@ -1747,7 +1747,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">No additional pattern warnings were generated for this time range.</string>
     <string name="report_agp_consensus_title">AGP consensus reference</string>
     <string name="report_agp_consensus_body">Targets referenced in this report follow AGP international consensus style: TIR 70-180 mg/dL (3.9-10.0 mmol/L), TBR &lt;70 and &lt;54 mg/dL, TAR &gt;180 and &gt;250 mg/dL, with CV goal &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Appendix I - AGP and Daily Tables</string>
+    <string name="report_page3_title">Glucifer Appendix I - AGP and Daily Tables</string>
     <string name="report_page3_subtitle">Hourly percentiles and day-level outcomes</string>
     <string name="report_hourly_agp_table">Hourly AGP profile table</string>
     <string name="report_hour">Hour</string>
@@ -1756,7 +1756,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">No hourly AGP bins available in this range.</string>
     <string name="report_daily_outcomes_table">Daily outcomes table</string>
     <string name="report_showing_latest_days">Showing latest %1$d of %2$d days.</string>
-    <string name="report_page4_title">JugglucoNG Appendix II - Events and Daily Profiles</string>
+    <string name="report_page4_title">Glucifer Appendix II - Events and Daily Profiles</string>
     <string name="report_page4_subtitle">Hypo/hyper exposure metrics and day-level profile charts</string>
     <string name="report_hypo_hyper_events">Hypo / hyper exposure events</string>
     <string name="report_hours_per_day">Hours/day</string>
@@ -1791,7 +1791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Watch app missing</string>
-    <string name="wear_watch_app_missing_hint">Install Juggluco on this watch, then tap refresh.</string>
+    <string name="wear_watch_app_missing_hint">Install Glucifer on this watch, then tap refresh.</string>
     <string name="wear_auto_sensor_switch">Switch sensor automatically</string>
     <string name="wear_auto_sensor_switch_on_desc">Phone and watch hand the sensor over on their own, so whichever one is in range of it reads it.</string>
     <string name="wear_auto_sensor_switch_off_desc">Only the device you choose reads the sensor.</string>
@@ -1957,7 +1957,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">On target</string>
     <string name="stats_finding_on_target_desc">%1$d%% in range at CV %2$d%%. Nothing else stands out.</string>
     <string name="mq_fetch_calibration_on_add">Restore vendor session on add</string>
-    <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Juggluco tries to restore MQ session state during setup.</string>
+    <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Glucifer tries to restore MQ session state during setup.</string>
     <string name="mq_bootstrap_button">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_title">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_desc">Restore vendor session state from Glutec. Enter the sensor QR here if needed; account, sync, and API settings live in MQ / Glutec Account.</string>
@@ -1990,9 +1990,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Session valid</string>
     <string name="mq_account_session_invalid">Session invalid</string>
     <string name="mq_manual_calibration_title">Manual calibration</string>
-    <string name="mq_manual_calibration_desc">Local to Juggluco. Enter a finger-stick glucose value in %1$s. Requires a recent live MQ packet.</string>
+    <string name="mq_manual_calibration_desc">Local to Glucifer. Enter a finger-stick glucose value in %1$s. Requires a recent live MQ packet.</string>
     <string name="mq_follower_title">Glutec follower</string>
-    <string name="mq_follower_desc">Follow another Glutec account through the vendor cloud. Turning this on creates a read-only follower sensor in Juggluco.</string>
+    <string name="mq_follower_desc">Follow another Glutec account through the vendor cloud. Turning this on creates a read-only follower sensor in Glucifer.</string>
     <string name="mq_follower_account_label">Follower account</string>
     <string name="mq_follower_account_desc">Enter the Glutec phone number or account to follow.</string>
     <string name="mq_follower_enabled_summary">Follower on</string>
@@ -2630,7 +2630,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Max messages per hour</string>
     <string name="sms_max_per_day">Max messages per day</string>
     <string name="sms_sent_today">Sent in the last 24 hours: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG needs permission to send text messages before this destination can work.</string>
+    <string name="sms_permission_desc">Glucifer needs permission to send text messages before this destination can work.</string>
     <string name="sms_permission_grant">Grant</string>
     <string name="sms_no_telephony">This device cannot send text messages.</string>
     <string name="sms_preview_title">Preview</string>
@@ -2648,7 +2648,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">No sensor data for %1$d min</string>
     <string name="sms_event_all_clear">All clear</string>
     <string name="sms_event_relay">Update (no data connection)</string>
-    <string name="sms_event_test">Test message from JugglucoNG</string>
+    <string name="sms_event_test">Test message from Glucifer</string>
     <string name="sms_body_no_reading">No reading yet</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2688,13 +2688,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Verifying download</string>
     <string name="app_updates_verifying_body">Checking the signature and version before installing.</string>
     <string name="app_updates_ready_title">%1$s ready to install</string>
-    <string name="app_updates_ready_body">Android will ask you to confirm. JugglucoNG closes and reopens; sensor connections resume by themselves.</string>
+    <string name="app_updates_ready_body">Android will ask you to confirm. Glucifer closes and reopens; sensor connections resume by themselves.</string>
     <string name="app_updates_up_to_date_title">You\'re on the latest version</string>
     <string name="app_updates_last_checked">Last checked %1$s</string>
     <string name="app_updates_never_checked">never</string>
     <string name="app_updates_error_title">Update check failed</string>
-    <string name="app_updates_permission_title">Allow installs from JugglucoNG</string>
-    <string name="app_updates_permission_body">Android needs a one-time permission before JugglucoNG can install its own update.</string>
+    <string name="app_updates_permission_title">Allow installs from Glucifer</string>
+    <string name="app_updates_permission_body">Android needs a one-time permission before Glucifer can install its own update.</string>
     <string name="app_updates_permission_action">Open settings</string>
     <string name="app_updates_unsupported_store_title">Updates come from your app store</string>
     <string name="app_updates_unsupported_store_body">This copy was installed by %1$s, which handles updates itself.</string>
@@ -2705,11 +2705,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">The update source returned something unexpected.</string>
     <string name="app_updates_error_no_artifact">The latest release has no download for this build.</string>
     <string name="app_updates_error_checksum">The download did not match its checksum and was deleted.</string>
-    <string name="app_updates_error_signature">The downloaded APK is signed with a different key and was deleted. Only install JugglucoNG from the official release page.</string>
+    <string name="app_updates_error_signature">The downloaded APK is signed with a different key and was deleted. Only install Glucifer from the official release page.</string>
     <string name="app_updates_error_package">The downloaded APK belongs to a different app.</string>
     <string name="app_updates_error_downgrade">That release is not newer than the installed version.</string>
     <string name="app_updates_error_storage">Not enough free space for the download.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG is not allowed to install apps yet.</string>
+    <string name="app_updates_error_install_permission">Glucifer is not allowed to install apps yet.</string>
     <string name="app_updates_error_install_failed">The installation did not complete.</string>
     <string name="app_updates_error_cancelled">Installation cancelled.</string>
     <string name="app_updates_source_title">Update source</string>

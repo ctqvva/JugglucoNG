@@ -1,7 +1,7 @@
 <resources>
     <string name="language">mn</string>
     <string name="languagename">Монгол хэл</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
     <string name="ok">OK</string>
     <string name="cancel">Цуцлах</string>
     <string name="garmin_initialization_error">"Garmin Connect SDK эхлүүлэхэд алдаа гарлаа: "</string>
@@ -10,7 +10,7 @@
     <string name="kerfstok_missing_title">Kerfstok цаг дээр суулгагдаагүй байна</string>
     <string name="kerfstok_missing_message">Kerfstok цаг дээр суулгагдаагүй байна. Garmin Connect IQ дэлгүүрээс суулгаж болно.</string>
     <string name="alarm_description">Глюкоз хэт бага эсвэл хэт өндөр байна</string>
-    <string name="loss_description">Juggluco мэдрэгчтэй холболтоо алдсан байна</string>
+    <string name="loss_description">Glucifer мэдрэгчтэй холболтоо алдсан байна</string>
     <string name="numalarm_description">Тун хийх, хооллох эсвэл дасгал хийх сануулга</string>
     <string name="notification_description">Одоогийн глюкозын утгыг мэдэгдэнэ</string>
     <string name="ongoing_description">Ажиллаж байгаа программ</string>
@@ -214,7 +214,7 @@
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="sensorpermission">Мэдрэгчийн зөвшөөрөл</string>
-    <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
+    <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Glucifer</string>
     <string name="floatglucose">Хөвөгч глюкоз</string>
     <string name="floatglucoseshort">@string/floatglucose</string>
     <string name="fontsize">Үсгийн хэмжээ</string>
@@ -326,7 +326,7 @@
     <string name="resendwarning">Бүх өгөгдлийг дахин илгээх бөгөөд энэ нь цаг хугацаа шаардаж, Libreview болон Kerfstok-д нөлөөлж болзошгүй</string>
     <string name="parseip">IP хаяг задлахад алдаа гарлаа</string>
     <string name="toomanyhosts">Хостын дээд хязгаар хэтэрсэн байна</string>
-    <string name="senthosts">Juggluco нь дээд тал нь 6 хост руу илгээдэг</string>
+    <string name="senthosts">Glucifer нь дээд тал нь 6 хост руу илгээдэг</string>
     <string name="hostname">хостын нэр</string>
     <string name="clampnow">Одоо clamp</string>
     <string name="sendfrom">"Илгээх эх үүсвэр: "</string>
@@ -361,7 +361,7 @@
     <string name="photomessage">Dexcom G7/ONE+ эсвэл Sibionics GS1 мэдрэгчийн дата матрицыг эсвэл mirror QR кодыг уншуулна уу.</string>
     <string name="dexfuture">Таамаглах (Dexcom)</string>
     <string name="initializing">Эхлүүлж байна</string>
-    <string name="startjuggluco">Juggluco утсан дээр ажиллаж байна уу?\n\nWIFI болон Bluetooth идэвхжсэн үү?</string>
+    <string name="startjuggluco">Glucifer утсан дээр ажиллаж байна уу?\n\nWIFI болон Bluetooth идэвхжсэн үү?</string>
     <string name="connected">Холбогдлоо!</string>
     <string name="useclose">Хаах товч</string>
     <string name="alarmclock">\u23F0</string>
@@ -647,7 +647,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Хослуулахын өмнө Libre 3 скан хийх туршилтын үйлдлийг тохируулна уу.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC команд</string>
-    <string name="libre3_nfc_command_desc">Libre 3 NFC скан хийх үед Juggluco-гоос илгээх командыг сонгоно уу</string>
+    <string name="libre3_nfc_command_desc">Libre 3 NFC скан хийх үед Glucifer-гоос илгээх командыг сонгоно уу</string>
     <string name="libre3_nfc_command_auto">Авто</string>
     <string name="libre3_nfc_command_auto_desc">Juggluco-ийн үндсэн Libre 3 скан хийх үйлдлийг ашиглах</string>
     <string name="libre3_nfc_command_activate">A0 Идэвхжүүлэх</string>
@@ -759,7 +759,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="alert_amount">Хэмжээний анхааруулга</string>
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Түүхийг импортлох</string>
-    <string name="import_history_desc">JugglucoNG экспорт эсвэл CSV файлаас глюкозын өгөгдөл импортлох</string>
+    <string name="import_history_desc">Glucifer экспорт эсвэл CSV файлаас глюкозын өгөгдөл импортлох</string>
     <string name="get_started_desc">Мэдрэгчээ нэмж эхлүүлнэ үү</string>
     <string name="select_sensor">Мэдрэгчийн төрлийг сонгох</string>
     <string name="or_divider">"  эсвэл  "</string>
@@ -806,9 +806,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="export_history_title">Түүхийг экспортлох</string>
     <string name="export_history_sub">Глюкозын уншилтуудыг CSV эсвэл текст файл болгон хадгалах</string>
     <string name="import_history_title">Түүхийг импортлох</string>
-    <string name="import_history_sub">JugglucoNG экспорт эсвэл CSV файлаас глюкозын уншилтыг сэргээх</string>
+    <string name="import_history_sub">Glucifer экспорт эсвэл CSV файлаас глюкозын уншилтыг сэргээх</string>
     <string name="import_no_glucose">Энэ файлд глюкозын өгөгдөл алга</string>
-    <string name="import_unsupported_file">Дэмжигдээгүй файл. JugglucoNG экспорт (JSON) эсвэл глюкозын түүхийн CSV файлыг сонгоно уу.</string>
+    <string name="import_unsupported_file">Дэмжигдээгүй файл. Glucifer экспорт (JSON) эсвэл глюкозын түүхийн CSV файлыг сонгоно уу.</string>
     <string name="clear_history_title">Түүхийг цэвэрлэх үү?</string>
     <string name="clear_history_confirmation">Энэ нь өгөгдлийн сангаас бүх глюкозын уншилтуудыг устгах болно. Үүнийг буцаах боломжгүй.</string>
     <string name="delete_reading_title">Уншилтыг устгах уу?</string>
@@ -1351,7 +1351,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Not enough daily data to render trend.</string>
     <string name="report_no_readings_day">No readings for this day.</string>
-    <string name="report_page1_title">JugglucoNG CGM Clinical Report</string>
+    <string name="report_page1_title">Glucifer CGM Clinical Report</string>
     <string name="report_page1_subtitle">Range %1$s · Readings %2$d · Window %3$s to %4$s</string>
     <string name="report_estimated_a1c">Estimated A1C</string>
     <string name="report_below_target">Below target</string>
@@ -1366,7 +1366,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="report_above_duration">Above: %1$s</string>
     <string name="report_agp_section_title">Ambulatory glucose profile (24h percentile bands)</string>
     <string name="report_reference_targets">Reference targets: GMI &lt; 7.0%%, CV &lt;= 36%%, Time in range &gt;= 70%%.</string>
-    <string name="report_page2_title">JugglucoNG CGM Daily Trends and Interpretation</string>
+    <string name="report_page2_title">Glucifer CGM Daily Trends and Interpretation</string>
     <string name="report_page2_subtitle">Daily variability, metric breakdown, and interpretation notes</string>
     <string name="report_daily_average_trend">Daily average trend</string>
     <string name="report_detailed_metrics">Detailed metrics</string>
@@ -1381,7 +1381,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="report_no_generated_insights_message">No additional pattern warnings were generated for this time range.</string>
     <string name="report_agp_consensus_title">AGP consensus reference</string>
     <string name="report_agp_consensus_body">Targets referenced in this report follow AGP international consensus style: TIR 70-180 mg/dL (3.9-10.0 mmol/L), TBR &lt;70 and &lt;54 mg/dL, TAR &gt;180 and &gt;250 mg/dL, with CV goal &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Appendix I - AGP and Daily Tables</string>
+    <string name="report_page3_title">Glucifer Appendix I - AGP and Daily Tables</string>
     <string name="report_page3_subtitle">Hourly percentiles and day-level outcomes</string>
     <string name="report_hourly_agp_table">Hourly AGP profile table</string>
     <string name="report_hour">Hour</string>
@@ -1390,7 +1390,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="report_no_hourly_agp">No hourly AGP bins available in this range.</string>
     <string name="report_daily_outcomes_table">Daily outcomes table</string>
     <string name="report_showing_latest_days">Showing latest %1$d of %2$d days.</string>
-    <string name="report_page4_title">JugglucoNG Appendix II - Events and Daily Profiles</string>
+    <string name="report_page4_title">Glucifer Appendix II - Events and Daily Profiles</string>
     <string name="report_page4_subtitle">Hypo/hyper exposure metrics and day-level profile charts</string>
     <string name="report_hypo_hyper_events">Hypo / hyper exposure events</string>
     <string name="report_hours_per_day">Hours/day</string>
@@ -1425,7 +1425,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Цагны апп байхгүй</string>
-    <string name="wear_watch_app_missing_hint">Энэ цаг дээр Juggluco-г суулгаад дараа нь шинэчлэхийг товшино уу.</string>
+    <string name="wear_watch_app_missing_hint">Энэ цаг дээр Glucifer-г суулгаад дараа нь шинэчлэхийг товшино уу.</string>
     <string name="wear_auto_sensor_switch">Мэдрэгчийг автоматаар сэлгэх</string>
     <string name="wear_auto_sensor_switch_on_desc">Утас, цаг хоёр мэдрэгчээ өөрсдөө дамжуулж, хүрээнд нь байгаа төхөөрөмж нь уншина.</string>
     <string name="wear_auto_sensor_switch_off_desc">Зөвхөн таны сонгосон төхөөрөмж мэдрэгчийг уншина.</string>
@@ -1463,7 +1463,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="insight_unstable_days">Frequent Unstable Days</string>
     <string name="insight_unstable_days_desc">%1$d days in this window had less than 50%% time in range.</string>
     <string name="mq_fetch_calibration_on_add">Restore vendor session on add</string>
-    <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Juggluco tries to restore MQ session state during setup.</string>
+    <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Glucifer tries to restore MQ session state during setup.</string>
     <string name="mq_bootstrap_button">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_title">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_desc">Restore vendor session state from Glutec. Enter the sensor QR here if needed; account, sync, and API settings live in MQ / Glutec Account.</string>
@@ -1496,9 +1496,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mq_account_session_valid">Session valid</string>
     <string name="mq_account_session_invalid">Session invalid</string>
     <string name="mq_manual_calibration_title">Manual calibration</string>
-    <string name="mq_manual_calibration_desc">Local to Juggluco. Enter a finger-stick glucose value in %1$s. Requires a recent live MQ packet.</string>
+    <string name="mq_manual_calibration_desc">Local to Glucifer. Enter a finger-stick glucose value in %1$s. Requires a recent live MQ packet.</string>
     <string name="mq_follower_title">Glutec follower</string>
-    <string name="mq_follower_desc">Follow another Glutec account through the vendor cloud. Turning this on creates a read-only follower sensor in Juggluco.</string>
+    <string name="mq_follower_desc">Follow another Glutec account through the vendor cloud. Turning this on creates a read-only follower sensor in Glucifer.</string>
     <string name="mq_follower_account_label">Follower account</string>
     <string name="mq_follower_account_desc">Enter the Glutec phone number or account to follow.</string>
     <string name="mq_follower_enabled_summary">Follower on</string>
@@ -2125,7 +2125,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
     <string name="alarm_return_to_previous_app_title">Дохионы дараа өмнөх апп руу буцах</string>
-    <string name="alarm_return_to_previous_app_summary">Бүтэн дэлгэцийн дохионы дараа JugglucoNG-г нээхийн оронд ашиглаж байсан апп руу буцна</string>
+    <string name="alarm_return_to_previous_app_summary">Бүтэн дэлгэцийн дохионы дараа Glucifer-г нээхийн оронд ашиглаж байсан апп руу буцна</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
     <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>
@@ -2450,11 +2450,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ. Хандалтын токенд api:devicestatus:create шаардлагатай.</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. Ottai апп-аас салгах эсвэл эндээс тухайн мэдрэгчийг устгаж холболтыг чөлөөлөөд дахин оролдоно уу.</string>
-    <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
+    <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. Glucifer сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
     <string name="ottai_cloud_unbind_title">Энэ мэдрэгчийг бүрмөсөн салгах уу?</string>
-    <string name="ottai_cloud_unbind_message">%1$s энэ Ottai бүртгэлээс бүрмөсөн хасагдана. Бүртгэл цаашид түүний нэвтрэх мэдээллийг авч чадахгүй бөгөөд мэдрэгч албан ёсны Ottai апп-д ажиллахгүй. JugglucoNG-д хадгалсан нэвтрэх мэдээлэл болон мэдрэгчийн төлөв өөрчлөгдөхгүй. Энэ үйлдлийг буцаах боломжгүй.</string>
+    <string name="ottai_cloud_unbind_message">%1$s энэ Ottai бүртгэлээс бүрмөсөн хасагдана. Бүртгэл цаашид түүний нэвтрэх мэдээллийг авч чадахгүй бөгөөд мэдрэгч албан ёсны Ottai апп-д ажиллахгүй. Glucifer-д хадгалсан нэвтрэх мэдээлэл болон мэдрэгчийн төлөв өөрчлөгдөхгүй. Энэ үйлдлийг буцаах боломжгүй.</string>
     <string name="ottai_cloud_unbind_confirm">Бүрмөсөн салгах</string>
-    <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. JugglucoNG дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
+    <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. Glucifer дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
     <string name="ottai_cloud_unbind_failed">Мэдрэгчийг Ottai-аас салгаж чадсангүй.</string>
     <string name="ottai_cloud_binding_checking">Ottai үүлэн холболтыг шалгаж байна…</string>
     <string name="ottai_cloud_binding_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдсон</string>
@@ -2517,7 +2517,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sms_max_per_hour">Цагт хамгийн ихдээ мессеж</string>
     <string name="sms_max_per_day">Өдөрт хамгийн ихдээ мессеж</string>
     <string name="sms_sent_today">Сүүлийн 24 цагт илгээсэн: %1$d</string>
-    <string name="sms_permission_desc">Энэ чиглэл ажиллахын тулд JugglucoNG-д SMS илгээх зөвшөөрөл хэрэгтэй.</string>
+    <string name="sms_permission_desc">Энэ чиглэл ажиллахын тулд Glucifer-д SMS илгээх зөвшөөрөл хэрэгтэй.</string>
     <string name="sms_permission_grant">Зөвшөөрөх</string>
     <string name="sms_no_telephony">Энэ төхөөрөмж SMS илгээж чадахгүй.</string>
     <string name="sms_preview_title">Урьдчилан харах</string>
@@ -2535,7 +2535,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sms_event_no_data">%1$d мин мэдрэгчийн дата алга</string>
     <string name="sms_event_all_clear">Аюул арилсан</string>
     <string name="sms_event_relay">Шинэчлэлт (дата холболт алга)</string>
-    <string name="sms_event_test">JugglucoNG-ийн туршилтын мессеж</string>
+    <string name="sms_event_test">Glucifer-ийн туршилтын мессеж</string>
     <string name="sms_body_no_reading">Одоохондоо заалт алга</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2575,13 +2575,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="app_updates_verifying_title">Татсаныг шалгаж байна</string>
     <string name="app_updates_verifying_body">Суулгахын өмнө гарын үсэг, хувилбарыг шалгаж байна.</string>
     <string name="app_updates_ready_title">%1$s суулгахад бэлэн</string>
-    <string name="app_updates_ready_body">Android танаас баталгаажуулалт асууна. JugglucoNG хаагдаад дахин нээгдэнэ; мэдрэгчийн холболт өөрөө сэргэнэ.</string>
+    <string name="app_updates_ready_body">Android танаас баталгаажуулалт асууна. Glucifer хаагдаад дахин нээгдэнэ; мэдрэгчийн холболт өөрөө сэргэнэ.</string>
     <string name="app_updates_up_to_date_title">Та хамгийн сүүлийн хувилбартай байна</string>
     <string name="app_updates_last_checked">Сүүлд шалгасан: %1$s</string>
     <string name="app_updates_never_checked">хэзээ ч үгүй</string>
     <string name="app_updates_error_title">Шинэчлэлт шалгаж чадсангүй</string>
-    <string name="app_updates_permission_title">JugglucoNG-д суулгах зөвшөөрөл өгнө үү</string>
-    <string name="app_updates_permission_body">JugglucoNG өөрийн шинэчлэлтээ суулгахын өмнө Android нэг удаагийн зөвшөөрөл шаарддаг.</string>
+    <string name="app_updates_permission_title">Glucifer-д суулгах зөвшөөрөл өгнө үү</string>
+    <string name="app_updates_permission_body">Glucifer өөрийн шинэчлэлтээ суулгахын өмнө Android нэг удаагийн зөвшөөрөл шаарддаг.</string>
     <string name="app_updates_permission_action">Тохиргоог нээх</string>
     <string name="app_updates_unsupported_store_title">Шинэчлэлт таны апп дэлгүүрээс ирдэг</string>
     <string name="app_updates_unsupported_store_body">Энэ хувийг %1$s суулгасан бөгөөд шинэчлэлтийг өөрөө удирддаг.</string>
@@ -2592,11 +2592,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="app_updates_error_parse">Шинэчлэлтийн эх сурвалж гэнэтийн хариу буцаалаа.</string>
     <string name="app_updates_error_no_artifact">Сүүлийн хувилбарт энэ build-д тохирох татах файл алга.</string>
     <string name="app_updates_error_checksum">Татсан файл хяналтын нийлбэртэй таарсангүй тул устгагдлаа.</string>
-    <string name="app_updates_error_signature">Татсан APK өөр түлхүүрээр гарын үсэг зурагдсан тул устгагдлаа. JugglucoNG-г зөвхөн албан ёсны хувилбарын хуудаснаас суулгана уу.</string>
+    <string name="app_updates_error_signature">Татсан APK өөр түлхүүрээр гарын үсэг зурагдсан тул устгагдлаа. Glucifer-г зөвхөн албан ёсны хувилбарын хуудаснаас суулгана уу.</string>
     <string name="app_updates_error_package">Татсан APK өөр аппад хамаарна.</string>
     <string name="app_updates_error_downgrade">Тэр хувилбар суулгасан хувилбараас шинэ биш.</string>
     <string name="app_updates_error_storage">Татахад хангалттай сул зай алга.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG-д апп суулгах зөвшөөрөл хараахан алга.</string>
+    <string name="app_updates_error_install_permission">Glucifer-д апп суулгах зөвшөөрөл хараахан алга.</string>
     <string name="app_updates_error_install_failed">Суулгалт дуусаагүй.</string>
     <string name="app_updates_error_cancelled">Суулгалтыг цуцаллаа.</string>
     <string name="app_updates_source_title">Шинэчлэлтийн эх сурвалж</string>
@@ -2724,5 +2724,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="anytime_history_action">Түүх</string>
     <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
     <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
-    <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
+    <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Glucifer-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
 </resources>

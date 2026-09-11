@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" fill="none"><g transform="translate(54 54) scale(1) translate(-54 -54)"><defs><filter id="white"><feFlood flood-color="white"/><feComposite in2="SourceGraphic" operator="in"/></filter><mask id="pen-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254"><path fill="white" d="M0 0H1254V1254H0Z"/><path transform="translate(1028 500) rotate(40)" d="M-36-12H36Q44-12 44-4V29H52V98H58V211H72Q82 211 82 222V426Q82 443 65 443H58V624Q58 642 43 655V684H29V759L20 780H-20L-29 759V684H-44V650Q-58 642-58 624V98H-52V29H-44V-4Q-44-12-36-12Z" fill="black" stroke="black" stroke-width="34"/></mask><mask id="pen-window" maskUnits="userSpaceOnUse" x="-100" y="-40" width="220" height="860"><path d="M-36-12H36Q44-12 44-4V29H52V98H58V211H72Q82 211 82 222V426Q82 443 65 443H58V624Q58 642 43 655V684H29V759L20 780H-20L-29 759V684H-44V650Q-58 642-58 624V98H-52V29H-44V-4Q-44-12-36-12Z" fill="white"/><rect x="-24" y="216" width="48" height="239" rx="20" fill="black"/></mask></defs><g transform="translate(54 54) scale(.058) translate(-627 -622.5)"><g mask="url(#pen-gap)"><g filter="url(#white)">
+  
+  
+  <defs>
+    <linearGradient id="drop" x1="540" y1="230" x2="790" y2="1036" gradientUnits="userSpaceOnUse"><stop stop-color="#ff4934"/><stop offset=".48" stop-color="#ed3027"/><stop offset="1" stop-color="#aa191d"/></linearGradient>
+    <linearGradient id="horn" x1="350" y1="177" x2="412" y2="430" gradientUnits="userSpaceOnUse"><stop stop-color="#ff6849"/><stop offset="1" stop-color="#ce2923"/></linearGradient>
+    <linearGradient id="barrel" x1="-60" x2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#fff7df"/><stop offset=".48" stop-color="#eee9d9"/><stop offset="1" stop-color="#afb6b7"/></linearGradient>
+    <linearGradient id="dial" x1="-52" x2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#f26e53"/><stop offset=".55" stop-color="#da4938"/><stop offset="1" stop-color="#91302e"/></linearGradient>
+    <linearGradient id="tip" x1="-30" x2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#e4efee" stop-opacity=".95"/><stop offset="1" stop-color="#929fa8" stop-opacity=".9"/></linearGradient>
+  </defs>
+  <g id="glucifer-mark">
+    <g id="horns">
+      <path id="left-horn" d="M351 177C320 205 304 248 309 286C311 348 336 397 380 434L450 344C389 310 349 248 354 182Q355 173 351 177Z" fill="url(#horn)"/>
+      <path d="M309 286C325 325 366 355 415 370L380 434C338 400 314 349 309 286Z" fill="#b92824"/>
+      <g transform="translate(1254 0) scale(-1 1)"><use href="#left-horn"/><path d="M309 286C325 325 366 355 415 370L380 434C338 400 314 349 309 286Z" fill="#b92824"/></g>
+    </g>
+    <path id="blood-drop" d="M627 138C603 191 565 244 536 288C438 424 298 549 298 704C298 897 441 1036 627 1036C813 1036 956 897 956 704C956 549 816 424 718 288C689 244 651 191 627 138Z" fill="url(#drop)"/>
+    <path d="M628 173C587 258 472 395 400 499C365 550 343 603 339 649C370 554 443 482 501 406C558 332 600 258 628 173Z" fill="#ffb188" opacity=".25"/>
+    <g id="insulin-pen" transform="translate(1028 500) rotate(40)">
+      <path d="M-36-12H36Q44-12 44-4V39H-44V-4Q-44-12-36-12Z" fill="#28343f"/>
+      <rect x="-52" y="29" width="104" height="77" rx="9" fill="url(#dial)"/>
+      <path d="M-34 37V92M-17 35V94M0 35V94M17 35V94M34 37V92" stroke="#7d292a" stroke-width="5" opacity=".6"/>
+      <path d="M-58 98H58V624Q58 642 43 655H-43Q-58 642-58 624Z" fill="url(#barrel)"/>
+      <path d="M-41 119V612" stroke="#fffbea" stroke-width="9" opacity=".65"/>
+      <rect x="-29" y="216" width="58" height="239" rx="24" fill="#263440"/>
+      <rect x="-17" y="232" width="34" height="51" rx="13" fill="#d45b49"/>
+      <path d="M-12 310H12M-12 344H12M-12 378H12M-12 412H12" stroke="#e7e9df" stroke-width="8" stroke-linecap="round"/>
+      <path d="M58 211H72Q82 211 82 222V426Q82 443 65 443H58Z" fill="#d2d7d2"/>
+      <path d="M72 232V413" stroke="#eff2e8" stroke-width="5" stroke-linecap="round"/>
+      <path d="M-44 650H44V684H-44Z" fill="#6f7e89"/>
+      <path d="M-29 684H29V759L20 780H-20L-29 759Z" fill="url(#tip)"/>
+      <path d="M0 690V765" stroke="#566a78" stroke-width="5"/>
+      <path d="M-18 696V750" stroke="#f2f9f4" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </g>
+</g></g><g transform="translate(1028 500) rotate(40)"><path d="M-36-12H36Q44-12 44-4V29H52V98H58V211H72Q82 211 82 222V426Q82 443 65 443H58V624Q58 642 43 655V684H29V759L20 780H-20L-29 759V684H-44V650Q-58 642-58 624V98H-52V29H-44V-4Q-44-12-36-12Z" fill="white" mask="url(#pen-window)"/></g></g></g></svg>

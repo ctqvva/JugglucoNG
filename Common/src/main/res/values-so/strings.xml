@@ -1,7 +1,7 @@
 <resources>
     <string name="language">so</string>
     <string name="languagename">Luuqad</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Ka noqo</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok laguma rakibin saacadda. Waxaad ka heli kartaa dukaanka Garmin Connect IQ.</string>
 
     <string name="alarm_description">Gulukoos aad u hooseeya ama aad u sareysa</string>
-    <string name="loss_description">Juggluco waxa lumiyay xidhiidhkii dareenka</string>
+    <string name="loss_description">Glucifer waxa lumiyay xidhiidhkii dareenka</string>
     <string name="numalarm_description">Xusuusin ku saabsan qaadashada daawo, cunista ama jimicsiga</string>
     <string name="notification_description">Waxay ogeysiisaa qiimaha gulukooska ee hadda jira</string>
     <string name="ongoing_description">Barnaamijka socda</string>
@@ -219,7 +219,7 @@
     <string name="xdrip_compatible_title">xDrip baahinta</string>
     <string name="xdrip_compatible_desc">AAPS waafaqsan</string>
     <string name="sensorpermission">Oggolaanshaha dareemayaasha</string>
- <string name="sensorpermissionmessage">Waxaa loo baahan yahay si loo muujiyo garaaca wadnaha. Ka daar Dejimaha qalabka > Apps > Oggolaanshaha > Juggluco.</string>
+ <string name="sensorpermissionmessage">Waxaa loo baahan yahay si loo muujiyo garaaca wadnaha. Ka daar Dejimaha qalabka > Apps > Oggolaanshaha > Glucifer.</string>
  <string name="floatglucose">Gulukoos sabaynaysa</string>
  <string name="floatglucoseshort">@string/floatglucose</string>
 
@@ -339,7 +339,7 @@
 <string name="resendwarning">Dhammaan xogta dib ayaa loo soo diri doonaa taas oo waqti qaadanaysa oo cawaaqib u yeelan karta Libreview iyo Kerfstok</string>
 <string name="parseip">Khalad kala saarida IP</string>
 <string name="toomanyhosts">Tirada ugu badan ee martigaliyayaasha ayaa dhaaftay</string>
-<string name="senthosts">Juggluco waxay u dirtaa ugu badnaan 6 martigaliyayaasha</string>
+<string name="senthosts">Glucifer waxay u dirtaa ugu badnaan 6 martigaliyayaasha</string>
     <string name="hostname">magaca martida loo yahay</string>
    <string name="clampnow">Hadda isku dheji</string>
     <string name="sendfrom">"Ka soo dir:"</string>
@@ -377,7 +377,7 @@
    <string name="photomessage">Sawir shaxanka xogta Dexcom G7/ONE+ ama Sibionics GS1 ama muraayadda QR code.</string>
    <string name="dexfuture">Saadaal (Dexcom)</string>
    <string name="initializing">Bilaabida</string> 
-   <string name="startjuggluco">Juggluco ku shaqeeya telifoonka?\n\nWIFI iyo Bluetooth ma shaqeeyaa?</string> 
+   <string name="startjuggluco">Glucifer ku shaqeeya telifoonka?\n\nWIFI iyo Bluetooth ma shaqeeyaa?</string>
    <string name="connected">Ku xidhan!</string> 
    <string name="useclose">Xir badhanka</string> 
    <string name="alarmclock">\u23F0</string> 
@@ -694,7 +694,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Hagaajin dabeecadda iskaanka ee tijaabada ah ee Libre 3 ka hor inta aanad lammaanin.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC</string>
-    <string name="libre3_nfc_command_desc">Dooro amarka uu soo diro Juggluco inta lagu jiro iskaanka Libre 3 NFC</string>
+    <string name="libre3_nfc_command_desc">Dooro amarka uu soo diro Glucifer inta lagu jiro iskaanka Libre 3 NFC</string>
     <string name="libre3_nfc_command_auto">Baabuur</string>
     <string name="libre3_nfc_command_auto_desc">Adeegso hab-dhaqanka iskaanka Libre 3 ee caadiga ah ee Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Daar</string>
@@ -833,7 +833,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Soo dejinta Taariikhda</string>
-    <string name="import_history_desc">Ka soo deji xogta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
+    <string name="import_history_desc">Ka soo deji xogta gulukooska dhoofinta Glucifer ama faylka CSV</string>
     <string name="get_started_desc">Ku bilow adiga oo ku dara dareenkaaga</string>
     <string name="select_sensor">Dooro Nooca Sensor</string>
     <string name="or_divider">"ama"</string>
@@ -886,7 +886,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="export_history_title">Taariikhda dhoofinta</string>
     <string name="export_history_sub">Ku keydi akhrinta gulukooska CSV ama faylka qoraalka</string>
     <string name="import_history_title">Soo dejinta Taariikhda</string>
-    <string name="import_history_sub">Soo celi akhrinta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
+    <string name="import_history_sub">Soo celi akhrinta gulukooska dhoofinta Glucifer ama faylka CSV</string>
     
     <string name="clear_history_title">Taariikhda tirtiri?</string>
     <string name="clear_history_confirmation">Tani waxay ka saari doontaa dhammaan akhrinta gulukooska ee kaydka xogta. Tallaabadan lama noqon karo.</string>
@@ -1252,7 +1252,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
     <string name="alarm_return_to_previous_app_title">Digniinta ka dib ku noqo abka hore</string>
-    <string name="alarm_return_to_previous_app_summary">Digniin shaashad-buuxa ka dib, ku noqo abka aad isticmaalaysay halkii aad ka furi lahayd JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">Digniin shaashad-buuxa ka dib, ku noqo abka aad isticmaalaysay halkii aad ka furi lahayd Glucifer</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
     <string name="retry_constantly">Si joogto ah</string>
     <string name="retry_every">Isku day mid kasta</string>
@@ -1458,7 +1458,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="hours_remaining">%1$d saacadood ayaa hadhay</string>
     <string name="import_failed_with_error">Soo dejintu waa fashilantay: %1$s</string>
     <string name="import_no_glucose">Faylkan kuma jiro xog gulukoos</string>
-    <string name="import_unsupported_file">Faylkan lama taageero. Dooro dhoofinta JugglucoNG (JSON) ama CSV taariikhda gulukooska.</string>
+    <string name="import_unsupported_file">Faylkan lama taageero. Dooro dhoofinta Glucifer (JSON) ama CSV taariikhda gulukooska.</string>
     <string name="import_profile_merge">Soo dejinta profile (ku biir)</string>
     <string name="import_profile_replace">Soo rar astaanta guud (bedel)</string>
     <string name="import_summary">La soo dejiyay: %1$d, la booday: %2$d, beddelay: %3$d</string>
@@ -1639,7 +1639,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Xog maalmeed kuma filna in la sameeyo isbeddel.</string>
     <string name="report_no_readings_day">Akhris ma jiro maalintan.</string>
-    <string name="report_page1_title">JugglucoNG CGM Warbixinta Caafimaadka</string>
+    <string name="report_page1_title">Glucifer CGM Warbixinta Caafimaadka</string>
     <string name="report_page1_subtitle">Range %1$s · Akhriska %2$d · Daaqada %3$s ilaa %4$s</string>
     <string name="report_estimated_a1c">Qiyaasta A1C</string>
     <string name="report_below_target">Hoosta bartilmaameedka</string>
@@ -1654,7 +1654,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="report_above_duration">Kor: %1$s</string>
     <string name="report_agp_section_title">Xogta gulukooska ambalaaska ah (boqolkiiba 24)</string>
     <string name="report_reference_targets">Tixraaca yoolalka: GMI &lt;7.0%%, CV &lt;= 36%%, Time in range&gt;= 70%%</string>
-    <string name="report_page2_title">JugglucoNG CGM Isbeddellada Maalinlaha ah iyo Fasiraadda</string>
+    <string name="report_page2_title">Glucifer CGM Isbeddellada Maalinlaha ah iyo Fasiraadda</string>
     <string name="report_page2_subtitle">Kala duwanaanshiyaha maalinlaha ah, burburka cabbirka, iyo qoraallada tarjumaada</string>
     <string name="report_daily_average_trend">Dhaqdhaqaaqa celceliska maalinlaha ah</string>
     <string name="report_detailed_metrics">Qiyaasta faahfaahsan</string>
@@ -1669,7 +1669,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="report_no_generated_insights_message">Ma jiraan digniino qaabaysan oo dheeraad ah oo loo sameeyay muddadan.</string>
     <string name="report_agp_consensus_title">Tixraaca la isku raacsan yahay ee AGP</string>
     <string name="report_agp_consensus_body">Bartilmaameedyada lagu sheegay warbixintan waxay raacaan qaabka AGP-ga heshiis caalami ah: TIR 70-180 mg/dL (3.9-10.0 mmol/L), TBR &lt;70 iyo &lt;54 mg/dL, TAR&gt;180 and&gt;250 mg/dL, with CV goal &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Lifaaqa I - AGP iyo Miisaska maalinlaha ah</string>
+    <string name="report_page3_title">Glucifer Lifaaqa I - AGP iyo Miisaska maalinlaha ah</string>
     <string name="report_page3_subtitle">Boqolleyda saacadle ah iyo natiijooyinka heerka maalinta</string>
     <string name="report_hourly_agp_table">Shaxda profile AGP ee saacadle ah</string>
     <string name="report_hour">Saacada</string>
@@ -1678,7 +1678,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="report_no_hourly_agp">Ma jiraan sanduuqyo AGP-ga oo saacadle ah oo laga heli karo xadkan.</string>
     <string name="report_daily_outcomes_table">Shaxda natiijooyinka maalinlaha ah</string>
     <string name="report_showing_latest_days">Muujinaya %1$d ugu dambeeyay ee %2$d maalmood.</string>
-    <string name="report_page4_title">JugglucoNG Lifaaqa II - Dhacdooyinka iyo Xogaha Maalinlaha ah</string>
+    <string name="report_page4_title">Glucifer Lifaaqa II - Dhacdooyinka iyo Xogaha Maalinlaha ah</string>
     <string name="report_page4_subtitle">Halbeegyada muujinta Hypo/hyper iyo jaantusyada profile-heer-maalin</string>
     <string name="report_hypo_hyper_events">Dhacdooyinka soo-gaadhista hypo/hyper</string>
     <string name="report_hours_per_day">Saacadaha/maalintii</string>
@@ -1738,7 +1738,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insight_unstable_days">Maalmo Aan degganayn oo Soo noqnoqda</string>
     <string name="insight_unstable_days_desc">Maalmaha %1$d ee daaqadan waxay lahaayeen wax ka yar 50%% inta u dhaxaysa.</string>
     <string name="mq_fetch_calibration_on_add">Soo celi kalfadhiga iibiyaha marka lagu daro</string>
-    <string name="mq_fetch_calibration_on_add_desc">Haddii koodka QR ama aqoonsiga Glutec ee la kaydiyay la heli karo, Juggluco wuxuu isku dayaa inuu soo celiyo xaaladda fadhiga MQ inta lagu jiro dejinta.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Haddii koodka QR ama aqoonsiga Glutec ee la kaydiyay la heli karo, Glucifer wuxuu isku dayaa inuu soo celiyo xaaladda fadhiga MQ inta lagu jiro dejinta.</string>
     <string name="mq_bootstrap_button">Soo celi fadhiga iibiyaha</string>
     <string name="mq_bootstrap_dialog_title">Soo celi fadhiga iibiyaha</string>
     <string name="mq_bootstrap_dialog_desc">Ka soo celi xaalada fadhiga iibiyaha ee Glutec. Geli dareemaha QR halkan haddii loo baahdo; koontada, isku xidhka, iyo dejinta API waxay ku nool yihiin Koontada MQ/Glutec.</string>
@@ -1771,9 +1771,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mq_account_session_valid">Fadhigu waa ansax</string>
     <string name="mq_account_session_invalid">Fadhigu ma ansaxayo</string>
     <string name="mq_manual_calibration_title">Habaynta gacanta</string>
-    <string name="mq_manual_calibration_desc">Deegaanka ilaa Juggluco. Geli qiimaha gulukooska farta ku dheggan %1$s. Waxay u baahan tahay xidhmo MQ ah oo dhawaan nool ah.</string>
+    <string name="mq_manual_calibration_desc">Deegaanka ilaa Glucifer. Geli qiimaha gulukooska farta ku dheggan %1$s. Waxay u baahan tahay xidhmo MQ ah oo dhawaan nool ah.</string>
     <string name="mq_follower_title">raace Glutec</string>
-    <string name="mq_follower_desc">Raac akoon kale oo Glutec ah dhexda daruuraha iibiyaha. Daar tan waxay ku abuurtaa dareemaha akhriska-kaliya ee Juggluco.</string>
+    <string name="mq_follower_desc">Raac akoon kale oo Glutec ah dhexda daruuraha iibiyaha. Daar tan waxay ku abuurtaa dareemaha akhriska-kaliya ee Glucifer.</string>
     <string name="mq_follower_account_label">Koontada raacda</string>
     <string name="mq_follower_account_desc">Geli lambarka taleefanka Glutec ama akoon si aad u raacdo.</string>
     <string name="mq_follower_enabled_summary">Dabagal on</string>
@@ -2535,11 +2535,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_upload_iob_desc">Nightscout wuxuu markaas muujinayaa qiimahan halkii uu ka isticmaali lahaa xisaabtiisa ku salaysan borofaylka. eIOB iyo COB sidoo kale waxaa lagu diraa meel gaar ah. Token-ka gelitaanka wuxuu u baahan yahay api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Qiimayaasha qalabka xogta diraya (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Ka fur app-ka Ottai ama halkan ka saar dareemahaas si xiriirka loo sii daayo, dabadeed mar kale isku day.</string>
-    <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. JugglucoNG kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
+    <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. Glucifer kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
     <string name="ottai_cloud_unbind_title">Dareemahan si joogto ah ma looga furaa?</string>
-    <string name="ottai_cloud_unbind_message">%1$s si joogto ah ayaa looga saari doonaa koontadan Ottai. Koontadu mar dambe ma heli karto aqoonsiyadiisa, dareemuhuna kama shaqayn doono app-ka rasmiga ah ee Ottai. Aqoonsiyada iyo xaaladda dareemaha ee hore loogu kaydiyay JugglucoNG lama beddeli doono. Tallaabadan dib looma celin karo.</string>
+    <string name="ottai_cloud_unbind_message">%1$s si joogto ah ayaa looga saari doonaa koontadan Ottai. Koontadu mar dambe ma heli karto aqoonsiyadiisa, dareemuhuna kama shaqayn doono app-ka rasmiga ah ee Ottai. Aqoonsiyada iyo xaaladda dareemaha ee hore loogu kaydiyay Glucifer lama beddeli doono. Tallaabadan dib looma celin karo.</string>
     <string name="ottai_cloud_unbind_confirm">Si joogto ah uga fur</string>
-    <string name="ottai_cloud_unbind_success">Dareemaha si joogto ah ayaa looga furay Ottai. Dareemaha iyo aqoonsiyada ku kaydsan JugglucoNG lama beddelin.</string>
+    <string name="ottai_cloud_unbind_success">Dareemaha si joogto ah ayaa looga furay Ottai. Dareemaha iyo aqoonsiyada ku kaydsan Glucifer lama beddelin.</string>
     <string name="ottai_cloud_unbind_failed">Dareemaha lagama furi karin Ottai.</string>
     <string name="ottai_cloud_binding_checking">Xiriirka daruurta Ottai waa la hubinayaa…</string>
     <string name="ottai_cloud_binding_bound">Xaaladda daruurta: waxay ku xiran tahay koontadan Ottai</string>
@@ -2602,7 +2602,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sms_max_per_hour">Ugu badnaan fariimo saacaddii</string>
     <string name="sms_max_per_day">Ugu badnaan fariimo maalintii</string>
     <string name="sms_sent_today">Waxaa la diray 24-kii saac ee la soo dhaafay: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG wuxuu u baahan yahay ogolaansho uu SMS ku diro ka hor inta aanay meeshan shaqayn.</string>
+    <string name="sms_permission_desc">Glucifer wuxuu u baahan yahay ogolaansho uu SMS ku diro ka hor inta aanay meeshan shaqayn.</string>
     <string name="sms_permission_grant">Ogolow</string>
     <string name="sms_no_telephony">Qalabkani ma diri karo SMS.</string>
     <string name="sms_preview_title">Horudhac</string>
@@ -2620,7 +2620,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sms_event_no_data">Xog dareeme lama helin %1$d daq</string>
     <string name="sms_event_all_clear">Nabad ayaa jirta</string>
     <string name="sms_event_relay">Cusboonaysiin (xiriir xog ma jiro)</string>
-    <string name="sms_event_test">Fariin tijaabo ah oo ka timid JugglucoNG</string>
+    <string name="sms_event_test">Fariin tijaabo ah oo ka timid Glucifer</string>
     <string name="sms_body_no_reading">Weli akhris ma jiro</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2660,13 +2660,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="app_updates_verifying_title">Soo dejinta ayaa la hubinayaa</string>
     <string name="app_updates_verifying_body">Saxeexa iyo nooca ayaa la hubinayaa ka hor rakibaadda.</string>
     <string name="app_updates_ready_title">%1$s waa diyaar u yahay rakibaad</string>
-    <string name="app_updates_ready_body">Android ayaa ku weydiin doona xaqiijin. JugglucoNG wuu xirmi doonaa oo dib u furmi doonaa; xiriirka dareemayaasha ayaa iskiis u soo noqonaya.</string>
+    <string name="app_updates_ready_body">Android ayaa ku weydiin doona xaqiijin. Glucifer wuu xirmi doonaa oo dib u furmi doonaa; xiriirka dareemayaasha ayaa iskiis u soo noqonaya.</string>
     <string name="app_updates_up_to_date_title">Waxaad haysataa nooca ugu dambeeyay</string>
     <string name="app_updates_last_checked">Markii ugu dambeysay la hubiyay %1$s</string>
     <string name="app_updates_never_checked">waligeed</string>
     <string name="app_updates_error_title">Hubinta cusboonaysiinta way fashilantay</string>
-    <string name="app_updates_permission_title">U ogolow JugglucoNG inuu wax rakibo</string>
-    <string name="app_updates_permission_body">Android wuxuu u baahan yahay ogolaansho hal mar ah ka hor inta JugglucoNG uusan rakibin cusboonaysiintiisa.</string>
+    <string name="app_updates_permission_title">U ogolow Glucifer inuu wax rakibo</string>
+    <string name="app_updates_permission_body">Android wuxuu u baahan yahay ogolaansho hal mar ah ka hor inta Glucifer uusan rakibin cusboonaysiintiisa.</string>
     <string name="app_updates_permission_action">Fur goobaha</string>
     <string name="app_updates_unsupported_store_title">Cusboonaysiintu waxay ka timaadaa suuqa abka</string>
     <string name="app_updates_unsupported_store_body">Nuqulkan waxaa rakibay %1$s, oo iskiis u maamula cusboonaysiinta.</string>
@@ -2677,11 +2677,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="app_updates_error_parse">Isha cusboonaysiintu waxay soo celisay wax aan la filayn.</string>
     <string name="app_updates_error_no_artifact">Nooca ugu dambeeyay wax la soo dejiyo uma laha dhismahan.</string>
     <string name="app_updates_error_checksum">Waxa la soo dejiyay kuma habboonayn checksum-kiisa waana la tirtiray.</string>
-    <string name="app_updates_error_signature">APK-ga la soo dejiyay waxaa lagu saxeexay fure kale waana la tirtiray. Kaliya ka rakib JugglucoNG bogga rasmiga ah ee sii deynta.</string>
+    <string name="app_updates_error_signature">APK-ga la soo dejiyay waxaa lagu saxeexay fure kale waana la tirtiray. Kaliya ka rakib Glucifer bogga rasmiga ah ee sii deynta.</string>
     <string name="app_updates_error_package">APK-ga la soo dejiyay wuxuu ka tirsan yahay ab kale.</string>
     <string name="app_updates_error_downgrade">Noocaas kama cusla nooca la rakibay.</string>
     <string name="app_updates_error_storage">Meel bannaan oo ku filan lama hayo soo dejinta.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG weli looma ogola inuu abab rakibo.</string>
+    <string name="app_updates_error_install_permission">Glucifer weli looma ogola inuu abab rakibo.</string>
     <string name="app_updates_error_install_failed">Rakibaaddu ma dhammaystirmin.</string>
     <string name="app_updates_error_cancelled">Rakibaadda waa la joojiyay.</string>
     <string name="app_updates_source_title">Isha cusboonaysiinta</string>
@@ -2809,5 +2809,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="anytime_history_action">Taariikh</string>
     <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
     <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
-    <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
+    <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Glucifer laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
 </resources>

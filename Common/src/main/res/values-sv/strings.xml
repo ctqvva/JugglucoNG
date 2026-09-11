@@ -1,7 +1,7 @@
 <resources>
   <string name="language">sv</string>
   <string name="languagename">Språk</string>
-  <string name="app_name">JugglucoNG</string>
+  <string name="app_name">Glucifer</string>
   <string name="ok">OK</string>
   <string name="cancel">Avbryt</string>
   <string name="garmin_initialization_error">"Misslyckades med att starta Garmin Connect SDK: "</string>
@@ -10,7 +10,7 @@
   <string name="kerfstok_missing_title">Kerfstok är inte installerat på klockan.</string>
   <string name="kerfstok_missing_message">Kerfstok är inte installerat på klockan. Du kan installera det från butiken Garmin Connect IQ.</string>
   <string name="alarm_description">För lågt eller för högt glukosvärde</string>
-  <string name="loss_description">Juggluco har tappat kontakten med sensorn</string>
+  <string name="loss_description">Glucifer har tappat kontakten med sensorn</string>
   <string name="numalarm_description">Påminnelse om att ta insulin, äta eller träna</string>
   <string name="notification_description">Avisera aktuellt glukosvärde</string>
   <string name="ongoing_description">Pågående program</string>
@@ -209,7 +209,7 @@
   <string name="heartrate">Puls</string>
   <string name="xdripbroadcast">xDrip broadcast</string>
   <string name="sensorpermission">Sensorernas tillstånd</string>
-  <string name="sensorpermissionmessage">krävs för att visa puls. Ställ in det i enhetens Inställningar, Appar, Behörigheter, Juggluco</string>
+  <string name="sensorpermissionmessage">krävs för att visa puls. Ställ in det i enhetens Inställningar, Appar, Behörigheter, Glucifer</string>
   <string name="floatglucose">Flytande glukosvärde</string>
   <string name="floatglucoseshort">@string/floatglucose</string>
   <string name="fontsize">Fontstorlek</string>
@@ -318,7 +318,7 @@
   <string name="resendwarning">All data kommer att skickas igen vilket tar tid och kan få konsekvenser för Libreview och Kerfstok</string>
   <string name="parseip">Felaktig ip-adress</string>
   <string name="toomanyhosts">Maximalt antal värdar har överskridits</string>
-  <string name="senthosts">Juggluco skickar till maximalt 6 värdar</string>
+  <string name="senthosts">Glucifer skickar till maximalt 6 värdar</string>
   <string name="clampnow">Lås nutid</string>
   <string name="sendfrom">"Skicka från: "</string>
   <string name="changestartbutton">Ändra start</string>
@@ -415,7 +415,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importera Historik</string>
-    <string name="import_history_desc">Importera glukosdata från en JugglucoNG-export eller CSV-fil</string>
+    <string name="import_history_desc">Importera glukosdata från en Glucifer-export eller CSV-fil</string>
     <string name="get_started_desc">Börja med att lägga till din sensor</string>
     <string name="select_sensor">Välj sensortyp</string>
     <string name="select_sibionics_type">Välj en Sibionics-sensor</string>
@@ -462,9 +462,9 @@
     <string name="export_history_title">Exportera Historik</string>
     <string name="export_history_sub">Spara avläsningar till CSV eller text</string>
     <string name="import_history_title">Importera Historik</string>
-    <string name="import_history_sub">Återställ glukosvärden från en JugglucoNG-export eller CSV-fil</string>
+    <string name="import_history_sub">Återställ glukosvärden från en Glucifer-export eller CSV-fil</string>
     <string name="import_no_glucose">Filen innehåller inga glukosdata</string>
-    <string name="import_unsupported_file">Filen stöds inte. Välj en JugglucoNG-export (JSON) eller en CSV-fil med glukoshistorik.</string>
+    <string name="import_unsupported_file">Filen stöds inte. Välj en Glucifer-export (JSON) eller en CSV-fil med glukoshistorik.</string>
     <string name="clear_history_title">Rensa Historik?</string>
     <string name="clear_history_confirmation">Detta tar bort alla glukosavläsningar från databasen. Detta kan inte ångras.</string>
     <string name="delete_reading_title">Ta bort avläsning?</string>
@@ -640,7 +640,7 @@
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
     <string name="alarm_return_to_previous_app_title">Återgå till föregående app efter larm</string>
-    <string name="alarm_return_to_previous_app_summary">Efter ett helskärmslarm, gå tillbaka till appen du använde i stället för att öppna JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">Efter ett helskärmslarm, gå tillbaka till appen du använde i stället för att öppna Glucifer</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>
     <string name="retry_every">Upprepa var</string>
     <string name="retry_if_no_reaction">Upprepa vid ingen reaktion</string>
@@ -787,7 +787,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Justera det experimentella Libre 3-skanningsbeteendet innan parkoppling.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC-kommando</string>
-    <string name="libre3_nfc_command_desc">Välj vilket kommando Juggluco skickar under Libre 3 NFC-skanningen</string>
+    <string name="libre3_nfc_command_desc">Välj vilket kommando Glucifer skickar under Libre 3 NFC-skanningen</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Använd Jugglucos standardbeteende för Libre 3-skanning</string>
     <string name="libre3_nfc_command_activate">A0 Aktivera</string>
@@ -1329,7 +1329,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Inte tillräckligt med daglig data för att rendera trend.</string>
     <string name="report_no_readings_day">Inga läsningar för denna dag.</string>
-    <string name="report_page1_title">JugglucoNG CGM klinisk rapport</string>
+    <string name="report_page1_title">Glucifer CGM klinisk rapport</string>
     <string name="report_page1_subtitle">Område %1$s · Avläsningar %2$d · Fönster %3$s till %4$s</string>
     <string name="report_estimated_a1c">Uppskattad A1C</string>
     <string name="report_below_target">Under målet</string>
@@ -1344,7 +1344,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">Ovan: %1$s</string>
     <string name="report_agp_section_title">Ambulatorisk glukosprofil (24h percentilband)</string>
     <string name="report_reference_targets">Referensmål: GMI &lt; 7,0 %%, CV &lt;= 36 %%, Tid inom intervallet &gt;= 70 %%.</string>
-    <string name="report_page2_title">JugglucoNG CGM Dagliga trender och tolkning</string>
+    <string name="report_page2_title">Glucifer CGM Dagliga trender och tolkning</string>
     <string name="report_page2_subtitle">Daglig variation, metrisk uppdelning och tolkningsanteckningar</string>
     <string name="report_daily_average_trend">Daglig genomsnittlig trend</string>
     <string name="report_detailed_metrics">Detaljerad statistik</string>
@@ -1359,7 +1359,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">Inga ytterligare mönstervarningar genererades för detta tidsintervall.</string>
     <string name="report_agp_consensus_title">AGP konsensusreferens</string>
     <string name="report_agp_consensus_body">Mål som hänvisas till i denna rapport följer AGPs internationella konsensusstil: TIR 70-180 mg/dL (3,9-10,0 mmol/L), TBR &lt;70 och &lt;54 mg/dL, TAR &gt;180 och &gt;250 mg/dL, med CV-mål &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Bilaga I - AGP och dagliga tabeller</string>
+    <string name="report_page3_title">Glucifer Bilaga I - AGP och dagliga tabeller</string>
     <string name="report_page3_subtitle">Timpercentiler och resultat på dagnivå</string>
     <string name="report_hourly_agp_table">Timvis AGP-profiltabell</string>
     <string name="report_hour">Timme</string>
@@ -1368,7 +1368,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">Inga timliga AGP-behållare tillgängliga i detta sortiment.</string>
     <string name="report_daily_outcomes_table">Tabell för dagliga utfall</string>
     <string name="report_showing_latest_days">Visar senaste %1$d av %2$d dagar.</string>
-    <string name="report_page4_title">JugglucoNG Appendix II - Händelser och dagliga profiler</string>
+    <string name="report_page4_title">Glucifer Appendix II - Händelser och dagliga profiler</string>
     <string name="report_page4_subtitle">Hypo/hyperexponeringsmått och profildiagram på dagnivå</string>
     <string name="report_hypo_hyper_events">Hypo/hyperexponeringshändelser</string>
     <string name="report_hours_per_day">Timmar/dag</string>
@@ -1398,7 +1398,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Klockappen saknas</string>
-    <string name="wear_watch_app_missing_hint">Installera Juggluco på den här klockan och tryck sedan på uppdatera.</string>
+    <string name="wear_watch_app_missing_hint">Installera Glucifer på den här klockan och tryck sedan på uppdatera.</string>
     <string name="wear_auto_sensor_switch">Växla sensor automatiskt</string>
     <string name="wear_auto_sensor_switch_on_desc">Telefonen och klockan lämnar över sensorn själva, så den som är inom räckhåll läser av den.</string>
     <string name="wear_auto_sensor_switch_off_desc">Bara enheten du väljer läser av sensorn.</string>
@@ -1474,7 +1474,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insight_unstable_days">Ofta instabila dagar</string>
     <string name="insight_unstable_days_desc">I detta fonster hade %1$d dagar mindre an 50%% tid i malomradet.</string>
     <string name="mq_fetch_calibration_on_add">Aterstall leverantorssession vid tillagg</string>
-    <string name="mq_fetch_calibration_on_add_desc">Om en QR-kod eller sparade Glutec-uppgifter finns tillgangliga forsoker Juggluco att aterstalla MQ-sessionens tillstand under konfigurationen.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Om en QR-kod eller sparade Glutec-uppgifter finns tillgangliga forsoker Glucifer att aterstalla MQ-sessionens tillstand under konfigurationen.</string>
     <string name="mq_bootstrap_button">Aterstall leverantorssession</string>
     <string name="mq_bootstrap_dialog_title">Aterstall leverantorssession</string>
     <string name="mq_bootstrap_dialog_desc">Aterstall leverantorssessionen via Glutec. Ange sensorns QR-kod har vid behov; konto, synk och API hanteras i MQ / Glutec-kontot.</string>
@@ -1507,9 +1507,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Session giltig</string>
     <string name="mq_account_session_invalid">Session ogiltig</string>
     <string name="mq_manual_calibration_title">Manuell kalibrering</string>
-    <string name="mq_manual_calibration_desc">Lokalt i Juggluco. Ange ett fingerstick-glukosvarde i %1$s. Kraver ett nyligt MQ-livepaket.</string>
+    <string name="mq_manual_calibration_desc">Lokalt i Glucifer. Ange ett fingerstick-glukosvarde i %1$s. Kraver ett nyligt MQ-livepaket.</string>
     <string name="mq_follower_title">Glutec-följare</string>
-    <string name="mq_follower_desc">Följ ett annat Glutec-konto via leverantörens moln. När detta aktiveras skapas en skrivskyddad följarsensor i Juggluco.</string>
+    <string name="mq_follower_desc">Följ ett annat Glutec-konto via leverantörens moln. När detta aktiveras skapas en skrivskyddad följarsensor i Glucifer.</string>
     <string name="mq_follower_account_label">Konto att följa</string>
     <string name="mq_follower_account_desc">Ange telefonnumret eller Glutec-kontot som du vill följa.</string>
     <string name="mq_follower_enabled_summary">Följare på</string>
@@ -2343,11 +2343,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält. Åtkomsttoken behöver api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Värden från den uppladdande enheten (Nightscout)</string>
     <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Koppla bort den i Ottai-appen eller ta bort sensorn här för att frigöra kopplingen och försök sedan igen.</string>
-    <string name="ottai_cloud_unbind_hint">Endast en åtgärd för molnkontot. JugglucoNG ansluter inte till, stoppar, tar bort eller ändrar den valda sensorn.</string>
+    <string name="ottai_cloud_unbind_hint">Endast en åtgärd för molnkontot. Glucifer ansluter inte till, stoppar, tar bort eller ändrar den valda sensorn.</string>
     <string name="ottai_cloud_unbind_title">Koppla bort sensorn permanent?</string>
-    <string name="ottai_cloud_unbind_message">%1$s tas bort permanent från detta Ottai-konto. Kontot kan därefter inte längre hämta dess autentiseringsuppgifter och sensorn fungerar inte längre i den officiella Ottai-appen. Autentiseringsuppgifter och sensorstatus som redan sparats i JugglucoNG ändras inte. Detta kan inte ångras.</string>
+    <string name="ottai_cloud_unbind_message">%1$s tas bort permanent från detta Ottai-konto. Kontot kan därefter inte längre hämta dess autentiseringsuppgifter och sensorn fungerar inte längre i den officiella Ottai-appen. Autentiseringsuppgifter och sensorstatus som redan sparats i Glucifer ändras inte. Detta kan inte ångras.</string>
     <string name="ottai_cloud_unbind_confirm">Koppla bort permanent</string>
-    <string name="ottai_cloud_unbind_success">Sensorn har kopplats bort permanent från Ottai. Sensorn och sparade uppgifter i JugglucoNG ändrades inte.</string>
+    <string name="ottai_cloud_unbind_success">Sensorn har kopplats bort permanent från Ottai. Sensorn och sparade uppgifter i Glucifer ändrades inte.</string>
     <string name="ottai_cloud_unbind_failed">Det gick inte att koppla bort sensorn från Ottai.</string>
     <string name="ottai_cloud_binding_checking">Kontrollerar Ottai-molnkopplingen…</string>
     <string name="ottai_cloud_binding_bound">Molnstatus: kopplad till detta Ottai-konto</string>
@@ -2410,7 +2410,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Max meddelanden per timme</string>
     <string name="sms_max_per_day">Max meddelanden per dygn</string>
     <string name="sms_sent_today">Skickade senaste 24 timmarna: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG behöver behörighet att skicka SMS innan den här destinationen fungerar.</string>
+    <string name="sms_permission_desc">Glucifer behöver behörighet att skicka SMS innan den här destinationen fungerar.</string>
     <string name="sms_permission_grant">Tillåt</string>
     <string name="sms_no_telephony">Den här enheten kan inte skicka SMS.</string>
     <string name="sms_preview_title">Förhandsvisning</string>
@@ -2428,7 +2428,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">Inga sensordata på %1$d min</string>
     <string name="sms_event_all_clear">Faran över</string>
     <string name="sms_event_relay">Uppdatering (ingen dataanslutning)</string>
-    <string name="sms_event_test">Testmeddelande från JugglucoNG</string>
+    <string name="sms_event_test">Testmeddelande från Glucifer</string>
     <string name="sms_body_no_reading">Inget värde än</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2468,13 +2468,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Kontrollerar nedladdningen</string>
     <string name="app_updates_verifying_body">Signatur och version kontrolleras före installation.</string>
     <string name="app_updates_ready_title">%1$s klar att installera</string>
-    <string name="app_updates_ready_body">Android ber om bekräftelse. JugglucoNG stängs och öppnas igen; sensoranslutningar återupptas av sig själva.</string>
+    <string name="app_updates_ready_body">Android ber om bekräftelse. Glucifer stängs och öppnas igen; sensoranslutningar återupptas av sig själva.</string>
     <string name="app_updates_up_to_date_title">Du har den senaste versionen</string>
     <string name="app_updates_last_checked">Senast kontrollerad %1$s</string>
     <string name="app_updates_never_checked">aldrig</string>
     <string name="app_updates_error_title">Kontrollen misslyckades</string>
-    <string name="app_updates_permission_title">Tillåt installation från JugglucoNG</string>
-    <string name="app_updates_permission_body">Android kräver en engångsbehörighet innan JugglucoNG kan installera sin egen uppdatering.</string>
+    <string name="app_updates_permission_title">Tillåt installation från Glucifer</string>
+    <string name="app_updates_permission_body">Android kräver en engångsbehörighet innan Glucifer kan installera sin egen uppdatering.</string>
     <string name="app_updates_permission_action">Öppna inställningar</string>
     <string name="app_updates_unsupported_store_title">Uppdateringar kommer från din appbutik</string>
     <string name="app_updates_unsupported_store_body">Den här kopian installerades av %1$s, som sköter uppdateringar själv.</string>
@@ -2485,11 +2485,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">Uppdateringskällan svarade med något oväntat.</string>
     <string name="app_updates_error_no_artifact">Senaste versionen saknar nedladdning för det här bygget.</string>
     <string name="app_updates_error_checksum">Nedladdningen stämde inte med sin kontrollsumma och togs bort.</string>
-    <string name="app_updates_error_signature">Den nedladdade APK-filen är signerad med en annan nyckel och togs bort. Installera bara JugglucoNG från den officiella utgivningssidan.</string>
+    <string name="app_updates_error_signature">Den nedladdade APK-filen är signerad med en annan nyckel och togs bort. Installera bara Glucifer från den officiella utgivningssidan.</string>
     <string name="app_updates_error_package">Den nedladdade APK-filen hör till en annan app.</string>
     <string name="app_updates_error_downgrade">Den versionen är inte nyare än den installerade.</string>
     <string name="app_updates_error_storage">Inte tillräckligt med ledigt utrymme för nedladdningen.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG får ännu inte installera appar.</string>
+    <string name="app_updates_error_install_permission">Glucifer får ännu inte installera appar.</string>
     <string name="app_updates_error_install_failed">Installationen slutfördes inte.</string>
     <string name="app_updates_error_cancelled">Installationen avbröts.</string>
     <string name="app_updates_source_title">Uppdateringskälla</string>
@@ -2617,5 +2617,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_history_action">Historik</string>
     <string name="nightscout_follow_interval_title">Leta efter nya värden</string>
     <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
-    <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
+    <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Glucifer från batterioptimering behåller det valda intervallet.</string>
 </resources>

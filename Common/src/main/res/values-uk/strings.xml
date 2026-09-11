@@ -1,7 +1,7 @@
 <resources>
     <string name="language">uk</string>
     <string name="languagename">Мова</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Скасувати</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok не встановлено на годинник. Ви можете придбати його в магазині Garmin</string>
 
     <string name="alarm_description">Занадто низький або занадто високий рівень глюкози</string>
-    <string name="loss_description">Juggluco втратив контакт із датчиком</string>
+    <string name="loss_description">Glucifer втратив контакт із датчиком</string>
     <string name="numalarm_description">Нагадування про дозу, їжу або фізичні вправи</string>
     <string name="notification_description">Повідомляє поточне значення глюкози</string>
     <string name="ongoing_description">Постійна програма</string>
@@ -213,7 +213,7 @@
  <string name="heartrate">Пульс</string>
  <string name="xdripbroadcast">Tрансляція в AAPS</string>
  <string name="sensorpermission">Для відображення пульсу потрібен дозвіл датчиків</string>
- <string name="sensorpermissionmessage">Налаштуйте це в Налаштуваннях пристрою, Програмах, Дозволах, Juggluco</string>
+ <string name="sensorpermissionmessage">Налаштуйте це в Налаштуваннях пристрою, Програмах, Дозволах, Glucifer</string>
  <string name="floatglucose">Плав. глюкоза</string>
  <string name="floatglucoseshort">Плавати</string>
 
@@ -329,7 +329,7 @@
  <string name="resendwarning">Усі дані буде надіслано знову, що потребує часу та може мати наслідки для Libreview і Kerfstok</string>
  <string name="parseip">Помилка аналізу IP</string>
  <string name="toomanyhosts">Перевищено максимальну кількість хостів</string>
- <string name="senthosts">Juggluco надсилає максимум 6 хостам</string>
+ <string name="senthosts">Glucifer надсилає максимум 6 хостам</string>
  <string name="clampnow">Тепер затискаємо</string>
  <string name="sendfrom">"Надіслати з: "</string>
  <string name="changestartbutton">Початок зміни</string>
@@ -427,7 +427,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Імпортувати історію</string>
-    <string name="import_history_desc">Імпортувати дані глюкози з експорту JugglucoNG або CSV-файлу</string>
+    <string name="import_history_desc">Імпортувати дані глюкози з експорту Glucifer або CSV-файлу</string>
     <string name="get_started_desc">Почніть з додавання вашого сенсора</string>
     <string name="select_sensor">Виберіть тип сенсора</string>
     <string name="select_sibionics_type">Виберіть сенсор Sibionics</string>
@@ -474,9 +474,9 @@
     <string name="export_history_title">Експорт Історії</string>
     <string name="export_history_sub">Зберегти показання в CSV або текст</string>
     <string name="import_history_title">Імпорт Історії</string>
-    <string name="import_history_sub">Відновити показання глюкози з експорту JugglucoNG або CSV-файлу</string>
+    <string name="import_history_sub">Відновити показання глюкози з експорту Glucifer або CSV-файлу</string>
     <string name="import_no_glucose">У цьому файлі немає даних глюкози</string>
-    <string name="import_unsupported_file">Непідтримуваний файл. Виберіть експорт JugglucoNG (JSON) або CSV-файл історії глюкози.</string>
+    <string name="import_unsupported_file">Непідтримуваний файл. Виберіть експорт Glucifer (JSON) або CSV-файл історії глюкози.</string>
     <string name="clear_history_title">Очистити Історію?</string>
     <string name="clear_history_confirmation">Це видалить усі показання глюкози з бази даних. Ця дія незворотна.</string>
     <string name="delete_reading_title">Видалити показання?</string>
@@ -652,7 +652,7 @@
     <string name="notification_dismiss_action_dismiss">Закрити</string>
     <string name="notification_dismiss_action_snooze">Відкласти</string>
     <string name="alarm_return_to_previous_app_title">Повертатися до попереднього застосунку після сигналу</string>
-    <string name="alarm_return_to_previous_app_summary">Після повноекранного сигналу повертатися до застосунку, яким ви користувалися, замість відкриття JugglucoNG</string>
+    <string name="alarm_return_to_previous_app_summary">Після повноекранного сигналу повертатися до застосунку, яким ви користувалися, замість відкриття Glucifer</string>
     <string name="realert_if_not_dismissed">Повторювати, якщо не відхилено</string>
     <string name="retry_every">Повторювати кожні</string>
     <string name="retry_if_no_reaction">Повторювати, якщо немає реакції</string>
@@ -799,7 +799,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Налаштуйте експериментальну поведінку сканування Libre 3 перед сполученням.</string>
     <string name="libre3_nfc_command_title">Команда NFC для Libre 3</string>
-    <string name="libre3_nfc_command_desc">Оберіть, яку команду Juggluco надсилає під час NFC-сканування Libre 3</string>
+    <string name="libre3_nfc_command_desc">Оберіть, яку команду Glucifer надсилає під час NFC-сканування Libre 3</string>
     <string name="libre3_nfc_command_auto">Авто</string>
     <string name="libre3_nfc_command_auto_desc">Використовувати стандартну поведінку Juggluco для сканування Libre 3</string>
     <string name="libre3_nfc_command_activate">A0 Активувати</string>
@@ -1343,7 +1343,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Недостатньо щоденних даних для відображення тенденції.</string>
     <string name="report_no_readings_day">Немає читань на цей день.</string>
-    <string name="report_page1_title">Клінічний звіт JugglucoNG CGM</string>
+    <string name="report_page1_title">Клінічний звіт Glucifer CGM</string>
     <string name="report_page1_subtitle">Діапазон %1$s · Показання %2$d · Вікно від %3$s до %4$s</string>
     <string name="report_estimated_a1c">Розрахунковий A1C</string>
     <string name="report_below_target">Нижче цілі</string>
@@ -1358,7 +1358,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">Вгорі: %1$s</string>
     <string name="report_agp_section_title">Амбулаторний профіль глюкози (24-годинний процентиль)</string>
     <string name="report_reference_targets">Контрольні цілі: GMI &lt; 7,0%%, CV &lt;= 36%%, Час у діапазоні &gt;= 70%%.</string>
-    <string name="report_page2_title">Щоденні тенденції та інтерпретація JugglucoNG CGM</string>
+    <string name="report_page2_title">Щоденні тенденції та інтерпретація Glucifer CGM</string>
     <string name="report_page2_subtitle">Щоденна мінливість, розподіл показників та примітки до інтерпретації</string>
     <string name="report_daily_average_trend">Середньоденний тренд</string>
     <string name="report_detailed_metrics">Детальні показники</string>
@@ -1373,7 +1373,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">Для цього періоду часу не було створено додаткових попереджень про шаблони.</string>
     <string name="report_agp_consensus_title">Посилання на консенсус AGP</string>
     <string name="report_agp_consensus_body">Цілі, згадані в цьому звіті, відповідають міжнародному узгодженому стилю AGP: TIR 70-180 мг/дл (3,9-10,0 ммоль/л), TBR &lt;70 і &lt;54 мг/дл, TAR &gt;180 і &gt;250 мг/дл, з цільовим CV &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Додаток I - AGP і щоденні таблиці</string>
+    <string name="report_page3_title">Glucifer Додаток I - AGP і щоденні таблиці</string>
     <string name="report_page3_subtitle">Погодинні процентилі та результати на денному рівні</string>
     <string name="report_hourly_agp_table">Погодинна таблиця профілю AGP</string>
     <string name="report_hour">Година</string>
@@ -1382,7 +1382,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">У цьому діапазоні немає погодинних контейнерів AGP.</string>
     <string name="report_daily_outcomes_table">Таблиця щоденних результатів</string>
     <string name="report_showing_latest_days">Показано останні %1$d з %2$d днів.</string>
-    <string name="report_page4_title">JugglucoNG Додаток II - Події та щоденні профілі</string>
+    <string name="report_page4_title">Glucifer Додаток II - Події та щоденні профілі</string>
     <string name="report_page4_subtitle">Показники гіпо/гіпер експозиції та діаграми профілів на денному рівні</string>
     <string name="report_hypo_hyper_events">Події гіпо/гіперопромінення</string>
     <string name="report_hours_per_day">Годин/день</string>
@@ -1412,7 +1412,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Додаток для годинника відсутній</string>
-    <string name="wear_watch_app_missing_hint">Установіть Juggluco на цей годинник, потім натисніть оновити.</string>
+    <string name="wear_watch_app_missing_hint">Установіть Glucifer на цей годинник, потім натисніть оновити.</string>
     <string name="wear_auto_sensor_switch">Автоматично перемикати датчик</string>
     <string name="wear_auto_sensor_switch_on_desc">Телефон і годинник самі передають датчик один одному, тож його зчитує той пристрій, що в зоні дії.</string>
     <string name="wear_auto_sensor_switch_off_desc">Датчик зчитує лише вибраний вами пристрій.</string>
@@ -1540,7 +1540,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scanner_label">Сканер</string>
     <string name="setup_complete">Налаштування завершено</string>
     <string name="shortoff">Вимк</string>
-    <string name="startjuggluco">Juggluco запущено на телефоні?\n\nWIFI та Bluetooth увімкнено?</string>
+    <string name="startjuggluco">Glucifer запущено на телефоні?\n\nWIFI та Bluetooth увімкнено?</string>
     <string name="status_raw_values_received">Підключено, отримано необроблені значення</string>
     <string name="status_waiting_for_data">Підключено, очікування даних…</string>
     <string name="status_invalid_glucose_from_sensor">Некоректна глюкоза від сенсора</string>
@@ -1549,7 +1549,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="veryhighglucoseshort">" Дуже ВИСОКИЙ!"</string>
     <string name="verylowglucoseshort">" Дуже НИЗЬКИЙ!"</string>
     <string name="mq_fetch_calibration_on_add">Відновити сесію виробника під час додавання</string>
-    <string name="mq_fetch_calibration_on_add_desc">Якщо доступний QR-код або збережені облікові дані Glutec, Juggluco спробує відновити стан сесії MQ під час налаштування.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Якщо доступний QR-код або збережені облікові дані Glutec, Glucifer спробує відновити стан сесії MQ під час налаштування.</string>
     <string name="mq_bootstrap_button">Відновити сесію виробника</string>
     <string name="mq_bootstrap_dialog_title">Відновити сесію виробника</string>
     <string name="mq_bootstrap_dialog_desc">Відновіть стан сесії виробника через Glutec. За потреби введіть тут QR-код датчика; акаунт, синхронізація й API налаштовуються в акаунті MQ / Glutec.</string>
@@ -1582,9 +1582,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Сесія дійсна</string>
     <string name="mq_account_session_invalid">Сесія недійсна</string>
     <string name="mq_manual_calibration_title">Ручне калібрування</string>
-    <string name="mq_manual_calibration_desc">Локально в Juggluco. Введіть значення глюкози з пальця у %1$s. Потрібен свіжий живий пакет MQ.</string>
+    <string name="mq_manual_calibration_desc">Локально в Glucifer. Введіть значення глюкози з пальця у %1$s. Потрібен свіжий живий пакет MQ.</string>
     <string name="mq_follower_title">Стеження Glutec</string>
-    <string name="mq_follower_desc">Стежте за іншим акаунтом Glutec через хмару виробника. Після ввімкнення Juggluco створить датчик-спостерігач лише для читання.</string>
+    <string name="mq_follower_desc">Стежте за іншим акаунтом Glutec через хмару виробника. Після ввімкнення Glucifer створить датчик-спостерігач лише для читання.</string>
     <string name="mq_follower_account_label">Акаунт для стеження</string>
     <string name="mq_follower_account_desc">Введіть номер телефону або акаунт Glutec, за яким треба стежити.</string>
     <string name="mq_follower_enabled_summary">Стеження ввімкнено</string>
@@ -2415,11 +2415,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob_desc">Nightscout показуватиме це значення замість власного розрахунку за профілем. eIOB і COB додатково передаються в окремому полі. Токен доступу потребує api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Значення з пристрою, що надсилає дані (Nightscout)</string>
     <string name="ottai_cloud_already_binding">До облікового запису Ottai досі прив’язаний інший сенсор. Відв’яжіть його в застосунку Ottai або видаліть той сенсор тут, щоб звільнити прив’язку, а потім повторіть спробу.</string>
-    <string name="ottai_cloud_unbind_hint">Дія лише з хмарним обліковим записом. JugglucoNG не підключатиметься до вибраного сенсора, не зупинятиме, не видалятиме й не змінюватиме його.</string>
+    <string name="ottai_cloud_unbind_hint">Дія лише з хмарним обліковим записом. Glucifer не підключатиметься до вибраного сенсора, не зупинятиме, не видалятиме й не змінюватиме його.</string>
     <string name="ottai_cloud_unbind_title">Назавжди відв’язати цей сенсор?</string>
-    <string name="ottai_cloud_unbind_message">%1$s буде назавжди видалено з цього облікового запису Ottai. Обліковий запис більше не зможе отримати його облікові дані, а сенсор більше не працюватиме в офіційному застосунку Ottai. Збережені в JugglucoNG облікові дані та стан сенсора не зміняться. Цю дію неможливо скасувати.</string>
+    <string name="ottai_cloud_unbind_message">%1$s буде назавжди видалено з цього облікового запису Ottai. Обліковий запис більше не зможе отримати його облікові дані, а сенсор більше не працюватиме в офіційному застосунку Ottai. Збережені в Glucifer облікові дані та стан сенсора не зміняться. Цю дію неможливо скасувати.</string>
     <string name="ottai_cloud_unbind_confirm">Відв’язати назавжди</string>
-    <string name="ottai_cloud_unbind_success">Сенсор назавжди відв’язано від Ottai. Сенсор і збережені дані в JugglucoNG не змінено.</string>
+    <string name="ottai_cloud_unbind_success">Сенсор назавжди відв’язано від Ottai. Сенсор і збережені дані в Glucifer не змінено.</string>
     <string name="ottai_cloud_unbind_failed">Не вдалося відв’язати сенсор від Ottai.</string>
     <string name="ottai_cloud_binding_checking">Перевірка прив’язки в хмарі Ottai…</string>
     <string name="ottai_cloud_binding_bound">Стан хмари: прив’язано до цього облікового запису Ottai</string>
@@ -2482,7 +2482,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Максимум повідомлень на годину</string>
     <string name="sms_max_per_day">Максимум повідомлень на добу</string>
     <string name="sms_sent_today">Надіслано за останні 24 години: %1$d</string>
-    <string name="sms_permission_desc">Щоб цей напрямок працював, JugglucoNG потрібен дозвіл на надсилання SMS.</string>
+    <string name="sms_permission_desc">Щоб цей напрямок працював, Glucifer потрібен дозвіл на надсилання SMS.</string>
     <string name="sms_permission_grant">Дозволити</string>
     <string name="sms_no_telephony">Цей пристрій не може надсилати SMS.</string>
     <string name="sms_preview_title">Попередній перегляд</string>
@@ -2500,7 +2500,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">Немає даних сенсора %1$d хв</string>
     <string name="sms_event_all_clear">Відбій</string>
     <string name="sms_event_relay">Оновлення (немає передачі даних)</string>
-    <string name="sms_event_test">Тестове повідомлення від JugglucoNG</string>
+    <string name="sms_event_test">Тестове повідомлення від Glucifer</string>
     <string name="sms_body_no_reading">Показників ще немає</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2540,13 +2540,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Перевірка завантаження</string>
     <string name="app_updates_verifying_body">Перевіряємо підпис і версію перед встановленням.</string>
     <string name="app_updates_ready_title">%1$s готова до встановлення</string>
-    <string name="app_updates_ready_body">Android попросить підтвердження. JugglucoNG закриється й відкриється знову; з’єднання з сенсорами відновиться саме.</string>
+    <string name="app_updates_ready_body">Android попросить підтвердження. Glucifer закриється й відкриється знову; з’єднання з сенсорами відновиться саме.</string>
     <string name="app_updates_up_to_date_title">У вас остання версія</string>
     <string name="app_updates_last_checked">Остання перевірка: %1$s</string>
     <string name="app_updates_never_checked">ніколи</string>
     <string name="app_updates_error_title">Не вдалося перевірити оновлення</string>
-    <string name="app_updates_permission_title">Дозвольте встановлення з JugglucoNG</string>
-    <string name="app_updates_permission_body">Android потребує одноразового дозволу, щоб JugglucoNG міг встановити власне оновлення.</string>
+    <string name="app_updates_permission_title">Дозвольте встановлення з Glucifer</string>
+    <string name="app_updates_permission_body">Android потребує одноразового дозволу, щоб Glucifer міг встановити власне оновлення.</string>
     <string name="app_updates_permission_action">Відкрити налаштування</string>
     <string name="app_updates_unsupported_store_title">Оновлення надходять із магазину</string>
     <string name="app_updates_unsupported_store_body">Цю копію встановлено через %1$s, який сам керує оновленнями.</string>
@@ -2557,11 +2557,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">Джерело оновлень повернуло неочікувану відповідь.</string>
     <string name="app_updates_error_no_artifact">В останньому випуску немає файлу для цієї збірки.</string>
     <string name="app_updates_error_checksum">Завантажений файл не збігся з контрольною сумою та був видалений.</string>
-    <string name="app_updates_error_signature">Завантажений APK підписано іншим ключем, тому його видалено. Встановлюйте JugglucoNG лише з офіційної сторінки випусків.</string>
+    <string name="app_updates_error_signature">Завантажений APK підписано іншим ключем, тому його видалено. Встановлюйте Glucifer лише з офіційної сторінки випусків.</string>
     <string name="app_updates_error_package">Завантажений APK належить іншому застосунку.</string>
     <string name="app_updates_error_downgrade">Цей випуск не новіший за встановлену версію.</string>
     <string name="app_updates_error_storage">Недостатньо вільного місця для завантаження.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG ще не має дозволу встановлювати застосунки.</string>
+    <string name="app_updates_error_install_permission">Glucifer ще не має дозволу встановлювати застосунки.</string>
     <string name="app_updates_error_install_failed">Встановлення не завершено.</string>
     <string name="app_updates_error_cancelled">Встановлення скасовано.</string>
     <string name="app_updates_source_title">Джерело оновлень</string>
@@ -2693,5 +2693,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_history_action">Історія</string>
     <string name="nightscout_follow_interval_title">Перевіряти нові значення</string>
     <string name="nightscout_follow_interval_desc">Як часто підписник опитує сервер. Це водночас і те, наскільки старим може бути значення, а отже і наскільки пізно надійде тривога за відстежуваним значенням. Підписник не має власного сенсора, який тримав би телефон активним, тож кожна перевірка — це пробудження.</string>
-    <string name="nightscout_follow_interval_doze">Менше 9 хвилин Android усе одно може розсувати перевірки, поки телефон бездіяльний. Виключення Juggluco з оптимізації батареї зберігає вибраний інтервал.</string>
+    <string name="nightscout_follow_interval_doze">Менше 9 хвилин Android усе одно може розсувати перевірки, поки телефон бездіяльний. Виключення Glucifer з оптимізації батареї зберігає вибраний інтервал.</string>
 </resources>

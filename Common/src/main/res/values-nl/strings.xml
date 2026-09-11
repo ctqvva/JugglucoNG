@@ -2,7 +2,7 @@
     <string name="language">nl</string>
     <string name="languagename">Taal</string>
 
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucifer</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Annuleren</string>
@@ -17,7 +17,7 @@
     <string name="kerfstok_missing_message">Kerfstok niet geïnstalleerd. Je kunt het krijgen in Garmin connectiq</string>
 
     <string name="alarm_description">Te hoog of te laag glucosee</string>
-    <string name="loss_description">Juggluco heeft geen contact met de sensor meer</string>
+    <string name="loss_description">Glucifer heeft geen contact met de sensor meer</string>
     <string name="numalarm_description">Herinnering</string>
     <string name="notification_description">Meldt huidige glucose waarde.</string>
     <string name="ongoing_description">Ongoing program</string>
@@ -210,7 +210,7 @@
  <string name="deleteconnection">Verwijder verbinding?</string>
  <string name="heartrate">Hartslag</string>
 <string name="sensorpermission">Sensors permission</string>
-<string name="sensorpermissionmessage">nodig om hartslag weer te geven. Stel het in via Device Settings, Apps, Permissions, Juggluco</string>
+<string name="sensorpermissionmessage">nodig om hartslag weer te geven. Stel het in via Device Settings, Apps, Permissions, Glucifer</string>
  <string name="xdripbroadcast">xDrip broadcast</string>
  <string name="floatglucose">Zwevende glucose</string>
 <string name="fontsize">Lettergrootte</string>
@@ -322,7 +322,7 @@
 <string name="resendwarning">Alle gegevens worden opnieuw verzonden, wat tijd kost en gevolgen kan hebben voor Libreview en Kerfstok</string>
 <string name="parseip">Fout bij interpreteren van IP</string>
 <string name="toomanyhosts">Maximumaantal hosts overschreden</string>
-<string name="senthosts">Juggluco zendt naar maximaal 6 hosts</string>
+<string name="senthosts">Glucifer zendt naar maximaal 6 hosts</string>
    <string name="clampnow">Vast nu</string>
     <string name="sendfrom">Zend vanaf:</string>
  <string name="changestartbutton">Begin wijzigen</string>
@@ -344,7 +344,7 @@
 <string name="photomessage">Scan data matrix van een Dexcom G7/ONE+ of Sibionics GS1 sensor of de kloon QR code</string>
    <string name="dexfuture">Voorspel (Dexcom)</string>
    <string name="initializing">Initialiseren</string>
-<string name="startjuggluco">Juggluco draait op telefoon?\n\nWIFI en Bluetooth ingeschakeld?</string>
+<string name="startjuggluco">Glucifer draait op telefoon?\n\nWIFI en Bluetooth ingeschakeld?</string>
 <string name="connected">Verbonden!</string>
    <string name="useclose">Sluitknop</string> 
    <string name="filesize">Bestandsgrootte</string> 
@@ -494,7 +494,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <!-- Nieuwe vertalingen -->
     <string name="import_history">Geschiedenis importeren</string>
-    <string name="import_history_desc">Importeer glucosegegevens uit een JugglucoNG-export of CSV-bestand</string>
+    <string name="import_history_desc">Importeer glucosegegevens uit een Glucifer-export of CSV-bestand</string>
     <string name="get_started_desc">Ga aan de slag door je sensor toe te voegen</string>
     <string name="select_sensor">Selecteer sensortype</string>
     <string name="select_sibionics_type">Kies een Sibionics-sensor</string>
@@ -546,9 +546,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="export_history_title">Geschiedenis exporteren</string>
     <string name="export_history_sub">Glucosemetingen opslaan in CSV- of tekstbestand</string>
     <string name="import_history_title">Geschiedenis importeren</string>
-    <string name="import_history_sub">Herstel glucosemetingen uit een JugglucoNG-export of CSV-bestand</string>
+    <string name="import_history_sub">Herstel glucosemetingen uit een Glucifer-export of CSV-bestand</string>
     <string name="import_no_glucose">Dit bestand bevat geen glucosegegevens</string>
-    <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export (JSON) of een CSV-bestand met glucosegeschiedenis.</string>
+    <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een Glucifer-export (JSON) of een CSV-bestand met glucosegeschiedenis.</string>
     
     <string name="clear_history_title">Geschiedenis wissen?</string>
     <string name="clear_history_confirmation">Hiermee worden alle glucosemetingen uit de database verwijderd. Dit kan niet ongedaan worden gemaakt.</string>
@@ -728,7 +728,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_dismiss_action_dismiss">Sluiten</string>
     <string name="notification_dismiss_action_snooze">Snoozen</string>
     <string name="alarm_return_to_previous_app_title">Na alarm terug naar vorige app</string>
-    <string name="alarm_return_to_previous_app_summary">Na een schermvullend alarm teruggaan naar de app die je gebruikte in plaats van JugglucoNG te openen</string>
+    <string name="alarm_return_to_previous_app_summary">Na een schermvullend alarm teruggaan naar de app die je gebruikte in plaats van Glucifer te openen</string>
     <string name="realert_if_not_dismissed">Opnieuw waarschuwen als niet weggeveegd</string>
     <string name="retry_every">Herhalen elke</string>
     <string name="retry_if_no_reaction">Herhalen bij geen reactie</string>
@@ -855,7 +855,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Pas experimenteel Libre 3-scangedrag aan voordat je koppelt.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC-opdracht</string>
-    <string name="libre3_nfc_command_desc">Kies welk commando Juggluco verstuurt tijdens de Libre 3 NFC-scan</string>
+    <string name="libre3_nfc_command_desc">Kies welk commando Glucifer verstuurt tijdens de Libre 3 NFC-scan</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Gebruik het standaard Libre 3-scangedrag van Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Activeren</string>
@@ -1372,7 +1372,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Niet genoeg dagelijkse gegevens om de trend weer te geven.</string>
     <string name="report_no_readings_day">Geen lezingen voor deze dag.</string>
-    <string name="report_page1_title">JugglucoNG CGM klinisch rapport</string>
+    <string name="report_page1_title">Glucifer CGM klinisch rapport</string>
     <string name="report_page1_subtitle">Bereik %1$s · Uitlezingen %2$d · Venster %3$s tot %4$s</string>
     <string name="report_estimated_a1c">Geschatte A1C</string>
     <string name="report_below_target">Onder doel</string>
@@ -1387,7 +1387,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="report_above_duration">Boven: %1$s</string>
     <string name="report_agp_section_title">Ambulant glucoseprofiel (24-uurs percentielbanden)</string>
     <string name="report_reference_targets">Referentiedoelstellingen: GMI &lt; 7,0%%, CV &lt;= 36%%, Tijd binnen bereik &gt;= 70%%.</string>
-    <string name="report_page2_title">JugglucoNG CGM dagelijkse trends en interpretatie</string>
+    <string name="report_page2_title">Glucifer CGM dagelijkse trends en interpretatie</string>
     <string name="report_page2_subtitle">Dagelijkse variabiliteit, metrische uitsplitsing en interpretatienotities</string>
     <string name="report_daily_average_trend">Dagelijkse gemiddelde trend</string>
     <string name="report_detailed_metrics">Gedetailleerde statistieken</string>
@@ -1402,7 +1402,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="report_no_generated_insights_message">Er zijn voor deze periode geen aanvullende patroonwaarschuwingen gegenereerd.</string>
     <string name="report_agp_consensus_title">AGP-consensusreferentie</string>
     <string name="report_agp_consensus_body">De doelstellingen waarnaar in dit rapport wordt verwezen, volgen de internationale consensusstijl van AGP: TIR 70-180 mg/dl (3,9-10,0 mmol/l), TBR &lt;70 en &lt;54 mg/dl, TAR &gt;180 en &gt;250 mg/dl, met CV-doel &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG Bijlage I - AGP en dagtabellen</string>
+    <string name="report_page3_title">Glucifer Bijlage I - AGP en dagtabellen</string>
     <string name="report_page3_subtitle">Percentielen per uur en uitkomsten op dagniveau</string>
     <string name="report_hourly_agp_table">AGP-profieltabel per uur</string>
     <string name="report_hour">Uur</string>
@@ -1411,7 +1411,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="report_no_hourly_agp">Er zijn geen AGP-bakken per uur beschikbaar in dit assortiment.</string>
     <string name="report_daily_outcomes_table">Tabel met dagelijkse resultaten</string>
     <string name="report_showing_latest_days">Laatste %1$d van %2$d dagen weergeven.</string>
-    <string name="report_page4_title">JugglucoNG Bijlage II - Evenementen en dagelijkse profielen</string>
+    <string name="report_page4_title">Glucifer Bijlage II - Evenementen en dagelijkse profielen</string>
     <string name="report_page4_subtitle">Hypo-/hyperblootstellingsstatistieken en profielgrafieken op dagniveau</string>
     <string name="report_hypo_hyper_events">Hypo-/hyperblootstellingsgebeurtenissen</string>
     <string name="report_hours_per_day">Uren/dag</string>
@@ -1441,7 +1441,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Horloge-app ontbreekt</string>
-    <string name="wear_watch_app_missing_hint">Installeer Juggluco op dit horloge en tik daarna op vernieuwen.</string>
+    <string name="wear_watch_app_missing_hint">Installeer Glucifer op dit horloge en tik daarna op vernieuwen.</string>
     <string name="wear_auto_sensor_switch">Sensor automatisch wisselen</string>
     <string name="wear_auto_sensor_switch_on_desc">Telefoon en horloge geven de sensor zelf door, zodat het apparaat dat binnen bereik is hem uitleest.</string>
     <string name="wear_auto_sensor_switch_off_desc">Alleen het apparaat dat u kiest leest de sensor uit.</string>
@@ -1517,7 +1517,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insight_unstable_days">Vaak instabiele dagen</string>
     <string name="insight_unstable_days_desc">In dit venster hadden %1$d dagen minder dan 50%% tijd in bereik.</string>
     <string name="mq_fetch_calibration_on_add">Leverancierssessie herstellen bij toevoegen</string>
-    <string name="mq_fetch_calibration_on_add_desc">Als een QR-code of opgeslagen Glutec-inloggegevens beschikbaar zijn, probeert Juggluco tijdens de installatie de MQ-sessiestatus te herstellen.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Als een QR-code of opgeslagen Glutec-inloggegevens beschikbaar zijn, probeert Glucifer tijdens de installatie de MQ-sessiestatus te herstellen.</string>
     <string name="mq_bootstrap_button">Leverancierssessie herstellen</string>
     <string name="mq_bootstrap_dialog_title">Leverancierssessie herstellen</string>
     <string name="mq_bootstrap_dialog_desc">Herstel de leverancierssessie via Glutec. Voer hier indien nodig de sensor-QR in; account-, sync- en API-instellingen staan in het MQ / Glutec-account.</string>
@@ -1550,9 +1550,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mq_account_session_valid">Sessie geldig</string>
     <string name="mq_account_session_invalid">Sessie ongeldig</string>
     <string name="mq_manual_calibration_title">Handmatige kalibratie</string>
-    <string name="mq_manual_calibration_desc">Lokaal in Juggluco. Voer een vingerprik-glucosewaarde in in %1$s. Vereist een recent live MQ-pakket.</string>
+    <string name="mq_manual_calibration_desc">Lokaal in Glucifer. Voer een vingerprik-glucosewaarde in in %1$s. Vereist een recent live MQ-pakket.</string>
     <string name="mq_follower_title">Glutec-volger</string>
-    <string name="mq_follower_desc">Volg een ander Glutec-account via de cloud van de leverancier. Bij inschakelen wordt in Juggluco een alleen-lezen volgsensor aangemaakt.</string>
+    <string name="mq_follower_desc">Volg een ander Glutec-account via de cloud van de leverancier. Bij inschakelen wordt in Glucifer een alleen-lezen volgsensor aangemaakt.</string>
     <string name="mq_follower_account_label">Te volgen account</string>
     <string name="mq_follower_account_desc">Voer het Glutec-telefoonnummer of account in dat u wilt volgen.</string>
     <string name="mq_follower_enabled_summary">Volger aan</string>
@@ -2386,11 +2386,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_upload_iob_desc">Nightscout toont dan deze waarde in plaats van de eigen berekening op basis van het profiel. eIOB en COB worden daarnaast in een apart veld verstuurd. Het toegangstoken heeft api:devicestatus:create nodig.</string>
     <string name="journal_iob_source_remote">Waarden van het uploadende apparaat (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Er is nog een andere sensor aan het Ottai-account gekoppeld. Ontkoppel deze in de Ottai-app of verwijder die sensor hier om de koppeling vrij te geven en probeer het opnieuw.</string>
-    <string name="ottai_cloud_unbind_hint">Alleen een actie voor het cloudaccount. JugglucoNG maakt geen verbinding met de geselecteerde sensor en stopt, verwijdert of wijzigt deze niet.</string>
+    <string name="ottai_cloud_unbind_hint">Alleen een actie voor het cloudaccount. Glucifer maakt geen verbinding met de geselecteerde sensor en stopt, verwijdert of wijzigt deze niet.</string>
     <string name="ottai_cloud_unbind_title">Deze sensor permanent ontkoppelen?</string>
-    <string name="ottai_cloud_unbind_message">%1$s wordt permanent uit dit Ottai-account verwijderd. Het account kan de referenties daarna niet meer ophalen en de sensor werkt niet meer in de officiële Ottai-app. Reeds in JugglucoNG opgeslagen referenties en sensorstatus blijven ongewijzigd. Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="ottai_cloud_unbind_message">%1$s wordt permanent uit dit Ottai-account verwijderd. Het account kan de referenties daarna niet meer ophalen en de sensor werkt niet meer in de officiële Ottai-app. Reeds in Glucifer opgeslagen referenties en sensorstatus blijven ongewijzigd. Dit kan niet ongedaan worden gemaakt.</string>
     <string name="ottai_cloud_unbind_confirm">Permanent ontkoppelen</string>
-    <string name="ottai_cloud_unbind_success">Sensor permanent ontkoppeld van Ottai. De sensor en opgeslagen referenties in JugglucoNG zijn niet gewijzigd.</string>
+    <string name="ottai_cloud_unbind_success">Sensor permanent ontkoppeld van Ottai. De sensor en opgeslagen referenties in Glucifer zijn niet gewijzigd.</string>
     <string name="ottai_cloud_unbind_failed">De sensor kon niet van Ottai worden ontkoppeld.</string>
     <string name="ottai_cloud_binding_checking">Ottai-cloudkoppeling controleren…</string>
     <string name="ottai_cloud_binding_bound">Cloudstatus: gekoppeld aan dit Ottai-account</string>
@@ -2453,7 +2453,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sms_max_per_hour">Max. berichten per uur</string>
     <string name="sms_max_per_day">Max. berichten per dag</string>
     <string name="sms_sent_today">Verstuurd in de laatste 24 uur: %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG heeft toestemming nodig om sms\'jes te sturen voordat deze bestemming werkt.</string>
+    <string name="sms_permission_desc">Glucifer heeft toestemming nodig om sms\'jes te sturen voordat deze bestemming werkt.</string>
     <string name="sms_permission_grant">Toestaan</string>
     <string name="sms_no_telephony">Dit apparaat kan geen sms versturen.</string>
     <string name="sms_preview_title">Voorbeeld</string>
@@ -2471,7 +2471,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sms_event_no_data">Al %1$d min geen sensordata</string>
     <string name="sms_event_all_clear">Alles veilig</string>
     <string name="sms_event_relay">Update (geen dataverbinding)</string>
-    <string name="sms_event_test">Testbericht van JugglucoNG</string>
+    <string name="sms_event_test">Testbericht van Glucifer</string>
     <string name="sms_body_no_reading">Nog geen meting</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2511,13 +2511,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="app_updates_verifying_title">Download controleren</string>
     <string name="app_updates_verifying_body">Handtekening en versie worden gecontroleerd voor het installeren.</string>
     <string name="app_updates_ready_title">%1$s klaar om te installeren</string>
-    <string name="app_updates_ready_body">Android vraagt om bevestiging. JugglucoNG sluit en opent opnieuw; sensorverbindingen komen vanzelf terug.</string>
+    <string name="app_updates_ready_body">Android vraagt om bevestiging. Glucifer sluit en opent opnieuw; sensorverbindingen komen vanzelf terug.</string>
     <string name="app_updates_up_to_date_title">Je hebt de nieuwste versie</string>
     <string name="app_updates_last_checked">Laatst gecontroleerd %1$s</string>
     <string name="app_updates_never_checked">nooit</string>
     <string name="app_updates_error_title">Controleren op updates mislukt</string>
-    <string name="app_updates_permission_title">Installeren vanuit JugglucoNG toestaan</string>
-    <string name="app_updates_permission_body">Android heeft eenmalig toestemming nodig voordat JugglucoNG zijn eigen update kan installeren.</string>
+    <string name="app_updates_permission_title">Installeren vanuit Glucifer toestaan</string>
+    <string name="app_updates_permission_body">Android heeft eenmalig toestemming nodig voordat Glucifer zijn eigen update kan installeren.</string>
     <string name="app_updates_permission_action">Instellingen openen</string>
     <string name="app_updates_unsupported_store_title">Updates komen van je appstore</string>
     <string name="app_updates_unsupported_store_body">Deze kopie is geïnstalleerd door %1$s, die updates zelf regelt.</string>
@@ -2528,11 +2528,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="app_updates_error_parse">De updatebron gaf iets onverwachts terug.</string>
     <string name="app_updates_error_no_artifact">De nieuwste release heeft geen download voor deze build.</string>
     <string name="app_updates_error_checksum">De download kwam niet overeen met de controlesom en is verwijderd.</string>
-    <string name="app_updates_error_signature">De gedownloade APK is met een andere sleutel ondertekend en is verwijderd. Installeer JugglucoNG alleen via de officiële releasepagina.</string>
+    <string name="app_updates_error_signature">De gedownloade APK is met een andere sleutel ondertekend en is verwijderd. Installeer Glucifer alleen via de officiële releasepagina.</string>
     <string name="app_updates_error_package">De gedownloade APK hoort bij een andere app.</string>
     <string name="app_updates_error_downgrade">Die release is niet nieuwer dan de geïnstalleerde versie.</string>
     <string name="app_updates_error_storage">Niet genoeg vrije ruimte voor de download.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG mag nog geen apps installeren.</string>
+    <string name="app_updates_error_install_permission">Glucifer mag nog geen apps installeren.</string>
     <string name="app_updates_error_install_failed">De installatie is niet voltooid.</string>
     <string name="app_updates_error_cancelled">Installatie geannuleerd.</string>
     <string name="app_updates_source_title">Updatebron</string>
@@ -2660,5 +2660,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="anytime_history_action">Historie</string>
     <string name="nightscout_follow_interval_title">Naar nieuwe waarden kijken</string>
     <string name="nightscout_follow_interval_desc">Hoe vaak de volger de server bevraagt. Dat is ook hoe oud een waarde kan zijn, en dus hoe laat een alarm op een gevolgde waarde kan komen. Een volger heeft geen eigen sensor die de telefoon wakker houdt, dus elke controle is een wekmoment.</string>
-    <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Juggluco uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
+    <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Glucifer uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
 </resources>

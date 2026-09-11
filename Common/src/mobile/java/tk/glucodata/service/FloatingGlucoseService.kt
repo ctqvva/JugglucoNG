@@ -85,7 +85,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     
     private fun createForegroundNotification(): android.app.Notification {
         val channelId = "glucoseNotification"
-        val channelName = "JugglucoNG Service"
+        val channelName = getString(tk.glucodata.R.string.app_name)
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val chan = android.app.NotificationChannel(channelId, channelName, android.app.NotificationManager.IMPORTANCE_HIGH)
@@ -109,7 +109,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         
         return builder.setOngoing(true)
             .setSmallIcon(icon)
-            .setContentTitle("JugglucoNG Overlay")
+            .setContentTitle(getString(tk.glucodata.R.string.app_name))
             .setContentText("Service is running")
             .setCategory(android.app.Notification.CATEGORY_SERVICE)
             .build()
