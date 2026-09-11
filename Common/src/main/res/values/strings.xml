@@ -221,6 +221,8 @@
     <string name="broadcast_computed_trend_desc">Use the app’s trend instead of the sensor’s</string>
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Send glucose readings to Health Connect for compatible health apps</string>
     <string name="sensorpermission">Sensors permission</string>
  <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
  <string name="floatglucose">Floating glucose</string>

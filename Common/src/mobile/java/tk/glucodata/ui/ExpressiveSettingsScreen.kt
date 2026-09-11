@@ -5,6 +5,7 @@ package tk.glucodata.ui
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,6 +64,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.BuildConfig
 import tk.glucodata.DataSmoothing
+import tk.glucodata.HealthConnection
+import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
@@ -128,6 +131,7 @@ fun ExpressiveSettingsScreen(
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
     val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsState()
+    var healthConnectEnabled by rememberSaveable { mutableStateOf(Natives.gethealthConnect()) }
     val viewMode by viewModel.viewMode.collectAsState()
     val sensorName by viewModel.sensorName.collectAsState()
     val isRawCalibrationMode = viewMode == 1 || viewMode == 3
@@ -416,6 +420,27 @@ fun ExpressiveSettingsScreen(
                         iconTint = exchangeColor,
                         position = CardPosition.MIDDLE,
                         onCheckedChange = { viewModel.setBroadcastComputedTrend(it) }
+                    )
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.health_connect_title),
+                        subtitle = stringResource(R.string.health_connect_desc),
+                        checked = healthConnectEnabled,
+                        icon = Icons.Default.HealthAndSafety,
+                        iconTint = exchangeColor,
+                        position = CardPosition.MIDDLE,
+                        onCheckedChange = { enabled ->
+                            Natives.sethealthConnect(enabled)
+                            healthConnectEnabled = enabled
+                            if (enabled) {
+                                MainActivity.tryHealth = 5
+                                (context.findActivity() as? MainActivity)?.let(HealthConnection::init)
+                            } else {
+                                MainActivity.tryHealth = 0
+                                HealthConnection.stop()
+                            }
+                        }
                     )
                 }
                 SettingsItem(
