@@ -529,8 +529,9 @@ static public void setUploadIob(boolean enabled) {
  * Uploads the journal IOB/eIOB/COB as a Nightscout devicestatus when the
  * opt-in setting is on and one is due. Called from the native uploader loop
  * after entries and treatments; always best-effort, so failures here never
- * hold back glucose. The journal snapshot is the same one the notification
- * and the glucodata broadcast display, so the site shows the phone's number.
+ * hold back glucose. Only this phone's local journal computation is eligible:
+ * a Clone or Nightscout-follower snapshot must not be uploaded again with a
+ * fresh timestamp and kept alive as an echo.
  */
 @Keep
 static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
@@ -540,7 +541,7 @@ static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
         final long now=System.currentTimeMillis();
         if(!NightscoutIobDeviceStatus.fastIntervalElapsed(now, iobStatusUploadTime))
             return true;
-        final float[] values=JournalIobAccess.snapshot(now);
+        final float[] values=JournalIobAccess.nightscoutUploadSnapshot(now);
         if(values==null || values.length<3)
             return true;
         if(!NightscoutIobDeviceStatus.shouldUpload(
