@@ -2498,18 +2498,14 @@ fun SensorCard(
                 // Unpair/Pair is more important — it's the primary action for AiDex sensor management.
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Edit 78: Reset button — opens bottom sheet. Shows tertiary tint when
                     // bias correction is active so the user knows something is going on.
                     FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
-                        shape = RoundedCornerShape(
-                            topStart = 12.dp,
-                            bottomStart = 12.dp,
-                            topEnd = 4.dp,
-                            bottomEnd = 4.dp
-                        ),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
                                 MaterialTheme.colorScheme.tertiaryContainer
@@ -3155,8 +3151,8 @@ fun SensorCard(
  * a 22dp trailing glyph with 13dp either side. The outer corners stay at the 12dp this row
  * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
  *
- * Leading half: Unpair (tertiary) or Pair (primary). Trailing half: the pairing-key backup,
- * in the app's in-range green while a verified key is held and the error pair while none is.
+ * Both halves share one container, as a split button does; the trailing key glyph alone
+ * carries state — the app's in-range green while a verified key is held, error while none is.
  */
 @Composable
 private fun AiDexPairSplitButton(
@@ -3176,46 +3172,33 @@ private fun AiDexPairSplitButton(
         label = "aidexSplitInnerCorner"
     )
 
+    val container = if (paired) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
+    val onContainer = if (paired) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
     val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(isSystemInDarkTheme()))
-    val keyContainer by animateColorAsState(
-        targetValue = if (keyHeld) {
-            keyHeldColor.copy(alpha = 0.22f).compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
-        } else {
-            MaterialTheme.colorScheme.errorContainer
-        },
-        label = "aidexKeyContainer"
-    )
-    val keyContent by animateColorAsState(
-        targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.onErrorContainer,
-        label = "aidexKeyContent"
+    val keyTint by animateColorAsState(
+        targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.error,
+        label = "aidexKeyTint"
     )
 
     Row(
         modifier = modifier.height(ButtonDefaults.MinHeight),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         FilledTonalButton(
             onClick = onLeadingClick,
             modifier = Modifier.weight(1f).fillMaxHeight(),
-            // The start corners are small too: this half continues the Reset button beside it.
             shape = RoundedCornerShape(
-                topStart = innerRest,
-                bottomStart = innerRest,
+                topStart = outer,
+                bottomStart = outer,
                 topEnd = inner,
                 bottomEnd = inner,
             ),
             contentPadding = PaddingValues(start = 16.dp, end = 12.dp),
-            colors = if (paired) {
-                ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-            } else {
-                ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            },
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = container,
+                contentColor = onContainer,
+            ),
         ) {
             Icon(
                 imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
@@ -3236,8 +3219,8 @@ private fun AiDexPairSplitButton(
                 bottomEnd = outer,
             ),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = keyContainer,
-                contentColor = keyContent,
+                containerColor = container,
+                contentColor = keyTint,
             ),
         ) {
             Icon(
