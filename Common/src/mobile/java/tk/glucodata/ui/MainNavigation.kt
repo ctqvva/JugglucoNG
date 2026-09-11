@@ -120,6 +120,9 @@ private fun DashboardRoute(
         onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
         onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") },
         onNavigateToAppUpdates = { navController.navigate("settings/app-updates") },
+        onNavigateToPredictionModelProfile = {
+            navController.navigate("settings/predictive-simulation/model-profile")
+        },
         onTriggerCalibration = onTriggerCalibration
     )
 }
