@@ -310,6 +310,7 @@ fun DashboardScreen(
     val daysRemaining by viewModel.daysRemaining.collectAsState()
     val glucoseHistory by viewModel.glucoseHistory.collectAsState()
     val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsState()
+    val mainSensorOwnership by viewModel.mainSensorOwnership.collectAsState()
     val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsState()
     val selectedSensorIds by viewModel.selectedSensorIds.collectAsState()
     val sensorViewModes by viewModel.sensorViewModes.collectAsState()
@@ -387,10 +388,6 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         tk.glucodata.data.calibration.CalibrationManager.init(context)
         tk.glucodata.data.calibration.CalibrationManager.loadCalibrations()
-        // Retires the old "overwrite sensor values" switch and, for stores that
-        // ran with it on, records what was already displayed before anything
-        // else can move it — see HistoryRepository.
-        tk.glucodata.data.HistoryRepository(context).seedDisplayRecordsFromOverwrittenHistory()
         // Journal BG entries can arrive while the app is not running — a meter
         // handing over its stored readings, a Nightscout pull — so the derived
         // calibrations are re-paired once here rather than only on a live edit.
@@ -570,7 +567,24 @@ fun DashboardScreen(
         if (multiSensorDisplay.isEmpty || !predictionSettings.enabled) {
             emptyMap()
         } else {
-            multiSensorDisplay.series.associate { peer ->
+            // Only series that are still running get a prediction.
+            //
+            // A prediction extends a line forward from its last point, so a
+            // series that stopped in the past projects a curve out of the middle
+            // of the chart — a simulation of a future that has already happened.
+            // Any retired sensor could do this; what made it routine is the
+            // historical fragment drawn for a swapped-in main sensor, which by
+            // construction ends at the grace-window boundary, so the leftover
+            // curves appeared exactly an hour back every time.
+            //
+            // The chart's own gap rule is the freshness test: a series whose
+            // last point is further behind than the chart would bridge is not
+            // producing readings, and nothing should be extrapolated from it.
+            val predictionFreshnessCutoff =
+                System.currentTimeMillis() - tk.glucodata.GlucoseChartGap.THRESHOLD_MS
+            multiSensorDisplay.series.filter { peer ->
+                (peer.points.lastOrNull()?.timestamp ?: 0L) >= predictionFreshnessCutoff
+            }.associate { peer ->
                 peer.sensorId to buildPredictionSeriesForChart(
                     points = peer.points,
                     journalEntries = if (journalEnabled) scopedJournalEntries else emptyList(),
@@ -1514,6 +1528,7 @@ fun DashboardScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     glucoseHistory = glucoseHistory,
                                     multiSensorDisplay = multiSensorDisplay,
+                                    mainSensorOwnership = mainSensorOwnership,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
@@ -1747,6 +1762,7 @@ fun DashboardScreen(
                                         .padding(bottom = 0.dp),
                                     glucoseHistory = glucoseHistory,
                                     multiSensorDisplay = multiSensorDisplay,
+                                    mainSensorOwnership = mainSensorOwnership,
                                     peerPredictionSeries = peerPredictionSeries,
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,

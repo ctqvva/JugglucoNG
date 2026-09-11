@@ -36,6 +36,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v16 — repair step: two branches each shipped a different "v13", so what a
  *         phone holds at v15 depends on which build it happened to install
  *   v17 — per-journal-entry LibreView delivery timestamp
+ *   v18 — recorded main value keyed by the minute, written only on presentation
  */
 @Database(
     entities = [
@@ -48,7 +49,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -421,6 +422,47 @@ abstract class HistoryDatabase : RoomDatabase() {
             return false
         }
 
+
+        /**
+         * v17 -> v18: the recorded main value, keyed by the minute.
+         *
+         * The v15 table stored what each sensor would have displayed and never
+         * which sensor won the minute, so the dashboard's main value still moved
+         * whenever the merge ranking changed — which, with two sensors reporting
+         * in the same minute, is most of a real timeline. The decision is now
+         * part of the record: one row per minute, the winning sensor as
+         * provenance.
+         *
+         * Rows are written only when a minute is actually presented to the user
+         * (see ReadingDisplayDao), never by a background pass replaying stored
+         * readings — that replay is not reproducible and produced backdated
+         * ownership. The old rows cannot be carried over for the same reason:
+         * several can claim one minute and none says which was on screen. The
+         * table is rebuilt empty.
+         */
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS reading_display")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS reading_display (
+                        timestamp INTEGER NOT NULL,
+                        sensorSerial TEXT NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        PRIMARY KEY(timestamp)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_sensorSerial " +
+                        "ON reading_display (sensorSerial)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -443,7 +485,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
-                    MIGRATION_16_17
+                    MIGRATION_16_17,
+                    MIGRATION_17_18
                 )
                 .build().also { INSTANCE = it }
             }

@@ -62,17 +62,26 @@ object SensorVisuals {
         // A colour the user picked is not a palette slot, so it neither consumes one
         // nor competes with the sensors still being assigned automatically.
         val picked = sensorIds.map(::colorOverrideArgb)
-        return sensorIds.mapIndexed { position, sensorId ->
-            picked[position]?.let { return@mapIndexed it }
-            val baseIndex = colorIndex(sensorId)
-            val assignedIndex = if (!used[baseIndex]) {
-                baseIndex
-            } else {
-                nextUnusedPaletteIndex(baseIndex, used)
+        // Assigned in a fixed order, not the order given. When two sensors hash to
+        // the same slot the first keeps it and the second is bumped — and the
+        // caller's order is selection order, so swapping main and secondary
+        // flipped which sensor was "first" and the two traded colours on the
+        // spot. Sorting by id before assigning makes the outcome a property of
+        // the set of sensors, not of which one the user is looking at.
+        val assigned = IntArray(sensorIds.size)
+        val order = sensorIds.indices.sortedBy { sensorIds[it]?.trim().orEmpty() }
+        for (position in order) {
+            val override = picked[position]
+            if (override != null) {
+                assigned[position] = override
+                continue
             }
+            val baseIndex = colorIndex(sensorIds[position])
+            val assignedIndex = if (!used[baseIndex]) baseIndex else nextUnusedPaletteIndex(baseIndex, used)
             used[assignedIndex] = true
-            colorArgbAt(assignedIndex)
+            assigned[position] = colorArgbAt(assignedIndex)
         }
+        return assigned.toList()
     }
 
     /**

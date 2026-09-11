@@ -43,4 +43,21 @@ class HistoryDatabaseSafetyTests {
                 .contains("if (!Specific.historyDatabaseCompatible(this))")
         )
     }
+
+    @Test
+    fun recordedMainValueMigrationIsRegisteredAndKeyedByTheMinute() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("version = 18"))
+        assertTrue(source.contains("Migration(17, 18)"))
+        assertTrue(source.contains("MIGRATION_17_18"))
+        // The whole point of the migration: one row per minute, so the record can
+        // say which sensor the dashboard drew instead of what each would have.
+        assertTrue(source.contains("PRIMARY KEY(timestamp)"))
+        // Rebuilding this one table is deliberate and is the only table the
+        // migration is allowed to drop.
+        assertTrue(source.contains("DROP TABLE IF EXISTS reading_display"))
+        assertFalse(source.contains("DROP TABLE IF EXISTS history_readings"))
+        assertFalse(source.contains("DROP TABLE IF EXISTS reading_uncertainty"))
+    }
 }
