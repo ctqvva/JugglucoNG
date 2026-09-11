@@ -188,12 +188,19 @@ class RecordedMainValueTests {
             chart.contains("delay(PresentedMinuteRecorder.SETTLE_MS)"),
         )
         assertTrue(
-            "only points inside the drawn viewport are offered",
-            chart.contains("if (point.timestamp !in viewportStart..viewportEnd) return@forEachIndexed"),
+            "only the model's runs inside the drawn viewport are offered",
+            chart.contains("pts.binarySearchBy(viewportStart) { it.timestamp }") &&
+                chart.contains("pts.binarySearchBy(viewportEnd) { it.timestamp }"),
         )
         assertTrue(
             "a backgrounded chart presents nothing",
             chart.contains("if (!isResumed || renderData.isEmpty()) return@LaunchedEffect"),
+        )
+        // The value recorded is the value the model drew; the chart resolves
+        // nothing of its own on the way to the record.
+        assertTrue(
+            "the recorded value comes from the model's primary series",
+            chart.contains("val primarySeries = chartModel.primary ?: return@LaunchedEffect"),
         )
     }
 }

@@ -2035,7 +2035,13 @@ class HistoryRepository(context: Context = Applic.app) {
                         }
                     }
                 }
-                if (inserted > 0) UiRefreshBus.requestDataRefresh()
+                // No data refresh here. Recording a presentation changes nothing
+                // that is displayed — the value written is the value already on
+                // screen — and requesting one after every newly presented minute
+                // reloaded the whole history each time the chart drew a new
+                // minute, which rebuilt the chart, which presented, which
+                // recorded. That loop is what a 200MB GC per cycle looked like.
+                // Ownership catches up with the record on the next peer emission.
                 // tk.glucodata.Log, not android.util.Log: only the former reaches
                 // the trace ring the exported log is built from. A 20k-line trace
                 // of a run where this had supposedly executed contained nothing
