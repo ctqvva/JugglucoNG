@@ -1387,34 +1387,9 @@ fun InteractiveGlucoseChart(
             }
         }
 
-        fun visibleIndices(points: List<GlucosePoint>): IntRange? {
-            if (points.isEmpty()) return null
-            val start = points.binarySearchBy(viewportStart) { it.timestamp }
-                .let { if (it >= 0) it else -it - 1 }
-            val endExclusive = points.binarySearchBy(viewportEnd) { it.timestamp }
-                .let { if (it >= 0) it + 1 else -it - 1 }
-                .coerceAtMost(points.size)
-            return if (start < endExclusive) start until endExclusive else null
-        }
-
-        val drawRaw = !hideInitialWhenCalibrated && (viewMode == 1 || viewMode == 2 || viewMode == 3)
-        val drawAuto = !hideInitialWhenCalibrated && (viewMode == 0 || viewMode == 2 || viewMode == 3)
-        visibleIndices(renderData)?.forEach { index ->
-            val point = renderData[index]
-            if (drawRaw) include(point.rawValue)
-            if (drawAuto) include(point.value)
-            chartModel.primary?.valueAt(point.timestamp)?.let(::include)
-        }
-
-        peerChartSeries.forEach { series ->
-            val drawRawPeer = series.viewMode == 1 || series.viewMode == 2 || series.viewMode == 3
-            val drawAutoPeer = series.viewMode == 0 || series.viewMode == 2 || series.viewMode == 3
-            visibleIndices(series.points)?.forEach { index ->
-                val point = series.points[index]
-                if (drawRawPeer) include(point.rawValue)
-                if (drawAutoPeer) include(point.value)
-            }
-        }
+        val (modelMin, modelMax) = chartModel.visibleValueRange(viewportStart, viewportEnd)
+        modelMin?.let(::include)
+        modelMax?.let(::include)
 
         fun includePredictions(series: List<GlucosePredictionSeries>) {
             series.forEach { prediction ->
