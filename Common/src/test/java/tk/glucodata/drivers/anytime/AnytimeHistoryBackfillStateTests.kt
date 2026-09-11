@@ -26,6 +26,94 @@ class AnytimeHistoryBackfillStateTests {
     }
 
     @Test
+    fun aPersistedTimelineAnchorSurvivesARestart() {
+        assertEquals(
+            1_787_503_820_003L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 1_787_503_820_003L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = 8_175,
+            )
+        )
+    }
+
+    @Test
+    fun anInstallWithoutAPersistedAnchorFallsBackToTheStoredSensorStart() {
+        // Upgrades from before the anchor was persisted: an id has been seen, so a
+        // start exists and the first push must not be allowed to re-derive it.
+        assertEquals(
+            1_787_503_820_003L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = 8_175,
+            )
+        )
+    }
+
+    @Test
+    fun aSensorThatHasNeverReportedAnIdStillBootstrapsFromItsFirstPush() {
+        assertEquals(
+            0L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 1_787_503_820_003L,
+                persistedLastGlucoseId = -1,
+            )
+        )
+        assertEquals(
+            0L,
+            restoredTimelineStartMs(
+                persistedTimelineStartMs = 0L,
+                persistedSensorStartMs = 0L,
+                persistedLastGlucoseId = -1,
+            )
+        )
+    }
+
+    @Test
+    fun aRestoredAnchorStopsARepeatedIdFromWalkingTheSensorStartForward() {
+        // The 2026-09-09 CT5 trace: id 8175 was frozen past the rated life and every
+        // push re-anchored the session because the anchor lived only in memory.
+        val restored = restoredTimelineStartMs(
+            persistedTimelineStartMs = 0L,
+            persistedSensorStartMs = 1_787_503_820_003L,
+            persistedLastGlucoseId = 8_175,
+        )
+        assertFalse(
+            shouldReanchorTimeline(
+                liveId = 8_175,
+                previousMaxId = 8_175,
+                haveTimelineStart = restored > 0L,
+            )
+        )
+        // A genuinely newer id still moves the timeline.
+        assertTrue(
+            shouldReanchorTimeline(
+                liveId = 8_176,
+                previousMaxId = 8_175,
+                haveTimelineStart = restored > 0L,
+            )
+        )
+    }
+
+    @Test
+    fun aPushWithoutGlucoseStillCountsAsProofTheLinkWorks() {
+        // 2026-09-10: the 15:14:19 push decoded cleanly and carried err=2 and no reading.
+        // The alarm armed from the 15:11:19 reading fired at 15:17:09 and tore the link
+        // down; 170s after a push is well inside a 3-minute cadence.
+        val cadencePlusSlack = 3L * 60_000L + 90_000L
+        assertTrue(hasRecentSensorData(lastSensorDataAtMs = 170_000L, nowMs = 340_000L, withinMs = cadencePlusSlack))
+    }
+
+    @Test
+    fun aSensorThatHasReallyGoneSilentIsNotDefended() {
+        val cadencePlusSlack = 3L * 60_000L + 90_000L
+        assertFalse(hasRecentSensorData(lastSensorDataAtMs = 1_000L, nowMs = 600_000L, withinMs = cadencePlusSlack))
+        assertFalse(hasRecentSensorData(lastSensorDataAtMs = 0L, nowMs = 600_000L, withinMs = cadencePlusSlack))
+    }
+
+    @Test
     fun caughtUpCooldownSuppressesImmediateSameIdBackfillUntilNewerDataArrives() {
         var nowMs = 10_000L
         val cooldown = AnytimeHistoryCaughtUpCooldown(
