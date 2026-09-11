@@ -1464,6 +1464,64 @@ fun InteractiveGlucoseChart(
         visibleMin.takeIf { it.isFinite() } to visibleMax.takeIf { it.isFinite() }
     }
 
+    // Record the main value for the minutes actually on screen.
+    //
+    // Keyed on the viewport rather than on the data, and gated on the chart being
+    // resumed, because the record's claim is "this was presented" — see
+    // PresentedMinuteRecorder for why a query, a prefetch or a point held
+    // off-screen does not count. The settle delay is what separates a stretch the
+    // user stopped to read from one a fling swept past.
+    val presentedRecorderRepository = remember(context) { tk.glucodata.data.HistoryRepository(context) }
+    val isMmolForRecord = remember(unit) { GlucoseFormatter.isMmol(unit) }
+    LaunchedEffect(
+        isResumed,
+        centerTime,
+        visibleDuration,
+        viewMode,
+        renderData,
+        calibratedValueResolver,
+    ) {
+        if (!isResumed || renderData.isEmpty()) return@LaunchedEffect
+        kotlinx.coroutines.delay(PresentedMinuteRecorder.SETTLE_MS)
+
+        val viewportStart = centerTime - visibleDuration / 2L
+        val viewportEnd = centerTime + visibleDuration / 2L
+        val nowMs = System.currentTimeMillis()
+        // A minute inside its grace window can still change, so let it be
+        // resubmitted; the database decides whether the revision lands.
+        PresentedMinuteRecorder.releaseUnsealed(
+            nowMs - tk.glucodata.data.ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+        )
+
+        val visible = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val out = ArrayList<tk.glucodata.data.HistoryRepository.PresentedMinute>()
+            renderData.forEachIndexed { index, point ->
+                if (point.timestamp !in viewportStart..viewportEnd) return@forEachIndexed
+                val serial = point.sensorSerial?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: return@forEachIndexed
+                // Exactly the number the main line drew at this minute.
+                val shown = calibratedValueResolver.valueAt(index, isRawModeChart)
+                if (!shown.isFinite() || shown <= 0.1f) return@forEachIndexed
+                out.add(
+                    tk.glucodata.data.HistoryRepository.PresentedMinute(
+                        minuteMs = point.timestamp,
+                        // Stored in mg/dL like every reading; the chart works in
+                        // display units, so this converts rather than assuming.
+                        displayMgdl = if (isMmolForRecord) {
+                            GlucoseFormatter.mmolToMg(shown)
+                        } else {
+                            shown
+                        },
+                        sensorSerial = serial,
+                        viewMode = viewMode,
+                    )
+                )
+            }
+            out
+        }
+        PresentedMinuteRecorder.recordVisible(presentedRecorderRepository, visible)
+    }
+
     // Manual scaling establishes the baseline; visible outliers may temporarily expand it.
     var baselineYMin by rememberSaveable { mutableFloatStateOf(graphRangeDefaults.first) }
     var baselineYMax by rememberSaveable { mutableFloatStateOf(graphRangeDefaults.second) }

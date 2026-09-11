@@ -159,20 +159,6 @@ fun CalibrationListScreen(
     val expandMasterCalibrationCardOnFirstVisit = remember(calibrationUiPrefs) {
         !calibrationUiPrefs.getBoolean(CalibrationMasterCardSeenPref, false)
     }
-    /**
-     * Seals any minute that has left the grace window since the last pass.
-     *
-     * A calibration change does **not** rewrite what is already recorded — that
-     * is the guarantee, and there is deliberately no code path that could. What
-     * it does mean is that the minutes about to leave the window should be
-     * sealed against the calibration now in force rather than waiting for the
-     * next background pass, so the boundary sits where the user just acted.
-     * Insert-or-ignore, so calling it after every edit is free.
-     */
-    suspend fun recordDisplayValues() {
-        if (currentSensor.isBlank()) return
-        historyRepository.sealDueMainValues(currentSensor)
-    }
 
     var showImportExportSheet by rememberSaveable { mutableStateOf(false) }
     var pendingExportPayload by remember { mutableStateOf<String?>(null) }
@@ -454,7 +440,6 @@ fun CalibrationListScreen(
                             scope.launch {
                                 val backup = cal
                                 CalibrationManager.deleteCalibration(cal)
-                                recordDisplayValues()
                                 
                                 val result = snackbarHostState.showCalibrationUndoSnackbar(
                                     message = context.getString(R.string.calibration_deleted),
@@ -470,14 +455,12 @@ fun CalibrationListScreen(
                                         sensorId = backup.sensorId,
                                         isRawMode = backup.isRawMode
                                     )
-                                    recordDisplayValues()
                                 }
                             }
                         },
                         onToggleDisable = { 
                             scope.launch { 
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = !cal.isEnabled))
-                                recordDisplayValues()
                             }
                         }
                     )
@@ -523,7 +506,6 @@ fun CalibrationListScreen(
                             toUpdate.forEach { cal ->
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = false))
                             }
-                            recordDisplayValues()
                             isSelectionMode = false
                             selectedIds = emptySet()
                         }
@@ -534,7 +516,6 @@ fun CalibrationListScreen(
                             toUpdate.forEach { cal ->
                                 CalibrationManager.updateCalibration(cal.copy(isEnabled = true))
                             }
-                            recordDisplayValues()
                             isSelectionMode = false
                             selectedIds = emptySet()
                         }
@@ -555,7 +536,6 @@ fun CalibrationListScreen(
                                 scope.launch {
                                     val toDelete = calibrations.filter { selectedIds.contains(it.id) }
                                     toDelete.forEach { CalibrationManager.deleteCalibration(it) }
-                                    recordDisplayValues()
                                     
                                     val result = snackbarHostState.showCalibrationUndoSnackbar(
                                         message = context.getString(R.string.calibrations_deleted_count, toDelete.size),
@@ -573,7 +553,6 @@ fun CalibrationListScreen(
                                                 isRawMode = cal.isRawMode
                                             )
                                         }
-                                        recordDisplayValues()
                                     }
                                     
                                     isSelectionMode = false
@@ -598,7 +577,6 @@ fun CalibrationListScreen(
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
                     disabled.forEach { CalibrationManager.deleteCalibration(it) }
-                    recordDisplayValues()
                     snackbarHostState.showSnackbar(
                         message = context.getString(R.string.disabled_calibrations_cleared, disabled.size),
                         duration = SnackbarDuration.Short
@@ -610,7 +588,6 @@ fun CalibrationListScreen(
                 scope.launch {
                     val backup = calibrations
                     CalibrationManager.clearAll()
-                    recordDisplayValues()
                     
                     val result = snackbarHostState.showCalibrationUndoSnackbar(
                         message = context.getString(R.string.all_calibrations_cleared),
@@ -619,7 +596,6 @@ fun CalibrationListScreen(
                     
                     if (result == SnackbarResult.ActionPerformed) {
                         CalibrationManager.restoreAll(backup)
-                        recordDisplayValues()
                     }
                 }
                 showClearConfirmation = false

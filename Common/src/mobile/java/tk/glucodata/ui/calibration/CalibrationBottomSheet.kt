@@ -132,20 +132,6 @@ fun CalibrationBottomSheet(
         else -> selectedAutoValue.takeIf { it > 0f } ?: selectedRawValue.takeIf { it > 0f }
     } ?: initialValueAuto
 
-    /**
-     * Seals the minutes that have just left the grace window.
-     *
-     * Nothing already recorded is touched — a calibration edit cannot move a
-     * value the dashboard has already shown, and no code path exists that would
-     * let it. [startTimestamp] is ignored and kept only so the call sites read
-     * the same; the seal boundary is the grace window, not the edit.
-     */
-    fun sealMainValuesNowDue(startTimestamp: Long = 0L) {
-        if (currentSensor.isBlank()) return
-        CoroutineScope(Dispatchers.IO).launch {
-            historyRepository.sealDueMainValues(currentSensor)
-        }
-    }
 
     // Values
     val startValue = editingEntity?.userValue ?: defaultInputValue
@@ -293,7 +279,6 @@ fun CalibrationBottomSheet(
                             onClick = {
                                 scope.launch {
                                     CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
-                                    sealMainValuesNowDue(editingEntity!!.timestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(
@@ -318,7 +303,6 @@ fun CalibrationBottomSheet(
                                      CalibrationManager.deleteCalibration(editingEntity!!)
                                      selectedTimestamp = System.currentTimeMillis()
                                      onDismiss()
-                                     sealMainValuesNowDue(deletedTimestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -526,7 +510,6 @@ fun CalibrationBottomSheet(
                                     )
                                 )
                                 onDismiss()
-                                sealMainValuesNowDue(minOf(previousTimestamp, selectedTimestamp))
                             } else {
                                 // New
                                 CalibrationManager.addCalibration(
@@ -546,7 +529,6 @@ fun CalibrationBottomSheet(
                                         .takeIf { it.isFinite() && it > 0f } ?: 0f
                                 )
                                 onDismiss()
-                                sealMainValuesNowDue(selectedTimestamp)
                             }
                         }
                     },

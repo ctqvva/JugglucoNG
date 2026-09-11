@@ -9,12 +9,11 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Reads and writes [ReadingDisplay] rows.
  *
- * There is deliberately **no** update or replace-on-conflict write here, and no
- * write that names a single row. A recorded main value is the guarantee this
- * table exists to make; a write that could overwrite one would be the
- * guarantee's only hole. [sealAll] ignores minutes that already have a record,
- * and rows are only ever written for minutes already past the grace window, so
- * the settling tail has nothing stored to contradict it.
+ * Two writes, and no others. [sealAll] records minutes that have none and
+ * ignores those that do. [reviseIfUnsealed] revises a minute that is still
+ * inside its grace window, and refuses — in SQL — to touch one that is not.
+ * There is no REPLACE and no unconditional update, so no caller can move a
+ * sealed value whatever it passes.
  */
 @Dao
 interface ReadingDisplayDao {
@@ -28,6 +27,36 @@ interface ReadingDisplayDao {
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun sealAll(rows: List<ReadingDisplay>): List<Long>
+
+    /**
+     * Revises a record that has not sealed yet.
+     *
+     * The seal is enforced here, in SQL, rather than by whichever caller
+     * remembers to check: `timestamp > :sealHorizon` is the whole guarantee, and
+     * a caller that gets the horizon wrong can only fail to revise a live
+     * minute, never rewrite a sealed one. There is deliberately no other update
+     * and no REPLACE anywhere in this DAO.
+     */
+    @Query(
+        """
+        UPDATE reading_display
+        SET displayMgdl = :displayMgdl,
+            sensorSerial = :sensorSerial,
+            viewMode = :viewMode,
+            calibrationFingerprint = :calibrationFingerprint,
+            recordedAt = :recordedAt
+        WHERE timestamp = :timestamp AND timestamp > :sealHorizon
+        """
+    )
+    suspend fun reviseIfUnsealed(
+        timestamp: Long,
+        sensorSerial: String,
+        displayMgdl: Float,
+        viewMode: Int,
+        calibrationFingerprint: Long,
+        recordedAt: Long,
+        sealHorizon: Long,
+    ): Int
 
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getAllSince(startTime: Long): List<ReadingDisplay>

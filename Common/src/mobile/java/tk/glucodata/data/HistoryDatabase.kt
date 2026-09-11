@@ -49,6 +49,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v25 — discards main values sealed against the wrong sensor
  *   v26 — discards main values sealed against a sensor the user never selected
  *   v27 — discards main values backdated over history nobody watched
+ *   v28 — discards every record written by a background pass
  */
 @Database(
     entities = [
@@ -64,7 +65,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -659,6 +660,28 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+
+        /**
+         * v28 -> discard every record written by a background pass.
+         *
+         * Records are now written only where the chart actually drew a minute.
+         * Everything a background pass wrote was produced by replaying the merge
+         * over stored readings, which cannot reproduce the decision it is
+         * imitating: HistoryDisplayMerge ranks sensors by how recently each last
+         * read and builds coverage from whatever readings exist at query time, so
+         * one later reading, or one backfill row inside a fifteen-minute gap,
+         * changes who owned a minute last week.
+         *
+         * Those rows are plausible and unfalsifiable, which is worse than absent.
+         * Insert-or-ignore cannot replace them, so they go, and the minutes are
+         * recorded again the next time they are on screen.
+         */
+        private val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM reading_display")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -691,7 +714,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_23_24,
                     MIGRATION_24_25,
                     MIGRATION_25_26,
-                    MIGRATION_26_27
+                    MIGRATION_26_27,
+                    MIGRATION_27_28
                 )
                 .build().also { INSTANCE = it }
             }

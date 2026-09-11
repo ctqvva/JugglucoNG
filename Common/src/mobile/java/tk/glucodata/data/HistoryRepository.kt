@@ -1916,193 +1916,104 @@ class HistoryRepository(context: Context = Applic.app) {
 
 
 
+
+
+    /** One minute of the main line, as it was actually put in front of the user. */
+    data class PresentedMinute(
+        val minuteMs: Long,
+        val displayMgdl: Float,
+        val sensorSerial: String,
+        val viewMode: Int,
+    )
+
     /**
-     * Records the main value for every minute that has left the grace window,
-     * and never touches a minute that already has one.
+     * Records the main value for minutes the user has actually been shown.
      *
-     * This replaces three separate write paths that between them recorded
-     * almost nothing. One ran only on the single-reading insert, so backfill,
-     * native re-sync and Nightscout pulls recorded nothing at all. All three
-     * refused to write unless a calibration was already active, so a store with
-     * calibration off — or one whose readings arrived before the user ever
-     * calibrated — had no record to protect and the past moved freely. And all
-     * three keyed the record by sensor, which cannot express which sensor the
-     * dashboard actually drew.
+     * Presentation is the only writer. A background pass over stored readings
+     * cannot produce a record, because the decision it would have to reproduce
+     * is not reproducible: [HistoryDisplayMerge] ranks sensors by how recently
+     * each last read and builds coverage segments out of whatever readings exist
+     * at query time, so one sensor reading again tomorrow, or one late backfill
+     * row landing inside a fifteen-minute gap, changes who owns a minute from
+     * last week. Replaying it later yields a plausible answer with no way to
+     * tell when it is wrong. Capturing the output as it is drawn has nothing to
+     * reproduce.
      *
-     * Three rules make this one honest:
+     * Only what was **visible** may be recorded. A minute the chart queried,
+     * prefetched or held off-screen was presented to nobody, and recording it
+     * would be the same backdating a background pass does, triggered by a scroll
+     * instead. Enforcing that is the caller's job — see [PresentedMinuteRecorder].
      *
-     * 1. **Unconditional.** A minute is recorded whether or not a calibration
-     *    applies to it. The setting decides whether the record is *consulted*,
-     *    never whether it is *kept* — otherwise turning the freeze on protects
-     *    nothing that has not already been recorded, and turning it off loses
-     *    the interval for good.
-     * 2. **Post-horizon only.** Rows are written for minutes already older than
-     *    [ReadingDisplay.DISPLAY_SEAL_GRACE_MS] and for no others, so a stored
-     *    row and a settling minute can never disagree.
-     * 3. **Insert-or-ignore.** A minute that already has a record keeps it,
-     *    whatever today's settings would compute. Replaying this pass is a
-     *    no-op, which is the property that makes the guarantee a guarantee.
+     * A minute older than the grace window freezes on first presentation:
+     * nothing was on screen for it before, so the first time it is shown is the
+     * only honest answer, and it must not move afterwards. A minute still inside
+     * the window is revised, because it is still settling. Which of the two
+     * happens is decided by the database rather than here — see
+     * [ReadingDisplayDao.reviseIfUnsealed].
      *
-     * @param preferredSerial the sensor the dashboard is currently drawing as
-     *   main; the merge decides ownership the same way the chart does, and the
-     *   decision is then frozen into the row.
-     * @param full re-examine minutes behind the watermark as well, for an
-     *   import or native backfill that added readings to minutes already passed.
-     *   Still bounded by the backfill limit below — there is no whole-history
-     *   mode, deliberately.
      * @return how many minutes were newly recorded.
      */
-    suspend fun sealDueMainValues(
-        preferredSerial: String? = null,
-        full: Boolean = false
-    ): Int {
+    suspend fun recordPresentedMinutes(entries: List<PresentedMinute>): Int {
+        if (entries.isEmpty()) return 0
+        if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
+            return 0
+        }
         return withContext(Dispatchers.IO) {
             try {
                 val nowMs = System.currentTimeMillis()
-                val horizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
-                // Never seal history this app did not watch go past.
-                //
-                // A record claims "this is the number that was on screen". A
-                // pass that walks the whole stored timeline cannot know that: all
-                // it has is the preference in force *now*, which it then stamps
-                // on every minute back to the beginning. That is not a record of
-                // what was shown, it is today's opinion backdated — and it is why
-                // a sensor made main at breakfast ended up owning last week, and
-                // why swapping the main sensor appeared not to release the past.
-                //
-                // So the pass only ever reaches back one grace window, which is
-                // exactly the stretch that has aged out since it last ran and
-                // whose values this process saw settle. Minutes older than that
-                // keep no record and derive live, which is honest: nobody knows
-                // what they showed, so nothing claims to.
-                val watermark = runCatching { displayDao.getNewestSealedMinute() }.getOrNull() ?: 0L
-                val backfillFloor = horizon - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
-                val resumeAfter = if (full) {
-                    backfillFloor
-                } else {
-                    maxOf(watermark, backfillFloor)
-                }
-
-                // HistoryDisplayMerge must still see the whole stored timeline:
-                // given a slice it truncates the coverage segments and hands
-                // minutes to a sensor that did not own them. Slice after merging,
-                // never before — the bound above applies to what is written, not
-                // to what the merge is shown.
-                val readings = dao.getReadingsSince(0L)
-                if (readings.isEmpty()) return@withContext 0
-
-                // Never merge with no preference. HistoryDisplayMerge skips
-                // preferred-sensor dominance entirely when it is not given one
-                // and falls back to picking the richest row per timestamp, tie
-                // broken by row id — which is not the sensor the dashboard
-                // draws, and with two sensors reporting in the same minute it is
-                // effectively arbitrary. Sealing that choice freezes the wrong
-                // sensor's number into the record permanently, so resolving the
-                // preference here is not a nicety, it is the difference between
-                // recording what was on screen and recording a coin flip.
-                val preferred = preferredSerial?.trim()?.takeIf { it.isNotEmpty() }
-                    ?: resolvePreferredSerialForSeal()
-                    ?: return@withContext 0
-                val merged = HistoryDisplayMerge.mergeReadings(readings, preferred)
-
-                val viewModes = HashMap<String, Int>()
+                val sealHorizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
                 val fingerprints = HashMap<String, Long>()
-                val claimed = HashSet<Long>()
-                val rows = ArrayList<ReadingDisplay>()
-
-                merged.forEach { reading ->
-                    if (reading.timestamp > horizon) return@forEach
-                    val minute = ReadingDisplay.minuteOf(reading.timestamp)
-                    if (minute <= resumeAfter) return@forEach
-                    if (!claimed.add(minute)) return@forEach
-                    val serial = reading.sensorSerial?.trim()?.takeIf { it.isNotEmpty() }
-                        ?: return@forEach
-
-                    val viewMode = viewModes.getOrPut(serial) { resolveSensorViewMode(serial) }
-                    val isRawMode = viewMode == 1 || viewMode == 3
-                    val base = if (isRawMode) reading.rawValue else reading.value
-                    if (!base.isFinite() || base <= 0f) return@forEach
-
-                    // The number the dashboard would have drawn: the sensor's own
-                    // value, projected through whatever calibration applies. When
-                    // none applies this is the sensor's value unchanged, and that
-                    // is just as much a fact worth keeping.
-                    val shown = if (
-                        runCatching {
-                            CalibrationManager.hasActiveCalibration(isRawMode, serial)
-                        }.getOrDefault(false)
-                    ) {
-                        runCatching {
-                            CalibrationManager.getCalibratedValue(
-                                value = base,
-                                timestamp = reading.timestamp,
-                                isRawMode = isRawMode,
-                                sensorIdOverride = serial
-                            )
-                        }.getOrDefault(base).takeIf { it.isFinite() && it > 0f } ?: base
-                    } else {
-                        base
-                    }
-
-                    rows.add(
-                        ReadingDisplay(
-                            timestamp = minute,
-                            sensorSerial = serial,
-                            displayMgdl = shown,
-                            viewMode = viewMode,
-                            calibrationFingerprint = fingerprints.getOrPut(serial) {
-                                runCatching {
-                                    CalibrationManager
-                                        .getIntegratedCalibrationFingerprint(serial, isRawMode)
-                                }.getOrDefault(0L)
-                            },
-                            recordedAt = nowMs
-                        )
+                val rows = entries.mapNotNull { entry ->
+                    if (!entry.displayMgdl.isFinite() || entry.displayMgdl <= 0f) return@mapNotNull null
+                    val serial = entry.sensorSerial.trim().takeIf { it.isNotEmpty() }
+                        ?: return@mapNotNull null
+                    ReadingDisplay(
+                        timestamp = ReadingDisplay.minuteOf(entry.minuteMs),
+                        sensorSerial = serial,
+                        displayMgdl = entry.displayMgdl,
+                        viewMode = entry.viewMode,
+                        calibrationFingerprint = fingerprints.getOrPut(serial) {
+                            runCatching {
+                                CalibrationManager.getIntegratedCalibrationFingerprint(
+                                    serial,
+                                    entry.viewMode == 1 || entry.viewMode == 3
+                                )
+                            }.getOrDefault(0L)
+                        },
+                        recordedAt = nowMs,
                     )
                 }
-
                 if (rows.isEmpty()) return@withContext 0
+
                 var inserted = 0
                 rows.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
                     inserted += displayDao.sealAll(chunk).count { it >= 0L }
                 }
-                if (inserted > 0) {
-                    UiRefreshBus.requestDataRefresh()
-                    Log.d(TAG, "Sealed $inserted main values (full=$full, after=$resumeAfter)")
+                // Anything that already had a record and is still settling takes
+                // the newer number. The database refuses the rest.
+                rows.forEach { row ->
+                    if (row.timestamp > sealHorizon) {
+                        runCatching {
+                            displayDao.reviseIfUnsealed(
+                                timestamp = row.timestamp,
+                                sensorSerial = row.sensorSerial,
+                                displayMgdl = row.displayMgdl,
+                                viewMode = row.viewMode,
+                                calibrationFingerprint = row.calibrationFingerprint,
+                                recordedAt = row.recordedAt,
+                                sealHorizon = sealHorizon,
+                            )
+                        }
+                    }
                 }
+                if (inserted > 0) UiRefreshBus.requestDataRefresh()
                 inserted
             } catch (e: Exception) {
-                Log.e(TAG, "Failed sealing main values", e)
+                Log.e(TAG, "Failed recording presented minutes", e)
                 0
             }
         }
     }
-
-    /**
-     * The sensor the dashboard would draw as main right now.
-     *
-     * Resolved the same way the dashboard resolves it, so a seal pass with no
-     * caller-supplied preference records the same ownership the user is looking
-     * at. Returns null when nothing can be resolved — the seal is skipped rather
-     * than run with no preference, because a merge with no preference picks a
-     * different sensor than the screen does.
-     */
-    private fun resolvePreferredSerialForSeal(): String? = runCatching {
-        // resolveMainSensor() is the user's selected main, and it has to be
-        // passed. Called with selectedMain = null this falls through to the
-        // managed sensor or, failing that, to whichever serial native happens to
-        // list first — a preference that is not the user's. The seal then froze
-        // ownership against the wrong sensor, so a main that was never on screen
-        // owned the past and the one that was disappeared from it.
-        //
-        // Same inputs as DashboardViewModel.refreshSensorSnapshot, so the record
-        // names the sensor the dashboard was actually drawing.
-        SensorIdentity.resolveAvailableMainSensor(
-            selectedMain = SensorIdentity.resolveMainSensor(),
-            preferredSensorId = null,
-            activeSensors = Natives.activeSensors()
-        )
-    }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
 
     /**
      * The recorded main value's key: the minute, and nothing else.

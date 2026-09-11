@@ -67,96 +67,108 @@ class RecordedMainValueTests {
     }
 
     /**
-     * The guarantee is only as good as the absence of a write that could break
-     * it, so this asserts on the DAO's source rather than on behaviour: no
-     * REPLACE, no @Update, no targeted UPDATE statement against the table.
+     * The guarantee is only as good as the writes that exist, so this asserts on
+     * the DAO's source: exactly two, and the one that can change a row refuses
+     * in SQL to touch a sealed one.
      */
     @Test
-    fun noWritePathCanOverwriteARecordedMainValue() {
+    fun noWritePathCanMoveASealedMainValue() {
         val dao = File("src/mobile/java/tk/glucodata/data/ReadingDisplayDao.kt").readText()
 
-        assertTrue("seal must ignore minutes that already have a record",
-            dao.contains("OnConflictStrategy.IGNORE"))
-        assertFalse("a REPLACE write would silently move a recorded value",
-            dao.contains("OnConflictStrategy.REPLACE"))
-        assertFalse("an @Update would silently move a recorded value",
-            dao.contains("@Update"))
-        assertFalse("an UPDATE statement would silently move a recorded value",
-            dao.contains("UPDATE reading_display"))
-    }
-
-    /**
-     * A recorded main value is mg/dL. Every consumer that works in display units
-     * has to convert it, and one of them did not: the statistics overlay wrote
-     * 292 where 16.2 belonged, the plausibility check rejected it, and the point
-     * was dropped — so a recorded reading disappeared from the statistics
-     * entirely and only the unsealed tail survived.
-     */
-    @Test
-    fun everyConsumerConvertsTheRecordedValueOutOfMgdl() {
-        val stats = File("src/mobile/java/tk/glucodata/ui/stats/StatsViewModel.kt").readText()
-        val overlay = stats.substringAfter("point.sealedDisplayValue").substringBefore("\n        }")
         assertTrue(
-            "the statistics overlay works in display units and must convert",
-            overlay.contains("displayFromMgDl"),
-        )
-
-        val export = File("src/mobile/java/tk/glucodata/data/ExportCalibration.kt").readText()
-        assertTrue(
-            "the export renders display units and must convert",
-            export.contains("GlucoseFormatter.displayFromMgDl(it, isMmol)"),
-        )
-
-        // The chart's points are converted wholesale by inDisplayUnit, which has
-        // to carry the recorded value across with them or the line and the
-        // record end up in different units.
-        val formatter = File("src/main/java/tk/glucodata/ui/util/GlucoseFormatter.kt").readText()
-        assertTrue(
-            "inDisplayUnit must convert the recorded value alongside the reading",
-            formatter.contains("sealedDisplayValue = sealedDisplayValue?.let(GlucoseFormatter::mgToMmol)"),
-        )
-    }
-
-    /**
-     * A record claims "this is what was on screen". A pass that walks the whole
-     * stored timeline cannot know that — it only has the preference in force
-     * now, which it would stamp on every minute back to the beginning. That is
-     * today's opinion backdated, and it is why a sensor made main at breakfast
-     * ended up owning last week.
-     */
-    @Test
-    fun theSealNeverReachesFurtherBackThanOneGraceWindow() {
-        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val pass = repo.substringAfter("suspend fun sealDueMainValues")
-            .substringBefore("\n    private fun")
-
-        assertTrue(
-            "the backfill floor bounds how far back a pass may write",
-            pass.contains("horizon - ReadingDisplay.DISPLAY_SEAL_GRACE_MS"),
-        )
-        assertTrue(
-            "resuming must never start earlier than that floor",
-            pass.contains("maxOf(watermark, backfillFloor)"),
+            "recording a new minute must ignore one that already has a record",
+            dao.contains("OnConflictStrategy.IGNORE"),
         )
         assertFalse(
-            "no mode may seal from the beginning of the timeline",
-            pass.contains("val resumeAfter = if (full) {\n                    0L"),
+            "a REPLACE write would silently move a recorded value",
+            dao.contains("OnConflictStrategy.REPLACE"),
+        )
+        assertFalse(
+            "an @Update would move a sealed row on any caller's say-so",
+            dao.contains("@Update"),
+        )
+        // The revision path exists, but the seal is the database's rule rather
+        // than the caller's: a wrong horizon can only fail to revise a live
+        // minute, never rewrite a sealed one.
+        assertTrue(
+            "revision must be bounded in SQL to minutes inside the grace window",
+            dao.contains("WHERE timestamp = :timestamp AND timestamp > :sealHorizon"),
+        )
+        assertEquals(
+            "exactly one UPDATE statement against the table",
+            1,
+            Regex("UPDATE reading_display").findAll(dao).count(),
         )
     }
 
     /**
-     * The write side must not be gated on a calibration being active, or a store
-     * with calibration off records nothing and the setting protects nothing.
+     * Presentation is the only writer.
+     *
+     * A background pass would have to replay HistoryDisplayMerge to decide who
+     * owned a past minute, and that decision is not reproducible: the merge ranks
+     * sensors by how recently each last read and builds coverage from whatever
+     * readings exist at query time, so one later reading changes the answer for
+     * last week. Such a row is plausible and unfalsifiable, which is worse than
+     * no row at all.
      */
     @Test
-    fun theSealPassRecordsEvenWhenNoCalibrationApplies() {
+    fun nothingButPresentationWritesARecord() {
         val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val pass = repo.substringAfter("suspend fun sealDueMainValues")
-            .substringBefore("\n    private fun displayKey")
 
-        assertTrue("the pass must fall back to the sensor's own value",
-            pass.contains("} else {\n                        base\n                    }"))
-        assertFalse("the pass must not bail out when no calibration is active",
-            pass.contains("if (!CalibrationManager.hasActiveCalibration"))
+        assertTrue(
+            "the presentation path is the writer",
+            repo.contains("suspend fun recordPresentedMinutes"),
+        )
+        assertFalse(
+            "no background pass may seal minutes from stored readings",
+            repo.contains("fun sealDueMainValues"),
+        )
+    }
+
+    /**
+     * Recording must not be gated on a calibration being active, or a store with
+     * calibration off records nothing and the setting protects nothing.
+     */
+    @Test
+    fun aMinuteIsRecordedWhetherOrNotACalibrationApplies() {
+        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val writer = repo.substringAfter("suspend fun recordPresentedMinutes")
+            .substringBefore("\n    /**")
+
+        assertFalse(
+            "the writer must not bail out when no calibration is active",
+            writer.contains("hasActiveCalibration"),
+        )
+        assertTrue(
+            "it is gated on the user's setting and nothing else",
+            writer.contains("shouldFreezeDisplayedValues"),
+        )
+    }
+
+    /**
+     * Only what was on screen may be recorded — the chart holds far more than it
+     * draws, and a minute it merely queried was presented to nobody.
+     */
+    @Test
+    fun onlyVisibleMinutesAreOfferedForRecording() {
+        val recorder = File("src/mobile/java/tk/glucodata/ui/PresentedMinuteRecorder.kt").readText()
+        val chart = File("src/mobile/java/tk/glucodata/ui/DashboardChart.kt").readText()
+
+        assertTrue(
+            "a fling past a stretch is not a presentation",
+            recorder.contains("SETTLE_MS"),
+        )
+        assertTrue(
+            "the recorder waits for the viewport to settle before writing",
+            chart.contains("delay(PresentedMinuteRecorder.SETTLE_MS)"),
+        )
+        assertTrue(
+            "only points inside the drawn viewport are offered",
+            chart.contains("if (point.timestamp !in viewportStart..viewportEnd) return@forEachIndexed"),
+        )
+        assertTrue(
+            "a backgrounded chart presents nothing",
+            chart.contains("if (!isResumed || renderData.isEmpty()) return@LaunchedEffect"),
+        )
     }
 }
