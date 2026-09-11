@@ -1584,9 +1584,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_dose_target">Målvärde för dos</string>
     <string name="predictive_dose_target_explanation">Insulin- och kolhydratförslag korrigerar mot det här värdet. Det är skilt från målområdet i diagrammet.</string>
     <string name="state_dose_hint_title">Dostips</string>
-    <string name="state_dose_hint_desc">Föreslår kolhydrater när värdet är på väg under dosmålet, och en korrigering när det förblir högt utan att sjunka. Kvarvarande insulin dras av; beräkningen är möjlig även med noll IOB. Mängderna räknas ur känsligheten och kolhydratkvoten i modellprofilen; ställ in dem först.</string>
-    <string name="state_dose_hint_in_range_title">Korrigera även i övre delen av målområdet</string>
-    <string name="state_dose_hint_in_range_desc">Föreslår en korrigering även när värdet ligger klart över dosmålet och blir kvar där. Kolhydrater som inte loggats kan få kurvan att se stillastående ut medan mat fortfarande tas upp, och korrigeringen skulle då läggas ovanpå. Siffran är en uträkning ur din profil, inte en rekommendation.</string>
+    <string name="state_dose_hint_desc">Föreslå kolhydrater vid lågt och korrigeringar vid högt</string>
+    <string name="state_dose_hint_in_range_title">Tillåt korrigeringar inom målområdet</string>
+    <string name="state_dose_hint_in_range_desc">Tillåt korrigeringar över dosmålet medan värdet fortfarande är inom målområdet</string>
+    <string name="journal_model_suggestions_section">Förslag</string>
+    <string name="journal_model_desc">Profil, upptag och aktivt insulin</string>
+    <string name="journal_model_title">Modell</string>
     <string name="state_dose_hint_horizon">Dostipsets horisont</string>
     <string name="state_dose_hint_horizon_explanation">Hur långt fram kolhydratförslaget tittar medan värdet faller. Kortare: senare och mer sällan; längre: tidigare och oftare.</string>
     <string name="state_dose_hint_profile_notice_title">Kontrollera din modellprofil</string>
@@ -1598,7 +1601,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d min</string>
     <string name="journal_dose_math_title">Dosräknare</string>
     <string name="journal_food_macros_title">Avancerat matupptag</string>
-    <string name="journal_food_macros_desc">Använd valfritt protein och fett för fördröjda matkurer och dosberäkning</string>
+    <string name="journal_food_macros_desc">Använd protein och fett för fördröjt matupptag</string>
     <string name="journal_aaps_import_title">Importera AAPS-behandlingar</string>
     <string name="journal_aaps_import_desc">Ta emot AAPS-behandlingsbroadcasts och lägg till insulin och kolhydrater i journalen</string>
     <string name="journal_aaps_carbs_title">AAPS-kolhydrater</string>
@@ -1634,7 +1637,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Spara i bibliotek</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fett</string>
-    <string name="journal_dose_calculator_desc">Föreslå kopplat insulin eller kolhydrater från modellprofil och aktivt insulin</string>
+    <string name="journal_dose_calculator_desc">Föreslå insulin eller kolhydrater utifrån din modell</string>
     <string name="journal_meal_shape">Måltidskurva</string>
     <string name="journal_meal_shape_fast">Snabb</string>
     <string name="journal_meal_shape_mixed">Blandad</string>
@@ -1672,7 +1675,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">%1$d%% aktivt</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s E</string>
-    <string name="journal_eiob_display_title">Visa effektivt IOB (eIOB)</string>
+    <string name="journal_eiob_display_title">Effektivt IOB (eIOB)</string>
     <string name="journal_eiob_display_desc">Visa aktivitetsjusterat insulin bredvid IOB</string>
     <string name="journal_iob_expanded">Återstående IoB: %1$s E</string>
     <string name="journal_eiob_expanded">Aktivt eIoB: %1$s E</string>

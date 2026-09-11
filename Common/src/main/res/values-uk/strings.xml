@@ -1658,10 +1658,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_absorption_value">%1$.0f g/h</string>
     <string name="predictive_dose_target">Цільове значення для дози</string>
     <string name="predictive_dose_target_explanation">Рекомендації щодо інсуліну та вуглеводів коригують до цього значення. Воно не пов\'язане з цільовим діапазоном на графіку.</string>
-    <string name="state_dose_hint_title">Підказка щодо дози</string>
-    <string name="state_dose_hint_desc">Пропонує вуглеводи, коли значення йде нижче цілі дозування, і корекцію, коли воно лишається високим і не знижується. Залишковий інсулін віднімається; розрахунок можливий і за нульового IOB. Кількості обчислюються з чутливості та вуглеводного коефіцієнта профілю моделі; спершу задайте їх.</string>
-    <string name="state_dose_hint_in_range_title">Коригувати й у верхній частині діапазону</string>
-    <string name="state_dose_hint_in_range_desc">Пропонує корекцію й тоді, коли значення стоїть помітно вище за ціль дозування й лишається там. Незанесені вуглеводи можуть робити криву рівною, поки їжа ще засвоюється, і корекція тоді ляже зверху. Число, це розрахунок із профілю, а не рекомендація.</string>
+    <string name="state_dose_hint_title">Підказки дози</string>
+    <string name="state_dose_hint_desc">Пропонувати вуглеводи при зниженні та корекцію при високих значеннях</string>
+    <string name="state_dose_hint_in_range_title">Дозволити корекції в цільовому діапазоні</string>
+    <string name="state_dose_hint_in_range_desc">Дозволяти корекції вище цільового значення дози, поки показник ще в діапазоні</string>
+    <string name="journal_model_suggestions_section">Підказки</string>
+    <string name="journal_model_desc">Профіль, засвоєння та активний інсулін</string>
+    <string name="journal_model_title">Модель</string>
     <string name="state_dose_hint_horizon">Горизонт підказки</string>
     <string name="state_dose_hint_horizon_explanation">Наскільки далеко вперед дивиться вуглеводна пропозиція, поки значення падає. Коротше — пізніше й рідше, довше — раніше й частіше.</string>
     <string name="state_dose_hint_profile_notice_title">Перевірте профіль моделі</string>
@@ -1673,7 +1676,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_horizon_value">%1$d хв</string>
     <string name="journal_dose_math_title">Калькулятор дози</string>
     <string name="journal_food_macros_title">Розширене засвоєння їжі</string>
-    <string name="journal_food_macros_desc">Ураховувати білки й жири для пізньої харчової кривої та розрахунку дози</string>
+    <string name="journal_food_macros_desc">Враховувати білки та жири для сповільненого засвоєння їжі</string>
     <string name="journal_aaps_import_title">Імпорт терапії AAPS</string>
     <string name="journal_aaps_import_desc">Приймати трансляції терапії AAPS і додавати інсулін та вуглеводи до журналу</string>
     <string name="journal_aaps_carbs_title">Вуглеводи AAPS</string>
@@ -1709,7 +1712,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_save_to_library">Зберегти в базу</string>
     <string name="journal_food_protein_short">%1$s г білка</string>
     <string name="journal_food_fat_short">%1$s г жиру</string>
-    <string name="journal_dose_calculator_desc">Пропонувати парний інсулін або вуглеводи з профілю моделі та активного інсуліну</string>
+    <string name="journal_dose_calculator_desc">Пропонувати інсулін або вуглеводи за вашою моделлю</string>
     <string name="journal_meal_shape">Крива їжі</string>
     <string name="journal_meal_shape_fast">Швидко</string>
     <string name="journal_meal_shape_mixed">Змішана</string>
@@ -1747,8 +1750,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_active_now_percent">Активно %1$d%%</string>
     <string name="journal_metric_iob">IOB</string>
     <string name="journal_metric_eiob">eIOB %1$s ОД</string>
-    <string name="journal_eiob_display_title">Показувати ефективний IOB (eIOB)</string>
-    <string name="journal_eiob_display_desc">Показувати інсулін із поправкою на активність поруч з IOB</string>
+    <string name="journal_eiob_display_title">Ефективний IOB (eIOB)</string>
+    <string name="journal_eiob_display_desc">Показувати інсулін з урахуванням активності поруч з IOB</string>
     <string name="journal_iob_expanded">Залишковий IoB: %1$s ОД</string>
     <string name="journal_eiob_expanded">Діючий eIoB: %1$s ОД</string>
     <string name="journal_dashboard_quickadd_title">Швидке додавання на головній</string>
