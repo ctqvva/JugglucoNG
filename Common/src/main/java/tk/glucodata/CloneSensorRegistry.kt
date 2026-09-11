@@ -228,6 +228,7 @@ object CloneSensorRegistry {
     fun setReceptionEnabled(enabled: Boolean) {
         synchronized(lock) {
             prefs()?.edit()?.putBoolean(KEY_RECEPTION_ENABLED, enabled)?.apply()
+            CloneRecoveryWake.setReceptionEnabled(enabled)
         }
         CloneBackgroundLiveness.sync()
     }

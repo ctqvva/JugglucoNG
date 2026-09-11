@@ -354,6 +354,31 @@ class CloneReceptionSafetyTests {
     }
 
     @Test
+    fun recoveryWakeIsReceiverScopedBoundedAndJniReachable() {
+        val policy = source("Common/src/main/java/tk/glucodata/CloneRecoveryWake.kt")
+        assertTrue(policy.contains("@Keep"))
+        assertTrue(policy.contains("wake.acquire(timeout)"))
+        assertTrue(policy.contains("setReferenceCounted(false)"))
+        assertFalse(policy.contains("wake.acquire()"))
+        val bridge = source("Common/src/main/cpp/net/ICE/RecoveryWakeBridge.hpp")
+        assertTrue(bridge.contains("\"acquire\", \"()J\""))
+        assertTrue(bridge.contains("\"release\", \"(J)V\""))
+        assertTrue(source("Common/src/main/cpp/backupjava.cpp").contains("initializeCloneRecoveryWake(env)"))
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+        assertTrue(connection.contains("protectRecovery&&side"))
+        assertTrue(connection.contains("recoveryWake.connected(currentAgentGeneration())"))
+        assertTrue(connection.contains("recoveryWake.cancel()"))
+        val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
+        assertTrue(ice.contains("\"local peer generation changed\",true"))
+        assertTrue(ice.contains("\"peer generation changed\",true"))
+        assertFalse(ice.contains("\"remote candidate stream unavailable\",true"))
+        assertTrue(source("Common/src/main/java/tk/glucodata/CloneSensorRegistry.kt")
+            .contains("CloneRecoveryWake.setReceptionEnabled(enabled)"))
+        assertTrue(source("Common/src/main/java/tk/glucodata/keeprunning.java")
+            .contains("CloneRecoveryWake.releaseAll();"))
+    }
+
+    @Test
     fun recoveryTraceSeparatesSuspendFromActiveWaitWithoutWakeLock() {
         val trace = source("Common/src/main/cpp/net/ICE/RecoveryTrace.hpp")
         assertTrue(trace.contains("CLOCK_MONOTONIC"))

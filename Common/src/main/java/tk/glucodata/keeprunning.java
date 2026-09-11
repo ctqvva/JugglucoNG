@@ -132,6 +132,7 @@ static PowerManager.WakeLock wakeLock =null;
   public void onDestroy() {
     logLifecycleState("onDestroy",null);
     CloneBackgroundLiveness.release();
+    CloneRecoveryWake.releaseAll();
     if(theservice==this) {
       theservice=null;
       started=false;

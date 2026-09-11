@@ -20,6 +20,7 @@
 #include <vector>
 #include "net/ICE/GenerationWatchRetry.hpp"
 #include "net/ICE/RendezvousCandidateStream.hpp"
+#include "net/ICE/RecoveryWakeLease.hpp"
 
 // Access the production receive loop without binding a real Wi-Fi interface.
 #define private public
@@ -665,6 +666,51 @@ static void candidateBodiesAreBoundedBeforeIceParsing() {
             "malformed HTTP 200 completed a connected checklist");
 }
 
+static uint64_t wakeAcquires = 0, wakeReleases = 0;
+static uint64_t testAcquireWake() { return ++wakeAcquires; }
+static void testReleaseWake(uint64_t) { ++wakeReleases; }
+
+static void recoveryWakeSpansReplacementWithoutRetryRenewal() {
+    wakeAcquires = wakeReleases = 0;
+    RecoveryWakeLease lease(testAcquireWake, testReleaseWake);
+    require(lease.restart(7, true, [] { return true; }), "restart refused");
+    lease.connected(7); // Late callback from the agent being replaced.
+    require(wakeReleases == 0, "old agent released replacement wake lease");
+    lease.restart(8, false, [] { return true; });
+    lease.restart(9, true, [] { return true; });
+    require(wakeAcquires == 1, "retry or overlapping peer change renewed timeout");
+    lease.connected(10);
+    require(wakeReleases == 1, "replacement success did not release wake lease");
+    lease.cancel();
+    require(wakeReleases == 1, "lease released twice");
+}
+
+static void recoveryWakeRejectsStaleAndUnprotectedRequests() {
+    wakeAcquires = wakeReleases = 0;
+    RecoveryWakeLease lease(testAcquireWake, testReleaseWake);
+    require(!lease.restart(7, true, [] { return false; }), "stale restart accepted");
+    lease.restart(7, false, [] { return true; });
+    require(wakeAcquires == 0, "stale or ordinary retry acquired wake lease");
+    lease.restart(8, true, [] { return true; });
+    lease.cancel();
+    require(wakeAcquires == 1 && wakeReleases == 1, "cancellation leaked lease");
+    lease.restart(9, true, [] { return true; });
+    lease.connected(8);
+    require(wakeAcquires == 2 && wakeReleases == 1,
+            "stale completion released the newer recovery lease");
+    lease.connected(10);
+    require(wakeReleases == 2, "new recovery success leaked lease");
+}
+
+static void recoveryWakeDestructionReleasesPendingLease() {
+    wakeAcquires = wakeReleases = 0;
+    {
+        RecoveryWakeLease lease(testAcquireWake, testReleaseWake);
+        lease.restart(1, true, [] { return true; });
+    }
+    require(wakeAcquires == 1 && wakeReleases == 1, "destruction leaked recovery lease");
+}
+
 int main() {
     const std::pair<const char *, std::function<void()>> tests[] = {
         {"lost offer after peer authentication", [] { recoverLostDescription(0); }},
@@ -696,6 +742,9 @@ int main() {
         {"connected reader preserves queued candidates and legacy completion", connectedCandidateReaderPreservesLegacyCompletion},
         {"candidate reader HTTP failures return for recovery", candidateReaderErrorsRemainBounded},
         {"candidate bodies are bounded before ICE parsing", candidateBodiesAreBoundedBeforeIceParsing},
+        {"recovery wake spans replacement without retry renewal", recoveryWakeSpansReplacementWithoutRetryRenewal},
+        {"recovery wake rejects stale and unprotected requests", recoveryWakeRejectsStaleAndUnprotectedRequests},
+        {"recovery wake destruction releases pending lease", recoveryWakeDestructionReleasesPendingLease},
     };
     int failures = 0;
     for (const auto &[name, test] : tests) {

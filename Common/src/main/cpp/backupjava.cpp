@@ -847,6 +847,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
 #ifdef __ANDROID__
   extern void initializeLocalICEMulticast(JNIEnv *env);
   initializeLocalICEMulticast(env);
+  extern void initializeCloneRecoveryWake(JNIEnv *env);
+  initializeCloneRecoveryWake(env);
 #endif
   std::string host;
   if (rendezvousHost) {

@@ -64,6 +64,7 @@ using namespace std::literals;
 #include "GenerationWatchRetry.hpp"
 #include "RendezvousCandidateStream.hpp"
 #include "RecoveryTrace.hpp"
+#include "RecoveryWakeBridge.hpp"
 #include "net/makerandom.hpp"
 
 extern std::mutex turn_server_mutex;
@@ -136,7 +137,7 @@ void ICEConnect::reloadNetworkConfig(const passhost_t &host) {
 const char *juiceErrorString(int error);
 static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
-                                       const char *reason);
+                                       const char *reason,bool protectRecovery=false);
 
 static bool stillworking(int allindex)  {
     ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
@@ -227,7 +228,7 @@ void localICEPeerGenerationChanged(int allindex, juice_agent_t *agent,
     ICEConnect *con=currentICEConnection(allindex,agent);
     if(con)
         restartRejectedNegotiation(con,agent,agentGeneration,allindex,
-                                   "local peer generation changed");
+                                   "local peer generation changed",true);
     }
 
 void localICEPromotionAvailable(int allindex, juice_agent_t *agent,
@@ -287,8 +288,8 @@ static void wakeCloneSender(const passhost_t &host,uintptr_t reason);
 
 static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
-                                       const char *reason) {
-    if(!con->requestReconnectIfCurrent(agent,generation))
+                                       const char *reason,bool protectRecovery) {
+    if(!con->requestReconnectIfCurrent(agent,generation,protectRecovery))
         return false;
     traceIceRecovery(allindex,generation,"restart-requested");
     const passhost_t &host=getBackupHosts()[allindex];
@@ -465,7 +466,7 @@ static void watchPeerGeneration(
             case PeerGenerationUpdate::Changed:
                 LOGARICE("peer generation changed");
                 restartRejectedNegotiation(con,agent,agentGeneration,allindex,
-                                           "peer generation changed");
+                                           "peer generation changed",true);
                 return GenerationWatchResult::Stop;
         }
         return GenerationWatchResult::Continue;
@@ -907,7 +908,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
     }
 
 void ICEConnect::receiverThread(int argindex) {
-    destruct runningGuard{[this] { releaseReceiverThread(); }};
+    destruct runningGuard{[this] { recoveryWake.cancel(); releaseReceiverThread(); }};
     #ifndef HAVE_NOPRCTL
       constexpr const int maxbuf=14;
       char name[14];
@@ -940,6 +941,7 @@ void ICEConnect::receiverThread(int argindex) {
         wakeReceiver=false;
         traceIceRecovery(argindex,currentAgentGeneration(),"receiver-wait-end");
         if(host.deactivated) {
+            recoveryWake.cancel();
             LOGGERICE("allindex=%d receiverThread parked: host deactivated\n",allindex);
             waitsec=5*60;
             continue;

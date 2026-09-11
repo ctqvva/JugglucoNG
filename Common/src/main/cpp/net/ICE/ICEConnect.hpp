@@ -35,6 +35,7 @@
 #include "ICE_data.hpp"
 #include "ICEConfig.hpp"
 #include "LocalICESignal.hpp"
+#include "RecoveryWakeLease.hpp"
 #define LOGGERICE(...) LOGGER("ICE: " __VA_ARGS__)
 #define LOGARICE(...) LOGAR("ICE: " __VA_ARGS__)
 extern bool initAgent(juice_agent *agent,int allindex);
@@ -97,6 +98,7 @@ std::string rendezvousHost;
 uint16_t rendezvousPort;
 bool verifyRendezvousCertificate;
 bool useLocalDiscovery;
+RecoveryWakeLease recoveryWake;
 
 ICEConnect(int allindex,const passhost_t &host);
 void reloadNetworkConfig(const passhost_t &host);
@@ -109,6 +111,7 @@ void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
        isConnected=false;
        endConnect=true;
+       recoveryWake.cancel();
        cancelRendezvous();
        cancelGenerationWatch();
         icedata[1].setshutdown(); 
@@ -118,12 +121,16 @@ void endConnectionHere() {
         startDone.clear();
         startDone.notify_all();
        }
-bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation) {
-       if(!isCurrentAgent(candidate,generation))
-           return false;
-       bool expected=false;
-       if(!endConnect.compare_exchange_strong(expected,true))
-           return false;
+bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation,
+                               bool protectRecovery=false) {
+       if(!recoveryWake.restart(generation,protectRecovery&&side,[&] {
+           if(!isCurrentAgent(candidate,generation))
+               return false;
+           bool expected=false;
+           if(!endConnect.compare_exchange_strong(expected,true))
+               return false;
+           return true;
+       })) return false;
        isConnected=false;
        cancelRendezvous();
        cancelGenerationWatch();
@@ -266,6 +273,7 @@ void releaseReceiverThread() {
         if(!prepareRendezvousGeneration()) {
                 phase=FailedInitAgent;
                 endConnect=true;
+                recoveryWake.cancel();
                 return -1;
                 }
         phase=NewConnection;
@@ -274,6 +282,7 @@ void releaseReceiverThread() {
         if(!theagent) {
                 phase=FailedInitAgent;
                 endConnect=true;
+                recoveryWake.cancel();
                 cancelGenerationWatch();
                 return -1;
                 }
@@ -296,6 +305,7 @@ void releaseReceiverThread() {
                 #endif
                     }
                 endConnect=true;
+                recoveryWake.cancel();
                 return -1;
                 }
         LOGGERICE("end ICEConnect::newConnection(%d) agent=%p\n",allindex,agent.load());
@@ -529,6 +539,7 @@ void notConnected() {
     }
 void setConnected() {
     isConnected=true;
+    recoveryWake.connected(currentAgentGeneration());
     LOGGERICE("%d setConnected, shutdown=false\n",side);
     icedata[0].shutdown=false;
     icedata[1].shutdown=false;
