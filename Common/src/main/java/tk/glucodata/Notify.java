@@ -2706,7 +2706,6 @@ public class Notify {
             return false;
         }
 
-        boolean incomingAlarm = alarm; // Capture initial state from Native/Caller
         AlertType alertType = null;
         AlertConfig config = null;
 
@@ -2744,35 +2743,10 @@ public class Notify {
                 deliverTriggeredAlert(kind, glvalue, message, strglucose, type);
             }
         } else {
-            // Processing for SILENT updates (alarm was false initially, OR
-            // suppressed/downgraded above)
-
-            // CRITICAL FIX: If incomingAlarm was false, it means Native logic (or caller)
-            // decided
-            // the alarm condition is NOT active (or cleared).
-            // We must RESET the AlertStateTracker so it doesn't get stuck thinking the
-            // episode is
-            // still ongoing forever (preventing future triggers).
-            if (!incomingAlarm && alertType != null) {
-                AlertStateTracker.INSTANCE.resetState(alertType);
-                cancelRetrySession(kind, "condition-cleared");
-            } else if (incomingAlarm && alertType != null) {
-                try {
-                    if (config == null) {
-                        config = AlertRepository.INSTANCE.loadConfig(alertType);
-                    }
-                    syncRetrySession(kind, glvalue, message, strglucose, type, config, false);
-                } catch (Exception e) {
-                    Log.e(LOG_ID, "Error updating retry session: " + e.toString());
-                }
-            }
-
-            if (incomingAlarm) {
-                if (doLog) {
-                    Log.i(LOG_ID, "Suppressed alert did not update UI/notification: kind=" + kind);
-                }
-                return false;
-            }
+            // This call only refreshes the displayed reading. A silent delivery is
+            // not evidence that the alert condition cleared. AlertRuntimeManager
+            // owns condition resolution; acknowledgement and snooze have their
+            // own explicit paths. Leave the episode and retry session intact.
 
             final var act = MainActivity.thisone;
             if (act != null) {
