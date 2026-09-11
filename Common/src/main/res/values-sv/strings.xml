@@ -1591,9 +1591,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Föreslå kolhydrater vid lågt och korrigeringar vid högt</string>
     <string name="state_dose_hint_in_range_title">Tillåt korrigeringar inom målområdet</string>
     <string name="state_dose_hint_in_range_desc">Tillåt korrigeringar över dosmålet medan värdet fortfarande är inom målområdet</string>
-    <string name="journal_model_suggestions_section">Förslag</string>
-    <string name="journal_model_desc">Profil, upptag och aktivt insulin</string>
-    <string name="journal_model_title">Modell</string>
+    <string name="journal_calculations_suggestions_section">Förslag</string>
+    <string name="journal_calculations_desc">Profil, upptag, aktivt insulin och dostips</string>
+    <string name="journal_calculations_title">Beräkningar</string>
     <string name="state_dose_hint_horizon">Dostipsets horisont</string>
     <string name="state_dose_hint_horizon_explanation">Hur långt fram kolhydratförslaget tittar medan värdet faller. Kortare: senare och mer sällan; längre: tidigare och oftare.</string>
     <string name="state_dose_hint_profile_notice_title">Kontrollera din modellprofil</string>

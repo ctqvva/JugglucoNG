@@ -2094,9 +2094,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Suggest carbs for lows and corrections for highs</string>
     <string name="state_dose_hint_in_range_title">Allow in-range corrections</string>
     <string name="state_dose_hint_in_range_desc">Allow corrections above the dose target while still in range</string>
-    <string name="journal_model_suggestions_section">Suggestions</string>
-    <string name="journal_model_desc">Profile, absorption and active insulin</string>
-    <string name="journal_model_title">Model</string>
+    <string name="journal_calculations_suggestions_section">Suggestions</string>
+    <string name="journal_calculations_desc">Profile, absorption, active insulin and dose hints</string>
+    <string name="journal_calculations_title">Calculations</string>
     <string name="state_dose_hint_horizon">Dose hint horizon</string>
     <string name="state_dose_hint_horizon_explanation">How far ahead the carb suggestion looks while the value is falling. Shorter reacts later and says less; longer reacts earlier and says more.</string>
     <string name="state_dose_hint_profile_notice_title">Check your model profile</string>

@@ -1619,9 +1619,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="state_dose_hint_desc">Düşüşte karbonhidrat, yükseklerde düzeltme öner</string>
     <string name="state_dose_hint_in_range_title">Aralık içinde düzeltmeye izin ver</string>
     <string name="state_dose_hint_in_range_desc">Değer hâlâ aralıktayken doz hedefinin üzerinde düzeltmeye izin ver</string>
-    <string name="journal_model_suggestions_section">Öneriler</string>
-    <string name="journal_model_desc">Profil, emilim ve aktif insülin</string>
-    <string name="journal_model_title">Model</string>
+    <string name="journal_calculations_suggestions_section">Öneriler</string>
+    <string name="journal_calculations_desc">Profil, emilim, aktif insülin ve doz ipuçları</string>
+    <string name="journal_calculations_title">Hesaplamalar</string>
     <string name="state_dose_hint_horizon">Doz ipucu ufku</string>
     <string name="state_dose_hint_horizon_explanation">Değer düşerken karbonhidrat önerisinin ne kadar ileriye baktığı. Kısa: daha geç ve daha seyrek; uzun: daha erken ve daha sık.</string>
     <string name="state_dose_hint_profile_notice_title">Model profilinizi kontrol edin</string>

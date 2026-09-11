@@ -1633,9 +1633,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Предлагать углеводы при снижении и коррекцию при высоких значениях</string>
     <string name="state_dose_hint_in_range_title">Разрешить коррекции в целевом диапазоне</string>
     <string name="state_dose_hint_in_range_desc">Разрешать коррекции выше целевого значения дозы, пока показатель ещё в диапазоне</string>
-    <string name="journal_model_suggestions_section">Подсказки</string>
-    <string name="journal_model_desc">Профиль, усвоение и активный инсулин</string>
-    <string name="journal_model_title">Модель</string>
+    <string name="journal_calculations_suggestions_section">Подсказки</string>
+    <string name="journal_calculations_desc">Профиль, усвоение, активный инсулин и подсказки дозы</string>
+    <string name="journal_calculations_title">Расчёты</string>
     <string name="state_dose_hint_horizon">Горизонт подсказки</string>
     <string name="state_dose_hint_horizon_explanation">Насколько далеко вперёд смотрит углеводное предложение при падении значения. Короче — позже и реже, длиннее — раньше и чаще.</string>
     <string name="state_dose_hint_profile_notice_title">Проверьте профиль модели</string>

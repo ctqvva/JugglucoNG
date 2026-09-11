@@ -1607,9 +1607,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">偏低时建议碳水，偏高时建议校正</string>
     <string name="state_dose_hint_in_range_title">允许范围内校正</string>
     <string name="state_dose_hint_in_range_desc">血糖仍在范围内但高于剂量目标时也允许校正</string>
-    <string name="journal_model_suggestions_section">建议</string>
-    <string name="journal_model_desc">配置、吸收与活性胰岛素</string>
-    <string name="journal_model_title">模型</string>
+    <string name="journal_calculations_suggestions_section">建议</string>
+    <string name="journal_calculations_desc">配置、吸收、活性胰岛素与剂量提示</string>
+    <string name="journal_calculations_title">计算</string>
     <string name="state_dose_hint_horizon">剂量提示前瞻时长</string>
     <string name="state_dose_hint_horizon_explanation">血糖下降时碳水建议向前看多远。越短越晚提示、提示越少；越长越早提示、提示越多。</string>
     <string name="state_dose_hint_profile_notice_title">检查模型配置</string>

@@ -1634,9 +1634,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="state_dose_hint_desc">Koolhydraten voorstellen bij lage en correcties bij hoge waarden</string>
     <string name="state_dose_hint_in_range_title">Correcties binnen bereik toestaan</string>
     <string name="state_dose_hint_in_range_desc">Correcties boven het dosisdoel toestaan terwijl de waarde nog binnen bereik is</string>
-    <string name="journal_model_suggestions_section">Suggesties</string>
-    <string name="journal_model_desc">Profiel, opname en actieve insuline</string>
-    <string name="journal_model_title">Model</string>
+    <string name="journal_calculations_suggestions_section">Suggesties</string>
+    <string name="journal_calculations_desc">Profiel, opname, actieve insuline en dosishints</string>
+    <string name="journal_calculations_title">Berekeningen</string>
     <string name="state_dose_hint_horizon">Horizon van de hint</string>
     <string name="state_dose_hint_horizon_explanation">Hoe ver het koolhydraatvoorstel vooruitkijkt bij een dalende waarde. Korter meldt later en minder vaak, langer eerder en vaker.</string>
     <string name="state_dose_hint_profile_notice_title">Controleer je modelprofiel</string>

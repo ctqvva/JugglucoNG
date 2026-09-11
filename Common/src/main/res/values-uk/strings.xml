@@ -1665,9 +1665,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="state_dose_hint_desc">Пропонувати вуглеводи при зниженні та корекцію при високих значеннях</string>
     <string name="state_dose_hint_in_range_title">Дозволити корекції в цільовому діапазоні</string>
     <string name="state_dose_hint_in_range_desc">Дозволяти корекції вище цільового значення дози, поки показник ще в діапазоні</string>
-    <string name="journal_model_suggestions_section">Підказки</string>
-    <string name="journal_model_desc">Профіль, засвоєння та активний інсулін</string>
-    <string name="journal_model_title">Модель</string>
+    <string name="journal_calculations_suggestions_section">Підказки</string>
+    <string name="journal_calculations_desc">Профіль, засвоєння, активний інсулін і підказки дози</string>
+    <string name="journal_calculations_title">Розрахунки</string>
     <string name="state_dose_hint_horizon">Горизонт підказки</string>
     <string name="state_dose_hint_horizon_explanation">Наскільки далеко вперед дивиться вуглеводна пропозиція, поки значення падає. Коротше — пізніше й рідше, довше — раніше й частіше.</string>
     <string name="state_dose_hint_profile_notice_title">Перевірте профіль моделі</string>
