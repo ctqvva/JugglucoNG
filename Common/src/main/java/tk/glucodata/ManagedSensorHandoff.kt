@@ -30,6 +30,12 @@ object ManagedSensorHandoff {
         VIEW_MODE_PREFS,
     )
     private val aidexPairKeyPrefs = setOf(AIDEX_PAIR_KEY_PRIMARY_PREFS, AIDEX_PAIR_KEY_RECOVERY_PREFS)
+
+    /** Per-device bookkeeping in [AIDEX_NATIVE_PREFS] that must not travel with a handoff. */
+    private val deviceLocalAidexKeys = arrayOf(
+        "historyRawNextIndex_",
+        "historyBriefNextIndex_",
+    )
     private val managedRecordSetKeys = setOf(
         "aidex_sensors",
         "anytime_sensors",
@@ -205,6 +211,13 @@ object ManagedSensorHandoff {
             }
         }
         if (prefsName == AIDEX_NATIVE_PREFS) {
+            // A download cursor says what *this* device has already pulled off the sensor. Sent
+            // to a device holding none of it, it reads as "already have 1..2968": the receiver
+            // downloads the two newest rows and stops, and the sensor's full history — which it
+            // was still offering — is never fetched. The receiver keeps its own cursor.
+            if (deviceLocalAidexKeys.any { key.startsWith(it) }) {
+                return false
+            }
             return keyMatchesCandidate(key, candidates)
         }
         return managedKeyPrefixes.any { key.startsWith(it) } && keyMatchesCandidate(key, candidates)
@@ -278,6 +291,10 @@ object ManagedSensorHandoff {
      */
     internal fun exportsKeyForSensor(key: String, sensorId: String): Boolean =
         shouldExportKey(key, "", setOf(sensorId), MAIN_PREFS)
+
+    /** Whether an AiDexNativePrefs entry would travel with a handoff. For tests. */
+    internal fun exportsAidexNativeKeyForSensor(key: String, sensorId: String): Boolean =
+        shouldExportKey(key, "", setOf(sensorId), AIDEX_NATIVE_PREFS)
 
     /** Whether an AiDex PAIR-key vault entry would travel with a handoff. For tests. */
     internal fun exportsPairKeyEntryForSensor(entryKey: String, sensorId: String): Boolean =
