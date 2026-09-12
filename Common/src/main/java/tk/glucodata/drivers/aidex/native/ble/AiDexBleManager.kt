@@ -2847,12 +2847,24 @@ class AiDexBleManager(
     // Key Exchange
     // =========================================================================
 
-    private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction =
-        AiDexRuntimePolicy.decidePairKeyStartAction(
+    private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction {
+        if (persistedPairKey == null) {
+            // A handoff writes the vault straight to SharedPreferences and may land after this
+            // manager was constructed, which is when the key is normally read. Without this the
+            // receiving device (typically the watch) would fresh-pair a sensor whose key it now
+            // holds — and a fresh F001 is what the sensor refuses while another device is bonded.
+            AiDexPairKeyVault.load(Applic.app, SerialNumber)?.let { stored ->
+                Log.i(TAG, "Picked up an AiDex PAIR credential stored after this manager started")
+                persistedPairKey = stored
+                savedKeyExhausted = false
+            }
+        }
+        return AiDexRuntimePolicy.decidePairKeyStartAction(
             hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
             savedKeyExhausted = savedKeyExhausted,
             explicitPairRequested = explicitPairRequested,
         )
+    }
 
     private fun startKeyExchangeForCurrentConnection(gatt: BluetoothGatt) {
         when (decidePairKeyStartAction()) {
