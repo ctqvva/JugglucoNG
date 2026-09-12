@@ -2681,19 +2681,23 @@ fun InteractiveGlucoseChart(
                     val doTintMain = true
                     // Lane colours: the other signal beside the main line. The
                     // theme greys when the primary is the only sensor and has no
-                    // picked colour — as before — and otherwise the sensor's own
-                    // colour toned toward neutral, the way a peer's lanes are, so
-                    // a sensor's lanes read as that sensor's. The tertiary lane
-                    // is the fainter of the two either way.
+                    // picked colour — as before — and otherwise the same greys
+                    // nudged toward the sensor's own colour, so a sensor's lanes
+                    // read as that sensor's without competing with its main
+                    // line. A tinted lane reads louder than a grey one, so it
+                    // gets a touch less alpha. The tertiary lane is the fainter
+                    // of the two either way.
                     val laneIdentity = primaryPickedColor
                         ?: primaryIdentityColor.takeIf { chartModel.peers.isNotEmpty() }
-                    fun laneColor(tertiary: Boolean): Color =
-                        if (laneIdentity == null) {
-                            if (tertiary) tertiaryColor else secondaryColor
-                        } else {
-                            androidx.compose.ui.graphics.lerp(laneIdentity, peerNeutralBase, 0.46f)
-                                .copy(alpha = if (tertiary) 0.45f else 0.8f)
-                        }
+                    fun laneColor(tertiary: Boolean): Color {
+                        val grey = if (tertiary) tertiaryColor else secondaryColor
+                        if (laneIdentity == null) return grey
+                        return androidx.compose.ui.graphics.lerp(
+                            grey,
+                            laneIdentity,
+                            tk.glucodata.SensorVisuals.LANE_IDENTITY_TINT,
+                        ).copy(alpha = if (tertiary) 0.4f else 0.7f)
+                    }
                     val rawLaneColor = laneColor(tertiary = hasCalibration && viewMode == 2)
                     val autoLaneColor = laneColor(tertiary = hasCalibration && viewMode == 3)
                     // The primary drawn where it is not main: its own identity
