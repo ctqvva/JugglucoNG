@@ -2943,11 +2943,9 @@ public class Notify {
                 ;
 
                 setIcon(GluNotBuilder, glvalue, glucose.sensorgen2);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    // final int timeout= Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    final int timeout = 800 * 60;// Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    GluNotBuilder.setTimeoutAfter(timeout);
-                }
+                // Do not expire an unacknowledged alert. Android also sends the delete
+                // intent on timeout, which would falsely dismiss/snooze the episode and
+                // cancel its retries. The sound/vibration timer is independent.
                 GluNotBuilder.setPriority(Notification.PRIORITY_HIGH);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     GluNotBuilder.setCategory(Notification.CATEGORY_ALARM);
