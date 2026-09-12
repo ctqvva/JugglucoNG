@@ -533,15 +533,11 @@ fun SensorCard(
     var aiDexBiasChecked by remember(sensor.serial, sensor.resetCompensationActive) { mutableStateOf(sensor.resetCompensationActive) }
     // Edit 78: resetBiasChecked removed — bias toggle now lives in the bottom sheet as an independent switch
 
-    // A lone sensor with no colour of its own is drawn the way the dashboard trace is —
-    // the theme accent — rather than a palette hue assigned by a hash nobody chose. A second
-    // sensor, or a colour the user picked, is what makes identity colour worth showing.
-    val hasPickedColor = SensorVisuals.colorOverrideArgb(sensor.serial) != null
-    val sensorTint = if (sensorCount > 1 || hasPickedColor) {
-        sensor.color
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
+    // The sensor's identity colour: the one the user picked, or the palette hue assigned
+    // to its serial — a lone sensor included, so the card is coloured the same way whether
+    // or not a second sensor is on the list. The dashboard trace is what withholds the
+    // hash colour (it would cost the range bands); the card has no such reason.
+    val sensorTint = sensor.color
 
     val scope = rememberCoroutineScope() // Fix: Add missing scope
     var pendingAnytimeCredentialBackup by remember { mutableStateOf<String?>(null) }
