@@ -224,6 +224,10 @@ class AiDexBleManager(
         private const val POST_RESET_WAITING_STATUS = "Waiting for first valid reading"
         private const val CONNECTED_BROADCAST_FALLBACK_STATUS = "Connected (broadcast fallback)"
         private const val SETUP_DISCONNECT_BROADCAST_FALLBACK_THRESHOLD = 3
+        // A streaming session torn down within this many ms, on an unbonded saved-key link,
+        // is the sensor evicting us because its single bond slot belongs to another phone.
+        private const val SHORT_STREAMING_EVICTION_MS = 20_000L
+        private const val UNBONDED_STREAMING_EVICTION_THRESHOLD = 3
         private const val BROADCAST_FALLBACK_LIVE_TIMEOUT_MS = 90_000L
         private const val LIVE_HISTORY_CONTINUITY_BUCKET_MS = 60_000L
         private const val LIVE_HISTORY_CONTINUITY_MAX_MISSING_BUCKETS = 10
@@ -937,6 +941,8 @@ class AiDexBleManager(
     // soft disconnect instead of normal reconnect.
     @Volatile private var pendingUnpairDisconnect: Boolean = false
     @Volatile private var consecutiveSetupDisconnects: Int = 0
+    /** Consecutive short-lived streaming drops on an unbonded saved-key link (sensor eviction). */
+    @Volatile private var consecutiveUnbondedStreamingEvictions: Int = 0
 
     // -- AiDexDriver State --
     @Volatile private var _batteryMillivolts: Int = 0
@@ -1945,6 +1951,8 @@ class AiDexBleManager(
 
         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             val disconnectPhase = phase
+            // Captured before connectTime is cleared below.
+            val sessionAgeMs = if (connectTime > 0L) System.currentTimeMillis() - connectTime else Long.MAX_VALUE
             Log.i(TAG, "Disconnected. status=$status")
             logDisconnectContext(gatt, status, disconnectPhase)
             lastLiveReadingObservedTimeMs = 0L
@@ -2026,6 +2034,40 @@ class AiDexBleManager(
                 }
             } else if (status != 0) {
                 consecutiveSetupDisconnects = 0
+            }
+
+            // An unbonded saved-key link that keeps getting torn down within seconds is being
+            // evicted: the sensor's single bond slot belongs to another phone, so it hands us a
+            // brief session and drops us. Looping the reconnect forever just churns the radio.
+            // After a few evictions, hold in broadcast-only (readings still flow) and keep the
+            // key — pressing Pair retries once the other phone frees the slot.
+            if (
+                disconnectPhase == Phase.STREAMING &&
+                !pendingUnpairDisconnect && !pendingResetReconnect && !stop &&
+                !reconnect.isBroadcastOnlyMode &&
+                persistedPairKey != null &&
+                currentBondState() != BluetoothDevice.BOND_BONDED
+            ) {
+                if (sessionAgeMs < SHORT_STREAMING_EVICTION_MS) {
+                    consecutiveUnbondedStreamingEvictions += 1
+                    Log.w(
+                        TAG,
+                        "Unbonded streaming session dropped after ${sessionAgeMs}ms (status=$status) — " +
+                            "eviction ${consecutiveUnbondedStreamingEvictions}/$UNBONDED_STREAMING_EVICTION_THRESHOLD"
+                    )
+                    if (consecutiveUnbondedStreamingEvictions >= UNBONDED_STREAMING_EVICTION_THRESHOLD) {
+                        consecutiveUnbondedStreamingEvictions = 0
+                        Log.w(TAG, "Repeated unbonded streaming evictions — sensor bond belongs to another phone; holding broadcast-only")
+                        enterBroadcastOnlyFallback(
+                            reason = "unbonded-streaming-eviction",
+                            statusText = "Direct link unavailable — Broadcast Only",
+                        )
+                        return
+                    }
+                } else {
+                    // A session that lasted proves we are not being evicted; forget past drops.
+                    consecutiveUnbondedStreamingEvictions = 0
+                }
             }
 
             // Schedule reconnect — but NOT if paused (stop=true) or broadcast-only
