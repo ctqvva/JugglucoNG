@@ -1014,6 +1014,21 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         Natives.setDeviceAddress(dataptr, address);
     }
 
+    /**
+     * Drop a callback object without releasing its native data. Used when a callback turns
+     * out to be a duplicate of a live one: both were resolved from the same sensor, so they
+     * share a dataptr, and {@link #free()} would hand the running callback's
+     * SensorGlucoseData back to the allocator — taking that sensor's history with it.
+     */
+    void discard() {
+        stop = true;
+        if (doLog) {
+            Log.i(LOG_ID, "discard " + SerialNumber);
+        }
+        close();
+        dataptr = 0L;
+    }
+
     void free() {
         stop = true;
         {

@@ -2640,4 +2640,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Cerca nuovi valori</string>
     <string name="nightscout_follow_interval_desc">Ogni quanto il follower interroga il server. È anche quanto può essere vecchio un valore, e quindi quanto può ritardare un allarme su un valore seguito. Un follower non ha un sensore proprio che tenga sveglio il telefono, quindi ogni controllo è un risveglio.</string>
     <string name="nightscout_follow_interval_doze">Sotto i 9 minuti Android può comunque distanziare i controlli mentre il telefono è inattivo. Escludere Juggluco dall\'ottimizzazione della batteria mantiene l\'intervallo scelto.</string>
+    <string name="aidex_pairing_key_backup">Backup della chiave di associazione</string>
+    <string name="aidex_pairing_key_backup_warning">Questo file contiene la credenziale di associazione del sensore. Conservalo in modo riservato.</string>
+    <string name="aidex_pairing_key_saved">Backup della chiave di associazione salvato</string>
+    <string name="aidex_pairing_key_unavailable">Non è ancora disponibile una chiave di associazione verificata</string>
+    <string name="aidex_restore_pairing_key">Ripristina la chiave di associazione</string>
+    <string name="aidex_pairing_key_restored">Chiave di associazione ripristinata. Seleziona il sensore corrispondente.</string>
+    <string name="aidex_pairing_key_restore_failed">Questo non è un backup valido della chiave AiDex</string>
+    <string name="aidex_pairing_key_conflict">Per questo sensore è già memorizzata una chiave diversa; non è stato sovrascritto nulla</string>
+    <string name="aidex_pairing_key_delete">Elimina chiave</string>
+    <string name="aidex_pairing_key_delete_confirm">Eliminare questa chiave di associazione? Dovrai associare di nuovo il sensore per ottenerne una nuova.</string>
+    <string name="aidex_pairing_key_deleted">Chiave di associazione eliminata</string>
 </resources>

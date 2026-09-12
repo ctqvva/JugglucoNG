@@ -10,6 +10,70 @@ import org.junit.Test
 class AiDexRuntimePolicyTests {
 
     @Test
+    fun pairKeyStartAction_aSensorWithoutASavedKeyPairsFreshBondedOrNot() {
+        // Every sensor paired before the vault existed is bonded with no key. The driver did
+        // F001 on every connect until now, so it simply does it once more after the update.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false, savedKeyExhausted = true)
+        )
+    }
+
+    @Test
+    fun pairKeyStartAction_aSavedKeyIsAlwaysUsedAndNeverRotatedByPair() {
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true)
+        )
+        // Pair on a keyed sensor that is still working must not run F001 against it.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, explicitPairRequested = true)
+        )
+        // Nothing automatic replaces a key either, even after it has failed its retries.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, savedKeyExhausted = true)
+        )
+    }
+
+    @Test
+    fun pairKeyStartAction_userPressingPairIsTheOnlyWayOffADeadSavedKey() {
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                hasSavedPairKey = true,
+                savedKeyExhausted = true,
+                explicitPairRequested = true,
+            )
+        )
+    }
+
+    @Test
+    fun keyExchangeFailures_retryBoundedlyThenHoldInBroadcastOnly() {
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RETRY_CLEAN_GATT,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(2, 3)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3)
+        )
+    }
+
+    @Test
+    fun persistedPairKeyClearsOnlyAfterSuccessfulDeleteBondAck() {
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(false, 0x00))
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x01))
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0xFF))
+        assertTrue(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x00))
+    }
+
+    @Test
     fun initialAssistDelay_waitsForInitialHistoryWindow() {
         val delayMs = AiDexRuntimePolicy.initialAssistDelayMs(
             nowMs = 16_000L,
@@ -563,7 +627,7 @@ class AiDexRuntimePolicyTests {
     }
 
     @Test
-    fun decideInvalidSetupRecoveryAction_escalatesToBondResetOnlyForUnvalidatedBond() {
+    fun decideInvalidSetupRecoveryAction_neverRemovesBondAutomatically() {
         assertEquals(
             AiDexRuntimePolicy.InvalidSetupRecoveryAction.RECONNECT,
             AiDexRuntimePolicy.decideInvalidSetupRecoveryAction(
@@ -574,7 +638,7 @@ class AiDexRuntimePolicyTests {
             )
         )
         assertEquals(
-            AiDexRuntimePolicy.InvalidSetupRecoveryAction.REMOVE_BOND_AND_RECONNECT,
+            AiDexRuntimePolicy.InvalidSetupRecoveryAction.RECONNECT,
             AiDexRuntimePolicy.decideInvalidSetupRecoveryAction(
                 consecutiveRecoveries = 2,
                 bondState = BluetoothDevice.BOND_BONDED,

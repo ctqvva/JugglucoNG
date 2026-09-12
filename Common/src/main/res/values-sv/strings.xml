@@ -2650,4 +2650,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Leta efter nya värden</string>
     <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
     <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
+    <string name="aidex_pairing_key_backup">Säkerhetskopia av parkopplingsnyckel</string>
+    <string name="aidex_pairing_key_backup_warning">Filen innehåller sensorns parkopplingsnyckel. Förvara den privat och säkert.</string>
+    <string name="aidex_pairing_key_saved">Säkerhetskopian av parkopplingsnyckeln har sparats</string>
+    <string name="aidex_pairing_key_unavailable">Ingen verifierad parkopplingsnyckel är tillgänglig ännu</string>
+    <string name="aidex_restore_pairing_key">Återställ parkopplingsnyckel</string>
+    <string name="aidex_pairing_key_restored">Parkopplingsnyckeln har återställts. Välj motsvarande sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">Detta är inte en giltig säkerhetskopia av en AiDex-nyckel</string>
+    <string name="aidex_pairing_key_conflict">En annan nyckel är redan sparad för sensorn; ingenting skrevs över</string>
+    <string name="aidex_pairing_key_delete">Ta bort nyckel</string>
+    <string name="aidex_pairing_key_delete_confirm">Ta bort denna parkopplingsnyckel? Du måste parkoppla sensorn igen för att få en ny.</string>
+    <string name="aidex_pairing_key_deleted">Parkopplingsnyckel borttagen</string>
 </resources>

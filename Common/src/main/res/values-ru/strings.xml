@@ -2697,4 +2697,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Проверять новые значения</string>
     <string name="nightscout_follow_interval_desc">Как часто подписчик опрашивает сервер. Это же определяет, насколько старым может быть значение, а значит и насколько поздно придёт тревога по отслеживаемому значению. У подписчика нет своего сенсора, который держал бы телефон активным, поэтому каждая проверка — это пробуждение.</string>
     <string name="nightscout_follow_interval_doze">Меньше 9 минут Android всё равно может разносить проверки, пока телефон простаивает. Исключение Juggluco из оптимизации батареи сохраняет выбранный интервал.</string>
+    <string name="aidex_pairing_key_backup">Резервная копия ключа сопряжения</string>
+    <string name="aidex_pairing_key_backup_warning">Этот файл содержит ключ сопряжения датчика. Храните его конфиденциально.</string>
+    <string name="aidex_pairing_key_saved">Резервная копия ключа сопряжения сохранена</string>
+    <string name="aidex_pairing_key_unavailable">Проверенный ключ сопряжения пока недоступен</string>
+    <string name="aidex_restore_pairing_key">Восстановить ключ сопряжения</string>
+    <string name="aidex_pairing_key_restored">Ключ сопряжения восстановлен. Выберите соответствующий датчик.</string>
+    <string name="aidex_pairing_key_restore_failed">Это не резервная копия ключа AiDex</string>
+    <string name="aidex_pairing_key_conflict">Для этого датчика уже сохранён другой ключ; ничего не перезаписано</string>
+    <string name="aidex_pairing_key_delete">Удалить ключ</string>
+    <string name="aidex_pairing_key_delete_confirm">Удалить этот ключ сопряжения? Чтобы получить новый, потребуется снова выполнить сопряжение датчика.</string>
+    <string name="aidex_pairing_key_deleted">Ключ сопряжения удалён</string>
 </resources>

@@ -2678,4 +2678,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_follow_interval_title">Yeni değerleri kontrol et</string>
     <string name="nightscout_follow_interval_desc">Takipçinin sunucuya ne sıklıkla sorduğu. Bu aynı zamanda bir değerin ne kadar eski olabileceği, dolayısıyla takip edilen bir değere dayanan alarmın ne kadar geç gelebileceğidir. Takipçinin telefonu uyanık tutan kendi sensörü yoktur, bu yüzden her kontrol bir uyandırmadır.</string>
     <string name="nightscout_follow_interval_doze">9 dakikanın altında Android, telefon boştayken kontrolleri yine de aralayabilir. Juggluco\'yu pil optimizasyonundan çıkarmak seçilen aralığı korur.</string>
+    <string name="aidex_pairing_key_backup">Eşleştirme anahtarı yedeği</string>
+    <string name="aidex_pairing_key_backup_warning">Bu dosya sensörün eşleştirme anahtarını içerir. Gizli ve güvenli saklayın.</string>
+    <string name="aidex_pairing_key_saved">Eşleştirme anahtarı yedeği kaydedildi</string>
+    <string name="aidex_pairing_key_unavailable">Henüz doğrulanmış bir eşleştirme anahtarı yok</string>
+    <string name="aidex_restore_pairing_key">Eşleştirme anahtarını geri yükle</string>
+    <string name="aidex_pairing_key_restored">Eşleştirme anahtarı geri yüklendi. Eşleşen sensörü seçin.</string>
+    <string name="aidex_pairing_key_restore_failed">Bu geçerli bir AiDex anahtar yedeği değil</string>
+    <string name="aidex_pairing_key_conflict">Bu sensör için farklı bir anahtar zaten kayıtlı; hiçbir şeyin üzerine yazılmadı</string>
+    <string name="aidex_pairing_key_delete">Anahtarı sil</string>
+    <string name="aidex_pairing_key_delete_confirm">Bu eşleştirme anahtarı silinsin mi? Yenisini almak için sensörü tekrar eşleştirmeniz gerekir.</string>
+    <string name="aidex_pairing_key_deleted">Eşleştirme anahtarı silindi</string>
 </resources>

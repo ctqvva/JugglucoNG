@@ -2666,4 +2666,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">检查新数值</string>
     <string name="nightscout_follow_interval_desc">跟随者向服务器询问的频率。它同时决定数值可能有多旧，因此也决定基于跟随数值的警报可能有多晚。跟随者没有自己的传感器让手机保持唤醒，所以每次检查都是一次唤醒。</string>
     <string name="nightscout_follow_interval_doze">低于 9 分钟时，手机闲置期间 Android 仍可能拉长检查间隔。将 Juggluco 排除在电池优化之外可保持所选间隔。</string>
+    <string name="aidex_pairing_key_backup">配对密钥备份</string>
+    <string name="aidex_pairing_key_backup_warning">此文件包含传感器配对凭据。请妥善私密保存。</string>
+    <string name="aidex_pairing_key_saved">配对密钥备份已保存</string>
+    <string name="aidex_pairing_key_unavailable">尚无已验证的配对密钥</string>
+    <string name="aidex_restore_pairing_key">恢复配对密钥备份</string>
+    <string name="aidex_pairing_key_restored">配对密钥已恢复。请选择匹配的传感器。</string>
+    <string name="aidex_pairing_key_restore_failed">这不是有效的 AiDex 配对密钥备份</string>
+    <string name="aidex_pairing_key_conflict">此传感器已保存其他密钥；未覆盖任何内容</string>
+    <string name="aidex_pairing_key_delete">删除密钥</string>
+    <string name="aidex_pairing_key_delete_confirm">删除此配对密钥？需要重新配对传感器才能获取新密钥。</string>
+    <string name="aidex_pairing_key_deleted">配对密钥已删除</string>
 </resources>

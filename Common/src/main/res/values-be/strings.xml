@@ -2721,4 +2721,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Правяраць новыя значэнні</string>
     <string name="nightscout_follow_interval_desc">Як часта падпісчык апытвае сервер. Гэта таксама тое, наколькі старым можа быць значэнне, а значыць і наколькі позна прыйдзе трывога па сачыльным значэнні. У падпісчыка няма свайго сэнсара, які трымаў бы тэлефон абуджаным, таму кожная праверка — гэта абуджэнне.</string>
     <string name="nightscout_follow_interval_doze">Менш за 9 хвілін Android усё роўна можа разводзіць праверкі, пакуль тэлефон бяздзейнічае. Выключэнне Juggluco з аптымізацыі батарэі захоўвае выбраны інтэрвал.</string>
+    <string name="aidex_pairing_key_backup">Рэзервовая копія ключа спалучэння</string>
+    <string name="aidex_pairing_key_backup_warning">Гэты файл змяшчае ўліковыя даныя спалучэння датчыка. Захоўвайце яго прыватна.</string>
+    <string name="aidex_pairing_key_saved">Рэзервовая копія ключа спалучэння захавана</string>
+    <string name="aidex_pairing_key_unavailable">Правераны ключ спалучэння пакуль недаступны</string>
+    <string name="aidex_restore_pairing_key">Аднавіць ключ спалучэння з копіі</string>
+    <string name="aidex_pairing_key_restored">Ключ спалучэння адноўлены. Выберыце адпаведны датчык.</string>
+    <string name="aidex_pairing_key_restore_failed">Гэта не сапраўдная рэзервовая копія ключа спалучэння AiDex</string>
+    <string name="aidex_pairing_key_conflict">Для гэтага датчыка ўжо захаваны іншы ключ; нічога не перазапісана</string>
+    <string name="aidex_pairing_key_delete">Выдаліць ключ</string>
+    <string name="aidex_pairing_key_delete_confirm">Выдаліць гэты ключ спалучэння? Каб атрымаць новы, трэба зноў спалучыць датчык.</string>
+    <string name="aidex_pairing_key_deleted">Ключ спалучэння выдалены</string>
 </resources>

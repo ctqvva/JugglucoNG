@@ -13,7 +13,7 @@ import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
  *
  * Protocol:
  *   1. Write snSecret to F001 (authentication challenge)
- *   2. Receive PAIR key from F001 notification (16 bytes, changes per connection)
+ *   2. Receive PAIR key from F001 notification (16 bytes, stable until sensor-side UNPAIR)
  *   3. Read F002 to get 17-byte BOND data
  *   4. Decrypt BOND with PAIR key + SN IV -> session key
  *   5. Send post-BOND config (plaintext 10 C1 F3, encrypted with session key + SN IV)
@@ -40,7 +40,7 @@ class AiDexKeyExchange(
     val snIv: ByteArray = pairingMaterial?.ivCopy()
         ?: SerialCrypto.deriveIv(bareSerial)
 
-    /** PAIR key from F001 notification. Changes per connection. */
+    /** PAIR key from F001 notification. Stable until the sensor accepts DELETE_BOND. */
     var pairKey: ByteArray? = null
         private set
 

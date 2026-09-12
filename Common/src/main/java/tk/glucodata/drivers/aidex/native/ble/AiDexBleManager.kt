@@ -215,6 +215,7 @@ class AiDexBleManager(
         private const val START_TIME_REPAIR_RESPONSE_MAX_BYTES = 12
         private const val DEFAULT_PARAM_WRITE_ACK_TIMEOUT_MS = 10_000L
         private const val DEFAULT_PARAM_MAX_CHUNK_PAYLOAD_BYTES = 160
+        private const val KEY_EXCHANGE_MAX_FAILURES = 3
 
         // -- History Storage --
         private const val MIN_VALID_GLUCOSE_MGDL = 20
@@ -338,6 +339,20 @@ class AiDexBleManager(
     private var bondStateAtConnection: Int = BluetoothDevice.BOND_NONE
     private var bondBecameBondedThisConnection = false
     @Volatile private var bondValidatedByStreaming = false
+    @Volatile private var persistedPairKey: ByteArray? = null
+    private var keyExchangeUsingSavedPairKey = false
+    private var pairKeyAwaitingLiveValidation = false
+    /** Consecutive key-exchange failures on this credential path; cleared by a valid live frame. */
+    private var keyExchangeFailures = 0
+    /** Latched once saved-key reconnects hit [KEY_EXCHANGE_MAX_FAILURES]; cleared by a valid live frame. */
+    private var savedKeyExhausted = false
+    /**
+     * Set by [rePairSensor]: the user pressed Pair. A saved key that has been exhausted may
+     * then be replaced by a fresh F001 exchange — the only route off a dead credential. Held
+     * across the bounded retries and cleared by a valid live frame, by giving up into
+     * broadcast-only, or by removing the sensor.
+     */
+    @Volatile private var explicitPairRequested = false
     private var preAuthEncryptedFrameCount = 0
     private var preAuthFirstEncryptedFrameAtMs = 0L
     private var preAuthLastEncryptedFrameAtMs = 0L
@@ -346,7 +361,6 @@ class AiDexBleManager(
     private enum class PendingInvalidSetupRecovery {
         NONE,
         RECONNECT,
-        REMOVE_BOND_AND_RECONNECT,
     }
 
     private enum class PostCccdFollowUp {
@@ -424,8 +438,8 @@ class AiDexBleManager(
     /** Watchdog: force-disconnect if key exchange doesn't complete within timeout. */
     private val keyExchangeWatchdog = Runnable {
         if (phase == Phase.KEY_EXCHANGE) {
-            Log.e(TAG, "Key exchange watchdog FIRED — timeout after ${KEY_EXCHANGE_TIMEOUT_MS}ms. Escalating invalid-setup recovery.")
-            recoverFromInvalidSetupState("key-exchange-timeout")
+            Log.e(TAG, "Key exchange watchdog FIRED — timeout after ${KEY_EXCHANGE_TIMEOUT_MS}ms")
+            handleKeyExchangeFailure("key-exchange-timeout")
         }
     }
 
@@ -558,7 +572,7 @@ class AiDexBleManager(
     private val invalidSetupRecoveryFallback = Runnable {
         if (pendingInvalidSetupRecovery == PendingInvalidSetupRecovery.NONE) return@Runnable
         Log.w(TAG, "Invalid setup recovery disconnect did not callback — forcing cleanup")
-        handlePendingInvalidSetupRecovery(mBluetoothGatt?.device)
+        handlePendingInvalidSetupRecovery()
     }
 
     /** Fallback: stale runtime recovery requested a disconnect but Android never called back. */
@@ -576,7 +590,6 @@ class AiDexBleManager(
         completePostResetReconnect(
             trigger = "clear-storage-disconnect-timeout",
             stateAlreadyReset = false,
-            device = mBluetoothGatt?.device,
         )
     }
 
@@ -588,7 +601,7 @@ class AiDexBleManager(
         resetDiag("quiet-window-complete-local-disconnect", nowMs = postResetDisconnectRequestedAtMs)
         val gatt = mBluetoothGatt
         if (gatt == null) {
-            completePostResetReconnect("clear-storage-no-gatt", stateAlreadyReset = false, device = null)
+            completePostResetReconnect("clear-storage-no-gatt", stateAlreadyReset = false)
             return@Runnable
         }
         try {
@@ -596,7 +609,7 @@ class AiDexBleManager(
             handler.removeCallbacks(postResetDisconnectFallback)
             handler.postDelayed(postResetDisconnectFallback, STALE_CONNECTION_RECOVERY_FALLBACK_MS)
         } catch (_: Throwable) {
-            completePostResetReconnect("clear-storage-disconnect-throw", stateAlreadyReset = false, device = gatt.device)
+            completePostResetReconnect("clear-storage-disconnect-throw", stateAlreadyReset = false)
         }
     }
 
@@ -661,6 +674,10 @@ class AiDexBleManager(
                 refreshLiveCccds(PostCccdFollowUp.RESUME_STREAMING, "no-stream-watchdog")
             }
             AiDexStreamingPolicy.NoStreamRecoveryAction.RECONNECT -> {
+                if (keyExchangeUsingSavedPairKey || pairKeyAwaitingLiveValidation) {
+                    handleKeyExchangeFailure("no-valid-direct-f003")
+                    return@Runnable
+                }
                 val delay = reconnect.nextReconnectDelayMs()
                 Log.w(TAG, "No F003 after bounded no-stream recovery — reconnecting in ${delay}ms")
                 constatstatusstr = "Reconnecting"
@@ -810,6 +827,10 @@ class AiDexBleManager(
         if (bondValidatedByStreaming) {
             Log.i(TAG, "Restored bondValidatedByStreaming=true from prefs")
         }
+        persistedPairKey = AiDexPairKeyVault.load(Applic.app, SerialNumber)
+        if (persistedPairKey != null) {
+            Log.i(TAG, "Restored verified AiDex PAIR credential from redundant storage")
+        }
     }
 
     private enum class HistoryPhase {
@@ -918,8 +939,8 @@ class AiDexBleManager(
 
     // -- Reset Reconnect Flag --
     // Set true BEFORE sending CLEAR_STORAGE. When disconnect arrives with this
-    // flag set, the driver removes the stale BLE bond, clears key exchange,
-    // waits for the sensor to finish clearing, and auto-reconnects.
+    // flag set, the driver clears only per-connection crypto, preserves the stable
+    // PAIR credential and Android bond, then reconnects after the sensor settles.
     @Volatile private var pendingResetReconnect: Boolean = false
     @Volatile private var clearStorageQuietWindowActive: Boolean = false
 
@@ -1357,6 +1378,8 @@ class AiDexBleManager(
         cccdMissingCallbackRetries = 0
         pendingBondedCccdUuid = null
         keyExchangePendingBond = false
+        keyExchangeUsingSavedPairKey = false
+        pairKeyAwaitingLiveValidation = false
         postCccdFollowUp = PostCccdFollowUp.NONE
         historyDownloading = false
         cccdRetryCount = 0
@@ -1467,12 +1490,11 @@ class AiDexBleManager(
     private fun completePostResetReconnect(
         trigger: String,
         stateAlreadyReset: Boolean,
-        device: BluetoothDevice?,
     ) {
         if (!pendingResetReconnect) return
         resetDiag(
             stage = "post-reset-cleanup",
-            details = "trigger=$trigger stateAlreadyReset=$stateAlreadyReset deviceBond=${device?.bondState ?: BluetoothDevice.BOND_NONE}",
+            details = "trigger=$trigger stateAlreadyReset=$stateAlreadyReset deviceBond=${currentBondState()}",
         )
         handler.removeCallbacks(clearStorageQuietWindowReconnect)
         handler.removeCallbacks(postResetDisconnectFallback)
@@ -1485,8 +1507,9 @@ class AiDexBleManager(
             resetConnectionRuntimeState(reason = "post-reset:$trigger", resetInvalidSetupCounter = false)
         }
 
+        // CLEAR_STORAGE resets sensor data, not the vendor PAIR credential. Preserve both
+        // the Android bond and the last-known-good PAIR key across this lifecycle reset.
         keyExchange.reset()
-        removeBondSafely(device, "postReset")
         close()
         reconnect.reset()
         Log.i(TAG, "Post-reset cleanup complete ($trigger) — reconnecting after quiet delay")
@@ -1519,19 +1542,6 @@ class AiDexBleManager(
         return currentBondState() == BluetoothDevice.BOND_BONDED
     }
 
-    private fun removeBondSafely(device: BluetoothDevice?, reason: String) {
-        try {
-            if (device?.bondState == BluetoothDevice.BOND_BONDED) {
-                val removeBond = device.javaClass.getMethod("removeBond")
-                removeBond.invoke(device)
-                setBondValidatedByStreaming(false, "$reason-removeBond")
-                Log.i(TAG, "$reason: BLE bond removed")
-            }
-        } catch (t: Throwable) {
-            Log.w(TAG, "$reason: removeBond failed: ${t.message}")
-        }
-    }
-
     private fun advanceBondedReconnectToKeyExchange(gatt: BluetoothGatt, trafficAgeMs: Long) {
         Log.w(
             TAG,
@@ -1541,12 +1551,16 @@ class AiDexBleManager(
         pendingBondedCccdUuid = null
         cccdWriteInProgress = false
         cccdChainComplete = true
-        startKeyExchange(gatt)
+        startKeyExchangeForCurrentConnection(gatt)
     }
 
     private fun recoverFromInvalidSetupState(reason: String) {
         if (stop || isPaused || isUnpaired || reconnect.isBroadcastOnlyMode) {
             Log.w(TAG, "Invalid setup recovery ignored ($reason) stop=$stop paused=$isPaused unpaired=$isUnpaired broadcastOnly=${reconnect.isBroadcastOnlyMode}")
+            return
+        }
+        if (phase == Phase.KEY_EXCHANGE) {
+            handleKeyExchangeFailure(reason)
             return
         }
         val bondState = currentBondState()
@@ -1559,12 +1573,10 @@ class AiDexBleManager(
         )
         pendingInvalidSetupRecovery = when (action) {
             AiDexRuntimePolicy.InvalidSetupRecoveryAction.RECONNECT -> PendingInvalidSetupRecovery.RECONNECT
-            AiDexRuntimePolicy.InvalidSetupRecoveryAction.REMOVE_BOND_AND_RECONNECT -> PendingInvalidSetupRecovery.REMOVE_BOND_AND_RECONNECT
         }
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "recover:$reason")
         constatstatusstr = when (pendingInvalidSetupRecovery) {
             PendingInvalidSetupRecovery.RECONNECT -> "Recovering connection"
-            PendingInvalidSetupRecovery.REMOVE_BOND_AND_RECONNECT -> "Recovering bond"
             PendingInvalidSetupRecovery.NONE -> constatstatusstr
         } ?: "Recovering"
         Log.w(
@@ -1579,11 +1591,11 @@ class AiDexBleManager(
             handler.postDelayed(invalidSetupRecoveryFallback, 3_000L)
         } catch (_: Throwable) {
             close()
-            handler.post { handlePendingInvalidSetupRecovery(null) }
+            handler.post { handlePendingInvalidSetupRecovery() }
         }
     }
 
-    private fun handlePendingInvalidSetupRecovery(device: BluetoothDevice?) {
+    private fun handlePendingInvalidSetupRecovery() {
         val recovery = pendingInvalidSetupRecovery
         if (recovery == PendingInvalidSetupRecovery.NONE) return
         handler.removeCallbacks(invalidSetupRecoveryFallback)
@@ -1600,16 +1612,6 @@ class AiDexBleManager(
                 Log.w(TAG, "Invalid setup recovery: reconnecting in ${delay}ms")
                 close()
                 handler.postDelayed({ connectDevice(0) }, delay)
-            }
-            PendingInvalidSetupRecovery.REMOVE_BOND_AND_RECONNECT -> {
-                Log.w(TAG, "Invalid setup recovery: removing BLE bond and reconnecting fresh")
-                removeBondSafely(device, "invalidSetupRecovery")
-                close()
-                reconnect.reset()
-                handler.postDelayed({
-                    stop = false
-                    connectDevice(0)
-                }, 1_500L)
             }
             PendingInvalidSetupRecovery.NONE -> Unit
         }
@@ -1861,6 +1863,8 @@ class AiDexBleManager(
                 setBondValidatedByStreaming(false, "new-connection-unbonded")
             }
             keyExchange.reset()
+            keyExchangeUsingSavedPairKey = false
+            pairKeyAwaitingLiveValidation = false
             challengeWritten = false
             bondDataRead = false
             servicesReady = false
@@ -1964,7 +1968,7 @@ class AiDexBleManager(
 
             if (pendingInvalidSetupRecovery != PendingInvalidSetupRecovery.NONE) {
                 Log.w(TAG, "Disconnect is owned by invalid-setup recovery (${pendingInvalidSetupRecovery.name})")
-                handlePendingInvalidSetupRecovery(gatt.device)
+                handlePendingInvalidSetupRecovery()
                 return
             }
             if (pendingStaleConnectionRecovery) {
@@ -2038,22 +2042,15 @@ class AiDexBleManager(
 
             // Schedule reconnect — but NOT if paused (stop=true) or broadcast-only
             if (pendingUnpairDisconnect) {
-                // Unpair command was sent but sensor disconnected before (or right after)
-                // the response. Perform deferred cleanup now.
+                // Delivery without the sensor ACK is ambiguous. Never discard the last-known-good
+                // credential or Android bond on an unconfirmed disconnect.
                 pendingUnpairDisconnect = false
-                Log.i(TAG, "Disconnect during unpair — performing deferred cleanup")
-                val device = mBluetoothGatt?.device
-                try {
-                    if (device?.bondState == android.bluetooth.BluetoothDevice.BOND_BONDED) {
-                        val removeBond = device.javaClass.getMethod("removeBond")
-                        removeBond.invoke(device)
-                        Log.i(TAG, "unpairSensor: BLE bond removed (from disconnect handler)")
-                    }
-                } catch (_: Throwable) {}
+                isUnpaired = false
+                Log.w(TAG, "Disconnect during unpair without DELETE_BOND ACK — retaining PAIR credential")
                 keyExchange.reset()
                 enterBroadcastOnlyFallback(
-                    reason = "post-unpair-disconnect",
-                    statusText = "Unpaired — Broadcast Only",
+                    reason = "unpair-not-confirmed",
+                    statusText = "Unpair not confirmed — key retained",
                 )
             } else if (pendingResetReconnect) {
                 resetDiag(
@@ -2063,7 +2060,6 @@ class AiDexBleManager(
                 completePostResetReconnect(
                     trigger = "sensor-disconnect",
                     stateAlreadyReset = true,
-                    device = gatt.device,
                 )
             } else if (stop) {
                 consecutiveSetupDisconnects = 0
@@ -2152,15 +2148,28 @@ class AiDexBleManager(
         }
 
         servicesReady = true
-        Log.i(TAG, "Services discovered. Starting CCCD chain...")
         setPhase(Phase.CCCD_CHAIN)
         handler.removeCallbacks(cccdWriteWatchdog)
 
-        // Build CCCD queue: F003 first (data), then F002 (commands), then F001 (auth)
+        val keyStartAction = decidePairKeyStartAction()
+        Log.i(
+            TAG,
+            when (keyStartAction) {
+                AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY ->
+                    "Services discovered. Starting saved-key CCCD chain..."
+                AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR ->
+                    "Services discovered. Starting fresh-pair CCCD chain..."
+            }
+        )
+
+        // Saved-key reconnects never touch F001. A fresh pairing enables F001 so the sensor
+        // can provide its stable PAIR credential.
         cccdQueue.clear()
         cccdQueue.add(CHAR_F003)
         cccdQueue.add(CHAR_F002)
-        cccdQueue.add(CHAR_F001)
+        if (keyStartAction == AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR) {
+            cccdQueue.add(CHAR_F001)
+        }
         cccdWriteInProgress = false
         cccdPendingWriteUuid = null
         cccdMissingCallbackRetries = 0
@@ -2287,7 +2296,7 @@ class AiDexBleManager(
                     // Already bonded (reconnect case, or bonding finished during CCCD chain).
                     // Small delay to let encryption fully settle.
                     Log.i(TAG, "Already bonded. Starting key exchange after 500ms settle delay...")
-                    handler.postDelayed({ startKeyExchange(gatt) }, 500L)
+                    handler.postDelayed({ startKeyExchangeForCurrentConnection(gatt) }, 500L)
                 }
                 BluetoothDevice.BOND_BONDING -> {
                     // Bonding in progress — defer key exchange to bonded() callback.
@@ -2297,10 +2306,12 @@ class AiDexBleManager(
                     scheduleDeferredBondCompletionCheck(gatt, attempt = 1)
                 }
                 else -> {
-                    // BOND_NONE — no bonding happened (unusual for AiDex).
-                    // Try key exchange anyway; the CCCD write itself may trigger bonding later.
-                    Log.w(TAG, "Bond state is BOND_NONE after CCCD chain — starting key exchange anyway")
-                    startKeyExchange(gatt)
+                    // Unbonded. With a saved key, read F002 with it right here — F002/F003
+                    // do not need link encryption, and asking for a bond is what the sensor
+                    // refuses (BOND_NONE, then status 22). Without one, the fresh chain has
+                    // F001 enabled and writing the challenge makes the sensor initiate pairing.
+                    Log.i(TAG, "Unbonded AiDex link — starting key exchange without requesting a bond")
+                    startKeyExchangeForCurrentConnection(gatt)
                 }
             }
         }
@@ -2343,7 +2354,7 @@ class AiDexBleManager(
                     if (waitingForDeferredKeyExchange) {
                         keyExchangePendingBond = false
                         Log.w(TAG, "BOND_BONDED observed via fallback check — starting deferred key exchange")
-                        startKeyExchange(gatt)
+                        startKeyExchangeForCurrentConnection(gatt)
                     }
                 }
                 BluetoothDevice.BOND_BONDING -> {
@@ -2661,7 +2672,7 @@ class AiDexBleManager(
                 // 500ms delay to let encryption fully settle after bonding,
                 // matching vendor driver's approach (AiDexSensor.kt line 6013)
                 Log.i(TAG, "Bond complete. Starting deferred key exchange after 500ms settle delay...")
-                handler.postDelayed({ startKeyExchange(gatt) }, 500L)
+                handler.postDelayed({ startKeyExchangeForCurrentConnection(gatt) }, 500L)
             } else if (
                 phase == Phase.STREAMING &&
                 keyExchange.isComplete &&
@@ -2848,12 +2859,72 @@ class AiDexBleManager(
     // Key Exchange
     // =========================================================================
 
-    private fun startKeyExchange(gatt: BluetoothGatt) {
+    private fun decidePairKeyStartAction(): AiDexRuntimePolicy.PairKeyStartAction {
+        if (persistedPairKey == null) {
+            // A handoff writes the vault straight to SharedPreferences and may land after this
+            // manager was constructed, which is when the key is normally read. Without this the
+            // receiving device (typically the watch) would fresh-pair a sensor whose key it now
+            // holds — and a fresh F001 is what the sensor refuses while another device is bonded.
+            AiDexPairKeyVault.load(Applic.app, SerialNumber)?.let { stored ->
+                Log.i(TAG, "Picked up an AiDex PAIR credential stored after this manager started")
+                persistedPairKey = stored
+                savedKeyExhausted = false
+            }
+        }
+        return AiDexRuntimePolicy.decidePairKeyStartAction(
+            hasSavedPairKey = persistedPairKey?.size == AiDexPairKeyBackup.PAIR_KEY_BYTES,
+            savedKeyExhausted = savedKeyExhausted,
+            explicitPairRequested = explicitPairRequested,
+        )
+    }
+
+    private fun startKeyExchangeForCurrentConnection(gatt: BluetoothGatt) {
+        when (decidePairKeyStartAction()) {
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY -> startSavedPairKeyExchange(gatt)
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR -> startFreshPairKeyExchange(gatt)
+        }
+    }
+
+    private fun startSavedPairKeyExchange(gatt: BluetoothGatt) {
+        val savedPairKey = persistedPairKey?.takeIf {
+            it.size == AiDexPairKeyBackup.PAIR_KEY_BYTES
+        } ?: run {
+            Log.e(TAG, "Saved-key exchange requested without a valid PAIR credential")
+            enterBroadcastOnlyFallback(
+                reason = "invalid-saved-pair-key",
+                statusText = "Pairing key unavailable — Broadcast Only",
+            )
+            return
+        }
+
+        // A saved key needs no provisioning material; just clear any prior pairing error.
+        pairingKeyProblemStatus = null
+        clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-saved-key-exchange")
+        setPhase(Phase.KEY_EXCHANGE)
+        keyExchange.reset()
+        keyExchange.onPairKeyReceived(savedPairKey)
+        keyExchangeUsingSavedPairKey = true
+        pairKeyAwaitingLiveValidation = false
+        challengeWritten = false
+        bondDataRead = false
+
+        handler.removeCallbacks(keyExchangeWatchdog)
+        handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
+        Log.i(TAG, "Key exchange: reading fresh F002 BOND data with saved PAIR credential")
+        readBondData(gatt)
+    }
+
+    private fun startFreshPairKeyExchange(gatt: BluetoothGatt) {
         pairingKeyProblemStatus = null
         maybeUseAdvertisedProtocolSerial()
         maybeUseProvisionedPairingMaterial()
-        clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-key-exchange")
+        clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-fresh-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
+        keyExchange.reset()
+        keyExchangeUsingSavedPairKey = false
+        pairKeyAwaitingLiveValidation = false
+        challengeWritten = false
+        bondDataRead = false
 
         // Start watchdog timer — force disconnect if key exchange doesn't complete
         handler.removeCallbacks(keyExchangeWatchdog)
@@ -2861,21 +2932,23 @@ class AiDexBleManager(
 
         // Step 1: Write SN challenge to F001
         val challenge = keyExchange.getChallenge()
-        Log.i(TAG, "Key exchange: writing challenge to F001 (${AiDexParser.hexString(challenge)})")
+        Log.i(TAG, "Key exchange: writing one-time challenge to F001")
 
         val service = gatt.getService(SERVICE_F000)
         val f001 = service?.getCharacteristic(CHAR_F001)
         if (service == null || f001 == null) {
-            Log.e(TAG, "startKeyExchange: SERVICE_F000 or F001 not found — cannot proceed. Triggering recovery.")
-            handler.removeCallbacks(keyExchangeWatchdog)
-            recoverFromServiceDiscoveryFailure()
+            Log.e(TAG, "startFreshPairKeyExchange: SERVICE_F000 or F001 not found")
+            handleKeyExchangeFailure("f001-unavailable")
             return
         }
 
         f001.value = challenge
         f001.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        gatt.writeCharacteristic(f001)
-        challengeWritten = true
+        challengeWritten = gatt.writeCharacteristic(f001)
+        if (!challengeWritten) {
+            Log.e(TAG, "Fresh PAIR challenge was rejected by Android GATT")
+            handleKeyExchangeFailure("f001-write-rejected")
+        }
     }
 
     /**
@@ -2955,7 +3028,7 @@ class AiDexBleManager(
         val pairKeyData = data.copyOfRange(0, 16)
         keyExchange.onPairKeyReceived(pairKeyData)
         pairingKeyProblemStatus = null
-        Log.i(TAG, "Key exchange: PAIR key received (${AiDexParser.hexString(pairKeyData)})")
+        Log.i(TAG, "Key exchange: PAIR credential received; awaiting end-to-end validation")
 
         // Step 3: Read BOND data from F002
         readBondData(gatt)
@@ -2979,24 +3052,75 @@ class AiDexBleManager(
         Log.i(TAG, "Key exchange: BOND data received (${data.size} bytes)")
 
         if (!keyExchange.decryptBond(data)) {
-            Log.e(TAG, "Key exchange: BOND decryption/CRC failed!")
-            // Retry entire key exchange on next connection
-            close()
-            reconnect.nextReconnectDelayMs()
-            handler.postDelayed({ connectDevice(0) }, reconnect.adaptiveDelayMs())
+            Log.e(TAG, "Key exchange: BOND decryption/CRC failed (saved=$keyExchangeUsingSavedPairKey)")
+            handleKeyExchangeFailure("f002-decrypt-or-crc")
             return
         }
 
-        Log.i(TAG, "Key exchange: Session key established!")
+        pairKeyAwaitingLiveValidation = !keyExchangeUsingSavedPairKey
+        Log.i(TAG, "Key exchange: session key established; waiting for valid direct F003")
 
         // Step 5: Send post-BOND config
         sendPostBondConfig(gatt)
     }
 
     /**
+     * A key exchange — saved-key or fresh — did not produce a working session. Neither path
+     * touches the stored credential: a saved key is retained through every failure, and a
+     * fresh pair has nothing stored yet. Retry through a clean GATT a bounded number of
+     * times, then hold in broadcast-only until the user acts.
+     */
+    private fun handleKeyExchangeFailure(reason: String) {
+        val usedSavedKey = keyExchangeUsingSavedPairKey
+        keyExchangeFailures += 1
+        keyExchange.reset()
+        keyExchangeUsingSavedPairKey = false
+        pairKeyAwaitingLiveValidation = false
+        bondDataRead = false
+        challengeWritten = false
+        handler.removeCallbacks(keyExchangeWatchdog)
+        setPhase(Phase.IDLE)
+        close()
+
+        val pathName = if (usedSavedKey) "Saved-key reconnect" else "Fresh pair"
+        if (
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(
+                consecutiveFailures = keyExchangeFailures,
+                maxFailures = KEY_EXCHANGE_MAX_FAILURES,
+            ) == AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY
+        ) {
+            if (usedSavedKey) savedKeyExhausted = true
+            Log.w(TAG, "$pathName failed $keyExchangeFailures times ($reason); stored credential untouched")
+            explicitPairRequested = false
+            enterBroadcastOnlyFallback(
+                reason = "key-exchange-failed:$reason",
+                statusText = if (usedSavedKey) "Pairing key safe — Broadcast Only" else "Pairing failed — Broadcast Only",
+            )
+            return
+        }
+        val delay = reconnect.nextReconnectDelayMs()
+        Log.w(
+            TAG,
+            "$pathName failed ($reason); retrying clean GATT in ${delay}ms " +
+                "($keyExchangeFailures/$KEY_EXCHANGE_MAX_FAILURES)"
+        )
+        handler.postDelayed({ connectDevice(0) }, delay)
+    }
+
+    /**
      * Send post-BOND config (plaintext 10 C1 F3, encrypted).
      */
     private fun sendPostBondConfig(gatt: BluetoothGatt) {
+        if (currentBondState() != BluetoothDevice.BOND_BONDED) {
+            // F001 is the one characteristic that needs link encryption. On an unbonded
+            // saved-key session the write never completes: Android tries to pair, the sensor
+            // refuses, the callback never comes, every queued F002 command waits behind it,
+            // and the sensor drops the link ~19s in. The sensor streams F003 without this
+            // config (phone B, 05:01:40), so skip it and let the F002 startup commands run.
+            Log.i(TAG, "Key exchange: unbonded link — skipping post-BOND config write to F001")
+            onKeyExchangeComplete()
+            return
+        }
         val configData = keyExchange.getPostBondConfig()
         if (configData == null) {
             Log.e(TAG, "Key exchange: failed to encrypt post-BOND config")
@@ -3857,6 +3981,22 @@ class AiDexBleManager(
             }
             return
         }
+
+        if (pairKeyAwaitingLiveValidation) {
+            val candidate = keyExchange.pairKey
+            if (candidate != null && AiDexPairKeyVault.saveValidated(Applic.app, SerialNumber, candidate)) {
+                persistedPairKey = candidate.copyOf()
+                pairKeyAwaitingLiveValidation = false
+                Log.i(TAG, "Persisted AiDex PAIR credential after valid direct F003 validation")
+                UiRefreshBus.requestStatusRefresh()
+            } else {
+                Log.e(TAG, "Could not persist validated AiDex PAIR credential; will retry on the next live frame")
+            }
+        }
+        keyExchangeUsingSavedPairKey = false
+        keyExchangeFailures = 0
+        savedKeyExhausted = false
+        explicitPairRequested = false
 
         if (currentBondState() == BluetoothDevice.BOND_BONDED) {
             setBondValidatedByStreaming(true, "direct-live")
@@ -4785,9 +4925,14 @@ class AiDexBleManager(
     private fun handleDeleteBondResponse(data: ByteArray) {
         val status = if (data.size >= 2) data[1].toInt() and 0xFF else 0xFF
         Log.i(TAG, "DELETE_BOND response: status=0x${"%02X".format(status)}")
-        if (pendingUnpairDisconnect) {
+        if (AiDexRuntimePolicy.shouldClearPersistedPairKey(pendingUnpairDisconnect, status)) {
             pendingUnpairDisconnect = false
-            Log.i(TAG, "DELETE_BOND delivered — performing deferred unpair cleanup")
+            isUnpaired = true
+            Log.i(TAG, "DELETE_BOND acknowledged — performing confirmed unpair cleanup")
+            if (!AiDexPairKeyVault.clearAfterConfirmedUnpair(Applic.app, SerialNumber)) {
+                Log.e(TAG, "Confirmed unpair credential cleanup was not fully committed")
+            }
+            persistedPairKey = null
             // Remove Android-level bond
             try {
                 val device = mBluetoothGatt?.device
@@ -4808,6 +4953,12 @@ class AiDexBleManager(
             stop = false
             UiRefreshBus.requestStatusRefresh()
             handler.post { startBroadcastScan("post-unpair") }
+        } else if (pendingUnpairDisconnect) {
+            pendingUnpairDisconnect = false
+            isUnpaired = false
+            Log.w(TAG, "DELETE_BOND was rejected or malformed; retaining PAIR credential")
+            constatstatusstr = "Unpair failed — key retained"
+            UiRefreshBus.requestStatusRefresh()
         }
     }
 
@@ -5522,7 +5673,7 @@ class AiDexBleManager(
 
     override val broadcastOnlyConnection: Boolean get() = reconnect.isBroadcastOnlyMode
 
-    override fun isVendorPaired(): Boolean = keyExchange.isComplete
+    override fun isVendorPaired(): Boolean = persistedPairKey != null
 
     override fun isVendorConnected(): Boolean = phase == Phase.STREAMING && mBluetoothGatt != null
 
@@ -5572,6 +5723,9 @@ class AiDexBleManager(
         connectAttemptInFlight = false
         cancelBroadcastScan()
         keyExchange.reset()
+        explicitPairRequested = false
+        // Local removal is not proof of sensor-side UNPAIR. Keep the portable credential so
+        // re-adding the sensor cannot force another F001 exchange.
         // Notify C++ layer that this sensor is being removed — prevents zombie resurrection
         try { finishSensor() } catch (_: Throwable) {}
         // Capture device reference BEFORE nullifying gatt
@@ -5780,25 +5934,11 @@ class AiDexBleManager(
     override fun unpairSensor(): Boolean {
         Log.i(TAG, "unpairSensor: sending deleteBond (0xF2) for $SerialNumber")
         consecutiveSetupDisconnects = 0
-        isUnpaired = true  // Block reconnection permanently until re-pair
         val cmd = commandBuilder.deleteBond() ?: run {
-            Log.e(TAG, "unpairSensor: session key not available — disconnecting without 0xF2")
-            // Even without session key, disconnect and remove bond
-            try {
-                val device = mBluetoothGatt?.device
-                if (device?.bondState == android.bluetooth.BluetoothDevice.BOND_BONDED) {
-                    val removeBond = device.javaClass.getMethod("removeBond")
-                    removeBond.invoke(device)
-                    setBondValidatedByStreaming(false, "unpair-no-session-key")
-                }
-            } catch (_: Throwable) {}
-            keyExchange.reset()
-            softDisconnect()
-            enterBroadcastOnlyFallback(
-                reason = "post-unpair",
-                statusText = "Unpaired — Broadcast Only",
-            )
-            return true
+            Log.e(TAG, "unpairSensor: session key unavailable — refusing unconfirmed local cleanup")
+            constatstatusstr = "Connect before unpairing — key retained"
+            UiRefreshBus.requestStatusRefresh()
+            return false
         }
         // Set flag BEFORE sending — the response handler (or disconnect handler)
         // will perform bond removal + disconnect after the command is delivered.
@@ -5809,10 +5949,32 @@ class AiDexBleManager(
         return true
     }
 
+    override fun forgetSavedPairKey() {
+        Log.i(TAG, "forgetSavedPairKey: force-clearing stored PAIR credential for $SerialNumber")
+        val cleared = AiDexPairKeyVault.clearStoredKey(Applic.app, SerialNumber)
+        if (!cleared) Log.e(TAG, "forgetSavedPairKey: credential removal was not fully committed")
+        persistedPairKey = null
+        savedKeyExhausted = false
+        keyExchangeFailures = 0
+        UiRefreshBus.requestStatusRefresh()
+    }
+
     override fun rePairSensor() {
-        Log.i(TAG, "rePairSensor: resetting key exchange and reconnecting for $SerialNumber")
+        Log.i(TAG, "rePairSensor: reconnecting without discarding PAIR credential for $SerialNumber")
         consecutiveSetupDisconnects = 0
         keyExchange.reset()
+        // A backup may have been restored since this manager loaded its key.
+        AiDexPairKeyVault.load(Applic.app, SerialNumber)?.let { restored ->
+            if (persistedPairKey?.contentEquals(restored) != true) {
+                Log.i(TAG, "rePairSensor: picked up a restored PAIR credential from storage")
+                persistedPairKey = restored
+                savedKeyExhausted = false
+            }
+        }
+        // The user asked for a pairing: give it a full set of retries, and let it replace a
+        // saved key only if that key has already been proven dead.
+        keyExchangeFailures = 0
+        explicitPairRequested = true
         softDisconnect()
         constatstatusstr = "Re-pairing..."
         UiRefreshBus.requestStatusRefresh()
