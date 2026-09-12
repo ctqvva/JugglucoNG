@@ -340,7 +340,7 @@ object OutboundApiJournalSnapshot {
                 events.put(entry.toTransferJson(presetEntitiesById, foodsById, includeRecoveryId = false))
             }
         return JSONObject()
-            .put("schema", "tk.glucodata.journal.snapshot.v2")
+            .put("schema", "tk.glucodata.journal.snapshot.v3")
             .put("timestamp", atMillis)
             .put("iob", finiteOrNull(insulin.iobUnits))
             .put("journal_iob", finiteOrNull(insulin.iobUnits))
@@ -366,7 +366,7 @@ object OutboundApiJournalSnapshot {
      * bounded by the entry window buildSnapshot loaded, which always spans at
      * least the last 24 hours.
      */
-    private fun insulinTypesJson(
+    internal fun insulinTypesJson(
         presets: List<JournalInsulinPreset>,
         entries: List<JournalEntryEntity>,
         atMillis: Long
@@ -381,7 +381,9 @@ object OutboundApiJournalSnapshot {
                 if (entry.insulinPresetId != preset.id) return@mapNotNull null
                 if (entry.timestamp > atMillis) return@mapNotNull null
                 val units = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
-                JournalIobCalculator.Dose(entry.timestamp, units, preset)
+                val snapshotPoints = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
+                val points = snapshotPoints.takeIf { it.size >= 2 } ?: preset.curvePoints
+                JournalIobCalculator.Dose(entry.timestamp, units, preset, points)
             }
             val last = doses.maxByOrNull { it.timestampMillis }
             val todayUnits = doses
@@ -675,6 +677,12 @@ object OutboundApiJournalSnapshot {
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt)
             .put("nsRemoteId", nsRemoteId)
+            .put("insulinCurveJsonSnapshot", insulinCurveJsonSnapshot)
+            .put("insulinCurveProfileId", insulinCurveProfileId)
+            .put("insulinCurveModelVersion", insulinCurveModelVersion)
+            .put("insulinCurveEvidence", insulinCurveEvidence)
+            .put("insulinBodyWeightKg", finiteOrNull(insulinBodyWeightKg))
+            .put("insulinCurveWasApproximated", insulinCurveWasApproximated)
         if (includeRecoveryId) {
             result.put("recoveryId", recoveryId ?: JSONObject.NULL)
         }
@@ -727,7 +735,13 @@ object OutboundApiJournalSnapshot {
             isArchived = entity.isArchived,
             countsTowardIob = entity.countsTowardIob,
             sortOrder = entity.sortOrder,
-            useForCalculation = entity.useForCalculation
+            useForCalculation = entity.useForCalculation,
+            curveProfileId = entity.curveProfileId,
+            curveModelVersion = entity.curveModelVersion,
+            curveEvidence = tk.glucodata.data.journal.JournalCurveEvidence.fromStorage(entity.curveEvidence),
+            scientificName = entity.curveProfileId
+                ?.let(tk.glucodata.data.journal.JournalBuiltInCurveProfile::fromStorage)
+                ?.let(tk.glucodata.data.journal.JournalInsulinCurveCatalogue::scientificName)
         )
 
     private fun defaultEventType(type: JournalEntryType): String =

@@ -21,7 +21,8 @@ object JournalIobCalculator {
     data class Dose(
         val timestampMillis: Long,
         val amountUnits: Float,
-        val preset: JournalInsulinPreset
+        val preset: JournalInsulinPreset,
+        val curvePoints: List<JournalCurvePoint>
     )
 
     data class Result(
@@ -34,7 +35,13 @@ object JournalIobCalculator {
         presetsById: Map<Long, JournalInsulinPreset>
     ): List<Dose> = entries.mapNotNull { entry ->
         if (JournalEntryType.fromStorage(entry.entryType) != JournalEntryType.INSULIN) return@mapNotNull null
-        toDose(entry.timestamp, entry.amount, entry.insulinPresetId, presetsById)
+        toDose(
+            entry.timestamp,
+            entry.amount,
+            entry.insulinPresetId,
+            entry.insulinCurveJsonSnapshot,
+            presetsById
+        )
     }
 
     fun dosesFromModels(
@@ -42,13 +49,20 @@ object JournalIobCalculator {
         presetsById: Map<Long, JournalInsulinPreset>
     ): List<Dose> = entries.mapNotNull { entry ->
         if (entry.type != JournalEntryType.INSULIN) return@mapNotNull null
-        toDose(entry.timestamp, entry.amount, entry.insulinPresetId, presetsById)
+        toDose(
+            entry.timestamp,
+            entry.amount,
+            entry.insulinPresetId,
+            entry.insulinCurveJsonSnapshot,
+            presetsById
+        )
     }
 
     private fun toDose(
         timestamp: Long,
         amount: Float?,
         presetId: Long?,
+        curveJsonSnapshot: String?,
         presetsById: Map<Long, JournalInsulinPreset>
     ): Dose? {
         // Archived presets intentionally still count: insulin injected with a
@@ -56,15 +70,17 @@ object JournalIobCalculator {
         val preset = presetId?.let(presetsById::get) ?: return null
         if (!preset.countsTowardIob) return null
         val units = amount?.takeIf { it.isFinite() && it > 0f } ?: return null
-        return Dose(timestamp, units, preset)
+        val snapshotPoints = parseJournalCurve(curveJsonSnapshot)
+        val points = if (snapshotPoints.size >= 2) snapshotPoints else preset.curvePoints
+        return Dose(timestamp, units, preset, points)
     }
 
     fun compute(doses: List<Dose>, atMillis: Long): Result {
         var iob = 0.0
         var eiob = 0.0
         doses.forEach { dose ->
-            val remaining = remainingCurveFraction(dose.preset.curvePoints, dose.timestampMillis, atMillis)
-            val activity = dose.preset.activityFractionAt(dose.timestampMillis, atMillis)
+            val remaining = remainingCurveFraction(dose.curvePoints, dose.timestampMillis, atMillis)
+            val activity = activityFractionAt(dose.curvePoints, dose.timestampMillis, atMillis)
             iob += (dose.amountUnits * remaining).toDouble()
             eiob += (dose.amountUnits * remaining * activity).toDouble()
         }
@@ -82,6 +98,15 @@ object JournalIobCalculator {
         if (total <= 0.0001f) return 0f
         val delivered = (integrateCurve(points, elapsedMinutes) / total).coerceIn(0f, 1f)
         return (1f - delivered).coerceIn(0f, 1f)
+    }
+
+    fun activityFractionAt(
+        points: List<JournalCurvePoint>,
+        doseTimestampMillis: Long,
+        atMillis: Long
+    ): Float {
+        val elapsedMinutes = ((atMillis - doseTimestampMillis) / 60_000f).coerceAtLeast(0f)
+        return interpolateJournalCurve(points, elapsedMinutes)
     }
 
     private fun integrateCurve(
@@ -113,10 +138,16 @@ object JournalIobCalculator {
     ): JournalActiveInsulinSummary? {
         val active = entries.mapNotNull { entry ->
             if (entry.type != JournalEntryType.INSULIN) return@mapNotNull null
-            val dose = toDose(entry.timestamp, entry.amount, entry.insulinPresetId, presetsById)
+            val dose = toDose(
+                entry.timestamp,
+                entry.amount,
+                entry.insulinPresetId,
+                entry.insulinCurveJsonSnapshot,
+                presetsById
+            )
                 ?: return@mapNotNull null
-            val activity = dose.preset.activityFractionAt(dose.timestampMillis, atMillis)
-            val remaining = remainingCurveFraction(dose.preset.curvePoints, dose.timestampMillis, atMillis)
+            val activity = activityFractionAt(dose.curvePoints, dose.timestampMillis, atMillis)
+            val remaining = remainingCurveFraction(dose.curvePoints, dose.timestampMillis, atMillis)
             // A dose is on board from injection until its curve is fully spent —
             // include the pre-onset window where activity is still ~0.
             if (activity <= 0.01f && remaining <= 0.001f) return@mapNotNull null
@@ -130,7 +161,10 @@ object JournalIobCalculator {
             activeEntryCount = active.size,
             totalUnits = totalUnits,
             weightedActivityPercent = ((weightedActivity / totalUnits) * 100f).roundToInt().coerceIn(0, 100),
-            activeUntil = active.maxOfOrNull { it.first.preset.activeEndAt(it.first.timestampMillis) },
+            activeUntil = active.maxOfOrNull { activeDose ->
+                activeDose.first.timestampMillis +
+                    ((activeDose.first.curvePoints.lastOrNull()?.minute ?: 0).coerceAtLeast(0) * 60_000L)
+            },
             iobUnits = active.sumOf { (it.first.amountUnits * it.third).toDouble() }.toFloat(),
             eiobUnits = active.sumOf { (it.first.amountUnits * it.third * it.second).toDouble() }.toFloat()
         )

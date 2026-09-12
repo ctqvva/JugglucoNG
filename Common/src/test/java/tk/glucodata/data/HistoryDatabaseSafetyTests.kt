@@ -48,7 +48,7 @@ class HistoryDatabaseSafetyTests {
     fun journalRecoveryIdentityMigrationIsRegisteredAndNonDestructive() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 29"))
+        assertTrue(source.contains("version = 30"))
         assertTrue(source.contains("Migration(20, 21)"))
         assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"))
         assertTrue(source.contains("lower(hex(randomblob(16)))"))
@@ -91,4 +91,17 @@ class HistoryDatabaseSafetyTests {
         }
     }
 
+    @Test
+    fun insulinCurveSnapshotMigrationIsRegisteredAndAdditive() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("Migration(29, 30)"))
+        assertTrue(source.contains("MIGRATION_29_30"))
+        assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN insulinCurveJsonSnapshot TEXT"))
+        assertTrue(source.contains("ALTER TABLE journal_insulin_presets ADD COLUMN curveProfileId TEXT"))
+        // Existing doses freeze the curve they were recorded under; the backfill
+        // must read the preset row, never invent a shape.
+        assertTrue(source.contains("SET insulinCurveJsonSnapshot = ("))
+        assertFalse(source.contains("DROP TABLE journal_insulin_presets"))
+    }
 }

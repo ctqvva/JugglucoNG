@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 
 object ExportPackageExporter {
     private const val SCHEMA = "tk.glucodata.export-package"
-    private const val SCHEMA_VERSION = 1
+    private const val SCHEMA_VERSION = 2
     private const val SQLITE_BIND_CHUNK = 900
 
     data class ExportRequest(
@@ -616,6 +616,12 @@ object ExportPackageExporter {
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt ?: JSONObject.NULL)
             .put("nsRemoteId", nsRemoteId ?: JSONObject.NULL)
+            .put("insulinCurveJsonSnapshot", insulinCurveJsonSnapshot ?: JSONObject.NULL)
+            .put("insulinCurveProfileId", insulinCurveProfileId ?: JSONObject.NULL)
+            .put("insulinCurveModelVersion", insulinCurveModelVersion ?: JSONObject.NULL)
+            .put("insulinCurveEvidence", insulinCurveEvidence ?: JSONObject.NULL)
+            .put("insulinBodyWeightKg", insulinBodyWeightKg?.toDouble() ?: JSONObject.NULL)
+            .put("insulinCurveWasApproximated", insulinCurveWasApproximated)
     }
 
     private fun JournalInsulinPresetEntity.toJson(): JSONObject {
@@ -631,6 +637,9 @@ object ExportPackageExporter {
             .put("countsTowardIob", countsTowardIob)
             .put("useForCalculation", useForCalculation)
             .put("sortOrder", sortOrder)
+            .put("curveProfileId", curveProfileId ?: JSONObject.NULL)
+            .put("curveModelVersion", curveModelVersion)
+            .put("curveEvidence", curveEvidence)
     }
 
     private fun JournalFoodEntity.toJson(): JSONObject {
@@ -734,7 +743,16 @@ object ExportPackageExporter {
                         createdAt = item.optLong("createdAt", timestamp),
                         updatedAt = item.optLong("updatedAt", timestamp),
                         nsUploadedAt = item.optNullableLong("nsUploadedAt"),
-                        nsRemoteId = item.optNullableString("nsRemoteId")
+                        nsRemoteId = item.optNullableString("nsRemoteId"),
+                        insulinCurveJsonSnapshot = item.optNullableString("insulinCurveJsonSnapshot"),
+                        insulinCurveProfileId = item.optNullableString("insulinCurveProfileId"),
+                        insulinCurveModelVersion = item.optNullableInt("insulinCurveModelVersion"),
+                        insulinCurveEvidence = item.optNullableString("insulinCurveEvidence"),
+                        insulinBodyWeightKg = item.optNullableFloat("insulinBodyWeightKg"),
+                        insulinCurveWasApproximated = item.optBoolean(
+                            "insulinCurveWasApproximated",
+                            false
+                        )
                     )
                 )
             }
@@ -762,7 +780,10 @@ object ExportPackageExporter {
                             "useForCalculation",
                             !(item.optBoolean("isBuiltIn", false) &&
                                 item.optInt("sortOrder", index) in setOf(1, 10))
-                        )
+                        ),
+                        curveProfileId = item.optNullableString("curveProfileId"),
+                        curveModelVersion = item.optInt("curveModelVersion", 0),
+                        curveEvidence = item.optString("curveEvidence", "unverified")
                     )
                 )
             }

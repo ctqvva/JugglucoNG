@@ -50,6 +50,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *             never changed after v24, so they are bridged, not replayed
  *   v29 — the same schema as v24; exists only so a device that ran an interim
  *         build is not asked to downgrade
+ *   v30 — versioned insulin curve evidence and immutable per-dose curve snapshots
  */
 @Database(
     entities = [
@@ -65,7 +66,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class,
     ],
-    version = 29,
+    version = 30,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -618,6 +619,66 @@ abstract class HistoryDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) = Unit
         }
 
+        /** v29 -> v30: versioned insulin curve evidence and per-dose curve snapshots. */
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val needsSnapshotBackfill = !hasColumn(db, "journal_entries", "insulinCurveJsonSnapshot")
+                if (!hasColumn(db, "journal_insulin_presets", "curveProfileId")) {
+                    db.execSQL("ALTER TABLE journal_insulin_presets ADD COLUMN curveProfileId TEXT")
+                }
+                if (!hasColumn(db, "journal_insulin_presets", "curveModelVersion")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_insulin_presets " +
+                            "ADD COLUMN curveModelVersion INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                if (!hasColumn(db, "journal_insulin_presets", "curveEvidence")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_insulin_presets " +
+                            "ADD COLUMN curveEvidence TEXT NOT NULL DEFAULT 'unverified'"
+                    )
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveJsonSnapshot")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveJsonSnapshot TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveProfileId")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveProfileId TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveModelVersion")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveModelVersion INTEGER")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveEvidence")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinCurveEvidence TEXT")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinBodyWeightKg")) {
+                    db.execSQL("ALTER TABLE journal_entries ADD COLUMN insulinBodyWeightKg REAL")
+                }
+                if (!hasColumn(db, "journal_entries", "insulinCurveWasApproximated")) {
+                    db.execSQL(
+                        "ALTER TABLE journal_entries " +
+                            "ADD COLUMN insulinCurveWasApproximated INTEGER NOT NULL DEFAULT 0"
+                    )
+                }
+                if (needsSnapshotBackfill) {
+                    // Freeze the curve that every existing insulin entry uses today.
+                    // Later preset upgrades must not rewrite historical or active doses.
+                    db.execSQL(
+                        """
+                        UPDATE journal_entries
+                        SET insulinCurveJsonSnapshot = (
+                            SELECT curveJson
+                            FROM journal_insulin_presets
+                            WHERE journal_insulin_presets.id = journal_entries.insulinPresetId
+                        ),
+                        insulinCurveEvidence = 'unverified',
+                        insulinCurveWasApproximated = 1
+                        WHERE entryType = 'insulin' AND insulinPresetId IS NOT NULL
+                        """.trimIndent()
+                    )
+                }
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -652,7 +713,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     bridgeToCurrent(25),
                     bridgeToCurrent(26),
                     bridgeToCurrent(27),
-                    bridgeToCurrent(28)
+                    bridgeToCurrent(28),
+                    MIGRATION_29_30
                 )
                 .build().also { INSTANCE = it }
             }

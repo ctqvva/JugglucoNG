@@ -20,8 +20,10 @@ object JournalDosePresetPolicy {
             val preset = entry.insulinPresetId?.let(presetsById::get) ?: return@sumOf 0.0
             if (!preset.countsTowardIob || !preset.useForCalculation) return@sumOf 0.0
             val amount = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@sumOf 0.0
+            val snapshot = parseJournalCurve(entry.insulinCurveJsonSnapshot)
+            val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
             val remaining = JournalIobCalculator.remainingCurveFraction(
-                points = preset.curvePoints,
+                points = points,
                 doseTimestampMillis = entry.timestamp,
                 atMillis = atMillis
             )
