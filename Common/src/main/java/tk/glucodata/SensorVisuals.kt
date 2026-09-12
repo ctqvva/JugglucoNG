@@ -22,6 +22,15 @@ object SensorVisuals {
      */
     const val PEER_TEXT_BLEND = 0.45f
 
+    /**
+     * Blend fraction of the identity colour mixed into the theme grey of a
+     * sensor's secondary lanes (the other signal, the source behind a
+     * calibration). Enough to say whose lane it is, not enough for the lane
+     * to compete with the main line — the same on the dashboard and in the
+     * notification.
+     */
+    const val LANE_IDENTITY_TINT = 0.28f
+
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val KEY_COLOR_OVERRIDES = "sensor_color_overrides_argb"
 
