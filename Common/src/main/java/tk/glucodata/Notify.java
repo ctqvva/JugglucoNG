@@ -2943,11 +2943,9 @@ public class Notify {
                 ;
 
                 setIcon(GluNotBuilder, glvalue, glucose.sensorgen2);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    // final int timeout= Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    final int timeout = 800 * 60;// Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    GluNotBuilder.setTimeoutAfter(timeout);
-                }
+                // Do not expire an unacknowledged alert. Android also sends the delete
+                // intent on timeout, which would falsely dismiss/snooze the episode and
+                // cancel its retries. The sound/vibration timer is independent.
                 GluNotBuilder.setPriority(Notification.PRIORITY_HIGH);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     GluNotBuilder.setCategory(Notification.CATEGORY_ALARM);
@@ -3001,15 +2999,8 @@ public class Notify {
                 // Data Prep
                 int glucoseColor = NotificationChartDrawer.getGlucoseColor(Applic.app, glvalue, isMmol);
 
-                // Fetch Native Points for Consistent Text Formatting (Raw/Auto)
                 long endT = System.currentTimeMillis();
-                long recentStartT = endT - 10 * 60 * 1000L;
                 final String activeSensorSerial = NotificationHistorySource.resolveSensorSerial(resolvePrimarySensorName());
-                java.util.List<GlucosePoint> nativePoints = new java.util.ArrayList<>();
-                try {
-                    nativePoints = NotificationHistorySource.getDisplayHistory(recentStartT, isMmol, activeSensorSerial);
-                } catch (Exception e) {
-                }
 
                 // Determine ViewMode for formatting
                 int viewMode = 0;
@@ -3036,8 +3027,10 @@ public class Notify {
                         ? NotificationChartDrawer.drawArrow(Applic.app, displayRate, isMmol, glucoseColor, arrowSize)
                         : null;
 
-                CharSequence valueText = formatGlucoseText(glucose.value, glvalue, nativePoints, viewMode,
-                        glucose.time, activeSensorSerial);
+                // Keep the value supplied with this firing, as the full-screen alarm does.
+                // Resolving it again from history can replace a low trigger with a higher
+                // reading, or give a message-only alert a glucose value it never carried.
+                CharSequence valueText = alarmGlucoseValue;
 
                 // Construct RemoteViews using the same rich alert surface for every mode.
                 RemoteViews remoteViews = new RemoteViews(Applic.app.getPackageName(),
