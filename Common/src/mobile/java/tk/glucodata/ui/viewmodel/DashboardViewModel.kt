@@ -227,6 +227,23 @@ class DashboardViewModel(
         private var processDashboardHistoryCacheKey: DashboardHistoryCacheKey? = null
         @Volatile
         private var processDashboardHistoryCacheValue: List<GlucosePoint> = emptyList()
+
+        /**
+         * The raw list the cached conversion was built from, described cheaply. A dashboard
+         * emission is almost always the previous list with a minute appended, and converting
+         * to mmol/L copies every point — so a full reconvert allocated the whole history
+         * again every minute, which is what the chart cost as the store grew.
+         */
+        @Volatile
+        private var processConvertedPrefixUnit: String? = null
+        @Volatile
+        private var processConvertedPrefixSize: Int = 0
+        @Volatile
+        private var processConvertedPrefixFirstTs: Long = 0L
+        @Volatile
+        private var processConvertedPrefixLastTs: Long = 0L
+        @Volatile
+        private var processConvertedPrefixSampleHash: Int = 0
     }
 
     enum class CollectionMode {
@@ -1323,15 +1340,71 @@ class DashboardViewModel(
         }
 
         val converted = withContext(Dispatchers.Default) {
-            rawHistory.inDisplayUnit(unitStr)
+            convertReusingPrefix(rawHistory, unitStr)
         }
         synchronized(processDashboardHistoryCacheLock) {
             processDashboardHistoryCacheKey = cacheKey
             processDashboardHistoryCacheValue = converted
+            processConvertedPrefixUnit = unitStr
+            processConvertedPrefixSize = rawHistory.size
+            processConvertedPrefixFirstTs = rawHistory.firstOrNull()?.timestamp ?: 0L
+            processConvertedPrefixLastTs = rawHistory.lastOrNull()?.timestamp ?: 0L
+            processConvertedPrefixSampleHash = signature.sampleHash
         }
         return converted
     }
 
+
+    /**
+     * Convert to the display unit, reusing the previous conversion when this emission is the
+     * previous list with points appended — the ordinary case, once a minute. Only the new tail
+     * is converted; the rest is a reference copy instead of a fresh object per point.
+     *
+     * The prefix is accepted only when the first timestamp still matches and the point that was
+     * last converted still sits at the same index with the same timestamp, so a rewritten or
+     * trimmed history falls back to a full conversion.
+     */
+    private fun convertReusingPrefix(
+        rawHistory: List<GlucosePoint>,
+        unitStr: String,
+    ): List<GlucosePoint> {
+        val prefixSampleHash: Int
+        val prefixSize: Int
+        val prefixUnit: String?
+        val prefixFirstTs: Long
+        val prefixLastTs: Long
+        val prefixValue: List<GlucosePoint>
+        synchronized(processDashboardHistoryCacheLock) {
+            prefixSize = processConvertedPrefixSize
+            prefixUnit = processConvertedPrefixUnit
+            prefixFirstTs = processConvertedPrefixFirstTs
+            prefixLastTs = processConvertedPrefixLastTs
+            prefixValue = processDashboardHistoryCacheValue
+            prefixSampleHash = processConvertedPrefixSampleHash
+        }
+        val reusable = prefixUnit == unitStr &&
+            prefixSize > 0 &&
+            prefixSize <= rawHistory.size &&
+            prefixValue.size == prefixSize &&
+            rawHistory.firstOrNull()?.timestamp == prefixFirstTs &&
+            rawHistory[prefixSize - 1].timestamp == prefixLastTs &&
+            // A calibration can rewrite values in place without moving a timestamp. This is the
+            // same sampled check the whole-list cache above already trusts, applied to the part
+            // being reused, so a rewritten body falls back to converting everything.
+            sparseHistorySampleHash(rawHistory.subList(0, prefixSize)) == prefixSampleHash
+        if (!reusable) {
+            return rawHistory.inDisplayUnit(unitStr)
+        }
+        if (prefixSize == rawHistory.size) {
+            return prefixValue
+        }
+        val out = ArrayList<GlucosePoint>(rawHistory.size)
+        out.addAll(prefixValue)
+        for (index in prefixSize until rawHistory.size) {
+            out.add(rawHistory[index].inDisplayUnit(unitStr))
+        }
+        return out
+    }
 
     private fun historyEdgeSignature(points: List<tk.glucodata.ui.GlucosePoint>): HistoryEdgeSignature {
         val first = points.firstOrNull()
