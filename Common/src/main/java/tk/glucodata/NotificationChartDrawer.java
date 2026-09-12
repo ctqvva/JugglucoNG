@@ -28,7 +28,7 @@ public class NotificationChartDrawer {
     private static final float DASHBOARD_PRIMARY_LINE_ALPHA = 1.0f;
     private static final float DASHBOARD_PRIMARY_THRESHOLD_ALPHA = 0.96f;
     private static final float DASHBOARD_PRIMARY_STROKE_SCALE = 1.12f;
-    private static final float DASHBOARD_SECONDARY_LINE_ALPHA = 0.82f;
+    private static final float DASHBOARD_SECONDARY_LINE_ALPHA = 0.74f;
     private static final float DASHBOARD_SECONDARY_STROKE_SCALE = 0.68f;
     private static final float DASHBOARD_PEER_NEUTRAL_BLEND = 0.46f;
     private static final float DASHBOARD_PEER_LINE_ALPHA = 0.88f;
@@ -161,7 +161,21 @@ public class NotificationChartDrawer {
 
     private static int dashboardPrimaryLineColor(boolean isDark, String sensorId, boolean multiSensor) {
         int base = notificationPrimaryLineColor(isDark);
-        if (!multiSensor || sensorId == null || sensorId.trim().isEmpty()) {
+        if (sensorId == null || sensorId.trim().isEmpty()) {
+            return base;
+        }
+        // A colour the user picked is the main line's colour on the dashboard —
+        // toned toward the neutral token, as there — so it is here too, even for
+        // a lone sensor. A hash-assigned colour only tints, and only when there
+        // is a second sensor to be told apart from.
+        Integer picked = SensorVisuals.colorOverrideArgb(sensorId);
+        if (picked != null) {
+            return SensorVisuals.blendArgb(
+                    picked,
+                    DashboardChartColors.onSurfaceVariant(isDark),
+                    SensorVisuals.PRIMARY_TEXT_BLEND);
+        }
+        if (!multiSensor) {
             return base;
         }
         return SensorVisuals.blendArgb(
@@ -171,7 +185,14 @@ public class NotificationChartDrawer {
     }
 
     private static int dashboardPrimaryIdentityColor(String sensorId, boolean multiSensor) {
-        if (!multiSensor || sensorId == null || sensorId.trim().isEmpty()) {
+        if (sensorId == null || sensorId.trim().isEmpty()) {
+            return 0;
+        }
+        Integer picked = SensorVisuals.colorOverrideArgb(sensorId);
+        if (picked != null) {
+            return picked;
+        }
+        if (!multiSensor) {
             return 0;
         }
         return SensorVisuals.colorArgb(sensorId);
@@ -983,15 +1004,16 @@ public class NotificationChartDrawer {
                     // used: which lane is the secondary grey and which the
                     // tertiary depends on the view mode and whether a calibration
                     // has taken over as the main line. Alpha and stroke follow
-                    // the grey, as before; in a multi-sensor chart the grey is
-                    // then tinted toward the sensor's identity, as the main line
-                    // already is, so the lanes read as the same sensor's.
+                    // the grey, as before; where the main line carries an
+                    // identity colour the grey is nudged toward it, by the same
+                    // fraction the dashboard uses, so the lanes read as the same
+                    // sensor's without competing with the main line.
                     boolean rawLane = lane.getKind() == tk.glucodata.chart.ChartLaneKind.RAW;
                     int laneGrey = primaryLaneGrey(rawLane, viewMode, hasCalibration, laneColorSecondary, laneColorTertiary);
                     float alpha = notificationLineAlpha(laneGrey, mainLineColor, laneColorSecondary);
                     float scale = notificationStrokeScale(laneGrey, mainLineColor, laneColorSecondary);
                     int laneColor = primaryIdentityColor != 0
-                            ? SensorVisuals.blendArgb(laneGrey, primaryIdentityColor, DASHBOARD_PRIMARY_IDENTITY_TINT)
+                            ? SensorVisuals.blendArgb(laneGrey, primaryIdentityColor, SensorVisuals.LANE_IDENTITY_TINT)
                             : laneGrey;
                     linePaint.setStrokeWidth(baseStrokeWidth);
                     drawNotificationSourceSeries(
