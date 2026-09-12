@@ -1129,7 +1129,11 @@ public class SensorBluetooth {
                 continue;
             }
             if (findGattCallbackIndex(cb.SerialNumber) >= 0) {
-                cb.free();
+                // The persisted id and the driver's own serial can spell the same sensor
+                // differently, so this is reachable even though the id was checked above.
+                // The duplicate shares the live callback's dataptr — freeing it would
+                // release that sensor's native data out from under it.
+                cb.discard();
                 continue;
             }
             gattcallbacks.add(cb);
