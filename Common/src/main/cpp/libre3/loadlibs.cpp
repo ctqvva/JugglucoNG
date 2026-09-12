@@ -21,7 +21,9 @@
 
 #include <jni.h>
 #include <string.h>
+#include <array>
 #include <cinttypes>
+#include "dp_activation.hpp"
 #include "logs.hpp"
 #include "settings/settings.hpp"
 
@@ -46,13 +48,13 @@ static DPGetActivationCommandDataType DPGetActivationCommandData=nullptr;
 static jint        myRegisterNatives(JNIEnv*, jclass name, const JNINativeMethod*methods, jint nr) {
 	LOGSTRING("myRegisterNatives\n");
     const char *namestr=reinterpret_cast<const char *>(name);
-	if(!strcmp(namestr,"com/adc/trident/app/frameworks/mobileservices/libre3/security/Libre3SKBCryptoLib")) {
+	if(namestr&&methods&&nr>=2&&!strcmp(namestr,"com/adc/trident/app/frameworks/mobileservices/libre3/security/Libre3SKBCryptoLib")) {
         	process1=(process1Type)methods[0].fnPtr;
 		process2=(process2Type)methods[1].fnPtr;
 		}
 	else {
-		LOGGER("class=%s\n",namestr);
-		if(!strcmp(namestr,"com/adc/trident/app/frameworks/mobileservices/libre3/libre3DPCRLInterface")) {
+		LOGGER("class=%s\n",namestr?namestr:"null");
+		if(namestr&&methods&&nr>5&&!strcmp(namestr,"com/adc/trident/app/frameworks/mobileservices/libre3/libre3DPCRLInterface")) {
 			LOGGER("register %s%s\n",	methods[5].name,methods[5].signature);
 			DPGetActivationCommandData=( DPGetActivationCommandDataType)methods[5].fnPtr;
 			}
@@ -171,7 +173,11 @@ static bool doOnLoad(std::string_view libname,bool change) {
 		}
 #endif
 	JavaVM vmptr{.functions=&myvm};
-	OnLoad(&vmptr,nullptr);
+	const jint version=OnLoad(&vmptr,nullptr);
+	if(version==JNI_ERR) {
+		LOGSTRING("JNI_OnLoad returned JNI_ERR\n");
+		return false;
+		}
 	LOGSTRING("after OnLoad\n");
 if(change)
 	LOGGER("process1-OnLoad %ld\n",(uint8_t*)process1-(uint8_t*)OnLoad);
@@ -202,7 +208,7 @@ static bool loadECDHCrypto(const bool changelib) {
 	else {     
 		LOGGER("Sign different =%s\n",isnow.str());
 		} */
-	return res;
+	return res&&process1&&process2;
 /*
 	const JNINativeMethod  funcs[]{{"process1","(I[B[B)I",(void*)process1}, {"process2","(I[B[B)[B",(void*)process2}};
 	const char classname[]="tk/glucodata/ECDHCrypto";
@@ -226,7 +232,7 @@ static bool loadNFC() {
 	if(DPGetActivationCommandData)
 		return true;
 	LOGSTRING("loadNFC\n");
-	return doOnLoad("/libcrl_dp.so",false);
+	return doOnLoad("/libcrl_dp.so",false)&&DPGetActivationCommandData;
 	/*
 	LOGSTRING(	"after OnLoad\n");
 	const char classname[]="tk/glucodata/libre3/NFC";
@@ -246,28 +252,116 @@ static bool loadNFC() {
 		    }
 	LOGGER("RegisterNatives %s OK\n",classname);
 	return true;	 */
+		}
+
+static bool legacyActivationCommand(JNIEnv *env, jclass cl, jlong time,
+                                     jlong account,
+                                     std::array<jbyte, 10> &output) {
+	if(!DPGetActivationCommandData)
+		return false;
+	jbyteArray array=env->NewByteArray(static_cast<jsize>(output.size()));
+	if(!array)
+		return false;
+#if defined(__arm__)
+	const jint result=DPGetActivationCommandData(env,cl,array,account,time);
+#else
+	const jint result=DPGetActivationCommandData(env,cl,array,time,account);
+#endif
+	if(result==JNI_OK&&!env->ExceptionCheck())
+		env->GetByteArrayRegion(array,0,static_cast<jsize>(output.size()),output.data());
+	const bool success=result==JNI_OK&&!env->ExceptionCheck();
+	env->DeleteLocalRef(array);
+	return success;
 	}
+
+enum class ActivationVerification {
+	unavailable,
+	match,
+	mismatch,
+	error,
+	};
+constexpr jint establishedActivationFallback=1;
+
+static ActivationVerification verifyActivationGenerator(
+    JNIEnv *env, jclass cl, jlong time, jlong account,
+    std::array<jbyte,10> &legacyActual) {
+	if(!loadNFC())
+		return ActivationVerification::unavailable;
+	constexpr std::array<std::array<jlong,2>,7> cases{{
+		{{1,0}},
+		{{9,12}},
+		{{0x6286428dLL,0x1f416d8dLL}},
+		{{0x7fffffffLL,0}},
+		{{0x80000000LL,0xffffffffLL}},
+		{{0xffffffffLL,0x12345678LL}},
+		{{0x100000001LL,0x100000002LL}},
+	}};
+	bool mismatch=false;
+	for(const auto &test:cases) {
+		std::array<jbyte,10> legacy{};
+		if(!legacyActivationCommand(env,cl,test[0],test[1],legacy))
+			return env->ExceptionCheck()
+				? ActivationVerification::error
+				: ActivationVerification::unavailable;
+		const auto source=dp::activation_command_data(test[0],test[1]);
+		if(memcmp(legacy.data(),source.data(),source.size())) {
+			LOGGER("Libre 3 activation generator mismatch for %" PRId64 ",%" PRId64 "\n",
+			       test[0],test[1]);
+			mismatch=true;
+			}
+		}
+	if(!legacyActivationCommand(env,cl,time,account,legacyActual))
+		return env->ExceptionCheck()
+			? ActivationVerification::error
+			: ActivationVerification::unavailable;
+	const auto source=dp::activation_command_data(time,account);
+	if(memcmp(legacyActual.data(),source.data(),source.size())) {
+		LOGGER("Libre 3 activation generator mismatch for actual payload %" PRId64 ",%" PRId64 "\n",
+		       time,account);
+		mismatch=true;
+		}
+	return mismatch ? ActivationVerification::mismatch
+	                : ActivationVerification::match;
+	}
+
 #include "debugclone.hpp"
 extern "C" JNIEXPORT jint JNICALL fromjava(startTimeIDsum)(JNIEnv *env, jclass cl, jbyteArray bArr, jlong time, jlong account) {
 
 	settings->setnodebug(false);
 	LOGSTRING("startTimeIDsum\n");
 	usedebug use(false,3);
-//	debugclone(true);
-	loadNFC();
-	LOGGER("DPGetActivationCommandData(env,cl,bArr,%" PRId64 ",%" PRId64 ")\n",time,account);
-
-#if defined(__arm__) 
-	const jlong other=time;
-	jint res=DPGetActivationCommandData(env,cl,bArr,account,other); //TODO: what does time?
-	//SOMEHOW the time ended up in the account position and in the time sits something unpredictable. 
-	//By putting account in the time, you can still transfer it accross reinstalls; I can scan again with Juggluco. 
-	// The Libre3 app start counting down again. Because the activition time was said to be in 2073
-#else
-	jint res=DPGetActivationCommandData(env,cl,bArr,time,account);
-#endif
-	LOGGER("DPGetActivationCommandData(env,cl,bArr,,%" PRId64 ",%" PRId64 ")=%d\n",time,account,res);
-	return res;
+	if(!env||!bArr||env->GetArrayLength(bArr)!=10) {
+		LOGSTRING("startTimeIDsum requires a 10-byte output array\n");
+		return JNI_ERR;
+		}
+	std::array<jbyte,10> legacy{};
+	const auto verification=verifyActivationGenerator(env,cl,time,account,legacy);
+	if(verification==ActivationVerification::error)
+		return JNI_ERR;
+	if(verification==ActivationVerification::mismatch) {
+		// The established payload was generated before this copy, so a
+		// mismatch never reaches the sensor with source-generated bytes.
+		env->SetByteArrayRegion(bArr,0,static_cast<jsize>(legacy.size()),legacy.data());
+		if(env->ExceptionCheck())
+			return JNI_ERR;
+		LOGSTRING("source activation verification failed; using established payload\n");
+		return establishedActivationFallback;
+		}
+	// The source implementation is self-contained and compile-time checked.
+	// An unavailable closed library only removes the optional comparison; it
+	// must not make that closed library a runtime dependency again.
+	const auto source=dp::activation_command_data(time,account);
+	env->SetByteArrayRegion(bArr,0,static_cast<jsize>(source.size()),
+	                        reinterpret_cast<const jbyte *>(source.data()));
+	if(env->ExceptionCheck())
+		return JNI_ERR;
+	if(verification==ActivationVerification::match)
+		LOGGER("source activation command verified for %" PRId64 ",%" PRId64 "\n",
+		       time,account);
+	else
+		LOGGER("source activation command used without runtime comparison for %" PRId64 ",%" PRId64 "\n",
+		       time,account);
+	return JNI_OK;
 	}
 
 extern thread_local pid_t has_debugger;
@@ -288,11 +382,12 @@ static	const bool debug=!changelib&&!globalsetpathworks;
 
 	settings->setnodebug(false);
 	usedebug use(debug&&!libre3initialized,3);
-#ifndef NOLOG
-	int load=
-#endif
-              loadECDHCrypto(changelib);
-	LOGGER("%d processint(%d,%p,%p) process1==%p\n",load,i2,bArr,bArr2,process1);
+	const bool loaded=loadECDHCrypto(changelib);
+	LOGGER("%d processint(%d,%p,%p) process1==%p\n",loaded,i2,bArr,bArr2,process1);
+	if(!loaded||!process1) {
+		LOGSTRING("processint: Libre 3 security library unavailable\n");
+		return JNI_ERR;
+		}
 	jint res=process1(env,cl,i2,bArr,bArr2);
 	LOGGER("processint=%d\n",res);
 	if(use.pid>=sizeof(long)&&!wrongfiles())  {
@@ -321,7 +416,10 @@ static	const bool debug=!changelib&&!globalsetpathworks;
 	LOGAR("processbar start");
 	settings->setnodebug(false);
 	usedebug use(debug&&!libre3initialized,3);
-	loadECDHCrypto(changelib);
+	if(!loadECDHCrypto(changelib)||!process2) {
+		LOGSTRING("processbar: Libre 3 security library unavailable\n");
+		return nullptr;
+		}
 	auto res=process2(env,cl,i2,bArr,bArr2);
 	if(use.pid>=sizeof(long)&&!wrongfiles()) {
 		getsid(use.pid);
