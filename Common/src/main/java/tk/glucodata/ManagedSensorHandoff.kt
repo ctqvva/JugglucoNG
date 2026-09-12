@@ -30,12 +30,6 @@ object ManagedSensorHandoff {
         VIEW_MODE_PREFS,
     )
     private val aidexPairKeyPrefs = setOf(AIDEX_PAIR_KEY_PRIMARY_PREFS, AIDEX_PAIR_KEY_RECOVERY_PREFS)
-
-    /** Per-device bookkeeping in [AIDEX_NATIVE_PREFS] that must not travel with a handoff. */
-    private val deviceLocalAidexKeys = arrayOf(
-        "historyRawNextIndex_",
-        "historyBriefNextIndex_",
-    )
     private val managedRecordSetKeys = setOf(
         "aidex_sensors",
         "anytime_sensors",
@@ -123,6 +117,16 @@ object ManagedSensorHandoff {
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
             SensorIdentity.invalidateCaches()
+            // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
+            // to its own schedule, so a device could take a sensor over holding only the last
+            // few minutes and wait minutes for the rest — while the sender had all of it and
+            // the Data Layer was idle.
+            // The sender's AiDex download cursor travels with the sensor on purpose: it says
+            // which offsets have already been pulled off that sensor, and the deep serve above
+            // is what makes them true here. Zeroing it instead made the receiver re-fetch a
+            // full history over BLE that sync had just delivered.
+            runCatching { WearSync2.requestSync(deep = true) }
+                .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
@@ -211,13 +215,6 @@ object ManagedSensorHandoff {
             }
         }
         if (prefsName == AIDEX_NATIVE_PREFS) {
-            // A download cursor says what *this* device has already pulled off the sensor. Sent
-            // to a device holding none of it, it reads as "already have 1..2968": the receiver
-            // downloads the two newest rows and stops, and the sensor's full history — which it
-            // was still offering — is never fetched. The receiver keeps its own cursor.
-            if (deviceLocalAidexKeys.any { key.startsWith(it) }) {
-                return false
-            }
             return keyMatchesCandidate(key, candidates)
         }
         return managedKeyPrefixes.any { key.startsWith(it) } && keyMatchesCandidate(key, candidates)
@@ -291,10 +288,6 @@ object ManagedSensorHandoff {
      */
     internal fun exportsKeyForSensor(key: String, sensorId: String): Boolean =
         shouldExportKey(key, "", setOf(sensorId), MAIN_PREFS)
-
-    /** Whether an AiDexNativePrefs entry would travel with a handoff. For tests. */
-    internal fun exportsAidexNativeKeyForSensor(key: String, sensorId: String): Boolean =
-        shouldExportKey(key, "", setOf(sensorId), AIDEX_NATIVE_PREFS)
 
     /** Whether an AiDex PAIR-key vault entry would travel with a handoff. For tests. */
     internal fun exportsPairKeyEntryForSensor(entryKey: String, sensorId: String): Boolean =

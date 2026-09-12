@@ -64,22 +64,6 @@ class ManagedSensorHandoffCoverageTests {
     }
 
     @Test
-    fun aidexDownloadCursorStaysOnTheDeviceThatFetchedIt() {
-        // Sent onward it claims the receiver already holds history it has never seen, and the
-        // sensor's own backlog is then never downloaded.
-        assertFalse(
-            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("historyRawNextIndex_$serial", serial),
-        )
-        assertFalse(
-            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("historyBriefNextIndex_$serial", serial),
-        )
-        // Auth and session state in the same file still travel.
-        assertTrue(
-            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("bondValidatedByStreaming_$serial", serial),
-        )
-    }
-
-    @Test
     fun unrelatedSettingsStayOnTheDeviceThatOwnsThem() {
         // Only per-sensor state travels: app-wide preferences belong to the
         // device they were set on.
