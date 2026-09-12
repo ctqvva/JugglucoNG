@@ -64,18 +64,15 @@ class ManagedSensorHandoffCoverageTests {
     }
 
     @Test
-    fun aidexDownloadCursorStaysOnTheDeviceThatFetchedIt() {
-        // Sent onward it claims the receiver already holds history it has never seen, and the
-        // sensor's own backlog is then never downloaded.
-        assertFalse(
+    fun aidexDownloadCursorTravelsWithTheSensor() {
+        // The receiver gets the readings themselves from the sender's deep serve, so the cursor
+        // that says which sensor offsets are already accounted for has to travel with them.
+        // Without it the receiver re-downloads the whole history over BLE.
+        assertTrue(
             ManagedSensorHandoff.exportsAidexNativeKeyForSensor("historyRawNextIndex_$serial", serial),
         )
-        assertFalse(
-            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("historyBriefNextIndex_$serial", serial),
-        )
-        // Auth and session state in the same file still travel.
         assertTrue(
-            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("bondValidatedByStreaming_$serial", serial),
+            ManagedSensorHandoff.exportsAidexNativeKeyForSensor("historyBriefNextIndex_$serial", serial),
         )
     }
 
