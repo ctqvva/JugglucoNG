@@ -2689,4 +2689,27 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_interval_title">Neue Werte abrufen</string>
     <string name="nightscout_follow_interval_desc">Wie oft der Follower den Server fragt. Das ist zugleich, wie alt ein Wert sein kann, und damit auch, wie spät ein Alarm auf einen gefolgten Wert kommen kann. Ein Follower hat keinen eigenen Sensor, der das Telefon wach hält, also ist jede Abfrage ein Aufwecken.</string>
     <string name="nightscout_follow_interval_doze">Unter 9 Minuten kann Android die Abfragen im Ruhezustand trotzdem weiter auseinanderziehen. Juggluco von der Akku-Optimierung auszunehmen hält das eingestellte Intervall.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS-Verschlüsselung</string>
+    <string name="webserver_certificate">Zertifikat</string>
+    <string name="webserver_cert_selfsigned">Selbstsigniert, für dieses Gerät und das aktuelle Netzwerk erzeugt</string>
+    <string name="webserver_cert_custom">Eigenes Zertifikat</string>
+    <string name="webserver_cert_none">Noch kein Zertifikat</string>
+    <string name="webserver_cert_generate">Erzeugen</string>
+    <string name="webserver_cert_regenerate">Neu erzeugen</string>
+    <string name="webserver_cert_import">Importieren</string>
+    <string name="webserver_cert_import_hint">Importieren Sie beide Dateien von Ihrer Zertifizierungsstelle.</string>
+    <string name="webserver_cert_generating">Zertifikat wird erzeugt…</string>
+    <string name="webserver_cert_expires">Gültig bis %1$s</string>
+    <string name="webserver_cert_expired">Abgelaufen</string>
+    <string name="webserver_cert_created">Zertifikat erzeugt</string>
+    <string name="webserver_cert_update">Aktualisieren</string>
+    <string name="webserver_cert_needs_update">Zertifikat muss aktualisiert werden</string>
+    <string name="webserver_cert_address_changed">Netzwerkadresse zu %1$s gewechselt</string>
+    <string name="webserver_cert_export">Exportieren</string>
+    <string name="webserver_cert_export_hint">Installieren Sie das Zertifikat auf einem anderen Gerät, um diesem Server zu vertrauen.</string>
+    <string name="webserver_cert_export_certificate">Zertifikat</string>
+    <string name="webserver_cert_export_with_key">Zertifikat und privater Schlüssel</string>
+    <string name="webserver_cert_export_key_warning">Mit dem privaten Schlüssel kann sich ein anderes Gerät als dieser Server ausgeben. Bewahren Sie ihn geheim auf.</string>
 </resources>

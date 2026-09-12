@@ -2650,4 +2650,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Leta efter nya värden</string>
     <string name="nightscout_follow_interval_desc">Hur ofta följaren frågar servern. Det är också hur gammalt ett värde kan vara, och därmed hur sent ett larm på ett följt värde kan komma. En följare har ingen egen sensor som håller telefonen vaken, så varje kontroll är en väckning.</string>
     <string name="nightscout_follow_interval_doze">Under 9 minuter kan Android ändå glesa ut kontrollerna medan telefonen är inaktiv. Att undanta Juggluco från batterioptimering behåller det valda intervallet.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">HTTPS-kryptering</string>
+    <string name="webserver_certificate">Certifikat</string>
+    <string name="webserver_cert_selfsigned">Självsignerat, skapat för den här enheten och det aktuella nätverket</string>
+    <string name="webserver_cert_custom">Eget certifikat</string>
+    <string name="webserver_cert_none">Inget certifikat ännu</string>
+    <string name="webserver_cert_generate">Skapa</string>
+    <string name="webserver_cert_regenerate">Skapa nytt</string>
+    <string name="webserver_cert_import">Importera</string>
+    <string name="webserver_cert_import_hint">Importera båda filerna från din certifikatutfärdare.</string>
+    <string name="webserver_cert_generating">Skapar certifikat…</string>
+    <string name="webserver_cert_expires">Går ut %1$s</string>
+    <string name="webserver_cert_expired">Har gått ut</string>
+    <string name="webserver_cert_created">Certifikat skapat</string>
+    <string name="webserver_cert_update">Uppdatera</string>
+    <string name="webserver_cert_needs_update">Certifikatet behöver uppdateras</string>
+    <string name="webserver_cert_address_changed">Nätverksadressen ändrades till %1$s</string>
+    <string name="webserver_cert_export">Exportera</string>
+    <string name="webserver_cert_export_hint">Installera certifikatet på en annan enhet för att lita på den här servern.</string>
+    <string name="webserver_cert_export_certificate">Certifikat</string>
+    <string name="webserver_cert_export_with_key">Certifikat och privat nyckel</string>
+    <string name="webserver_cert_export_key_warning">Den privata nyckeln låter en annan enhet utge sig för att vara den här servern. Håll den hemlig.</string>
 </resources>

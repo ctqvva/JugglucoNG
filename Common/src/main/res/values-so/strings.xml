@@ -2842,4 +2842,27 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
     <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
     <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Sirdoonka HTTPS</string>
+    <string name="webserver_certificate">Shahaado</string>
+    <string name="webserver_cert_selfsigned">Is-saxiixday, waxaa loo sameeyay qalabkan iyo shabakadda hadda</string>
+    <string name="webserver_cert_custom">Shahaado gaar ah</string>
+    <string name="webserver_cert_none">Weli shahaado ma jirto</string>
+    <string name="webserver_cert_generate">Samee</string>
+    <string name="webserver_cert_regenerate">Dib u samee</string>
+    <string name="webserver_cert_import">Soo deji</string>
+    <string name="webserver_cert_import_hint">Labada fayl ka soo dejiso hay\'addaada shahaadooyinka.</string>
+    <string name="webserver_cert_generating">Shahaadada waa la samaynayaa…</string>
+    <string name="webserver_cert_expires">Waxay dhacaysaa %1$s</string>
+    <string name="webserver_cert_expired">Dhacay</string>
+    <string name="webserver_cert_created">Shahaadada waa la sameeyay</string>
+    <string name="webserver_cert_update">Cusboonaysii</string>
+    <string name="webserver_cert_needs_update">Shahaadada waa in la cusboonaysiiyaa</string>
+    <string name="webserver_cert_address_changed">Cinwaanka shabakadu wuxuu u beddelmay %1$s</string>
+    <string name="webserver_cert_export">Dhoofi</string>
+    <string name="webserver_cert_export_hint">Ku rakib shahaadada qalab kale si aad ugu kalsoonaato server-kan.</string>
+    <string name="webserver_cert_export_certificate">Shahaado</string>
+    <string name="webserver_cert_export_with_key">Shahaado iyo furaha gaarka ah</string>
+    <string name="webserver_cert_export_key_warning">Furaha gaarka ah wuxuu qalab kale u oggolaanayaa inuu iska dhigo server-kan. Sir ahaan u hay.</string>
 </resources>

@@ -2656,4 +2656,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Rechercher de nouvelles valeurs</string>
     <string name="nightscout_follow_interval_desc">À quelle fréquence le suiveur interroge le serveur. C\'est aussi l\'âge que peut avoir une valeur, et donc le retard possible d\'une alarme déclenchée sur une valeur suivie. Un suiveur n\'a pas de capteur à lui pour garder le téléphone éveillé, donc chaque interrogation est un réveil.</string>
     <string name="nightscout_follow_interval_doze">En dessous de 9 minutes, Android peut malgré tout espacer les interrogations lorsque le téléphone est inactif. Exclure Juggluco de l\'optimisation de la batterie préserve l\'intervalle choisi.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Chiffrement HTTPS</string>
+    <string name="webserver_certificate">Certificat</string>
+    <string name="webserver_cert_selfsigned">Auto-signé, généré pour cet appareil et le réseau actuel</string>
+    <string name="webserver_cert_custom">Certificat personnalisé</string>
+    <string name="webserver_cert_none">Aucun certificat</string>
+    <string name="webserver_cert_generate">Générer</string>
+    <string name="webserver_cert_regenerate">Régénérer</string>
+    <string name="webserver_cert_import">Importer</string>
+    <string name="webserver_cert_import_hint">Importez les deux fichiers fournis par votre autorité de certification.</string>
+    <string name="webserver_cert_generating">Génération du certificat…</string>
+    <string name="webserver_cert_expires">Expire le %1$s</string>
+    <string name="webserver_cert_expired">Expiré</string>
+    <string name="webserver_cert_created">Certificat généré</string>
+    <string name="webserver_cert_update">Mettre à jour</string>
+    <string name="webserver_cert_needs_update">Le certificat doit être mis à jour</string>
+    <string name="webserver_cert_address_changed">L\'adresse réseau est passée à %1$s</string>
+    <string name="webserver_cert_export">Exporter</string>
+    <string name="webserver_cert_export_hint">Installez le certificat sur un autre appareil pour faire confiance à ce serveur.</string>
+    <string name="webserver_cert_export_certificate">Certificat</string>
+    <string name="webserver_cert_export_with_key">Certificat et clé privée</string>
+    <string name="webserver_cert_export_key_warning">La clé privée permet à un autre appareil de se faire passer pour ce serveur. Gardez-la secrète.</string>
 </resources>

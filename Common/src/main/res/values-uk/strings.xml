@@ -2726,4 +2726,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Перевіряти нові значення</string>
     <string name="nightscout_follow_interval_desc">Як часто підписник опитує сервер. Це водночас і те, наскільки старим може бути значення, а отже і наскільки пізно надійде тривога за відстежуваним значенням. Підписник не має власного сенсора, який тримав би телефон активним, тож кожна перевірка — це пробудження.</string>
     <string name="nightscout_follow_interval_doze">Менше 9 хвилин Android усе одно може розсувати перевірки, поки телефон бездіяльний. Виключення Juggluco з оптимізації батареї зберігає вибраний інтервал.</string>
+
+    <!-- Web server TLS certificate -->
+    <string name="webserver_https_subtitle">Шифрування HTTPS</string>
+    <string name="webserver_certificate">Сертифікат</string>
+    <string name="webserver_cert_selfsigned">Самопідписаний, створений для цього пристрою та поточної мережі</string>
+    <string name="webserver_cert_custom">Власний сертифікат</string>
+    <string name="webserver_cert_none">Сертифіката ще немає</string>
+    <string name="webserver_cert_generate">Створити</string>
+    <string name="webserver_cert_regenerate">Створити заново</string>
+    <string name="webserver_cert_import">Імпорт</string>
+    <string name="webserver_cert_import_hint">Імпортуйте обидва файли з вашого центру сертифікації.</string>
+    <string name="webserver_cert_generating">Створення сертифіката…</string>
+    <string name="webserver_cert_expires">Діє до %1$s</string>
+    <string name="webserver_cert_expired">Прострочений</string>
+    <string name="webserver_cert_created">Сертифікат створено</string>
+    <string name="webserver_cert_update">Оновити</string>
+    <string name="webserver_cert_needs_update">Сертифікат потребує оновлення</string>
+    <string name="webserver_cert_address_changed">Мережеву адресу змінено на %1$s</string>
+    <string name="webserver_cert_export">Експорт</string>
+    <string name="webserver_cert_export_hint">Встановіть сертифікат на іншому пристрої, щоб довіряти цьому серверу.</string>
+    <string name="webserver_cert_export_certificate">Сертифікат</string>
+    <string name="webserver_cert_export_with_key">Сертифікат і закритий ключ</string>
+    <string name="webserver_cert_export_key_warning">Закритий ключ дозволяє іншому пристрою видавати себе за цей сервер. Тримайте його в таємниці.</string>
 </resources>
