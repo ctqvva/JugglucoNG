@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick-settings tile, quiet window running: the syringe with a bar across it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:rotation="-45"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:pathData="M1.5,12 L6.5,12"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M6.5,9.25 H16.5 V14.75 H6.5 Z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M9,9.25 V11.5 M11.5,9.25 V11.5 M14,9.25 V11.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1" />
+        <path
+            android:pathData="M16.5,12 H20.5 M20.5,9.5 V14.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round" />
+    </group>
+    <!-- the "quiet" bar, drawn upright over the tilted syringe -->
+    <path
+        android:pathData="M4,20 L20,4"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+</vector>

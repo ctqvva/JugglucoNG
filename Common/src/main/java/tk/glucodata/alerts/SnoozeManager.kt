@@ -51,6 +51,8 @@ object SnoozeManager {
         
         AlertRuntimeManager.onAlertSnoozed(alertType)
         Notify.cancelRetrySession(alertType.id, "snoozed")
+        // Acknowledged: a quiet window's silenced episode must not break through now.
+        QuietWindow.clearSilencedEpisode(alertType.id)
         scheduleSnoozeExpirySafely(alertType, snoozeUntil)
         
         Log.i(LOG_ID, "Snoozed ${alertType.name} for $durationMinutes minutes (preemptive=$preemptive)")
