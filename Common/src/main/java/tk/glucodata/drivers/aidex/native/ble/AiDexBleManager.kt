@@ -3601,15 +3601,6 @@ class AiDexBleManager(
      * CGM Session Run Time (0x2AAB) — how long the sensor has been running.
      */
     private fun readCGMSessionCharacteristics() {
-        if (currentBondState() != BluetoothDevice.BOND_BONDED) {
-            // 2AAA/2AAB are the standard encrypted CGM characteristics: reading them on an
-            // unbonded link returns insufficient-encryption (137/129), which makes Android
-            // auto-launch SMP pairing. The sensor refuses the bond, the pairing churn
-            // destabilises the link, and the session drops. Session start comes from the
-            // app-encrypted 0x10 startup info and history instead, so skip these unbonded.
-            Log.i(TAG, "Skipping CGM session characteristic reads on unbonded link (encrypted; would trigger bonding)")
-            return
-        }
         enqueueGattOp(GattOp.Read(CHAR_CGM_SESSION_START, SERVICE_F000))
         enqueueGattOp(GattOp.Read(CHAR_CGM_SESSION_RUN, SERVICE_F000))
     }
