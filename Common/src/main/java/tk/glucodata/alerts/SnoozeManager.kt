@@ -49,6 +49,7 @@ object SnoozeManager {
             .putBoolean(keyPreemptive(alertType), preemptive)
             .apply()
         
+        AlertStateTracker.onAlertSnoozedForExport(alertType, snoozeUntil)
         AlertRuntimeManager.onAlertSnoozed(alertType)
         Notify.cancelRetrySession(alertType.id, "snoozed")
         scheduleSnoozeExpirySafely(alertType, snoozeUntil)

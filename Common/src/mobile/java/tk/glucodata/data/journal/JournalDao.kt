@@ -24,6 +24,11 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE timestamp BETWEEN :startMillis AND :endMillis ORDER BY timestamp ASC, id ASC")
     suspend fun getEntriesBetween(startMillis: Long, endMillis: Long): List<JournalEntryEntity>
 
+    @Query("SELECT * FROM journal_entries WHERE timestamp BETWEEN :startMillis AND :endMillis " +
+        "AND (entryType IN ('insulin', 'carbs') OR (:includeNotes AND entryType = 'note')) " +
+        "ORDER BY timestamp DESC, id DESC LIMIT :limit")
+    suspend fun getGluciferEntries(startMillis: Long, endMillis: Long, includeNotes: Boolean, limit: Int): List<JournalEntryEntity>
+
     @Query(
         "SELECT * FROM journal_entries WHERE source = :source AND timestamp BETWEEN :startMillis AND :endMillis " +
             "ORDER BY timestamp ASC, id ASC"

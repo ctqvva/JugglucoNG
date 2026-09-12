@@ -19,8 +19,44 @@ object AlertStateTracker {
     private val lastTriggerTime = mutableMapOf<AlertType, Long>()
     private val cooldownUntilTime = mutableMapOf<AlertType, Long>()
     
-    // User explicitly dismissed this alert for the current episode.
-    // It stays suppressed until the condition clears and resetState() is called.
+    // Unknown until this process has evaluated the production episode.
+    private val exportKnown = mutableSetOf<AlertType>()
+
+    /** A fired alert still awaiting acknowledgement, independent of re-arm bookkeeping. */
+    @Synchronized
+    fun activeEpisodeForExport(type: AlertType): Boolean? =
+        if (type in exportKnown) lastTriggerTime.containsKey(type) && type !in dismissedAlerts && exportDetails[type]?.reason != "snoozed" else null
+
+    // Export metadata never changes cooldown or episode suppression.
+    private val exportDetails = mutableMapOf<AlertType, GluciferAlertChange>()
+    private val exportEvents = ArrayDeque<GluciferAlertChange>()
+
+    @Synchronized
+    fun snapshotForExport(): GluciferAlertSnapshot = GluciferAlertSnapshot(
+        AlertType.entries.associate { it.name.lowercase(java.util.Locale.ROOT) to activeEpisodeForExport(it) },
+        exportDetails.values.toList(), exportEvents.toList()
+    )
+
+    private fun recordExport(type: AlertType, reason: String, snoozedUntilMs: Long? = null) {
+        val prior = exportDetails[type]
+        if (prior?.reason == reason && prior.snoozedUntilMs == snoozedUntilMs) return
+        val change = GluciferAlertChange(java.util.UUID.randomUUID().toString(),
+            type.name.lowercase(java.util.Locale.ROOT), reason, System.currentTimeMillis(), snoozedUntilMs)
+        exportDetails[type] = change
+        exportEvents.addLast(change)
+        while (exportEvents.size > 32) exportEvents.removeFirst()
+        tk.glucodata.GluciferSender.requestUpdate()
+    }
+
+    /** Called only after a real snooze was accepted, not for a manual test. */
+    @Synchronized
+    fun onAlertSnoozedForExport(type: AlertType, untilMs: Long) {
+        if (manualTests.isActive(type)) return
+        exportKnown.add(type)
+        recordExport(type, "snoozed", untilMs)
+    }
+
+    // User dismissal suppresses this episode until the condition clears.
     private val dismissedAlerts = mutableSetOf<AlertType>()
 
     // Manual tests use the real delivery surface, but must never acknowledge,
@@ -90,6 +126,8 @@ object AlertStateTracker {
         dismissedAlerts.remove(type)
         lastTriggerTime[type] = System.currentTimeMillis()
         cooldownUntilTime[type] = lastTriggerTime.getValue(type) + effectiveRearmCooldownMs(config)
+        exportKnown.add(type)
+        recordExport(type, "fired")
         SmsWatchdog.onAlertFired(type.id)
         return true
     }
@@ -109,7 +147,12 @@ object AlertStateTracker {
         if (manualTests.consumeAction(type)) {
             return false
         }
+        val exportChanged = activeEpisodeForExport(type) != false
         dismissedAlerts.add(type)
+        exportKnown.add(type)
+        // Keep lastTriggerTime and dismissal suppression until the condition clears.
+        // HA automations should stop as soon as the user acknowledges the alert.
+        if (exportChanged) recordExport(type, "acknowledged")
         SmsWatchdog.onAlertAcknowledged(type.id)
         Log.i(LOG_ID, "Dismissed ${type.name} for current episode")
         return true
@@ -139,6 +182,8 @@ object AlertStateTracker {
      */
     @Synchronized
     fun resetState(type: AlertType) {
+        val wasActive = activeEpisodeForExport(type) == true
+        val firstEvaluation = exportKnown.add(type)
         if (
             lastTriggerTime.containsKey(type) ||
             dismissedAlerts.contains(type) ||
@@ -149,6 +194,7 @@ object AlertStateTracker {
         lastTriggerTime.remove(type)
         dismissedAlerts.remove(type)
         manualTests.clearPending(type)
+        if (wasActive || firstEvaluation) recordExport(type, "cleared")
         SmsWatchdog.onAlertResolved(type.id)
     }
 }

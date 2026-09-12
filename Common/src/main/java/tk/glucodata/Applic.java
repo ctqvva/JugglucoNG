@@ -1025,6 +1025,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {
             initproc();
+            GluciferSender.ensureRunning(this);
         } else {
             android.util.Log.e(LOG_ID, "Stop program");
             stopprogram = 1;

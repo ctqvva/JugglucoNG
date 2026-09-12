@@ -10,6 +10,7 @@ import tk.glucodata.sms.SmsPolicy
 
 @Keep
 object OutboundApiSettings {
+    const val PRESET_GLUCIFER = "glucifer"
     const val PRESET_CUSTOM_JSON = "custom_json"
     const val PRESET_TELEGRAM_BOT = "telegram_bot"
     const val PRESET_GLUCO_WATCH_VK = "glucowatch_vk"
@@ -123,8 +124,18 @@ object OutboundApiSettings {
         val lastSentAtMsByRecipient: Map<String, Long> = emptyMap(),
         val lastSentMgdlByRecipient: Map<String, Int> = emptyMap(),
         val lastStaleAtMsByRecipient: Map<String, Long> = emptyMap(),
-        val smsPolicy: SmsPolicy = SmsPolicy()
+        val smsPolicy: SmsPolicy = SmsPolicy(),
+        val gluciferFields: Set<String> = GluciferPayload.defaults,
+        val gluciferHistory: Boolean = false,
+        val gluciferMinIntervalSeconds: Int = 1,
+        val gluciferFallbackSeconds: Int = 3600,
+        val gluciferLiveBypass: Boolean = true,
+        val gluciferJournal: Boolean = false,
+        val gluciferJournalDays: Int = 7,
+        val gluciferJournalNotes: Boolean = false
     ) {
+        fun isGlucifer(): Boolean = normalizedPreset() == PRESET_GLUCIFER
+
         fun isSms(): Boolean = normalizedPreset() == PRESET_SMS
 
         fun normalizedPreset(): String = normalizePreset(preset)
@@ -171,6 +182,7 @@ object OutboundApiSettings {
             if (!globalEnabled || !enabled) return false
             // SMS has no endpoint to configure — a contact is the whole requirement.
             if (isSms()) return smsPolicy.hasUsableContacts()
+            if (isGlucifer()) return GluciferSender.validUrl(resolvedUrl())
             if (resolvedUrl().isBlank()) return false
             return when (normalizedPreset()) {
                 PRESET_TELEGRAM_BOT -> token.isNotBlank() && recipients().isNotEmpty() &&
@@ -184,6 +196,7 @@ object OutboundApiSettings {
 
         fun shouldSendForGlucose(mgdl: Int): Boolean {
             if (mgdl <= 0) return false
+            if (isGlucifer()) return true
             val low = triggerLowMgdl.coerceIn(1, 600)
             val high = triggerHighMgdl.coerceIn(1, 600)
             return when (normalizedTriggerMode()) {
@@ -257,7 +270,9 @@ object OutboundApiSettings {
     }
 
     @JvmStatic
-    fun save(context: Context = Applic.app, config: Config) {
+    fun save(context: Context = Applic.app, config: Config) = save(context, config, wakeGlucifer = true)
+
+    private fun save(context: Context, config: Config, wakeGlucifer: Boolean) {
         val normalized = config.copy(enabled = true)
         cachedConfig = normalized
         prefs(context).edit()
@@ -267,6 +282,7 @@ object OutboundApiSettings {
         // Adding, editing or disabling an SMS destination has to take effect without
         // waiting for the next reading — the watchdog is what makes it do anything.
         runCatching { tk.glucodata.sms.SmsWatchdog.ensureRunning(context) }
+        if (wakeGlucifer) runCatching { GluciferSender.ensureRunning(context) }
     }
 
     @JvmStatic
@@ -338,6 +354,7 @@ object OutboundApiSettings {
             PRESET_GLUCO_WATCH_VK -> "VK direct message"
             PRESET_VK_MESSAGES -> "VK text message"
             PRESET_SMS -> "Emergency SMS"
+            PRESET_GLUCIFER -> "Glucifer HA"
             else -> "Custom JSON webhook"
         }
 
@@ -357,7 +374,7 @@ object OutboundApiSettings {
     }
 
     fun recordAttempt(context: Context, destinationId: String, responseCode: Int, error: String?) {
-        updateDestination(context, destinationId) {
+        updateDestination(context, destinationId, wakeGlucifer = false) {
             it.copy(
                 lastAttemptAtMs = System.currentTimeMillis(),
                 lastResponseCode = responseCode,
@@ -368,7 +385,7 @@ object OutboundApiSettings {
 
     fun recordSuccess(context: Context, destinationId: String, responseCode: Int) {
         val now = System.currentTimeMillis()
-        updateDestination(context, destinationId) {
+        updateDestination(context, destinationId, wakeGlucifer = false) {
             it.copy(
                 lastAttemptAtMs = now,
                 lastSuccessAtMs = now,
@@ -448,6 +465,7 @@ object OutboundApiSettings {
         context: Context,
         destinationId: String,
         persist: Boolean = true,
+        wakeGlucifer: Boolean = true,
         transform: (Destination) -> Destination
     ) {
         val config = load(context)
@@ -456,7 +474,7 @@ object OutboundApiSettings {
         }
         val updatedConfig = config.copy(destinations = updated)
         if (persist) {
-            save(context, updatedConfig)
+            save(context, updatedConfig, wakeGlucifer)
         } else {
             cachedConfig = updatedConfig
         }
@@ -516,7 +534,8 @@ object OutboundApiSettings {
             PRESET_TELEGRAM_BOT,
             PRESET_GLUCO_WATCH_VK,
             PRESET_VK_MESSAGES,
-            PRESET_SMS -> preset
+            PRESET_SMS,
+            PRESET_GLUCIFER -> preset
             else -> PRESET_CUSTOM_JSON
         }
 
@@ -583,6 +602,14 @@ object OutboundApiSettings {
                             encodeLongMap(destination.lastStaleAtMsByRecipient)
                         )
                         .put("smsPolicy", SmsPolicy.encode(destination.smsPolicy))
+                        .put("gluciferFields", JSONArray(destination.gluciferFields.sorted()))
+                        .put("gluciferHistory", destination.gluciferHistory)
+                        .put("gluciferMinIntervalSeconds", GluciferSendLimiter.interval(destination.gluciferMinIntervalSeconds))
+                        .put("gluciferFallbackSeconds", GluciferSendLimiter.interval(destination.gluciferFallbackSeconds))
+                        .put("gluciferLiveBypass", destination.gluciferLiveBypass)
+                        .put("gluciferJournal", destination.gluciferJournal)
+                        .put("gluciferJournalDays", destination.gluciferJournalDays.coerceIn(1, 90))
+                        .put("gluciferJournalNotes", destination.gluciferJournalNotes)
                 )
             }
         }
@@ -653,7 +680,18 @@ object OutboundApiSettings {
                 lastSentAtMsByRecipient = decodeLongMap(item.optJSONObject("lastSentAtMsByRecipient")),
                 lastSentMgdlByRecipient = decodeIntMap(item.optJSONObject("lastSentMgdlByRecipient")),
                 lastStaleAtMsByRecipient = decodeLongMap(item.optJSONObject("lastStaleAtMsByRecipient")),
-                smsPolicy = SmsPolicy.decode(item.optJSONObject("smsPolicy"))
+                smsPolicy = SmsPolicy.decode(item.optJSONObject("smsPolicy")),
+                gluciferHistory = item.optBoolean("gluciferHistory", false),
+                gluciferMinIntervalSeconds = GluciferSendLimiter.interval(item.optInt("gluciferMinIntervalSeconds", 1)),
+                gluciferFallbackSeconds = GluciferSendLimiter.interval(item.optInt("gluciferFallbackSeconds", 3600)),
+                gluciferLiveBypass = item.optBoolean("gluciferLiveBypass", true),
+                gluciferJournal = item.optBoolean("gluciferJournal", false),
+                gluciferJournalDays = item.optInt("gluciferJournalDays", 7).coerceIn(1, 90),
+                gluciferJournalNotes = item.optBoolean("gluciferJournalNotes", false),
+                gluciferFields = item.optJSONArray("gluciferFields")?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }.toSet()
+                        .intersect(GluciferPayload.supported)
+                } ?: GluciferPayload.defaults
             )
         }
         return destinations.distinctBy { it.id.lowercase(Locale.US) }
