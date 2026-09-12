@@ -2,6 +2,7 @@ package tk.glucodata
 
 import android.content.Context
 import android.content.SharedPreferences
+import tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
 import java.nio.charset.StandardCharsets
 import java.util.LinkedHashSet
 import org.json.JSONArray
@@ -13,10 +14,22 @@ object ManagedSensorHandoff {
     private const val VERSION = 1
     private const val MAIN_PREFS = "tk.glucodata_preferences"
     private const val AIDEX_NATIVE_PREFS = "AiDexNativePrefs"
+    // Redundant AiDex PAIR-key vault. Carrying it lets the receiving device (e.g. the watch)
+    // stream from the sensor unbonded on the saved key, instead of pairing from scratch.
+    private const val AIDEX_PAIR_KEY_PRIMARY_PREFS = "AiDexPairKeysPrimary"
+    private const val AIDEX_PAIR_KEY_RECOVERY_PREFS = "AiDexPairKeysRecovery"
+    private const val AIDEX_PAIR_KEY_ENTRY_PREFIX = "pairKey_v1_"
     private const val VIEW_MODE_PREFS = "managed_sensor_view_modes"
     private const val KEY_MANAGED_CURRENT = "managed_current_sensor"
 
-    private val prefsToExport = arrayOf(MAIN_PREFS, AIDEX_NATIVE_PREFS, VIEW_MODE_PREFS)
+    private val prefsToExport = arrayOf(
+        MAIN_PREFS,
+        AIDEX_NATIVE_PREFS,
+        AIDEX_PAIR_KEY_PRIMARY_PREFS,
+        AIDEX_PAIR_KEY_RECOVERY_PREFS,
+        VIEW_MODE_PREFS,
+    )
+    private val aidexPairKeyPrefs = setOf(AIDEX_PAIR_KEY_PRIMARY_PREFS, AIDEX_PAIR_KEY_RECOVERY_PREFS)
     private val managedRecordSetKeys = setOf(
         "aidex_sensors",
         "anytime_sensors",
@@ -156,6 +169,18 @@ object ManagedSensorHandoff {
             val set = value as? Set<String> ?: return false
             return set.any { recordMatchesCandidate(it, candidates) }
         }
+        if (prefsName in aidexPairKeyPrefs) {
+            // Vault entries are keyed by canonical bare serial (pairKey_v1_<SERIAL>); match on
+            // the same canonicalization so a stored "X-..." candidate still lines up.
+            if (!key.startsWith(AIDEX_PAIR_KEY_ENTRY_PREFIX)) return false
+            val entrySerial = key.removePrefix(AIDEX_PAIR_KEY_ENTRY_PREFIX)
+            return candidates.any { candidate ->
+                entrySerial.equals(
+                    AiDexPairKeyBackup.canonicalBareSerial(candidate),
+                    ignoreCase = true,
+                )
+            }
+        }
         if (prefsName == AIDEX_NATIVE_PREFS) {
             return keyMatchesCandidate(key, candidates)
         }
@@ -230,6 +255,10 @@ object ManagedSensorHandoff {
      */
     internal fun exportsKeyForSensor(key: String, sensorId: String): Boolean =
         shouldExportKey(key, "", setOf(sensorId), MAIN_PREFS)
+
+    /** Whether an AiDex PAIR-key vault entry would travel with a handoff. For tests. */
+    internal fun exportsPairKeyEntryForSensor(entryKey: String, sensorId: String): Boolean =
+        shouldExportKey(entryKey, "", setOf(sensorId), AIDEX_PAIR_KEY_PRIMARY_PREFS)
 
     private fun keyMatchesCandidate(key: String, candidates: Set<String>): Boolean =
         candidates.any { candidate ->
