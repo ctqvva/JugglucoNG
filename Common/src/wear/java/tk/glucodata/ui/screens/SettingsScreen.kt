@@ -61,6 +61,39 @@ fun SettingsScreen(
                     onClick = onOpenExchange,
                 )
             }
+            // Trace logging had no switch on the watch at all, so a wrist-side problem could
+            // not be captured: the native log holds its startup header and then stops, because
+            // the Java guards mirror a native switch only the phone could flip.
+            if (BuildConfig.doLog == 1) {
+                item {
+                    val loggingState = androidx.compose.runtime.remember {
+                        androidx.compose.runtime.mutableStateOf(
+                            runCatching { tk.glucodata.Natives.islogging() }.getOrDefault(false)
+                        )
+                    }
+                    val logging = loggingState.value
+                    androidx.wear.compose.material3.SwitchButton(
+                        checked = logging,
+                        onCheckedChange = { on ->
+                            loggingState.value = on
+                            runCatching {
+                                tk.glucodata.Natives.dolog(on)
+                                // The Java-side guards cache the native switch; without this
+                                // refresh they stay short-circuited and the trace stays empty.
+                                tk.glucodata.Log.refreshDoLog()
+                            }
+                        },
+                        label = {
+                            Text(
+                                stringResource(
+                                    if (logging) R.string.debug_record_on else R.string.debug_record_off
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
             item {
                 Text(
                     text = BuildConfig.VERSION_NAME,
