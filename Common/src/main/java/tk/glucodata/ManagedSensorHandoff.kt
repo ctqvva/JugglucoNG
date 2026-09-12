@@ -36,6 +36,8 @@ object ManagedSensorHandoff {
         "historyRawNextIndex_",
         "historyBriefNextIndex_",
     )
+    /** AiDex stores its per-sensor keys under the canonical "X-<serial>" id. */
+    private const val AIDEX_SERIAL_PREFIX = "X-"
     private val managedRecordSetKeys = setOf(
         "aidex_sensors",
         "anytime_sensors",
@@ -102,10 +104,19 @@ object ManagedSensorHandoff {
                 return@runCatching false
             }
             val entries = root.optJSONArray("entries") ?: JSONArray()
+            val aidexSerials = LinkedHashSet<String>()
             for (index in 0 until entries.length()) {
                 val entry = entries.optJSONObject(index) ?: continue
+                if (entry.optString("prefs") in aidexPairKeyPrefs) {
+                    entry.optString("key")
+                        .takeIf { it.startsWith(AIDEX_PAIR_KEY_ENTRY_PREFIX) }
+                        ?.removePrefix(AIDEX_PAIR_KEY_ENTRY_PREFIX)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(aidexSerials::add)
+                }
                 importEntry(ctx, entry)
             }
+            clearImportedAidexCursors(ctx, aidexSerials)
             root.optString("managedSensorId", "")
                 .trim()
                 .takeIf { it.isNotEmpty() && it != "null" }
@@ -241,6 +252,21 @@ object ManagedSensorHandoff {
             else -> out.put("type", "unsupported").put("value", JSONObject.NULL)
         }
         return out
+    }
+
+    /**
+     * Canonical serials whose AiDex credential arrived in this payload. Taking over a sensor
+     * means the receiver has to re-derive what history it actually holds, so its download
+     * cursor is dropped — including a stale one an earlier build's handoff left behind.
+     */
+    private fun clearImportedAidexCursors(context: Context, canonicalSerials: Set<String>) {
+        if (canonicalSerials.isEmpty()) return
+        val editor = context.getSharedPreferences(AIDEX_NATIVE_PREFS, Context.MODE_PRIVATE).edit()
+        canonicalSerials.forEach { bare ->
+            deviceLocalAidexKeys.forEach { name -> editor.remove("$name$AIDEX_SERIAL_PREFIX$bare") }
+        }
+        editor.commit()
+        Log.i(LOG_ID, "handoff: cleared AiDex history cursor for $canonicalSerials")
     }
 
     private fun importEntry(context: Context, entry: JSONObject) {
