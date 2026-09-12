@@ -3027,6 +3027,16 @@ class AiDexBleManager(
      * Send post-BOND config (plaintext 10 C1 F3, encrypted).
      */
     private fun sendPostBondConfig(gatt: BluetoothGatt) {
+        if (currentBondState() != BluetoothDevice.BOND_BONDED) {
+            // F001 is the one characteristic that needs link encryption. On an unbonded
+            // saved-key session the write never completes: Android tries to pair, the sensor
+            // refuses, the callback never comes, every queued F002 command waits behind it,
+            // and the sensor drops the link ~19s in. The sensor streams F003 without this
+            // config (phone B, 05:01:40), so skip it and let the F002 startup commands run.
+            Log.i(TAG, "Key exchange: unbonded link — skipping post-BOND config write to F001")
+            onKeyExchangeComplete()
+            return
+        }
         val configData = keyExchange.getPostBondConfig()
         if (configData == null) {
             Log.e(TAG, "Key exchange: failed to encrypt post-BOND config")
