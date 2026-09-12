@@ -26,13 +26,17 @@ class WearJournalSyncCodecTests {
         presets: List<Pair<Long, String>> = emptyList(),
         version: Int = WearJournalSync.VERSION,
         entryPresetIds: List<Long> = List(entries.size) { 0L },
+        entryCurves: List<List<Pair<Int, Float>>> = List(entries.size) { emptyList() },
         presetCurves: List<List<Pair<Int, Float>>> = List(presets.size) { emptyList() },
     ): ByteArray {
         val titleBytes = titles.map { it.toByteArray(StandardCharsets.UTF_8) }
         val presetBytes = presets.map { it.second.toByteArray(StandardCharsets.UTF_8) }
-        val entryExtra = if (version >= 2) 8 else 0
         val size = 1 + 1 + 2 +
-            entries.indices.sumOf { 8 + 8 + 1 + 4 + 1 + titleBytes[it].size + entryExtra } +
+            entries.indices.sumOf {
+                8 + 8 + 1 + 4 + 1 + titleBytes[it].size +
+                    (if (version >= 2) 8 else 0) +
+                    (if (version >= 3) 1 + entryCurves[it].size * 6 else 0)
+            } +
             2 + presetBytes.indices.sumOf {
                 8 + 4 + 1 + presetBytes[it].size +
                     if (version >= 2) 1 + presetCurves[it].size * 6 else 0
@@ -49,6 +53,14 @@ class WearJournalSyncCodecTests {
             buffer.put(titleBytes[index].size.toByte())
             buffer.put(titleBytes[index])
             if (version >= 2) buffer.putLong(entryPresetIds[index])
+            if (version >= 3) {
+                val curve = entryCurves[index]
+                buffer.put(curve.size.toByte())
+                curve.forEach { (minute, activity) ->
+                    buffer.putShort(minute.toShort())
+                    buffer.putFloat(activity)
+                }
+            }
         }
         buffer.putShort(presets.size.toShort())
         presets.forEachIndexed { index, (id, _) ->
@@ -76,12 +88,16 @@ class WearJournalSyncCodecTests {
             titles = listOf("Insulin 2.5U"),
             presets = listOf(3L to "Rapid"),
             entryPresetIds = listOf(3L),
+            entryCurves = listOf(listOf(0 to 0f, 45 to 1f, 180 to 0f)),
             presetCurves = listOf(listOf(0 to 0f, 30 to 1f, 120 to 0.4f, 240 to 0f)),
         )
 
         val journal = WearJournalSync.decode(data)
 
         assertEquals(3L, journal.entries[0].presetId)
+        assertEquals(3, journal.entries[0].curveMinutes.size)
+        assertEquals(45, journal.entries[0].curveMinutes[1])
+        assertEquals(1f, journal.entries[0].curveActivity[1], 0.0001f)
         assertEquals(4, journal.presets[0].curveMinutes.size)
         assertEquals(240, journal.presets[0].curveMinutes[3])
         assertEquals(1f, journal.presets[0].curveActivity[1], 0.0001f)
@@ -106,6 +122,25 @@ class WearJournalSyncCodecTests {
         assertEquals(1, journal.entries.size)
         assertEquals(0L, journal.entries[0].presetId)
         assertEquals(0, journal.presets[0].curveMinutes.size)
+    }
+
+    @Test
+    fun aV2PayloadFallsBackToThePresetCurve() {
+        val data = payload(
+            enabled = true,
+            entries = listOf(Triple(9_000L, 8L, WearJournalSync.TYPE_INSULIN to 2.5f)),
+            titles = listOf("Insulin 2.5U"),
+            presets = listOf(3L to "Rapid"),
+            version = 2,
+            entryPresetIds = listOf(3L),
+            presetCurves = listOf(listOf(0 to 0f, 30 to 1f, 240 to 0f)),
+        )
+
+        val journal = WearJournalSync.decode(data)
+
+        assertEquals(3L, journal.entries[0].presetId)
+        assertEquals(0, journal.entries[0].curveMinutes.size)
+        assertEquals(3, journal.presets[0].curveMinutes.size)
     }
 
     @Test
@@ -162,9 +197,8 @@ class WearJournalSyncCodecTests {
             titles = listOf("Carbs 12g"),
         )
         // Cut inside the title: a short Data Layer message must not surface an
-        // entry with a mangled label. The entry now ends with its preset id, so
-        // the cut has to clear that as well to reach the title — a payload
-        // truncated only inside the preset id is the v1 shape and decodes fine.
+        // entry with a mangled label. The entry now ends with its preset id and
+        // snapshot curve, so the cut has to clear those to reach the title.
         val entryTailBytes = 8 + 4
         val truncated = full.copyOf(full.size - entryTailBytes)
 

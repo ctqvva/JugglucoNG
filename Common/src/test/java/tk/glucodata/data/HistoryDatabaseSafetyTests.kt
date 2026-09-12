@@ -48,7 +48,6 @@ class HistoryDatabaseSafetyTests {
     fun recordedMainValueMigrationIsRegisteredAndKeyedByTheMinute() {
         val source = historyDatabaseSource()
 
-        assertTrue(source.contains("version = 18"))
         assertTrue(source.contains("Migration(17, 18)"))
         assertTrue(source.contains("MIGRATION_17_18"))
         // The whole point of the migration: one row per minute, so the record can
@@ -59,5 +58,20 @@ class HistoryDatabaseSafetyTests {
         assertTrue(source.contains("DROP TABLE IF EXISTS reading_display"))
         assertFalse(source.contains("DROP TABLE IF EXISTS history_readings"))
         assertFalse(source.contains("DROP TABLE IF EXISTS reading_uncertainty"))
+    }
+
+    @Test
+    fun insulinCurveSnapshotMigrationIsRegisteredAndAdditive() {
+        val source = historyDatabaseSource()
+
+        assertTrue(source.contains("version = 19"))
+        assertTrue(source.contains("Migration(18, 19)"))
+        assertTrue(source.contains("MIGRATION_18_19"))
+        assertTrue(source.contains("ALTER TABLE journal_entries ADD COLUMN insulinCurveJsonSnapshot TEXT"))
+        assertTrue(source.contains("ALTER TABLE journal_insulin_presets ADD COLUMN curveProfileId TEXT"))
+        // Existing doses freeze the curve they were recorded under; the backfill
+        // must read the preset row, never invent a shape.
+        assertTrue(source.contains("SET insulinCurveJsonSnapshot = ("))
+        assertFalse(source.contains("DROP TABLE journal_insulin_presets"))
     }
 }

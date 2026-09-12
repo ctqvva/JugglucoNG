@@ -110,13 +110,23 @@ object WearPrediction {
                         // No curve means the phone did not send one — an older
                         // payload, or a preset that does not count toward IOB.
                         // Modelling a made-up curve would be worse than none.
-                        val preset = presetsById[entry.presetId] ?: return@forEach
-                        if (preset.curveMinutes.size < 2) return@forEach
+                        val preset = presetsById[entry.presetId]
+                        val curveMinutes = if (entry.curveMinutes.size >= 2) {
+                            entry.curveMinutes
+                        } else {
+                            preset?.curveMinutes ?: return@forEach
+                        }
+                        val curveActivity = if (entry.curveActivity.size == curveMinutes.size) {
+                            entry.curveActivity
+                        } else {
+                            preset?.curveActivity ?: return@forEach
+                        }
+                        if (curveMinutes.size < 2 || curveActivity.size != curveMinutes.size) return@forEach
                         val future = GlucoseTreatmentCurves.cumulativeCurveFraction(
-                            preset.curveMinutes, preset.curveActivity, entry.timestampMs, timestamp
+                            curveMinutes, curveActivity, entry.timestampMs, timestamp
                         )
                         val atBaseline = GlucoseTreatmentCurves.cumulativeCurveFraction(
-                            preset.curveMinutes, preset.curveActivity, entry.timestampMs, baselineTime
+                            curveMinutes, curveActivity, entry.timestampMs, baselineTime
                         )
                         delta -= amount * sensitivityDisplay * (future - atBaseline)
                     }

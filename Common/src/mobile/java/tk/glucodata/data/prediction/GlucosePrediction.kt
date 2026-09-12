@@ -130,9 +130,11 @@ private fun JournalEntry.projectedDisplayDelta(
         JournalEntryType.INSULIN -> {
             val units = amount?.takeIf { it > 0f } ?: return 0f
             val preset = insulinPresetId?.let(insulinPresetsById::get) ?: return 0f
-            if (preset.isArchived || !preset.countsTowardIob) return 0f
-            val futureAction = cumulativeCurveFraction(preset.curvePoints, timestamp, atMillis)
-            val baselineAction = cumulativeCurveFraction(preset.curvePoints, timestamp, baselineMillis)
+            if (!preset.countsTowardIob) return 0f
+            val snapshot = tk.glucodata.data.journal.parseJournalCurve(insulinCurveJsonSnapshot)
+            val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
+            val futureAction = cumulativeCurveFraction(points, timestamp, atMillis)
+            val baselineAction = cumulativeCurveFraction(points, timestamp, baselineMillis)
             -(units * sensitivityDisplay * (futureAction - baselineAction))
         }
         JournalEntryType.ACTIVITY -> {

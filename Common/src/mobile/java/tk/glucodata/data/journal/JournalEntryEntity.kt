@@ -3,6 +3,7 @@ package tk.glucodata.data.journal
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(
     tableName = "journal_entries",
@@ -36,6 +37,13 @@ data class JournalEntryEntity(
     val updatedAt: Long,
     val nsUploadedAt: Long? = null,
     val nsRemoteId: String? = null,
+    val insulinCurveJsonSnapshot: String? = null,
+    val insulinCurveProfileId: String? = null,
+    val insulinCurveModelVersion: Int? = null,
+    val insulinCurveEvidence: String? = null,
+    val insulinBodyWeightKg: Float? = null,
+    @ColumnInfo(defaultValue = "0")
+    val insulinCurveWasApproximated: Boolean = false,
     /**
      * When this row last went out to LibreView, so an unchanged entry is not resent on
      * every upload pass. Tracked separately from [nsUploadedAt] because the two
