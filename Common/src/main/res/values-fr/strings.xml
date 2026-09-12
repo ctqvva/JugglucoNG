@@ -2774,6 +2774,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Clé d’association supprimée</string>
     <string name="journal_curve_activity">Activité relative</string>
     <string name="journal_curve_activity_desc">Activité hypoglycémiante par rapport au pic de cette courbe (100 %).</string>
+    <string name="journal_preset_rapid_generic">Action rapide (générique)</string>
+    <string name="journal_preset_long_generic">Action prolongée (générique)</string>
+    <string name="journal_preset_ultra_long_generic">Basale ultra-longue (générique)</string>
     <string name="journal_scientific_name">Nom scientifique</string>
     <string name="journal_curve_unverified">Courbe non vérifiée</string>
     <string name="journal_curve_unverified_desc">Cette courbe d’activité est une estimation ou une courbe personnalisée et ne provient pas d’une source pharmacodynamique complète.</string>

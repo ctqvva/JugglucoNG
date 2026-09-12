@@ -258,10 +258,7 @@ fun buildJournalChartMarkers(
                 emptyList()
             },
             activeStartMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
-                val snapshot = tk.glucodata.data.journal.parseJournalCurve(entry.insulinCurveJsonSnapshot)
-                val points = if (snapshot.size >= 2) snapshot else preset.curvePoints
-                val startMinute = preset.onsetMinutes
-                entry.timestamp + (startMinute.coerceAtLeast(0) * 60_000L)
+                preset.activeStartAt(entry.timestamp)
             } else {
                 null
             },

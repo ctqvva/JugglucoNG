@@ -2807,6 +2807,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_pairing_key_deleted">Kopplungsschlüssel gelöscht</string>
     <string name="journal_curve_activity">Relative Aktivität</string>
     <string name="journal_curve_activity_desc">Blutzuckersenkende Wirkung relativ zum Maximum dieser Kurve (100 %).</string>
+    <string name="journal_preset_rapid_generic">Schnell wirkend (generisch)</string>
+    <string name="journal_preset_long_generic">Lang wirkend (generisch)</string>
+    <string name="journal_preset_ultra_long_generic">Ultralang wirkendes Basal (generisch)</string>
     <string name="journal_scientific_name">Wissenschaftlicher Name</string>
     <string name="journal_curve_unverified">Nicht verifizierte Kurve</string>
     <string name="journal_curve_unverified_desc">Diese Aktivitätskurve ist eine Schätzung oder eine benutzerdefinierte Kurve und lässt sich nicht auf eine vollständige pharmakodynamische Quelle zurückführen.</string>

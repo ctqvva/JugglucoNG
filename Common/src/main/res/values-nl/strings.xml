@@ -2811,6 +2811,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aidex_pairing_key_deleted">Koppelingssleutel verwijderd</string>
     <string name="journal_curve_activity">Relatieve activiteit</string>
     <string name="journal_curve_activity_desc">Glucoseverlagende activiteit ten opzichte van de piek van deze curve (100%).</string>
+    <string name="journal_preset_rapid_generic">Snelwerkend (generiek)</string>
+    <string name="journal_preset_long_generic">Langwerkend (generiek)</string>
+    <string name="journal_preset_ultra_long_generic">Ultralangwerkend basaal (generiek)</string>
     <string name="journal_scientific_name">Wetenschappelijke naam</string>
     <string name="journal_curve_unverified">Niet-geverifieerde curve</string>
     <string name="journal_curve_unverified_desc">Deze activiteitscurve is een schatting of aangepaste curve en is niet terug te voeren op een volledige farmacodynamische bron.</string>

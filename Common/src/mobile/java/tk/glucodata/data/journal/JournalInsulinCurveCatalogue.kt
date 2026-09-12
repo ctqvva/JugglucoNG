@@ -155,7 +155,7 @@ object JournalInsulinCurveCatalogue {
         JournalBuiltInCurveProfile.GLULISINE -> "glulisine"
         JournalBuiltInCurveProfile.FIASP -> "aspart"
         JournalBuiltInCurveProfile.URLI -> "lispro-aabc"
-        JournalBuiltInCurveProfile.AFREZZA -> "human"
+        JournalBuiltInCurveProfile.AFREZZA -> "human (inhaled)"
         JournalBuiltInCurveProfile.NPH -> "NPH human"
         JournalBuiltInCurveProfile.GLARGINE_U100 -> "glargine U-100"
         JournalBuiltInCurveProfile.GLARGINE_U300 -> "glargine U-300"
@@ -179,7 +179,10 @@ object JournalInsulinCurveCatalogue {
         bodyWeightKg: Float?
     ): JournalResolvedCurve {
         val definition = definition(profile)
-        val validWeight = bodyWeightKg?.takeIf { it.isFinite() && it in 10f..400f }
+        val validWeight = bodyWeightKg?.takeIf {
+            it.isFinite() &&
+                it in JournalHumanProfile.MIN_BODY_WEIGHT_KG..JournalHumanProfile.MAX_BODY_WEIGHT_KG
+        }
         val requestedDose = when (definition.doseAxis) {
             DoseAxis.FIXED -> definition.referenceDose
             DoseAxis.UNITS -> amountUnits

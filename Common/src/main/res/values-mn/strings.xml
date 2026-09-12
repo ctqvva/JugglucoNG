@@ -1728,6 +1728,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_curve_minutes">Minute</string>
     <string name="journal_curve_activity">Харьцангуй үйлчлэл</string>
     <string name="journal_curve_activity_desc">Энэ муруйн оргилтой харьцуулсан глюкоз бууруулах үйлчлэл (100%).</string>
+    <string name="journal_preset_rapid_generic">Хурдан үйлчилгээтэй (ерөнхий)</string>
+    <string name="journal_preset_long_generic">Удаан үйлчилгээтэй (ерөнхий)</string>
+    <string name="journal_preset_ultra_long_generic">Хэт удаан үйлчилгээтэй суурь (ерөнхий)</string>
     <string name="journal_scientific_name">Шинжлэх ухааны нэр</string>
     <string name="journal_curve_reset">Reset curve</string>
     <string name="journal_enable_preset">Restore</string>

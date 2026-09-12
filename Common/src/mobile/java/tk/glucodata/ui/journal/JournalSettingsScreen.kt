@@ -1824,9 +1824,7 @@ private fun JournalInsulinPresetSheet(
                         title = stringResource(R.string.journal_active_insulin),
                         subtitle = stringResource(R.string.journal_active_insulin_subtitle),
                         checked = draft.countsTowardIob,
-                        enabled = !draft.isArchived &&
-                            draft.curveEvidence != JournalCurveEvidence.SOURCE_STEADY_STATE &&
-                            draft.curveEvidence != JournalCurveEvidence.SOURCE_REFERENCE,
+                        enabled = !draft.isArchived,
                         onCheckedChange = { draft = draft.copy(countsTowardIob = it) },
                         contentPadding = PaddingValues(
                             start = cardSidePadding,
@@ -1860,7 +1858,7 @@ private fun JournalInsulinPresetSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = when {
-                        isUnverified -> MaterialTheme.colorScheme.errorContainer
+                        isUnverified -> MaterialTheme.colorScheme.surfaceContainerHighest
                         isSteadyState || isReferenceOnly -> MaterialTheme.colorScheme.tertiaryContainer
                         else -> MaterialTheme.colorScheme.primaryContainer
                     },
@@ -1915,8 +1913,11 @@ private fun JournalInsulinPresetSheet(
                         ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val resetProfile = remember(draft.isBuiltIn, draft.sortOrder) {
-                        if (draft.isBuiltIn) defaultBuiltInProfile(draft.sortOrder) else null
+                    // A preset that still knows its source profile resets to that; a
+                    // legacy built-in only has its position to go on.
+                    val resetProfile = remember(draft.isBuiltIn, draft.sortOrder, draft.curveProfileId) {
+                        draft.curveProfileId?.let(JournalBuiltInCurveProfile::fromStorage)
+                            ?: if (draft.isBuiltIn) defaultBuiltInProfile(draft.sortOrder) else null
                     }
                     val curveDiffersFromDefault = remember(draft.curvePoints, resetProfile) {
                         if (resetProfile == null) {
@@ -1958,8 +1959,6 @@ private fun JournalInsulinPresetSheet(
                                         curveProfileId = resetProfile.storageValue,
                                         curveModelVersion = JournalInsulinCurveCatalogue.MODEL_VERSION,
                                         curveEvidence = definition.evidence,
-                                        countsTowardIob = draft.countsTowardIob &&
-                                            definition.evidence.supportsPerDoseCalculation,
                                         useForCalculation = draft.useForCalculation &&
                                             definition.evidence.supportsPerDoseCalculation
                                     )
@@ -2021,8 +2020,7 @@ private fun JournalInsulinPresetSheet(
                                 ),
                                 curveProfileId = null,
                                 curveModelVersion = 0,
-                                curveEvidence = JournalCurveEvidence.UNVERIFIED,
-                                useForCalculation = false
+                                curveEvidence = JournalCurveEvidence.UNVERIFIED
                             )
                         }
                     )
@@ -2044,8 +2042,7 @@ private fun JournalInsulinPresetSheet(
                                     ),
                                     curveProfileId = null,
                                     curveModelVersion = 0,
-                                    curveEvidence = JournalCurveEvidence.UNVERIFIED,
-                                    useForCalculation = false
+                                    curveEvidence = JournalCurveEvidence.UNVERIFIED
                                 )
                             },
                             onActivityChange = { activity ->
@@ -2058,8 +2055,7 @@ private fun JournalInsulinPresetSheet(
                                     ),
                                     curveProfileId = null,
                                     curveModelVersion = 0,
-                                    curveEvidence = JournalCurveEvidence.UNVERIFIED,
-                                    useForCalculation = false
+                                    curveEvidence = JournalCurveEvidence.UNVERIFIED
                                 )
                             },
                             onDelete = {
@@ -2067,8 +2063,7 @@ private fun JournalInsulinPresetSheet(
                                     curvePoints = deleteCurvePoint(draft.curvePoints, selectedPointIndex),
                                     curveProfileId = null,
                                     curveModelVersion = 0,
-                                    curveEvidence = JournalCurveEvidence.UNVERIFIED,
-                                    useForCalculation = false
+                                    curveEvidence = JournalCurveEvidence.UNVERIFIED
                                 )
                                 selectedPointIndex = (selectedPointIndex - 1).coerceAtLeast(1)
                             }
@@ -2087,8 +2082,7 @@ private fun JournalInsulinPresetSheet(
                                 curvePoints = updatedPoints,
                                 curveProfileId = null,
                                 curveModelVersion = 0,
-                                curveEvidence = JournalCurveEvidence.UNVERIFIED,
-                                useForCalculation = false
+                                curveEvidence = JournalCurveEvidence.UNVERIFIED
                             )
                             selectedPointIndex = insertedIndex
                         },
@@ -2579,7 +2573,7 @@ private fun buildPresetDraft(preset: JournalInsulinPreset?): JournalPresetDraft 
         isBuiltIn = preset?.isBuiltIn ?: false,
         isArchived = preset?.isArchived ?: false,
         countsTowardIob = preset?.countsTowardIob ?: true,
-        useForCalculation = preset?.useForCalculation ?: false,
+        useForCalculation = preset?.useForCalculation ?: true,
         curveProfileId = preset?.curveProfileId,
         curveModelVersion = preset?.curveModelVersion ?: 0,
         curveEvidence = preset?.curveEvidence ?: JournalCurveEvidence.UNVERIFIED,

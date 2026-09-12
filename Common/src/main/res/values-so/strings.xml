@@ -2023,6 +2023,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_curve_minutes">Daqiiqado</string>
     <string name="journal_curve_activity">Waxqabad qaraabo</string>
     <string name="journal_curve_activity_desc">Waxqabadka hoos u dhiga gulukoosta marka loo eego meesha ugu sarreysa qaloocan (100%).</string>
+    <string name="journal_preset_rapid_generic">Ficil degdeg ah (guud)</string>
+    <string name="journal_preset_long_generic">Ficil dheer (guud)</string>
+    <string name="journal_preset_ultra_long_generic">Saldhig aad u dheer (guud)</string>
     <string name="journal_scientific_name">Magaca sayniska</string>
     <string name="journal_curve_reset">Dib u deji qalooca</string>
     <string name="journal_enable_preset">Soo celi</string>

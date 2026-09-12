@@ -1,7 +1,9 @@
 package tk.glucodata.data.journal
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JournalPresetMergeTests {
@@ -64,5 +66,81 @@ class JournalPresetMergeTests {
         )
 
         assertEquals(expected, matchExistingBuiltInPreset(renamed, listOf(expected)))
+    }
+
+    private fun sourcePreset(profile: JournalBuiltInCurveProfile, sortOrder: Int): JournalInsulinPresetEntity {
+        val definition = JournalInsulinCurveCatalogue.definition(profile)
+        val curve = JournalInsulinCurveCatalogue.referenceCurve(profile)
+        return preset(0, profile.name, sortOrder).copy(
+            onsetMinutes = JournalInsulinCurveCatalogue.referenceOnsetMinutes(profile),
+            durationMinutes = curve.last().minute,
+            curveJson = serializeJournalCurve(curve, definition.evidence.requiresZeroEndpoints),
+            curveProfileId = profile.storageValue,
+            curveModelVersion = JournalInsulinCurveCatalogue.MODEL_VERSION,
+            curveEvidence = definition.evidence.storageValue
+        )
+    }
+
+    @Test
+    fun untouchedLegacyBuiltInCurveIsUpgradedToItsSourceProfile() {
+        val legacy = preset(7, "Fiasp", 6).copy(
+            curveJson = serializeJournalCurve(legacyGeneratedJournalCurve(JournalBuiltInCurveProfile.FIASP)),
+            countsTowardIob = true,
+            useForCalculation = true
+        )
+        val fresh = sourcePreset(JournalBuiltInCurveProfile.FIASP, 6)
+
+        val merged = mergeBuiltInPreset(fresh, legacy)
+
+        assertEquals(7L, merged.id)
+        assertEquals(fresh.curveJson, merged.curveJson)
+        assertEquals(JournalBuiltInCurveProfile.FIASP.storageValue, merged.curveProfileId)
+        assertEquals(JournalInsulinCurveCatalogue.MODEL_VERSION, merged.curveModelVersion)
+        assertEquals(JournalCurveEvidence.SOURCE_SINGLE_DOSE.storageValue, merged.curveEvidence)
+        assertEquals(fresh.onsetMinutes, merged.onsetMinutes)
+        assertTrue(merged.useForCalculation)
+    }
+
+    @Test
+    fun editedLegacyCurveStaysAsTheUsersUnverifiedCurve() {
+        val edited = preset(7, "Fiasp", 6).copy(curveJson = "0:0;40:1;300:0", isArchived = true)
+        val fresh = sourcePreset(JournalBuiltInCurveProfile.FIASP, 6)
+
+        val merged = mergeBuiltInPreset(fresh, edited)
+
+        assertEquals("0:0;40:1;300:0", merged.curveJson)
+        assertNull(merged.curveProfileId)
+        assertEquals(JournalCurveEvidence.UNVERIFIED.storageValue, merged.curveEvidence)
+        assertTrue(merged.isArchived)
+        assertEquals(fresh.displayName, merged.displayName)
+    }
+
+    @Test
+    fun upgradingToAReferenceOnlyCurveKeepsIobButDropsCalculation() {
+        val legacy = preset(10, "NPH", 9).copy(
+            curveJson = serializeJournalCurve(legacyGeneratedJournalCurve(JournalBuiltInCurveProfile.NPH)),
+            countsTowardIob = true,
+            useForCalculation = true
+        )
+        val fresh = sourcePreset(JournalBuiltInCurveProfile.NPH, 9)
+
+        val merged = mergeBuiltInPreset(fresh, legacy)
+
+        assertEquals(JournalCurveEvidence.SOURCE_REFERENCE.storageValue, merged.curveEvidence)
+        assertTrue(merged.countsTowardIob)
+        assertFalse(merged.useForCalculation)
+    }
+
+    @Test
+    fun olderSourceModelIsRefreshedInPlace() {
+        val stale = sourcePreset(JournalBuiltInCurveProfile.FIASP, 6)
+            .copy(id = 3, curveModelVersion = 1, curveJson = "0:0;55:1;360:0")
+        val fresh = sourcePreset(JournalBuiltInCurveProfile.FIASP, 6)
+
+        val merged = mergeBuiltInPreset(fresh, stale)
+
+        assertEquals(3L, merged.id)
+        assertEquals(fresh.curveJson, merged.curveJson)
+        assertEquals(JournalInsulinCurveCatalogue.MODEL_VERSION, merged.curveModelVersion)
     }
 }

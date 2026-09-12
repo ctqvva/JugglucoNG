@@ -2806,6 +2806,9 @@
     <string name="aidex_pairing_key_deleted">Klucz parowania usunięty</string>
     <string name="journal_curve_activity">Względna aktywność</string>
     <string name="journal_curve_activity_desc">Działanie obniżające glikemię względem szczytu tej krzywej (100%).</string>
+    <string name="journal_preset_rapid_generic">Szybko działająca (ogólna)</string>
+    <string name="journal_preset_long_generic">Długo działająca (ogólna)</string>
+    <string name="journal_preset_ultra_long_generic">Ultradługo działająca bazowa (ogólna)</string>
     <string name="journal_scientific_name">Nazwa naukowa</string>
     <string name="journal_curve_unverified">Niezweryfikowana krzywa</string>
     <string name="journal_curve_unverified_desc">Ten kształt aktywności jest oszacowaniem lub krzywą użytkownika i nie ma pełnego źródła farmakodynamicznego.</string>

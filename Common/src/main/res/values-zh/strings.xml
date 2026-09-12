@@ -2784,6 +2784,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">配对密钥已删除</string>
     <string name="journal_curve_activity">相对活性</string>
     <string name="journal_curve_activity_desc">相对于该曲线峰值（100%）的降糖活性。</string>
+    <string name="journal_preset_rapid_generic">速效（通用）</string>
+    <string name="journal_preset_long_generic">长效（通用）</string>
+    <string name="journal_preset_ultra_long_generic">超长效基础（通用）</string>
     <string name="journal_scientific_name">科学名称</string>
     <string name="journal_curve_unverified">未经验证的曲线</string>
     <string name="journal_curve_unverified_desc">此活性形状为估算值或自定义曲线，无法追溯到完整的药效学来源。</string>

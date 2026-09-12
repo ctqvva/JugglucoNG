@@ -433,13 +433,13 @@ class JournalRepository {
             curveJson = normalizedCurveJson,
             isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
             isArchived = input.isArchived,
-            countsTowardIob = input.countsTowardIob &&
-                storedEvidence != JournalCurveEvidence.SOURCE_STEADY_STATE &&
-                storedEvidence != JournalCurveEvidence.SOURCE_REFERENCE,
+            // Whether a dose shows up in IOB is the user's call whatever the
+            // evidence; only dose *calculation* is gated on a complete
+            // single-dose curve.
+            countsTowardIob = input.countsTowardIob,
             sortOrder = input.sortOrder,
             useForCalculation = input.useForCalculation &&
-                storedEvidence != JournalCurveEvidence.SOURCE_STEADY_STATE &&
-                storedEvidence != JournalCurveEvidence.SOURCE_REFERENCE,
+                storedEvidence.supportsPerDoseCalculation,
             curveProfileId = storedProfile?.storageValue,
             curveModelVersion = if (storedProfile == null) 0 else JournalInsulinCurveCatalogue.MODEL_VERSION,
             curveEvidence = storedEvidence.storageValue
@@ -568,7 +568,7 @@ class JournalRepository {
             preset(R.string.journal_preset_fiasp, JournalBuiltInCurveProfile.FIASP, 0xFF2E7D32.toInt(), 6, countsTowardIob = true),
             preset(R.string.journal_preset_lyumjev, JournalBuiltInCurveProfile.URLI, 0xFF00695C.toInt(), 7, countsTowardIob = true),
             preset(R.string.journal_preset_afrezza, JournalBuiltInCurveProfile.AFREZZA, 0xFFEF6C00.toInt(), 8, countsTowardIob = true),
-            preset(R.string.journal_preset_nph_named, JournalBuiltInCurveProfile.NPH, 0xFFE67E22.toInt(), 9),
+            preset(R.string.journal_preset_nph_named, JournalBuiltInCurveProfile.NPH, 0xFFE67E22.toInt(), 9, countsTowardIob = true),
             preset(R.string.journal_preset_ultra_long_generic, JournalBuiltInCurveProfile.ULTRA_LONG_BASAL, 0xFF3949AB.toInt(), 10),
             preset(R.string.journal_preset_lantus, JournalBuiltInCurveProfile.GLARGINE_U100, 0xFF5E6C3B.toInt(), 11),
             preset(R.string.journal_preset_toujeo, JournalBuiltInCurveProfile.GLARGINE_U300, 0xFF4E6041.toInt(), 12),
@@ -588,26 +588,9 @@ class JournalRepository {
         existing: List<JournalInsulinPresetEntity>
     ): List<JournalInsulinPresetEntity> {
         return defaultPresets().map { preset ->
-            val existingMatch = matchExistingBuiltInPreset(preset, existing)
-            val merged = existingMatch?.copy(
-                displayName = preset.displayName,
-                accentColor = preset.accentColor,
-                sortOrder = preset.sortOrder
-            ) ?: preset
-            val shouldUpgradeSourceCurve = existingMatch != null &&
-                existingMatch.curveProfileId == preset.curveProfileId &&
-                existingMatch.curveModelVersion in 1 until JournalInsulinCurveCatalogue.MODEL_VERSION
-            if (shouldUpgradeSourceCurve) {
-                merged.copy(
-                    onsetMinutes = preset.onsetMinutes,
-                    durationMinutes = preset.durationMinutes,
-                    curveJson = preset.curveJson,
-                    curveModelVersion = preset.curveModelVersion,
-                    curveEvidence = preset.curveEvidence
-                )
-            } else {
-                merged
-            }
+            matchExistingBuiltInPreset(preset, existing)
+                ?.let { mergeBuiltInPreset(preset, it) }
+                ?: preset
         }
     }
 
@@ -676,6 +659,44 @@ internal fun matchExistingBuiltInPreset(
         else -> null
     }
     return legacySortOrder?.let(bySortOrder::get)
+}
+
+/**
+ * Folds a freshly built default onto the row a user already has. Name, colour
+ * and position always follow the default; the user's toggles and archive state
+ * are theirs. The curve moves only when it is provably not the user's work:
+ * a source-backed preset on an older model version, or a legacy built-in still
+ * carrying the exact generated shape it was seeded with. Anything else stays as
+ * an unverified custom curve.
+ */
+internal fun mergeBuiltInPreset(
+    newPreset: JournalInsulinPresetEntity,
+    existing: JournalInsulinPresetEntity
+): JournalInsulinPresetEntity {
+    val merged = existing.copy(
+        displayName = newPreset.displayName,
+        accentColor = newPreset.accentColor,
+        sortOrder = newPreset.sortOrder
+    )
+    val profile = newPreset.curveProfileId?.let(JournalBuiltInCurveProfile::fromStorage)
+    val staleSourceCurve = profile != null &&
+        existing.curveProfileId == newPreset.curveProfileId &&
+        existing.curveModelVersion in 1 until JournalInsulinCurveCatalogue.MODEL_VERSION
+    val untouchedLegacyCurve = profile != null &&
+        existing.curveProfileId == null &&
+        runCatching { serializeJournalCurve(legacyGeneratedJournalCurve(profile)) }
+            .getOrNull() == existing.curveJson
+    if (!staleSourceCurve && !untouchedLegacyCurve) return merged
+    val evidence = JournalCurveEvidence.fromStorage(newPreset.curveEvidence)
+    return merged.copy(
+        onsetMinutes = newPreset.onsetMinutes,
+        durationMinutes = newPreset.durationMinutes,
+        curveJson = newPreset.curveJson,
+        curveProfileId = newPreset.curveProfileId,
+        curveModelVersion = newPreset.curveModelVersion,
+        curveEvidence = newPreset.curveEvidence,
+        useForCalculation = existing.useForCalculation && evidence.supportsPerDoseCalculation
+    )
 }
 
 internal fun isSameNightscoutJournalKind(

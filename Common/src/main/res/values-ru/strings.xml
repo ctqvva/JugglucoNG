@@ -2814,6 +2814,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Ключ сопряжения удалён</string>
     <string name="journal_curve_activity">Относительная активность</string>
     <string name="journal_curve_activity_desc">Глюкозоснижающая активность относительно пика этой кривой (100%).</string>
+    <string name="journal_preset_rapid_generic">Быстрого действия (общий)</string>
+    <string name="journal_preset_long_generic">Длительного действия (общий)</string>
+    <string name="journal_preset_ultra_long_generic">Сверхдлительный базальный (общий)</string>
     <string name="journal_scientific_name">Научное название</string>
     <string name="journal_curve_unverified">Непроверенная кривая</string>
     <string name="journal_curve_unverified_desc">Эта форма активности является оценкой или пользовательской кривой и не связана с полным фармакодинамическим источником.</string>

@@ -2768,6 +2768,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Parkopplingsnyckel borttagen</string>
     <string name="journal_curve_activity">Relativ aktivitet</string>
     <string name="journal_curve_activity_desc">Glukossänkande aktivitet i förhållande till kurvans topp (100 %).</string>
+    <string name="journal_preset_rapid_generic">Snabbverkande (generisk)</string>
+    <string name="journal_preset_long_generic">Långverkande (generisk)</string>
+    <string name="journal_preset_ultra_long_generic">Ultralångverkande basal (generisk)</string>
     <string name="journal_scientific_name">Vetenskapligt namn</string>
     <string name="journal_curve_unverified">Obekräftad kurva</string>
     <string name="journal_curve_unverified_desc">Den här aktivitetsformen är en uppskattning eller en anpassad kurva och kan inte härledas till en fullständig farmakodynamisk källa.</string>

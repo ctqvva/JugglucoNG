@@ -2992,8 +2992,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_delete">Delete key</string>
     <string name="aidex_pairing_key_delete_confirm">Delete this pairing key? You will need to pair the sensor again to get a new one.</string>
     <string name="aidex_pairing_key_deleted">Pairing key deleted</string>
-    <string name="journal_preset_rapid_generic" translatable="false">Rapid acting (generic)</string>
-    <string name="journal_preset_long_generic" translatable="false">Long acting (generic)</string>
+    <string name="journal_preset_rapid_generic">Rapid acting (generic)</string>
+    <string name="journal_preset_long_generic">Long acting (generic)</string>
     <string name="journal_preset_regular_u100" translatable="false">Humulin R / Novolin R</string>
     <string name="journal_preset_aspart" translatable="false">NovoRapid / NovoLog</string>
     <string name="journal_preset_lispro" translatable="false">Humalog</string>
@@ -3002,7 +3002,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_preset_lyumjev" translatable="false">Lyumjev</string>
     <string name="journal_preset_afrezza" translatable="false">Afrezza</string>
     <string name="journal_preset_nph_named" translatable="false">Humulin N / Novolin N</string>
-    <string name="journal_preset_ultra_long_generic" translatable="false">Ultra-long basal (generic)</string>
+    <string name="journal_preset_ultra_long_generic">Ultra-long basal (generic)</string>
     <string name="journal_preset_lantus" translatable="false">Lantus / Basaglar / Semglee</string>
     <string name="journal_preset_toujeo" translatable="false">Toujeo</string>
     <string name="journal_preset_levemir" translatable="false">Levemir</string>

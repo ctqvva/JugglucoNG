@@ -2843,6 +2843,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Ключ сполучення видалено</string>
     <string name="journal_curve_activity">Відносна активність</string>
     <string name="journal_curve_activity_desc">Цукрознижувальна активність відносно піку цієї кривої (100%).</string>
+    <string name="journal_preset_rapid_generic">Швидкої дії (загальний)</string>
+    <string name="journal_preset_long_generic">Тривалої дії (загальний)</string>
+    <string name="journal_preset_ultra_long_generic">Наддовгий базальний (загальний)</string>
     <string name="journal_scientific_name">Наукова назва</string>
     <string name="journal_curve_unverified">Неперевірена крива</string>
     <string name="journal_curve_unverified_desc">Ця форма активності є оцінкою або користувацькою кривою і не пов’язана з повним фармакодинамічним джерелом.</string>
