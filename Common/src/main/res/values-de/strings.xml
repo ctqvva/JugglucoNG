@@ -2689,4 +2689,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_follow_interval_title">Neue Werte abrufen</string>
     <string name="nightscout_follow_interval_desc">Wie oft der Follower den Server fragt. Das ist zugleich, wie alt ein Wert sein kann, und damit auch, wie spät ein Alarm auf einen gefolgten Wert kommen kann. Ein Follower hat keinen eigenen Sensor, der das Telefon wach hält, also ist jede Abfrage ein Aufwecken.</string>
     <string name="nightscout_follow_interval_doze">Unter 9 Minuten kann Android die Abfragen im Ruhezustand trotzdem weiter auseinanderziehen. Juggluco von der Akku-Optimierung auszunehmen hält das eingestellte Intervall.</string>
+    <string name="aidex_pairing_key_backup">Sicherung des Kopplungsschlüssels</string>
+    <string name="aidex_pairing_key_backup_warning">Diese Datei enthält den Kopplungsschlüssel des Sensors. Bewahre sie vertraulich auf.</string>
+    <string name="aidex_pairing_key_saved">Sicherung des Kopplungsschlüssels gespeichert</string>
+    <string name="aidex_pairing_key_unavailable">Noch kein geprüfter Kopplungsschlüssel verfügbar</string>
+    <string name="aidex_restore_pairing_key">Kopplungsschlüssel wiederherstellen</string>
+    <string name="aidex_pairing_key_restored">Kopplungsschlüssel wiederhergestellt. Wähle den passenden Sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">Dies ist keine gültige AiDex-Schlüsselsicherung</string>
+    <string name="aidex_pairing_key_conflict">Für diesen Sensor ist bereits ein anderer Schlüssel gespeichert; nichts wurde überschrieben</string>
+    <string name="aidex_pairing_key_delete">Schlüssel löschen</string>
+    <string name="aidex_pairing_key_delete_confirm">Diesen Kopplungsschlüssel löschen? Sie müssen den Sensor erneut koppeln, um einen neuen zu erhalten.</string>
+    <string name="aidex_pairing_key_deleted">Kopplungsschlüssel gelöscht</string>
 </resources>

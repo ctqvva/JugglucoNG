@@ -2651,4 +2651,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_interval_title">Procurar novos valores</string>
     <string name="nightscout_follow_interval_desc">Com que frequência o seguidor pergunta ao servidor. É também a idade que um valor pode ter e, portanto, o atraso possível de um alarme baseado num valor seguido. Um seguidor não tem sensor próprio para manter o telemóvel acordado, por isso cada verificação é um despertar.</string>
     <string name="nightscout_follow_interval_doze">Abaixo de 9 minutos, o Android pode ainda assim afastar as verificações enquanto o telemóvel está inativo. Excluir o Juggluco da otimização da bateria mantém o intervalo escolhido.</string>
+    <string name="aidex_pairing_key_backup">Cópia da chave de emparelhamento</string>
+    <string name="aidex_pairing_key_backup_warning">Este ficheiro contém a credencial de emparelhamento do sensor. Guarde-o de forma privada e segura.</string>
+    <string name="aidex_pairing_key_saved">Cópia da chave de emparelhamento guardada</string>
+    <string name="aidex_pairing_key_unavailable">Ainda não existe uma chave de emparelhamento verificada</string>
+    <string name="aidex_restore_pairing_key">Restaurar chave de emparelhamento</string>
+    <string name="aidex_pairing_key_restored">Chave de emparelhamento restaurada. Selecione o sensor correspondente.</string>
+    <string name="aidex_pairing_key_restore_failed">Este ficheiro não é uma cópia válida de chave AiDex</string>
+    <string name="aidex_pairing_key_conflict">Já existe uma chave diferente para este sensor; nada foi substituído</string>
+    <string name="aidex_pairing_key_delete">Eliminar chave</string>
+    <string name="aidex_pairing_key_delete_confirm">Eliminar esta chave de emparelhamento? Terá de emparelhar o sensor novamente para obter uma nova.</string>
+    <string name="aidex_pairing_key_deleted">Chave de emparelhamento eliminada</string>
 </resources>

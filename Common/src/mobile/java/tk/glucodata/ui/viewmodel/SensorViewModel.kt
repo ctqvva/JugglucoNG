@@ -1530,6 +1530,22 @@ class SensorViewModel : ViewModel() {
     }
 
     /**
+     * Force-forget the stored AiDex PAIR credential (manual Delete). For a key invalidated by
+     * an unpair elsewhere, which can no longer build a session to unpair itself. Next connect
+     * pairs fresh.
+     */
+    fun forgetAiDexPairKey(serial: String) {
+        val gatt = findGatt(serial)
+        if (gatt is tk.glucodata.drivers.aidex.AiDexDriver) {
+            gatt.forgetSavedPairKey()
+        } else {
+            tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                .clearStoredKey(tk.glucodata.Applic.app, serial)
+        }
+        refreshSensors()
+    }
+
+    /**
      * Re-pair with the AiDex sensor: clear keys and restart vendor stack for fresh pairing.
      */
     fun rePairAiDexSensor(serial: String) {

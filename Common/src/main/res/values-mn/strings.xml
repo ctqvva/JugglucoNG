@@ -2757,4 +2757,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
     <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
     <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
+    <string name="aidex_pairing_key_backup">Хослуулах түлхүүрийн нөөц</string>
+    <string name="aidex_pairing_key_backup_warning">Энэ файл мэдрэгчийн хослуулах түлхүүрийг агуулна. Нууц, аюулгүй хадгална уу.</string>
+    <string name="aidex_pairing_key_saved">Хослуулах түлхүүрийн нөөцийг хадгаллаа</string>
+    <string name="aidex_pairing_key_unavailable">Баталгаажсан хослуулах түлхүүр хараахан алга</string>
+    <string name="aidex_restore_pairing_key">Хослуулах түлхүүрийн нөөцийг сэргээх</string>
+    <string name="aidex_pairing_key_restored">Хослуулах түлхүүрийг сэргээв. Тохирох мэдрэгчийг сонгоно уу.</string>
+    <string name="aidex_pairing_key_restore_failed">Энэ нь AiDex түлхүүрийн хүчинтэй нөөц биш байна</string>
+    <string name="aidex_pairing_key_conflict">Энэ мэдрэгчид өөр түлхүүр аль хэдийн хадгалагдсан; юу ч дарж бичсэнгүй</string>
+    <string name="aidex_pairing_key_delete">Түлхүүр устгах</string>
+    <string name="aidex_pairing_key_delete_confirm">Энэ хослуулах түлхүүрийг устгах уу? Шинийг авахын тулд мэдрэгчийг дахин хослуулах шаардлагатай.</string>
+    <string name="aidex_pairing_key_deleted">Хослуулах түлхүүр устгагдлаа</string>
 </resources>

@@ -2842,4 +2842,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
     <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
     <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
+    <string name="aidex_pairing_key_backup">Kaydka furaha isku-xidhka</string>
+    <string name="aidex_pairing_key_backup_warning">Faylkani wuxuu xanbaarsan yahay furaha isku-xidhka dareemaha. Si gaar ah oo ammaan ah u kaydi.</string>
+    <string name="aidex_pairing_key_saved">Kaydka furaha isku-xidhka waa la keydiyey</string>
+    <string name="aidex_pairing_key_unavailable">Weli ma jiro fure isku-xidh oo la xaqiijiyey</string>
+    <string name="aidex_restore_pairing_key">Soo celi furaha isku-xidhka</string>
+    <string name="aidex_pairing_key_restored">Furaha isku-xidhka waa la soo celiyey. Dooro dareemaha ku habboon.</string>
+    <string name="aidex_pairing_key_restore_failed">Kani ma aha kayd fure AiDex oo sax ah</string>
+    <string name="aidex_pairing_key_conflict">Fure kale ayaa hore loogu kaydiyey dareemahan; waxba lama dul-qorin</string>
+    <string name="aidex_pairing_key_delete">Tirtir furaha</string>
+    <string name="aidex_pairing_key_delete_confirm">Tirtir furahan isku-xidhka? Waxaad u baahan doontaa inaad dib u xidho dareemaha si aad mid cusub u hesho.</string>
+    <string name="aidex_pairing_key_deleted">Furaha isku-xidhka waa la tirtiray</string>
 </resources>

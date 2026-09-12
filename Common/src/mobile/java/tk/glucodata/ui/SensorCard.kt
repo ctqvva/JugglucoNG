@@ -19,6 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -522,6 +527,8 @@ fun SensorCard(
     var showAnytimeHistoryDialog by remember { mutableStateOf(false) }
     var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
+    var showAiDexKeyBackupDialog by remember { mutableStateOf(false) }
+    var showAiDexKeyDeleteConfirm by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
     var connectionLogExpanded by remember(sensor.serial) { mutableStateOf(false) }
@@ -564,6 +571,62 @@ fun SensorCard(
                     if (saved) R.string.export_successful else R.string.export_failed,
                     android.widget.Toast.LENGTH_LONG
                 ).show()
+            }
+        }
+    }
+    var pendingAiDexKeyBackup by remember { mutableStateOf<String?>(null) }
+    val aiDexKeyExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val payload = pendingAiDexKeyBackup
+        pendingAiDexKeyBackup = null
+        if (uri != null && payload != null) {
+            scope.launch {
+                val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                            writer.write(payload)
+                        } ?: error("No output stream")
+                    }.isSuccess
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (saved) R.string.aidex_pairing_key_saved else R.string.export_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    // Restore a pairing-key backup for this sensor. The vault keys by serial, so a file for a
+    // different sensor is refused here rather than silently filed away. On success the driver
+    // reloads the key and reconnects with it.
+    val aiDexKeyImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val message = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val payload = runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull() ?: return@withContext R.string.aidex_pairing_key_restore_failed
+                    val record = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup.decode(payload)
+                        ?: return@withContext R.string.aidex_pairing_key_restore_failed
+                    val thisSerial = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
+                        .canonicalBareSerial(sensor.serial)
+                    if (record.bareSerial != thisSerial) return@withContext R.string.aidex_pairing_key_restore_failed
+                    when (tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.importPayload(context, payload)) {
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.SAVED,
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.ALREADY_PRESENT -> {
+                            viewModel.rePairAiDexSensor(sensor.serial)
+                            R.string.aidex_pairing_key_restored
+                        }
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.CONFLICT ->
+                            R.string.aidex_pairing_key_conflict
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault.ImportResult.INVALID ->
+                            R.string.aidex_pairing_key_restore_failed
+                    }
+                }
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -1612,6 +1675,81 @@ fun SensorCard(
         }
     }
 
+    if (showAiDexKeyBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showAiDexKeyBackupDialog = false },
+            title = { Text(stringResource(R.string.aidex_pairing_key_backup)) },
+            text = { Text(stringResource(R.string.aidex_pairing_key_backup_warning)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val payload = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial)
+                        showAiDexKeyBackupDialog = false
+                        if (payload == null) {
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.aidex_pairing_key_unavailable,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            pendingAiDexKeyBackup = payload
+                            val bareSerial = tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyBackup
+                                .canonicalBareSerial(sensor.serial)
+                            aiDexKeyExportLauncher.launch("JugglucoNG-AiDex-$bareSerial.aidexkey")
+                        }
+                    }
+                ) { Text(stringResource(R.string.export)) }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Left: force-remove a key that unpair can no longer clear on its own.
+                    TextButton(
+                        onClick = {
+                            showAiDexKeyBackupDialog = false
+                            showAiDexKeyDeleteConfirm = true
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
+                    TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            }
+        )
+    }
+
+    if (showAiDexKeyDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showAiDexKeyDeleteConfirm = false },
+            title = { Text(stringResource(R.string.aidex_pairing_key_delete)) },
+            text = { Text(stringResource(R.string.aidex_pairing_key_delete_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAiDexKeyDeleteConfirm = false
+                        viewModel.forgetAiDexPairKey(sensor.serial)
+                        android.widget.Toast.makeText(
+                            context,
+                            R.string.aidex_pairing_key_deleted,
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiDexKeyDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     if (showAiDexUnpairDialog) {
         AlertDialog(
             onDismissRequest = { showAiDexUnpairDialog = false },
@@ -2417,18 +2555,14 @@ fun SensorCard(
                 // Unpair/Pair is more important — it's the primary action for AiDex sensor management.
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Edit 78: Reset button — opens bottom sheet. Shows tertiary tint when
                     // bias correction is active so the user knows something is going on.
                     FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
-                        shape = RoundedCornerShape(
-                            topStart = 12.dp,
-                            bottomStart = 12.dp,
-                            topEnd = 4.dp,
-                            bottomEnd = 4.dp
-                        ),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
                                 MaterialTheme.colorScheme.tertiaryContainer
@@ -2451,56 +2585,31 @@ fun SensorCard(
                             maxLines = 1
                         )
                     }
-                    // Pair / Unpair toggle — right (weight 1f = fills remaining space, prominent)
-                    if (sensor.isVendorPaired) {
-                        FilledTonalButton(
-                            onClick = { showAiDexUnpairDialog = true },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                bottomStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LinkOff,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.unpair), maxLines = 1)
-                        }
-                    } else {
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.rePairAiDexSensor(sensor.serial)
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                bottomStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Link,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.pair), maxLines = 1)
-                        }
+                    // Pair / Unpair split button — right (weight 1f, prominent). Its trailing
+                    // half is the pairing-key backup, coloured by whether a verified key is held.
+                    val hasExportablePairKey = remember(sensor.serial, sensor.isVendorPaired) {
+                        tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
+                            .exportPayload(context, sensor.serial) != null
                     }
+                    AiDexPairSplitButton(
+                        paired = sensor.isVendorPaired,
+                        keyHeld = hasExportablePairKey,
+                        onLeadingClick = {
+                            if (sensor.isVendorPaired) {
+                                showAiDexUnpairDialog = true
+                            } else {
+                                viewModel.rePairAiDexSensor(sensor.serial)
+                            }
+                        },
+                        onKeyClick = {
+                            if (hasExportablePairKey) {
+                                showAiDexKeyBackupDialog = true
+                            } else {
+                                aiDexKeyImportLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
 
@@ -3081,4 +3190,95 @@ fun SensorCard(
         }
     }
 }
+}
+
+/**
+ * M3 Expressive split button, built by hand: `material3` 1.4.0 ships only the
+ * `SplitButtonSmallTokens`, not the composable. Values follow those tokens — 40dp tall, 2dp
+ * between the halves, 4dp inner corners that swell to 12dp while the trailing half is pressed,
+ * a 22dp trailing glyph with 13dp either side. The outer corners stay at the 12dp this row
+ * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
+ *
+ * Both halves share one container, as a split button does; the trailing key glyph alone
+ * carries state — the app's in-range green while a verified key is held (tap: back it up),
+ * error while none is (tap: restore one from a backup file).
+ */
+@Composable
+private fun AiDexPairSplitButton(
+    paired: Boolean,
+    keyHeld: Boolean,
+    onLeadingClick: () -> Unit,
+    onKeyClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val outer = 12.dp
+    val innerRest = 4.dp
+    val innerPressed = 12.dp
+    val keyInteraction = remember { MutableInteractionSource() }
+    val keyPressed by keyInteraction.collectIsPressedAsState()
+    val inner by animateDpAsState(
+        targetValue = if (keyPressed) innerPressed else innerRest,
+        label = "aidexSplitInnerCorner"
+    )
+
+    val container = if (paired) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
+    val onContainer = if (paired) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
+    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(isSystemInDarkTheme()))
+    val keyTint by animateColorAsState(
+        targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.error,
+        label = "aidexKeyTint"
+    )
+
+    Row(
+        modifier = modifier.height(ButtonDefaults.MinHeight),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FilledTonalButton(
+            onClick = onLeadingClick,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(
+                topStart = outer,
+                bottomStart = outer,
+                topEnd = inner,
+                bottomEnd = inner,
+            ),
+            contentPadding = PaddingValues(start = 16.dp, end = 12.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = container,
+                contentColor = onContainer,
+            ),
+        ) {
+            Icon(
+                imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(if (paired) R.string.unpair else R.string.pair), maxLines = 1)
+        }
+        FilledTonalIconButton(
+            onClick = onKeyClick,
+            interactionSource = keyInteraction,
+            modifier = Modifier.width(48.dp).fillMaxHeight(),
+            shape = RoundedCornerShape(
+                topStart = inner,
+                bottomStart = inner,
+                topEnd = outer,
+                bottomEnd = outer,
+            ),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = container,
+                contentColor = keyTint,
+            ),
+        ) {
+            Icon(
+                imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
+                contentDescription = stringResource(
+                    if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
+                ),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
 }

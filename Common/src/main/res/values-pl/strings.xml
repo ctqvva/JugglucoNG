@@ -2688,4 +2688,15 @@
     <string name="nightscout_follow_interval_title">Sprawdzanie nowych wartości</string>
     <string name="nightscout_follow_interval_desc">Jak często obserwator odpytuje serwer. To zarazem wiek, jaki może mieć wartość, a więc i opóźnienie alarmu opartego na obserwowanej wartości. Obserwator nie ma własnego sensora, który utrzymywałby telefon wybudzony, więc każde sprawdzenie to wybudzenie.</string>
     <string name="nightscout_follow_interval_doze">Poniżej 9 minut Android i tak może rozsuwać sprawdzenia, gdy telefon jest bezczynny. Wyłączenie Juggluco z optymalizacji baterii zachowuje wybrany odstęp.</string>
+    <string name="aidex_pairing_key_backup">Kopia klucza parowania</string>
+    <string name="aidex_pairing_key_backup_warning">Ten plik zawiera klucz parowania sensora. Przechowuj go prywatnie i bezpiecznie.</string>
+    <string name="aidex_pairing_key_saved">Zapisano kopię klucza parowania</string>
+    <string name="aidex_pairing_key_unavailable">Zweryfikowany klucz parowania nie jest jeszcze dostępny</string>
+    <string name="aidex_restore_pairing_key">Przywróć klucz parowania</string>
+    <string name="aidex_pairing_key_restored">Przywrócono klucz parowania. Wybierz pasujący sensor.</string>
+    <string name="aidex_pairing_key_restore_failed">To nie jest prawidłowa kopia klucza AiDex</string>
+    <string name="aidex_pairing_key_conflict">Dla tego sensora zapisano już inny klucz; niczego nie nadpisano</string>
+    <string name="aidex_pairing_key_delete">Usuń klucz</string>
+    <string name="aidex_pairing_key_delete_confirm">Usunąć ten klucz parowania? Aby uzyskać nowy, trzeba ponownie sparować sensor.</string>
+    <string name="aidex_pairing_key_deleted">Klucz parowania usunięty</string>
 </resources>
