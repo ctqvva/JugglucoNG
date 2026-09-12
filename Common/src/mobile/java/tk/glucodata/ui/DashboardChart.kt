@@ -806,7 +806,7 @@ fun InteractiveGlucoseChart(
     // User requested stronger dark mode lines ("oddly pale").
     // Standard M3 dark primary is pastel. We use a more saturated blue for data.
     val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+    val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
     val tertiaryColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f) // Lighter shade for 3rd line
     val pointColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.125f)
@@ -2696,7 +2696,7 @@ fun InteractiveGlucoseChart(
                             grey,
                             laneIdentity,
                             tk.glucodata.SensorVisuals.LANE_IDENTITY_TINT,
-                        ).copy(alpha = if (tertiary) 0.4f else 0.7f)
+                        ).copy(alpha = if (tertiary) 0.4f else 0.62f)
                     }
                     val rawLaneColor = laneColor(tertiary = hasCalibration && viewMode == 2)
                     val autoLaneColor = laneColor(tertiary = hasCalibration && viewMode == 3)

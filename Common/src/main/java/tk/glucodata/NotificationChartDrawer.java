@@ -28,7 +28,7 @@ public class NotificationChartDrawer {
     private static final float DASHBOARD_PRIMARY_LINE_ALPHA = 1.0f;
     private static final float DASHBOARD_PRIMARY_THRESHOLD_ALPHA = 0.96f;
     private static final float DASHBOARD_PRIMARY_STROKE_SCALE = 1.12f;
-    private static final float DASHBOARD_SECONDARY_LINE_ALPHA = 0.82f;
+    private static final float DASHBOARD_SECONDARY_LINE_ALPHA = 0.74f;
     private static final float DASHBOARD_SECONDARY_STROKE_SCALE = 0.68f;
     private static final float DASHBOARD_PEER_NEUTRAL_BLEND = 0.46f;
     private static final float DASHBOARD_PEER_LINE_ALPHA = 0.88f;
