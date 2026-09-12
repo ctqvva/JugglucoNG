@@ -134,6 +134,12 @@ object ManagedSensorHandoff {
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
             SensorIdentity.invalidateCaches()
+            // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
+            // to its own schedule, so a device could take a sensor over holding only the last
+            // few minutes and wait minutes for the rest — while the sender had all of it and
+            // the Data Layer was idle.
+            runCatching { WearSync2.requestSync(deep = true) }
+                .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
