@@ -73,6 +73,16 @@ object ManagedSensorHandoff {
             }
         }
         root.put("entries", entries)
+        // Which namespaces actually travelled is otherwise invisible: a receiver that comes up
+        // with no auth material looks exactly like one that was never sent any.
+        run {
+            val perPrefs = LinkedHashMap<String, Int>()
+            for (i in 0 until entries.length()) {
+                val name = entries.optJSONObject(i)?.optString("prefs").orEmpty()
+                if (name.isNotEmpty()) perPrefs[name] = (perPrefs[name] ?: 0) + 1
+            }
+            Log.i(LOG_ID, "handoff payload: ${entries.length()} entries $perPrefs candidates=$candidates")
+        }
         return root.toString().toByteArray(StandardCharsets.UTF_8)
     }
 
@@ -98,6 +108,14 @@ object ManagedSensorHandoff {
                         ManagedCurrentSensor.set(sensorId)
                     }
                 }
+            run {
+            val perPrefs = LinkedHashMap<String, Int>()
+            for (i in 0 until entries.length()) {
+                val name = entries.optJSONObject(i)?.optString("prefs").orEmpty()
+                if (name.isNotEmpty()) perPrefs[name] = (perPrefs[name] ?: 0) + 1
+            }
+                Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
+            }
             SensorIdentity.invalidateCaches()
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
