@@ -99,6 +99,11 @@ object ManagedSensorHandoff {
                     }
                 }
             SensorIdentity.invalidateCaches()
+            // The record is now stored, but drivers are only built from storage at Bluetooth
+            // start. Without this the receiving device holds the sensor on paper and never
+            // opens a connection — no GATT attempt, no broadcast fallback — until the app is
+            // restarted, and the claim times out back to the sender.
+            SensorBluetooth.ensurePersistedManagedCallbacks()
             true
         }.getOrElse { th ->
             Log.stack(LOG_ID, "applyIncoming", th)

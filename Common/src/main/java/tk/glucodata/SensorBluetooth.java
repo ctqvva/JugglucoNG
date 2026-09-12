@@ -1095,6 +1095,25 @@ public class SensorBluetooth {
         Natives.setmaxsensors(gattcallbacks.size());
     }
 
+    /**
+     * Materialize drivers for managed sensors that were persisted after Bluetooth already
+     * started. {@link #addPersistedManagedCallbacks()} otherwise runs only from start()/
+     * startDevices(), so a sensor that arrives mid-run — a watch receiving a handoff — has a
+     * stored record and no driver: nothing connects, nothing falls back to broadcast, and the
+     * claim just times out.
+     */
+    public static void ensurePersistedManagedCallbacks() {
+        final SensorBluetooth one = blueone;
+        if (one == null) {
+            return;
+        }
+        try {
+            one.addPersistedManagedCallbacks();
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "ensurePersistedManagedCallbacks", th);
+        }
+    }
+
     synchronized void addPersistedManagedCallbacks() {
         final Context context = Applic.app;
         if (context == null) {
