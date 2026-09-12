@@ -2,6 +2,7 @@ package tk.glucodata.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,12 +22,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +43,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,19 +60,31 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.data.ExportCompression
 import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistoryExporter
+import tk.glucodata.data.ScheduledBackupConfig
+import tk.glucodata.data.ScheduledBackupIntegrityNotifier
+import tk.glucodata.data.ScheduledBackupSettings
+import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import java.io.File
 import java.util.ArrayList
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -238,6 +256,7 @@ fun ExportDataSettingsSheet(
     var includeHistory by rememberSaveable { mutableStateOf(true) }
     var includeCalibrations by rememberSaveable { mutableStateOf(true) }
     var historyDays by rememberSaveable { mutableStateOf<Long?>(90L) }
+    var compression by rememberSaveable { mutableStateOf(ExportCompression.GZIP) }
     var isExporting by remember { mutableStateOf(false) }
     var pendingRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
     var pendingCsvRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
@@ -248,7 +267,8 @@ fun ExportDataSettingsSheet(
             includeSettings = includeSettings,
             includeHistory = includeHistory,
             includeCalibrations = includeCalibrations,
-            historyDays = if (includeHistory) historyDays else null
+            historyDays = if (includeHistory) historyDays else null,
+            compression = compression
         )
     }
 
@@ -342,9 +362,7 @@ fun ExportDataSettingsSheet(
         }
     }
 
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
+    fun exportPackageToUri(uri: Uri?) {
         val request = pendingRequest
         pendingRequest = null
         if (uri != null && request != null) {
@@ -358,6 +376,24 @@ fun ExportDataSettingsSheet(
                 }
             }
         }
+    }
+
+    val gzipSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.GZIP.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
+    val zstdSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.ZSTD.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
+    val jsonSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.NONE.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
     }
 
     val csvLauncher = rememberLauncherForActivityResult(
@@ -402,10 +438,14 @@ fun ExportDataSettingsSheet(
             Toast.makeText(context, context.getString(R.string.export_nothing_selected), Toast.LENGTH_SHORT).show()
             return
         }
-        // Always save a single JSON package containing every selected section. The
-        // human-readable report stays available via its own button and via Share.
+        // Save one JSON package containing every selected section. The human-readable
+        // report stays available via its own button and via Share.
         pendingRequest = request
-        saveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        when (request.compression) {
+            ExportCompression.NONE -> jsonSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+            ExportCompression.GZIP -> gzipSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+            ExportCompression.ZSTD -> zstdSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        }
     }
 
     fun shareExport() {
@@ -589,6 +629,11 @@ fun ExportDataSettingsSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ExportRangeChip(
+                        selected = compression == ExportCompression.NONE,
+                        label = stringResource(R.string.export_compression_none),
+                        onClick = { compression = ExportCompression.NONE }
+                    )
+                    ExportRangeChip(
                         selected = historyDays == 30L,
                         label = stringResource(R.string.export_range_30_days),
                         onClick = { historyDays = 30L }
@@ -637,6 +682,29 @@ fun ExportDataSettingsSheet(
                 }
             }
 
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = stringResource(R.string.export_compression),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ExportRangeChip(
+                        selected = compression == ExportCompression.GZIP,
+                        label = stringResource(R.string.export_compression_gzip),
+                        onClick = { compression = ExportCompression.GZIP }
+                    )
+                    ExportRangeChip(
+                        selected = compression == ExportCompression.ZSTD,
+                        label = stringResource(R.string.export_compression_zstd),
+                        onClick = { compression = ExportCompression.ZSTD }
+                    )
+                }
+            }
+
             if (isExporting) {
                 Box(
                     modifier = Modifier
@@ -681,6 +749,412 @@ fun ExportDataSettingsSheet(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScheduledBackupSettingsSheet(
+    onDismiss: () -> Unit,
+    sheetState: SheetState,
+    onConfigurationChanged: (ScheduledBackupConfig) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var config by remember { mutableStateOf(ScheduledBackupSettings.load(context)) }
+    var enableAfterFolderPick by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var isRunningNow by remember { mutableStateOf(false) }
+    var isTestingBackup by remember { mutableStateOf(false) }
+    var backupTestMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
+    fun persist(updated: ScheduledBackupConfig) {
+        ScheduledBackupSettings.saveConfiguration(context, updated)
+        ScheduledBackupWorker.applyConfiguration(context, updated)
+        config = ScheduledBackupSettings.load(context)
+        onConfigurationChanged(config)
+    }
+
+    val folderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) {
+            enableAfterFolderPick = false
+            return@rememberLauncherForActivityResult
+        }
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val granted = runCatching {
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        }.isSuccess
+        if (!granted) {
+            enableAfterFolderPick = false
+            Toast.makeText(
+                context,
+                context.getString(R.string.scheduled_backup_folder_error),
+                Toast.LENGTH_LONG
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
+        val previous = config.destination
+        persist(config.copy(destination = uri, enabled = config.enabled || enableAfterFolderPick))
+        enableAfterFolderPick = false
+        if (previous != null && previous != uri) {
+            runCatching { context.contentResolver.releasePersistableUriPermission(previous, flags) }
+        }
+    }
+
+    fun runNow() {
+        if (config.destination == null || isRunningNow || isTestingBackup) return
+        isRunningNow = true
+        val workId = ScheduledBackupWorker.runNow(context)
+        Toast.makeText(context, context.getString(R.string.scheduled_backup_queued), Toast.LENGTH_SHORT).show()
+        scope.launch {
+            var terminalState: WorkInfo.State? = null
+            for (attempt in 0 until 240) {
+                val info = withContext(Dispatchers.IO) {
+                    WorkManager.getInstance(context).getWorkInfoById(workId).get()
+                }
+                if (info != null && info.state.isFinished) {
+                    terminalState = info.state
+                    break
+                }
+                delay(500)
+            }
+            config = ScheduledBackupSettings.load(context)
+            onConfigurationChanged(config)
+            isRunningNow = false
+            val message = when (terminalState) {
+                WorkInfo.State.SUCCEEDED -> R.string.scheduled_backup_run_success
+                WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> R.string.scheduled_backup_run_failed
+                else -> R.string.scheduled_backup_still_running
+            }
+            Toast.makeText(context, context.getString(message), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val backupTestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        isTestingBackup = true
+        scope.launch {
+            val result = ExportPackageExporter.validateBackup(context, uri)
+            backupTestMessage = result.fold(
+                onSuccess = { summary ->
+                    true to context.getString(
+                        R.string.scheduled_backup_test_success,
+                        summary.historyReadings,
+                        summary.journalEntries,
+                        summary.journalFoods,
+                        summary.insulinPresets,
+                        summary.calibrations,
+                        context.getString(
+                            if (summary.settingsIncluded) android.R.string.yes else android.R.string.no
+                        )
+                    )
+                },
+                onFailure = { error ->
+                    false to context.getString(
+                        R.string.scheduled_backup_test_failed,
+                        error.localizedMessage ?: context.getString(R.string.unknown_error)
+                    )
+                }
+            )
+            isTestingBackup = false
+        }
+    }
+
+    StableModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { CompactSheetDragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.scheduled_backup_title),
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            if (config.integrityWarning != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.scheduled_backup_integrity_warning),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        Text(stringResource(R.string.scheduled_backup_integrity_explanation))
+                        OutlinedButton(
+                            onClick = {
+                                ScheduledBackupSettings.acknowledgeIntegrityWarning(context)
+                                ScheduledBackupIntegrityNotifier.cancel(context)
+                                config = ScheduledBackupSettings.load(context)
+                                onConfigurationChanged(config)
+                            }
+                        ) {
+                            Text(stringResource(R.string.scheduled_backup_acknowledge))
+                        }
+                    }
+                }
+            }
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.scheduled_backup_enabled),
+                subtitle = stringResource(R.string.scheduled_backup_enabled_desc),
+                checked = config.enabled,
+                onCheckedChange = { enabled ->
+                    if (enabled && config.destination == null) {
+                        enableAfterFolderPick = true
+                        folderLauncher.launch(null)
+                    } else {
+                        persist(config.copy(enabled = enabled))
+                    }
+                }
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.scheduled_backup_folder),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                config.destination?.let { destination ->
+                    Text(
+                        backupFolderLabel(destination),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedButton(
+                    onClick = { folderLauncher.launch(config.destination) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.FolderOpen, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.scheduled_backup_choose_folder))
+                }
+            }
+
+            OutlinedButton(
+                onClick = { showTimePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    stringResource(
+                        R.string.scheduled_backup_time,
+                    ) + ": " + formatBackupTime(context, config.hour, config.minute)
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.export_compression),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExportRangeChip(
+                        selected = config.compression == ExportCompression.GZIP,
+                        label = stringResource(R.string.export_compression_gzip),
+                        onClick = { persist(config.copy(compression = ExportCompression.GZIP)) }
+                    )
+                    ExportRangeChip(
+                        selected = config.compression == ExportCompression.ZSTD,
+                        label = stringResource(R.string.export_compression_zstd),
+                        onClick = { persist(config.copy(compression = ExportCompression.ZSTD)) }
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.scheduled_backup_retention),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_daily),
+                    selected = config.dailyRetention,
+                    onSelected = { persist(config.copy(dailyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_weekly),
+                    selected = config.weeklyRetention,
+                    onSelected = { persist(config.copy(weeklyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_monthly),
+                    selected = config.monthlyRetention,
+                    onSelected = { persist(config.copy(monthlyRetention = it)) }
+                )
+            }
+
+            HorizontalDivider()
+            Text(
+                if (config.lastSuccessAtMillis > 0L) {
+                    stringResource(
+                        R.string.scheduled_backup_last_success,
+                        java.text.DateFormat.getDateTimeInstance(
+                            java.text.DateFormat.MEDIUM,
+                            java.text.DateFormat.SHORT
+                        ).format(Date(config.lastSuccessAtMillis))
+                    )
+                } else {
+                    stringResource(R.string.scheduled_backup_never)
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+            config.lastError?.let { error ->
+                Text(
+                    stringResource(R.string.scheduled_backup_last_error, error),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            Button(
+                onClick = ::runNow,
+                enabled = config.destination != null && !isRunningNow && !isTestingBackup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isRunningNow) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Backup, contentDescription = null)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduled_backup_run_now))
+            }
+            OutlinedButton(
+                onClick = {
+                    backupTestLauncher.launch(
+                        arrayOf("application/json", "application/gzip", "application/zstd", "*/*")
+                    )
+                },
+                enabled = !isRunningNow && !isTestingBackup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isTestingBackup) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Backup, contentDescription = null)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduled_backup_test))
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        val pickerState = rememberTimePickerState(
+            initialHour = config.hour,
+            initialMinute = config.minute,
+            is24Hour = android.text.format.DateFormat.is24HourFormat(context)
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        persist(config.copy(hour = pickerState.hour, minute = pickerState.minute))
+                        showTimePicker = false
+                    }
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            text = { TimePicker(state = pickerState) }
+        )
+    }
+
+    backupTestMessage?.let { (success, message) ->
+        AlertDialog(
+            onDismissRequest = { backupTestMessage = null },
+            confirmButton = {
+                Button(onClick = { backupTestMessage = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            icon = {
+                Icon(
+                    if (success) Icons.Default.Backup else Icons.Default.Warning,
+                    contentDescription = null
+                )
+            },
+            title = { Text(stringResource(R.string.scheduled_backup_test)) },
+            text = { Text(message) }
+        )
+    }
+}
+
+@Composable
+private fun BackupRetentionRow(
+    label: String,
+    selected: Int,
+    onSelected: (Int) -> Unit
+) {
+    Text(label, style = MaterialTheme.typography.bodyMedium)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ScheduledBackupSettings.retentionOptions.forEach { count ->
+            ExportRangeChip(
+                selected = selected == count,
+                label = count.toString(),
+                onClick = { onSelected(count) }
+            )
+        }
+    }
+}
+
+@Composable
+internal fun scheduledBackupSummary(config: ScheduledBackupConfig): String {
+    if (!config.enabled) return stringResource(R.string.scheduled_backup_desc_off)
+    val time = formatBackupTime(LocalContext.current, config.hour, config.minute)
+    return stringResource(
+        R.string.scheduled_backup_desc_on,
+        time,
+        config.dailyRetention,
+        config.weeklyRetention,
+        config.monthlyRetention
+    )
+}
+
+private fun backupFolderLabel(uri: Uri): String {
+    return runCatching {
+        Uri.decode(DocumentsContract.getTreeDocumentId(uri)).replace(':', '/')
+    }.getOrElse { uri.toString() }
+}
+
+private fun formatBackupTime(context: android.content.Context, hour: Int, minute: Int): String {
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+    }
+    return android.text.format.DateFormat.getTimeFormat(context).format(calendar.time)
 }
 
 @Composable
