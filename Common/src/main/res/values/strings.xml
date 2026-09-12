@@ -2987,4 +2987,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Pairing key restored. Select the matching sensor.</string>
     <string name="aidex_pairing_key_restore_failed">This is not a valid AiDex pairing key backup</string>
     <string name="aidex_pairing_key_conflict">A different key is already stored for this sensor; nothing was overwritten</string>
+    <string name="aidex_pairing_key_delete">Delete key</string>
+    <string name="aidex_pairing_key_delete_confirm">Delete this pairing key? You will need to pair the sensor again to get a new one.</string>
+    <string name="aidex_pairing_key_deleted">Pairing key deleted</string>
 </resources>

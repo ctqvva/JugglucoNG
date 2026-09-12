@@ -2791,4 +2791,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="aidex_pairing_key_restored">Eşleştirme anahtarı geri yüklendi. Eşleşen sensörü seçin.</string>
     <string name="aidex_pairing_key_restore_failed">Bu geçerli bir AiDex anahtar yedeği değil</string>
     <string name="aidex_pairing_key_conflict">Bu sensör için farklı bir anahtar zaten kayıtlı; hiçbir şeyin üzerine yazılmadı</string>
+    <string name="aidex_pairing_key_delete">Anahtarı sil</string>
+    <string name="aidex_pairing_key_delete_confirm">Bu eşleştirme anahtarı silinsin mi? Yenisini almak için sensörü tekrar eşleştirmeniz gerekir.</string>
+    <string name="aidex_pairing_key_deleted">Eşleştirme anahtarı silindi</string>
 </resources>

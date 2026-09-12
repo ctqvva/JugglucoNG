@@ -2753,4 +2753,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Chiave di associazione ripristinata. Seleziona il sensore corrispondente.</string>
     <string name="aidex_pairing_key_restore_failed">Questo non è un backup valido della chiave AiDex</string>
     <string name="aidex_pairing_key_conflict">Per questo sensore è già memorizzata una chiave diversa; non è stato sovrascritto nulla</string>
+    <string name="aidex_pairing_key_delete">Elimina chiave</string>
+    <string name="aidex_pairing_key_delete_confirm">Eliminare questa chiave di associazione? Dovrai associare di nuovo il sensore per ottenerne una nuova.</string>
+    <string name="aidex_pairing_key_deleted">Chiave di associazione eliminata</string>
 </resources>

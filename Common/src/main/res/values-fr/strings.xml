@@ -2769,4 +2769,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Clé d’association restaurée. Sélectionnez le capteur correspondant.</string>
     <string name="aidex_pairing_key_restore_failed">Ce fichier n’est pas une sauvegarde de clé AiDex valide</string>
     <string name="aidex_pairing_key_conflict">Une autre clé est déjà enregistrée pour ce capteur ; rien n’a été remplacé</string>
+    <string name="aidex_pairing_key_delete">Supprimer la clé</string>
+    <string name="aidex_pairing_key_delete_confirm">Supprimer cette clé d’association ? Vous devrez réassocier le capteur pour en obtenir une nouvelle.</string>
+    <string name="aidex_pairing_key_deleted">Clé d’association supprimée</string>
 </resources>

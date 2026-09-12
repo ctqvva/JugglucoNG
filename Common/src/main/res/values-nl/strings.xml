@@ -2806,4 +2806,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aidex_pairing_key_restored">Koppelingssleutel hersteld. Selecteer de bijbehorende sensor.</string>
     <string name="aidex_pairing_key_restore_failed">Dit is geen geldige AiDex-sleutelback-up</string>
     <string name="aidex_pairing_key_conflict">Voor deze sensor is al een andere sleutel opgeslagen; er is niets overschreven</string>
+    <string name="aidex_pairing_key_delete">Sleutel verwijderen</string>
+    <string name="aidex_pairing_key_delete_confirm">Deze koppelingssleutel verwijderen? U moet de sensor opnieuw koppelen voor een nieuwe.</string>
+    <string name="aidex_pairing_key_deleted">Koppelingssleutel verwijderd</string>
 </resources>

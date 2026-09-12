@@ -494,6 +494,7 @@ fun SensorCard(
     var showAnytimeCredentialBackupDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showAiDexKeyBackupDialog by remember { mutableStateOf(false) }
+    var showAiDexKeyDeleteConfirm by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
     var connectionLogExpanded by remember(sensor.serial) { mutableStateOf(false) }
@@ -1666,7 +1667,48 @@ fun SensorCard(
                 ) { Text(stringResource(R.string.export)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Left: force-remove a key that unpair can no longer clear on its own.
+                    TextButton(
+                        onClick = {
+                            showAiDexKeyBackupDialog = false
+                            showAiDexKeyDeleteConfirm = true
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
+                    TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            }
+        )
+    }
+
+    if (showAiDexKeyDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showAiDexKeyDeleteConfirm = false },
+            title = { Text(stringResource(R.string.aidex_pairing_key_delete)) },
+            text = { Text(stringResource(R.string.aidex_pairing_key_delete_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAiDexKeyDeleteConfirm = false
+                        viewModel.forgetAiDexPairKey(sensor.serial)
+                        android.widget.Toast.makeText(
+                            context,
+                            R.string.aidex_pairing_key_deleted,
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiDexKeyDeleteConfirm = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }

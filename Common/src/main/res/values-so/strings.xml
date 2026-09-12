@@ -2962,4 +2962,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="aidex_pairing_key_restored">Furaha isku-xidhka waa la soo celiyey. Dooro dareemaha ku habboon.</string>
     <string name="aidex_pairing_key_restore_failed">Kani ma aha kayd fure AiDex oo sax ah</string>
     <string name="aidex_pairing_key_conflict">Fure kale ayaa hore loogu kaydiyey dareemahan; waxba lama dul-qorin</string>
+    <string name="aidex_pairing_key_delete">Tirtir furaha</string>
+    <string name="aidex_pairing_key_delete_confirm">Tirtir furahan isku-xidhka? Waxaad u baahan doontaa inaad dib u xidho dareemaha si aad mid cusub u hesho.</string>
+    <string name="aidex_pairing_key_deleted">Furaha isku-xidhka waa la tirtiray</string>
 </resources>

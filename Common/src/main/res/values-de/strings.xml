@@ -2802,4 +2802,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_pairing_key_restored">Kopplungsschlüssel wiederhergestellt. Wähle den passenden Sensor.</string>
     <string name="aidex_pairing_key_restore_failed">Dies ist keine gültige AiDex-Schlüsselsicherung</string>
     <string name="aidex_pairing_key_conflict">Für diesen Sensor ist bereits ein anderer Schlüssel gespeichert; nichts wurde überschrieben</string>
+    <string name="aidex_pairing_key_delete">Schlüssel löschen</string>
+    <string name="aidex_pairing_key_delete_confirm">Diesen Kopplungsschlüssel löschen? Sie müssen den Sensor erneut koppeln, um einen neuen zu erhalten.</string>
+    <string name="aidex_pairing_key_deleted">Kopplungsschlüssel gelöscht</string>
 </resources>

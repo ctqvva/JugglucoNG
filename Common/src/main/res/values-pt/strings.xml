@@ -2764,4 +2764,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Chave de emparelhamento restaurada. Selecione o sensor correspondente.</string>
     <string name="aidex_pairing_key_restore_failed">Este ficheiro não é uma cópia válida de chave AiDex</string>
     <string name="aidex_pairing_key_conflict">Já existe uma chave diferente para este sensor; nada foi substituído</string>
+    <string name="aidex_pairing_key_delete">Eliminar chave</string>
+    <string name="aidex_pairing_key_delete_confirm">Eliminar esta chave de emparelhamento? Terá de emparelhar o sensor novamente para obter uma nova.</string>
+    <string name="aidex_pairing_key_deleted">Chave de emparelhamento eliminada</string>
 </resources>

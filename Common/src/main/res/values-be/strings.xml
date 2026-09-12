@@ -2833,4 +2833,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Ключ спалучэння адноўлены. Выберыце адпаведны датчык.</string>
     <string name="aidex_pairing_key_restore_failed">Гэта не сапраўдная рэзервовая копія ключа спалучэння AiDex</string>
     <string name="aidex_pairing_key_conflict">Для гэтага датчыка ўжо захаваны іншы ключ; нічога не перазапісана</string>
+    <string name="aidex_pairing_key_delete">Выдаліць ключ</string>
+    <string name="aidex_pairing_key_delete_confirm">Выдаліць гэты ключ спалучэння? Каб атрымаць новы, трэба зноў спалучыць датчык.</string>
+    <string name="aidex_pairing_key_deleted">Ключ спалучэння выдалены</string>
 </resources>

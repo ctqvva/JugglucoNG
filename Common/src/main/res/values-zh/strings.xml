@@ -2779,4 +2779,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">配对密钥已恢复。请选择匹配的传感器。</string>
     <string name="aidex_pairing_key_restore_failed">这不是有效的 AiDex 配对密钥备份</string>
     <string name="aidex_pairing_key_conflict">此传感器已保存其他密钥；未覆盖任何内容</string>
+    <string name="aidex_pairing_key_delete">删除密钥</string>
+    <string name="aidex_pairing_key_delete_confirm">删除此配对密钥？需要重新配对传感器才能获取新密钥。</string>
+    <string name="aidex_pairing_key_deleted">配对密钥已删除</string>
 </resources>

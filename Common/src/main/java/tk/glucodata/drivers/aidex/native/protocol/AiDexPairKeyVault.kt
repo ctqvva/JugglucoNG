@@ -108,7 +108,15 @@ object AiDexPairKeyVault {
 
     /** Clear only after a successful sensor-side DELETE_BOND acknowledgement. */
     @Synchronized
-    fun clearAfterConfirmedUnpair(context: Context, serial: String): Boolean {
+    fun clearAfterConfirmedUnpair(context: Context, serial: String): Boolean = clearStoredKey(context, serial)
+
+    /**
+     * Force-remove the stored credential. Used by the manual Delete action for the case a
+     * dead key can never be cleared through unpair: once the sensor has been unpaired (on this
+     * or another device) the key no longer decrypts, so no session can be built to send 0xF2.
+     */
+    @Synchronized
+    fun clearStoredKey(context: Context, serial: String): Boolean {
         val bareSerial = AiDexPairKeyBackup.canonicalBareSerial(serial)
         val key = entryKey(bareSerial)
         val primaryCleared = context.getSharedPreferences(PRIMARY_PREFS, Context.MODE_PRIVATE)

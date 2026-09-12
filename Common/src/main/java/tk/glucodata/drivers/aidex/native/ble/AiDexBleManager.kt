@@ -5874,6 +5874,16 @@ class AiDexBleManager(
         return true
     }
 
+    override fun forgetSavedPairKey() {
+        Log.i(TAG, "forgetSavedPairKey: force-clearing stored PAIR credential for $SerialNumber")
+        val cleared = AiDexPairKeyVault.clearStoredKey(Applic.app, SerialNumber)
+        if (!cleared) Log.e(TAG, "forgetSavedPairKey: credential removal was not fully committed")
+        persistedPairKey = null
+        savedKeyExhausted = false
+        keyExchangeFailures = 0
+        UiRefreshBus.requestStatusRefresh()
+    }
+
     override fun rePairSensor() {
         Log.i(TAG, "rePairSensor: reconnecting without discarding PAIR credential for $SerialNumber")
         consecutiveSetupDisconnects = 0

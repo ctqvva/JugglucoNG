@@ -2838,4 +2838,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_restored">Ключ сполучення відновлено. Виберіть відповідний датчик.</string>
     <string name="aidex_pairing_key_restore_failed">Це не резервна копія ключа AiDex</string>
     <string name="aidex_pairing_key_conflict">Для цього датчика вже збережено інший ключ; нічого не перезаписано</string>
+    <string name="aidex_pairing_key_delete">Видалити ключ</string>
+    <string name="aidex_pairing_key_delete_confirm">Видалити цей ключ сполучення? Щоб отримати новий, потрібно знову виконати сполучення датчика.</string>
+    <string name="aidex_pairing_key_deleted">Ключ сполучення видалено</string>
 </resources>

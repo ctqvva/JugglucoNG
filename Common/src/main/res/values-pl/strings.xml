@@ -2801,4 +2801,7 @@
     <string name="aidex_pairing_key_restored">Przywrócono klucz parowania. Wybierz pasujący sensor.</string>
     <string name="aidex_pairing_key_restore_failed">To nie jest prawidłowa kopia klucza AiDex</string>
     <string name="aidex_pairing_key_conflict">Dla tego sensora zapisano już inny klucz; niczego nie nadpisano</string>
+    <string name="aidex_pairing_key_delete">Usuń klucz</string>
+    <string name="aidex_pairing_key_delete_confirm">Usunąć ten klucz parowania? Aby uzyskać nowy, trzeba ponownie sparować sensor.</string>
+    <string name="aidex_pairing_key_deleted">Klucz parowania usunięty</string>
 </resources>
