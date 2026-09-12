@@ -29,6 +29,10 @@ import tk.glucodata.Log.doLog
 object WearSync2 {
     private const val LOG_ID = "WearSync2"
 
+    /** Intermediate backfill chunks arriving faster than this do not force a UI refresh. */
+    private const val CHUNK_REFRESH_MIN_INTERVAL_MS = 1_500L
+    @Volatile private var lastChunkRefreshMs = 0L
+
     /** Bounds the message volume when several sensors are running at once. */
     private const val MAX_SERVED_SENSORS = 4
     private const val VERSION = 1
@@ -541,7 +545,18 @@ object WearSync2 {
                             Natives.setcurrentsensor(serial)
                         }
                     }
-                    UiRefreshBus.requestDataRefresh()
+                    // A backfill delivers dozens of chunks, and a full data refresh is not
+                    // cheap on a watch: it bumps the UI revision (screens re-read managed
+                    // records and native state on the main thread), reschedules the
+                    // notification and broadcasts. Refresh straight away for the chunk that
+                    // ends a sync — which is the single-chunk case a live reading takes — and
+                    // coalesce the intermediate ones. The final chunk always refreshes, so the
+                    // UI never settles on a stale value.
+                    val nowMs = System.currentTimeMillis()
+                    if (final || nowMs - lastChunkRefreshMs >= CHUNK_REFRESH_MIN_INTERVAL_MS) {
+                        lastChunkRefreshMs = nowMs
+                        UiRefreshBus.requestDataRefresh()
+                    }
                 }
                 if (doLog) Log.i(LOG_ID, "ingested $written/$count triples for $serial final=$final")
             }.onFailure { Log.stack(LOG_ID, "onChunk", it) }
