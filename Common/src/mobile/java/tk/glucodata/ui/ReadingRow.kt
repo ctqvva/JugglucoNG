@@ -315,10 +315,7 @@ fun ReadingRow(
             fun ReadingTime() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = java.text.SimpleDateFormat(
-                            "HH:mm",
-                            java.util.Locale.getDefault()
-                        ).format(java.util.Date(point.timestamp)),
+                        text = tk.glucodata.MinuteTimeFormat.format(point.timestamp),
                         style = timeStyle,
                         fontWeight = timeWeight,
                         color = timeColor
@@ -839,8 +836,7 @@ fun JournalTimelineRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-                        .format(java.util.Date(timestamp)),
+                    text = tk.glucodata.MinuteTimeFormat.format(timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(timeSlotWidth)

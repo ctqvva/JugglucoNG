@@ -23,11 +23,8 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.util.inDisplayUnit
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.HashMap
 import java.util.LinkedHashSet
-import java.util.Locale
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -189,59 +186,12 @@ class HistoryRepository(context: Context = Applic.app) {
         fun isImportedHistorySerial(serial: String): Boolean = serial in IMPORTED_HISTORY_SENSOR_SERIALS
 
         /**
-         * Formatted "HH:mm" per minute, reused across emissions.
-         *
-         * Every reading carries a preformatted time string and exactly one place
-         * reads it — the chart tooltip. Room re-emits the whole table on each
-         * insert, so a store with 18k readings ran 18k SimpleDateFormat calls,
-         * each allocating a Date, once a minute forever, to display one of them.
-         *
-         * A cache rather than a hand-rolled formatter on purpose: the output is
-         * byte-identical to what SimpleDateFormat produces for the current
-         * locale, including non-ASCII digit shaping, so nothing on screen
-         * changes. Timestamps repeat exactly across emissions, so after the
-         * first pass this is essentially all hits.
-         *
-         * Cleared when the locale or time zone changes, since both change what
-         * the same millisecond formats to.
+         * "HH:mm" for a reading's time string, which exactly one place reads —
+         * the chart tooltip — and which is produced for every reading on every
+         * emission. See [tk.glucodata.MinuteTimeFormat] for why it is a table
+         * keyed by local minute of the day rather than a cache keyed by minute.
          */
-        private const val TIME_CACHE_CAPACITY = 8_192
-        private val timeCacheLock = Any()
-        private var timeCacheLocale: Locale? = null
-        private var timeCacheZoneId: String? = null
-        private var timeFormatter: SimpleDateFormat? = null
-        private val timeCache = object : LinkedHashMap<Long, String>(1_024, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, String>?): Boolean =
-                size > TIME_CACHE_CAPACITY
-        }
-
-        /**
-         * "HH:mm" for [timestamp], cached by minute.
-         *
-         * The formatter moved in here from a ThreadLocal because it is now
-         * consulted only on a miss. The ThreadLocal also captured the locale at
-         * first use per thread and never rebuilt, so a locale change left some
-         * threads formatting in the old one; rebuilding it alongside the cache
-         * fixes that as a side effect.
-         */
-        private fun formatMinute(timestamp: Long): String {
-            val minute = Math.floorDiv(timestamp, 60_000L)
-            val locale = Locale.getDefault()
-            val zoneId = java.util.TimeZone.getDefault().id
-            synchronized(timeCacheLock) {
-                if (timeCacheLocale != locale || timeCacheZoneId != zoneId) {
-                    timeCache.clear()
-                    timeCacheLocale = locale
-                    timeCacheZoneId = zoneId
-                    timeFormatter = SimpleDateFormat("HH:mm", locale)
-                } else {
-                    timeCache[minute]?.let { return it }
-                }
-                val formatter = timeFormatter
-                    ?: SimpleDateFormat("HH:mm", locale).also { timeFormatter = it }
-                return formatter.format(Date(timestamp)).also { timeCache[minute] = it }
-            }
-        }
+        private fun formatMinute(timestamp: Long): String = tk.glucodata.MinuteTimeFormat.format(timestamp)
         private val backfillLock = ReentrantLock()
         private val backfillFinished = backfillLock.newCondition()
         private val backfilledSensorStartMs = HashMap<String, Long>()

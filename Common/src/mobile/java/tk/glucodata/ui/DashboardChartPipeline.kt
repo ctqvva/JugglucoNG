@@ -207,7 +207,7 @@ internal fun buildSmoothedConsumerHistory(
             processed.add(
                 GlucosePoint(
                     value = point.value,
-                    time = source?.time ?: java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(point.timestamp)),
+                    time = source?.time ?: tk.glucodata.MinuteTimeFormat.format(point.timestamp),
                     timestamp = point.timestamp,
                     rawValue = point.rawValue,
                     rate = source?.rate,
