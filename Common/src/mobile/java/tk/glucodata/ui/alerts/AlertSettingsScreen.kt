@@ -1186,27 +1186,9 @@ private fun AlertSettingsExpanded(
                 // fall threshold. VERY_HIGH is excluded because there the number itself is
                 // the problem, whichever way it is moving.
                 if (config.type == AlertType.PERSISTENT_HIGH) {
-                    DurationSlider(
-                        label = stringResource(R.string.persistent_high_fall_suppress_label),
-                        value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
-                        range = 0..(AlertDefaults.FALL_RATE_MAX_MGDL_PER_MIN * 10f).toInt(),
-                        stepSize = (AlertDefaults.FALL_RATE_STEP_MGDL_PER_MIN * 10f).toInt(),
-                        onValueChange = { v -> onConfigChange(config.copy(fallRateSuppress = v / 10f)) },
-                        valueText = {
-                            if (it == 0) {
-                                stringResource(R.string.alert_feature_off)
-                            } else {
-                                val arrow = when {
-                                    it >= 30 -> stringResource(R.string.fall_rate_falling_fast)
-                                    it >= 20 -> stringResource(R.string.fall_rate_falling)
-                                    else -> stringResource(R.string.fall_rate_slanting_down)
-                                }
-                                String.format(
-                                    java.util.Locale.getDefault(),
-                                    "-%.1f mg/dL/min (%s)", it / 10f, arrow
-                                )
-                            }
-                        }
+                    FallArrowSelector(
+                        fallRateSuppress = config.fallRateSuppress,
+                        onChange = { onConfigChange(config.copy(fallRateSuppress = it)) }
                     )
                 }
 
@@ -1528,6 +1510,45 @@ internal fun DurationSlider(
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = steps.coerceAtLeast(0),
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * PERSISTENT_HIGH's "mute while falling" threshold. The stored value is a rate in
+ * mg/dL per minute, but the only rates that mean anything to a reader are the
+ * arrows this app draws for them: one unit of rate is 45° of arrow
+ * ([tk.glucodata.TrendArrowAngle.DEGREES_PER_UNIT]), so 1, 2 and 3 are the
+ * slanting-down, falling and falling-fast arrows. The picker offers those, in
+ * the user's own words and no unit.
+ */
+@Composable
+private fun FallArrowSelector(
+    fallRateSuppress: Float?,
+    onChange: (Float) -> Unit
+) {
+    val level = ((fallRateSuppress ?: 0f) + 0.5f).toInt()
+        .coerceIn(0, AlertDefaults.FALL_RATE_MAX_MGDL_PER_MIN.toInt())
+    val labels = mapOf(
+        0 to stringResource(R.string.alert_feature_off),
+        1 to stringResource(R.string.fall_rate_slanting_down),
+        2 to stringResource(R.string.fall_rate_falling),
+        3 to stringResource(R.string.fall_rate_falling_fast)
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(R.string.persistent_high_fall_suppress_label),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        tk.glucodata.ui.util.ConnectedButtonGroup(
+            options = listOf(0, 1, 2, 3),
+            selectedOption = level,
+            // 0, not null: FallSuppressionPolicy reads null as the default threshold.
+            onOptionSelected = { onChange(it.toFloat()) },
+            labelText = { labels[it] ?: it.toString() },
+            label = { Text(labels[it] ?: it.toString(), style = MaterialTheme.typography.labelMedium) },
+            modifier = Modifier.fillMaxWidth(),
+            itemHeight = 36.dp
         )
     }
 }
