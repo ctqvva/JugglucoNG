@@ -38,7 +38,15 @@ internal class SeriesCalibrator(
     private val resolvedByRank = HashMap<Int, List<CalPoint>>()
     private val results = LongFloatResultCache()
 
-    /** Same contract as `CalibrationManager.getCalibratedValue`: a value that is not a reading comes back untouched. */
+    /**
+     * Same contract as `CalibrationManager.getCalibratedValue`: a value that is
+     * not a reading comes back untouched.
+     *
+     * Synchronized because the manager shares one instance per context, and a
+     * chart resolving on a worker thread can overlap the next screen's first,
+     * synchronous resolution of the same series.
+     */
+    @Synchronized
     fun calibrate(value: Float, timestamp: Long): Float {
         if (!value.isFinite() || value <= 0f) return value
         val valueBits = java.lang.Float.floatToRawIntBits(value)
@@ -85,10 +93,10 @@ internal class SeriesCalibrator(
     }
 
     /** Test hook: how many distinct point sets were resolved. */
-    internal val resolvedStretchCount: Int get() = resolvedByRank.size
+    internal val resolvedStretchCount: Int get() = synchronized(this) { resolvedByRank.size }
 
     /** Test hook: how many results are held. */
-    internal val cachedResultCount: Int get() = results.size
+    internal val cachedResultCount: Int get() = synchronized(this) { results.size }
 }
 
 /**
