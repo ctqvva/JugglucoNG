@@ -298,9 +298,25 @@ fun serializeJournalCurve(
     }
 }
 
+/**
+ * Parsed curves by their serialized form.
+ *
+ * Every insulin entry carries a curve snapshot, and the IOB summary, the chart
+ * markers and the prediction each parse every entry's snapshot again on every
+ * tick and every journal emission. There are only as many distinct snapshots
+ * as there are (preset, dose) shapes, so parsing each once is enough; the
+ * bound is there so an unbounded stream of imported curves cannot pin memory.
+ */
+private const val PARSED_CURVE_CACHE_CAPACITY = 512
+private val parsedCurveCache = object : LinkedHashMap<String, List<JournalCurvePoint>>(64, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<JournalCurvePoint>>?): Boolean =
+        size > PARSED_CURVE_CACHE_CAPACITY
+}
+
 fun parseJournalCurve(serialized: String?): List<JournalCurvePoint> {
     if (serialized.isNullOrBlank()) return emptyList()
-    return serialized.split(';').mapNotNull { token ->
+    synchronized(parsedCurveCache) { parsedCurveCache[serialized] }?.let { return it }
+    val parsed = serialized.split(';').mapNotNull { token ->
         val minutePart = token.substringBefore(':', "").trim()
         val activityPart = token.substringAfter(':', "").trim()
         val minute = minutePart.toIntOrNull() ?: return@mapNotNull null
@@ -310,6 +326,8 @@ fun parseJournalCurve(serialized: String?): List<JournalCurvePoint> {
             activity = activity.coerceIn(0f, 1f)
         )
     }
+    synchronized(parsedCurveCache) { parsedCurveCache[serialized] = parsed }
+    return parsed
 }
 
 fun normalizeJournalCurvePoints(

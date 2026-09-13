@@ -1,8 +1,10 @@
 package tk.glucodata.data.journal
 
 import androidx.room.withTransaction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import android.content.Context
 import tk.glucodata.Applic
@@ -20,16 +22,26 @@ class JournalRepository {
     private val dao = database.journalDao()
     private val prefs = Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Room runs the query on its own executor, but the map runs wherever the
+    // flow is collected — the view model's main-thread scope — so every journal
+    // write re-mapped every entry ever written on the main thread. flowOn keeps
+    // the mapping with the query.
     fun observeEntries(): Flow<List<JournalEntry>> {
-        return dao.observeEntries().map { entries -> entries.map(JournalEntryEntity::toModel) }
+        return dao.observeEntries()
+            .map { entries -> entries.map(JournalEntryEntity::toModel) }
+            .flowOn(Dispatchers.Default)
     }
 
     fun observeInsulinPresets(): Flow<List<JournalInsulinPreset>> {
-        return dao.observeInsulinPresets().map { presets -> presets.map(JournalInsulinPresetEntity::toModel) }
+        return dao.observeInsulinPresets()
+            .map { presets -> presets.map(JournalInsulinPresetEntity::toModel) }
+            .flowOn(Dispatchers.Default)
     }
 
     fun observeFoods(): Flow<List<JournalFood>> {
-        return dao.observeFoods().map { foods -> foods.map(JournalFoodEntity::toModel) }
+        return dao.observeFoods()
+            .map { foods -> foods.map(JournalFoodEntity::toModel) }
+            .flowOn(Dispatchers.Default)
     }
 
     suspend fun ensureDefaultInsulinPresets() {
