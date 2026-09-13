@@ -693,7 +693,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="alert_active_from_to_next_day">Alarme aktiv von %1$s bis %2$s (nächster Tag)</string>
     <string name="alert_after">Alarm nach</string>
     <string name="alert_name">Alarmname</string>
-    <string name="alert_style">Alarmstil</string>
     <string name="app_default_sound">Standardton der App</string>
     <string name="custom_high">Benutzerdefiniert hoch</string>
     <string name="custom_low">Benutzerdefiniert niedrig</string>
@@ -716,18 +715,14 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="max_retries">Max. Wiederholungen</string>
     <string name="minutes_short_format">%1$d Min</string>
     <string name="only_alert_during_hours">Nur während ausgewählter Stunden alarmieren</string>
-    <string name="other_alerts">Weitere Alarme</string>
-    <string name="predictive_alerts">Vorhersagealarme</string>
+    <string name="other_alerts">Sensor und Verbindung</string>
+    <string name="predictive_alerts">Trends und Vorhersagen</string>
     <string name="preemptive_snooze">Vorbeugendes Schlummern</string>
     <string name="preemptive_snooze_desc">Alarme vor dem Auslösen schlummern</string>
-    <string name="notification_dismiss_action_title">Aktion beim Schließen der Benachrichtigung</string>
-    <string name="notification_dismiss_action_summary">Benachrichtigungen wegwischen oder schließen</string>
+    <string name="notification_dismiss_action_title">Beim Wegwischen pausieren</string>
+    <string name="notification_dismiss_action_summary">Eine weggewischte Alarmbenachrichtigung wird pausiert statt verworfen</string>
     <string name="notification_dismiss_action_dismiss">Verwerfen</string>
     <string name="notification_dismiss_action_snooze">Schlummern</string>
-    <string name="same_direction_suppression_title">Ruhezeit nach Alarm gleicher Richtung</string>
-    <string name="same_direction_suppression_summary">Nachdem du einen fallenden oder steigenden Alarm verworfen oder pausiert hast, bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
-    <string name="acknowledged_high_coverage_title">Bestätigte Anstiegsalarme decken „Hoch“ ab</string>
-    <string name="acknowledged_high_coverage_summary">Nachdem du „Schnell steigend“, „Hoch vorhergesagt“ oder „Hoch“ verworfen oder pausiert hast, bleiben die anderen für die oben eingestellte Zeit stumm. „Sehr hoch“ meldet sich immer.</string>
     <string name="alarm_return_to_previous_app_title">Nach Alarm zur vorherigen App zurückkehren</string>
     <string name="alarm_return_to_previous_app_summary">Nach einem Vollbild-Alarm zur zuvor geöffneten App zurückkehren, statt JugglucoNG zu öffnen</string>
     <string name="realert_if_not_dismissed">Erneut alarmieren, wenn nicht verworfen</string>
@@ -739,13 +734,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="system_default_sound">System-Standardton</string>
     <string name="tap_to_change">Zum Ändern tippen</string>
     <string name="threshold_label">Schwelle</string>
-    <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
-    <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
-    <string name="pre_high_iob_coverage_label">Insulindeckung</string>
-    <string name="alert_feature_off">Aus</string>
-    <string name="fall_rate_slanting_down">leicht fallend</string>
-    <string name="fall_rate_falling">fallend</string>
-    <string name="fall_rate_falling_fast">stark fallend</string>
     <string name="persistent_high_fall_suppress_label">Stumm bei Abfall</string>
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Lautstärke-/Vibrationsprofil</string>
@@ -793,8 +781,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Sensor-Ablauf-Vorwarnungen -->
     <string name="sensor_expiry_warnings_title">Vor Ablauf warnen</string>
     <string name="sensor_expiry_warnings_desc">Jede gewählte Zeit warnt einmal pro Sensor</string>
-    <string name="sensor_expiry_group_days">Tage</string>
-    <string name="sensor_expiry_group_hours">Stunden</string>
     <plurals name="sensor_expires_in_days">
         <item quantity="one">Sensor läuft in %d Tag ab</item>
         <item quantity="other">Sensor läuft in %d Tagen ab</item>
@@ -1291,7 +1277,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="hours_remaining">Noch %1$d Stunden</string>
     <string name="import_profile_merge">Profil importieren (zusammenführen)</string>
     <string name="import_profile_replace">Profil importieren (ersetzen)</string>
-    <string name="intensity">Intensität</string>
     <string name="intercept">Achsenabschnitt</string>
     <string name="introhelp">Einführungshilfe</string>
     <string name="invalid_profile">Ungültiges Profil</string>
@@ -1301,14 +1286,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libreview">LibreView</string>
     <string name="locationpermission">Standortberechtigung</string>
     <string name="loghelp">Log-Hilfe</string>
-    <string name="master_alert_control">Master-Alarmkontrolle</string>
+    <string name="master_alert_control">Alle Alarme</string>
     <string name="mealhelp">Essenshilfe</string>
     <string name="metrics">Metriken</string>
     <string name="mirror_connection_settings_help_text">Verbindungseinstellungen für diesen Spiegelendpunkt.</string>
     <string name="mirror_settings_help_text">Konfigurieren Sie die Sende-/Empfangs- und Spiegelservereinstellungen.</string>
     <string name="model">Modell</string>
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
-    <string name="modes">Modi</string>
     <string name="nearbypermission">Berechtigung für Geräte in der Nähe</string>
     <string name="new_custom_alert">Neue benutzerdefinierte Benachrichtigung</string>
     <string name="newamount">Neuer Betrag</string>

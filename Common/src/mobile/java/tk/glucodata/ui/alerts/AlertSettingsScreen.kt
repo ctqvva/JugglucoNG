@@ -58,6 +58,8 @@ import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.*
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsSwitchItem
+import androidx.compose.ui.draw.rotate
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
 import tk.glucodata.ui.theme.displayLargeExpressive
@@ -144,26 +146,27 @@ fun AlertSettingsScreen(
         saveCustomAlerts(customAlerts + newAlert)
     }
 
-    // Group alerts by category
+    // Grouped by what the alert is about, not by how it is computed: a persistent
+    // high is a high, and the trend alerts sit together whether they count deltas
+    // or extrapolate.
     val highAlerts = remember {
-        listOf(AlertType.HIGH, AlertType.VERY_HIGH)
+        listOf(AlertType.HIGH, AlertType.VERY_HIGH, AlertType.PERSISTENT_HIGH)
     }
 
     val lowAlerts = remember {
         listOf(AlertType.LOW, AlertType.VERY_LOW)
     }
 
-    val predictiveAlerts = remember {
+    val trendAlerts = remember {
         listOf(
-            AlertType.PRE_LOW,
             AlertType.FALLING_FAST,
-            AlertType.PRE_HIGH,
             AlertType.RISING_FAST,
-            AlertType.PERSISTENT_HIGH
+            AlertType.PRE_LOW,
+            AlertType.PRE_HIGH
         )
     }
 
-    val otherAlerts = remember {
+    val sensorAlerts = remember {
         listOf(
             AlertType.MISSED_READING,
             AlertType.LOSS,
@@ -180,6 +183,7 @@ fun AlertSettingsScreen(
 
     // Track expanded states
     var expandedType by remember { mutableStateOf<AlertType?>(null) }
+    var showPreemptiveSnooze by remember { mutableStateOf(false) }
     // Track sound picker state (Generic: Current URI + AlertTypeId + Callback)
     var soundPickerRequest by remember { mutableStateOf<Triple<String?, Int, (String?) -> Unit>?>(null) }
     var notificationDismissAction by remember {
@@ -188,20 +192,6 @@ fun AlertSettingsScreen(
     fun persistNotificationDismissAction(action: AlertNotificationDismissAction) {
         notificationDismissAction = action
         AlertRepository.saveNotificationDismissAction(action)
-    }
-    var sameDirectionSuppressionMinutes by remember {
-        mutableStateOf(AlertRepository.loadSameDirectionSuppressionMinutes())
-    }
-    fun persistSameDirectionSuppressionMinutes(minutes: Int) {
-        sameDirectionSuppressionMinutes = minutes
-        AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
-    }
-    var acknowledgedHighCoverageEnabled by remember {
-        mutableStateOf(AlertRepository.loadAcknowledgedHighCoverageEnabled())
-    }
-    fun persistAcknowledgedHighCoverageEnabled(enabled: Boolean) {
-        acknowledgedHighCoverageEnabled = enabled
-        AlertRepository.saveAcknowledgedHighCoverageEnabled(enabled)
     }
     var returnToPreviousAppAfterAlarm by remember {
         mutableStateOf(AlertRepository.loadReturnToPreviousAppAfterAlarm())
@@ -464,13 +454,13 @@ fun AlertSettingsScreen(
                 )
             }
 
-            items(predictiveAlerts, key = { it.name }) { type ->
+            items(trendAlerts, key = { it.name }) { type ->
                 val config = configs[type] ?: return@items
                 AlertCard(
                     config = config,
                     isMmol = isMmol,
                     isExpanded = expandedType == type,
-                    position = getCardPosition(type, predictiveAlerts),
+                    position = getCardPosition(type, trendAlerts),
                     onToggle = { enabled ->
                         persistConfigIfChanged(config.copy(enabled = enabled))
                     },
@@ -496,13 +486,13 @@ fun AlertSettingsScreen(
                 )
             }
 
-            items(otherAlerts, key = { it.name }) { type ->
+            items(sensorAlerts, key = { it.name }) { type ->
                 val config = configs[type] ?: return@items
                 AlertCard(
                     config = config,
                     isMmol = isMmol,
                     isExpanded = expandedType == type,
-                    position = getCardPosition(type, otherAlerts),
+                    position = getCardPosition(type, sensorAlerts),
                     onToggle = { enabled ->
                         persistConfigIfChanged(config.copy(enabled = enabled))
                     },
@@ -519,55 +509,9 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // === SNOOZE SECTION ===
-            item(key = "preemptive-snooze") {
+            // === TOOLS: things you do, and places to go ===
+            item(key = "tools") {
                 Spacer(Modifier.height(24.dp))
-                PreemptiveSnoozeCard()
-            }
-
-            item(key = "notification-dismiss-action") {
-                Spacer(Modifier.height(8.dp))
-                NotificationDismissActionPreference(
-                    action = notificationDismissAction,
-                    onActionChange = { persistNotificationDismissAction(it) }
-                )
-            }
-
-            item(key = "same-direction-suppression") {
-                Spacer(Modifier.height(8.dp))
-                SameDirectionSuppressionPreference(
-                    minutes = sameDirectionSuppressionMinutes,
-                    onMinutesChange = { persistSameDirectionSuppressionMinutes(it) },
-                    acknowledgedHighCoverageEnabled = acknowledgedHighCoverageEnabled,
-                    onAcknowledgedHighCoverageChange = { persistAcknowledgedHighCoverageEnabled(it) }
-                )
-            }
-
-            item(key = "alarm-return-to-previous-app") {
-                Spacer(Modifier.height(8.dp))
-                ReturnToPreviousAppPreference(
-                    enabled = returnToPreviousAppAfterAlarm,
-                    onEnabledChange = { persistReturnToPreviousAppAfterAlarm(it) }
-                )
-            }
-
-            item(key = "talker-settings") {
-                Spacer(Modifier.height(24.dp))
-                SettingsItem(
-                    title = stringResource(R.string.talker),
-                    subtitle = talkerSummary,
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    showArrow = true,
-                    position = SettingsItemPosition.TOP,
-                    onClick = { navController.navigate("settings/alerts/talker") }
-                )
-            }
-
-            // Optional, and last: the quiet window has its own screen. The row only
-            // says whether one runs.
-            item(key = "quiet-window") {
-                Spacer(Modifier.height(2.dp))
                 val quietWindowState by tk.glucodata.alerts.QuietWindow.state.collectAsState()
                 val quietWindowSubtitle = if (quietWindowState.active) {
                     stringResource(
@@ -578,23 +522,99 @@ fun AlertSettingsScreen(
                 } else {
                     stringResource(R.string.quiet_window_desc)
                 }
-                SettingsItem(
-                    title = stringResource(R.string.quiet_window_title),
-                    subtitle = quietWindowSubtitle,
-                    icon = Icons.Default.DoNotDisturbOn,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    showArrow = true,
-                    position = SettingsItemPosition.BOTTOM,
-                    onClick = { navController.navigate("settings/alerts/quiet-window") }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.preemptive_snooze),
+                        subtitle = stringResource(R.string.preemptive_snooze_desc),
+                        icon = Icons.Default.Snooze,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        showArrow = true,
+                        position = SettingsItemPosition.TOP,
+                        onClick = { showPreemptiveSnooze = true }
+                    )
+                    SettingsItem(
+                        title = stringResource(R.string.talker),
+                        subtitle = talkerSummary,
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        showArrow = true,
+                        position = SettingsItemPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/alerts/talker") }
+                    )
+                    SettingsItem(
+                        title = stringResource(R.string.quiet_window_title),
+                        subtitle = quietWindowSubtitle,
+                        icon = Icons.Default.DoNotDisturbOn,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        showArrow = true,
+                        position = SettingsItemPosition.BOTTOM,
+                        onClick = { navController.navigate("settings/alerts/quiet-window") }
+                    )
+                }
+            }
+
+            // === ADVANCED: two switches whose defaults are right for nearly everyone ===
+            item(key = "advanced") {
+                Spacer(Modifier.height(24.dp))
+                var advancedExpanded by rememberSaveable { mutableStateOf(false) }
+                val chevron by animateFloatAsState(
+                    targetValue = if (advancedExpanded) 180f else 0f,
+                    label = "alertsAdvancedChevron"
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.advanced),
+                        icon = Icons.Default.Tune,
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        position = if (advancedExpanded) SettingsItemPosition.TOP else SettingsItemPosition.SINGLE,
+                        animatePosition = true,
+                        trailingContent = {
+                            Icon(
+                                Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.rotate(chevron)
+                            )
+                        },
+                        onClick = { advancedExpanded = !advancedExpanded }
+                    )
+                    AnimatedVisibility(visible = advancedExpanded) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            SettingsSwitchItem(
+                                title = stringResource(R.string.notification_dismiss_action_title),
+                                subtitle = stringResource(R.string.notification_dismiss_action_summary),
+                                checked = notificationDismissAction == AlertNotificationDismissAction.SNOOZE,
+                                onCheckedChange = { snooze ->
+                                    persistNotificationDismissAction(
+                                        if (snooze) AlertNotificationDismissAction.SNOOZE
+                                        else AlertNotificationDismissAction.DISMISS
+                                    )
+                                },
+                                icon = Icons.Default.NotificationsOff,
+                                iconTint = MaterialTheme.colorScheme.secondary,
+                                position = SettingsItemPosition.MIDDLE
+                            )
+                            SettingsSwitchItem(
+                                title = stringResource(R.string.alarm_return_to_previous_app_title),
+                                subtitle = stringResource(R.string.alarm_return_to_previous_app_summary),
+                                checked = returnToPreviousAppAfterAlarm,
+                                onCheckedChange = { persistReturnToPreviousAppAfterAlarm(it) },
+                                icon = Icons.AutoMirrored.Filled.ExitToApp,
+                                iconTint = MaterialTheme.colorScheme.secondary,
+                                position = SettingsItemPosition.BOTTOM
+                            )
+                        }
+                    }
+                }
             }
 
             // Bottom padding
             item(key = "bottom-padding") { Spacer(Modifier.height(100.dp)) }
         }
 
-        // Custom Alert Dialogs
-        // Removed showAddDialogType block
+        if (showPreemptiveSnooze) {
+            PreemptiveSnoozeDialog(onDismiss = { showPreemptiveSnooze = false })
+        }
 
         if (alertToEdit != null) {
             CustomAlertDialog(
@@ -1168,98 +1188,6 @@ private fun AlertSettingsExpanded(
                     }
                 }
 
-                // === Rearm hysteresis ===
-                // The margin is how far the MEASURED value must recover before the
-                // episode ends and the alert can fire again; the interval (forecast
-                // only) is a hard floor between firings, whatever value and
-                // projection do.
-                val rearmMarginTypes = setOf(
-                    AlertType.PRE_LOW, AlertType.PRE_HIGH,
-                    AlertType.LOW, AlertType.HIGH,
-                    AlertType.VERY_LOW, AlertType.VERY_HIGH
-                )
-                if (config.type in rearmMarginTypes) {
-                    ThresholdSlider(
-                        label = stringResource(R.string.rearm_margin_label),
-                        value = config.rearmMargin ?: 0f,
-                        isMmol = isMmol,
-                        range = if (isMmol) 0f..3f else 0f..50f,
-                        onValueChange = { onConfigChange(config.copy(rearmMargin = it)) }
-                    )
-                }
-                if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
-                    DurationSlider(
-                        label = stringResource(R.string.rearm_min_interval_label),
-                        value = config.rearmMinIntervalMinutes ?: 0,
-                        range = 0..60,
-                        stepSize = 5,
-                        onValueChange = { v -> onConfigChange(config.copy(rearmMinIntervalMinutes = v)) }
-                    )
-                }
-
-                // === IOB coverage (PRE_HIGH only; insulin makes a predicted LOW
-                // more likely, so PRE_LOW must never get this control) ===
-                if (config.type == AlertType.PRE_HIGH) {
-                    DurationSlider(
-                        label = stringResource(R.string.pre_high_iob_coverage_label),
-                        value = ((config.iobCoverageFactor ?: 0f) * 100f).toInt(),
-                        range = 0..200,
-                        stepSize = 10,
-                        onValueChange = { v -> onConfigChange(config.copy(iobCoverageFactor = v / 100f)) },
-                        valueText = { if (it == 0) stringResource(R.string.alert_feature_off) else "$it%" }
-                    )
-                }
-
-                // HIGH follows the exact arrow shown on its alarm screen. A saved positive
-                // value from the former slider counts as enabled, so existing opt-ins do not
-                // need a preference migration.
-                if (config.type == AlertType.HIGH) {
-                    ClickableToggleRow(
-                        icon = Icons.AutoMirrored.Filled.TrendingDown,
-                        title = stringResource(R.string.persistent_high_fall_suppress_label),
-                        checked = (config.fallRateSuppress ?: 0f) > 0f,
-                        onCheckedChange = { enabled ->
-                            onConfigChange(
-                                config.copy(
-                                    fallRateSuppress = if (enabled) {
-                                        AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
-                                    } else {
-                                        null
-                                    }
-                                )
-                            )
-                        }
-                    )
-                }
-
-                // PERSISTENT_HIGH has already waited out a duration and keeps its adjustable
-                // fall threshold. VERY_HIGH is excluded because there the number itself is
-                // the problem, whichever way it is moving.
-                if (config.type == AlertType.PERSISTENT_HIGH) {
-                    DurationSlider(
-                        label = stringResource(R.string.persistent_high_fall_suppress_label),
-                        value = (((config.fallRateSuppress ?: 0f) * 10f) + 0.5f).toInt(),
-                        range = 0..(AlertDefaults.FALL_RATE_MAX_MGDL_PER_MIN * 10f).toInt(),
-                        stepSize = (AlertDefaults.FALL_RATE_STEP_MGDL_PER_MIN * 10f).toInt(),
-                        onValueChange = { v -> onConfigChange(config.copy(fallRateSuppress = v / 10f)) },
-                        valueText = {
-                            if (it == 0) {
-                                stringResource(R.string.alert_feature_off)
-                            } else {
-                                val arrow = when {
-                                    it >= 30 -> stringResource(R.string.fall_rate_falling_fast)
-                                    it >= 20 -> stringResource(R.string.fall_rate_falling)
-                                    else -> stringResource(R.string.fall_rate_slanting_down)
-                                }
-                                String.format(
-                                    java.util.Locale.getDefault(),
-                                    "-%.1f mg/dL/min (%s)", it / 10f, arrow
-                                )
-                            }
-                        }
-                    )
-                }
-
                 // === Sensor-expiry pre-warnings (multi-select, this type only) ===
                 if (config.type == AlertType.SENSOR_EXPIRY) {
                     SensorExpiryThresholdSelector(
@@ -1274,6 +1202,37 @@ private fun AlertSettingsExpanded(
                         }
                     )
                 }
+            },
+            advancedContent = {
+                // A high that is already coming down is not news. HIGH ships with this
+                // off and follows the arrow on its alarm screen; PERSISTENT_HIGH has
+                // waited out its duration and ships with it on. VERY_HIGH never gets
+                // it: there the number itself is the problem, whichever way it moves.
+                if (config.type == AlertType.HIGH || config.type == AlertType.PERSISTENT_HIGH) {
+                    ClickableToggleRow(
+                        icon = Icons.AutoMirrored.Filled.TrendingDown,
+                        title = stringResource(R.string.persistent_high_fall_suppress_label),
+                        checked = (config.fallRateSuppress ?: 0f) > 0f,
+                        onCheckedChange = { enabled ->
+                            onConfigChange(
+                                config.copy(
+                                    fallRateSuppress = if (enabled) {
+                                        AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+                                    } else {
+                                        0f
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+                if (config.type == AlertType.FALLING_FAST || config.type == AlertType.RISING_FAST) {
+                    DeltaAlarmAdvancedSettings(
+                        config = config,
+                        isMmol = isMmol,
+                        onConfigChange = onConfigChange
+                    )
+                }
             }
         )
     }
@@ -1285,66 +1244,40 @@ private fun SensorExpiryThresholdSelector(
     selected: Set<Int>,
     onToggle: (Int) -> Unit
 ) {
-    val days = EXPIRY_WARNING_PRESETS.filter { it >= 1440 }
-    val hours = EXPIRY_WARNING_PRESETS.filter { it < 1440 }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             stringResource(R.string.sensor_expiry_warnings_title),
             style = MaterialTheme.typography.bodyMedium
         )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            EXPIRY_WARNING_PRESETS.forEach { minutes ->
+                val isSelected = minutes in selected
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onToggle(minutes) },
+                    label = {
+                        Text(
+                            if (minutes >= 1440) stringResource(R.string.days_short, minutes / 1440)
+                            else stringResource(R.string.hours_short, minutes / 60)
+                        )
+                    },
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+        }
         Text(
             stringResource(R.string.sensor_expiry_warnings_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
-        Text(
-            stringResource(R.string.sensor_expiry_group_days),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            days.forEach { minutes ->
-                val on = minutes in selected
-                FilterChip(
-                    selected = on,
-                    onClick = { onToggle(minutes) },
-                    label = { Text(stringResource(R.string.days_short, minutes / 1440)) },
-                    leadingIcon = { if (on) Icon(Icons.Filled.Check, contentDescription = null) }
-                )
-            }
-        }
-
-        Text(
-            stringResource(R.string.sensor_expiry_group_hours),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            hours.forEach { minutes ->
-                val on = minutes in selected
-                FilterChip(
-                    selected = on,
-                    onClick = { onToggle(minutes) },
-                    label = { Text(stringResource(R.string.hours_short, minutes / 60)) },
-                    leadingIcon = { if (on) Icon(Icons.Filled.Check, contentDescription = null) }
-                )
-            }
-        }
     }
 }
-        
-//        HorizontalDivider()
-        
 
-
-/**
- * Type-specific inputs for the GDH-style delta alarms: how big a change per interval counts as
- * steep, how many consecutive intervals are needed, the value past which it may alarm, and the
- * interval itself (own window, or follow the Δ readout's global one).
- */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DeltaAlarmSettings(
     config: AlertConfig,
@@ -1399,30 +1332,6 @@ private fun DeltaAlarmSettings(
         onValueChange = { onConfigChange(config.copy(deltaBorder = it)) }
     )
 
-    // With checkpoint counting the window directly scales the confirmation time
-    // (count x window), so it must not silently change with a display preference.
-    Text(
-        text = stringResource(R.string.delta_alarm_interval_label),
-        style = MaterialTheme.typography.bodyLarge
-    )
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = config.deltaIntervalMinutes == null,
-            onClick = { onConfigChange(config.copy(deltaIntervalMinutes = null)) },
-            label = { Text(stringResource(R.string.delta_alarm_interval_follow, displayIntervalMinutes)) }
-        )
-        FilterChip(
-            selected = config.deltaIntervalMinutes == 1,
-            onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 1)) },
-            label = { Text(stringResource(R.string.delta_interval_1min)) }
-        )
-        FilterChip(
-            selected = config.deltaIntervalMinutes == 5,
-            onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 5)) },
-            label = { Text(stringResource(R.string.delta_interval_5min)) }
-        )
-    }
-
     Text(
         text = stringResource(
             if (falling) R.string.falling_fast_explanation else R.string.rising_fast_explanation,
@@ -1435,7 +1344,57 @@ private fun DeltaAlarmSettings(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
 
+/** The delta alarm's power-user half: which window it counts over, and the early trigger. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DeltaAlarmAdvancedSettings(
+    config: AlertConfig,
+    isMmol: Boolean,
+    onConfigChange: (AlertConfig) -> Unit
+) {
+    val deltaThreshold = config.deltaThreshold
+        ?: if (isMmol) AlertDefaults.DELTA_THRESHOLD_MMOL else AlertDefaults.DELTA_THRESHOLD_MGDL
+    val deltaCount = config.deltaCount ?: AlertDefaults.DELTA_COUNT_DEFAULT
+    val displayIntervalMinutes = remember {
+        tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(
+            Applic.app
+                .getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+                .getInt("delta_interval_minutes", tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
+        )
+    }
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // With checkpoint counting the window directly scales the confirmation time
+        // (count x window), so it must not silently change with a display preference.
+        Text(
+            text = stringResource(R.string.delta_alarm_interval_label),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = config.deltaIntervalMinutes == null,
+                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = null)) },
+                label = { Text(stringResource(R.string.delta_alarm_interval_follow, displayIntervalMinutes)) }
+            )
+            FilterChip(
+                selected = config.deltaIntervalMinutes == 1,
+                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 1)) },
+                label = { Text(stringResource(R.string.delta_interval_1min)) }
+            )
+            FilterChip(
+                selected = config.deltaIntervalMinutes == 5,
+                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 5)) },
+                label = { Text(stringResource(R.string.delta_interval_5min)) }
+            )
+        }
+    }
     // Optional escalation on the implied total distance (count x threshold).
     ClickableToggleRow(
         icon = Icons.Default.Bolt,
@@ -1583,359 +1542,6 @@ internal fun DurationSlider(
 }
 
 @Composable
-private fun DeliveryModeSelector(
-    mode: AlertDeliveryMode,
-    onModeChange: (AlertDeliveryMode) -> Unit
-) {
-    Column {
-        Text(
-            stringResource(R.string.alert_style),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val deliveryModeLabels = AlertDeliveryMode.entries.associateWith { it.localizedName() }
-            AlertDeliveryMode.entries.forEach { deliveryMode ->
-                FilterChip(
-                    selected = mode == deliveryMode,
-                    onClick = { onModeChange(deliveryMode) },
-                    label = { Text(deliveryModeLabels[deliveryMode] ?: deliveryMode.displayName) },
-                    leadingIcon = if (mode == deliveryMode) {
-                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                    } else null,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SnoozeDurationSelector(
-    minutes: Int,
-    onMinutesChange: (Int) -> Unit
-) {
-    DurationSlider(
-        label = stringResource(R.string.default_snooze),
-        value = minutes,
-        range = 5..120,
-        stepSize = 5,
-        onValueChange = onMinutesChange
-    )
-}
-
-@Composable
-private fun SettingsRow(
-    title: String,
-    icon: ImageVector,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            title,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
-}
-
-@Composable
-private fun PreemptiveSnoozeCard() {
-    var showDialog by remember { mutableStateOf(false) }
-    
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Row(
-            modifier = Modifier
-                .clickable { showDialog = true }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Snooze,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.preemptive_snooze),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Text(
-                    stringResource(R.string.preemptive_snooze_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                )
-            }
-        }
-    }
-    
-    if (showDialog) {
-        PreemptiveSnoozeDialog(
-            onDismiss = { showDialog = false }
-        )
-    }
-}
-
-/**
- * Quiet period across alert families: after a falling or rising alert, other
- * alerts of the same direction stay quiet for the chosen minutes. 0 is off.
- * LOW, VERY_LOW and VERY_HIGH are exempt. HIGH can opt into acknowledgment-gated
- * coverage using the same duration.
- */
-@Composable
-private fun SameDirectionSuppressionPreference(
-    minutes: Int,
-    onMinutesChange: (Int) -> Unit,
-    acknowledgedHighCoverageEnabled: Boolean,
-    onAcknowledgedHighCoverageChange: (Boolean) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsPaused,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.same_direction_suppression_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.same_direction_suppression_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            DurationSlider(
-                label = "",
-                value = minutes,
-                range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
-                stepSize = 1,
-                onValueChange = onMinutesChange,
-                valueText = { v ->
-                    if (v == 0) stringResource(R.string.off) else stringResource(R.string.minutes_short_format, v)
-                }
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.acknowledged_high_coverage_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.acknowledged_high_coverage_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                StyledSwitch(
-                    checked = acknowledgedHighCoverageEnabled,
-                    onCheckedChange = onAcknowledgedHighCoverageChange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NotificationDismissActionPreference(
-    action: AlertNotificationDismissAction,
-    onActionChange: (AlertNotificationDismissAction) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsOff,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.notification_dismiss_action_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.notification_dismiss_action_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            val actionLabels = AlertNotificationDismissAction.entries.associateWith { it.localizedName() }
-            ConnectedButtonGroup(
-                options = AlertNotificationDismissAction.entries,
-                selectedOption = action,
-                onOptionSelected = onActionChange,
-                labelText = { actionLabels[it] ?: it.name },
-                label = {
-                    Text(
-                        text = actionLabels[it] ?: it.name,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                icon = { option ->
-                    if (option == action) Icons.Default.Check else null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                itemHeight = 40.dp,
-                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.74f),
-                selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.56f),
-                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReturnToPreviousAppPreference(
-    enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .clickable { onEnabledChange(!enabled) }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.alarm_return_to_previous_app_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.alarm_return_to_previous_app_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            StyledSwitch(
-                checked = enabled,
-                onCheckedChange = onEnabledChange
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PreemptiveSnoozeDialog(

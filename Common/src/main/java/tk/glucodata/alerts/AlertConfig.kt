@@ -297,16 +297,12 @@ object AlertDefaults {
      */
     const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 1.0f
 
-    /** The step the PERSISTENT_HIGH slider moves in. */
-    const val FALL_RATE_STEP_MGDL_PER_MIN = 1.0f
-
-    /** The furthest the PERSISTENT_HIGH scale goes: a fall this app calls fast. */
-    const val FALL_RATE_MAX_MGDL_PER_MIN = 3.0f
-
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
-    // full projected overshoot (factor 1.0). Conservative: only a complete
-    // cover silences the alert; setting it below 1 suppresses earlier, 0 = off.
-    const val PRE_HIGH_IOB_COVERAGE_FACTOR = 1.0f
+    // projected overshoot x this factor. Off: it silences a safety alert on the
+    // strength of an insulin sensitivity most users never entered, and it has
+    // no control in the UI. The field stays readable so a stored value keeps
+    // meaning what it meant.
+    const val PRE_HIGH_IOB_COVERAGE_FACTOR = 0f
 
     // Delta-counter defaults (FALLING_FAST / RISING_FAST). Tunable; disabled by default.
     // Change over the delta interval that counts as steep (~10 mg/dL / 0.6 mmol per 5 min).

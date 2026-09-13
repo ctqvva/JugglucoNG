@@ -158,10 +158,11 @@ fun GlobalAlertSettingsCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
+                        // The title already says "all alerts"; the line under it says on or off.
                         text = if (isMasterEnabled) {
                             stringResource(R.string.global_active)
                         } else {
-                            stringResource(R.string.global_all_alerts_disabled)
+                            stringResource(R.string.off)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
