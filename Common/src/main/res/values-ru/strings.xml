@@ -598,7 +598,7 @@
     <string name="graph_smoothing_7_minutes">7 минут</string>
     <string name="data_smoothing_window_title">Окно сглаживания</string>
     <string name="data_smoothing_graph_only_title">Сглаживать только график</string>
-    <string name="data_smoothing_graph_only_desc">Оставляет текущую глюкозу, виджеты, уведомления и выходы обмена без сглаживания</string>
+    <string name="data_smoothing_graph_only_desc">Оставляет текущую глюкозу, виджеты, уведомления и выходы обмена без сглаживания — если только не включено «Сжимать в интервалы»: для него нужна сглаженная точка, поэтому он снова включает сглаживание для выходов обмена</string>
     <string name="data_smoothing_exchange_only_title">Сглаживать только выходы обмена</string>
     <string name="data_smoothing_exchange_only_desc">Применяет сглаживание и фильтр интервалов только к трансляциям и исходящим API-пакетам; график, текущая глюкоза, виджеты и уведомления остаются без изменений</string>
     <string name="data_smoothing_collapse_title">Сжимать в интервалы</string>

@@ -821,7 +821,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="graph_smoothing_7_minutes">7 minutes</string>
     <string name="data_smoothing_window_title">Smoothing window</string>
     <string name="data_smoothing_graph_only_title">Smooth only graph</string>
-    <string name="data_smoothing_graph_only_desc">Keep current glucose, widgets, alerts and exchange outputs unsmoothed</string>
+    <string name="data_smoothing_graph_only_desc">Keep current glucose, widgets, alerts and exchange outputs unsmoothed, unless \"Collapse into chunks\" is on — collapsing still needs a smoothed reading, so it re-enables smoothing for exchange outputs</string>
     <string name="data_smoothing_exchange_only_title">Smooth only exchange outputs</string>
     <string name="data_smoothing_exchange_only_desc">Apply smoothing and chunk filtering only to broadcasts and outbound API payloads; chart, current glucose, widgets and alerts stay unchanged</string>
     <string name="data_smoothing_collapse_title">Collapse into chunks</string>
