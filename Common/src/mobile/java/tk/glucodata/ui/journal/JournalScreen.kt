@@ -65,6 +65,9 @@ import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.JournalTimelineRow
 import tk.glucodata.ui.ReadingRow
 import tk.glucodata.ui.TimeRange
+import tk.glucodata.ui.ascendingByTimestamp
+import tk.glucodata.ui.rowTrendHistory
+import tk.glucodata.ui.uniqueRowKeys
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -76,13 +79,17 @@ import java.util.Locale
 private data class JournalLedgerItem(
     val timestamp: Long,
     val entries: List<JournalEntry>,
-    val point: GlucosePoint?
+    val point: GlucosePoint?,
+    /** What the row's arrow regresses over; see [rowTrendHistory]. Empty without a reading. */
+    val trendHistory: List<GlucosePoint> = emptyList()
 )
 
 private data class JournalDateSection(
     val date: LocalDate,
     val label: String,
-    val items: List<JournalLedgerItem>
+    val items: List<JournalLedgerItem>,
+    /** One stable LazyColumn key per item; see [uniqueRowKeys]. */
+    val keys: List<String>
 )
 
 @Composable
@@ -116,7 +123,7 @@ fun JournalScreen(
     quickAddAlwaysNow: Boolean = false
 ) {
     val view = LocalView.current
-    val sortedHistory = remember(glucoseHistory) { glucoseHistory.sortedBy { it.timestamp } }
+    val sortedHistory = remember(glucoseHistory) { glucoseHistory.ascendingByTimestamp() }
     val presetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val foodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
     var selectedChartRange by rememberSaveable { mutableStateOf(TimeRange.H3) }
@@ -311,23 +318,17 @@ fun JournalScreen(
                     }
                     itemsIndexed(
                         items = section.items,
-                        key = { index, item ->
-                            "${item.timestamp}-${item.entries.joinToString(",") { it.id.toString() }}-$index"
-                        }
+                        key = { index, _ -> section.keys[index] }
                     ) { index, item ->
                         val point = item.point
                         if (point != null) {
-                            val sectionPoints = section.items.mapNotNull(JournalLedgerItem::point)
-                            val pointIndex = sectionPoints.indexOfFirst { it.timestamp == point.timestamp }
-                                .takeIf { it >= 0 }
-                                ?: index
                             ReadingRow(
                                 point = point,
                                 unit = unit,
                                 viewMode = viewMode,
-                                index = pointIndex,
+                                index = 0,
                                 totalCount = section.items.size,
-                                history = sectionPoints,
+                                history = item.trendHistory,
                                 sensorId = sensorId,
                                 calibrations = calibrations,
                                 journalEntries = item.entries,
@@ -743,17 +744,22 @@ private fun buildJournalSections(
     if (entries.isEmpty()) return emptyList()
     val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
     val zone = ZoneId.systemDefault()
-    return entries
+    val items = entries
         .groupBy { it.timestamp }
         .map { (timestamp, groupedEntries) ->
+            val point = findClosestPoint(points, timestamp)
             JournalLedgerItem(
                 timestamp = timestamp,
                 entries = groupedEntries.sortedByDescending { it.timestamp },
-                point = findClosestPoint(points, timestamp)
+                point = point,
+                trendHistory = if (point != null) rowTrendHistory(points, point.timestamp) else emptyList()
             )
         }
         .sortedByDescending { it.timestamp }
-        .fold(mutableListOf<JournalDateSectionBuilder>()) { sections, item ->
+    // Keys are unique across the whole list, not per section: LazyColumn requires it.
+    val keys = uniqueRowKeys(items.map { "${it.timestamp}-${it.entries.joinToString(",") { entry -> entry.id.toString() }}" })
+    return items
+        .foldIndexed(mutableListOf<JournalDateSectionBuilder>()) { index, sections, item ->
             val date = Instant.ofEpochMilli(item.timestamp).atZone(zone).toLocalDate()
             val section = sections.lastOrNull()?.takeIf { it.date == date }
                 ?: JournalDateSectionBuilder(
@@ -761,13 +767,15 @@ private fun buildJournalSections(
                     label = formatter.format(Date(item.timestamp))
                 ).also(sections::add)
             section.items.add(item)
+            section.keys.add(keys[index])
             sections
         }
         .map { builder ->
             JournalDateSection(
                 date = builder.date,
                 label = builder.label,
-                items = builder.items.toList()
+                items = builder.items.toList(),
+                keys = builder.keys.toList()
             )
         }
 }
@@ -806,5 +814,6 @@ private fun formatJournalMetric(value: Float, wholeNumber: Boolean = false): Str
 private class JournalDateSectionBuilder(
     val date: LocalDate,
     val label: String,
-    val items: MutableList<JournalLedgerItem> = mutableListOf()
+    val items: MutableList<JournalLedgerItem> = mutableListOf(),
+    val keys: MutableList<String> = mutableListOf()
 )

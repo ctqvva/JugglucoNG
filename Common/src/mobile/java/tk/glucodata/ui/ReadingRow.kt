@@ -219,11 +219,17 @@ fun ReadingRow(
     }
 
     // --- ADVANCED TREND ENGINE ---
-    // Calculate on the fly using the passed history subset
+    // Calculate on the fly using the passed history subset. The engine reads
+    // only timestamp, value and raw value, so it is handed the points as they
+    // are: the round trip through the native point type was two copies of the
+    // tail per row for nothing.
     val regressed = remember(history, index) {
-        val relevantHistory = if (history.isNotEmpty()) history.drop(index) else listOf(point)
-        val nativeList = relevantHistory.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) }
-        tk.glucodata.logic.TrendEngine.calculateTrend(nativeList, useRaw = (viewMode == 1 || viewMode == 3), isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit))
+        val relevantHistory = when {
+            history.isEmpty() -> listOf(point)
+            index == 0 -> history
+            else -> history.drop(index)
+        }
+        tk.glucodata.logic.TrendEngine.calculateTrend(relevantHistory, useRaw = (viewMode == 1 || viewMode == 3), isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit))
     }
     // A row states one movement. Where the Δ knows it, the arrow says the same thing rather
     // than the longer regression, which answers a different question and can point the other

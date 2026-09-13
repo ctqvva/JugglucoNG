@@ -98,14 +98,23 @@ import kotlin.math.min
 private data class HistoryDateSection(
     val date: LocalDate,
     val label: String,
-    val items: List<TimelineRowItem>
+    val items: List<TimelineRowItem>,
+    /** One stable LazyColumn key per item; see [uniqueRowKeys]. */
+    val keys: List<String>
 )
 
 private data class TimelineRowItem(
     val timestamp: Long,
     val point: GlucosePoint?,
-    val journalEntries: List<JournalEntry>
+    val journalEntries: List<JournalEntry>,
+    /** What the row's arrow regresses over; see [rowTrendHistory]. Empty for a journal-only row. */
+    val trendHistory: List<GlucosePoint> = emptyList()
 )
+
+private fun TimelineRowItem.rowKey(): String {
+    val journalKey = journalEntries.joinToString(separator = ",") { it.id.toString() }
+    return "$timestamp-${point?.timestamp ?: "journal"}-$journalKey"
+}
 
 private data class TimelineJournalGrouping(
     val entriesByPointTimestamp: Map<Long, List<JournalEntry>>,
@@ -168,8 +177,11 @@ private fun buildHistorySections(items: List<TimelineRowItem>): List<HistoryDate
     val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
     val zone = ZoneId.systemDefault()
     val sections = ArrayList<HistoryDateSection>()
+    // Keys are unique across the whole list, not per section: LazyColumn requires it.
+    val keys = uniqueRowKeys(items.map(TimelineRowItem::rowKey)).iterator()
     var currentDate: LocalDate? = null
     var currentItems = ArrayList<TimelineRowItem>()
+    var currentKeys = ArrayList<String>()
 
     fun flushSection() {
         val date = currentDate ?: return
@@ -178,19 +190,22 @@ private fun buildHistorySections(items: List<TimelineRowItem>): List<HistoryDate
             HistoryDateSection(
                 date = date,
                 label = formatter.format(Date(currentItems.first().timestamp)),
-                items = currentItems.toList()
+                items = currentItems.toList(),
+                keys = currentKeys.toList()
             )
         )
     }
 
-    for (item in items.sortedByDescending { it.timestamp }) {
+    for (item in items) {
         val itemDate = Instant.ofEpochMilli(item.timestamp).atZone(zone).toLocalDate()
         if (currentDate == null || itemDate != currentDate) {
             flushSection()
             currentDate = itemDate
             currentItems = ArrayList()
+            currentKeys = ArrayList()
         }
         currentItems.add(item)
+        currentKeys.add(keys.next())
     }
     flushSection()
     return sections
@@ -217,7 +232,7 @@ fun groupJournalEntriesByReading(
     maxDistanceMillis: Long = 20L * 60L * 1000L
 ): Map<Long, List<JournalEntry>> {
     if (points.isEmpty() || entries.isEmpty()) return emptyMap()
-    val sortedPoints = points.sortedBy { it.timestamp }
+    val sortedPoints = points.ascendingByTimestamp()
     val grouped = linkedMapOf<Long, MutableList<JournalEntry>>()
 
     entries.forEach { entry ->
@@ -268,7 +283,7 @@ private fun groupJournalEntriesForTimeline(
         )
     }
 
-    val sortedPoints = points.sortedBy { it.timestamp }
+    val sortedPoints = points.ascendingByTimestamp()
     val entriesByPoint = linkedMapOf<Long, MutableList<JournalEntry>>()
     val journalOnly = linkedMapOf<Long, MutableList<JournalEntry>>()
 
@@ -310,7 +325,9 @@ private fun groupJournalEntriesForTimeline(
 private fun buildTimelineRows(
     points: List<GlucosePoint>,
     entries: List<JournalEntry>,
-    browseMode: TimelineBrowseMode
+    browseMode: TimelineBrowseMode,
+    /** The whole history, ascending, for the rows' arrows; [points] is the visible slice. */
+    trendSource: List<GlucosePoint> = points
 ): List<TimelineRowItem> {
     val grouping = groupJournalEntriesForTimeline(points, entries)
     val pointRows = points.mapNotNull { point ->
@@ -319,14 +336,16 @@ private fun buildTimelineRows(
             TimelineBrowseMode.HISTORY -> TimelineRowItem(
                 timestamp = point.timestamp,
                 point = point,
-                journalEntries = rowEntries
+                journalEntries = rowEntries,
+                trendHistory = rowTrendHistory(trendSource, point.timestamp)
             )
 
             TimelineBrowseMode.JOURNAL -> rowEntries.takeIf { it.isNotEmpty() }?.let {
                 TimelineRowItem(
                     timestamp = point.timestamp,
                     point = point,
-                    journalEntries = it
+                    journalEntries = it,
+                    trendHistory = rowTrendHistory(trendSource, point.timestamp)
                 )
             }
         }
@@ -389,7 +408,7 @@ fun HistoryBrowseScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val sortedHistory = remember(glucoseHistory) { glucoseHistory.sortedBy { it.timestamp } }
+    val sortedHistory = remember(glucoseHistory) { glucoseHistory.ascendingByTimestamp() }
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
     val availableRange = remember(sortedHistory, journalEntries) {
@@ -468,7 +487,8 @@ fun HistoryBrowseScreen(
         buildTimelineRows(
             points = visibleHistory,
             entries = visibleJournalEntries,
-            browseMode = effectiveBrowseMode
+            browseMode = effectiveBrowseMode,
+            trendSource = sortedHistory
         )
     }
     val visibleSections = remember(visibleTimelineRows) { buildHistorySections(visibleTimelineRows) }
@@ -780,10 +800,7 @@ fun HistoryBrowseScreen(
 
                     itemsIndexed(
                         items = section.items,
-                        key = { index, item ->
-                            val journalKey = item.journalEntries.joinToString(separator = ",") { it.id.toString() }
-                            "${item.timestamp}-${item.point?.timestamp ?: "journal"}-$journalKey-$index"
-                        }
+                        key = { index, _ -> section.keys[index] }
                     ) { index, item ->
                         val readingPoint = item.point
                         if (readingPoint != null) {
@@ -791,9 +808,9 @@ fun HistoryBrowseScreen(
                                 point = readingPoint,
                                 unit = unit,
                                 viewMode = viewMode,
-                                index = index,
+                                index = 0,
                                 totalCount = section.items.size,
-                                history = section.items.mapNotNull(TimelineRowItem::point),
+                                history = item.trendHistory,
                                 deltaText = rowDeltas[readingPoint]?.text,
                                 deltaRateMgdlPerMinute = rowDeltas[readingPoint]?.rateMgdlPerMinute,
                                 sensorId = sensorId,
