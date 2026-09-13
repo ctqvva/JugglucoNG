@@ -2217,7 +2217,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
     <string name="same_direction_suppression_title">Ижил чиглэлийн дохионы дараах чимээгүй хугацаа</string>
-    <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохионы дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, маш өндөр дохио үргэлж дуугарна.</string>
+    <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохиог хааж эсвэл хойшлуулсны дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, маш өндөр үргэлж дуугарна.</string>
     <string name="acknowledged_high_coverage_title">Баталгаажуулсан өсөлтийн дохио «Өндөр»-ийг орлоно</string>
     <string name="acknowledged_high_coverage_summary">«Хурдан өсөх», «Өндөр болох төлөвтэй» эсвэл «Өндөр» дохиог хаах буюу түр хойшлуулсны дараа эдгээрийн бусад дохио дээрх хугацаанд чимээгүй байна. «Маш өндөр» үргэлж дуугарна.</string>
     <string name="alarm_return_to_previous_app_title">Дохионы дараа өмнөх апп руу буцах</string>

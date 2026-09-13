@@ -21,10 +21,13 @@ internal data class SameDirectionSuppressor(val type: AlertType, val firedAtMs: 
  * nothing, so a suppressed alert is never queued for later delivery. If the
  * situation persists, its own family fires it again once the window is over.
  *
- * LOW, VERY_LOW and VERY_HIGH are exempt by construction. HIGH can optionally
- * join the rising group, but only an acknowledged first alert may cover the
- * second one. This preserves the stronger HIGH alarm when the earlier alert may
- * not have been seen. A window of zero disables the mechanism.
+ * Only an *acknowledged* first alert (dismissed or snoozed) may cover the
+ * second one. Suppression means "you already saw this", not "it already made a
+ * sound somewhere": an alarm that fired while the user was away, or that a
+ * quiet window silenced, was never seen, so it must not take the early warning
+ * of the next one away. LOW, VERY_LOW and VERY_HIGH are exempt by construction.
+ * HIGH can optionally join the rising group. A window of zero disables the
+ * mechanism.
  */
 internal class SameDirectionAlertSuppression {
     private val lastFired = mutableMapOf<AlertDirection, SameDirectionSuppressor>()
@@ -45,9 +48,8 @@ internal class SameDirectionAlertSuppression {
         val direction = directionOf(type, acknowledgedHighCoverage) ?: return null
         val last = lastFired[direction] ?: return null
         if (last.type == type) return null
-        if ((type == AlertType.HIGH || last.type == AlertType.HIGH) && !isAcknowledged(last.type)) {
-            return null
-        }
+        // An unseen first alert covers nothing; see the class note.
+        if (!isAcknowledged(last.type)) return null
         return if (nowMs - last.firedAtMs < windowMs) last else null
     }
 

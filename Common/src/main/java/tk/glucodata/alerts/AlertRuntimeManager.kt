@@ -263,8 +263,8 @@ object AlertRuntimeManager {
 
         if (suppressedBySameDirectionAlertLocked(type)) {
             // Dropped, not deferred: the episode keeps no pending delivery for it.
-            // LOW, VERY_LOW and VERY_HIGH never arrive here. HIGH only does when
-            // acknowledged high coverage is enabled and its earlier alert was seen.
+            // LOW, VERY_LOW and VERY_HIGH never arrive here, and nothing does
+            // unless the alert that covers it was dismissed or snoozed.
             standardEpisodes.clearPending(type)
             return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
@@ -731,9 +731,10 @@ object AlertRuntimeManager {
 
     /**
      * Cross-family quiet period: true when another alert of [type]'s direction
-     * fired within the configured window, so [type] must stay quiet. HIGH may
-     * optionally join the rising group, but only after the first alert was
-     * dismissed or snoozed. LOW, VERY_LOW and VERY_HIGH always fire. Every
+     * fired within the configured window *and was dismissed or snoozed*, so
+     * [type] may stay quiet. An unacknowledged first alert - or one a quiet
+     * window silenced - covers nothing. HIGH may optionally join the rising
+     * group. LOW, VERY_LOW and VERY_HIGH always fire. Every
      * suppression is logged with the alert that caused it, so a missing
      * notification stays explainable.
      */

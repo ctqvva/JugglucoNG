@@ -9,20 +9,26 @@ import org.junit.Test
 
 /**
  * The cross-family quiet period: after one alert of a direction fires, another
- * alert of the same direction stays quiet for the window. The class is pure so
- * the rules can be pinned without Android or the clock.
+ * alert of the same direction stays quiet for the window - provided the first
+ * one was acknowledged. The class is pure so the rules can be pinned without
+ * Android or the clock.
  */
 class SameDirectionAlertSuppressionTests {
 
     private val window = 5 * 60_000L
     private val t0 = 1_000_000L
 
+    /** The user dismissed or snoozed whatever fired first. */
+    private val seen: (AlertType) -> Boolean = { true }
+    /** The first alert fired but was never acknowledged - or was silenced and never heard. */
+    private val unseen: (AlertType) -> Boolean = { false }
+
     @Test
     fun predictedLowIsSuppressedShortlyAfterFallingFast() {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
 
-        val blocker = state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window)
+        val blocker = state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window, isAcknowledged = seen)
 
         assertNotNull(blocker)
         assertEquals(AlertType.FALLING_FAST, blocker!!.type)
@@ -34,7 +40,7 @@ class SameDirectionAlertSuppressionTests {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.PRE_LOW, t0)
 
-        val blocker = state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window)
+        val blocker = state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window, isAcknowledged = seen)
 
         assertEquals(AlertType.PRE_LOW, blocker?.type)
     }
@@ -43,11 +49,58 @@ class SameDirectionAlertSuppressionTests {
     fun risingSideIsSymmetric() {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.RISING_FAST, t0)
-        assertEquals(AlertType.RISING_FAST, state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window)?.type)
+        assertEquals(AlertType.RISING_FAST, state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window, isAcknowledged = seen)?.type)
 
         val reversed = SameDirectionAlertSuppression()
         reversed.onFired(AlertType.PRE_HIGH, t0)
-        assertEquals(AlertType.PRE_HIGH, reversed.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window)?.type)
+        assertEquals(AlertType.PRE_HIGH, reversed.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window, isAcknowledged = seen)?.type)
+    }
+
+    @Test
+    fun unacknowledgedFallingFastDoesNotCoverPredictedLow() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.FALLING_FAST, t0)
+
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window, isAcknowledged = unseen))
+        // The other way round too: an unseen forecast does not hide the delta alarm.
+        val reversed = SameDirectionAlertSuppression()
+        reversed.onFired(AlertType.PRE_LOW, t0)
+        assertNull(reversed.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window, isAcknowledged = unseen))
+    }
+
+    @Test
+    fun unacknowledgedRisingFastDoesNotCoverPredictedHigh() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.RISING_FAST, t0)
+
+        assertNull(state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window, isAcknowledged = unseen))
+    }
+
+    @Test
+    fun aSilencedUnheardAlertCannotSuppress() {
+        // A quiet window can take the sound of FALLING_FAST away; the runtime still
+        // records the firing. Because the user never acknowledged it, PRE_LOW - the
+        // early warning they have not had yet - must still be delivered.
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.FALLING_FAST, t0)
+
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 60_000L, window, isAcknowledged = unseen))
+        // Once acknowledged, the same firing covers PRE_LOW for the rest of the window.
+        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + 60_000L, window, isAcknowledged = seen))
+    }
+
+    @Test
+    fun onlyTheBlockerNeedsAcknowledging() {
+        val state = SameDirectionAlertSuppression()
+        state.onFired(AlertType.FALLING_FAST, t0)
+
+        val blocker = state.blockedBy(
+            AlertType.PRE_LOW,
+            t0 + 30_000L,
+            window,
+            isAcknowledged = { it == AlertType.FALLING_FAST }
+        )
+        assertEquals(AlertType.FALLING_FAST, blocker?.type)
     }
 
     @Test
@@ -175,10 +228,10 @@ class SameDirectionAlertSuppressionTests {
         state.onFired(AlertType.LOW, t0)
         state.onFired(AlertType.HIGH, t0)
 
-        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window))
-        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window))
-        assertNull(state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window))
-        assertNull(state.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window))
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window, isAcknowledged = seen))
     }
 
     @Test
@@ -186,8 +239,8 @@ class SameDirectionAlertSuppressionTests {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
 
-        assertNull(state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window))
-        assertNull(state.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window))
+        assertNull(state.blockedBy(AlertType.PRE_HIGH, t0 + 30_000L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.RISING_FAST, t0 + 30_000L, window, isAcknowledged = seen))
     }
 
     @Test
@@ -195,8 +248,8 @@ class SameDirectionAlertSuppressionTests {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
 
-        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + window - 1L, window))
-        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + window, window))
+        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + window - 1L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + window, window, isAcknowledged = seen))
     }
 
     @Test
@@ -204,8 +257,8 @@ class SameDirectionAlertSuppressionTests {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
 
-        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, 0L))
-        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, -1L))
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, 0L, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, -1L, isAcknowledged = seen))
     }
 
     @Test
@@ -213,7 +266,7 @@ class SameDirectionAlertSuppressionTests {
         val state = SameDirectionAlertSuppression()
         state.onFired(AlertType.FALLING_FAST, t0)
 
-        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window))
+        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + 30_000L, window, isAcknowledged = seen))
     }
 
     @Test
@@ -223,12 +276,12 @@ class SameDirectionAlertSuppressionTests {
 
         // Asking is side-effect free: the window still counts from the
         // FALLING_FAST firing, not from the suppressed attempt.
-        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window))
-        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + 60_000L, window))
-        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + window, window))
+        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window, isAcknowledged = seen))
+        assertNotNull(state.blockedBy(AlertType.PRE_LOW, t0 + 60_000L, window, isAcknowledged = seen))
+        assertNull(state.blockedBy(AlertType.PRE_LOW, t0 + window, window, isAcknowledged = seen))
         // ...and the suppressed PRE_LOW did not start a window of its own
         // that would now block a new FALLING_FAST run.
-        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + window, window))
+        assertNull(state.blockedBy(AlertType.FALLING_FAST, t0 + window, window, isAcknowledged = seen))
 
         // Mirrors the runtime: a suppressed standard alert drops its pending
         // delivery (here left over from a snooze), so the running episode
@@ -237,7 +290,7 @@ class SameDirectionAlertSuppressionTests {
         assertTrue(episodes.update(setOf(AlertType.PRE_LOW)).shouldTryFire(AlertType.PRE_LOW))
         episodes.markPendingDelivery(AlertType.PRE_LOW)
         assertTrue(episodes.update(setOf(AlertType.PRE_LOW)).shouldTryFire(AlertType.PRE_LOW))
-        if (state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window) != null) {
+        if (state.blockedBy(AlertType.PRE_LOW, t0 + 30_000L, window, isAcknowledged = seen) != null) {
             episodes.clearPending(AlertType.PRE_LOW)
         }
         assertFalse(episodes.update(setOf(AlertType.PRE_LOW)).shouldTryFire(AlertType.PRE_LOW))
@@ -250,7 +303,7 @@ class SameDirectionAlertSuppressionTests {
         state.onFired(AlertType.PRE_LOW, t0 + 4 * 60_000L)
 
         // FALLING_FAST's own window has passed, but PRE_LOW fired since.
-        val blocker = state.blockedBy(AlertType.FALLING_FAST, t0 + window + 1L, window)
+        val blocker = state.blockedBy(AlertType.FALLING_FAST, t0 + window + 1L, window, isAcknowledged = seen)
         assertEquals(AlertType.PRE_LOW, blocker?.type)
     }
 }
