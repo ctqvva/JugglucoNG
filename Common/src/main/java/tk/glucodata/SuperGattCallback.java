@@ -368,13 +368,44 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 // at any time - read it into a local once so the null-check and the
                 // needsReinit() call see the same reference.
                 final Talker currentTalker = talker;
-                if (currentTalker == null || currentTalker.needsReinit()) {
+                if (currentTalker == null) {
                     newtalker(null);
-                } else if (doLog) {
-                    Log.i(LOG_ID, "initAlarmTalk: talker already active, skipping recreate");
+                } else if (!recreateForHealth(currentTalker)) {
+                    // This is also the profile-switch hook (Talker.config, Settings alarm
+                    // profiles, NumAlarm's scheduled switch): voice speed, pitch and speaker
+                    // are per profile, and getvalues() above just reloaded them. The old
+                    // unconditional recreate applied them via onInit; now that the engine is
+                    // kept, push them into it here.
+                    currentTalker.setvalues();
+                    currentTalker.setvoice();
+                    if (doLog)
+                        Log.i(LOG_ID, "initAlarmTalk: talker already active, applied values");
                 }
             }
         }
+    }
+
+    // When the last health-driven recreate happened (0 = never). Health recreates are
+    // rate-limited by SpeakHealth.RECREATE_FLOOR_MS so a TTS service that never binds is not
+    // reconstructed every couple of readings forever.
+    private static volatile long lastHealthRecreateMs = 0L;
+
+    /**
+     * Recreate {@code current} if it reports itself dead and the floor since the last such
+     * recreate has elapsed. Returns true when a recreate happened.
+     */
+    static boolean recreateForHealth(Talker current) {
+        if (!current.needsReinit())
+            return false;
+        final long now = System.currentTimeMillis();
+        if (!SpeakHealth.recreateAllowed(lastHealthRecreateMs, now)) {
+            if (doLog)
+                Log.i(LOG_ID, "talker needsReinit but recreate floor not elapsed, keeping it");
+            return false;
+        }
+        lastHealthRecreateMs = now;
+        newtalker(null);
+        return true;
     }
 
     static Talker talker;
@@ -657,7 +688,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 if (currentTalker == null) {
                     Log.e(LOG_ID, "periodic-speak-gate: dotalk set but no talker - creating");
                     newtalker(null);
-                } else if (currentTalker.needsReinit()) {
+                } else if (recreateForHealth(currentTalker)) {
                     // Heal a talker that is non-null but actually dead (e.g. the shared
                     // TextToSpeech got unbound by a com.google.android.tts update and never
                     // reconnected) here, on the normal announce cadence, rather than waiting on
@@ -665,12 +696,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     //
                     // Skip speaking this cycle: the replacement's TextToSpeech binds
                     // asynchronously (onInit), so speaking immediately would very likely fail
-                    // while it is still initializing, re-arming consecutiveSpeakFailures and
-                    // reintroducing the recreate-churn this fix eliminates. The next reading
-                    // (normally ~1 minute later) finds a bound engine and speaks normally.
-                    Log.e(LOG_ID, "periodic-speak-gate: talker needsReinit, recreating"
+                    // while it is still initializing. The next reading (normally ~1 minute
+                    // later) finds a bound engine and speaks normally. If the recreate floor
+                    // blocked the recreate we fall through and keep trying to speak: a refused
+                    // utterance costs nothing, and a success resets the health counter.
+                    Log.e(LOG_ID, "periodic-speak-gate: talker needsReinit, recreated"
                             + " and skipping speak this cycle");
-                    newtalker(null);
                 } else {
                     // Speak the calibrated display value (same source as the display,
                     // notifications, and alarm speech) rather than the raw native value.

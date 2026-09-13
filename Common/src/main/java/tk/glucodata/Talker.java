@@ -525,20 +525,20 @@ public boolean speak(String message) {
                     ? engine.speak(message, TextToSpeech.QUEUE_FLUSH, null,message)
                     : engine.speak(message, TextToSpeech.QUEUE_FLUSH, null);
             if(speakResult==TextToSpeech.SUCCESS) {
-                consecutiveSpeakFailures=0;
+                health.record(true,engineReady);
                 if(doLog) {Log.i(LOG_ID,"success speak "+message);}
                 return true;
                 }
              else {
-                consecutiveSpeakFailures++;
-                Log.e(LOG_ID,"failed speak "+message+" consecutiveFailures="+consecutiveSpeakFailures);
+                health.record(false,engineReady);
+                Log.e(LOG_ID,"failed speak "+message+" consecutiveFailures="+health.consecutiveFailures());
                 }
             }
         catch(Throwable th) {
             // A dead/unbound TTS engine can fail by throwing (e.g. a dead Binder) rather than
             // returning a non-SUCCESS result - count it the same way, or needsReinit() never
             // trips for that failure mode.
-            consecutiveSpeakFailures++;
+            health.record(false,engineReady);
             Log.stack(LOG_ID,"speak failed",th);
             }
         }
@@ -551,9 +551,9 @@ public boolean speak(String message) {
 // connection permanently until reconstructed) still passes istalking(), so nothing ever healed
 // it. Observed in the field: "TextToSpeech: Disconnected from TTS engine" once after a
 // com.google.android.tts package REPLACE, then 172 consecutive "failed speak"/"not bound to TTS
-// engine" results with zero recovery over 4+ days.
-private volatile int consecutiveSpeakFailures=0;
-private static final int REINIT_FAILURE_THRESHOLD=2;
+// engine" results with zero recovery over 4+ days. Refusals before onInit are not counted -
+// see SpeakHealth.record().
+private final SpeakHealth health=new SpeakHealth();
 /** How long selspeak() defers after an utterance the engine would not take. Short enough that
  *  the next reading retries, so a failed attempt costs one reading rather than one whole
  *  user-configured separation interval. */
@@ -561,7 +561,7 @@ private static final long FAILED_SPEAK_RETRY_MS=30_000L;
 
 /** True once repeated real speak failures show the engine is dead and must be reconstructed. */
 public boolean needsReinit() {
-    return consecutiveSpeakFailures>=REINIT_FAILURE_THRESHOLD;
+    return health.needsReinit();
     }
 static boolean notifyfocus=false;
 //private static final AudioAttributes notification_audio = (new AudioAttributes.Builder()) .setLegacyStreamType(TextToSpeech.Engine.DEFAULT_STREAM) .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) .build(); 
@@ -622,8 +622,8 @@ void selspeak(String message) {
             // announce - then hand nearly all of it back if the engine refused the utterance.
             // Charging a failed attempt the full separation interval made the engine-health
             // check's detection latency scale with a user setting, which is backwards:
-            // consecutiveSpeakFailures counts announcement *attempts*, and attempts only happen
-            // once per cursep, so REINIT_FAILURE_THRESHOLD=2 meant a dead engine went unnoticed
+            // SpeakHealth counts announcement *attempts*, and attempts only happen
+            // once per cursep, so a threshold of 2 meant a dead engine went unnoticed
             // for 2 x cursep - 10 minutes at a 300s separation, 33 minutes at 999s, with every
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
