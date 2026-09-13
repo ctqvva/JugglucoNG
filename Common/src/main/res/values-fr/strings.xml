@@ -309,7 +309,7 @@
     <string name="google_scan_desc">Utiliser les services Google Play pour le scan QR</string>
     <string name="mirror_desc">Partager/Recevoir via Internet/Réseau local</string>
     <string name="nightscout_desc">Envoyer/Suivre</string>
-    <string name="glucose_alerts_title">Alertes de glycémie</string>
+    <string name="glucose_alerts_title">Alertes et alarmes</string>
     <string name="glucose_range_title">Plage de glucose</string>
     <string name="target_short_title">Cible</string>
     <string name="chart_short_title">Graphique</string>
@@ -2809,5 +2809,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Couverture insuline</string>
     <string name="alert_feature_off">Désactivé</string>
     <string name="same_direction_suppression_title">Période calme après une alerte de tendance</string>
-    <string name="same_direction_suppression_summary">Après avoir ignoré ou reporté une alerte de hausse ou de baisse, les autres dans ce sens attendent ce délai. Bas et très haut n\'attendent jamais.</string>
+    <string name="same_direction_suppression_summary">Avant la suivante dans ce sens</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d heure</item>
+        <item quantity="other">%1$d heures</item>
+    </plurals>
 </resources>

@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.List
@@ -379,14 +378,6 @@ fun ExpressiveSettingsScreen(
                     iconTint = notifColor,
                     position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/notification-display") }
-                )
-                SettingsItem(
-                    title = stringResource(R.string.talker),
-                    subtitle = stringResource(R.string.speakglucose) + " \u2022 " + stringResource(R.string.speakalarms),
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
-                    iconTint = notifColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/alerts/talker") }
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.floatglucose),

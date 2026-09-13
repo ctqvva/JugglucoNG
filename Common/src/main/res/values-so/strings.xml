@@ -511,7 +511,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="google_scan_desc">U isticmaal adeegyada Google Play baarista QR</string>
     <string name="mirror_desc">La wadaag/ku hel xogta adoo isticmaalaya Internet/Home Net</string>
     <string name="nightscout_desc">Soo rar/Raac</string>
-    <string name="glucose_alerts_title">Digniinta Gulukoosta iyo Digniinaha</string>
+    <string name="glucose_alerts_title">Digniinaha iyo alaarmada</string>
     <string name="glucose_range_title">Kala duwanaanshaha gulukooska</string>
     <string name="target_short_title">Bartilmaameedka</string>
     <string name="chart_short_title">Shaxda</string>
@@ -3001,5 +3001,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
     <string name="alert_feature_off">Damman</string>
     <string name="same_direction_suppression_title">Muddo aamusan digniin isbeddel ka dib</string>
-    <string name="same_direction_suppression_summary">Ka dib markaad diiddo ama dib u dhigto digniin kor u kac ama hoos u dhac, kuwa kale ee jihadaas waxay sugaan muddadan. Hooseeya iyo aad u sarreeya weligood ma sugaan.</string>
+    <string name="same_direction_suppression_summary">Ka hor kan xiga ee jihadaas</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d saac</item>
+        <item quantity="other">%1$d saacadood</item>
+    </plurals>
 </resources>

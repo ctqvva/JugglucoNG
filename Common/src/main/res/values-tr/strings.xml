@@ -397,7 +397,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="google_scan_desc">QR tarama için Google Play Hizmetlerini kullan</string>
     <string name="mirror_desc">İnternet/Ev Ağı üzerinden veri paylaş/al</string>
     <string name="nightscout_desc">Yükle/Takip et</string>
-    <string name="glucose_alerts_title">Kan Şekeri Uyarıları</string>
+    <string name="glucose_alerts_title">Uyarılar ve alarmlar</string>
     <string name="glucose_range_title">Glukoz aralığı</string>
     <string name="target_short_title">Hedef</string>
     <string name="chart_short_title">Grafik</string>
@@ -2831,5 +2831,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="pre_high_iob_coverage_label">İnsülin karşılama</string>
     <string name="alert_feature_off">Kapalı</string>
     <string name="same_direction_suppression_title">Eğilim alarmından sonra sessiz süre</string>
-    <string name="same_direction_suppression_summary">Bir yükseliş veya düşüş alarmını kapattıktan ya da erteledikten sonra o yöndeki diğerleri bu kadar bekler. Düşük ve çok yüksek asla beklemez.</string>
+    <string name="same_direction_suppression_summary">O yöndeki bir sonrakinden önce</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d saat</item>
+        <item quantity="other">%1$d saat</item>
+    </plurals>
 </resources>

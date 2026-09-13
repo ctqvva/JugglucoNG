@@ -515,7 +515,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="google_scan_desc">Use Google Play Services for QR scanning</string>
     <string name="mirror_desc">Share/Receive data via Internet/Home Net</string>
     <string name="nightscout_desc">Upload/Follow</string>
-    <string name="glucose_alerts_title">Glucose Alerts and Alarms</string>
+    <string name="glucose_alerts_title">Alerts and alarms</string>
     <string name="glucose_range_title">Glucose range</string>
     <string name="target_short_title">Target</string>
     <string name="chart_short_title">Chart</string>
@@ -3045,5 +3045,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
     <string name="same_direction_suppression_title">Quiet period after a trend alert</string>
-    <string name="same_direction_suppression_summary">After you dismiss or snooze a rising or falling alert, others in that direction wait this long. Lows and very highs never wait.</string>
+    <string name="same_direction_suppression_summary">Before the next one in that direction</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
 </resources>

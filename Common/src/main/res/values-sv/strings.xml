@@ -345,7 +345,7 @@
     <string name="google_scan_desc">Använd Google Play Services för QR-skanning</string>
     <string name="mirror_desc">Dela/Ta emot data via Internet/Hemnätverk</string>
     <string name="nightscout_desc">Ladda upp/Följ</string>
-    <string name="glucose_alerts_title">Blodsockervarningar</string>
+    <string name="glucose_alerts_title">Varningar och larm</string>
     <string name="glucose_range_title">Glukosintervall</string>
     <string name="target_short_title">Mål</string>
     <string name="chart_short_title">Graf</string>
@@ -2803,5 +2803,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Insulintäckning</string>
     <string name="alert_feature_off">Av</string>
     <string name="same_direction_suppression_title">Tyst period efter ett trendlarm</string>
-    <string name="same_direction_suppression_summary">När du avfärdar eller skjuter upp ett stigande eller fallande larm väntar andra i den riktningen så här länge. Lågt och mycket högt väntar aldrig.</string>
+    <string name="same_direction_suppression_summary">Före nästa i den riktningen</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d timme</item>
+        <item quantity="other">%1$d timmar</item>
+    </plurals>
 </resources>

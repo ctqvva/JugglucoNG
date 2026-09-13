@@ -502,7 +502,7 @@
     <string name="google_scan_desc">Выкарыстоўваць сэрвісы Google Play для сканавання QR</string>
     <string name="mirror_desc">Дзяліцца/атрымліваць дадзеныя праз Інтэрнэт/Хатнюю сетку</string>
     <string name="nightscout_desc">Загрузка/назіранне</string>
-    <string name="glucose_alerts_title">Апавяшчэнні пра глюкозу</string>
+    <string name="glucose_alerts_title">Апавяшчэнні і сігналы</string>
     <string name="glucose_range_title">Дыяпазон глюкозы</string>
     <string name="target_short_title">Мэта</string>
     <string name="chart_short_title">Графік</string>
@@ -2873,5 +2873,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Пакрыццё інсулінам</string>
     <string name="alert_feature_off">Выкл.</string>
     <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу пра трэнд</string>
-    <string name="same_direction_suppression_summary">Пасля адхілення або адкладання сігналу пра рост ці падзенне іншыя ў тым жа кірунку чакаюць гэты час. Нізкі і вельмі высокі не чакаюць ніколі.</string>
+    <string name="same_direction_suppression_summary">Да наступнага ў тым жа кірунку</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d гадзіна</item>
+        <item quantity="few">%1$d гадзіны</item>
+        <item quantity="many">%1$d гадзін</item>
+        <item quantity="other">%1$d гадзіны</item>
+    </plurals>
 </resources>

@@ -420,7 +420,7 @@
     <string name="google_scan_desc">Użyj usług Google Play do skanowania QR</string>
     <string name="mirror_desc">Udostępnij/Odbieraj dane przez Internet/Sieć domową</string>
     <string name="nightscout_desc">Przesyłanie/obserwacja</string>
-    <string name="glucose_alerts_title">Alarmy stężenia glukozy</string>
+    <string name="glucose_alerts_title">Alarmy i powiadomienia</string>
     <string name="glucose_range_title">Zakres glukozy</string>
     <string name="target_short_title">Cel</string>
     <string name="chart_short_title">Wykres</string>
@@ -2841,5 +2841,11 @@
     <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
     <string name="alert_feature_off">Wył.</string>
     <string name="same_direction_suppression_title">Cisza po alarmie trendu</string>
-    <string name="same_direction_suppression_summary">Po odrzuceniu lub odroczeniu alarmu o wzroście lub spadku inne w tym kierunku czekają tyle czasu. Niski i bardzo wysoki nigdy nie czekają.</string>
+    <string name="same_direction_suppression_summary">Do następnego w tym kierunku</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d godzina</item>
+        <item quantity="few">%1$d godziny</item>
+        <item quantity="many">%1$d godzin</item>
+        <item quantity="other">%1$d godziny</item>
+    </plurals>
 </resources>

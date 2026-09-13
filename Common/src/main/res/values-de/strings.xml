@@ -433,7 +433,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="google_scan_desc">Google Play Dienste für QR-Scan verwenden</string>
     <string name="mirror_desc">Daten über Internet/Heimnetz teilen/empfangen</string>
     <string name="nightscout_desc">Hochladen/Folgen</string>
-    <string name="glucose_alerts_title">Blutzucker-Warnungen</string>
+    <string name="glucose_alerts_title">Warnungen und Alarme</string>
     <string name="glucose_range_title">Glukosebereich</string>
     <string name="target_short_title">Ziel</string>
     <string name="chart_short_title">Grafik</string>
@@ -2842,5 +2842,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="pre_high_iob_coverage_label">Insulindeckung</string>
     <string name="alert_feature_off">Aus</string>
     <string name="same_direction_suppression_title">Ruhezeit nach einem Trendalarm</string>
-    <string name="same_direction_suppression_summary">Nachdem du einen steigenden oder fallenden Alarm verworfen oder pausiert hast, warten andere in dieser Richtung so lange. Niedrig und sehr hoch warten nie.</string>
+    <string name="same_direction_suppression_summary">Bis zum nächsten in dieser Richtung</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
 </resources>

@@ -12,8 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,8 +61,8 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
-/** The start presets: the tile's four, plus a night. */
-private val START_PRESET_MINUTES = QuietWindow.PRESET_MINUTES + 480
+/** The start presets, in minutes; the last is the 24-hour cap itself. */
+private val START_PRESET_MINUTES = listOf(30, 60, 120, 180, 360, 720, 1440)
 
 /**
  * The quiet window as one card at the top of the alert settings, shaped like the
@@ -73,7 +71,7 @@ private val START_PRESET_MINUTES = QuietWindow.PRESET_MINUTES + 480
  * it is never hidden. Inside: End now, the start presets, the mode, and under
  * Advanced the breakthrough cap, its scope and the quick-settings tile.
  */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
     val context = LocalContext.current
@@ -163,19 +161,22 @@ fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            START_PRESET_MINUTES.forEach { minutes ->
-                                FilledTonalButton(onClick = {
-                                    QuietWindow.startFor(context, TimeUnit.MINUTES.toMillis(minutes.toLong()))
-                                }) {
-                                    Text(quietDurationLabel(minutes))
-                                }
+                        // Two buttons to a row, full labels: these are buttons, not chips.
+                        val starts: List<Pair<String, () -> Unit>> = START_PRESET_MINUTES.map { minutes ->
+                            quietDurationLabelLong(minutes) to {
+                                QuietWindow.startFor(context, TimeUnit.MINUTES.toMillis(minutes.toLong()))
                             }
-                            FilledTonalButton(onClick = { showTimePicker = true }) {
-                                Text(stringResource(R.string.quiet_window_preset_until))
+                        } + (stringResource(R.string.quiet_window_preset_until) to { showTimePicker = true })
+                        starts.chunked(2).forEach { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pair.forEach { (label, start) ->
+                                    FilledTonalButton(
+                                        onClick = start,
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                    ) {
+                                        Text(label)
+                                    }
+                                }
                             }
                         }
                     }
@@ -350,6 +351,15 @@ private fun Caption(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
+
+/** "30 min", "1 hour", "12 hours": the long form, for a button. */
+@Composable
+private fun quietDurationLabelLong(minutes: Int): String =
+    if (minutes % 60 == 0) {
+        androidx.compose.ui.res.pluralStringResource(R.plurals.duration_hours, minutes / 60, minutes / 60)
+    } else {
+        stringResource(R.string.minutes_short_format, minutes)
+    }
 
 @Composable
 internal fun quietDurationLabel(minutes: Int): String =

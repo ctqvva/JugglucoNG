@@ -186,6 +186,10 @@ fun AlertSettingsScreen(
         AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
     }
 
+    // Collected outside the LazyColumn: the quiet-window card only exists while
+    // something can be silenced, or while a window runs.
+    val quietWindowStateNow by tk.glucodata.alerts.QuietWindow.state.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -277,10 +281,16 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // The quiet window: one card, collapsed unless a window runs.
-            item(key = "quiet-window") {
-                QuietWindowCard()
-                Spacer(Modifier.height(8.dp))
+            // The quiet window: one card, collapsed unless a window runs. It has
+            // nothing to silence unless some enabled alert makes a sound or vibrates,
+            // so it only appears then - or while a window runs, so it can be ended.
+            val anythingAudible = configs.values.any { it.enabled && (it.soundEnabled || it.vibrationEnabled) } ||
+                customAlerts.any { it.enabled && (it.sound || it.vibrate) }
+            if (anythingAudible || quietWindowStateNow.active) {
+                item(key = "quiet-window") {
+                    QuietWindowCard()
+                    Spacer(Modifier.height(8.dp))
+                }
             }
 
             // === HIGH ALERTS SECTION ===
@@ -521,6 +531,18 @@ fun AlertSettingsScreen(
                             soundPickerRequest = null
                         }
                     }
+                )
+            }
+
+            item(key = "talker-settings") {
+                Spacer(Modifier.height(24.dp))
+                SettingsItem(
+                    title = stringResource(R.string.talker),
+                    subtitle = stringResource(R.string.speakglucose) + " \u2022 " + stringResource(R.string.speakalarms),
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = SettingsItemPosition.SINGLE,
+                    onClick = { navController.navigate("settings/alerts/talker") }
                 )
             }
 

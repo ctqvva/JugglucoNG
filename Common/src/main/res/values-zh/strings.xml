@@ -352,7 +352,7 @@
     <string name="google_scan_desc">使用 Google Play 服务进行扫码</string>
     <string name="mirror_desc">通过互联网/家庭网络共享/接收数据</string>
     <string name="nightscout_desc">上传/跟随</string>
-    <string name="glucose_alerts_title">血糖警报</string>
+    <string name="glucose_alerts_title">警报与闹铃</string>
     <string name="glucose_range_title">血糖范围</string>
     <string name="target_short_title">目标</string>
     <string name="chart_short_title">图表</string>
@@ -2819,5 +2819,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
     <string name="same_direction_suppression_title">趋势警报后的静默期</string>
-    <string name="same_direction_suppression_summary">关闭或稍后提醒一次上升或下降警报后，同方向的其他警报会等待这么久。低和很高从不等待。</string>
+    <string name="same_direction_suppression_summary">距同方向的下一次警报</string>
+    <plurals name="duration_hours">
+        <item quantity="other">%1$d 小时</item>
+    </plurals>
 </resources>

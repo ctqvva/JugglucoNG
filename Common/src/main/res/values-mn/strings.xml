@@ -486,7 +486,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="google_scan_desc">QR скан хийхэд Google Play үйлчилгээг ашиглах</string>
     <string name="mirror_desc">Датаг интернет/локал сүлжээгээр хуваалцах/хүлээн авах</string>
     <string name="nightscout_desc">Nightscout руу ачаалах</string>
-    <string name="glucose_alerts_title">Глюкозын анхааруулга болон дохиолол</string>
+    <string name="glucose_alerts_title">Дохио ба сэрүүлэг</string>
     <string name="glucose_range_title">Глюкозын хүрээ</string>
     <string name="target_short_title">Зорилт</string>
     <string name="chart_short_title">График</string>
@@ -2916,5 +2916,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
     <string name="same_direction_suppression_title">Чиг хандлагын дохионы дараах чимээгүй хугацаа</string>
-    <string name="same_direction_suppression_summary">Өсөх эсвэл буурах дохиог хааж эсвэл хойшлуулсны дараа тэр чиглэлийн бусад нь ийм хугацаа хүлээнэ. Бага ба маш өндөр хэзээ ч хүлээхгүй.</string>
+    <string name="same_direction_suppression_summary">Тэр чиглэлийн дараагийнх хүртэл</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d цаг</item>
+        <item quantity="other">%1$d цаг</item>
+    </plurals>
 </resources>

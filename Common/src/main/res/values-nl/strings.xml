@@ -425,7 +425,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="google_scan_desc">Gebruik Google Play Services voor QR-scan</string>
     <string name="mirror_desc">Delen/Ontvangen via internet/thuisnetwerk</string>
     <string name="nightscout_desc">Uploaden/Volgen</string>
-    <string name="glucose_alerts_title">Bloedglucose-alarmen</string>
+    <string name="glucose_alerts_title">Meldingen en alarmen</string>
     <string name="glucose_range_title">Glucosebereik</string>
     <string name="target_short_title">Doel</string>
     <string name="chart_short_title">Grafiek</string>
@@ -2846,5 +2846,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="pre_high_iob_coverage_label">Insulinedekking</string>
     <string name="alert_feature_off">Uit</string>
     <string name="same_direction_suppression_title">Stille periode na een trendalarm</string>
-    <string name="same_direction_suppression_summary">Nadat je een stijgend of dalend alarm negeert of uitstelt, wachten andere in die richting zo lang. Laag en zeer hoog wachten nooit.</string>
+    <string name="same_direction_suppression_summary">Voor de volgende in die richting</string>
+    <plurals name="duration_hours">
+        <item quantity="one">%1$d uur</item>
+        <item quantity="other">%1$d uur</item>
+    </plurals>
 </resources>
