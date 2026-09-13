@@ -265,12 +265,37 @@ private fun buildDashboardChartModel(
     )
 }
 
-private data class PeerSensorChartSeries(
+internal data class PeerSensorChartSeries(
     val sensorId: String,
     val viewMode: Int,
     val color: Color,
     val points: List<GlucosePoint>
 )
+
+/** The whole data-to-model pipeline, in one place so it can run on any thread. */
+internal fun resolveDashboardChart(inputs: ChartResolutionInputs): ChartResolution {
+    val renderData = buildSmoothedChartData(inputs.safeData, inputs.graphSmoothingMinutes, inputs.collapseSmoothedData)
+    val peerChartSeries = inputs.multiSensorDisplay.series.mapNotNull { series ->
+        if (series.points.size < 2) return@mapNotNull null
+        PeerSensorChartSeries(
+            sensorId = series.sensorId,
+            viewMode = series.viewMode,
+            color = Color(series.colorArgb),
+            points = buildSmoothedChartData(series.points, inputs.graphSmoothingMinutes, inputs.collapseSmoothedData)
+        )
+    }
+    val chartModel = buildDashboardChartModel(
+        renderData = renderData,
+        peers = peerChartSeries,
+        primarySerial = inputs.primarySerial,
+        primaryColorArgb = inputs.primaryColorArgb,
+        viewMode = inputs.viewMode,
+        ownership = inputs.mainSensorOwnership,
+        hasCalibration = inputs.hasCalibration,
+        hideInitialWhenCalibrated = inputs.hideInitialWhenCalibrated,
+    )
+    return ChartResolution(renderData, peerChartSeries, chartModel)
+}
 
 private fun chartRangeThresholds(
     isMmol: Boolean,
@@ -333,6 +358,28 @@ internal fun coerceChartYToDrawableRange(
     } else {
         value.coerceIn(0f, safeHeight)
     }
+}
+
+/** First index whose timestamp is at or after [timestamp]; the points ascend in time. */
+internal fun List<tk.glucodata.chart.ChartPointModel>.firstIndexAtOrAfter(timestamp: Long): Int {
+    var low = 0
+    var high = size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (this[mid].timestamp < timestamp) low = mid + 1 else high = mid
+    }
+    return low
+}
+
+/** First index whose timestamp is after [timestamp]; the points ascend in time. */
+internal fun List<tk.glucodata.chart.ChartPointModel>.firstIndexAfter(timestamp: Long): Int {
+    var low = 0
+    var high = size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (this[mid].timestamp <= timestamp) low = mid + 1 else high = mid
+    }
+    return low
 }
 
 internal fun previewCenterTimeForWindowEnd(windowEndTime: Long): Long {
@@ -946,24 +993,6 @@ fun InteractiveGlucoseChart(
     val safeData = remember(fullData) {
         if (fullData is java.util.RandomAccess) fullData else ArrayList(fullData)
     }
-    val renderData = remember(safeData, graphSmoothingMinutes, collapseSmoothedData) {
-        buildSmoothedChartData(safeData, graphSmoothingMinutes, collapseSmoothedData)
-    }
-    val peerChartSeries = remember(
-        multiSensorDisplay,
-        graphSmoothingMinutes,
-        collapseSmoothedData
-    ) {
-        multiSensorDisplay.series.mapNotNull { series ->
-            if (series.points.size < 2) return@mapNotNull null
-            PeerSensorChartSeries(
-                sensorId = series.sensorId,
-                viewMode = series.viewMode,
-                color = Color(series.colorArgb),
-                points = buildSmoothedChartData(series.points, graphSmoothingMinutes, collapseSmoothedData)
-            )
-        }
-    }
     val peerPointsByBucket = multiSensorDisplay.bucketLookup
     // serial (normalized to logical id) -> draw attributes; O(1) lookups in the
     // cursor/tooltip hot paths instead of SensorIdentity.matches per frame.
@@ -982,9 +1011,6 @@ fun InteractiveGlucoseChart(
     // low/high banding by default.
     val primaryPickedColor = tk.glucodata.SensorVisuals.colorOverrideArgb(primarySerial)
         ?.let { Color(it) }
-    val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
-        if (graphSmoothingMinutes > 0) renderData else safeData
-    }
     val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
     val isRawModeChart = viewMode == 1 || viewMode == 3
     // A fact, not a decision: whether a calibration applies to the primary lane.
@@ -998,20 +1024,35 @@ fun InteractiveGlucoseChart(
     // main at each minute, which lanes exist, where runs break — is made here,
     // once, by the same builder the notification uses. Everything below paints
     // what this says; nothing below decides.
-    val chartModel = remember(
-        renderData, peerChartSeries, mainSensorOwnership, calibrationRevision,
-        viewMode, hasCalibration, hideInitialWhenCalibrated, primarySerial, primaryIdentityColor,
+    //
+    // Resolved off the main thread once the chart is up: smoothing and the
+    // builder are each a pass over the whole timeline, and the timeline is the
+    // whole store. See rememberChartResolution.
+    val resolutionInputs = remember(
+        safeData, multiSensorDisplay, graphSmoothingMinutes, collapseSmoothedData,
+        mainSensorOwnership, calibrationRevision, viewMode, hasCalibration,
+        hideInitialWhenCalibrated, primarySerial, primaryIdentityColor,
     ) {
-        buildDashboardChartModel(
-            renderData = renderData,
-            peers = peerChartSeries,
-            primarySerial = primarySerial,
-            primaryColorArgb = primaryIdentityColor.toArgb(),
+        ChartResolutionInputs(
+            safeData = safeData,
+            multiSensorDisplay = multiSensorDisplay,
+            graphSmoothingMinutes = graphSmoothingMinutes,
+            collapseSmoothedData = collapseSmoothedData,
+            mainSensorOwnership = mainSensorOwnership,
+            calibrationRevision = calibrationRevision,
             viewMode = viewMode,
-            ownership = mainSensorOwnership,
             hasCalibration = hasCalibration,
             hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+            primarySerial = primarySerial,
+            primaryColorArgb = primaryIdentityColor.toArgb(),
         )
+    }
+    val resolution = rememberChartResolution(resolutionInputs, ::resolveDashboardChart)
+    val renderData = resolution.renderData
+    val peerChartSeries = resolution.peerChartSeries
+    val chartModel = resolution.chartModel
+    val interactionData = remember(safeData, renderData, graphSmoothingMinutes) {
+        if (graphSmoothingMinutes > 0) renderData else safeData
     }
     val calibrationIsRawMode = viewMode == 1 || viewMode == 3
     val visibleCalibrations = remember(calibrationRevision, calibrationIsRawMode, primarySerial) {
@@ -2720,8 +2761,17 @@ fun InteractiveGlucoseChart(
                         var first = true
                         var lastX = -10000f
                         var lastY = -10000f
-                        for (point in run.points) {
-                            if (point.timestamp < viewportStart - cullMargin || point.timestamp > viewportEnd + cullMargin) continue
+                        // A run covers the whole timeline; only the stretch under the
+                        // viewport is walked. Points inside a run ascend in time, so
+                        // the window is two binary searches rather than a test per
+                        // point per frame over every reading ever stored.
+                        val points = run.points
+                        val cullStart = viewportStart - cullMargin
+                        val cullEnd = viewportEnd + cullMargin
+                        val fromIndex = points.firstIndexAtOrAfter(cullStart)
+                        val toIndex = points.firstIndexAfter(cullEnd)
+                        for (index in fromIndex until toIndex) {
+                            val point = points[index]
                             val px = (point.timestamp - viewportStart) * timeScale
                             val py = (chartHeight - ((point.value - cYMin) * yScale)).coerceIn(-2000f, chartHeight + 2000f)
                             if (!px.isFinite() || !py.isFinite()) { first = true; continue }
