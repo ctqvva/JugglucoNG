@@ -134,60 +134,6 @@ fun CommonAlertSettings(
                 unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f), // Transparent-ish on PrimaryContainer
                 unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
-
-            AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
-                Column {
-                    val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
-                    ConnectedButtonGroup(
-                        options = listOf(
-                            HapticProfile.SOFT,
-                            HapticProfile.STEADY,
-                            HapticProfile.STRONG,
-                            HapticProfile.ESCALATING
-                        ),
-                        selectedOption = config.hapticProfile,
-                        onOptionSelected = { onConfigChange(config.copy(hapticProfile = it)) },
-                        labelText = { hapticProfileLabels[it] ?: it.displayName },
-                        label = { Text(hapticProfileLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelMedium) },
-                        modifier = Modifier.fillMaxWidth(),
-                        itemHeight = 36.dp,
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
-                        unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
-        
-        // === Notification / alarm / both ===
-        Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
-            val deliveryModeLabels = AlertDeliveryMode.entries.associateWith { it.localizedName() }
-            ConnectedButtonGroup(
-                options = AlertDeliveryMode.entries,
-                selectedOption = config.deliveryMode,
-                onOptionSelected = { onConfigChange(config.copy(deliveryMode = it)) },
-                labelText = { deliveryModeLabels[it] ?: it.displayName },
-                label = { Text(deliveryModeLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelLarge) },
-                modifier = Modifier.fillMaxWidth(),
-                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                selectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
-                unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
-        // === Duration ===
-        AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled || config.flashEnabled) {
-            DurationSlider(
-                label = stringResource(R.string.duration_label),
-                value = config.alarmDurationSeconds,
-                range = MIN_ALERT_DURATION_SECONDS..MAX_ALERT_DURATION_SECONDS,
-                stepSize = 1,
-                onValueChange = { onConfigChange(config.copy(alarmDurationSeconds = it)) },
-                modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
-                valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
-            )
         }
 
         // === Sound Settings (Conditional) ===
@@ -228,20 +174,89 @@ fun CommonAlertSettings(
             }
         }
 
-        // === Advanced: collapsed, one row, everything a typical user never touches ===
+        // The two things people come back to: does it get through silent mode,
+        // and when is it allowed to fire at all.
+        AnimatedVisibility(visible = config.soundEnabled) {
+            ClickableToggleRow(
+                icon = Icons.Default.VolumeOff,
+                title = stringResource(R.string.override_silent_mode),
+                subtitle = stringResource(R.string.override_silent_mode_desc),
+                checked = config.overrideDND,
+                onCheckedChange = { onConfigChange(config.copy(overrideDND = it)) }
+            )
+        }
+        TimeRangeSettings(
+            enabled = config.timeRangeEnabled,
+            startHour = config.activeStartHour,
+            startMinute = config.activeStartMinute,
+            endHour = config.activeEndHour,
+            endMinute = config.activeEndMinute,
+            onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
+            onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
+            onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
+        )
+
+        // === Advanced: collapsed, one row, everything set once and left alone ===
         AdvancedSectionHeader(
             expanded = advancedExpanded,
             onToggle = { advancedExpanded = !advancedExpanded }
         )
         AnimatedVisibility(visible = advancedExpanded) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AnimatedVisibility(visible = config.soundEnabled) {
-                    ClickableToggleRow(
-                        icon = Icons.Default.VolumeOff,
-                        title = stringResource(R.string.override_silent_mode),
-                        subtitle = stringResource(R.string.override_silent_mode_desc),
-                        checked = config.overrideDND,
-                        onCheckedChange = { onConfigChange(config.copy(overrideDND = it)) }
+                // === Intensity: soft to escalating ===
+                AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
+                    Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
+                        run {
+                            val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
+                            ConnectedButtonGroup(
+                                options = listOf(
+                                    HapticProfile.SOFT,
+                                    HapticProfile.STEADY,
+                                    HapticProfile.STRONG,
+                                    HapticProfile.ESCALATING
+                                ),
+                                selectedOption = config.hapticProfile,
+                                onOptionSelected = { onConfigChange(config.copy(hapticProfile = it)) },
+                                labelText = { hapticProfileLabels[it] ?: it.displayName },
+                                label = { Text(hapticProfileLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelMedium) },
+                                modifier = Modifier.fillMaxWidth(),
+                                itemHeight = 36.dp,
+                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                                unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                // === Notification / alarm / both ===
+                Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
+                    val deliveryModeLabels = AlertDeliveryMode.entries.associateWith { it.localizedName() }
+                    ConnectedButtonGroup(
+                        options = AlertDeliveryMode.entries,
+                        selectedOption = config.deliveryMode,
+                        onOptionSelected = { onConfigChange(config.copy(deliveryMode = it)) },
+                        labelText = { deliveryModeLabels[it] ?: it.displayName },
+                        label = { Text(deliveryModeLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelLarge) },
+                        modifier = Modifier.fillMaxWidth(),
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                        unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
+                // === Duration ===
+                AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled || config.flashEnabled) {
+                    DurationSlider(
+                        label = stringResource(R.string.duration_label),
+                        value = config.alarmDurationSeconds,
+                        range = MIN_ALERT_DURATION_SECONDS..MAX_ALERT_DURATION_SECONDS,
+                        stepSize = 1,
+                        onValueChange = { onConfigChange(config.copy(alarmDurationSeconds = it)) },
+                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                        valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
                     )
                 }
 
@@ -292,18 +307,6 @@ fun CommonAlertSettings(
                         }
                     }
                 }
-
-                // === Time Range ===
-                TimeRangeSettings(
-                    enabled = config.timeRangeEnabled,
-                    startHour = config.activeStartHour,
-                    startMinute = config.activeStartMinute,
-                    endHour = config.activeEndHour,
-                    endMinute = config.activeEndMinute,
-                    onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
-                    onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
-                    onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
-                )
 
                 // === Retry ===
                 RetrySettings(
