@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package tk.glucodata.ui
 
 import android.content.Intent
@@ -8,8 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -35,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -46,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
@@ -358,47 +360,73 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
         }
         // A text button carries its own 8dp of vertical padding inside a 40dp target, so any
         // gap added here lands on top of that and the log ends up floating above its actions.
-        // Three labelled buttons do not fit a card on one line in every language -- Kopieren,
-        // Teilen, Speichern already overflow -- so they wrap rather than being clipped.
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-        ) {
-            TextButton(onClick = { clipboard.setText(AnnotatedString(rendered)) }) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null)
-                Spacer8()
-                Text(stringResource(R.string.copy))
+        TraceLogActions(
+            onCopy = { clipboard.setText(AnnotatedString(rendered)) },
+            onShare = {
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, rendered)
+                }
+                runCatching {
+                    context.startActivity(
+                        Intent.createChooser(share, context.getString(R.string.sensor_connection_log))
+                    )
+                }
+            },
+            onSave = { saveLauncher.launch(sensorTraceExportName(sensor.serial)) },
+        )
+    }
+}
+
+/**
+ * Copy / share / save on one line, whatever the language. Three icon-and-label buttons fit
+ * an English card but not a Russian or German one (Копировать, Поделиться, Сохранить), and
+ * wrapping the third button onto its own row left the card looking broken. So the labelled
+ * row is measured at its natural width first; when it would overflow, the icons are dropped
+ * and the three labels share the width equally instead. The label is the promise, the icon
+ * only decorates it, so the icon is what goes.
+ */
+@Composable
+private fun TraceLogActions(onCopy: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
+    SubcomposeLayout(Modifier.fillMaxWidth()) { constraints ->
+        val labelled = subcompose(TraceLogActionsSlot.LABELLED) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TraceLogAction(Icons.Default.ContentCopy, R.string.copy, onCopy)
+                TraceLogAction(Icons.Default.Share, R.string.share, onShare)
+                TraceLogAction(Icons.Default.Save, R.string.save, onSave)
             }
-            TextButton(
-                onClick = {
-                    val share = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, rendered)
-                    }
-                    runCatching {
-                        context.startActivity(
-                            Intent.createChooser(share, context.getString(R.string.sensor_connection_log))
-                        )
-                    }
-                },
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null)
-                Spacer8()
-                Text(stringResource(R.string.share))
+        }.single().measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+        if (labelled.width <= constraints.maxWidth) {
+            layout(constraints.maxWidth, labelled.height) {
+                labelled.placeRelative(constraints.maxWidth - labelled.width, 0)
             }
-            TextButton(
-                onClick = { saveLauncher.launch(sensorTraceExportName(sensor.serial)) },
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null)
-                Spacer8()
-                Text(stringResource(R.string.save))
-            }
+        } else {
+            val compact = subcompose(TraceLogActionsSlot.COMPACT) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TraceLogAction(null, R.string.copy, onCopy, Modifier.weight(1f))
+                    TraceLogAction(null, R.string.share, onShare, Modifier.weight(1f))
+                    TraceLogAction(null, R.string.save, onSave, Modifier.weight(1f))
+                }
+            }.single().measure(constraints)
+            layout(constraints.maxWidth, compact.height) { compact.placeRelative(0, 0) }
         }
     }
 }
 
+private enum class TraceLogActionsSlot { LABELLED, COMPACT }
+
 @Composable
-private fun Spacer8() {
-    androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+private fun TraceLogAction(
+    icon: ImageVector?,
+    label: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TextButton(onClick = onClick, modifier = modifier) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
