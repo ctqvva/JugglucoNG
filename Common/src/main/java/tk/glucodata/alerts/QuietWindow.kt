@@ -265,19 +265,18 @@ object QuietWindow {
     @JvmStatic
     fun noteSilencedDelivery(kind: Int, nowMs: Long): Long {
         val builtIn = kind < CUSTOM_EPISODE_KIND_BASE
-        val restored = builtIn && !silencedEpisodes.has(kind) && silencedEpisodes.restore(
+        val store = if (builtIn) prefsOrNull() else null
+        val restored = store != null && !silencedEpisodes.has(kind) && silencedEpisodes.restore(
             kind,
-            prefs.getLong(KEY_SILENCED_SINCE_PREFIX + kind, 0L),
-            prefs.getLong(KEY_SILENCED_LAST_PREFIX + kind, 0L),
+            store.getLong(KEY_SILENCED_SINCE_PREFIX + kind, 0L),
+            store.getLong(KEY_SILENCED_LAST_PREFIX + kind, 0L),
             nowMs
         )
         val since = silencedEpisodes.note(kind, nowMs)
-        if (builtIn) {
-            prefs.edit()
-                .putLong(KEY_SILENCED_SINCE_PREFIX + kind, since)
-                .putLong(KEY_SILENCED_LAST_PREFIX + kind, nowMs)
-                .apply()
-        }
+        store?.edit()
+            ?.putLong(KEY_SILENCED_SINCE_PREFIX + kind, since)
+            ?.putLong(KEY_SILENCED_LAST_PREFIX + kind, nowMs)
+            ?.apply()
         val applies = builtIn && AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind, breakthroughScope())
         if (applies && since == nowMs) {
             scheduleBreakthroughCheck(kind, breakthroughMillis())
@@ -295,24 +294,27 @@ object QuietWindow {
     @JvmStatic
     fun clearSilencedEpisode(kind: Int) {
         silencedEpisodes.clear(kind)
-        if (kind < CUSTOM_EPISODE_KIND_BASE) {
-            prefs.edit()
-                .remove(KEY_SILENCED_SINCE_PREFIX + kind)
-                .remove(KEY_SILENCED_LAST_PREFIX + kind)
-                .apply()
-            cancelBreakthroughCheck(kind)
-        }
+        if (kind >= CUSTOM_EPISODE_KIND_BASE) return
+        prefsOrNull()?.edit()
+            ?.remove(KEY_SILENCED_SINCE_PREFIX + kind)
+            ?.remove(KEY_SILENCED_LAST_PREFIX + kind)
+            ?.apply()
+        cancelBreakthroughCheck(kind)
     }
 
     private fun clearAllSilencedEpisodes() {
         silencedEpisodes.clearAll()
-        val editor = prefs.edit()
+        val editor = prefsOrNull()?.edit()
         for (type in AlertType.values()) {
-            editor.remove(KEY_SILENCED_SINCE_PREFIX + type.id).remove(KEY_SILENCED_LAST_PREFIX + type.id)
+            editor?.remove(KEY_SILENCED_SINCE_PREFIX + type.id)?.remove(KEY_SILENCED_LAST_PREFIX + type.id)
             cancelBreakthroughCheck(type.id)
         }
-        editor.apply()
+        editor?.apply()
     }
+
+    /** The prefs, or null where there is no app - AlertStateTracker's unit tests reach here. */
+    private fun prefsOrNull(): android.content.SharedPreferences? =
+        if (Applic.app == null) null else prefs
 
     private fun breakthroughPendingIntent(context: Context, kind: Int): PendingIntent =
         PendingIntent.getBroadcast(
@@ -338,7 +340,7 @@ object QuietWindow {
 
     private fun cancelBreakthroughCheck(kind: Int) {
         try {
-            val context = Applic.app
+            val context = Applic.app ?: return
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             alarmManager.cancel(breakthroughPendingIntent(context, kind))
         } catch (t: Throwable) {
