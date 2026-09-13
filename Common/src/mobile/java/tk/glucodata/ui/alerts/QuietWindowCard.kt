@@ -6,6 +6,10 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -260,13 +264,19 @@ fun QuietWindowCard(
 @Composable
 private fun QuietWindowAdvanced() {
     val context = LocalContext.current
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by LocalAlertsAdvancedOpen.current
     var breakthroughMinutes by remember { mutableStateOf(QuietWindow.breakthroughMinutes()) }
     var breakthroughScope by remember { mutableStateOf(QuietWindow.breakthroughScope()) }
     var defaultMinutes by remember { mutableStateOf(QuietWindow.defaultMinutes()) }
 
     AdvancedSectionHeader(expanded = expanded, onToggle = { expanded = !expanded })
-    AnimatedVisibility(visible = expanded) {
+    // Not in a ColumnScope, so the plain AnimatedVisibility would grow from a
+    // corner; every other Advanced expands vertically, and so does this one.
+    AnimatedVisibility(
+        visible = expanded,
+        enter = fadeIn() + expandVertically(),
+        exit = shrinkVertically() + fadeOut()
+    ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)

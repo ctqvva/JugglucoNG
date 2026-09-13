@@ -10,7 +10,6 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Alignment
@@ -51,7 +50,7 @@ fun CommonAlertSettings(
     advancedContent: (@Composable () -> Unit)? = null
 ) {
     val sectionHorizontalPadding = 16.dp
-    var advancedExpanded by rememberSaveable(config.type) { mutableStateOf(false) }
+    var advancedExpanded by LocalAlertsAdvancedOpen.current
 
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -341,6 +340,14 @@ fun CommonAlertSettings(
         }
     }
 }
+
+/**
+ * Whether the Advanced sections on the alert screen are open. One state for the
+ * whole screen: a reader who opened Advanced on one card wants it open on the
+ * next, until they close it. The screen provides it; a card rendered elsewhere
+ * gets a state of its own.
+ */
+val LocalAlertsAdvancedOpen = compositionLocalOf<MutableState<Boolean>> { mutableStateOf(false) }
 
 /**
  * The "Advanced" row inside a card body: text on the body's own left edge, a
