@@ -57,16 +57,25 @@ public final class AlertDeliveryPolicy {
     // Notification and full-screen surfaces, thresholds, retries and episodes
     // are not its business. The safety rule lives here so it cannot be lost in
     // the UI: a silenced alarm that stays active, unacknowledged, past the
-    // breakthrough time sounds as if there were no window — for every kind, or
-    // for the very high and very low only, as the reader chooses.
+    // breakthrough time sounds as if there were no window. The scope setting
+    // narrows that to the very high — but a hypo (LOW, VERY_LOW) always breaks
+    // through, whatever the scope: the repo's hypo policy caps a delayed hypo
+    // sound tightly (AlertConfig.maxSoundDelaySecondsFor), and a quiet window
+    // may not turn that into a whole silent night.
 
     /** Sound off, vibration, notification and full-screen alarm stay. The default. */
     public static final String QUIET_VIBRATE_ONLY = "vibrate_only";
     /** Sound and vibration off; notification and full-screen alarm stay. */
     public static final String QUIET_NOTIFICATION_ONLY = "notification_only";
 
+    private static final int LOW_KIND = 0; // AlertType.LOW.id
     private static final int VERY_LOW_KIND = 5; // AlertType.VERY_LOW.id
     private static final int VERY_HIGH_KIND = 6; // AlertType.VERY_HIGH.id
+
+    /** A hypo kind. Custom alerts deliver as kind 0 too; a custom low is a low. */
+    public static boolean isHypoKind(int kind) {
+        return kind == LOW_KIND || kind == VERY_LOW_KIND;
+    }
 
     public static String normalizeQuietMode(String quietMode) {
         if (quietMode == null) {
@@ -93,7 +102,10 @@ public final class AlertDeliveryPolicy {
 
     /** The breakthrough applies to every silenced alarm. The default. */
     public static final String BREAKTHROUGH_ALL = "all";
-    /** The breakthrough applies to very high only (very low is never silenced). */
+    /**
+     * The breakthrough applies to the very high only, besides the hypos that
+     * always have it. Every other silenced alarm stays quiet for the whole window.
+     */
     public static final String BREAKTHROUGH_VERY_ONLY = "very_only";
 
     public static String normalizeBreakthroughScope(String scope) {
@@ -105,24 +117,27 @@ public final class AlertDeliveryPolicy {
     }
 
     /**
-     * Whether a silenced alarm of this kind may break through at all. Under
-     * {@link #BREAKTHROUGH_VERY_ONLY} only the very high and the very low do;
+     * Whether a silenced alarm of this kind may break through at all. A hypo
+     * always may. Under {@link #BREAKTHROUGH_VERY_ONLY} the very high does too and
      * everything else stays quiet for the whole window.
      */
     public static boolean quietWindowBreakthroughAppliesTo(int kind, String scope) {
+        if (isHypoKind(kind)) {
+            return true;
+        }
         if (BREAKTHROUGH_VERY_ONLY.equals(normalizeBreakthroughScope(scope))) {
-            return kind == VERY_HIGH_KIND || kind == VERY_LOW_KIND;
+            return kind == VERY_HIGH_KIND;
         }
         return true;
     }
 
-    public static boolean shouldSilenceSound(boolean windowActive, int kind, boolean breakThrough) {
+    /** Kind-awareness lives in {@link #quietWindowBreakthroughAppliesTo}; this is the outcome. */
+    public static boolean shouldSilenceSound(boolean windowActive, boolean breakThrough) {
         return windowActive && !breakThrough;
     }
 
-    public static boolean shouldSuppressVibration(boolean windowActive, String quietMode, int kind,
-            boolean breakThrough) {
-        return shouldSilenceSound(windowActive, kind, breakThrough)
+    public static boolean shouldSuppressVibration(boolean windowActive, String quietMode, boolean breakThrough) {
+        return shouldSilenceSound(windowActive, breakThrough)
                 && QUIET_NOTIFICATION_ONLY.equals(normalizeQuietMode(quietMode));
     }
 }

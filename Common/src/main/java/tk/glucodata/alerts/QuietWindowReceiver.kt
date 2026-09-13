@@ -6,8 +6,9 @@ import android.content.Intent
 import tk.glucodata.Log
 
 /**
- * The quiet window's two broadcasts: the AlarmManager expiry, and the "end now"
- * action of its notification. Declared in the manifest, never exported.
+ * The quiet window's broadcasts: the AlarmManager expiry, the breakthrough check
+ * for a silenced alarm, and the "end now" action of its notification. Declared
+ * in the manifest, never exported.
  */
 class QuietWindowReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -22,6 +23,12 @@ class QuietWindowReceiver : BroadcastReceiver() {
                     }
                 }
                 QuietWindow.ACTION_END -> QuietWindow.end(context)
+                QuietWindow.ACTION_BREAKTHROUGH -> {
+                    val kind = intent.getIntExtra(QuietWindow.EXTRA_KIND, -1)
+                    if (kind >= 0) {
+                        QuietWindow.breakThroughIfStillActive(kind)
+                    }
+                }
             }
         } catch (t: Throwable) {
             Log.stack("QuietWindowReceiver", "onReceive", t)

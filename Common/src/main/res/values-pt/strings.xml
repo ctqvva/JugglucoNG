@@ -2806,7 +2806,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_preset_until">Até…</string>
     <string name="quiet_window_until_i_end">Até eu terminar</string>
     <string name="quiet_window_until_i_end_desc">Termina sozinha no máximo após 24 horas</string>
-    <string name="quiet_window_very_low_note">Os alarmes silenciados mantêm a notificação e, no modo só vibração, a vibração. Um que continue ativo e sem resposta por mais tempo do que o definido toca na mesma.</string>
+    <string name="quiet_window_very_low_note">Os alarmes silenciados mantêm a notificação e, no modo só vibração, a vibração. Um que continue ativo e sem resposta por mais tempo do que o definido toca na mesma. Baixo e muito baixo voltam sempre a tocar após o tempo definido.</string>
     <string name="quiet_window_end_now">Terminar agora</string>
     <string name="quiet_window_ended_title">Alarmes ativos de novo</string>
     <string name="quiet_window_ended_text">A janela de silêncio terminou.</string>
@@ -2814,9 +2814,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_desc">Um alarme silenciado que continua ativo por mais tempo toca na mesma</string>
     <string name="quiet_window_breakthrough_scope_title">Toca na mesma para</string>
     <string name="quiet_window_breakthrough_scope_all">Todos os alarmes silenciados</string>
-    <string name="quiet_window_breakthrough_scope_very">Só muito alto e muito baixo</string>
+    <string name="quiet_window_breakthrough_scope_very">Muito alto, baixo e muito baixo</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Qualquer alarme silenciado que continue ativo e sem resposta por esse tempo volta a tocar.</string>
-    <string name="quiet_window_breakthrough_scope_very_desc">Só um muito alto ou muito baixo volta a tocar; tudo o resto fica em silêncio durante toda a janela.</string>
+    <string name="quiet_window_breakthrough_scope_very_desc">Um baixo, muito baixo ou muito alto volta a tocar; os outros alarmes silenciados ficam em silêncio durante toda a janela.</string>
     <string name="quiet_window_tile_label">Alarmes de glicose</string>
     <string name="quiet_window_tile_active">Ativos</string>
     <string name="quiet_window_tile_silent_until">Silenciados até %1$s</string>

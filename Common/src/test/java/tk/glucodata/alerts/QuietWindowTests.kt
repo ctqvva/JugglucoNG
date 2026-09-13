@@ -107,6 +107,33 @@ class QuietWindowTests {
     }
 
     @Test
+    fun aPersistedEpisodeIsRestoredAfterAProcessKill() {
+        // The process died 4 minutes into a silenced VERY_LOW; the runtime fires it
+        // again at +6 min. That delivery must count from the original silencing,
+        // not hand the hypo a fresh cap of silence.
+        val tracker = SilencedEpisodeTracker(staleMs = 30 * minute)
+        assertTrue(tracker.restore(kind = 5, sinceMs = now, lastMs = now + 4 * minute, nowMs = now + 6 * minute))
+        assertTrue(tracker.has(5))
+        assertEquals(now, tracker.note(5, now + 6 * minute))
+    }
+
+    @Test
+    fun aStaleOrEmptyPersistedEpisodeIsNotRestored() {
+        val tracker = SilencedEpisodeTracker(staleMs = 30 * minute)
+        // Nothing persisted.
+        assertFalse(tracker.restore(5, 0L, 0L, now))
+        // Last silenced delivery 30 minutes ago: over, whatever cleared it.
+        assertFalse(tracker.restore(5, now, now + minute, now + 31 * minute))
+        // Corrupt order.
+        assertFalse(tracker.restore(5, now + minute, now, now + 2 * minute))
+        assertFalse(tracker.has(5))
+        // A tracked episode is never overwritten by a persisted one.
+        tracker.note(5, now + 10 * minute)
+        assertFalse(tracker.restore(5, now, now + minute, now + 11 * minute))
+        assertEquals(now + 10 * minute, tracker.note(5, now + 12 * minute))
+    }
+
+    @Test
     fun customAlertsHaveTheirOwnEpisodeKey() {
         assertEquals(1000, QuietWindow.customEpisodeKind(0))
         assertEquals(1001, QuietWindow.customEpisodeKind(1))

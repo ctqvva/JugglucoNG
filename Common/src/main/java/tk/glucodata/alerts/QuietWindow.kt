@@ -15,7 +15,6 @@ import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.util.Date
-import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +39,9 @@ import tk.glucodata.R
  *    end time is checked against the wall clock on every read, so a process kill
  *    or a missed alarm cannot stretch it;
  *  - a silenced alarm that stays active, unacknowledged, for the breakthrough
- *    time sounds anyway — every kind, or the very high and very low only;
+ *    time sounds anyway — every kind, or the very high only, and a hypo always;
+ *    the check rides on AlarmManager and the silenced episode's start is kept in
+ *    prefs, so neither Doze nor a process kill stretches a hypo's silence;
  *  - it is visible: an ongoing notification with the end time and an "end now"
  *    action, a chip on the dashboard, and a quick-settings tile.
  */
@@ -52,9 +53,13 @@ object QuietWindow {
     private const val KEY_DEFAULT_MINUTES = "quiet_window_default_minutes"
     private const val KEY_BREAKTHROUGH_MINUTES = "quiet_window_breakthrough_minutes"
     private const val KEY_BREAKTHROUGH_SCOPE = "quiet_window_breakthrough_scope"
+    private const val KEY_SILENCED_SINCE_PREFIX = "quiet_window_silenced_since_"
+    private const val KEY_SILENCED_LAST_PREFIX = "quiet_window_silenced_last_"
 
     const val ACTION_EXPIRED = "tk.glucodata.ACTION_QUIET_WINDOW_EXPIRED"
     const val ACTION_END = "tk.glucodata.ACTION_QUIET_WINDOW_END"
+    const val ACTION_BREAKTHROUGH = "tk.glucodata.ACTION_QUIET_WINDOW_BREAKTHROUGH"
+    const val EXTRA_KIND = "kind"
 
     /** "Until I end it" is this long, no longer: there is no unbounded state. */
     const val MAX_DURATION_MS = 24L * 60L * 60L * 1000L
@@ -84,6 +89,8 @@ object QuietWindow {
     private const val REQUEST_EXPIRY = 0x5150
     private const val REQUEST_END = 0x5151
     private const val REQUEST_OPEN = 0x5152
+    /** One breakthrough alarm per kind: request code = base + kind. */
+    private const val REQUEST_BREAKTHROUGH_BASE = 0x5160
     private const val TILE_SERVICE_CLASS = "tk.glucodata.ui.QuietWindowTileService"
 
     data class State(val untilMs: Long, val mode: String) {
@@ -95,8 +102,6 @@ object QuietWindow {
     val state: StateFlow<State> get() = _state.asStateFlow()
 
     private val silencedEpisodes = SilencedEpisodeTracker(SILENCED_EPISODE_STALE_MS)
-    private val breakthroughSchedules = HashMap<Int, ScheduledFuture<*>>()
-    private val scheduler by lazy { java.util.concurrent.Executors.newSingleThreadScheduledExecutor() }
 
     // ---- pure helpers (unit-tested) -------------------------------------------
 
@@ -252,14 +257,34 @@ object QuietWindow {
      * episode of this kind began, and on its first delivery arms a check at the
      * breakthrough time: if the alarm is still active then, it is delivered
      * audibly. Retries reach the same rule on their own through Notify.
+     *
+     * The episode's start is also kept in prefs (built-in kinds only): after a
+     * process kill the runtime fires the alarm again, and that delivery must
+     * count from the original silencing, not start a fresh cap of silence.
      */
     @JvmStatic
     fun noteSilencedDelivery(kind: Int, nowMs: Long): Long {
+        val builtIn = kind < CUSTOM_EPISODE_KIND_BASE
+        val restored = builtIn && !silencedEpisodes.has(kind) && silencedEpisodes.restore(
+            kind,
+            prefs.getLong(KEY_SILENCED_SINCE_PREFIX + kind, 0L),
+            prefs.getLong(KEY_SILENCED_LAST_PREFIX + kind, 0L),
+            nowMs
+        )
         val since = silencedEpisodes.note(kind, nowMs)
-        if (since == nowMs && kind < CUSTOM_EPISODE_KIND_BASE &&
-            AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind, breakthroughScope())
-        ) {
+        if (builtIn) {
+            prefs.edit()
+                .putLong(KEY_SILENCED_SINCE_PREFIX + kind, since)
+                .putLong(KEY_SILENCED_LAST_PREFIX + kind, nowMs)
+                .apply()
+        }
+        val applies = builtIn && AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind, breakthroughScope())
+        if (applies && since == nowMs) {
             scheduleBreakthroughCheck(kind, breakthroughMillis())
+        } else if (applies && restored) {
+            // A restart may have lost the armed check (a reboot does): re-arm it
+            // for whatever is left of the original cap.
+            scheduleBreakthroughCheck(kind, (since + breakthroughMillis() - nowMs).coerceAtLeast(0L))
         }
         return since
     }
@@ -270,36 +295,60 @@ object QuietWindow {
     @JvmStatic
     fun clearSilencedEpisode(kind: Int) {
         silencedEpisodes.clear(kind)
-        synchronized(breakthroughSchedules) {
-            breakthroughSchedules.remove(kind)?.cancel(false)
+        if (kind < CUSTOM_EPISODE_KIND_BASE) {
+            prefs.edit()
+                .remove(KEY_SILENCED_SINCE_PREFIX + kind)
+                .remove(KEY_SILENCED_LAST_PREFIX + kind)
+                .apply()
+            cancelBreakthroughCheck(kind)
         }
     }
 
     private fun clearAllSilencedEpisodes() {
         silencedEpisodes.clearAll()
-        synchronized(breakthroughSchedules) {
-            breakthroughSchedules.values.forEach { it.cancel(false) }
-            breakthroughSchedules.clear()
+        val editor = prefs.edit()
+        for (type in AlertType.values()) {
+            editor.remove(KEY_SILENCED_SINCE_PREFIX + type.id).remove(KEY_SILENCED_LAST_PREFIX + type.id)
+            cancelBreakthroughCheck(type.id)
         }
+        editor.apply()
     }
 
+    private fun breakthroughPendingIntent(context: Context, kind: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            REQUEST_BREAKTHROUGH_BASE + kind,
+            Intent(ACTION_BREAKTHROUGH).setClass(context, QuietWindowReceiver::class.java).putExtra(EXTRA_KIND, kind),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+    /**
+     * The check rides on AlarmManager, not on an executor: it has to fire in
+     * Doze and after the process died, or the rule it enforces is decoration.
+     */
     private fun scheduleBreakthroughCheck(kind: Int, delayMs: Long) {
         try {
-            synchronized(breakthroughSchedules) {
-                breakthroughSchedules.remove(kind)?.cancel(false)
-                breakthroughSchedules[kind] = scheduler.schedule(
-                    { breakThroughIfStillActive(kind) },
-                    delayMs,
-                    TimeUnit.MILLISECONDS
-                )
-            }
+            val context = Applic.app
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            armExact(alarmManager, System.currentTimeMillis() + delayMs, breakthroughPendingIntent(context, kind))
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "scheduleBreakthroughCheck", t)
         }
     }
 
-    private fun breakThroughIfStillActive(kind: Int) {
-        synchronized(breakthroughSchedules) { breakthroughSchedules.remove(kind) }
+    private fun cancelBreakthroughCheck(kind: Int) {
+        try {
+            val context = Applic.app
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            alarmManager.cancel(breakthroughPendingIntent(context, kind))
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "cancelBreakthroughCheck", t)
+        }
+    }
+
+    /** The armed check came round: deliver the alarm audibly if it is still active and unanswered. */
+    @JvmStatic
+    fun breakThroughIfStillActive(kind: Int) {
         val now = System.currentTimeMillis()
         if (untilMs(now) == 0L) return
         if (!silencedEpisodes.has(kind)) return
@@ -314,7 +363,7 @@ object QuietWindow {
         if (SnoozeManager.isSnoozed(type) || AlertStateTracker.isDismissed(type)) {
             // Acknowledged: without a window this alarm would stay quiet now, and the
             // window must never make anything louder than that.
-            silencedEpisodes.clear(kind)
+            clearSilencedEpisode(kind)
             return
         }
         // The redelivery must land in this episode, however long the check took to
@@ -356,14 +405,18 @@ object QuietWindow {
 
     private fun scheduleExpiry(context: Context, untilMs: Long) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val pendingIntent = expiryPendingIntent(context)
+        armExact(alarmManager, untilMs, expiryPendingIntent(context))
+    }
+
+    private fun armExact(alarmManager: AlarmManager, atMs: Long, pendingIntent: PendingIntent) {
         try {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, untilMs, pendingIntent)
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pendingIntent)
         } catch (e: SecurityException) {
-            // Exact alarms denied: an inexact one still ends the window, the clock
-            // check on every read ends it on time for anyone who asks.
+            // Exact alarms denied: an inexact one still ends the window (the clock
+            // check on every read ends it on time for anyone who asks) and still
+            // brings the breakthrough check round, a little late.
             Log.stack(LOG_ID, "exact alarm denied, falling back", e)
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, untilMs, pendingIntent)
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pendingIntent)
         }
     }
 
@@ -495,6 +548,19 @@ internal class SilencedEpisodeTracker(private val staleMs: Long) {
 
     @Synchronized
     fun has(kind: Int): Boolean = episodes.containsKey(kind)
+
+    /**
+     * Seeds an episode from persisted state - the start and the last silenced
+     * delivery - when none is tracked and the persisted one is not stale at
+     * [nowMs]. True when it did; the next [note] then continues that episode.
+     */
+    @Synchronized
+    fun restore(kind: Int, sinceMs: Long, lastMs: Long, nowMs: Long): Boolean {
+        if (episodes.containsKey(kind)) return false
+        if (sinceMs <= 0L || lastMs < sinceMs || nowMs - lastMs >= staleMs) return false
+        episodes[kind] = Episode(sinceMs, lastMs)
+        return true
+    }
 
     /** Marks the episode as just seen, so the next delivery continues it whatever the gap. */
     @Synchronized

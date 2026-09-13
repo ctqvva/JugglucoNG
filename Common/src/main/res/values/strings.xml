@@ -3047,7 +3047,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_preset_until">Until…</string>
     <string name="quiet_window_until_i_end">Until I end it</string>
     <string name="quiet_window_until_i_end_desc">Ends by itself after 24 hours at the latest</string>
-    <string name="quiet_window_very_low_note">Silenced alarms keep their notification and, in vibrate-only mode, their vibration. One that stays active and unacknowledged longer than the set time sounds anyway.</string>
+    <string name="quiet_window_very_low_note">Silenced alarms keep their notification and, in vibrate-only mode, their vibration. One that stays active and unacknowledged longer than the set time sounds anyway. Low and very low always sound again after the set time.</string>
     <string name="quiet_window_end_now">End now</string>
     <string name="quiet_window_ended_title">Alarms active again</string>
     <string name="quiet_window_ended_text">The quiet window has ended.</string>
@@ -3055,9 +3055,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_desc">A silenced alarm that stays active longer than this sounds anyway</string>
     <string name="quiet_window_breakthrough_scope_title">Sounds anyway for</string>
     <string name="quiet_window_breakthrough_scope_all">All silenced alarms</string>
-    <string name="quiet_window_breakthrough_scope_very">Very high and very low only</string>
+    <string name="quiet_window_breakthrough_scope_very">Very high, low and very low</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Any silenced alarm that stays active and unacknowledged that long sounds again.</string>
-    <string name="quiet_window_breakthrough_scope_very_desc">Only a very high or very low sounds again; everything else stays quiet for the whole window.</string>
+    <string name="quiet_window_breakthrough_scope_very_desc">A low, very low or very high sounds again; other silenced alarms stay quiet for the whole window.</string>
     <string name="quiet_window_tile_label">Glucose alarms</string>
     <string name="quiet_window_tile_active">Active</string>
     <string name="quiet_window_tile_silent_until">Silent until %1$s</string>

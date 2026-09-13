@@ -2875,7 +2875,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_preset_until">Да…</string>
     <string name="quiet_window_until_i_end">Пакуль я не скончу</string>
     <string name="quiet_window_until_i_end_desc">Заканчваецца само не пазней чым праз 24 гадзіны</string>
-    <string name="quiet_window_very_low_note">Прыглушаныя сігналы захоўваюць апавяшчэнне і, у рэжыме толькі вібрацыі, вібрацыю. Той, што застаецца актыўным і без адказу даўжэй за зададзены час, усё роўна прагучыць.</string>
+    <string name="quiet_window_very_low_note">Прыглушаныя сігналы захоўваюць апавяшчэнне і, у рэжыме толькі вібрацыі, вібрацыю. Той, што застаецца актыўным і без адказу даўжэй за зададзены час, усё роўна прагучыць. Нізкі і вельмі нізкі пасля зададзенага часу прагучаць зноў заўсёды.</string>
     <string name="quiet_window_end_now">Скончыць зараз</string>
     <string name="quiet_window_ended_title">Сігналы зноў актыўныя</string>
     <string name="quiet_window_ended_text">Ціхае акно скончылася.</string>
@@ -2883,9 +2883,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_desc">Прыглушаны сігнал, які застаецца актыўным даўжэй, усё роўна прагучыць</string>
     <string name="quiet_window_breakthrough_scope_title">Усё роўна гучыць для</string>
     <string name="quiet_window_breakthrough_scope_all">Усіх прыглушаных сігналаў</string>
-    <string name="quiet_window_breakthrough_scope_very">Толькі вельмі высокі і вельмі нізкі</string>
+    <string name="quiet_window_breakthrough_scope_very">Вельмі высокі, нізкі і вельмі нізкі</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Любы прыглушаны сігнал, які застаецца актыўным і без адказу так доўга, прагучыць зноў.</string>
-    <string name="quiet_window_breakthrough_scope_very_desc">Зноў прагучыць толькі вельмі высокі або вельмі нізкі; усё астатняе маўчыць усё акно.</string>
+    <string name="quiet_window_breakthrough_scope_very_desc">Зноў прагучыць нізкі, вельмі нізкі або вельмі высокі; астатнія прыглушаныя сігналы маўчаць усё акно.</string>
     <string name="quiet_window_tile_label">Сігналы глюкозы</string>
     <string name="quiet_window_tile_active">Актыўныя</string>
     <string name="quiet_window_tile_silent_until">Без гуку да %1$s</string>

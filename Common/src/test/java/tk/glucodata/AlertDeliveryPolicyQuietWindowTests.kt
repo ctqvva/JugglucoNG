@@ -10,7 +10,7 @@ import tk.glucodata.alerts.AlertType
  * The quiet window may only take sound (and, in notification-only mode,
  * vibration) away, and one rule is not the UI's to bend: a silenced alarm that
  * stays active past the breakthrough time sounds as if there were no window —
- * every kind, or the very high and very low only.
+ * every kind, or the very high only; a hypo always, whatever the scope.
  */
 class AlertDeliveryPolicyQuietWindowTests {
 
@@ -21,54 +21,44 @@ class AlertDeliveryPolicyQuietWindowTests {
 
     @Test
     fun windowInactiveChangesNothing() {
-        for (kind in AlertType.entries.map { it.id }) {
-            assertFalse(AlertDeliveryPolicy.shouldSilenceSound(false, kind, false))
-            assertFalse(
-                AlertDeliveryPolicy.shouldSuppressVibration(
-                    false, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, kind, false
-                )
-            )
-        }
+        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(false, false))
+        assertFalse(
+            AlertDeliveryPolicy.shouldSuppressVibration(false, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, false)
+        )
     }
 
     @Test
     fun vibrateOnlySilencesSoundAndKeepsVibration() {
-        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, low, false))
-        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, high, false))
+        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, false))
         assertFalse(
-            AlertDeliveryPolicy.shouldSuppressVibration(true, AlertDeliveryPolicy.QUIET_VIBRATE_ONLY, low, false)
+            AlertDeliveryPolicy.shouldSuppressVibration(true, AlertDeliveryPolicy.QUIET_VIBRATE_ONLY, false)
         )
     }
 
     @Test
     fun notificationOnlySilencesSoundAndVibration() {
-        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, low, false))
+        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, false))
         assertTrue(
-            AlertDeliveryPolicy.shouldSuppressVibration(
-                true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, low, false
-            )
+            AlertDeliveryPolicy.shouldSuppressVibration(true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, false)
         )
     }
 
     @Test
-    fun everyKindIsSilencedVeryLowIncluded() {
-        AlertType.values().forEach {
-            assertTrue(it.name, AlertDeliveryPolicy.shouldSilenceSound(true, it.id, false))
-        }
-        assertTrue(AlertDeliveryPolicy.shouldSuppressVibration(
-            true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, veryLow, false
-        ))
+    fun everyKindIsSilencedUntilBreakthroughVeryLowIncluded() {
+        // The silencing decision knows no kind: a very low is silenced like the
+        // rest. What differs per kind is whether, and that, it breaks through -
+        // see hyposBreakThroughUnderEveryScope.
+        assertTrue(AlertDeliveryPolicy.shouldSilenceSound(true, false))
+        assertTrue(AlertDeliveryPolicy.shouldSuppressVibration(true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, false))
         // Until it breaks through: then it sounds as if there were no window.
-        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, veryLow, true))
+        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, true))
     }
 
     @Test
     fun breakthroughRestoresSoundAndVibration() {
-        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, low, true))
+        assertFalse(AlertDeliveryPolicy.shouldSilenceSound(true, true))
         assertFalse(
-            AlertDeliveryPolicy.shouldSuppressVibration(
-                true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, low, true
-            )
+            AlertDeliveryPolicy.shouldSuppressVibration(true, AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY, true)
         )
     }
 
@@ -94,7 +84,7 @@ class AlertDeliveryPolicyQuietWindowTests {
             AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY,
             AlertDeliveryPolicy.normalizeQuietMode("NOTIFICATION_ONLY")
         )
-        assertFalse(AlertDeliveryPolicy.shouldSuppressVibration(true, "silent", low, false))
+        assertFalse(AlertDeliveryPolicy.shouldSuppressVibration(true, "silent", false))
     }
 
     @Test
@@ -120,13 +110,27 @@ class AlertDeliveryPolicyQuietWindowTests {
     fun breakthroughScopeVeryOnlyKeepsTheRestQuietForTheWholeWindow() {
         val scope = AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY
         assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(AlertType.VERY_HIGH.id, scope))
-        assertTrue(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(veryLow, scope))
-        listOf(low, high, AlertType.PRE_LOW.id, AlertType.PRE_HIGH.id, AlertType.FALLING_FAST.id,
+        listOf(high, AlertType.PRE_LOW.id, AlertType.PRE_HIGH.id, AlertType.FALLING_FAST.id,
             AlertType.RISING_FAST.id, AlertType.MISSED_READING.id, AlertType.LOSS.id).forEach {
             assertFalse("kind $it", AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(it, scope))
         }
         // Case and unknown values: unknown falls back to all.
-        assertFalse(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(low, "VERY_ONLY"))
+        assertFalse(AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(high, "VERY_ONLY"))
         assertEquals(AlertDeliveryPolicy.BREAKTHROUGH_ALL, AlertDeliveryPolicy.normalizeBreakthroughScope("nope"))
+    }
+
+    @Test
+    fun hyposBreakThroughUnderEveryScope() {
+        // A plain LOW in a cinema is still a hypo: whatever the scope says, it
+        // sounds again after the cap. Only the hyper side is the scope's to narrow.
+        listOf(AlertDeliveryPolicy.BREAKTHROUGH_ALL, AlertDeliveryPolicy.BREAKTHROUGH_VERY_ONLY, "VERY_ONLY", null)
+            .forEach { scope ->
+                assertTrue("LOW under $scope", AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(low, scope))
+                assertTrue("VERY_LOW under $scope", AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(veryLow, scope))
+            }
+        assertTrue(AlertDeliveryPolicy.isHypoKind(low))
+        assertTrue(AlertDeliveryPolicy.isHypoKind(veryLow))
+        assertFalse(AlertDeliveryPolicy.isHypoKind(high))
+        assertFalse(AlertDeliveryPolicy.isHypoKind(AlertType.VERY_HIGH.id))
     }
 }

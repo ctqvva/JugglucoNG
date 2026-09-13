@@ -1848,7 +1848,9 @@ public class Notify {
     /**
      * {@code customAlert}: a custom alert delivers as kind 0/1 (LOW/HIGH) and shares their
      * channels, but it is not their episode — the quiet window keeps its silenced
-     * episode apart, under its own key. Nothing else here reads the flag.
+     * episode apart, under its own key. The breakthrough scope still reads the raw
+     * kind, so a custom alert delivered as a low breaks through like a low: the user
+     * built it as one. Nothing else here reads the flag.
      */
     private synchronized void playringhier(AlertSoundHandle soundHandle, int duration, boolean sound, boolean flash,
             boolean vibrate, boolean disturb, int kind, String hapticProfile, long effectDurationMs,
@@ -1929,10 +1931,9 @@ public class Notify {
                         + (quietBreakThrough ? " -> breaking through" : " -> sound off"));
             }
         }
-        final boolean quietSilencesSound = AlertDeliveryPolicy.shouldSilenceSound(quietWindow, kind,
-                quietBreakThrough);
+        final boolean quietSilencesSound = AlertDeliveryPolicy.shouldSilenceSound(quietWindow, quietBreakThrough);
         final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
-                quietMode, kind, quietBreakThrough);
+                quietMode, quietBreakThrough);
 
         notifyfocus = true;
         doTurnFocuson();

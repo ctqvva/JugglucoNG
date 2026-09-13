@@ -2851,7 +2851,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_preset_until">До…</string>
     <string name="quiet_window_until_i_end">Пока я не закончу</string>
     <string name="quiet_window_until_i_end_desc">Заканчивается само не позже чем через 24 часа</string>
-    <string name="quiet_window_very_low_note">Заглушённые сигналы сохраняют уведомление и, в режиме только вибрации, вибрацию. Тот, что остаётся активным и без ответа дольше заданного времени, всё равно прозвучит.</string>
+    <string name="quiet_window_very_low_note">Заглушённые сигналы сохраняют уведомление и, в режиме только вибрации, вибрацию. Тот, что остаётся активным и без ответа дольше заданного времени, всё равно прозвучит. Низкий и очень низкий после заданного времени прозвучат снова всегда.</string>
     <string name="quiet_window_end_now">Закончить сейчас</string>
     <string name="quiet_window_ended_title">Сигналы снова активны</string>
     <string name="quiet_window_ended_text">Тихое окно закончилось.</string>
@@ -2859,9 +2859,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_desc">Заглушённый сигнал, который остаётся активным дольше, всё равно прозвучит</string>
     <string name="quiet_window_breakthrough_scope_title">Всё равно звучит для</string>
     <string name="quiet_window_breakthrough_scope_all">Всех заглушённых сигналов</string>
-    <string name="quiet_window_breakthrough_scope_very">Только очень высокий и очень низкий</string>
+    <string name="quiet_window_breakthrough_scope_very">Очень высокий, низкий и очень низкий</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Любой заглушённый сигнал, остающийся активным и без ответа так долго, прозвучит снова.</string>
-    <string name="quiet_window_breakthrough_scope_very_desc">Снова прозвучит только очень высокий или очень низкий; всё остальное молчит всё окно.</string>
+    <string name="quiet_window_breakthrough_scope_very_desc">Снова прозвучит низкий, очень низкий или очень высокий; остальные заглушённые сигналы молчат всё окно.</string>
     <string name="quiet_window_tile_label">Сигналы глюкозы</string>
     <string name="quiet_window_tile_active">Активны</string>
     <string name="quiet_window_tile_silent_until">Без звука до %1$s</string>

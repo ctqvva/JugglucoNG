@@ -2795,7 +2795,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_preset_until">Fino alle…</string>
     <string name="quiet_window_until_i_end">Finché non la termino</string>
     <string name="quiet_window_until_i_end_desc">Termina da sola al più tardi dopo 24 ore</string>
-    <string name="quiet_window_very_low_note">Gli allarmi silenziati mantengono la notifica e, in modalità solo vibrazione, la vibrazione. Uno che resta attivo e senza risposta più a lungo del tempo impostato suona comunque.</string>
+    <string name="quiet_window_very_low_note">Gli allarmi silenziati mantengono la notifica e, in modalità solo vibrazione, la vibrazione. Uno che resta attivo e senza risposta più a lungo del tempo impostato suona comunque. Basso e molto basso suonano sempre di nuovo dopo il tempo impostato.</string>
     <string name="quiet_window_end_now">Termina ora</string>
     <string name="quiet_window_ended_title">Allarmi di nuovo attivi</string>
     <string name="quiet_window_ended_text">La finestra di silenzio è terminata.</string>
@@ -2803,9 +2803,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_breakthrough_desc">Un allarme silenziato che resta attivo più a lungo suona comunque</string>
     <string name="quiet_window_breakthrough_scope_title">Suona comunque per</string>
     <string name="quiet_window_breakthrough_scope_all">Tutti gli allarmi silenziati</string>
-    <string name="quiet_window_breakthrough_scope_very">Solo molto alto e molto basso</string>
+    <string name="quiet_window_breakthrough_scope_very">Molto alto, basso e molto basso</string>
     <string name="quiet_window_breakthrough_scope_all_desc">Qualsiasi allarme silenziato che resta attivo e senza risposta così a lungo suona di nuovo.</string>
-    <string name="quiet_window_breakthrough_scope_very_desc">Solo un molto alto o molto basso suona di nuovo; tutto il resto resta in silenzio per l\'intera finestra.</string>
+    <string name="quiet_window_breakthrough_scope_very_desc">Un basso, molto basso o molto alto suona di nuovo; gli altri allarmi silenziati restano in silenzio per l\'intera finestra.</string>
     <string name="quiet_window_tile_label">Allarmi glicemia</string>
     <string name="quiet_window_tile_active">Attivi</string>
     <string name="quiet_window_tile_silent_until">In silenzio fino alle %1$s</string>
