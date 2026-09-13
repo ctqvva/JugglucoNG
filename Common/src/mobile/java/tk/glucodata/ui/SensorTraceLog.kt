@@ -361,8 +361,9 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                 softWrap = true,
             )
         }
-        // The log's scrollbar and the header's chevron both end at the card padding; the row
-        // of icon buttons is nudged 12dp so its last glyph ends there too, not its 48dp target.
+        // The log's scrollbar and the header's chevron both end at the card padding. An icon
+        // button is a 40dp circle inside a 48dp target, so the row is nudged by that 4dp
+        // overhang and the last button's rim lands on the padding, not past it.
         TraceLogActions(
             onCopy = { clipboard.setText(AnnotatedString(rendered)) },
             onShare = {
@@ -391,7 +392,7 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
 @Composable
 private fun TraceLogActions(onCopy: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().offset(x = 12.dp),
+        modifier = Modifier.fillMaxWidth().offset(x = 4.dp),
         horizontalArrangement = Arrangement.End,
     ) {
         TraceLogAction(Icons.Default.ContentCopy, R.string.copy, onCopy)
