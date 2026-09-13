@@ -3498,8 +3498,6 @@ public class Notify {
         java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(chartPoints, resolvedDisplay,
                 activeSensorSerial);
 
-        chartPoints = DisplayTrendSource.augmentHistory(chartPoints, resolvedDisplay, activeSensorSerial, startT);
-
         BatteryTrace.bump(
                 "notify.glucose.render",
                 20L,
@@ -3530,7 +3528,6 @@ public class Notify {
 
         // If ViewMode == 3 (Combined), we force appending Raw if available
         boolean isRawMode = (viewMode == 1 || viewMode == 3);
-        boolean hasCalibration = NightscoutCalibration.hasCalibrationForViewMode(activeSensorSerial, viewMode);
 
         final CurrentDisplaySource.Snapshot fallbackDisplay = resolvedDisplay != null
                 ? resolvedDisplay
@@ -3821,6 +3818,13 @@ public class Notify {
                 (showChartCollapsed || showChart)
                         ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
                         : java.util.Collections.emptyList();
+        final NotificationPredictionBatch predictionBatch = (showChartCollapsed || showChart)
+                ? new NotificationPredictionBatch() : null;
+        final boolean hasCalibration = (showChartCollapsed || showChart)
+                && NightscoutCalibration.hasCalibrationForViewMode(activeSensorSerial, viewMode);
+        if (showChartCollapsed || showChart) {
+            chartPoints = DisplayTrendSource.augmentHistory(chartPoints, resolvedDisplay, activeSensorSerial, startT);
+        }
         // The resolved chart: values and main/secondary look decided once, by
         // the same builder the dashboard uses, from the same record. The
         // painter paints what it is handed.
@@ -3840,14 +3844,14 @@ public class Notify {
             // Use safeContext and explicit height
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries, chartModel);
+                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
         }
 
         if (showChart) {
             // Expanded chart: Use safely resolved density context (default 0 ->
             // 256*density)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel);
+                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
         }
 
         if (showChartCollapsed && chartBitmapCollapsed != null) {
@@ -3933,8 +3937,6 @@ public class Notify {
         java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(chartPoints, current,
                 activeSensorSerial);
 
-        chartPoints = DisplayTrendSource.augmentHistory(chartPoints, current, activeSensorSerial, startT);
-
         // Identify ViewMode for Startup
         int viewMode = 0;
         if (activeSensorSerial != null && SensorBluetooth.blueone != null) {
@@ -3992,6 +3994,8 @@ public class Notify {
         Bitmap chartBitmapExpanded = null;
 
         if (showChart) {
+            chartPoints = DisplayTrendSource.augmentHistory(chartPoints, current, activeSensorSerial, startT);
+            final NotificationPredictionBatch predictionBatch = new NotificationPredictionBatch();
             // Create Safe Context for Startup Notification too
             Context safeContext = Applic.app;
             try {
@@ -4020,12 +4024,12 @@ public class Notify {
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
                     viewMode, true, false, true, activeSensorSerial,
-                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel, predictionBatch);
 
             // Expanded: Compact Mode = FALSE, Height 256dp (via 0)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
                     viewMode, true, false, false, activeSensorSerial,
-                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel, predictionBatch);
         }
 
         Bitmap arrowBitmap;
