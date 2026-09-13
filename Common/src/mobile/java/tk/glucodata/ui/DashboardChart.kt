@@ -294,6 +294,7 @@ internal fun resolveDashboardChart(inputs: ChartResolutionInputs): ChartResoluti
         hasCalibration = inputs.hasCalibration,
         hideInitialWhenCalibrated = inputs.hideInitialWhenCalibrated,
     )
+    chartModel.series.forEach { it.prepareLookups() }
     return ChartResolution(renderData, peerChartSeries, chartModel)
 }
 

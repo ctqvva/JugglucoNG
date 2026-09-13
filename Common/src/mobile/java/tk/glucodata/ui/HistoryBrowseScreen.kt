@@ -521,7 +521,9 @@ fun HistoryBrowseScreen(
             deltaIntervalMinutes
         ).orEmpty()
     }
-    val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit, activeHistory) {
+    // Not keyed on the history: the markers do not depend on it, and keying on
+    // it rebuilt them — and so recomposed the chart — on every new reading.
+    val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit) {
         buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, journalFoodsById)
     }
     val journalEntriesById = remember(filteredJournalEntries) { filteredJournalEntries.associateBy { it.id } }

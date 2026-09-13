@@ -145,7 +145,9 @@ fun JournalScreen(
         journalEntries.filter { it.type in selectedTypes }
     }
     val sections = remember(filteredEntries, sortedHistory) { buildJournalSections(filteredEntries, sortedHistory) }
-    val markers = remember(filteredEntries, presetsById, foodsById, unit, sortedHistory) {
+    // Not keyed on the history: the markers do not depend on it, and keying on
+    // it rebuilt them — and so recomposed the chart — on every new reading.
+    val markers = remember(filteredEntries, presetsById, foodsById, unit) {
         buildJournalChartMarkers(filteredEntries, presetsById, unit, foodsById)
     }
     val entriesById = remember(filteredEntries) { filteredEntries.associateBy { it.id } }

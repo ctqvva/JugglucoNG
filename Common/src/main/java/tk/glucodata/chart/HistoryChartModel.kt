@@ -86,6 +86,16 @@ data class ChartSeriesModel(
     }
 
     fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
+
+    /**
+     * Builds the lookup now, on the caller's thread. The first [valueAt] used
+     * to build it — an entry per point of the whole timeline — wherever it
+     * happened to be asked, which was the draw. A builder that resolves the
+     * model on a worker thread calls this before handing the model over.
+     */
+    fun prepareLookups() {
+        valueByTimestamp
+    }
 }
 
 data class HistoryChartModel(

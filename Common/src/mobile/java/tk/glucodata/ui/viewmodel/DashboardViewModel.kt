@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import tk.glucodata.Natives
@@ -1091,6 +1092,9 @@ class DashboardViewModel(
                     _unit,
                     glucoseRepository.getMergedHistoryFlowRaw(queryStartTimeMs)
                         .distinctUntilChangedBy(::historyEdgeSignature)
+                        // The signature is two passes over the whole store per
+                        // emission; the collector is the main thread.
+                        .flowOn(Dispatchers.Default)
                 ) { unitStr, rawHistory ->
                     unitStr to rawHistory
                 }.collect { (unitStr, rawHistory) ->
@@ -1114,10 +1118,17 @@ class DashboardViewModel(
             }
             combine(
                 _unit,
-                rawHistoryFlow.distinctUntilChangedBy(::historyEdgeSignature)
-            ) { unitStr, rawHistory ->
-                unitStr to rawHistory
-            }.collectLatest { (unitStr, rawHistory) ->
+                rawHistoryFlow
+                    // Signed once, off the main thread: the signature is two
+                    // passes over the whole store, and it is both the change
+                    // gate and the display cache's key.
+                    .map { rawHistory -> rawHistory to historyEdgeSignature(rawHistory) }
+                    .distinctUntilChangedBy { it.second }
+                    .flowOn(Dispatchers.Default)
+            ) { unitStr, signedHistory ->
+                unitStr to signedHistory
+            }.collectLatest { (unitStr, signedHistory) ->
+                val (rawHistory, signature) = signedHistory
                 val shouldCoalesce = DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
                     mode,
                     hasSeenHistoryEmission,
@@ -1126,7 +1137,6 @@ class DashboardViewModel(
                 if (shouldCoalesce) {
                     delay(DASHBOARD_HISTORY_COALESCE_MS)
                 }
-                val signature = historyEdgeSignature(rawHistory)
                 BatteryTrace.bump(
                     key = "dashboard.history.emission",
                     logEvery = 20L,
@@ -1162,6 +1172,7 @@ class DashboardViewModel(
                 (System.currentTimeMillis() - CURRENT_SENSOR_TAIL_WINDOW_MS).coerceAtLeast(0L)
             glucoseRepository.getCurrentSensorTailFlowRaw(tailStartMs)
                 .distinctUntilChangedBy(::historyEdgeSignature)
+                .flowOn(Dispatchers.Default)
                 .collectLatest { tail ->
                 // Stored mg/dL, unconverted: the recovery check reads timestamps
                 // only, and converting would be work no one looks at.
@@ -1262,6 +1273,7 @@ class DashboardViewModel(
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
+                    .flowOn(Dispatchers.Default)
                     .collectLatest { rawHistory ->
                         if (hasSeenPeerEmission) {
                             delay(DASHBOARD_HISTORY_COALESCE_MS)
