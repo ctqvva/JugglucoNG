@@ -284,11 +284,14 @@ fun AlertSettingsScreen(
             // The quiet window: one card, collapsed unless a window runs. It has
             // nothing to silence unless some enabled alert makes a sound or vibrates,
             // so it only appears then - or while a window runs, so it can be ended.
-            val anythingAudible = configs.values.any { it.enabled && (it.soundEnabled || it.vibrationEnabled) } ||
-                customAlerts.any { it.enabled && (it.sound || it.vibrate) }
+            val anySound = configs.values.any { it.enabled && it.soundEnabled } ||
+                customAlerts.any { it.enabled && it.sound }
+            val anythingAudible = anySound ||
+                configs.values.any { it.enabled && it.vibrationEnabled } ||
+                customAlerts.any { it.enabled && it.vibrate }
             if (anythingAudible || quietWindowStateNow.active) {
                 item(key = "quiet-window") {
-                    QuietWindowCard()
+                    QuietWindowCard(anySound = anySound)
                     Spacer(Modifier.height(8.dp))
                 }
             }

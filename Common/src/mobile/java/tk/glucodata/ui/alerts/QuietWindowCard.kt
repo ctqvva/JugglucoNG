@@ -61,8 +61,11 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
-/** The start presets, in minutes; the last is the 24-hour cap itself. */
-private val START_PRESET_MINUTES = listOf(30, 60, 120, 180, 360, 720, 1440)
+/**
+ * The start presets, in minutes: a film or a lecture (30 min to 3 h), a night
+ * (12 h). Anything else is a clock time, which is what "Until..." is for.
+ */
+private val START_PRESET_MINUTES = listOf(30, 60, 120, 180, 720)
 
 /**
  * The quiet window as one card at the top of the alert settings, shaped like the
@@ -73,9 +76,16 @@ private val START_PRESET_MINUTES = listOf(30, 60, 120, 180, 360, 720, 1440)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
+fun QuietWindowCard(
+    // Whether any enabled alert makes a sound. Without one there is nothing
+    // for vibrate-only to keep, so the choice is hidden and a window cuts the
+    // vibration - the only thing it can cut - and that becomes the stored mode.
+    anySound: Boolean,
+    position: CardPosition = CardPosition.SINGLE
+) {
     val context = LocalContext.current
     val state by QuietWindow.state.collectAsState()
+    val startMode = if (anySound) state.mode else AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
     var openedByUser by rememberSaveable { mutableStateOf(false) }
     val expanded = openedByUser || state.active
@@ -164,7 +174,7 @@ fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
                         // Two buttons to a row, full labels: these are buttons, not chips.
                         val starts: List<Pair<String, () -> Unit>> = START_PRESET_MINUTES.map { minutes ->
                             quietDurationLabelLong(minutes) to {
-                                QuietWindow.startFor(context, TimeUnit.MINUTES.toMillis(minutes.toLong()))
+                                QuietWindow.startFor(context, TimeUnit.MINUTES.toMillis(minutes.toLong()), startMode)
                             }
                         } + (stringResource(R.string.quiet_window_preset_until) to { showTimePicker = true })
                         starts.chunked(2).forEach { pair ->
@@ -172,7 +182,7 @@ fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
                                 pair.forEach { (label, start) ->
                                     FilledTonalButton(
                                         onClick = start,
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         Text(label)
                                     }
@@ -182,7 +192,7 @@ fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
                     }
 
                     // The mode: what a silenced alarm keeps.
-                    Column(modifier = inset, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (anySound) Column(modifier = inset, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val modeLabels = mapOf(
                             AlertDeliveryPolicy.QUIET_VIBRATE_ONLY to stringResource(R.string.quiet_window_mode_vibrate_only),
                             AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY to stringResource(R.string.quiet_window_mode_notification_only)
@@ -229,6 +239,7 @@ fun QuietWindowCard(position: CardPosition = CardPosition.SINGLE) {
                     QuietWindow.startUntil(
                         context,
                         QuietWindow.untilForTimeOfDay(timePickerState.hour, timePickerState.minute, nowMs),
+                        mode = startMode,
                         nowMs = nowMs
                     )
                     showTimePicker = false
