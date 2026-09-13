@@ -2883,27 +2883,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Додати плитку швидких налаштувань</string>
     <string name="quiet_window_add_tile_hint">Плитку можна додати в редакторі швидких налаштувань у рядку стану.</string>
     <string name="quiet_window_select_end_time">Без звуку до</string>
-    <string name="sibionics_adaptive_v2">Adaptive V2 (експериментально)</string>
-    <string name="sibionics_adaptive_v2_desc">Незалежна оцінка стану сенсора з імовірним діапазоном</string>
-    <string name="glucose_likely_range">Імовірний діапазон</string>
-    <string name="glucose_likely_range_value">імовірний діапазон %1$s–%2$s</string>
-    <string name="glucose_estimated">Оцінка глюкози</string>
-    <string name="glucose_uncertainty_elevated">Підвищена невизначеність сенсора</string>
-    <string name="glucose_possible_artifact">Можливий тимчасовий артефакт сенсора</string>
-    <string name="sibionics_uncertainty_ribbon">Смуга невизначеності</string>
-    <string name="sibionics_uncertainty_ribbon_desc">Показувати смугу ймовірного діапазону навколо лінії глюкози</string>
-    <string name="freeze_displayed_values">Зберігати показані значення</string>
-    <string name="freeze_displayed_values_desc">Вимірювання зберігає значення, яке було показано. Зміни калібрування впливають лише на свіжі вимірювання.</string>
-    <string name="freeze_displayed_values_on">Показані значення зберігаються</string>
-    <string name="freeze_displayed_values_off">Перерахунок за кожної зміни</string>
-    <string name="anytime_credentials_backup">Резервна копія облікових даних CT5</string>
-    <string name="anytime_credentials_backup_warning">Цей файл дає змогу відновити сеанс передавача після перевстановлення програми або видалення датчика. Зберігайте його в безпечному місці.</string>
-    <string name="anytime_history_fetch_warning">Завантажити повну історію передавача до поточного показання? Це може тривати кілька хвилин і збільшить Bluetooth-трафік. Нові показання надходитимуть далі.</string>
-    <string name="anytime_restart_action">Перезапуск</string>
-    <string name="anytime_restart_title">Перезапустити датчик?</string>
-    <string name="anytime_restart_warning">Завершити поточний сеанс передавача й почати новий цикл сполучення? Наявна історія глюкози залишиться у застосунку.</string>
-    <string name="anytime_history_action">Історія</string>
-    <string name="nightscout_follow_interval_title">Перевіряти нові значення</string>
-    <string name="nightscout_follow_interval_desc">Як часто підписник опитує сервер. Це водночас і те, наскільки старим може бути значення, а отже і наскільки пізно надійде тривога за відстежуваним значенням. Підписник не має власного сенсора, який тримав би телефон активним, тож кожна перевірка — це пробудження.</string>
-    <string name="nightscout_follow_interval_doze">Менше 9 хвилин Android усе одно може розсувати перевірки, поки телефон бездіяльний. Виключення Juggluco з оптимізації батареї зберігає вибраний інтервал.</string>
 </resources>

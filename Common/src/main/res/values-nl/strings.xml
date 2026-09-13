@@ -2851,27 +2851,4 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_add_tile">Snelle-instellingen-tegel toevoegen</string>
     <string name="quiet_window_add_tile_hint">De tegel is toe te voegen via de editor van de snelle instellingen in de statusbalk.</string>
     <string name="quiet_window_select_end_time">Stil tot</string>
-    <string name="sibionics_adaptive_v2">Adaptive V2 (experimenteel)</string>
-    <string name="sibionics_adaptive_v2_desc">Onafhankelijke sensortoestandsschatting met waarschijnlijk bereik</string>
-    <string name="glucose_likely_range">Waarschijnlijk bereik</string>
-    <string name="glucose_likely_range_value">waarschijnlijk bereik %1$s–%2$s</string>
-    <string name="glucose_estimated">Geschatte glucose</string>
-    <string name="glucose_uncertainty_elevated">Verhoogde sensoronzekerheid</string>
-    <string name="glucose_possible_artifact">Mogelijk tijdelijk sensorartefact</string>
-    <string name="sibionics_uncertainty_ribbon">Onzekerheidsband</string>
-    <string name="sibionics_uncertainty_ribbon_desc">Toon de band met het waarschijnlijke bereik rond de glucoselijn</string>
-    <string name="freeze_displayed_values">Weergegeven waarden behouden</string>
-    <string name="freeze_displayed_values_desc">Een meting behoudt de weergegeven waarde. Kalibratiewijzigingen gelden alleen voor recente metingen.</string>
-    <string name="freeze_displayed_values_on">Weergegeven waarden worden behouden</string>
-    <string name="freeze_displayed_values_off">Wordt bij elke wijziging herberekend</string>
-    <string name="anytime_credentials_backup">CT5-inloggegevens back-uppen</string>
-    <string name="anytime_credentials_backup_warning">Met dit bestand kan de zendersessie worden hersteld nadat de app opnieuw is geïnstalleerd of de sensor is verwijderd. Bewaar het veilig.</string>
-    <string name="anytime_history_fetch_warning">De volledige zendergeschiedenis tot de huidige live meting ophalen? Dit kan enkele minuten duren en zorgt voor meer Bluetooth-verkeer. Live metingen blijven doorgaan.</string>
-    <string name="anytime_restart_action">Herstart</string>
-    <string name="anytime_restart_title">Sensor herstarten?</string>
-    <string name="anytime_restart_warning">De huidige transmittersessie beëindigen en een nieuwe koppelcyclus starten? De bestaande glucosegeschiedenis blijft in de app.</string>
-    <string name="anytime_history_action">Historie</string>
-    <string name="nightscout_follow_interval_title">Naar nieuwe waarden kijken</string>
-    <string name="nightscout_follow_interval_desc">Hoe vaak de volger de server bevraagt. Dat is ook hoe oud een waarde kan zijn, en dus hoe laat een alarm op een gevolgde waarde kan komen. Een volger heeft geen eigen sensor die de telefoon wakker houdt, dus elke controle is een wekmoment.</string>
-    <string name="nightscout_follow_interval_doze">Onder 9 minuten kan Android de controles alsnog verder uit elkaar leggen terwijl de telefoon inactief is. Juggluco uitsluiten van batterijoptimalisatie behoudt het gekozen interval.</string>
 </resources>

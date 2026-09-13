@@ -528,7 +528,6 @@ fun AlertSettingsScreen(
                         subtitle = stringResource(R.string.preemptive_snooze_desc),
                         icon = Icons.Default.Snooze,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        showArrow = true,
                         position = SettingsItemPosition.TOP,
                         onClick = { showPreemptiveSnooze = true }
                     )
@@ -537,7 +536,6 @@ fun AlertSettingsScreen(
                         subtitle = talkerSummary,
                         icon = Icons.AutoMirrored.Filled.VolumeUp,
                         iconTint = MaterialTheme.colorScheme.secondary,
-                        showArrow = true,
                         position = SettingsItemPosition.MIDDLE,
                         onClick = { navController.navigate("settings/alerts/talker") }
                     )
@@ -546,7 +544,6 @@ fun AlertSettingsScreen(
                         subtitle = quietWindowSubtitle,
                         icon = Icons.Default.DoNotDisturbOn,
                         iconTint = MaterialTheme.colorScheme.tertiary,
-                        showArrow = true,
                         position = SettingsItemPosition.BOTTOM,
                         onClick = { navController.navigate("settings/alerts/quiet-window") }
                     )
@@ -1541,7 +1538,6 @@ internal fun DurationSlider(
     }
 }
 
-@Composable
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PreemptiveSnoozeDialog(

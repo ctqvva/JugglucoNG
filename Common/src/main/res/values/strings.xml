@@ -3050,24 +3050,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Add quick-settings tile</string>
     <string name="quiet_window_add_tile_hint">The tile can be added from the quick-settings editor in the status bar.</string>
     <string name="quiet_window_select_end_time">Silent until</string>
-    <string name="sibionics_adaptive_v2">Adaptive V2 (experimental)</string>
-    <string name="sibionics_adaptive_v2_desc">Independent sensor-state estimate with a likely range</string>
-    <string name="glucose_likely_range">Likely range</string>
-    <string name="glucose_likely_range_value">%1$s–%2$s likely range</string>
-    <string name="glucose_estimated">Estimated glucose</string>
-    <string name="glucose_uncertainty_elevated">Sensor uncertainty elevated</string>
-    <string name="glucose_possible_artifact">Possible transient sensor artifact</string>
-    <string name="sibionics_uncertainty_ribbon">Uncertainty ribbon</string>
-    <string name="sibionics_uncertainty_ribbon_desc">Show the likely-range band around the glucose line</string>
-    <string name="freeze_displayed_values">Keep displayed values</string>
-    <string name="freeze_displayed_values_desc">A reading keeps the value it was shown as. Calibration changes affect recent readings only.</string>
-    <string name="freeze_displayed_values_on">Keeping displayed values</string>
-    <string name="freeze_displayed_values_off">Recalculating on every change</string>
-    <string name="anytime_credentials_backup">Back up CT5 credentials</string>
-    <string name="anytime_credentials_backup_warning">This file can restore the transmitter session after reinstalling the app or removing the sensor. Store it securely.</string>
-    <string name="anytime_history_fetch_warning">Fetch the complete transmitter history up to the current live reading? This can take several minutes and increases Bluetooth traffic. Live readings will continue.</string>
-    <string name="anytime_restart_action">Restart</string>
-    <string name="anytime_restart_title">Restart sensor?</string>
-    <string name="anytime_restart_warning">End the current transmitter session and start a fresh pairing cycle? Existing glucose history will stay in the app.</string>
-    <string name="anytime_history_action">History</string>
 </resources>

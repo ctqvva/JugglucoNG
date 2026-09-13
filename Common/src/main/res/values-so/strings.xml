@@ -3006,27 +3006,4 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="quiet_window_add_tile">Ku dar tiirka dejinta degdegga</string>
     <string name="quiet_window_add_tile_hint">Tiirka waxaa lagu dari karaa tafatiraha dejinta degdegga ee barta xaaladda.</string>
     <string name="quiet_window_select_end_time">Aamusan ilaa</string>
-    <string name="sibionics_adaptive_v2">Adaptive V2 (tijaabo)</string>
-    <string name="sibionics_adaptive_v2_desc">Qiyaas madaxbannaan oo xaaladda dareemaha leh kala duwanaansho suurtogal ah</string>
-    <string name="glucose_likely_range">Kala duwanaanshaha suurtogalka ah</string>
-    <string name="glucose_likely_range_value">kala duwanaansho suurtogal ah %1$s–%2$s</string>
-    <string name="glucose_estimated">Sonkorta la qiyaasay</string>
-    <string name="glucose_uncertainty_elevated">Hubanti la\'aanta dareemaha waa sare</string>
-    <string name="glucose_possible_artifact">Waxaa suurtogal ah cilad dareeme oo ku meel gaar ah</string>
-    <string name="sibionics_uncertainty_ribbon">Xarigga hubanti-la\'aanta</string>
-    <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
-    <string name="freeze_displayed_values">Hay qiimaha la tusay</string>
-    <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
-    <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
-    <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
-    <string name="anytime_credentials_backup">Kaydi aqoonsiyada CT5</string>
-    <string name="anytime_credentials_backup_warning">Faylkan wuxuu soo celin karaa fadhiga gudbiyaha kadib dib-u-rakibidda abka ama ka saarista dareemaha. Si ammaan ah u kaydi.</string>
-    <string name="anytime_history_fetch_warning">Soo qaad taariikhda gudbiyaha oo dhan ilaa akhriska hadda? Tani waxay qaadan kartaa dhowr daqiiqo waxayna kordhinaysaa taraafikada Bluetooth. Akhrisyada tooska ah way sii soconayaan.</string>
-    <string name="anytime_restart_action">Dib u bilow</string>
-    <string name="anytime_restart_title">Dib ma loo bilaabaa dareemaha?</string>
-    <string name="anytime_restart_warning">Ma la dhammeeyaa kulanka gudbiyaha hadda oo la bilaabaa wareeg lammaanayn cusub? Taariikhda gulukooska ee jirta waxay ku sii jiri doontaa abka.</string>
-    <string name="anytime_history_action">Taariikh</string>
-    <string name="nightscout_follow_interval_title">Hubi qiimayaal cusub</string>
-    <string name="nightscout_follow_interval_desc">Inta jeer ee raacuhu weydiiyo server-ka. Waxay sidoo kale tahay sida uu qiime u duugoobi karo, sidaas darteedna sida uu digniin ku salaysan qiime la raacayo u soo daahi karto. Raacuhu ma laha dareeme u gaar ah oo taleefanka soo jeeda ka dhiga, sidaas darteed hubin kastaa waa toosin.</string>
-    <string name="nightscout_follow_interval_doze">Ka hooseeya 9 daqiiqo, Android weli wuu kala fogayn karaa hubinnada inta taleefanku shaqo la\'yahay. In Juggluco laga saaro wanaajinta baytariga waxay ilaalinaysaa waqtiga aad dooratay.</string>
 </resources>
