@@ -89,7 +89,9 @@ static public final String LOG_ID="Talker";
 
 static    private float curpitch=1.0f;
 static  private float curspeed=1.0f;
-static private    long   cursep=50*1000L;
+// volatile: written on the UI thread by the settings dialog, read on the BLE callback thread
+// by selspeak(). A non-volatile long has neither atomicity (JLS 17.7) nor visibility.
+static private volatile long cursep=50*1000L;
 static private int voicepos=-1;
 static private String playstring=null;
 static private Spinner spinner=null;
@@ -506,55 +508,129 @@ private static void ensureMinStreamVolume() {
     }
 }
 
-public void speak(String message) {
+/**
+ * Hand an utterance to the engine.
+ *
+ * @return true only when the engine accepted it, i.e. when an
+ *         {@link UtteranceProgressListener} callback is guaranteed to follow. Callers that
+ *         ration announcements must not charge the separation interval for an utterance that
+ *         never reached the engine (see {@link #selspeak}), and callers holding transient audio
+ *         focus must release it themselves on false.
+ */
+public boolean speak(String message) {
     if(!DontTalk) {
         try {
             ensureMinStreamVolume();
-            if(
-                    ((android.os.Build.VERSION.SDK_INT >= 21)?
-                    engine.speak(message, TextToSpeech.QUEUE_FLUSH, null,message):
-                            engine.speak(message, TextToSpeech.QUEUE_FLUSH, null)) ==TextToSpeech.SUCCESS)
-
-
-            {
+            int speakResult=(android.os.Build.VERSION.SDK_INT >= 21)
+                    ? engine.speak(message, TextToSpeech.QUEUE_FLUSH, null,message)
+                    : engine.speak(message, TextToSpeech.QUEUE_FLUSH, null);
+            if(speakResult==TextToSpeech.SUCCESS) {
+                health.record(true,engineReady);
                 if(doLog) {Log.i(LOG_ID,"success speak "+message);}
+                return true;
                 }
              else {
-                Log.e(LOG_ID,"failed speak "+message);
+                health.record(false,engineReady);
+                Log.e(LOG_ID,"failed speak "+message+" consecutiveFailures="+health.consecutiveFailures());
                 }
             }
         catch(Throwable th) {
+            // A dead/unbound TTS engine can fail by throwing (e.g. a dead Binder) rather than
+            // returning a non-SUCCESS result - count it the same way, or needsReinit() never
+            // trips for that failure mode.
+            health.record(false,engineReady);
             Log.stack(LOG_ID,"speak failed",th);
             }
         }
+    return false;
+    }
+
+// Tracks real engine health, as opposed to istalking() which only checks that
+// SuperGattCallback.talker is non-null. A talker object surviving a TTS-service disconnect
+// (e.g. com.google.android.tts auto-updating overnight, which unbinds the TextToSpeech
+// connection permanently until reconstructed) still passes istalking(), so nothing ever healed
+// it. Observed in the field: "TextToSpeech: Disconnected from TTS engine" once after a
+// com.google.android.tts package REPLACE, then 172 consecutive "failed speak"/"not bound to TTS
+// engine" results with zero recovery over 4+ days. Refusals before onInit are not counted -
+// see SpeakHealth.record().
+private final SpeakHealth health=new SpeakHealth();
+/** How long selspeak() defers after an utterance the engine would not take. Short enough that
+ *  the next reading retries, so a failed attempt costs one reading rather than one whole
+ *  user-configured separation interval. */
+private static final long FAILED_SPEAK_RETRY_MS=30_000L;
+
+/** True once repeated real speak failures show the engine is dead and must be reconstructed. */
+public boolean needsReinit() {
+    return health.needsReinit();
     }
 static boolean notifyfocus=false;
 //private static final AudioAttributes notification_audio = (new AudioAttributes.Builder()) .setLegacyStreamType(TextToSpeech.Engine.DEFAULT_STREAM) .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) .build(); 
 //private static final AudioAttributes notification_audio =(android.os.Build.VERSION.SDK_INT >= 21)?new AudioAttributes.Builder().setUsage(isWearable? USAGE_ASSISTANCE_SONIFICATION:USAGE_NOTIFICATION ) .build():null;
 //private static final AudioAttributes notification_audio = notification_audio;
-public void speak(String message, AudioAttributes attr) {
-if(!DontTalk) {
-    if(android.os.Build.VERSION.SDK_INT >= minandroid) {
-        if(attr!=notification_audio) {
-            engine.setAudioAttributes(attr);
-           }
-           }
-    
-//    engine.speak(message, TextToSpeech.QUEUE_FLUSH, null);
-    speak(message);
-    if(android.os.Build.VERSION.SDK_INT >= minandroid) {
-        if(attr!=notification_audio)
-            engine.setAudioAttributes(notification_audio);
+/**
+ * Speak with a one-shot audio-attribute override, restoring {@link Notify#notification_audio}
+ * afterwards. This is the overload the alarm path uses.
+ *
+ * <p>Reads {@code engine} into a local: {@link #destruct} nulls it from another thread, so the
+ * two setAudioAttributes() calls bracketing the utterance could each dereference null while an
+ * alarm was being announced. The single-argument {@link #speak(String)} swallows that in its own
+ * try/catch; this overload did not, so the throw escaped onto the caller's thread - for
+ * {@link Notify} that is a scheduler thread mid-alarm.
+ *
+ * @return true only when the engine accepted the utterance. See {@link #speak(String)}.
+ */
+public boolean speak(String message, AudioAttributes attr) {
+    if(DontTalk)
+        return false;
+    final TextToSpeech gine=engine;
+    if(gine==null) {
+        Log.e(LOG_ID,"speak(message,attr): engine already shut down, dropping \""+message+"\"");
+        return false;
+        }
+    final boolean override=android.os.Build.VERSION.SDK_INT >= minandroid && attr!=notification_audio;
+    boolean spoken=false;
+    try {
+        if(override) {
+            gine.setAudioAttributes(attr);
+            }
+        spoken=speak(message);
+        }
+    catch(Throwable th) {
+        Log.stack(LOG_ID,"speak(message,attr)",th);
+        }
+    finally {
+        // Restore in a finally: leaving the override in place would apply the alarm's
+        // attributes to every subsequent routine announcement.
+        if(override) {
+            try {
+                gine.setAudioAttributes(notification_audio);
+                }
+            catch(Throwable th) {
+                Log.stack(LOG_ID,"speak(message,attr) restore",th);
+                }
+            }
          }
-         }
+    return spoken;
     }
-static long nexttime=0L;
+// volatile: written and read from the announce path and the settings/UI thread alike.
+volatile static long nexttime=0L;
 void selspeak(String message) {
     if(!DontTalk) {
         var now=System.currentTimeMillis();
         if(now>nexttime && SpeakSchedule.INSTANCE.isWithinSchedule(Applic.app)) {
+            // Claim the slot before speaking, so two readings arriving back to back cannot both
+            // announce - then hand nearly all of it back if the engine refused the utterance.
+            // Charging a failed attempt the full separation interval made the engine-health
+            // check's detection latency scale with a user setting, which is backwards:
+            // SpeakHealth counts announcement *attempts*, and attempts only happen
+            // once per cursep, so a threshold of 2 meant a dead engine went unnoticed
+            // for 2 x cursep - 10 minutes at a 300s separation, 33 minutes at 999s, with every
+            // further failure costing another interval of silence. Retrying on the next reading
+            // instead makes detection ~2 minutes regardless of how the user set the interval.
             nexttime=now+cursep;
-            speak(message);
+            if(!speak(message)) {
+                nexttime=now+Math.min(cursep,FAILED_SPEAK_RETRY_MS);
+                }
             }
           }
     }

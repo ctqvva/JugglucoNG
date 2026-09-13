@@ -376,13 +376,69 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             glucosealarms = new tk.glucodata.GlucoseAlarms(Applic.app);
         if (!DontTalk) {
             Talker.getvalues();
-            if (Talker.shouldtalk())
-                newtalker(null);
+            // Only (re)create the shared Talker/TextToSpeech if none exists yet, or if the
+            // existing one is demonstrably dead. This watchdog fires roughly every
+            // glucosetimeout while a sensor/data-loss condition persists (potentially dozens of
+            // times per hour), and unconditionally recreating the engine here was
+            // destroying+rebuilding the SAME talker instance the normal periodic announcer
+            // speaks through - silencing announcements for the whole outage and sometimes
+            // leaving the engine mid-reinit exactly when data resumed. Confirmed in traces:
+            // LossOfSensorAlarm onReceive -> new TextToSpeech -> onInit repeating every ~60s,
+            // zero successful speaks for the entire outage, including stretches where fresh
+            // glucose readings kept arriving the whole time.
+            if (Talker.shouldtalk()) {
+                // istalking() alone only proves the object reference is non-null; it says
+                // nothing about whether the underlying TextToSpeech is actually bound. A talker
+                // that has racked up repeated real speak failures (see Talker.needsReinit()) is
+                // just as dead as a null one and needs the same recreate.
+                //
+                // `talker` is a plain static field that endtalk() can null from another thread
+                // at any time - read it into a local once so the null-check and the
+                // needsReinit() call see the same reference.
+                final Talker currentTalker = talker;
+                if (currentTalker == null) {
+                    newtalker(null);
+                } else if (!recreateForHealth(currentTalker)) {
+                    // This is also the profile-switch hook (Talker.config, Settings alarm
+                    // profiles, NumAlarm's scheduled switch): voice speed, pitch and speaker
+                    // are per profile, and getvalues() above just reloaded them. The old
+                    // unconditional recreate applied them via onInit; now that the engine is
+                    // kept, push them into it here.
+                    currentTalker.setvalues();
+                    currentTalker.setvoice();
+                    if (doLog)
+                        Log.i(LOG_ID, "initAlarmTalk: talker already active, applied values");
+                }
+            }
         }
     }
 
+    // When the last health-driven recreate happened (0 = never). Health recreates are
+    // rate-limited by SpeakHealth.RECREATE_FLOOR_MS so a TTS service that never binds is not
+    // reconstructed every couple of readings forever.
+    private static volatile long lastHealthRecreateMs = 0L;
+
+    /**
+     * Recreate {@code current} if it reports itself dead and the floor since the last such
+     * recreate has elapsed. Returns true when a recreate happened.
+     */
+    static boolean recreateForHealth(Talker current) {
+        if (!current.needsReinit())
+            return false;
+        final long now = System.currentTimeMillis();
+        if (!SpeakHealth.recreateAllowed(lastHealthRecreateMs, now)) {
+            if (doLog)
+                Log.i(LOG_ID, "talker needsReinit but recreate floor not elapsed, keeping it");
+            return false;
+        }
+        lastHealthRecreateMs = now;
+        newtalker(null);
+        return true;
+    }
+
     static Talker talker;
-    static boolean dotalk = false;
+    // volatile: flipped from the settings/UI thread, read on the BLE callback thread.
+    static volatile boolean dotalk = false;
 
     static void newtalker(Context context) {
         if (!DontTalk) {
@@ -654,11 +710,33 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
         if (!DontTalk) {
             if (dotalk && !alarmSpeechStarted) {
-                // Speak the calibrated display value (same source as the display,
-                // notifications, and alarm speech) rather than the raw native value.
-                final CurrentDisplaySource.Snapshot speakcurrent =
-                        CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
-                talker.selspeak(speakcurrent != null ? speakcurrent.getSpeechPrimaryStr() : sglucose.value);
+                // `talker` is a plain static field that endtalk() can null from another thread
+                // between the dotalk check and the deref - read it into a local once.
+                final Talker currentTalker = talker;
+                if (currentTalker == null) {
+                    Log.e(LOG_ID, "periodic-speak-gate: dotalk set but no talker - creating");
+                    newtalker(null);
+                } else if (recreateForHealth(currentTalker)) {
+                    // Heal a talker that is non-null but actually dead (e.g. the shared
+                    // TextToSpeech got unbound by a com.google.android.tts update and never
+                    // reconnected) here, on the normal announce cadence, rather than waiting on
+                    // the much rarer LossOfSensorAlarm watchdog in initAlarmTalk() to notice.
+                    //
+                    // Skip speaking this cycle: the replacement's TextToSpeech binds
+                    // asynchronously (onInit), so speaking immediately would very likely fail
+                    // while it is still initializing. The next reading (normally ~1 minute
+                    // later) finds a bound engine and speaks normally. If the recreate floor
+                    // blocked the recreate we fall through and keep trying to speak: a refused
+                    // utterance costs nothing, and a success resets the health counter.
+                    Log.e(LOG_ID, "periodic-speak-gate: talker needsReinit, recreated"
+                            + " and skipping speak this cycle");
+                } else {
+                    // Speak the calibrated display value (same source as the display,
+                    // notifications, and alarm speech) rather than the raw native value.
+                    final CurrentDisplaySource.Snapshot speakcurrent =
+                            CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
+                    currentTalker.selspeak(speakcurrent != null ? speakcurrent.getSpeechPrimaryStr() : sglucose.value);
+                }
             }
         }
         if (isWearable) {

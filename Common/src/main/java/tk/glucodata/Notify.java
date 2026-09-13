@@ -1884,8 +1884,12 @@ public class Notify {
         if (!DontTalk) {
             if (glucosealarm && Natives.speakalarms()) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
-                if (current != null) {
-                    SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
+                // Read the static into a local before dereferencing it: endtalk() nulls
+                // SuperGattCallback.talker from another thread, and it is null until the first
+                // newtalker(). Every other call site already guards; the alarm path did not.
+                final Talker alarmTalker = SuperGattCallback.talker;
+                if (current != null && alarmTalker != null) {
+                    alarmTalker.speak(current.getSpeechPrimaryStr(),
                             disturb ? ScanNfcV.audioattributes : notification_audio);
                 }
             }
@@ -1969,8 +1973,28 @@ public class Notify {
                         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                         if (current != null) {
                             Applic.scheduler.schedule(
-                                    () -> SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
-                                            disturb ? ScanNfcV.audioattributes : notification_audio),
+                                    () -> {
+                                        // Resolve the talker inside the lambda, not at schedule
+                                        // time: endtalk() has this whole 300ms delay in which to
+                                        // null the field, which would throw on the scheduler
+                                        // thread mid-alarm.
+                                        final Talker delayedTalker = SuperGattCallback.talker;
+                                        if (delayedTalker == null) {
+                                            Log.e(LOG_ID, "alarm speech: no talker, dropping utterance");
+                                            doTurnFocusoff();
+                                            return;
+                                        }
+                                        // Release focus if the engine refused the utterance too:
+                                        // a false return means nothing was queued, so no
+                                        // onDone/onError will arrive to release it for us.
+                                        // notifyfocus is false here, so the listener - not the
+                                        // alarm stop path - is what would otherwise own this.
+                                        if (!delayedTalker.speak(current.getSpeechPrimaryStr(),
+                                                disturb ? ScanNfcV.audioattributes : notification_audio)) {
+                                            Log.e(LOG_ID, "alarm speech: engine refused utterance");
+                                            doTurnFocusoff();
+                                        }
+                                    },
                                     300, TimeUnit.MILLISECONDS);
                         } else
                             doTurnFocusoff();
