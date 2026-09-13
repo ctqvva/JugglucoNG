@@ -1340,8 +1340,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="only_alert_during_hours">Only alert during selected hours</string>
     <string name="other_alerts">Sensor and connection</string>
     <string name="predictive_alerts">Trends and forecasts</string>
-    <string name="preemptive_snooze">Preemptive Snooze</string>
-    <string name="preemptive_snooze_desc">Snooze alerts before they trigger</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
@@ -3014,8 +3012,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">Not set. Weight-indexed curves use their reference dose.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Quiet window</string>
-    <string name="quiet_window_desc">Silence alarms for a while; it ends by itself</string>
-    <string name="quiet_window_inactive">Alarms sound as usual</string>
     <string name="quiet_window_active_until">Alarms silent until %1$s</string>
     <string name="quiet_window_chip">Silent until %1$s</string>
     <string name="quiet_window_mode_title">During the window</string>
@@ -3025,9 +3021,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">No sound and no vibration – the less safe choice</string>
     <string name="quiet_window_start_for">Start for</string>
     <string name="quiet_window_preset_until">Until…</string>
-    <string name="quiet_window_until_i_end">Until I end it</string>
-    <string name="quiet_window_until_i_end_desc">Ends by itself after 24 hours at the latest</string>
-    <string name="quiet_window_very_low_note">Silenced alarms keep their notification and, in vibrate-only mode, their vibration. One that stays active and unacknowledged longer than the set time sounds anyway. Low and very low always sound again after the set time.</string>
     <string name="quiet_window_end_now">End now</string>
     <string name="quiet_window_ended_title">Alarms active again</string>
     <string name="quiet_window_ended_text">The quiet window has ended.</string>
@@ -3052,5 +3045,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
     <string name="same_direction_suppression_title">Quiet period after a trend alert</string>
-    <string name="same_direction_suppression_summary">After you dismiss or snooze one falling or rising alert, other alerts of the same direction stay quiet for this long. Low, very low and very high always fire.</string>
+    <string name="same_direction_suppression_summary">After you dismiss or snooze a rising or falling alert, others in that direction wait this long. Lows and very highs never wait.</string>
 </resources>

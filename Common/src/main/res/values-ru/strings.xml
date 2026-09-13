@@ -748,8 +748,6 @@
     <string name="only_alert_during_hours">Оповещать только в выбранные часы</string>
     <string name="other_alerts">Датчик и соединение</string>
     <string name="predictive_alerts">Тренды и прогнозы</string>
-    <string name="preemptive_snooze">Упреждающая отсрочка</string>
-    <string name="preemptive_snooze_desc">Откладывать оповещения до срабатывания</string>
     <string name="notification_dismiss_action_dismiss">Закрыть</string>
     <string name="notification_dismiss_action_snooze">Отложить</string>
     <string name="realert_if_not_dismissed">Повторять, если не отклонено</string>
@@ -2818,8 +2816,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">Не задано. Кривые, зависящие от массы, используют эталонную дозу.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Тихое окно</string>
-    <string name="quiet_window_desc">Приглушить сигналы на время; заканчивается само</string>
-    <string name="quiet_window_inactive">Сигналы звучат как обычно</string>
     <string name="quiet_window_active_until">Сигналы без звука до %1$s</string>
     <string name="quiet_window_chip">Без звука до %1$s</string>
     <string name="quiet_window_mode_title">Во время окна</string>
@@ -2829,9 +2825,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">Без звука и без вибрации – менее безопасный выбор</string>
     <string name="quiet_window_start_for">Запустить на</string>
     <string name="quiet_window_preset_until">До…</string>
-    <string name="quiet_window_until_i_end">Пока я не закончу</string>
-    <string name="quiet_window_until_i_end_desc">Заканчивается само не позже чем через 24 часа</string>
-    <string name="quiet_window_very_low_note">Заглушённые сигналы сохраняют уведомление и, в режиме только вибрации, вибрацию. Тот, что остаётся активным и без ответа дольше заданного времени, всё равно прозвучит. Низкий и очень низкий после заданного времени прозвучат снова всегда.</string>
     <string name="quiet_window_end_now">Закончить сейчас</string>
     <string name="quiet_window_ended_title">Сигналы снова активны</string>
     <string name="quiet_window_ended_text">Тихое окно закончилось.</string>
@@ -2856,5 +2849,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
     <string name="alert_feature_off">Выкл.</string>
     <string name="same_direction_suppression_title">Тихий период после сигнала о тренде</string>
-    <string name="same_direction_suppression_summary">После отклонения или отсрочки сигнала о падении или росте другие сигналы того же направления молчат в течение этого времени. Низкий, очень низкий и очень высокий срабатывают всегда.</string>
+    <string name="same_direction_suppression_summary">После отклонения или отсрочки сигнала о росте или падении другие в том же направлении ждут это время. Низкий и очень высокий не ждут никогда.</string>
 </resources>

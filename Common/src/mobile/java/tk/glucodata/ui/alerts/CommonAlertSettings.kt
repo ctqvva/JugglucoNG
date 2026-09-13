@@ -136,70 +136,78 @@ fun CommonAlertSettings(
             )
         }
 
-        // === Sound Settings (Conditional) ===
-        AnimatedVisibility(visible = config.soundEnabled) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Alert Sound Picker
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable { onPickSound(config) }
-                        .padding(horizontal = sectionHorizontalPadding, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+        // Rows carry their own height and padding; no gap between them, or the
+        // list reads as a stack of islands.
+        Column {
+            // === Sound Settings (Conditional) ===
+            AnimatedVisibility(visible = config.soundEnabled) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.alert_sound),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                    // Alert Sound Picker
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable { onPickSound(config) }
+                            .padding(horizontal = sectionHorizontalPadding, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            getSoundDisplayText(config.customSoundUri, config.type.id),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.alert_sound),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                getSoundDisplayText(config.customSoundUri, config.type.id),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-
             }
-        }
 
-        // The two things people come back to: does it get through silent mode,
-        // and when is it allowed to fire at all.
-        AnimatedVisibility(visible = config.soundEnabled) {
-            ClickableToggleRow(
-                title = stringResource(R.string.override_silent_mode),
-                subtitle = stringResource(R.string.override_silent_mode_desc),
-                checked = config.overrideDND,
-                onCheckedChange = { onConfigChange(config.copy(overrideDND = it)) }
+            // The two things people come back to: does it get through silent mode,
+            // and when is it allowed to fire at all.
+            AnimatedVisibility(visible = config.soundEnabled) {
+                ClickableToggleRow(
+                    title = stringResource(R.string.override_silent_mode),
+                    subtitle = stringResource(R.string.override_silent_mode_desc),
+                    checked = config.overrideDND,
+                    onCheckedChange = { onConfigChange(config.copy(overrideDND = it)) }
+                )
+            }
+            TimeRangeSettings(
+                enabled = config.timeRangeEnabled,
+                startHour = config.activeStartHour,
+                startMinute = config.activeStartMinute,
+                endHour = config.activeEndHour,
+                endMinute = config.activeEndMinute,
+                onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
+                onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
+                onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
+            )
+
+            // === Advanced: collapsed, one row, everything set once and left alone ===
+            AdvancedSectionHeader(
+                expanded = advancedExpanded,
+                onToggle = { advancedExpanded = !advancedExpanded }
             )
         }
-        TimeRangeSettings(
-            enabled = config.timeRangeEnabled,
-            startHour = config.activeStartHour,
-            startMinute = config.activeStartMinute,
-            endHour = config.activeEndHour,
-            endMinute = config.activeEndMinute,
-            onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
-            onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
-            onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
-        )
-
-        // === Advanced: collapsed, one row, everything set once and left alone ===
-        AdvancedSectionHeader(
-            expanded = advancedExpanded,
-            onToggle = { advancedExpanded = !advancedExpanded }
-        )
         AnimatedVisibility(visible = advancedExpanded) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 // === Intensity: soft to escalating ===
@@ -259,6 +267,7 @@ fun CommonAlertSettings(
                     )
                 }
 
+                Column {
                 // === Sound delay (vibrate first, audio after N seconds) ===
                 // Only meaningful when both sound and vibration are on: otherwise there
                 // is nothing to delay, or a silent gap with no signal at all.
@@ -315,6 +324,7 @@ fun CommonAlertSettings(
                     onIntervalChange = { onConfigChange(config.copy(retryIntervalMinutes = it)) },
                     onCountChange = { onConfigChange(config.copy(retryCount = it)) }
                 )
+                }
 
                 // === Snooze ===
                 DurationSlider(
@@ -332,25 +342,21 @@ fun CommonAlertSettings(
     }
 }
 
-/** The "Advanced" row: a chevron that turns, nothing else - it is not a setting. */
+/**
+ * The "Advanced" row inside a card body: text on the body's own left edge, a
+ * chevron that turns, nothing else - it is not a setting.
+ */
 @Composable
-private fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit) {
+internal fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "advancedChevron")
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clickable(onClick = onToggle)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Default.Tune,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(16.dp))
         Text(
             stringResource(R.string.advanced),
             style = MaterialTheme.typography.bodyMedium,

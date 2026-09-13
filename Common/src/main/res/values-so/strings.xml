@@ -1270,8 +1270,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="only_alert_during_hours">Kaliya digtoonow saacadaha la doortay</string>
     <string name="other_alerts">Dareemaha iyo xiriirka</string>
     <string name="predictive_alerts">Isbeddellada iyo saadaasha</string>
-    <string name="preemptive_snooze">Hurdo ka horraysa</string>
-    <string name="preemptive_snooze_desc">Hurdo digniinaha ka hor inta aysan kicin</string>
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
@@ -2970,8 +2968,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_body_weight_not_set">Lama dejin. Qaloocyada miisaanka ku xiran waxay adeegsadaan qiyaasta tixraaca.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Daaqad aamusnaan</string>
-    <string name="quiet_window_desc">Aamusi digniinaha muddo; iskeed bay u dhammaataa</string>
-    <string name="quiet_window_inactive">Digniinuhu sidii caadiga ahayd ayay u dhawaaqaan</string>
     <string name="quiet_window_active_until">Digniinaha aamusan ilaa %1$s</string>
     <string name="quiet_window_chip">Aamusan ilaa %1$s</string>
     <string name="quiet_window_mode_title">Inta daaqaddu socoto</string>
@@ -2981,9 +2977,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="quiet_window_mode_notification_only_desc">Cod iyo gariir midna – doorashada ammaanka yar</string>
     <string name="quiet_window_start_for">Bilow muddo</string>
     <string name="quiet_window_preset_until">Ilaa…</string>
-    <string name="quiet_window_until_i_end">Ilaa aan dhammeeyo</string>
-    <string name="quiet_window_until_i_end_desc">Ugu dambayn 24 saac ka dib iskeed bay u dhammaataa</string>
-    <string name="quiet_window_very_low_note">Digniinaha la aamusiiyey waxay haystaan ogeysiiskooda iyo, habka gariir-keliya, gariirkooda. Mid ka sii shaqaysa oo aan laga jawaabin wakhtiga la dejiyey way dhawaaqaysaa si kastaba. Hooseeya iyo aad u hooseeya had iyo jeer way dhawaaqaan wakhtiga la dejiyey ka dib.</string>
     <string name="quiet_window_end_now">Hadda dhammee</string>
     <string name="quiet_window_ended_title">Digniinaha mar kale way shaqaynayaan</string>
     <string name="quiet_window_ended_text">Daaqaddii aamusnaanta way dhammaatay.</string>
@@ -3008,5 +3001,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
     <string name="alert_feature_off">Damman</string>
     <string name="same_direction_suppression_title">Muddo aamusan digniin isbeddel ka dib</string>
-    <string name="same_direction_suppression_summary">Ka dib markaad diiddo ama dib u dhigto digniin hoos u dhac ama kor u kac, digniinaha kale ee isku jihada ah waxay aamusnaadaan muddadan. Hooseeya, aad u hooseeya iyo aad u sarreeya had iyo jeer way dhacaan.</string>
+    <string name="same_direction_suppression_summary">Ka dib markaad diiddo ama dib u dhigto digniin kor u kac ama hoos u dhac, kuwa kale ee jihadaas waxay sugaan muddadan. Hooseeya iyo aad u sarreeya weligood ma sugaan.</string>
 </resources>

@@ -717,8 +717,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="only_alert_during_hours">Nur während ausgewählter Stunden alarmieren</string>
     <string name="other_alerts">Sensor und Verbindung</string>
     <string name="predictive_alerts">Trends und Vorhersagen</string>
-    <string name="preemptive_snooze">Vorbeugendes Schlummern</string>
-    <string name="preemptive_snooze_desc">Alarme vor dem Auslösen schlummern</string>
     <string name="notification_dismiss_action_dismiss">Verwerfen</string>
     <string name="notification_dismiss_action_snooze">Schlummern</string>
     <string name="realert_if_not_dismissed">Erneut alarmieren, wenn nicht verworfen</string>
@@ -2811,8 +2809,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_body_weight_not_set">Nicht festgelegt. Gewichtsabhängige Kurven verwenden ihre Referenzdosis.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Ruhefenster</string>
-    <string name="quiet_window_desc">Alarme eine Weile stummschalten; endet von selbst</string>
-    <string name="quiet_window_inactive">Alarme tönen wie gewohnt</string>
     <string name="quiet_window_active_until">Alarme stumm bis %1$s</string>
     <string name="quiet_window_chip">Stumm bis %1$s</string>
     <string name="quiet_window_mode_title">Während des Fensters</string>
@@ -2822,9 +2818,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="quiet_window_mode_notification_only_desc">Kein Ton und keine Vibration – die unsicherere Wahl</string>
     <string name="quiet_window_start_for">Starten für</string>
     <string name="quiet_window_preset_until">Bis…</string>
-    <string name="quiet_window_until_i_end">Bis ich es beende</string>
-    <string name="quiet_window_until_i_end_desc">Endet spätestens nach 24 Stunden von selbst</string>
-    <string name="quiet_window_very_low_note">Stummgeschaltete Alarme behalten ihre Benachrichtigung und, im Modus „Nur Vibration“, ihre Vibration. Bleibt einer länger als die eingestellte Zeit aktiv und unbeantwortet, ertönt er trotzdem. Niedrig und sehr niedrig ertönen nach der eingestellten Zeit immer wieder.</string>
     <string name="quiet_window_end_now">Jetzt beenden</string>
     <string name="quiet_window_ended_title">Alarme wieder aktiv</string>
     <string name="quiet_window_ended_text">Das Ruhefenster ist beendet.</string>
@@ -2849,5 +2842,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="pre_high_iob_coverage_label">Insulindeckung</string>
     <string name="alert_feature_off">Aus</string>
     <string name="same_direction_suppression_title">Ruhezeit nach einem Trendalarm</string>
-    <string name="same_direction_suppression_summary">Nachdem du einen fallenden oder steigenden Alarm verworfen oder pausiert hast, bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
+    <string name="same_direction_suppression_summary">Nachdem du einen steigenden oder fallenden Alarm verworfen oder pausiert hast, warten andere in dieser Richtung so lange. Niedrig und sehr hoch warten nie.</string>
 </resources>

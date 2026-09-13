@@ -525,8 +525,6 @@
     <string name="only_alert_during_hours">Alertar somente durante as horas selecionadas</string>
     <string name="other_alerts">Sensor e ligação</string>
     <string name="predictive_alerts">Tendências e previsões</string>
-    <string name="preemptive_snooze">Soneca preventiva</string>
-    <string name="preemptive_snooze_desc">Adiar alertas antes de dispararem</string>
     <string name="notification_dismiss_action_dismiss">Dispensar</string>
     <string name="notification_dismiss_action_snooze">Adiar</string>
     <string name="realert_if_not_dismissed">Alertar novamente se nao descartado</string>
@@ -2773,8 +2771,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">Não definido. As curvas indexadas pelo peso usam a dose de referência.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Janela de silêncio</string>
-    <string name="quiet_window_desc">Silenciar os alarmes por um tempo; termina sozinha</string>
-    <string name="quiet_window_inactive">Os alarmes tocam normalmente</string>
     <string name="quiet_window_active_until">Alarmes em silêncio até %1$s</string>
     <string name="quiet_window_chip">Silêncio até %1$s</string>
     <string name="quiet_window_mode_title">Durante a janela</string>
@@ -2784,9 +2780,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">Sem som nem vibração – a escolha menos segura</string>
     <string name="quiet_window_start_for">Iniciar por</string>
     <string name="quiet_window_preset_until">Até…</string>
-    <string name="quiet_window_until_i_end">Até eu terminar</string>
-    <string name="quiet_window_until_i_end_desc">Termina sozinha no máximo após 24 horas</string>
-    <string name="quiet_window_very_low_note">Os alarmes silenciados mantêm a notificação e, no modo só vibração, a vibração. Um que continue ativo e sem resposta por mais tempo do que o definido toca na mesma. Baixo e muito baixo voltam sempre a tocar após o tempo definido.</string>
     <string name="quiet_window_end_now">Terminar agora</string>
     <string name="quiet_window_ended_title">Alarmes ativos de novo</string>
     <string name="quiet_window_ended_text">A janela de silêncio terminou.</string>
@@ -2811,5 +2804,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Cobertura de insulina</string>
     <string name="alert_feature_off">Desligado</string>
     <string name="same_direction_suppression_title">Período de silêncio após um alerta de tendência</string>
-    <string name="same_direction_suppression_summary">Depois de dispensar ou adiar um alerta de descida ou subida, os outros alertas na mesma direção ficam em silêncio durante este tempo. Baixo, muito baixo e muito alto disparam sempre.</string>
+    <string name="same_direction_suppression_summary">Depois de dispensar ou adiar um alerta de subida ou descida, os outros nessa direção esperam este tempo. Baixo e muito alto nunca esperam.</string>
 </resources>

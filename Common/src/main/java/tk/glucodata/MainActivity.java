@@ -573,7 +573,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // press, or a notification carrying a route. The Compose host navigates
             // once it is composed, so this also works from a cold start.
             if ("android.service.quicksettings.action.QS_TILE_PREFERENCES".equals(intent.getAction())) {
-                tk.glucodata.ui.PendingNavigation.request("settings/alerts/quiet-window");
+                tk.glucodata.ui.PendingNavigation.request("settings/alerts");
                 return;
             }
             final String route = intent.getStringExtra(tk.glucodata.ui.PendingNavigation.EXTRA_ROUTE);

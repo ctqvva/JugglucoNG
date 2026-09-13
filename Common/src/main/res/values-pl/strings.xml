@@ -700,8 +700,6 @@
     <string name="only_alert_during_hours">Alarmuj tylko w wybranych godzinach</string>
     <string name="other_alerts">Czujnik i połączenie</string>
     <string name="predictive_alerts">Trendy i prognozy</string>
-    <string name="preemptive_snooze">Wstepne odlozenie</string>
-    <string name="preemptive_snooze_desc">Odkładaj alarmy zanim sie uruchomia</string>
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
@@ -2810,8 +2808,6 @@
     <string name="journal_body_weight_not_set">Nie ustawiono. Krzywe zależne od masy używają dawki referencyjnej.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Okno ciszy</string>
-    <string name="quiet_window_desc">Wycisz alarmy na jakiś czas; kończy się samo</string>
-    <string name="quiet_window_inactive">Alarmy dzwonią jak zwykle</string>
     <string name="quiet_window_active_until">Alarmy wyciszone do %1$s</string>
     <string name="quiet_window_chip">Cisza do %1$s</string>
     <string name="quiet_window_mode_title">W czasie okna</string>
@@ -2821,9 +2817,6 @@
     <string name="quiet_window_mode_notification_only_desc">Bez dźwięku i bez wibracji – mniej bezpieczny wybór</string>
     <string name="quiet_window_start_for">Uruchom na</string>
     <string name="quiet_window_preset_until">Do…</string>
-    <string name="quiet_window_until_i_end">Aż je zakończę</string>
-    <string name="quiet_window_until_i_end_desc">Kończy się samo najpóźniej po 24 godzinach</string>
-    <string name="quiet_window_very_low_note">Wyciszone alarmy zachowują powiadomienie i, w trybie tylko wibracji, wibrację. Alarm, który pozostaje aktywny i bez reakcji dłużej niż ustawiony czas, i tak zadzwoni. Niski i bardzo niski po ustawionym czasie zawsze dzwonią ponownie.</string>
     <string name="quiet_window_end_now">Zakończ teraz</string>
     <string name="quiet_window_ended_title">Alarmy znów aktywne</string>
     <string name="quiet_window_ended_text">Okno ciszy się skończyło.</string>
@@ -2848,5 +2841,5 @@
     <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
     <string name="alert_feature_off">Wył.</string>
     <string name="same_direction_suppression_title">Cisza po alarmie trendu</string>
-    <string name="same_direction_suppression_summary">Po odrzuceniu lub odroczeniu alarmu o spadku lub wzroście inne alarmy w tym samym kierunku milczą przez ten czas. Niski, bardzo niski i bardzo wysoki zawsze się włączają.</string>
+    <string name="same_direction_suppression_summary">Po odrzuceniu lub odroczeniu alarmu o wzroście lub spadku inne w tym kierunku czekają tyle czasu. Niski i bardzo wysoki nigdy nie czekają.</string>
 </resources>

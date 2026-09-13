@@ -625,8 +625,6 @@
     <string name="only_alert_during_hours">Varna endast under valda timmar</string>
     <string name="other_alerts">Sensor och anslutning</string>
     <string name="predictive_alerts">Trender och prognoser</string>
-    <string name="preemptive_snooze">Forebyggande snooze</string>
-    <string name="preemptive_snooze_desc">Snooza varningar innan de utloses</string>
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>
@@ -2772,8 +2770,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">Inte angiven. Viktindexerade kurvor använder referensdosen.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Tyst fönster</string>
-    <string name="quiet_window_desc">Tysta larmen ett tag; avslutas av sig självt</string>
-    <string name="quiet_window_inactive">Larmen låter som vanligt</string>
     <string name="quiet_window_active_until">Larm tysta till %1$s</string>
     <string name="quiet_window_chip">Tyst till %1$s</string>
     <string name="quiet_window_mode_title">Under fönstret</string>
@@ -2783,9 +2779,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">Varken ljud eller vibration – det mindre säkra valet</string>
     <string name="quiet_window_start_for">Starta i</string>
     <string name="quiet_window_preset_until">Till…</string>
-    <string name="quiet_window_until_i_end">Tills jag avslutar det</string>
-    <string name="quiet_window_until_i_end_desc">Avslutas av sig självt senast efter 24 timmar</string>
-    <string name="quiet_window_very_low_note">Tystade larm behåller sin avisering och, i läget endast vibration, sin vibration. Ett som är aktivt och obesvarat längre än den inställda tiden ljuder ändå. Lågt och mycket lågt ljuder alltid igen efter den inställda tiden.</string>
     <string name="quiet_window_end_now">Avsluta nu</string>
     <string name="quiet_window_ended_title">Larmen aktiva igen</string>
     <string name="quiet_window_ended_text">Det tysta fönstret är över.</string>
@@ -2810,5 +2803,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Insulintäckning</string>
     <string name="alert_feature_off">Av</string>
     <string name="same_direction_suppression_title">Tyst period efter ett trendlarm</string>
-    <string name="same_direction_suppression_summary">När du avfärdar eller skjuter upp ett fallande eller stigande larm är andra larm i samma riktning tysta så här länge. Lågt, mycket lågt och mycket högt larmar alltid.</string>
+    <string name="same_direction_suppression_summary">När du avfärdar eller skjuter upp ett stigande eller fallande larm väntar andra i den riktningen så här länge. Lågt och mycket högt väntar aldrig.</string>
 </resources>

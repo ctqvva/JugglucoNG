@@ -637,8 +637,6 @@
     <string name="only_alert_during_hours">仅在所选时段警报</string>
     <string name="other_alerts">传感器与连接</string>
     <string name="predictive_alerts">趋势与预测</string>
-    <string name="preemptive_snooze">预先稍后提醒</string>
-    <string name="preemptive_snooze_desc">在触发前先暂停警报</string>
     <string name="notification_dismiss_action_dismiss">关闭</string>
     <string name="notification_dismiss_action_snooze">稍后提醒</string>
     <string name="realert_if_not_dismissed">未关闭则再次提醒</string>
@@ -2788,8 +2786,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">未设置。按体重索引的曲线将使用参考剂量。</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">静音时段</string>
-    <string name="quiet_window_desc">让警报安静一段时间；到时自动结束</string>
-    <string name="quiet_window_inactive">警报照常响铃</string>
     <string name="quiet_window_active_until">警报静音至 %1$s</string>
     <string name="quiet_window_chip">静音至 %1$s</string>
     <string name="quiet_window_mode_title">时段期间</string>
@@ -2799,9 +2795,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">无声音也无振动——较不安全的选择</string>
     <string name="quiet_window_start_for">开始，持续</string>
     <string name="quiet_window_preset_until">直到…</string>
-    <string name="quiet_window_until_i_end">直到我结束</string>
-    <string name="quiet_window_until_i_end_desc">最迟 24 小时后自动结束</string>
-    <string name="quiet_window_very_low_note">静音的警报仍保留通知，在仅振动模式下仍会振动。若警报持续活动且未处理超过设定时间，仍会响起。低和极低警报在设定时间后始终会再次响起。</string>
     <string name="quiet_window_end_now">立即结束</string>
     <string name="quiet_window_ended_title">警报已恢复</string>
     <string name="quiet_window_ended_text">静音时段已结束。</string>
@@ -2826,5 +2819,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
     <string name="same_direction_suppression_title">趋势警报后的静默期</string>
-    <string name="same_direction_suppression_summary">关闭或稍后提醒一次下降或上升警报之后，同方向的其他警报在此期间保持静默。低、很低和很高始终会触发。</string>
+    <string name="same_direction_suppression_summary">关闭或稍后提醒一次上升或下降警报后，同方向的其他警报会等待这么久。低和很高从不等待。</string>
 </resources>

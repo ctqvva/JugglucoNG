@@ -714,8 +714,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="only_alert_during_hours">Alleen waarschuwen tijdens geselecteerde uren</string>
     <string name="other_alerts">Sensor en verbinding</string>
     <string name="predictive_alerts">Trends en voorspellingen</string>
-    <string name="preemptive_snooze">Preventieve snooze</string>
-    <string name="preemptive_snooze_desc">Waarschuwingen uitstellen voordat ze afgaan</string>
     <string name="notification_dismiss_action_dismiss">Sluiten</string>
     <string name="notification_dismiss_action_snooze">Snoozen</string>
     <string name="realert_if_not_dismissed">Opnieuw waarschuwen als niet weggeveegd</string>
@@ -2815,8 +2813,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_body_weight_not_set">Niet ingesteld. Gewichtsafhankelijke curven gebruiken hun referentiedosis.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Stiltevenster</string>
-    <string name="quiet_window_desc">Alarmen een tijdje stil; eindigt vanzelf</string>
-    <string name="quiet_window_inactive">Alarmen klinken zoals gewoonlijk</string>
     <string name="quiet_window_active_until">Alarmen stil tot %1$s</string>
     <string name="quiet_window_chip">Stil tot %1$s</string>
     <string name="quiet_window_mode_title">Tijdens het venster</string>
@@ -2826,9 +2822,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_mode_notification_only_desc">Geen geluid en geen trillen – de minder veilige keuze</string>
     <string name="quiet_window_start_for">Starten voor</string>
     <string name="quiet_window_preset_until">Tot…</string>
-    <string name="quiet_window_until_i_end">Tot ik het beëindig</string>
-    <string name="quiet_window_until_i_end_desc">Eindigt uiterlijk na 24 uur vanzelf</string>
-    <string name="quiet_window_very_low_note">Gedempte alarmen houden hun melding en, in de stand alleen trillen, hun trilling. Een alarm dat langer dan de ingestelde tijd actief en onbeantwoord blijft, klinkt alsnog. Laag en zeer laag klinken na de ingestelde tijd altijd opnieuw.</string>
     <string name="quiet_window_end_now">Nu beëindigen</string>
     <string name="quiet_window_ended_title">Alarmen weer actief</string>
     <string name="quiet_window_ended_text">Het stiltevenster is voorbij.</string>
@@ -2853,5 +2846,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="pre_high_iob_coverage_label">Insulinedekking</string>
     <string name="alert_feature_off">Uit</string>
     <string name="same_direction_suppression_title">Stille periode na een trendalarm</string>
-    <string name="same_direction_suppression_summary">Nadat je een dalend of stijgend alarm negeert of uitstelt, blijven andere alarmen in dezelfde richting zo lang stil. Laag, zeer laag en zeer hoog gaan altijd af.</string>
+    <string name="same_direction_suppression_summary">Nadat je een stijgend of dalend alarm negeert of uitstelt, wachten andere in die richting zo lang. Laag en zeer hoog wachten nooit.</string>
 </resources>

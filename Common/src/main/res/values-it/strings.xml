@@ -498,8 +498,6 @@
     <string name="only_alert_during_hours">Avvisa solo nelle ore selezionate</string>
     <string name="other_alerts">Sensore e connessione</string>
     <string name="predictive_alerts">Tendenze e previsioni</string>
-    <string name="preemptive_snooze">Snooze preventivo</string>
-    <string name="preemptive_snooze_desc">Posticipa gli avvisi prima che si attivino</string>
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
@@ -2762,8 +2760,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_body_weight_not_set">Non impostato. Le curve basate sul peso usano la dose di riferimento.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Finestra di silenzio</string>
-    <string name="quiet_window_desc">Silenzia gli allarmi per un po’; termina da sola</string>
-    <string name="quiet_window_inactive">Gli allarmi suonano come al solito</string>
     <string name="quiet_window_active_until">Allarmi silenziati fino alle %1$s</string>
     <string name="quiet_window_chip">Silenzio fino alle %1$s</string>
     <string name="quiet_window_mode_title">Durante la finestra</string>
@@ -2773,9 +2769,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_mode_notification_only_desc">Né suono né vibrazione – la scelta meno sicura</string>
     <string name="quiet_window_start_for">Avvia per</string>
     <string name="quiet_window_preset_until">Fino alle…</string>
-    <string name="quiet_window_until_i_end">Finché non la termino</string>
-    <string name="quiet_window_until_i_end_desc">Termina da sola al più tardi dopo 24 ore</string>
-    <string name="quiet_window_very_low_note">Gli allarmi silenziati mantengono la notifica e, in modalità solo vibrazione, la vibrazione. Uno che resta attivo e senza risposta più a lungo del tempo impostato suona comunque. Basso e molto basso suonano sempre di nuovo dopo il tempo impostato.</string>
     <string name="quiet_window_end_now">Termina ora</string>
     <string name="quiet_window_ended_title">Allarmi di nuovo attivi</string>
     <string name="quiet_window_ended_text">La finestra di silenzio è terminata.</string>
@@ -2800,5 +2793,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
     <string name="alert_feature_off">Disattivato</string>
     <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso di tendenza</string>
-    <string name="same_direction_suppression_summary">Dopo aver ignorato o posticipato un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso e molto alto scattano sempre.</string>
+    <string name="same_direction_suppression_summary">Dopo aver ignorato o posticipato un avviso di salita o discesa, gli altri in quella direzione aspettano questo tempo. Basso e molto alto non aspettano mai.</string>
 </resources>

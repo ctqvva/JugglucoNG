@@ -173,15 +173,9 @@ fun AlertSettingsScreen(
     }
     val customHighs = remember(customAlerts) { customAlerts.filter { it.type == CustomAlertType.HIGH } }
     val customLows = remember(customAlerts) { customAlerts.filter { it.type == CustomAlertType.LOW } }
-    val talkerSummary = listOf(
-        stringResource(R.string.speakglucose),
-//        stringResource(R.string.speakmessages),
-        stringResource(R.string.speakalarms)
-    ).joinToString(" • ")
 
     // Track expanded states
     var expandedType by remember { mutableStateOf<AlertType?>(null) }
-    var showPreemptiveSnooze by remember { mutableStateOf(false) }
     // Track sound picker state (Generic: Current URI + AlertTypeId + Callback)
     var soundPickerRequest by remember { mutableStateOf<Triple<String?, Int, (String?) -> Unit>?>(null) }
     var sameDirectionSuppressionMinutes by remember {
@@ -281,6 +275,12 @@ fun AlertSettingsScreen(
                         }
                     }
                 )
+            }
+
+            // The quiet window: one card, collapsed unless a window runs.
+            item(key = "quiet-window") {
+                QuietWindowCard()
+                Spacer(Modifier.height(8.dp))
             }
 
             // === HIGH ALERTS SECTION ===
@@ -524,53 +524,8 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // === TOOLS: things you do, and places to go ===
-            item(key = "tools") {
-                Spacer(Modifier.height(24.dp))
-                val quietWindowState by tk.glucodata.alerts.QuietWindow.state.collectAsState()
-                val quietWindowSubtitle = if (quietWindowState.active) {
-                    stringResource(
-                        R.string.quiet_window_active_until,
-                        android.text.format.DateFormat.getTimeFormat(context)
-                            .format(java.util.Date(quietWindowState.untilMs))
-                    )
-                } else {
-                    stringResource(R.string.quiet_window_desc)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsItem(
-                        title = stringResource(R.string.preemptive_snooze),
-                        subtitle = stringResource(R.string.preemptive_snooze_desc),
-                        icon = Icons.Default.Snooze,
-                        iconTint = MaterialTheme.colorScheme.primary,
-                        position = SettingsItemPosition.TOP,
-                        onClick = { showPreemptiveSnooze = true }
-                    )
-                    SettingsItem(
-                        title = stringResource(R.string.talker),
-                        subtitle = talkerSummary,
-                        icon = Icons.AutoMirrored.Filled.VolumeUp,
-                        iconTint = MaterialTheme.colorScheme.secondary,
-                        position = SettingsItemPosition.MIDDLE,
-                        onClick = { navController.navigate("settings/alerts/talker") }
-                    )
-                    SettingsItem(
-                        title = stringResource(R.string.quiet_window_title),
-                        subtitle = quietWindowSubtitle,
-                        icon = Icons.Default.DoNotDisturbOn,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = SettingsItemPosition.BOTTOM,
-                        onClick = { navController.navigate("settings/alerts/quiet-window") }
-                    )
-                }
-            }
-
             // Bottom padding
             item(key = "bottom-padding") { Spacer(Modifier.height(100.dp)) }
-        }
-
-        if (showPreemptiveSnooze) {
-            PreemptiveSnoozeDialog(onDismiss = { showPreemptiveSnooze = false })
         }
 
         if (alertToEdit != null) {
@@ -1589,79 +1544,6 @@ internal fun DurationSlider(
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun PreemptiveSnoozeDialog(
-    onDismiss: () -> Unit
-) {
-    var snoozeLow by remember { mutableStateOf(false) }
-    var snoozeHigh by remember { mutableStateOf(false) }
-    var snoozeDuration by remember { mutableStateOf(30) }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Snooze, contentDescription = null) },
-        title = { Text(stringResource(R.string.preemptive_snooze)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    stringResource(R.string.preemptive_snooze_desc),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    FilterChip(
-                        selected = snoozeLow,
-                        onClick = { snoozeLow = !snoozeLow },
-                        label = { Text(stringResource(R.string.low_alerts)) },
-                        leadingIcon = if (snoozeLow) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        } else null
-                    )
-                    FilterChip(
-                        selected = snoozeHigh,
-                        onClick = { snoozeHigh = !snoozeHigh },
-                        label = { Text(stringResource(R.string.high_alerts)) },
-                        leadingIcon = if (snoozeHigh) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        } else null
-                    )
-                }
-                
-                DurationSlider(
-                    label = stringResource(R.string.duration_label),
-                    value = snoozeDuration,
-                    range = 15..120,
-                    stepSize = 15,
-                    onValueChange = { snoozeDuration = it }
-                )
-            }
-        },
-        confirmButton = {
-            FilledTonalButton(
-                onClick = {
-                    if (snoozeLow || snoozeHigh) {
-                        SnoozeManager.preemptiveSnooze(snoozeLow, snoozeHigh, snoozeDuration)
-                    }
-                    onDismiss()
-                },
-                enabled = snoozeLow || snoozeHigh
-            ) {
-                Text(stringResource(R.string.snooze))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
 }
 
 // === NEW: Time Range Settings ===

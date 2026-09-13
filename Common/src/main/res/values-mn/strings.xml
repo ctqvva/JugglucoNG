@@ -1068,8 +1068,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="only_alert_during_hours">Зөвхөн сонгосон цагуудад анхааруулах</string>
     <string name="other_alerts">Мэдрэгч ба холболт</string>
     <string name="predictive_alerts">Чиг хандлага ба таамаглал</string>
-    <string name="preemptive_snooze">Урьдчилан сэргийлэх түр зогсолт</string>
-    <string name="preemptive_snooze_desc">Дохио идэвхжихээс өмнө түр зогсоох</string>
     <string name="realert_if_not_dismissed">Хэрэв хаахгүй бол дахин анхааруулах</string>
     <string name="retry_constantly">Тасралтгүй</string>
     <string name="retry_every">Дахин оролдох давтамж</string>
@@ -2885,8 +2883,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_body_weight_not_set">Тохируулаагүй. Жинд суурилсан муруй лавлагааны тунг ашиглана.</string>
     <!-- Alarm quiet window -->
     <string name="quiet_window_title">Чимээгүй цонх</string>
-    <string name="quiet_window_desc">Сэрүүлгийг түр намсгана; өөрөө дуусна</string>
-    <string name="quiet_window_inactive">Сэрүүлэг ердийнхөөрөө дуугарна</string>
     <string name="quiet_window_active_until">Сэрүүлэг %1$s хүртэл чимээгүй</string>
     <string name="quiet_window_chip">%1$s хүртэл чимээгүй</string>
     <string name="quiet_window_mode_title">Цонхны үеэр</string>
@@ -2896,9 +2892,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="quiet_window_mode_notification_only_desc">Дуу ч, чичиргээ ч үгүй – аюулгүй байдал багатай сонголт</string>
     <string name="quiet_window_start_for">Эхлүүлэх хугацаа</string>
     <string name="quiet_window_preset_until">Хүртэл…</string>
-    <string name="quiet_window_until_i_end">Намайг дуусгах хүртэл</string>
-    <string name="quiet_window_until_i_end_desc">Хамгийн оройтвол 24 цагийн дараа өөрөө дуусна</string>
-    <string name="quiet_window_very_low_note">Дуугүй болгосон сэрүүлэг мэдэгдлээ, зөвхөн чичиргээний горимд чичиргээгээ хадгална. Тогтоосон хугацаанаас удаан идэвхтэй, хариу аваагүй нь ямар ч байсан дуугарна. Бага ба маш бага нь тогтоосон хугацааны дараа үргэлж дахин дуугарна.</string>
     <string name="quiet_window_end_now">Одоо дуусгах</string>
     <string name="quiet_window_ended_title">Сэрүүлэг дахин идэвхтэй</string>
     <string name="quiet_window_ended_text">Чимээгүй цонх дууслаа.</string>
@@ -2923,5 +2916,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
     <string name="same_direction_suppression_title">Чиг хандлагын дохионы дараах чимээгүй хугацаа</string>
-    <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохиог хааж эсвэл хойшлуулсны дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, маш өндөр үргэлж дуугарна.</string>
+    <string name="same_direction_suppression_summary">Өсөх эсвэл буурах дохиог хааж эсвэл хойшлуулсны дараа тэр чиглэлийн бусад нь ийм хугацаа хүлээнэ. Бага ба маш өндөр хэзээ ч хүлээхгүй.</string>
 </resources>
