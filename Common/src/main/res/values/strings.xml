@@ -885,10 +885,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delta_border_above_label">Alarm only above</string>
     <string name="falling_fast_explanation">Warns after %1$d consecutive %2$d-minute intervals each falling by at least %3$s (≈ %4$d min of sustained fall) while the value is at or below %5$s. No prediction, just the raw trend.</string>
     <string name="rising_fast_explanation">Warns after %1$d consecutive %2$d-minute intervals each rising by at least %3$s (≈ %4$d min of sustained rise) while the value is at or above %5$s. No prediction, just the raw trend.</string>
-    <string name="delta_alarm_interval_label">Delta window</string>
-    <string name="delta_alarm_interval_follow">Like Δ readout (currently %1$d min)</string>
+    <string name="delta_alarm_interval_label">Count changes over</string>
+    <string name="delta_alarm_interval_follow">Same as Δ (%1$d min)</string>
     <string name="delta_early_trigger_label">Early trigger</string>
-    <string name="delta_early_trigger_desc">Also fire as soon as the total distance (%1$s %2$s) is covered, no matter how many intervals have passed</string>
+    <string name="delta_early_trigger_desc">Fire as soon as the total change reaches %1$s %2$s, however few readings it took</string>
     <!-- Sensor-expiry pre-warnings -->
     <string name="sensor_expiry_warnings_title">Warn before expiry</string>
     <string name="sensor_expiry_warnings_desc">Each selected time warns once per sensor</string>
@@ -1342,12 +1342,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_alerts">Trends and forecasts</string>
     <string name="preemptive_snooze">Preemptive Snooze</string>
     <string name="preemptive_snooze_desc">Snooze alerts before they trigger</string>
-    <string name="notification_dismiss_action_title">Snooze on swipe</string>
-    <string name="notification_dismiss_action_summary">Swiping an alert notification away snoozes it instead of dismissing it</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
-    <string name="alarm_return_to_previous_app_title">Return to previous app after alarm</string>
-    <string name="alarm_return_to_previous_app_summary">After a full-screen alarm, go back to the app you were using instead of opening JugglucoNG</string>
     <string name="realert_if_not_dismissed">Re-alert if not dismissed</string>
     <string name="retry_constantly">Constantly</string>
     <string name="retry_every">Retry every</string>
@@ -3055,8 +3051,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
-    <string name="same_direction_suppression_title">Quiet period after a same-direction alert</string>
+    <string name="same_direction_suppression_title">Quiet period after a trend alert</string>
     <string name="same_direction_suppression_summary">After you dismiss or snooze one falling or rising alert, other alerts of the same direction stay quiet for this long. Low, very low and very high always fire.</string>
-    <string name="acknowledged_high_coverage_title">Acknowledged rising alerts cover High</string>
-    <string name="acknowledged_high_coverage_summary">After you dismiss or snooze Rising fast, Predicted high or High, another of these alerts stays quiet for the period above. Very high always fires.</string>
 </resources>

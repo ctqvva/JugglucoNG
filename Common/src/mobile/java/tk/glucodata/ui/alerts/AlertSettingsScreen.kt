@@ -58,8 +58,6 @@ import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.*
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.SettingsSwitchItem
-import androidx.compose.ui.draw.rotate
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
 import tk.glucodata.ui.theme.displayLargeExpressive
@@ -186,33 +184,12 @@ fun AlertSettingsScreen(
     var showPreemptiveSnooze by remember { mutableStateOf(false) }
     // Track sound picker state (Generic: Current URI + AlertTypeId + Callback)
     var soundPickerRequest by remember { mutableStateOf<Triple<String?, Int, (String?) -> Unit>?>(null) }
-    var notificationDismissAction by remember {
-        mutableStateOf(AlertRepository.loadNotificationDismissAction())
-    }
-    fun persistNotificationDismissAction(action: AlertNotificationDismissAction) {
-        notificationDismissAction = action
-        AlertRepository.saveNotificationDismissAction(action)
-    }
     var sameDirectionSuppressionMinutes by remember {
         mutableStateOf(AlertRepository.loadSameDirectionSuppressionMinutes())
     }
     fun persistSameDirectionSuppressionMinutes(minutes: Int) {
         sameDirectionSuppressionMinutes = minutes
         AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
-    }
-    var acknowledgedHighCoverageEnabled by remember {
-        mutableStateOf(AlertRepository.loadAcknowledgedHighCoverageEnabled())
-    }
-    fun persistAcknowledgedHighCoverageEnabled(enabled: Boolean) {
-        acknowledgedHighCoverageEnabled = enabled
-        AlertRepository.saveAcknowledgedHighCoverageEnabled(enabled)
-    }
-    var returnToPreviousAppAfterAlarm by remember {
-        mutableStateOf(AlertRepository.loadReturnToPreviousAppAfterAlarm())
-    }
-    fun persistReturnToPreviousAppAfterAlarm(enabled: Boolean) {
-        returnToPreviousAppAfterAlarm = enabled
-        AlertRepository.saveReturnToPreviousAppAfterAlarm(enabled)
     }
 
     Scaffold(
@@ -491,6 +468,30 @@ fun AlertSettingsScreen(
                 )
             }
 
+            // The cross-family quiet period (#210) belongs with the trend alerts it
+            // coordinates. Its High coverage is on and has no switch.
+            item(key = "same-direction-quiet-period") {
+                Spacer(Modifier.height(6.dp))
+                SliderSettingsItem(
+                    title = stringResource(R.string.same_direction_suppression_title),
+                    subtitle = stringResource(R.string.same_direction_suppression_summary),
+                    icon = Icons.Default.NotificationsPaused,
+                    position = SettingsItemPosition.SINGLE
+                ) {
+                    DurationSlider(
+                        label = "",
+                        value = sameDirectionSuppressionMinutes,
+                        range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
+                        stepSize = 1,
+                        onValueChange = { persistSameDirectionSuppressionMinutes(it) },
+                        valueText = { v ->
+                            if (v == 0) stringResource(R.string.off)
+                            else stringResource(R.string.minutes_short_format, v)
+                        }
+                    )
+                }
+            }
+
             // === OTHER ALERTS SECTION ===
             item(key = "other-alerts-header") {
                 Spacer(Modifier.height(16.dp))
@@ -561,91 +562,6 @@ fun AlertSettingsScreen(
                         position = SettingsItemPosition.BOTTOM,
                         onClick = { navController.navigate("settings/alerts/quiet-window") }
                     )
-                }
-            }
-
-            // === ADVANCED: two switches whose defaults are right for nearly everyone ===
-            item(key = "advanced") {
-                Spacer(Modifier.height(24.dp))
-                var advancedExpanded by rememberSaveable { mutableStateOf(false) }
-                val chevron by animateFloatAsState(
-                    targetValue = if (advancedExpanded) 180f else 0f,
-                    label = "alertsAdvancedChevron"
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsItem(
-                        title = stringResource(R.string.advanced),
-                        icon = Icons.Default.Tune,
-                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        position = if (advancedExpanded) SettingsItemPosition.TOP else SettingsItemPosition.SINGLE,
-                        animatePosition = true,
-                        trailingContent = {
-                            Icon(
-                                Icons.Default.ExpandMore,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.rotate(chevron)
-                            )
-                        },
-                        onClick = { advancedExpanded = !advancedExpanded }
-                    )
-                    AnimatedVisibility(visible = advancedExpanded) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            SettingsSwitchItem(
-                                title = stringResource(R.string.notification_dismiss_action_title),
-                                subtitle = stringResource(R.string.notification_dismiss_action_summary),
-                                checked = notificationDismissAction == AlertNotificationDismissAction.SNOOZE,
-                                onCheckedChange = { snooze ->
-                                    persistNotificationDismissAction(
-                                        if (snooze) AlertNotificationDismissAction.SNOOZE
-                                        else AlertNotificationDismissAction.DISMISS
-                                    )
-                                },
-                                icon = Icons.Default.NotificationsOff,
-                                iconTint = MaterialTheme.colorScheme.secondary,
-                                position = SettingsItemPosition.MIDDLE
-                            )
-                            SettingsSwitchItem(
-                                title = stringResource(R.string.alarm_return_to_previous_app_title),
-                                subtitle = stringResource(R.string.alarm_return_to_previous_app_summary),
-                                checked = returnToPreviousAppAfterAlarm,
-                                onCheckedChange = { persistReturnToPreviousAppAfterAlarm(it) },
-                                icon = Icons.AutoMirrored.Filled.ExitToApp,
-                                iconTint = MaterialTheme.colorScheme.secondary,
-                                position = SettingsItemPosition.MIDDLE
-                            )
-                            // The cross-family quiet period (#210): a slider in a row of
-                            // the same shape as its neighbours, and the switch that lets
-                            // an acknowledged rising alert cover High.
-                            SliderSettingsItem(
-                                title = stringResource(R.string.same_direction_suppression_title),
-                                subtitle = stringResource(R.string.same_direction_suppression_summary),
-                                icon = Icons.Default.NotificationsPaused,
-                                position = SettingsItemPosition.MIDDLE
-                            ) {
-                                DurationSlider(
-                                    label = "",
-                                    value = sameDirectionSuppressionMinutes,
-                                    range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
-                                    stepSize = 1,
-                                    onValueChange = { persistSameDirectionSuppressionMinutes(it) },
-                                    valueText = { v ->
-                                        if (v == 0) stringResource(R.string.off)
-                                        else stringResource(R.string.minutes_short_format, v)
-                                    }
-                                )
-                            }
-                            SettingsSwitchItem(
-                                title = stringResource(R.string.acknowledged_high_coverage_title),
-                                subtitle = stringResource(R.string.acknowledged_high_coverage_summary),
-                                checked = acknowledgedHighCoverageEnabled,
-                                onCheckedChange = { persistAcknowledgedHighCoverageEnabled(it) },
-                                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                iconTint = MaterialTheme.colorScheme.secondary,
-                                position = SettingsItemPosition.BOTTOM
-                            )
-                        }
-                    }
                 }
             }
 
@@ -1351,7 +1267,6 @@ private fun AlertSettingsExpanded(
                 // it: there the number itself is the problem, whichever way it moves.
                 if (config.type == AlertType.HIGH || config.type == AlertType.PERSISTENT_HIGH) {
                     ClickableToggleRow(
-                        icon = Icons.AutoMirrored.Filled.TrendingDown,
                         title = stringResource(R.string.persistent_high_fall_suppress_label),
                         checked = (config.fallRateSuppress ?: 0f) > 0f,
                         onCheckedChange = { enabled ->
@@ -1515,30 +1430,23 @@ private fun DeltaAlarmAdvancedSettings(
             text = stringResource(R.string.delta_alarm_interval_label),
             style = MaterialTheme.typography.bodyMedium
         )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = config.deltaIntervalMinutes == null,
-                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = null)) },
-                label = { Text(stringResource(R.string.delta_alarm_interval_follow, displayIntervalMinutes)) }
-            )
-            FilterChip(
-                selected = config.deltaIntervalMinutes == 1,
-                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 1)) },
-                label = { Text(stringResource(R.string.delta_interval_1min)) }
-            )
-            FilterChip(
-                selected = config.deltaIntervalMinutes == 5,
-                onClick = { onConfigChange(config.copy(deltaIntervalMinutes = 5)) },
-                label = { Text(stringResource(R.string.delta_interval_5min)) }
-            )
-        }
+        val windowLabels = mapOf(
+            0 to stringResource(R.string.delta_alarm_interval_follow, displayIntervalMinutes),
+            1 to stringResource(R.string.delta_interval_1min),
+            5 to stringResource(R.string.delta_interval_5min)
+        )
+        tk.glucodata.ui.util.ConnectedButtonGroup(
+            options = listOf(0, 1, 5),
+            selectedOption = config.deltaIntervalMinutes ?: 0,
+            onOptionSelected = { onConfigChange(config.copy(deltaIntervalMinutes = if (it == 0) null else it)) },
+            labelText = { windowLabels[it] ?: it.toString() },
+            label = { Text(windowLabels[it] ?: it.toString(), style = MaterialTheme.typography.labelMedium) },
+            modifier = Modifier.fillMaxWidth(),
+            itemHeight = 36.dp
+        )
     }
     // Optional escalation on the implied total distance (count x threshold).
     ClickableToggleRow(
-        icon = Icons.Default.Bolt,
         title = stringResource(R.string.delta_early_trigger_label),
         subtitle = stringResource(
             R.string.delta_early_trigger_desc,
@@ -1776,12 +1684,10 @@ internal fun TimeRangeSettings(
     
     Column {
         ExpressiveExpandableHeader(
-            icon = Icons.Default.Schedule,
             title = stringResource(R.string.active_time_range_title),
             subtitle = if (enabled) stringResource(R.string.time_range_summary, formatTime(startH, startM), formatTime(endH, endM)) else stringResource(R.string.only_alert_during_hours),
             enabled = enabled,
-            onEnabledChange = onEnabledChange,
-            iconTint = MaterialTheme.colorScheme.tertiary
+            onEnabledChange = onEnabledChange
         )
         
         AnimatedVisibility(
@@ -2074,12 +1980,10 @@ internal fun RetrySettings(
 
     Column {
         ExpressiveExpandableHeader(
-            icon = Icons.Default.Refresh,
             title = stringResource(R.string.retry_if_no_reaction),
             subtitle = retrySubtitle,
             enabled = enabled,
-            onEnabledChange = onEnabledChange,
-            iconTint = MaterialTheme.colorScheme.error
+            onEnabledChange = onEnabledChange
         )
         
         AnimatedVisibility(
@@ -2313,7 +2217,7 @@ internal fun ExpressiveToggleCard(
  */
 @Composable
 internal fun ExpressiveExpandableHeader(
-    icon: ImageVector,
+    icon: ImageVector? = null,
     title: String,
     subtitle: String? = null,
     enabled: Boolean,
@@ -2329,15 +2233,17 @@ internal fun ExpressiveExpandableHeader(
             .padding(horizontal = 16.dp, vertical = 8.dp),  // Touch reaches edges, content padded
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Simple icon with tint
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        
-        Spacer(Modifier.width(16.dp))
+        // Inside a card body the rows carry no icon, so their text starts where
+        // the slider labels do; a caller that wants one still gets it.
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+        }
         
         // Text content
         Column(modifier = Modifier.weight(1f)) {
@@ -2371,7 +2277,7 @@ internal fun ExpressiveExpandableHeader(
  */
 @Composable
 internal fun ClickableToggleRow(
-    icon: ImageVector,
+    icon: ImageVector? = null,
     title: String,
     subtitle: String? = null,
     checked: Boolean,
@@ -2387,15 +2293,15 @@ internal fun ClickableToggleRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),  // Touch reaches edges, content padded
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Simple icon with tint
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        
-        Spacer(Modifier.width(16.dp))
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+        }
         
         // Text content
         Column(modifier = Modifier.weight(1f)) {

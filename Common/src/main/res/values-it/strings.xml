@@ -500,12 +500,8 @@
     <string name="predictive_alerts">Tendenze e previsioni</string>
     <string name="preemptive_snooze">Snooze preventivo</string>
     <string name="preemptive_snooze_desc">Posticipa gli avvisi prima che si attivino</string>
-    <string name="notification_dismiss_action_title">Posticipa allo scorrimento</string>
-    <string name="notification_dismiss_action_summary">Una notifica di avviso scorsa via viene posticipata invece di chiusa</string>
     <string name="notification_dismiss_action_dismiss">Ignora</string>
     <string name="notification_dismiss_action_snooze">Posticipa</string>
-    <string name="alarm_return_to_previous_app_title">Torna all\'app precedente dopo l\'allarme</string>
-    <string name="alarm_return_to_previous_app_summary">Dopo un allarme a schermo intero, torna all\'app che stavi usando invece di aprire JugglucoNG</string>
     <string name="realert_if_not_dismissed">Ripeti se non ignorato</string>
     <string name="retry_every">Ripeti ogni</string>
     <string name="retry_if_no_reaction">Ripeti se nessuna reazione</string>
@@ -2148,13 +2144,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_desc">Usa il trend dell\'app invece di quello del sensore</string>
     <string name="dashboard_show_delta_desc">Variazione misurata nell\'intervallo delta, sotto la freccia di tendenza</string>
     <string name="dashboard_show_delta_title">Delta (Δ) sul cruscotto</string>
-    <string name="delta_alarm_interval_follow">Come la lettura Δ (attualmente %1$d min)</string>
-    <string name="delta_alarm_interval_label">Finestra Delta</string>
+    <string name="delta_alarm_interval_follow">Come Δ (%1$d min)</string>
+    <string name="delta_alarm_interval_label">Conta le variazioni su</string>
     <string name="delta_border_above_label">Allarme solo sopra</string>
     <string name="delta_border_below_label">Allarme solo qui sotto</string>
     <string name="delta_change_label">Modifica ogni %1$d min</string>
     <string name="delta_count_label">Letture di fila</string>
-    <string name="delta_early_trigger_desc">Inoltre, spara non appena viene coperta la distanza totale (%1$s %2$s), indipendentemente da quanti intervalli sono trascorsi</string>
+    <string name="delta_early_trigger_desc">Scatta appena la variazione totale raggiunge %1$s %2$s, per poche letture che siano servite</string>
     <string name="delta_early_trigger_label">Innesco precoce</string>
     <string name="delta_interval_1min">1 minuto</string>
     <string name="delta_interval_5min">5 minuti</string>
@@ -2803,8 +2799,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
     <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
     <string name="alert_feature_off">Disattivato</string>
-    <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso della stessa direzione</string>
+    <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso di tendenza</string>
     <string name="same_direction_suppression_summary">Dopo aver ignorato o posticipato un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso e molto alto scattano sempre.</string>
-    <string name="acknowledged_high_coverage_title">Gli avvisi di salita confermati coprono « Alto »</string>
-    <string name="acknowledged_high_coverage_summary">Dopo aver ignorato o posticipato « Salita rapida », « Alto previsto » o « Alto », gli altri avvisi restano silenziosi per il periodo indicato sopra. « Molto alto » suona sempre.</string>
 </resources>

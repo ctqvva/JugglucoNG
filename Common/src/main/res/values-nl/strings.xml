@@ -716,12 +716,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_alerts">Trends en voorspellingen</string>
     <string name="preemptive_snooze">Preventieve snooze</string>
     <string name="preemptive_snooze_desc">Waarschuwingen uitstellen voordat ze afgaan</string>
-    <string name="notification_dismiss_action_title">Uitstellen bij wegvegen</string>
-    <string name="notification_dismiss_action_summary">Een weggeveegde alarmmelding wordt uitgesteld in plaats van gesloten</string>
     <string name="notification_dismiss_action_dismiss">Sluiten</string>
     <string name="notification_dismiss_action_snooze">Snoozen</string>
-    <string name="alarm_return_to_previous_app_title">Na alarm terug naar vorige app</string>
-    <string name="alarm_return_to_previous_app_summary">Na een schermvullend alarm teruggaan naar de app die je gebruikte in plaats van JugglucoNG te openen</string>
     <string name="realert_if_not_dismissed">Opnieuw waarschuwen als niet weggeveegd</string>
     <string name="retry_every">Herhalen elke</string>
     <string name="retry_if_no_reaction">Herhalen bij geen reactie</string>
@@ -2200,13 +2196,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="broadcast_computed_trend_desc">Gebruik de apptrend in plaats van de sensortrend</string>
     <string name="dashboard_show_delta_desc">Gemeten verandering over het delta-interval, onder de trendpijl</string>
     <string name="dashboard_show_delta_title">Delta (Δ) op het dashboard</string>
-    <string name="delta_alarm_interval_follow">Zoals Δ uitlezing (momenteel %1$d min)</string>
-    <string name="delta_alarm_interval_label">Delta-venster</string>
+    <string name="delta_alarm_interval_follow">Zoals Δ (%1$d min)</string>
+    <string name="delta_alarm_interval_label">Veranderingen tellen over</string>
     <string name="delta_border_above_label">Alarm alleen hierboven</string>
     <string name="delta_border_below_label">Alarm alleen hieronder</string>
     <string name="delta_change_label">Wijziging per %1$d min</string>
     <string name="delta_count_label">Lezingen op een rij</string>
-    <string name="delta_early_trigger_desc">Vuur ook zodra de totale afstand (%1$s %2$s) is afgelegd, ongeacht hoeveel intervallen er zijn verstreken</string>
+    <string name="delta_early_trigger_desc">Gaat af zodra de totale verandering %1$s %2$s bereikt, hoe weinig metingen het ook kostte</string>
     <string name="delta_early_trigger_label">Vroege trigger</string>
     <string name="delta_interval_1min">1 min</string>
     <string name="delta_interval_5min">5 minuten</string>
@@ -2856,8 +2852,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="rearm_min_interval_label">Minimale tijd tussen alarmen</string>
     <string name="pre_high_iob_coverage_label">Insulinedekking</string>
     <string name="alert_feature_off">Uit</string>
-    <string name="same_direction_suppression_title">Stille periode na alarm in dezelfde richting</string>
+    <string name="same_direction_suppression_title">Stille periode na een trendalarm</string>
     <string name="same_direction_suppression_summary">Nadat je een dalend of stijgend alarm negeert of uitstelt, blijven andere alarmen in dezelfde richting zo lang stil. Laag, zeer laag en zeer hoog gaan altijd af.</string>
-    <string name="acknowledged_high_coverage_title">Bevestigde stijgingsalarmen dekken ‘Hoog’</string>
-    <string name="acknowledged_high_coverage_summary">Nadat je ‘Snel stijgend’, ‘Hoog voorspeld’ of ‘Hoog’ negeert of uitstelt, blijven de andere alarmen gedurende de bovenstaande tijd stil. ‘Zeer hoog’ gaat altijd af.</string>
 </resources>

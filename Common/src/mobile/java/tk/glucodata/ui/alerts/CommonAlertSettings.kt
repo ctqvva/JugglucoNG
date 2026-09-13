@@ -178,7 +178,6 @@ fun CommonAlertSettings(
         // and when is it allowed to fire at all.
         AnimatedVisibility(visible = config.soundEnabled) {
             ClickableToggleRow(
-                icon = Icons.Default.VolumeOff,
                 title = stringResource(R.string.override_silent_mode),
                 subtitle = stringResource(R.string.override_silent_mode_desc),
                 checked = config.overrideDND,
@@ -266,7 +265,6 @@ fun CommonAlertSettings(
                 AnimatedVisibility(visible = config.soundEnabled && config.vibrationEnabled) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ClickableToggleRow(
-                            icon = Icons.Default.Timer,
                             title = stringResource(R.string.sound_delay_title),
                             subtitle = stringResource(R.string.sound_delay_desc),
                             checked = config.soundDelayEnabled,

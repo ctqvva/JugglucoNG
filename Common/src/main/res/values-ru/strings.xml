@@ -750,12 +750,8 @@
     <string name="predictive_alerts">Тренды и прогнозы</string>
     <string name="preemptive_snooze">Упреждающая отсрочка</string>
     <string name="preemptive_snooze_desc">Откладывать оповещения до срабатывания</string>
-    <string name="notification_dismiss_action_title">Отложить при смахивании</string>
-    <string name="notification_dismiss_action_summary">Смахнутое уведомление оповещения откладывается, а не закрывается</string>
     <string name="notification_dismiss_action_dismiss">Закрыть</string>
     <string name="notification_dismiss_action_snooze">Отложить</string>
-    <string name="alarm_return_to_previous_app_title">Возвращаться в предыдущее приложение после сигнала</string>
-    <string name="alarm_return_to_previous_app_summary">После полноэкранного сигнала возвращаться в приложение, которым вы пользовались, вместо открытия JugglucoNG</string>
     <string name="realert_if_not_dismissed">Повторять, если не отклонено</string>
     <string name="retry_every">Повторять каждые</string>
     <string name="retry_if_no_reaction">Повторять при отсутствии реакции</string>
@@ -2212,13 +2208,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_desc">Использовать тренд приложения вместо тренда датчика</string>
     <string name="dashboard_show_delta_desc">Измеренное изменение в интервале дельта, ниже стрелки тренда.</string>
     <string name="dashboard_show_delta_title">Дельта (Δ) на приборной панели</string>
-    <string name="delta_alarm_interval_follow">Аналогично показанию Δ (в настоящее время %1$d мин)</string>
-    <string name="delta_alarm_interval_label">Окно Дельта</string>
+    <string name="delta_alarm_interval_follow">Как Δ (%1$d мин)</string>
+    <string name="delta_alarm_interval_label">Считать изменения за</string>
     <string name="delta_border_above_label">Сигнализация только сверху</string>
     <string name="delta_border_below_label">Будильник только внизу</string>
     <string name="delta_change_label">Изменение за %1$d мин.</string>
     <string name="delta_count_label">Чтения подряд</string>
-    <string name="delta_early_trigger_desc">Также стреляйте, как только будет пройдено общее расстояние (%1$s %2$s), независимо от того, сколько интервалов прошло.</string>
+    <string name="delta_early_trigger_desc">Срабатывает, как только суммарное изменение достигнет %1$s %2$s, сколько бы показаний это ни заняло</string>
     <string name="delta_early_trigger_label">Ранний триггер</string>
     <string name="delta_interval_1min">1 мин.</string>
     <string name="delta_interval_5min">5 минут</string>
@@ -2859,8 +2855,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Минимальный интервал между тревогами</string>
     <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
     <string name="alert_feature_off">Выкл.</string>
-    <string name="same_direction_suppression_title">Тихий период после сигнала того же направления</string>
+    <string name="same_direction_suppression_title">Тихий период после сигнала о тренде</string>
     <string name="same_direction_suppression_summary">После отклонения или отсрочки сигнала о падении или росте другие сигналы того же направления молчат в течение этого времени. Низкий, очень низкий и очень высокий срабатывают всегда.</string>
-    <string name="acknowledged_high_coverage_title">Подтверждённые сигналы роста заменяют «Высокий»</string>
-    <string name="acknowledged_high_coverage_summary">После отклонения или отсрочки сигнала «Быстрый рост», «Прогноз высокого» или «Высокий» остальные из них молчат в течение указанного выше времени. «Очень высокий» срабатывает всегда.</string>
 </resources>

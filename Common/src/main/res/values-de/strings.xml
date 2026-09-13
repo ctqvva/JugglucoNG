@@ -719,12 +719,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_alerts">Trends und Vorhersagen</string>
     <string name="preemptive_snooze">Vorbeugendes Schlummern</string>
     <string name="preemptive_snooze_desc">Alarme vor dem Auslösen schlummern</string>
-    <string name="notification_dismiss_action_title">Beim Wegwischen pausieren</string>
-    <string name="notification_dismiss_action_summary">Eine weggewischte Alarmbenachrichtigung wird pausiert statt verworfen</string>
     <string name="notification_dismiss_action_dismiss">Verwerfen</string>
     <string name="notification_dismiss_action_snooze">Schlummern</string>
-    <string name="alarm_return_to_previous_app_title">Nach Alarm zur vorherigen App zurückkehren</string>
-    <string name="alarm_return_to_previous_app_summary">Nach einem Vollbild-Alarm zur zuvor geöffneten App zurückkehren, statt JugglucoNG zu öffnen</string>
     <string name="realert_if_not_dismissed">Erneut alarmieren, wenn nicht verworfen</string>
     <string name="retry_every">Wiederholen alle</string>
     <string name="retry_if_no_reaction">Wiederholen bei keiner Reaktion</string>
@@ -774,10 +770,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="delta_border_above_label">Nur oberhalb alarmieren</string>
     <string name="falling_fast_explanation">Warnt nach %1$d aufeinanderfolgenden %2$d-Minuten-Intervallen mit Abfall ≥ %3$s (≈ %4$d Min anhaltender Fall), wenn der Wert bei oder unter %5$s liegt. Keine Vorhersage, nur der rohe Trend.</string>
     <string name="rising_fast_explanation">Warnt nach %1$d aufeinanderfolgenden %2$d-Minuten-Intervallen mit Anstieg ≥ %3$s (≈ %4$d Min anhaltender Anstieg), wenn der Wert bei oder über %5$s liegt. Keine Vorhersage, nur der rohe Trend.</string>
-    <string name="delta_alarm_interval_label">Delta-Fenster</string>
-    <string name="delta_alarm_interval_follow">Wie Δ-Anzeige (aktuell %1$d Min)</string>
+    <string name="delta_alarm_interval_label">Änderungen zählen über</string>
+    <string name="delta_alarm_interval_follow">Wie Δ (%1$d min)</string>
     <string name="delta_early_trigger_label">Frühauslösung</string>
-    <string name="delta_early_trigger_desc">Auch auslösen, sobald die Gesamtstrecke (%1$s %2$s) erreicht ist – unabhängig davon, wie viele Intervalle vergangen sind</string>
+    <string name="delta_early_trigger_desc">Auslösen, sobald die Gesamtänderung %1$s %2$s erreicht, egal nach wie wenigen Messwerten</string>
     <!-- Sensor-Ablauf-Vorwarnungen -->
     <string name="sensor_expiry_warnings_title">Vor Ablauf warnen</string>
     <string name="sensor_expiry_warnings_desc">Jede gewählte Zeit warnt einmal pro Sensor</string>
@@ -2852,8 +2848,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
     <string name="pre_high_iob_coverage_label">Insulindeckung</string>
     <string name="alert_feature_off">Aus</string>
-    <string name="same_direction_suppression_title">Ruhezeit nach Alarm gleicher Richtung</string>
+    <string name="same_direction_suppression_title">Ruhezeit nach einem Trendalarm</string>
     <string name="same_direction_suppression_summary">Nachdem du einen fallenden oder steigenden Alarm verworfen oder pausiert hast, bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
-    <string name="acknowledged_high_coverage_title">Bestätigte Anstiegsalarme decken „Hoch“ ab</string>
-    <string name="acknowledged_high_coverage_summary">Nachdem du „Schnell steigend“, „Hoch vorhergesagt“ oder „Hoch“ verworfen oder pausiert hast, bleiben die anderen für die oben eingestellte Zeit stumm. „Sehr hoch“ meldet sich immer.</string>
 </resources>

@@ -702,12 +702,8 @@
     <string name="predictive_alerts">Trendy i prognozy</string>
     <string name="preemptive_snooze">Wstepne odlozenie</string>
     <string name="preemptive_snooze_desc">Odkładaj alarmy zanim sie uruchomia</string>
-    <string name="notification_dismiss_action_title">Odłóż przy przesunięciu</string>
-    <string name="notification_dismiss_action_summary">Przesunięte powiadomienie alarmu zostaje odłożone zamiast zamknięte</string>
     <string name="notification_dismiss_action_dismiss">Odrzuc</string>
     <string name="notification_dismiss_action_snooze">Odloz</string>
-    <string name="alarm_return_to_previous_app_title">Po alarmie wróć do poprzedniej aplikacji</string>
-    <string name="alarm_return_to_previous_app_summary">Po alarmie pełnoekranowym wróć do używanej aplikacji zamiast otwierać JugglucoNG</string>
     <string name="realert_if_not_dismissed">Ponow alarm, jesli nie odrzucono</string>
     <string name="retry_every">Ponow co</string>
     <string name="retry_if_no_reaction">Ponow przy braku reakcji</string>
@@ -2192,13 +2188,13 @@
     <string name="broadcast_computed_trend_desc">Używaj trendu aplikacji zamiast trendu czujnika</string>
     <string name="dashboard_show_delta_desc">Zmierzona zmiana w przedziale delta, poniżej strzałki trendu</string>
     <string name="dashboard_show_delta_title">Delta (Δ) na desce rozdzielczej</string>
-    <string name="delta_alarm_interval_follow">Podobnie jak odczyt Δ (obecnie %1$d min)</string>
-    <string name="delta_alarm_interval_label">Okno delty</string>
+    <string name="delta_alarm_interval_follow">Jak Δ (%1$d min)</string>
+    <string name="delta_alarm_interval_label">Licz zmiany w oknie</string>
     <string name="delta_border_above_label">Alarm tylko powyżej</string>
     <string name="delta_border_below_label">Alarm tylko poniżej</string>
     <string name="delta_change_label">Zmień na %1$d min</string>
     <string name="delta_count_label">Czytanie z rzędu</string>
-    <string name="delta_early_trigger_desc">Odpal także, gdy tylko pokonany zostanie całkowity dystans (%1$s %2$s), niezależnie od tego, ile interwałów minęło</string>
+    <string name="delta_early_trigger_desc">Włącza się, gdy tylko łączna zmiana osiągnie %1$s %2$s, niezależnie od liczby odczytów</string>
     <string name="delta_early_trigger_label">Wczesny spust</string>
     <string name="delta_interval_1min">1 minuta</string>
     <string name="delta_interval_5min">5 minut</string>
@@ -2851,8 +2847,6 @@
     <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
     <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
     <string name="alert_feature_off">Wył.</string>
-    <string name="same_direction_suppression_title">Okres ciszy po alarmie w tym samym kierunku</string>
+    <string name="same_direction_suppression_title">Cisza po alarmie trendu</string>
     <string name="same_direction_suppression_summary">Po odrzuceniu lub odroczeniu alarmu o spadku lub wzroście inne alarmy w tym samym kierunku milczą przez ten czas. Niski, bardzo niski i bardzo wysoki zawsze się włączają.</string>
-    <string name="acknowledged_high_coverage_title">Potwierdzone alarmy wzrostu zastępują „Wysoki”</string>
-    <string name="acknowledged_high_coverage_summary">Po odrzuceniu lub odroczeniu alarmu „Szybki wzrost”, „Przewidywany wysoki” albo „Wysoki” pozostałe alarmy milczą przez ustawiony wyżej czas. „Bardzo wysoki” zawsze się włącza.</string>
 </resources>

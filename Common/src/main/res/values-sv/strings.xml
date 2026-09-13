@@ -627,12 +627,8 @@
     <string name="predictive_alerts">Trender och prognoser</string>
     <string name="preemptive_snooze">Forebyggande snooze</string>
     <string name="preemptive_snooze_desc">Snooza varningar innan de utloses</string>
-    <string name="notification_dismiss_action_title">Skjut upp vid svep</string>
-    <string name="notification_dismiss_action_summary">En bortsvept larmavisering skjuts upp i stället för att avfärdas</string>
     <string name="notification_dismiss_action_dismiss">Avvisa</string>
     <string name="notification_dismiss_action_snooze">Snooza</string>
-    <string name="alarm_return_to_previous_app_title">Återgå till föregående app efter larm</string>
-    <string name="alarm_return_to_previous_app_summary">Efter ett helskärmslarm, gå tillbaka till appen du använde i stället för att öppna JugglucoNG</string>
     <string name="realert_if_not_dismissed">Varna igen om inte avvisad</string>
     <string name="retry_every">Upprepa var</string>
     <string name="retry_if_no_reaction">Upprepa vid ingen reaktion</string>
@@ -2157,13 +2153,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_desc">Använd appens trend i stället för sensorns</string>
     <string name="dashboard_show_delta_desc">Uppmätt förändring över deltaintervallet, under trendpilen</string>
     <string name="dashboard_show_delta_title">Delta (Δ) på instrumentbrädan</string>
-    <string name="delta_alarm_interval_follow">Som Δ-avläsning (för närvarande %1$d min)</string>
-    <string name="delta_alarm_interval_label">Delta fönster</string>
+    <string name="delta_alarm_interval_follow">Som Δ (%1$d min)</string>
+    <string name="delta_alarm_interval_label">Räkna förändringar över</string>
     <string name="delta_border_above_label">Larm endast ovan</string>
     <string name="delta_border_below_label">Larm endast nedan</string>
     <string name="delta_change_label">Ändring per %1$d min</string>
     <string name="delta_count_label">Avläsningar i rad</string>
-    <string name="delta_early_trigger_desc">Skjut också så snart den totala sträckan (%1$s %2$s) är tillryggalagd, oavsett hur många intervaller som har passerat</string>
+    <string name="delta_early_trigger_desc">Larmar så snart den totala förändringen når %1$s %2$s, oavsett hur få avläsningar det tog</string>
     <string name="delta_early_trigger_label">Tidig trigger</string>
     <string name="delta_interval_1min">1 min</string>
     <string name="delta_interval_5min">5 min</string>
@@ -2813,8 +2809,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
     <string name="pre_high_iob_coverage_label">Insulintäckning</string>
     <string name="alert_feature_off">Av</string>
-    <string name="same_direction_suppression_title">Tyst period efter larm i samma riktning</string>
+    <string name="same_direction_suppression_title">Tyst period efter ett trendlarm</string>
     <string name="same_direction_suppression_summary">När du avfärdar eller skjuter upp ett fallande eller stigande larm är andra larm i samma riktning tysta så här länge. Lågt, mycket lågt och mycket högt larmar alltid.</string>
-    <string name="acknowledged_high_coverage_title">Bekräftade stigningslarm täcker ”Högt”</string>
-    <string name="acknowledged_high_coverage_summary">När du avfärdar eller skjuter upp ”Stiger snabbt”, ”Förutspått högt” eller ”Högt” är de andra larmen tysta under tiden ovan. ”Mycket högt” larmar alltid.</string>
 </resources>

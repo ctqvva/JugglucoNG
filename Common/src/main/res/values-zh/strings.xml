@@ -639,12 +639,8 @@
     <string name="predictive_alerts">趋势与预测</string>
     <string name="preemptive_snooze">预先稍后提醒</string>
     <string name="preemptive_snooze_desc">在触发前先暂停警报</string>
-    <string name="notification_dismiss_action_title">滑动即稍后提醒</string>
-    <string name="notification_dismiss_action_summary">滑动关闭警报通知时改为稍后提醒，而不是关闭</string>
     <string name="notification_dismiss_action_dismiss">关闭</string>
     <string name="notification_dismiss_action_snooze">稍后提醒</string>
-    <string name="alarm_return_to_previous_app_title">警报后返回上一个应用</string>
-    <string name="alarm_return_to_previous_app_summary">全屏警报结束后返回您之前使用的应用，而不是打开 JugglucoNG</string>
     <string name="realert_if_not_dismissed">未关闭则再次提醒</string>
     <string name="retry_every">重试间隔</string>
     <string name="retry_if_no_reaction">无响应时重试</string>
@@ -2173,13 +2169,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_desc">使用应用趋势代替传感器趋势</string>
     <string name="dashboard_show_delta_desc">趋势箭头下方的 Delta 间隔内测得的变化</string>
     <string name="dashboard_show_delta_title">仪表板上的 Delta (Δ)</string>
-    <string name="delta_alarm_interval_follow">类似于 Δ 读数（当前为 %1$d 分钟）</string>
-    <string name="delta_alarm_interval_label">德尔塔窗</string>
+    <string name="delta_alarm_interval_follow">与 Δ 相同（%1$d 分钟）</string>
+    <string name="delta_alarm_interval_label">变化统计窗口</string>
     <string name="delta_border_above_label">仅在上方报警</string>
     <string name="delta_border_below_label">仅在下方报警</string>
     <string name="delta_change_label">每 %1$d 分钟变化</string>
     <string name="delta_count_label">连续读数</string>
-    <string name="delta_early_trigger_desc">一旦跑完总距离 (%1$s %2$s)，无论经过了多少个间隔，也会立即开火</string>
+    <string name="delta_early_trigger_desc">总变化一旦达到 %1$s %2$s 即触发，无论经过多少次读数</string>
     <string name="delta_early_trigger_label">早期触发</string>
     <string name="delta_interval_1min">1分钟</string>
     <string name="delta_interval_5min">5分钟</string>
@@ -2829,8 +2825,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">警报最小间隔</string>
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
-    <string name="same_direction_suppression_title">同方向警报后的静默期</string>
+    <string name="same_direction_suppression_title">趋势警报后的静默期</string>
     <string name="same_direction_suppression_summary">关闭或稍后提醒一次下降或上升警报之后，同方向的其他警报在此期间保持静默。低、很低和很高始终会触发。</string>
-    <string name="acknowledged_high_coverage_title">已确认的上升警报可覆盖“高”</string>
-    <string name="acknowledged_high_coverage_summary">关闭或稍后提醒“快速上升”、“预测高”或“高”后，其余警报会在上述时段内保持静默。“很高”始终会发出警报。</string>
 </resources>

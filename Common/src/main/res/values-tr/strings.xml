@@ -679,12 +679,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_alerts">Eğilimler ve tahminler</string>
     <string name="preemptive_snooze">Onleyici erteleme</string>
     <string name="preemptive_snooze_desc">Tetiklenmeden once uyarilari ertele</string>
-    <string name="notification_dismiss_action_title">Kaydırınca ertele</string>
-    <string name="notification_dismiss_action_summary">Kaydırılan alarm bildirimi kapatılmak yerine ertelenir</string>
     <string name="notification_dismiss_action_dismiss">Kapat</string>
     <string name="notification_dismiss_action_snooze">Ertele</string>
-    <string name="alarm_return_to_previous_app_title">Alarmdan sonra önceki uygulamaya dön</string>
-    <string name="alarm_return_to_previous_app_summary">Tam ekran alarmdan sonra JugglucoNG\'yi açmak yerine kullandığınız uygulamaya dönün</string>
     <string name="realert_if_not_dismissed">Kapatilmazsa tekrar uyar</string>
     <string name="retry_every">Su aralikla tekrarla</string>
     <string name="retry_if_no_reaction">Tepki yoksa tekrarla</string>
@@ -2185,13 +2181,13 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="broadcast_computed_trend_desc">Sensör eğilimi yerine uygulama eğilimini kullan</string>
     <string name="dashboard_show_delta_desc">Trend okunun altındaki delta aralığında ölçülen değişiklik</string>
     <string name="dashboard_show_delta_title">Gösterge tablosundaki Delta (Δ)</string>
-    <string name="delta_alarm_interval_follow">Δ okuması gibi (şu anda %1$d dk)</string>
-    <string name="delta_alarm_interval_label">Delta penceresi</string>
+    <string name="delta_alarm_interval_follow">Δ gibi (%1$d dk)</string>
+    <string name="delta_alarm_interval_label">Değişimi şu sürede say</string>
     <string name="delta_border_above_label">Yalnızca yukarıda alarm</string>
     <string name="delta_border_below_label">Yalnızca aşağıda alarm</string>
     <string name="delta_change_label">%1$d dakika başına değişim</string>
     <string name="delta_count_label">Art arda okumalar</string>
-    <string name="delta_early_trigger_desc">Ayrıca kaç aralık geçmiş olursa olsun, toplam mesafe (%1$s %2$s) tamamlanır tamamlanmaz ateş edin</string>
+    <string name="delta_early_trigger_desc">Toplam değişim %1$s %2$s değerine ulaşır ulaşmaz çalar, kaç ölçüm sürdüğü fark etmez</string>
     <string name="delta_early_trigger_label">Erken tetikleme</string>
     <string name="delta_interval_1min">1 dakika</string>
     <string name="delta_interval_5min">5 dakika</string>
@@ -2841,8 +2837,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="rearm_min_interval_label">Alarmlar arası asgari süre</string>
     <string name="pre_high_iob_coverage_label">İnsülin karşılama</string>
     <string name="alert_feature_off">Kapalı</string>
-    <string name="same_direction_suppression_title">Aynı yöndeki alarmdan sonra sessiz süre</string>
+    <string name="same_direction_suppression_title">Eğilim alarmından sonra sessiz süre</string>
     <string name="same_direction_suppression_summary">Bir düşüş veya yükseliş alarmını kapattıktan ya da ertelettikten sonra aynı yöndeki diğer alarmlar bu süre boyunca sessiz kalır. Düşük, çok düşük ve çok yüksek her zaman çalar.</string>
-    <string name="acknowledged_high_coverage_title">Onaylanan yükseliş alarmları “Yüksek”i karşılar</string>
-    <string name="acknowledged_high_coverage_summary">“Hızla yükseliyor”, “Yüksek tahmini” veya “Yüksek” alarmını kapattıktan ya da erteledikten sonra diğerleri yukarıdaki süre boyunca sessiz kalır. “Çok yüksek” her zaman çalar.</string>
 </resources>

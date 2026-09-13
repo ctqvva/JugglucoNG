@@ -2202,12 +2202,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_import_export_ready">%1$s-д хадгалсан материал бэлэн.</string>
     <string name="ottai_credentials_import">Импортлох</string>
     <string name="ottai_credentials_replace">Солих</string>
-    <string name="notification_dismiss_action_title">Шудрахад хойшлуулах</string>
-    <string name="notification_dismiss_action_summary">Шударсан дохионы мэдэгдэл хаагдахын оронд хойшлогдоно</string>
     <string name="notification_dismiss_action_dismiss">Хаах</string>
     <string name="notification_dismiss_action_snooze">Түр хойшлуулах</string>
-    <string name="alarm_return_to_previous_app_title">Дохионы дараа өмнөх апп руу буцах</string>
-    <string name="alarm_return_to_previous_app_summary">Бүтэн дэлгэцийн дохионы дараа JugglucoNG-г нээхийн оронд ашиглаж байсан апп руу буцна</string>
     <string name="calibrate_after_24h">24 цагийн дараа тохируулна</string>
     <string name="anytime_calibration_sent_status">Тохируулга илгээгдсэн; мэдрэгчийг хүлээж байна</string>
     <string name="anytime_calibration_accepted_status">Тохируулга зөвшөөрөгдсөн; #%1$d уншилтаас хэрэглэгдэнэ</string>
@@ -2291,13 +2287,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="broadcast_computed_trend_desc">Мэдрэгчийн оронд аппын трендийг ашиглах</string>
     <string name="dashboard_show_delta_desc">Тренд сумны доор дельта интервал дээрх хэмжсэн өөрчлөлт</string>
     <string name="dashboard_show_delta_title">Хяналтын самбар дээрх Delta (Δ).</string>
-    <string name="delta_alarm_interval_follow">Δ унших дуртай (одоогоор %1$d мин)</string>
-    <string name="delta_alarm_interval_label">Дельта цонх</string>
+    <string name="delta_alarm_interval_follow">Δ-тэй адил (%1$d мин)</string>
+    <string name="delta_alarm_interval_label">Өөрчлөлтийг тоолох хугацаа</string>
     <string name="delta_border_above_label">Зөвхөн дээрх дохиолол</string>
     <string name="delta_border_below_label">Зөвхөн доор дохиолол</string>
     <string name="delta_change_label">%1$d минут тутамд өөрчлөх</string>
     <string name="delta_count_label">Дараалсан уншлага</string>
-    <string name="delta_early_trigger_desc">Мөн нийт зай (%1$s %2$s) өнгөрмэгц хэчнээн завсар өнгөрсөн ч хамаагүй гал гарна.</string>
+    <string name="delta_early_trigger_desc">Нийт өөрчлөлт %1$s %2$s-д хүрмэгц дуугарна, хэдэн уншилт шаардсан нь хамаагүй</string>
     <string name="delta_early_trigger_label">Эрт өдөөгч</string>
     <string name="delta_interval_1min">1 мин</string>
     <string name="delta_interval_5min">5 мин</string>
@@ -2926,8 +2922,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
     <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
-    <string name="same_direction_suppression_title">Ижил чиглэлийн дохионы дараах чимээгүй хугацаа</string>
+    <string name="same_direction_suppression_title">Чиг хандлагын дохионы дараах чимээгүй хугацаа</string>
     <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохиог хааж эсвэл хойшлуулсны дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, маш өндөр үргэлж дуугарна.</string>
-    <string name="acknowledged_high_coverage_title">Баталгаажуулсан өсөлтийн дохио «Өндөр»-ийг орлоно</string>
-    <string name="acknowledged_high_coverage_summary">«Хурдан өсөх», «Өндөр болох төлөвтэй» эсвэл «Өндөр» дохиог хаах буюу түр хойшлуулсны дараа эдгээрийн бусад дохио дээрх хугацаанд чимээгүй байна. «Маш өндөр» үргэлж дуугарна.</string>
 </resources>

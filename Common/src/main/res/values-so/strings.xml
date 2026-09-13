@@ -1272,12 +1272,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_alerts">Isbeddellada iyo saadaasha</string>
     <string name="preemptive_snooze">Hurdo ka horraysa</string>
     <string name="preemptive_snooze_desc">Hurdo digniinaha ka hor inta aysan kicin</string>
-    <string name="notification_dismiss_action_title">Dib u dhig marka la siibo</string>
-    <string name="notification_dismiss_action_summary">Ogeysiis digniin oo la siibay waa la dib u dhigayaa halkii la xiri lahaa</string>
     <string name="notification_dismiss_action_dismiss">Eryi</string>
     <string name="notification_dismiss_action_snooze">Hurdo</string>
-    <string name="alarm_return_to_previous_app_title">Digniinta ka dib ku noqo abka hore</string>
-    <string name="alarm_return_to_previous_app_summary">Digniin shaashad-buuxa ka dib, ku noqo abka aad isticmaalaysay halkii aad ka furi lahayd JugglucoNG</string>
     <string name="realert_if_not_dismissed">Dib-u-wargelinta haddii aan la dirin</string>
     <string name="retry_constantly">Si joogto ah</string>
     <string name="retry_every">Isku day mid kasta</string>
@@ -2379,13 +2375,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="broadcast_computed_trend_desc">Isticmaal jihada app-ka halkii tan dareemaha</string>
     <string name="dashboard_show_delta_desc">Isbeddel lagu cabbiray inta u dhexaysa delta, ka hooseeya fallaadha isbeddelka</string>
     <string name="dashboard_show_delta_title">Delta (Δ) ee dashboard-ka</string>
-    <string name="delta_alarm_interval_follow">Sida akhrinta Δ (hadda %1$d daq)</string>
-    <string name="delta_alarm_interval_label">Daaqadda Delta</string>
+    <string name="delta_alarm_interval_follow">Sida Δ (%1$d daq)</string>
+    <string name="delta_alarm_interval_label">Isbeddelka ku tiri muddada</string>
     <string name="delta_border_above_label">Alaarmiga kaliya ee ka sarreeya</string>
     <string name="delta_border_below_label">Digniin kaliya hoos</string>
     <string name="delta_change_label">Beddel halkii daqiiqo %1$d</string>
     <string name="delta_count_label">Akhrinta oo isku xigta</string>
-    <string name="delta_early_trigger_desc">Sidoo kale dab isla marka wadarta fogaanta (%1$s %2$s) la daboolo, iyada oo aan loo eegin inta u dhaxe ee dhaaftay</string>
+    <string name="delta_early_trigger_desc">Wuxuu dhawaaqayaa isla marka isbeddelka guud uu gaaro %1$s %2$s, in kasta oo akhrisyo yar ay qaadatay</string>
     <string name="delta_early_trigger_label">Kicin hore</string>
     <string name="delta_interval_1min">1 daq</string>
     <string name="delta_interval_5min">5 daqiiqo</string>
@@ -3011,8 +3007,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
     <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
     <string name="alert_feature_off">Damman</string>
-    <string name="same_direction_suppression_title">Muddo aamusnaan ah ka dib digniin isku jiho ah</string>
+    <string name="same_direction_suppression_title">Muddo aamusan digniin isbeddel ka dib</string>
     <string name="same_direction_suppression_summary">Ka dib markaad diiddo ama dib u dhigto digniin hoos u dhac ama kor u kac, digniinaha kale ee isku jihada ah waxay aamusnaadaan muddadan. Hooseeya, aad u hooseeya iyo aad u sarreeya had iyo jeer way dhacaan.</string>
-    <string name="acknowledged_high_coverage_title">Digniinaha kor u kaca ee la xaqiijiyey waxay daboolaan Sare</string>
-    <string name="acknowledged_high_coverage_summary">Ka dib markaad diiddo ama dib u dhigto Kor u kac degdeg ah, Sare la saadaaliyey ama Sare, digniinaha kale way aamusnaanayaan muddada kore. Aad u sareeya mar walba wuu dhacaa.</string>
 </resources>

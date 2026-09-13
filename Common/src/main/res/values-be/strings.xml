@@ -617,12 +617,8 @@
     <string name="predictive_alerts">Трэнды і прагнозы</string>
     <string name="preemptive_snooze">Папераджальнае адкладанне</string>
     <string name="preemptive_snooze_desc">Адкласці апавяшчэнні да іх спрацоўвання</string>
-    <string name="notification_dismiss_action_title">Адкласці пры змахванні</string>
-    <string name="notification_dismiss_action_summary">Змахнутае апавяшчэнне адкладаецца, а не закрываецца</string>
     <string name="notification_dismiss_action_dismiss">Закрыць</string>
     <string name="notification_dismiss_action_snooze">Адкласці</string>
-    <string name="alarm_return_to_previous_app_title">Вяртацца да папярэдняй праграмы пасля сігналу</string>
-    <string name="alarm_return_to_previous_app_summary">Пасля поўнаэкраннага сігналу вяртацца да праграмы, якой вы карысталіся, замест адкрыцця JugglucoNG</string>
     <string name="realert_if_not_dismissed">Паўтараць, калі не адхілена</string>
     <string name="retry_every">Паўтараць кожныя</string>
     <string name="retry_if_no_reaction">Паўтараць пры адсутнасці рэакцыі</string>
@@ -2224,13 +2220,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="broadcast_computed_trend_desc">Выкарыстоўваць трэнд праграмы замест трэнду датчыка</string>
     <string name="dashboard_show_delta_desc">Вымеранае змяненне ў дэльта-інтэрвале пад стрэлкай трэнду</string>
     <string name="dashboard_show_delta_title">Дэльта (Δ) на прыборнай панэлі</string>
-    <string name="delta_alarm_interval_follow">Счытванне Like Δ (у цяперашні час мін. %1$d)</string>
-    <string name="delta_alarm_interval_label">Дэльтавае акно</string>
+    <string name="delta_alarm_interval_follow">Як Δ (%1$d хв)</string>
+    <string name="delta_alarm_interval_label">Лічыць змены за</string>
     <string name="delta_border_above_label">Трывога толькі вышэй</string>
     <string name="delta_border_below_label">Сігналізацыя толькі ўнізе</string>
     <string name="delta_change_label">Змена за %1$d мін</string>
     <string name="delta_count_label">Чытанні запар</string>
-    <string name="delta_early_trigger_desc">Таксама страляйце, як толькі пройдзеная агульная адлегласць (%1$s %2$s), незалежна ад таго, колькі інтэрвалаў прайшло</string>
+    <string name="delta_early_trigger_desc">Спрацоўвае, як толькі сумарная змена дасягне %1$s %2$s, колькі б паказанняў гэта ні заняло</string>
     <string name="delta_early_trigger_label">Ранні трыгер</string>
     <string name="delta_interval_1min">1 хв</string>
     <string name="delta_interval_5min">5 хвілін</string>
@@ -2883,8 +2879,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_min_interval_label">Мінімальны інтэрвал паміж трывогамі</string>
     <string name="pre_high_iob_coverage_label">Пакрыццё інсулінам</string>
     <string name="alert_feature_off">Выкл.</string>
-    <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу таго ж кірунку</string>
+    <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу пра трэнд</string>
     <string name="same_direction_suppression_summary">Пасля адхілення або адкладання сігналу пра падзенне або рост іншыя сігналы таго ж кірунку маўчаць на працягу гэтага часу. Нізкі, вельмі нізкі і вельмі высокі спрацоўваюць заўсёды.</string>
-    <string name="acknowledged_high_coverage_title">Пацверджаныя сігналы росту замяняюць «Высокі»</string>
-    <string name="acknowledged_high_coverage_summary">Пасля адхілення або адкладання сігналу «Хуткі рост», «Прагназаваны высокі» ці «Высокі» іншыя з іх маўчаць на працягу часу вышэй. «Вельмі высокі» спрацоўвае заўсёды.</string>
 </resources>
