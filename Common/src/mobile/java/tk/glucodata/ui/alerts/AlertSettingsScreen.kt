@@ -193,6 +193,20 @@ fun AlertSettingsScreen(
         notificationDismissAction = action
         AlertRepository.saveNotificationDismissAction(action)
     }
+    var sameDirectionSuppressionMinutes by remember {
+        mutableStateOf(AlertRepository.loadSameDirectionSuppressionMinutes())
+    }
+    fun persistSameDirectionSuppressionMinutes(minutes: Int) {
+        sameDirectionSuppressionMinutes = minutes
+        AlertRepository.saveSameDirectionSuppressionMinutes(minutes)
+    }
+    var acknowledgedHighCoverageEnabled by remember {
+        mutableStateOf(AlertRepository.loadAcknowledgedHighCoverageEnabled())
+    }
+    fun persistAcknowledgedHighCoverageEnabled(enabled: Boolean) {
+        acknowledgedHighCoverageEnabled = enabled
+        AlertRepository.saveAcknowledgedHighCoverageEnabled(enabled)
+    }
     var returnToPreviousAppAfterAlarm by remember {
         mutableStateOf(AlertRepository.loadReturnToPreviousAppAfterAlarm())
     }
@@ -598,6 +612,36 @@ fun AlertSettingsScreen(
                                 onCheckedChange = { persistReturnToPreviousAppAfterAlarm(it) },
                                 icon = Icons.AutoMirrored.Filled.ExitToApp,
                                 iconTint = MaterialTheme.colorScheme.secondary,
+                                position = SettingsItemPosition.MIDDLE
+                            )
+                            // The cross-family quiet period (#210): a slider in a row of
+                            // the same shape as its neighbours, and the switch that lets
+                            // an acknowledged rising alert cover High.
+                            SliderSettingsItem(
+                                title = stringResource(R.string.same_direction_suppression_title),
+                                subtitle = stringResource(R.string.same_direction_suppression_summary),
+                                icon = Icons.Default.NotificationsPaused,
+                                position = SettingsItemPosition.MIDDLE
+                            ) {
+                                DurationSlider(
+                                    label = "",
+                                    value = sameDirectionSuppressionMinutes,
+                                    range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
+                                    stepSize = 1,
+                                    onValueChange = { persistSameDirectionSuppressionMinutes(it) },
+                                    valueText = { v ->
+                                        if (v == 0) stringResource(R.string.off)
+                                        else stringResource(R.string.minutes_short_format, v)
+                                    }
+                                )
+                            }
+                            SettingsSwitchItem(
+                                title = stringResource(R.string.acknowledged_high_coverage_title),
+                                subtitle = stringResource(R.string.acknowledged_high_coverage_summary),
+                                checked = acknowledgedHighCoverageEnabled,
+                                onCheckedChange = { persistAcknowledgedHighCoverageEnabled(it) },
+                                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                iconTint = MaterialTheme.colorScheme.secondary,
                                 position = SettingsItemPosition.BOTTOM
                             )
                         }
@@ -913,6 +957,62 @@ fun CustomAlertCard(
 
 
 
+/**
+ * A settings row that holds a slider instead of a trailing control: same
+ * surface, shape and 68dp text inset as [SettingsItem], so it sits in a group
+ * of rows without reading as a different kind of thing.
+ */
+@Composable
+private fun SliderSettingsItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    position: SettingsItemPosition,
+    slider: @Composable () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = tk.glucodata.ui.components.cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                slider()
+            }
+        }
+    }
+}
+
 @Composable
 private fun SectionHeader(
     title: String,
@@ -1201,6 +1301,50 @@ private fun AlertSettingsExpanded(
                 }
             },
             advancedContent = {
+                // Tuning from #201, for people who know what the numbers mean. The
+                // margin is how far the measured value must recover before the episode
+                // ends and the alert may fire again; the interval (forecasts) is a hard
+                // floor between firings, whatever value and projection do.
+                val rearmMarginTypes = setOf(
+                    AlertType.PRE_LOW, AlertType.PRE_HIGH,
+                    AlertType.LOW, AlertType.HIGH,
+                    AlertType.VERY_LOW, AlertType.VERY_HIGH
+                )
+                if (config.type in rearmMarginTypes) {
+                    ThresholdSlider(
+                        label = stringResource(R.string.rearm_margin_label),
+                        value = config.rearmMargin ?: 0f,
+                        isMmol = isMmol,
+                        range = if (isMmol) 0f..3f else 0f..50f,
+                        onValueChange = { onConfigChange(config.copy(rearmMargin = it)) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.rearm_min_interval_label),
+                        value = config.rearmMinIntervalMinutes ?: 0,
+                        range = 0..60,
+                        stepSize = 5,
+                        onValueChange = { v -> onConfigChange(config.copy(rearmMinIntervalMinutes = v)) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                // PRE_HIGH only: insulin makes a predicted LOW more likely, so PRE_LOW
+                // must never get this. Off by default; a value here silences the alert
+                // while insulin on board covers the projected overshoot x this factor.
+                if (config.type == AlertType.PRE_HIGH) {
+                    DurationSlider(
+                        label = stringResource(R.string.pre_high_iob_coverage_label),
+                        value = ((config.iobCoverageFactor ?: 0f) * 100f).toInt(),
+                        range = 0..200,
+                        stepSize = 10,
+                        onValueChange = { v -> onConfigChange(config.copy(iobCoverageFactor = v / 100f)) },
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        valueText = { if (it == 0) stringResource(R.string.alert_feature_off) else "$it%" }
+                    )
+                }
+
                 // A high that is already coming down is not news. HIGH ships with this
                 // off and follows the arrow on its alarm screen; PERSISTENT_HIGH has
                 // waited out its duration and ships with it on. VERY_HIGH never gets
@@ -1412,7 +1556,8 @@ private fun ThresholdSlider(
     value: Float,
     isMmol: Boolean,
     range: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // Calculate step size based on range and unit
     // Lower ranges need finer control (0.1 mmol or 1 mg/dL)
@@ -1423,7 +1568,7 @@ private fun ThresholdSlider(
     }
     val steps = ((range.endInclusive - range.start) / stepSize).toInt() - 1
 
-    Column {
+    Column(modifier = modifier) {
         var sliderValue by remember { mutableStateOf(value) }
         LaunchedEffect(value) {
             sliderValue = value

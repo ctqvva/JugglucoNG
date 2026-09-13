@@ -2846,4 +2846,13 @@
     <string name="quiet_window_add_tile">Dodaj kafelek szybkich ustawień</string>
     <string name="quiet_window_add_tile_hint">Kafelek można dodać w edytorze szybkich ustawień na pasku stanu.</string>
     <string name="quiet_window_select_end_time">Cisza do</string>
+
+    <string name="rearm_margin_label">Margines ponownego alarmu</string>
+    <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
+    <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
+    <string name="alert_feature_off">Wył.</string>
+    <string name="same_direction_suppression_title">Okres ciszy po alarmie w tym samym kierunku</string>
+    <string name="same_direction_suppression_summary">Po odrzuceniu lub odroczeniu alarmu o spadku lub wzroście inne alarmy w tym samym kierunku milczą przez ten czas. Niski, bardzo niski i bardzo wysoki zawsze się włączają.</string>
+    <string name="acknowledged_high_coverage_title">Potwierdzone alarmy wzrostu zastępują „Wysoki”</string>
+    <string name="acknowledged_high_coverage_summary">Po odrzuceniu lub odroczeniu alarmu „Szybki wzrost”, „Przewidywany wysoki” albo „Wysoki” pozostałe alarmy milczą przez ustawiony wyżej czas. „Bardzo wysoki” zawsze się włącza.</string>
 </resources>

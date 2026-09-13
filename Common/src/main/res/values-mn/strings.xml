@@ -2921,4 +2921,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="quiet_window_add_tile">Түргэн тохиргооны хавтан нэмэх</string>
     <string name="quiet_window_add_tile_hint">Хавтанг төлөвийн мөрийн түргэн тохиргооны засварлагчаас нэмж болно.</string>
     <string name="quiet_window_select_end_time">Хүртэл чимээгүй</string>
+
+    <string name="rearm_margin_label">Дахин сэрэмжлүүлэх зөрүү</string>
+    <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
+    <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
+    <string name="alert_feature_off">Унтраах</string>
+    <string name="same_direction_suppression_title">Ижил чиглэлийн дохионы дараах чимээгүй хугацаа</string>
+    <string name="same_direction_suppression_summary">Буурах эсвэл өсөх дохиог хааж эсвэл хойшлуулсны дараа ижил чиглэлийн бусад дохио энэ хугацаанд чимээгүй байна. Бага, маш бага, маш өндөр үргэлж дуугарна.</string>
+    <string name="acknowledged_high_coverage_title">Баталгаажуулсан өсөлтийн дохио «Өндөр»-ийг орлоно</string>
+    <string name="acknowledged_high_coverage_summary">«Хурдан өсөх», «Өндөр болох төлөвтэй» эсвэл «Өндөр» дохиог хаах буюу түр хойшлуулсны дараа эдгээрийн бусад дохио дээрх хугацаанд чимээгүй байна. «Маш өндөр» үргэлж дуугарна.</string>
 </resources>

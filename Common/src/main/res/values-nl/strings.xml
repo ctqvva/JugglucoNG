@@ -2851,4 +2851,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="quiet_window_add_tile">Snelle-instellingen-tegel toevoegen</string>
     <string name="quiet_window_add_tile_hint">De tegel is toe te voegen via de editor van de snelle instellingen in de statusbalk.</string>
     <string name="quiet_window_select_end_time">Stil tot</string>
+
+    <string name="rearm_margin_label">Herstelmarge voor nieuw alarm</string>
+    <string name="rearm_min_interval_label">Minimale tijd tussen alarmen</string>
+    <string name="pre_high_iob_coverage_label">Insulinedekking</string>
+    <string name="alert_feature_off">Uit</string>
+    <string name="same_direction_suppression_title">Stille periode na alarm in dezelfde richting</string>
+    <string name="same_direction_suppression_summary">Nadat je een dalend of stijgend alarm negeert of uitstelt, blijven andere alarmen in dezelfde richting zo lang stil. Laag, zeer laag en zeer hoog gaan altijd af.</string>
+    <string name="acknowledged_high_coverage_title">Bevestigde stijgingsalarmen dekken ‘Hoog’</string>
+    <string name="acknowledged_high_coverage_summary">Nadat je ‘Snel stijgend’, ‘Hoog voorspeld’ of ‘Hoog’ negeert of uitstelt, blijven de andere alarmen gedurende de bovenstaande tijd stil. ‘Zeer hoog’ gaat altijd af.</string>
 </resources>

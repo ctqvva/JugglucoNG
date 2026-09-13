@@ -3006,4 +3006,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="quiet_window_add_tile">Ku dar tiirka dejinta degdegga</string>
     <string name="quiet_window_add_tile_hint">Tiirka waxaa lagu dari karaa tafatiraha dejinta degdegga ee barta xaaladda.</string>
     <string name="quiet_window_select_end_time">Aamusan ilaa</string>
+
+    <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
+    <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
+    <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
+    <string name="alert_feature_off">Damman</string>
+    <string name="same_direction_suppression_title">Muddo aamusnaan ah ka dib digniin isku jiho ah</string>
+    <string name="same_direction_suppression_summary">Ka dib markaad diiddo ama dib u dhigto digniin hoos u dhac ama kor u kac, digniinaha kale ee isku jihada ah waxay aamusnaadaan muddadan. Hooseeya, aad u hooseeya iyo aad u sarreeya had iyo jeer way dhacaan.</string>
+    <string name="acknowledged_high_coverage_title">Digniinaha kor u kaca ee la xaqiijiyey waxay daboolaan Sare</string>
+    <string name="acknowledged_high_coverage_summary">Ka dib markaad diiddo ama dib u dhigto Kor u kac degdeg ah, Sare la saadaaliyey ama Sare, digniinaha kale way aamusnaanayaan muddada kore. Aad u sareeya mar walba wuu dhacaa.</string>
 </resources>

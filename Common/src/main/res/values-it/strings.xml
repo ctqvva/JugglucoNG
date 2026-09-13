@@ -2798,4 +2798,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Aggiungi riquadro impostazioni rapide</string>
     <string name="quiet_window_add_tile_hint">Il riquadro si aggiunge dall’editor delle impostazioni rapide nella barra di stato.</string>
     <string name="quiet_window_select_end_time">Silenzio fino alle</string>
+
+    <string name="rearm_margin_label">Margine di riarmo</string>
+    <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
+    <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
+    <string name="alert_feature_off">Disattivato</string>
+    <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso della stessa direzione</string>
+    <string name="same_direction_suppression_summary">Dopo aver ignorato o posticipato un avviso di discesa o di salita, gli altri avvisi della stessa direzione restano silenziosi per questo tempo. Basso, molto basso e molto alto scattano sempre.</string>
+    <string name="acknowledged_high_coverage_title">Gli avvisi di salita confermati coprono « Alto »</string>
+    <string name="acknowledged_high_coverage_summary">Dopo aver ignorato o posticipato « Salita rapida », « Alto previsto » o « Alto », gli altri avvisi restano silenziosi per il periodo indicato sopra. « Molto alto » suona sempre.</string>
 </resources>

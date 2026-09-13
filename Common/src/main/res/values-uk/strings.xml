@@ -2883,4 +2883,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Додати плитку швидких налаштувань</string>
     <string name="quiet_window_add_tile_hint">Плитку можна додати в редакторі швидких налаштувань у рядку стану.</string>
     <string name="quiet_window_select_end_time">Без звуку до</string>
+
+    <string name="rearm_margin_label">Запас до повторного спрацьовування</string>
+    <string name="rearm_min_interval_label">Мінімальний інтервал між тривогами</string>
+    <string name="pre_high_iob_coverage_label">Покриття інсуліном</string>
+    <string name="alert_feature_off">Вимк.</string>
+    <string name="same_direction_suppression_title">Тихий період після сигналу того ж напряму</string>
+    <string name="same_direction_suppression_summary">Після відхилення або відкладення сигналу про падіння або зростання інші сигнали того ж напрямку мовчать протягом цього часу. Низький, дуже низький і дуже високий спрацьовують завжди.</string>
+    <string name="acknowledged_high_coverage_title">Підтверджені сигнали зростання замінюють «Високий»</string>
+    <string name="acknowledged_high_coverage_summary">Після відхилення або відкладення сигналу «Швидке зростання», «Прогноз високого» чи «Високий» решта з них мовчать протягом указаного вище часу. «Дуже високий» спрацьовує завжди.</string>
 </resources>

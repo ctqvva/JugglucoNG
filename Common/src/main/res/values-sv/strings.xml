@@ -2808,4 +2808,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Lägg till snabbinställningsruta</string>
     <string name="quiet_window_add_tile_hint">Rutan kan läggas till i snabbinställningarnas redigerare i statusfältet.</string>
     <string name="quiet_window_select_end_time">Tyst till</string>
+
+    <string name="rearm_margin_label">Återaktiveringsmarginal</string>
+    <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
+    <string name="pre_high_iob_coverage_label">Insulintäckning</string>
+    <string name="alert_feature_off">Av</string>
+    <string name="same_direction_suppression_title">Tyst period efter larm i samma riktning</string>
+    <string name="same_direction_suppression_summary">När du avfärdar eller skjuter upp ett fallande eller stigande larm är andra larm i samma riktning tysta så här länge. Lågt, mycket lågt och mycket högt larmar alltid.</string>
+    <string name="acknowledged_high_coverage_title">Bekräftade stigningslarm täcker ”Högt”</string>
+    <string name="acknowledged_high_coverage_summary">När du avfärdar eller skjuter upp ”Stiger snabbt”, ”Förutspått högt” eller ”Högt” är de andra larmen tysta under tiden ovan. ”Mycket högt” larmar alltid.</string>
 </resources>

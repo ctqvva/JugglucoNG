@@ -2847,4 +2847,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="quiet_window_add_tile">Schnelleinstellungs-Kachel hinzufügen</string>
     <string name="quiet_window_add_tile_hint">Die Kachel lässt sich im Editor der Schnelleinstellungen in der Statusleiste hinzufügen.</string>
     <string name="quiet_window_select_end_time">Stumm bis</string>
+
+    <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
+    <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
+    <string name="pre_high_iob_coverage_label">Insulindeckung</string>
+    <string name="alert_feature_off">Aus</string>
+    <string name="same_direction_suppression_title">Ruhezeit nach Alarm gleicher Richtung</string>
+    <string name="same_direction_suppression_summary">Nachdem du einen fallenden oder steigenden Alarm verworfen oder pausiert hast, bleiben weitere Alarme derselben Richtung so lange stumm. Niedrig, sehr niedrig und sehr hoch melden sich immer.</string>
+    <string name="acknowledged_high_coverage_title">Bestätigte Anstiegsalarme decken „Hoch“ ab</string>
+    <string name="acknowledged_high_coverage_summary">Nachdem du „Schnell steigend“, „Hoch vorhergesagt“ oder „Hoch“ verworfen oder pausiert hast, bleiben die anderen für die oben eingestellte Zeit stumm. „Sehr hoch“ meldet sich immer.</string>
 </resources>

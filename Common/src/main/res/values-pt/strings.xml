@@ -2809,4 +2809,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="quiet_window_add_tile">Adicionar mosaico de definições rápidas</string>
     <string name="quiet_window_add_tile_hint">O mosaico pode ser adicionado no editor das definições rápidas na barra de estado.</string>
     <string name="quiet_window_select_end_time">Silêncio até</string>
+
+    <string name="rearm_margin_label">Margem de rearme</string>
+    <string name="rearm_min_interval_label">Tempo mínimo entre alarmes</string>
+    <string name="pre_high_iob_coverage_label">Cobertura de insulina</string>
+    <string name="alert_feature_off">Desligado</string>
+    <string name="same_direction_suppression_title">Período de silêncio após alerta na mesma direção</string>
+    <string name="same_direction_suppression_summary">Depois de dispensar ou adiar um alerta de descida ou subida, os outros alertas na mesma direção ficam em silêncio durante este tempo. Baixo, muito baixo e muito alto disparam sempre.</string>
+    <string name="acknowledged_high_coverage_title">Alertas de subida confirmados cobrem « Alto »</string>
+    <string name="acknowledged_high_coverage_summary">Depois de dispensar ou adiar « Subida rápida », « Alto previsto » ou « Alto », os outros alertas ficam em silêncio durante o período acima. « Muito alto » dispara sempre.</string>
 </resources>

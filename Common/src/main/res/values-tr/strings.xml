@@ -2836,4 +2836,13 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="quiet_window_add_tile">Hızlı ayarlar kutucuğu ekle</string>
     <string name="quiet_window_add_tile_hint">Kutucuk, durum çubuğundaki hızlı ayarlar düzenleyicisinden eklenebilir.</string>
     <string name="quiet_window_select_end_time">Şu saate kadar sessiz</string>
+
+    <string name="rearm_margin_label">Yeniden alarm marjı</string>
+    <string name="rearm_min_interval_label">Alarmlar arası asgari süre</string>
+    <string name="pre_high_iob_coverage_label">İnsülin karşılama</string>
+    <string name="alert_feature_off">Kapalı</string>
+    <string name="same_direction_suppression_title">Aynı yöndeki alarmdan sonra sessiz süre</string>
+    <string name="same_direction_suppression_summary">Bir düşüş veya yükseliş alarmını kapattıktan ya da ertelettikten sonra aynı yöndeki diğer alarmlar bu süre boyunca sessiz kalır. Düşük, çok düşük ve çok yüksek her zaman çalar.</string>
+    <string name="acknowledged_high_coverage_title">Onaylanan yükseliş alarmları “Yüksek”i karşılar</string>
+    <string name="acknowledged_high_coverage_summary">“Hızla yükseliyor”, “Yüksek tahmini” veya “Yüksek” alarmını kapattıktan ya da erteledikten sonra diğerleri yukarıdaki süre boyunca sessiz kalır. “Çok yüksek” her zaman çalar.</string>
 </resources>
