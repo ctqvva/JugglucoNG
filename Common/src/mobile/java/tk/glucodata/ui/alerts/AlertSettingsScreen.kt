@@ -1210,7 +1210,8 @@ private fun AlertSettingsExpanded(
                         isMmol = isMmol,
                         range = if (isMmol) 0f..3f else 0f..50f,
                         onValueChange = { onConfigChange(config.copy(rearmMargin = it)) },
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        prominent = false
                     )
                 }
                 if (config.type == AlertType.PRE_LOW || config.type == AlertType.PRE_HIGH) {
@@ -1362,7 +1363,8 @@ private fun DeltaAlarmSettings(
         } else {
             if (isMmol) 7.0f..17.0f else 120f..300f
         },
-        onValueChange = { onConfigChange(config.copy(deltaBorder = it)) }
+        onValueChange = { onConfigChange(config.copy(deltaBorder = it)) },
+        prominent = false
     )
 
     Text(
@@ -1442,7 +1444,10 @@ private fun ThresholdSlider(
     isMmol: Boolean,
     range: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // The card's headline threshold is set big; a secondary threshold (the
+    // re-arm margin, under Advanced) is set like every other slider there.
+    prominent: Boolean = true
 ) {
     // Calculate step size based on range and unit
     // Lower ranges need finer control (0.1 mmol or 1 mg/dL)
@@ -1466,8 +1471,8 @@ private fun ThresholdSlider(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
+                style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                fontWeight = if (prominent) FontWeight.Medium else null,
                 color = MaterialTheme.colorScheme.onSurface,
                 // A long (localised) label must wrap, not push the value out
                 // of the row.
@@ -1478,8 +1483,8 @@ private fun ThresholdSlider(
             Text(
                 // Use LOCAL sliderValue for real-time updates
                 formatThreshold(sliderValue, isMmol),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = if (prominent) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyMedium,
+                fontWeight = if (prominent) FontWeight.SemiBold else FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
         }
