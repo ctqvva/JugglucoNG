@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,8 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Compress
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
@@ -83,7 +79,6 @@ import tk.glucodata.data.ScheduledBackupIntegrityNotifier
 import tk.glucodata.data.ScheduledBackupSettings
 import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.SettingsItem
@@ -582,14 +577,12 @@ fun ExportDataSettingsSheet(
                 subtitle = stringResource(R.string.export_calibrations_desc),
                 icon = Icons.Default.TrackChanges,
                 checked = includeCalibrations,
-                position = CardPosition.MIDDLE,
+                position = CardPosition.BOTTOM,
                 onCheckedChange = { includeCalibrations = it }
             )
             if (includeHistory) {
-                ExportChoiceRow(
-                    title = stringResource(R.string.export_range_title),
-                    icon = Icons.Default.DateRange,
-                    position = CardPosition.MIDDLE,
+                Spacer(Modifier.height(16.dp))
+                ExportChoiceGroup(
                     options = listOf(30L, 90L, 365L, null),
                     selected = historyDays,
                     onSelected = { historyDays = it },
@@ -602,17 +595,43 @@ fun ExportDataSettingsSheet(
                         }
                     }
                 )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = ::exportCsv,
+                    enabled = !isExporting,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.List,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.export_complete_csv))
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = ::exportReadableReport,
+                    enabled = !isExporting,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.export_readable_report))
+                }
             }
-            ExportChoiceRow(
-                title = stringResource(R.string.export_compression),
-                icon = Icons.Default.Compress,
-                position = CardPosition.BOTTOM,
+
+            Spacer(Modifier.height(16.dp))
+            ExportChoiceGroup(
                 options = listOf(ExportCompression.NONE, ExportCompression.GZIP, ExportCompression.ZSTD),
                 selected = compression,
                 onSelected = { compression = it },
                 labelText = { option -> context.getString(compressionLabel(option)) }
             )
-
             Spacer(Modifier.height(16.dp))
 
             if (isExporting) {
@@ -633,48 +652,28 @@ fun ExportDataSettingsSheet(
                 Button(
                     onClick = ::saveToFilePicker,
                     enabled = !isExporting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Icon(
+                        imageVector = Icons.Default.FolderOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.export_save_to_files))
                 }
                 OutlinedButton(
                     onClick = ::shareExport,
                     enabled = !isExporting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(imageVector = Icons.Default.Share, contentDescription = null)
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.export_share_to_cloud))
-                }
-                if (includeHistory) {
-                    OutlinedButton(
-                        onClick = ::exportCsv,
-                        enabled = !isExporting,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                    ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = null)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(stringResource(R.string.export_complete_csv))
-                    }
-                    OutlinedButton(
-                        onClick = ::exportReadableReport,
-                        enabled = !isExporting,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Info, contentDescription = null)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(stringResource(R.string.export_readable_report))
-                    }
                 }
             }
         }
@@ -885,15 +884,6 @@ fun ScheduledBackupSettingsSheet(
                 position = CardPosition.MIDDLE,
                 onClick = { showTimePicker = true }
             )
-            ExportChoiceRow(
-                title = stringResource(R.string.export_compression),
-                icon = Icons.Default.Compress,
-                position = CardPosition.MIDDLE,
-                options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
-                selected = config.compression,
-                onSelected = { persist(config.copy(compression = it)) },
-                labelText = { option -> context.getString(compressionLabel(option)) }
-            )
             ExpandableSettingsCard(
                 title = stringResource(R.string.scheduled_backup_retention),
                 summary = stringResource(
@@ -924,10 +914,18 @@ fun ScheduledBackupSettingsSheet(
                 )
             }
 
-            // Status is a caption under the group, not a surface of its own: there is
-            // nothing to act on here beyond the buttons that follow.
+            Spacer(Modifier.height(16.dp))
+            ExportChoiceGroup(
+                options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
+                selected = config.compression,
+                onSelected = { persist(config.copy(compression = it)) },
+                labelText = { option -> context.getString(compressionLabel(option)) }
+            )
+
+            // Status is a caption, not a surface of its own: there is nothing to act on
+            // here beyond the buttons that follow.
             Column(
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
@@ -957,9 +955,7 @@ fun ScheduledBackupSettingsSheet(
             Button(
                 onClick = ::runNow,
                 enabled = config.destination != null && !isRunningNow && !isTestingBackup,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (isRunningNow) {
                     CircularProgressIndicator(
@@ -967,9 +963,9 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.Backup, contentDescription = null)
+                    Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_run_now))
             }
             Spacer(Modifier.height(8.dp))
@@ -980,9 +976,7 @@ fun ScheduledBackupSettingsSheet(
                     )
                 },
                 enabled = !isRunningNow && !isTestingBackup,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (isTestingBackup) {
                     CircularProgressIndicator(
@@ -990,9 +984,9 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.FactCheck, contentDescription = null)
+                    Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_test))
             }
         }
@@ -1126,59 +1120,23 @@ private fun ExportContentRow(
     )
 }
 
-/**
- * A settings row whose value is a short exclusive choice: title on the row's grid,
- * the connected group underneath spanning the card, the way a slider row does.
- */
 @Composable
-private fun <T> ExportChoiceRow(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    position: CardPosition,
+private fun <T> ExportChoiceGroup(
     options: List<T>,
     selected: T,
     onSelected: (T) -> Unit,
     labelText: (T) -> String
 ) {
-    val tint = MaterialTheme.colorScheme.primary
-    Surface(
+    ConnectedButtonGroup(
+        options = options,
+        selectedOption = selected,
+        onOptionSelected = onSelected,
+        label = {},
+        labelText = labelText,
         modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = tint.copy(alpha = 0.12f)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
-            }
-            Spacer(Modifier.height(12.dp))
-            ConnectedButtonGroup(
-                options = options,
-                selectedOption = selected,
-                onOptionSelected = onSelected,
-                label = {},
-                labelText = labelText,
-                modifier = Modifier.fillMaxWidth(),
-                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-        }
-    }
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    )
 }
 
 private fun compressionLabel(option: ExportCompression): Int = when (option) {
