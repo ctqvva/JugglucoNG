@@ -7,9 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -19,10 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -46,8 +51,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
@@ -358,8 +361,8 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
                 softWrap = true,
             )
         }
-        // A text button carries its own 8dp of vertical padding inside a 40dp target, so any
-        // gap added here lands on top of that and the log ends up floating above its actions.
+        // The log's scrollbar and the header's chevron both end at the card padding; the row
+        // of icon buttons is nudged 12dp so its last glyph ends there too, not its 48dp target.
         TraceLogActions(
             onCopy = { clipboard.setText(AnnotatedString(rendered)) },
             onShare = {
@@ -379,54 +382,40 @@ internal fun SensorTraceLog(sensor: SensorInfo) {
 }
 
 /**
- * Copy / share / save on one line, whatever the language. Three icon-and-label buttons fit
- * an English card but not a Russian or German one (Копировать, Поделиться, Сохранить), and
- * wrapping the third button onto its own row left the card looking broken. So the labelled
- * row is measured at its natural width first; when it would overflow, the icons are dropped
- * and the three labels share the width equally instead. The label is the promise, the icon
- * only decorates it, so the icon is what goes.
+ * Copy, share and save as icon buttons at the card's trailing edge, the way a card's supporting
+ * actions sit in Material 3. Labelled buttons could not survive translation: three of them with
+ * icons fit an English card and not a Russian or German one, and any fallback made the card
+ * look different from one language to the next. These three glyphs are the most literal ones
+ * there are, and a long press names each one.
  */
 @Composable
 private fun TraceLogActions(onCopy: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
-    SubcomposeLayout(Modifier.fillMaxWidth()) { constraints ->
-        val labelled = subcompose(TraceLogActionsSlot.LABELLED) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TraceLogAction(Icons.Default.ContentCopy, R.string.copy, onCopy)
-                TraceLogAction(Icons.Default.Share, R.string.share, onShare)
-                TraceLogAction(Icons.Default.Save, R.string.save, onSave)
-            }
-        }.single().measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
-        if (labelled.width <= constraints.maxWidth) {
-            layout(constraints.maxWidth, labelled.height) {
-                labelled.placeRelative(constraints.maxWidth - labelled.width, 0)
-            }
-        } else {
-            val compact = subcompose(TraceLogActionsSlot.COMPACT) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TraceLogAction(null, R.string.copy, onCopy, Modifier.weight(1f))
-                    TraceLogAction(null, R.string.share, onShare, Modifier.weight(1f))
-                    TraceLogAction(null, R.string.save, onSave, Modifier.weight(1f))
-                }
-            }.single().measure(constraints)
-            layout(constraints.maxWidth, compact.height) { compact.placeRelative(0, 0) }
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth().offset(x = 12.dp),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        TraceLogAction(Icons.Default.ContentCopy, R.string.copy, onCopy)
+        TraceLogAction(Icons.Default.Share, R.string.share, onShare)
+        TraceLogAction(Icons.Default.Save, R.string.save, onSave)
     }
 }
 
-private enum class TraceLogActionsSlot { LABELLED, COMPACT }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TraceLogAction(
-    icon: ImageVector?,
-    label: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    TextButton(onClick = onClick, modifier = modifier) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+private fun TraceLogAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
+    val text = stringResource(label)
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(text) } },
+        state = rememberTooltipState(),
+    ) {
+        IconButton(
+            onClick = onClick,
+            colors = IconButtonDefaults.iconButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        ) {
+            Icon(icon, contentDescription = text)
         }
-        Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
