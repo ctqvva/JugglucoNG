@@ -729,6 +729,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="scheduled_backup_month_day">Сарын өдөр</string>
     <string name="scheduled_backup_time">Ажиллах цаг</string>
     <string name="scheduled_backup_retention">Хадгалах нөөцийн тоо</string>
+    <string name="scheduled_backup_retention_summary">өдөр бүр %1$d · долоо хоног бүр %2$d · сар бүр %3$d</string>
+    <string name="scheduled_backup_folder_none">Хавтас сонгоогүй</string>
     <string name="scheduled_backup_run_now">Одоо нөөцлөх</string>
     <string name="scheduled_backup_queued">Нөөцлөлт эхэллээ</string>
     <string name="scheduled_backup_run_success">Нөөцлөлт амжилттай дууслаа</string>

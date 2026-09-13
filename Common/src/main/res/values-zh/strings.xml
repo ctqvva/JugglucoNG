@@ -553,6 +553,8 @@
     <string name="scheduled_backup_month_day">每月日期</string>
     <string name="scheduled_backup_time">运行时间</string>
     <string name="scheduled_backup_retention">保留的备份数</string>
+    <string name="scheduled_backup_retention_summary">每日 %1$d 份 · 每周 %2$d 份 · 每月 %3$d 份</string>
+    <string name="scheduled_backup_folder_none">未选择文件夹</string>
     <string name="scheduled_backup_run_now">立即运行备份</string>
     <string name="scheduled_backup_queued">备份已开始</string>
     <string name="scheduled_backup_run_success">备份成功完成</string>

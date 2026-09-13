@@ -493,6 +493,8 @@
     <string name="scheduled_backup_month_day">Jour du mois</string>
     <string name="scheduled_backup_time">Heure d’exécution</string>
     <string name="scheduled_backup_retention">Sauvegardes à conserver</string>
+    <string name="scheduled_backup_retention_summary">%1$d quotidiennes · %2$d hebdomadaires · %3$d mensuelles</string>
+    <string name="scheduled_backup_folder_none">Aucun dossier choisi</string>
     <string name="scheduled_backup_run_now">Exécuter la sauvegarde maintenant</string>
     <string name="scheduled_backup_queued">Sauvegarde démarrée</string>
     <string name="scheduled_backup_run_success">Sauvegarde terminée avec succès</string>

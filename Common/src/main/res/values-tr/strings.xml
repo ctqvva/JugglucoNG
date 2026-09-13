@@ -598,6 +598,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="scheduled_backup_month_day">Ayın günü</string>
     <string name="scheduled_backup_time">Çalışma saati</string>
     <string name="scheduled_backup_retention">Saklanacak yedek sayısı</string>
+    <string name="scheduled_backup_retention_summary">%1$d günlük · %2$d haftalık · %3$d aylık</string>
+    <string name="scheduled_backup_folder_none">Klasör seçilmedi</string>
     <string name="scheduled_backup_run_now">Şimdi yedekle</string>
     <string name="scheduled_backup_queued">Yedekleme başladı</string>
     <string name="scheduled_backup_run_success">Yedekleme başarıyla tamamlandı</string>

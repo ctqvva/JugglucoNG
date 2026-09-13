@@ -546,6 +546,8 @@
     <string name="scheduled_backup_month_day">Dag i månaden</string>
     <string name="scheduled_backup_time">Körtid</string>
     <string name="scheduled_backup_retention">Säkerhetskopior att behålla</string>
+    <string name="scheduled_backup_retention_summary">%1$d dagliga · %2$d veckovisa · %3$d månatliga</string>
+    <string name="scheduled_backup_folder_none">Ingen mapp vald</string>
     <string name="scheduled_backup_run_now">Kör säkerhetskopiering nu</string>
     <string name="scheduled_backup_queued">Säkerhetskopiering startad</string>
     <string name="scheduled_backup_run_success">Säkerhetskopieringen slutfördes</string>

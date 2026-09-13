@@ -558,6 +558,8 @@
     <string name="scheduled_backup_month_day">День місяця</string>
     <string name="scheduled_backup_time">Час запуску</string>
     <string name="scheduled_backup_retention">Кількість збережених копій</string>
+    <string name="scheduled_backup_retention_summary">%1$d щоденних · %2$d щотижневих · %3$d щомісячних</string>
+    <string name="scheduled_backup_folder_none">Папку не вибрано</string>
     <string name="scheduled_backup_run_now">Створити копію зараз</string>
     <string name="scheduled_backup_queued">Створення копії розпочато</string>
     <string name="scheduled_backup_run_success">Резервну копію успішно створено</string>

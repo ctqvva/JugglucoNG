@@ -621,6 +621,8 @@
     <string name="scheduled_backup_month_day">Dzień miesiąca</string>
     <string name="scheduled_backup_time">Godzina uruchomienia</string>
     <string name="scheduled_backup_retention">Liczba przechowywanych kopii</string>
+    <string name="scheduled_backup_retention_summary">%1$d dziennych · %2$d tygodniowych · %3$d miesięcznych</string>
+    <string name="scheduled_backup_folder_none">Nie wybrano folderu</string>
     <string name="scheduled_backup_run_now">Uruchom kopię teraz</string>
     <string name="scheduled_backup_queued">Tworzenie kopii rozpoczęte</string>
     <string name="scheduled_backup_run_success">Kopia zapasowa utworzona pomyślnie</string>

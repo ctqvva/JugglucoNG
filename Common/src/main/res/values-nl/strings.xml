@@ -635,6 +635,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="scheduled_backup_month_day">Dag van de maand</string>
     <string name="scheduled_backup_time">Uitvoeringstijd</string>
     <string name="scheduled_backup_retention">Te bewaren back-ups</string>
+    <string name="scheduled_backup_retention_summary">%1$d dagelijks · %2$d wekelijks · %3$d maandelijks</string>
+    <string name="scheduled_backup_folder_none">Geen map gekozen</string>
     <string name="scheduled_backup_run_now">Back-up nu uitvoeren</string>
     <string name="scheduled_backup_queued">Back-up gestart</string>
     <string name="scheduled_backup_run_success">Back-up voltooid</string>

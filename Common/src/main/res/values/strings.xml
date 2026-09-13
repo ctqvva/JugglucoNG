@@ -810,6 +810,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scheduled_backup_month_day">Day of month</string>
     <string name="scheduled_backup_time">Run time</string>
     <string name="scheduled_backup_retention">Backups to keep</string>
+    <string name="scheduled_backup_retention_summary">%1$d daily · %2$d weekly · %3$d monthly</string>
+    <string name="scheduled_backup_folder_none">No folder chosen</string>
     <string name="scheduled_backup_run_now">Run backup now</string>
     <string name="scheduled_backup_queued">Backup started</string>
     <string name="scheduled_backup_run_success">Backup completed successfully</string>

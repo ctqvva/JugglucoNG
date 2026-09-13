@@ -419,6 +419,8 @@
     <string name="scheduled_backup_month_day">Giorno del mese</string>
     <string name="scheduled_backup_time">Ora di esecuzione</string>
     <string name="scheduled_backup_retention">Backup da conservare</string>
+    <string name="scheduled_backup_retention_summary">%1$d giornalieri · %2$d settimanali · %3$d mensili</string>
+    <string name="scheduled_backup_folder_none">Nessuna cartella scelta</string>
     <string name="scheduled_backup_run_now">Esegui backup ora</string>
     <string name="scheduled_backup_queued">Backup avviato</string>
     <string name="scheduled_backup_run_success">Backup completato correttamente</string>

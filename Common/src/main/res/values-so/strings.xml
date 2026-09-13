@@ -787,6 +787,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="scheduled_backup_month_day">Maalinta bisha</string>
     <string name="scheduled_backup_time">Waqtiga fulinta</string>
     <string name="scheduled_backup_retention">Kaydka la hayo</string>
+    <string name="scheduled_backup_retention_summary">%1$d maalinle · %2$d toddobaadle · %3$d bille</string>
+    <string name="scheduled_backup_folder_none">Gal lama dooran</string>
     <string name="scheduled_backup_run_now">Hadda samee kayd</string>
     <string name="scheduled_backup_queued">Kaydku wuu bilaabmay</string>
     <string name="scheduled_backup_run_success">Kaydka si guul leh ayaa loo dhammeeyay</string>

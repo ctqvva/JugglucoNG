@@ -23,6 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -41,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
@@ -58,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.work.WorkInfo
@@ -77,9 +82,13 @@ import tk.glucodata.data.ScheduledBackupConfig
 import tk.glucodata.data.ScheduledBackupIntegrityNotifier
 import tk.glucodata.data.ScheduledBackupSettings
 import tk.glucodata.data.ScheduledBackupWorker
+import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.ExpandableSettingsCard
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
 import java.util.ArrayList
 import java.util.Calendar
@@ -763,6 +772,7 @@ fun ScheduledBackupSettingsSheet(
     var config by remember { mutableStateOf(ScheduledBackupSettings.load(context)) }
     var enableAfterFolderPick by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var retentionExpanded by rememberSaveable { mutableStateOf(false) }
     var isRunningNow by remember { mutableStateOf(false) }
     var isTestingBackup by remember { mutableStateOf(false) }
     var backupTestMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
@@ -874,41 +884,48 @@ fun ScheduledBackupSettingsSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text = stringResource(R.string.scheduled_backup_title),
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            if (config.integrityWarning != null) {
+            config.integrityWarning?.let {
                 Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                     color = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
+                    Row(modifier = Modifier.padding(16.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 stringResource(R.string.scheduled_backup_integrity_warning),
                                 style = MaterialTheme.typography.titleMedium
                             )
-                        }
-                        Text(stringResource(R.string.scheduled_backup_integrity_explanation))
-                        OutlinedButton(
-                            onClick = {
-                                ScheduledBackupSettings.acknowledgeIntegrityWarning(context)
-                                ScheduledBackupIntegrityNotifier.cancel(context)
-                                config = ScheduledBackupSettings.load(context)
-                                onConfigurationChanged(config)
+                            Text(
+                                stringResource(R.string.scheduled_backup_integrity_explanation),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    ScheduledBackupSettings.acknowledgeIntegrityWarning(context)
+                                    ScheduledBackupIntegrityNotifier.cancel(context)
+                                    config = ScheduledBackupSettings.load(context)
+                                    onConfigurationChanged(config)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .padding(top = 8.dp)
+                            ) {
+                                Text(stringResource(R.string.scheduled_backup_acknowledge))
                             }
-                        ) {
-                            Text(stringResource(R.string.scheduled_backup_acknowledge))
                         }
                     }
                 }
@@ -917,7 +934,9 @@ fun ScheduledBackupSettingsSheet(
             SettingsSwitchItem(
                 title = stringResource(R.string.scheduled_backup_enabled),
                 subtitle = stringResource(R.string.scheduled_backup_enabled_desc),
+                icon = Icons.Default.Backup,
                 checked = config.enabled,
+                position = CardPosition.TOP,
                 onCheckedChange = { enabled ->
                     if (enabled && config.destination == null) {
                         enableAfterFolderPick = true
@@ -927,64 +946,57 @@ fun ScheduledBackupSettingsSheet(
                     }
                 }
             )
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.scheduled_backup_folder),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                config.destination?.let { destination ->
-                    Text(
-                        backupFolderLabel(destination),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            SettingsItem(
+                title = stringResource(R.string.scheduled_backup_folder),
+                subtitle = config.destination?.let(::backupFolderLabel)
+                    ?: stringResource(R.string.scheduled_backup_folder_none),
+                icon = Icons.Default.FolderOpen,
+                position = CardPosition.MIDDLE,
+                onClick = { folderLauncher.launch(config.destination) }
+            )
+            SettingsItem(
+                title = stringResource(R.string.scheduled_backup_time),
+                subtitle = formatBackupTime(context, config.hour, config.minute),
+                icon = Icons.Default.Schedule,
+                position = CardPosition.MIDDLE,
+                onClick = { showTimePicker = true }
+            )
+            SettingsItem(
+                title = stringResource(R.string.export_compression),
+                icon = Icons.Default.Compress,
+                position = CardPosition.MIDDLE,
+                trailingContent = {
+                    ConnectedButtonGroup(
+                        options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
+                        selectedOption = config.compression,
+                        onOptionSelected = { persist(config.copy(compression = it)) },
+                        label = {},
+                        labelText = { option ->
+                            when (option) {
+                                ExportCompression.ZSTD -> context.getString(R.string.export_compression_zstd)
+                                else -> context.getString(R.string.export_compression_gzip)
+                            }
+                        },
+                        modifier = Modifier.width(160.dp),
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
                 }
-                OutlinedButton(
-                    onClick = { folderLauncher.launch(config.destination) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.FolderOpen, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.scheduled_backup_choose_folder))
-                }
-            }
-
-            OutlinedButton(
-                onClick = { showTimePicker = true },
-                modifier = Modifier.fillMaxWidth()
+            )
+            ExpandableSettingsCard(
+                title = stringResource(R.string.scheduled_backup_retention),
+                summary = stringResource(
+                    R.string.scheduled_backup_retention_summary,
+                    config.dailyRetention,
+                    config.weeklyRetention,
+                    config.monthlyRetention
+                ),
+                icon = Icons.Default.History,
+                expanded = retentionExpanded,
+                onExpandedChange = { retentionExpanded = it },
+                position = CardPosition.BOTTOM
             ) {
-                Text(
-                    stringResource(
-                        R.string.scheduled_backup_time,
-                    ) + ": " + formatBackupTime(context, config.hour, config.minute)
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.export_compression),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ExportRangeChip(
-                        selected = config.compression == ExportCompression.GZIP,
-                        label = stringResource(R.string.export_compression_gzip),
-                        onClick = { persist(config.copy(compression = ExportCompression.GZIP)) }
-                    )
-                    ExportRangeChip(
-                        selected = config.compression == ExportCompression.ZSTD,
-                        label = stringResource(R.string.export_compression_zstd),
-                        onClick = { persist(config.copy(compression = ExportCompression.ZSTD)) }
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.scheduled_backup_retention),
-                    style = MaterialTheme.typography.titleSmall
-                )
                 BackupRetentionRow(
                     label = stringResource(R.string.scheduled_backup_daily),
                     selected = config.dailyRetention,
@@ -1002,33 +1014,42 @@ fun ScheduledBackupSettingsSheet(
                 )
             }
 
-            HorizontalDivider()
-            Text(
-                if (config.lastSuccessAtMillis > 0L) {
-                    stringResource(
-                        R.string.scheduled_backup_last_success,
-                        java.text.DateFormat.getDateTimeInstance(
-                            java.text.DateFormat.MEDIUM,
-                            java.text.DateFormat.SHORT
-                        ).format(Date(config.lastSuccessAtMillis))
-                    )
-                } else {
-                    stringResource(R.string.scheduled_backup_never)
-                },
-                style = MaterialTheme.typography.bodyMedium
-            )
-            config.lastError?.let { error ->
+            // Status is a caption under the group, not a surface of its own: there is
+            // nothing to act on here beyond the buttons that follow.
+            Column(
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    stringResource(R.string.scheduled_backup_last_error, error),
+                    if (config.lastSuccessAtMillis > 0L) {
+                        stringResource(
+                            R.string.scheduled_backup_last_success,
+                            java.text.DateFormat.getDateTimeInstance(
+                                java.text.DateFormat.MEDIUM,
+                                java.text.DateFormat.SHORT
+                            ).format(Date(config.lastSuccessAtMillis))
+                        )
+                    } else {
+                        stringResource(R.string.scheduled_backup_never)
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                config.lastError?.let { error ->
+                    Text(
+                        stringResource(R.string.scheduled_backup_last_error, error),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             Button(
                 onClick = ::runNow,
                 enabled = config.destination != null && !isRunningNow && !isTestingBackup,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
             ) {
                 if (isRunningNow) {
                     CircularProgressIndicator(
@@ -1038,9 +1059,10 @@ fun ScheduledBackupSettingsSheet(
                 } else {
                     Icon(Icons.Default.Backup, contentDescription = null)
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(stringResource(R.string.scheduled_backup_run_now))
             }
+            Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {
                     backupTestLauncher.launch(
@@ -1048,7 +1070,9 @@ fun ScheduledBackupSettingsSheet(
                     )
                 },
                 enabled = !isRunningNow && !isTestingBackup,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
             ) {
                 if (isTestingBackup) {
                     CircularProgressIndicator(
@@ -1056,14 +1080,13 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.Backup, contentDescription = null)
+                    Icon(Icons.Default.FactCheck, contentDescription = null)
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(stringResource(R.string.scheduled_backup_test))
             }
         }
     }
-
     if (showTimePicker) {
         val pickerState = rememberTimePickerState(
             initialHour = config.hour,
@@ -1115,18 +1138,32 @@ private fun BackupRetentionRow(
     selected: Int,
     onSelected: (Int) -> Unit
 ) {
-    Text(label, style = MaterialTheme.typography.bodyMedium)
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        ScheduledBackupSettings.retentionOptions.forEach { count ->
-            ExportRangeChip(
-                selected = selected == count,
-                label = count.toString(),
-                onClick = { onSelected(count) }
+    val options = ScheduledBackupSettings.retentionOptions
+    var index by remember(selected) {
+        mutableStateOf(options.indexOf(selected).coerceAtLeast(0).toFloat())
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = options[index.toInt().coerceIn(options.indices)].toString(),
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.SemiBold
             )
         }
+        Slider(
+            value = index,
+            onValueChange = { index = it },
+            onValueChangeFinished = { onSelected(options[index.toInt().coerceIn(options.indices)]) },
+            valueRange = 0f..options.lastIndex.toFloat(),
+            steps = (options.size - 2).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

@@ -633,6 +633,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scheduled_backup_month_day">Tag des Monats</string>
     <string name="scheduled_backup_time">Ausführungszeit</string>
     <string name="scheduled_backup_retention">Zu behaltende Sicherungen</string>
+    <string name="scheduled_backup_retention_summary">%1$d täglich · %2$d wöchentlich · %3$d monatlich</string>
+    <string name="scheduled_backup_folder_none">Kein Ordner gewählt</string>
     <string name="scheduled_backup_run_now">Sicherung jetzt ausführen</string>
     <string name="scheduled_backup_queued">Sicherung gestartet</string>
     <string name="scheduled_backup_run_success">Sicherung erfolgreich abgeschlossen</string>
