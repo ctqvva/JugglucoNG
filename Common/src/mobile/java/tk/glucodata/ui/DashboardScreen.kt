@@ -285,6 +285,7 @@ fun DashboardScreen(
     onNavigateToMqAccount: () -> Unit = {},
     onNavigateToReadiness: () -> Unit = {},
     onNavigateToAppUpdates: () -> Unit = {},
+    onNavigateToQuietWindow: () -> Unit = {},
     onNavigateToPredictionModelProfile: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
@@ -401,9 +402,8 @@ fun DashboardScreen(
         // calibrations are re-paired once here rather than only on a live edit.
         tk.glucodata.data.calibration.JournalCalibrationSync.onAppStart()
     }
-    // The alarm quiet window: header chip + dialog.
+    // The alarm quiet window: a header chip while one runs, nothing otherwise.
     val quietWindowUntilMs by viewModel.quietWindowUntilMs.collectAsState()
-    var showQuietWindowDialog by remember { mutableStateOf(false) }
     // State for wizards (matching SensorScreen pattern)
     var showSibionicsWizard by remember { mutableStateOf(false) }
     var showLibreWizard by remember { mutableStateOf(false) }
@@ -745,10 +745,6 @@ fun DashboardScreen(
                 }
             }
         }
-    }
-
-    if (showQuietWindowDialog) {
-        tk.glucodata.ui.alerts.QuietWindowDialog(onDismiss = { showQuietWindowDialog = false })
     }
 
     // Sibionics Setup Wizard (Full Screen)
@@ -1449,7 +1445,7 @@ fun DashboardScreen(
                             deltaIntervalMinutes = deltaIntervalMinutes,
                             arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
                             quietWindowUntilMs = quietWindowUntilMs,
-                            onQuietWindowClick = { showQuietWindowDialog = true },
+                            onQuietWindowClick = onNavigateToQuietWindow,
                             onHeroClick = {
                                 val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                 val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1752,7 +1748,7 @@ fun DashboardScreen(
                             deltaIntervalMinutes = deltaIntervalMinutes,
                             arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
                             quietWindowUntilMs = quietWindowUntilMs,
-                            onQuietWindowClick = { showQuietWindowDialog = true },
+                            onQuietWindowClick = onNavigateToQuietWindow,
                             onHeroClick = {
                                 val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                 val rawVal = latestPoint?.rawValue ?: autoVal

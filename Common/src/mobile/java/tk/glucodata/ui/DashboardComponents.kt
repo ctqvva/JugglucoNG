@@ -68,8 +68,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.NotificationsPaused
-import androidx.compose.material.icons.filled.NotificationsPaused
+import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDpAsState
@@ -250,10 +249,10 @@ fun DashboardCombinedHeader(
     peerReadings: List<tk.glucodata.ui.viewmodel.DashboardViewModel.PeerCurrentReading> = emptyList(),
     onPeerReadingClick: (String) -> Unit = {},
     onHeroClick: () -> Unit = {},
-    // The alarm quiet window: 0 = none. A running one shows as a chip with its
-    // end time; tapping either opens the quiet-window dialog.
+    // The alarm quiet window: 0 = none, and then nothing is drawn. A running one
+    // shows as a chip with its end time; tapping it opens the quiet-window screen.
     quietWindowUntilMs: Long = 0L,
-    onQuietWindowClick: (() -> Unit)? = null
+    onQuietWindowClick: () -> Unit = {}
 ) {
     // Determine Colors based on logic
     // Glucose: primary tonal surface with a very light range tint when fresh data is out of range.
@@ -920,11 +919,10 @@ fun DashboardCombinedHeader(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.Start
                 ) {
-                    // Quiet window: visible whenever it runs, so nobody forgets it.
-                    if (onQuietWindowClick != null) {
+                    // Quiet window: visible while it runs, so nobody forgets it.
+                    if (quietWindowUntilMs > 0L) {
                         QuietWindowHeaderChip(
                             untilMs = quietWindowUntilMs,
-                            contentColor = sensorContentColor,
                             onClick = onQuietWindowClick,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
@@ -2295,48 +2293,39 @@ private fun DashboardClearOptionsBottomSheet(
 }
 
 /**
- * The quiet-window indicator in the dashboard header: a muted icon while no
- * window runs, a tertiary chip with the end time while one does. Visible in both
- * states so the window is one tap away in the moment it is needed.
+ * The quiet-window chip in the dashboard header: the end time on a tertiary
+ * pill, drawn only while a window runs. One tap opens the quiet-window screen.
  */
 @Composable
 private fun QuietWindowHeaderChip(
     untilMs: Long,
-    contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val active = untilMs > 0L
-    val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = modifier
-            .clip(shape)
-            .then(
-                if (active) Modifier.background(MaterialTheme.colorScheme.tertiaryContainer)
-                else Modifier
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
             .clickable(onClick = onClick)
-            .padding(horizontal = if (active) 8.dp else 0.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = if (active) Icons.Filled.NotificationsPaused else Icons.Outlined.NotificationsPaused,
+            imageVector = Icons.Filled.DoNotDisturbOn,
             contentDescription = stringResource(R.string.quiet_window_title),
-            tint = if (active) MaterialTheme.colorScheme.onTertiaryContainer else contentColor.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.size(16.dp)
         )
-        if (active) {
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = stringResource(
-                    R.string.quiet_window_chip,
-                    android.text.format.DateFormat.getTimeFormat(context).format(java.util.Date(untilMs))
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                maxLines = 1
-            )
-        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = stringResource(
+                R.string.quiet_window_chip,
+                android.text.format.DateFormat.getTimeFormat(context).format(java.util.Date(untilMs))
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            maxLines = 1
+        )
     }
 }

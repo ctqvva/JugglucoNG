@@ -302,13 +302,6 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // === QUIET WINDOW ===
-            item(key = "quiet-window") {
-                Spacer(Modifier.height(8.dp))
-                QuietWindowSettingsCard()
-                Spacer(Modifier.height(8.dp))
-            }
-
             // === HIGH ALERTS SECTION ===
             item(key = "high-alerts-header") {
                 SectionHeader(
@@ -565,8 +558,34 @@ fun AlertSettingsScreen(
                     subtitle = talkerSummary,
                     icon = Icons.AutoMirrored.Filled.VolumeUp,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = SettingsItemPosition.SINGLE,
+                    showArrow = true,
+                    position = SettingsItemPosition.TOP,
                     onClick = { navController.navigate("settings/alerts/talker") }
+                )
+            }
+
+            // Optional, and last: the quiet window has its own screen. The row only
+            // says whether one runs.
+            item(key = "quiet-window") {
+                Spacer(Modifier.height(2.dp))
+                val quietWindowState by tk.glucodata.alerts.QuietWindow.state.collectAsState()
+                val quietWindowSubtitle = if (quietWindowState.active) {
+                    stringResource(
+                        R.string.quiet_window_active_until,
+                        android.text.format.DateFormat.getTimeFormat(context)
+                            .format(java.util.Date(quietWindowState.untilMs))
+                    )
+                } else {
+                    stringResource(R.string.quiet_window_desc)
+                }
+                SettingsItem(
+                    title = stringResource(R.string.quiet_window_title),
+                    subtitle = quietWindowSubtitle,
+                    icon = Icons.Default.DoNotDisturbOn,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    showArrow = true,
+                    position = SettingsItemPosition.BOTTOM,
+                    onClick = { navController.navigate("settings/alerts/quiet-window") }
                 )
             }
 
