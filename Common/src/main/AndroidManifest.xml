@@ -162,6 +162,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".alerts.QuietWindowReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".drivers.aidex.AiDexScanReceiver"
             android:enabled="true"
             android:exported="false" />
