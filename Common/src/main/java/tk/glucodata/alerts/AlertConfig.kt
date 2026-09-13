@@ -291,10 +291,10 @@ object AlertDefaults {
      */
     const val FALL_RATE_SUPPRESS_MGDL_PER_MIN = 1.0f
 
-    /**
-     * The furthest the PERSISTENT_HIGH picker goes: a fall this app calls fast. The
-     * picker's steps are whole units because one unit of rate is one arrow class.
-     */
+    /** The step the PERSISTENT_HIGH slider moves in. */
+    const val FALL_RATE_STEP_MGDL_PER_MIN = 1.0f
+
+    /** The furthest the PERSISTENT_HIGH scale goes: a fall this app calls fast. */
     const val FALL_RATE_MAX_MGDL_PER_MIN = 3.0f
 
     // PRE_HIGH IOB coverage: suppress when remaining insulin effect covers the
