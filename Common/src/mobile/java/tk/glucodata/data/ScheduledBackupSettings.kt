@@ -3,18 +3,6 @@ package tk.glucodata.data
 import android.content.Context
 import android.net.Uri
 
-enum class ScheduledBackupFrequency(val defaultRetention: Int) {
-    DAILY(5),
-    WEEKLY(4),
-    MONTHLY(6);
-
-    companion object {
-        fun fromStorage(value: String?): ScheduledBackupFrequency {
-            return entries.firstOrNull { it.name == value } ?: DAILY
-        }
-    }
-}
-
 data class ScheduledBackupMetrics(
     val compression: ExportCompression,
     val byteSize: Long,
@@ -47,13 +35,9 @@ object ScheduledBackupSettings {
     private const val PREFS = "scheduled_backups"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_DESTINATION = "destination"
-    private const val KEY_FREQUENCY = "frequency"
     private const val KEY_HOUR = "hour"
     private const val KEY_MINUTE = "minute"
-    private const val KEY_WEEKLY_DAY = "weekly_day"
-    private const val KEY_MONTHLY_DAY = "monthly_day"
     private const val KEY_COMPRESSION = "compression"
-    private const val KEY_RETENTION = "retention"
     private const val KEY_DAILY_RETENTION = "daily_retention"
     private const val KEY_WEEKLY_RETENTION = "weekly_retention"
     private const val KEY_MONTHLY_RETENTION = "monthly_retention"
@@ -65,16 +49,15 @@ object ScheduledBackupSettings {
     private const val BASELINE_PREFIX = "baseline_"
     private const val PENDING_PREFIX = "pending_"
 
+    private const val DEFAULT_DAILY_RETENTION = 5
+    private const val DEFAULT_WEEKLY_RETENTION = 4
+    private const val DEFAULT_MONTHLY_RETENTION = 6
+
     val retentionOptions = listOf(1, 3, 4, 5, 6, 7, 14, 30)
 
     fun load(context: Context): ScheduledBackupConfig {
         val prefs = prefs(context)
-        val legacyFrequency = ScheduledBackupFrequency.fromStorage(prefs.getString(KEY_FREQUENCY, null))
-        val legacyRetention = prefs.getInt(KEY_RETENTION, legacyFrequency.defaultRetention)
-            .takeIf { it in retentionOptions }
-            ?: legacyFrequency.defaultRetention
-        fun retention(key: String, tier: ScheduledBackupFrequency): Int {
-            val fallback = if (legacyFrequency == tier) legacyRetention else tier.defaultRetention
+        fun retention(key: String, fallback: Int): Int {
             return prefs.getInt(key, fallback).takeIf { it in retentionOptions } ?: fallback
         }
         return ScheduledBackupConfig(
@@ -87,9 +70,9 @@ object ScheduledBackupSettings {
             }.getOrNull()
                 ?.takeIf { it == ExportCompression.GZIP || it == ExportCompression.ZSTD }
                 ?: ExportCompression.GZIP,
-            dailyRetention = retention(KEY_DAILY_RETENTION, ScheduledBackupFrequency.DAILY),
-            weeklyRetention = retention(KEY_WEEKLY_RETENTION, ScheduledBackupFrequency.WEEKLY),
-            monthlyRetention = retention(KEY_MONTHLY_RETENTION, ScheduledBackupFrequency.MONTHLY),
+            dailyRetention = retention(KEY_DAILY_RETENTION, DEFAULT_DAILY_RETENTION),
+            weeklyRetention = retention(KEY_WEEKLY_RETENTION, DEFAULT_WEEKLY_RETENTION),
+            monthlyRetention = retention(KEY_MONTHLY_RETENTION, DEFAULT_MONTHLY_RETENTION),
             lastSuccessAtMillis = prefs.getLong(KEY_LAST_SUCCESS, 0L),
             lastFileName = prefs.getString(KEY_LAST_FILE, null),
             lastAttemptAtMillis = prefs.getLong(KEY_LAST_ATTEMPT, 0L),
@@ -117,10 +100,6 @@ object ScheduledBackupSettings {
             .putInt(KEY_DAILY_RETENTION, config.dailyRetention)
             .putInt(KEY_WEEKLY_RETENTION, config.weeklyRetention)
             .putInt(KEY_MONTHLY_RETENTION, config.monthlyRetention)
-            .remove(KEY_FREQUENCY)
-            .remove(KEY_WEEKLY_DAY)
-            .remove(KEY_MONTHLY_DAY)
-            .remove(KEY_RETENTION)
             .apply()
     }
 

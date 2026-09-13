@@ -198,8 +198,10 @@ object ExportPackageExporter {
         val journalEntries = history?.requiredArray("journalEntries").toJournalEntries()
         val insulinPresets = history?.requiredArray("journalInsulinPresets").toInsulinPresets()
         val foods = history?.requiredArray("journalFoods").toFoods()
-        val deletedReadings = history?.requiredArray("deletedReadings").toDeletedReadings()
-        val pendingDeletes = history?.requiredArray("pendingJournalDeletes").toPendingJournalDeletes()
+        // Both tombstone arrays arrived after the first packages shipped; the importer
+        // treats them as optional, so validation must too or every older export fails.
+        val deletedReadings = history?.optJSONArray("deletedReadings").toDeletedReadings()
+        val pendingDeletes = history?.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
         if (history != null) {
             requireFullyParsed("history readings", history.getJSONArray("readings"), readings.size)
             requireFullyParsed("journal entries", history.getJSONArray("journalEntries"), journalEntries.size)
@@ -209,16 +211,12 @@ object ExportPackageExporter {
                 insulinPresets.size
             )
             requireFullyParsed("food presets", history.getJSONArray("journalFoods"), foods.size)
-            requireFullyParsed(
-                "deleted history readings",
-                history.getJSONArray("deletedReadings"),
-                deletedReadings.size
-            )
-            requireFullyParsed(
-                "pending Nightscout deletes",
-                history.getJSONArray("pendingJournalDeletes"),
-                pendingDeletes.size
-            )
+            history.optJSONArray("deletedReadings")?.let { source ->
+                requireFullyParsed("deleted history readings", source, deletedReadings.size)
+            }
+            history.optJSONArray("pendingJournalDeletes")?.let { source ->
+                requireFullyParsed("pending Nightscout deletes", source, pendingDeletes.size)
+            }
         }
 
         val calibrationsSection = payload.optJSONObject("calibrations")

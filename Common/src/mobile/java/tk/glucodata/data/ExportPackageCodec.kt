@@ -40,14 +40,7 @@ internal object ExportPackageCodec {
         compression: ExportCompression,
         zstdWorkers: Int = defaultZstdWorkers()
     ) {
-        val compressed = when (compression) {
-            ExportCompression.NONE -> output
-            ExportCompression.GZIP -> GZIPOutputStream(output)
-            ExportCompression.ZSTD -> ZstdOutputStreamNoFinalizer(output)
-                .setChecksum(true)
-                .setWorkers(zstdWorkers.coerceAtLeast(1))
-        }
-        OutputStreamWriter(compressed, StandardCharsets.UTF_8).use { writer ->
+        compressedWriter(output, compression, zstdWorkers).use { writer ->
             writer.write(text)
         }
     }

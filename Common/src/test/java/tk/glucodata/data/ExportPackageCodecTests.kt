@@ -149,6 +149,27 @@ class ExportPackageCodecTests {
     }
 
     @Test
+    fun backupDryRunAcceptsAPackageFromBeforeTombstonesWereExported() {
+        val payload = validBackupPayload()
+        payload.getJSONObject("history").remove("deletedReadings")
+        payload.getJSONObject("history").remove("pendingJournalDeletes")
+
+        val summary = ExportPackageExporter.validateBackupPayload(payload)
+
+        assertEquals(1, summary.historyReadings)
+    }
+
+    @Test
+    fun backupDryRunStillRejectsAnInvalidTombstoneWhenTheArrayIsPresent() {
+        val payload = validBackupPayload()
+        payload.getJSONObject("history").getJSONArray("deletedReadings").put(
+            JSONObject().put("timestamp", 0L).put("sensorSerial", "")
+        )
+
+        assertTrue(runCatching { ExportPackageExporter.validateBackupPayload(payload) }.isFailure)
+    }
+
+    @Test
     fun backupDryRunRejectsARecordTheImporterWouldHaveSkipped() {
         val payload = validBackupPayload()
         payload.getJSONObject("history").getJSONArray("readings").put(

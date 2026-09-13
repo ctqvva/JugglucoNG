@@ -104,15 +104,6 @@ class ScheduledBackupPolicyTests {
         )
     }
 
-    @Test
-    fun defaultRetentionMatchesTheRequestedRecoveryLadder() {
-        assertEquals(ScheduledBackupFrequency.DAILY, ScheduledBackupFrequency.fromStorage(null))
-        assertEquals(ScheduledBackupFrequency.DAILY, ScheduledBackupFrequency.fromStorage("unknown"))
-        assertEquals(5, ScheduledBackupFrequency.DAILY.defaultRetention)
-        assertEquals(4, ScheduledBackupFrequency.WEEKLY.defaultRetention)
-        assertEquals(6, ScheduledBackupFrequency.MONTHLY.defaultRetention)
-    }
-
     private fun config() = ScheduledBackupConfig(
         enabled = false,
         destination = null,
