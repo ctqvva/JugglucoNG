@@ -242,13 +242,21 @@ private fun buildDashboardChartModel(
             )
         )
     }
-    val active = HashMap<Pair<Boolean, String>, Boolean>()
+    // One resolved calibration per (lane, sensor) for the whole build, not one
+    // lookup per point: the builder asks twice for every point of the whole
+    // timeline, and answering each from scratch is what made a rebuild cost
+    // seconds once the store outgrew the per-value cache. Same numbers as
+    // getCalibratedValue — see SeriesCalibrator.
+    val calibrators = HashMap<Pair<Boolean, String>, tk.glucodata.data.calibration.SeriesCalibrator?>()
     val calibration = tk.glucodata.chart.HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
-        val applies = active.getOrPut(isRaw to sensorId) {
-            tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)
-        }
-        if (!applies) return@Calibration null
-        tk.glucodata.data.calibration.CalibrationManager.getCalibratedValue(base, timestamp, isRaw, sensorIdOverride = sensorId)
+        val calibrator = calibrators.getOrPut(isRaw to sensorId) {
+            if (tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)) {
+                tk.glucodata.data.calibration.CalibrationManager.seriesCalibrator(isRaw, sensorId)
+            } else {
+                null
+            }
+        } ?: return@Calibration null
+        calibrator.calibrate(base, timestamp)
     }
     return tk.glucodata.chart.HistoryChartModelBuilder.build(
         inputs, ownership, calibration,

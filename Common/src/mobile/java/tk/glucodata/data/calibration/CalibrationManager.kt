@@ -151,6 +151,14 @@ object CalibrationManager {
         val earliestPoint: CalPoint?
     )
 
+    private data class SeriesCalibratorKey(
+        val isRawMode: Boolean,
+        val sensorId: String,
+        val revision: Long,
+        val tuning: CalibrationTuning,
+        val applyToPast: Boolean,
+    )
+
     private data class IntegratedContextCacheKey(
         val sensorId: String,
         val isRawMode: Boolean,
@@ -245,6 +253,7 @@ object CalibrationManager {
         }
     }
     private val integratedContextCache = LinkedHashMap<IntegratedContextCacheKey, CalibrationContext>()
+    private val seriesCalibrators = HashMap<SeriesCalibratorKey, SeriesCalibrator>()
     private val integratedBaselineCache = LinkedHashMap<IntegratedBaselineCacheKey, List<CalibrationSample>>()
 
     fun init(context: Context) {
@@ -329,6 +338,9 @@ object CalibrationManager {
         }
         synchronized(integratedContextCache) {
             integratedContextCache.clear()
+        }
+        synchronized(seriesCalibrators) {
+            seriesCalibrators.clear()
         }
         Log.d(TAG, "Calibration cache invalidated: $reason")
         runCatching {
@@ -1630,6 +1642,51 @@ object CalibrationManager {
             calibrationCache[cacheKey] = finalValue
         }
         return finalValue
+    }
+
+    /**
+     * The calibration a whole series is drawn through, resolved once.
+     *
+     * Same answer as [getCalibratedValue] for every point, and the same three
+     * reasons to leave a value alone — mode disabled for the sensor, a driver
+     * that already folds the correction into what it stores, no usable points —
+     * are the three ways this returns null. The chart used to ask per point and
+     * paid the full resolution for each one past the value cache's capacity;
+     * see [SeriesCalibrator] for what that cost as the store grew.
+     *
+     * The instance is reused across rebuilds until a calibration or setting
+     * changes, so a rebuild that adds one reading calibrates one reading.
+     */
+    internal fun seriesCalibrator(isRawMode: Boolean, sensorIdOverride: String?): SeriesCalibrator? {
+        val currentSensor = resolveSensorId(sensorIdOverride)
+        if (!isEnabledForMode(isRawMode, currentSensor)) return null
+        if (tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(currentSensor, isRawMode)) {
+            return null
+        }
+        val tuning = tuningForMode(isRawMode)
+        val key = SeriesCalibratorKey(
+            isRawMode = isRawMode,
+            sensorId = currentSensor,
+            revision = calibrationRevision,
+            tuning = tuning,
+            applyToPast = _applyToPast.value,
+        )
+        synchronized(seriesCalibrators) { seriesCalibrators[key] }?.let { return it }
+        val context = resolveCalibrationContext(isRawMode, currentSensor) ?: return null
+        val calibrator = SeriesCalibrator(
+            allPoints = context.allPoints,
+            earliestPoint = context.earliestPoint,
+            algorithm = context.algorithm.storageValue,
+            tuning = tuning,
+            applyToPast = key.applyToPast,
+        )
+        synchronized(seriesCalibrators) {
+            // Anything from an older revision is stale by definition; a handful
+            // of (mode, sensor) instances is all that ever belongs here.
+            seriesCalibrators.keys.retainAll { it.revision == calibrationRevision }
+            seriesCalibrators[key] = calibrator
+        }
+        return calibrator
     }
 
     @JvmOverloads
