@@ -707,7 +707,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_management">Өгөгдлийн удирдлага</string>
     <string name="export_data">Өгөгдөл экспортлох</string>
     <string name="export_compression">Шахалт</string>
-    <string name="export_compression_none">Шахалтгүй (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автомат нөөцлөлт</string>

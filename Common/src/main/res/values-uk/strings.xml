@@ -536,7 +536,7 @@
     <string name="export_data_settings">Експорт даних/налаштувань</string>
     <string name="export_data_settings_desc">Виберіть налаштування, історію, калібрування або повний пакет</string>
     <string name="export_compression">Стиснення</string>
-    <string name="export_compression_none">Без стиснення (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автоматичні резервні копії</string>

@@ -576,7 +576,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="export_data_settings">Verileri/ayarları dışa aktar</string>
     <string name="export_data_settings_desc">Ayarlar, geçmiş, kalibrasyonlar veya tam paket seç</string>
     <string name="export_compression">Sıkıştırma</string>
-    <string name="export_compression_none">Yok (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Otomatik yedeklemeler</string>

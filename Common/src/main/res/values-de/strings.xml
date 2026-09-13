@@ -611,7 +611,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="export_data_settings">Daten/Einstellungen exportieren</string>
     <string name="export_data_settings_desc">Einstellungen, Verlauf, Kalibrierungen oder ein vollständiges Paket auswählen</string>
     <string name="export_compression">Komprimierung</string>
-    <string name="export_compression_none">Keine (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatische Sicherungen</string>

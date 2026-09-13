@@ -466,7 +466,7 @@
     <string name="export_data_settings">Экспарт даных/налад</string>
     <string name="export_data_settings_desc">Выберыце налады, гісторыю, каліброўкі або поўны пакет</string>
     <string name="export_compression">Сцісканне</string>
-    <string name="export_compression_none">Без сціскання (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Аўтаматычныя рэзервовыя копіі</string>

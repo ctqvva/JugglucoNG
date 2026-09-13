@@ -788,7 +788,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="export_data_settings">Export data/settings</string>
     <string name="export_data_settings_desc">Choose settings, history, calibrations, or a complete package</string>
     <string name="export_compression">Compression</string>
-    <string name="export_compression_none">None (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatic backups</string>

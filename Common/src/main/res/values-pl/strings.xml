@@ -599,7 +599,7 @@
     <string name="export_data_settings">Eksport danych/ustawień</string>
     <string name="export_data_settings_desc">Wybierz ustawienia, historię, kalibracje albo pełny pakiet</string>
     <string name="export_compression">Kompresja</string>
-    <string name="export_compression_none">Brak (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatyczne kopie zapasowe</string>

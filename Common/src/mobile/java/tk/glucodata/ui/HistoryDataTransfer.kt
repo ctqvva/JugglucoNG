@@ -9,9 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
@@ -37,7 +38,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +83,7 @@ import tk.glucodata.data.ScheduledBackupIntegrityNotifier
 import tk.glucodata.data.ScheduledBackupSettings
 import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.SettingsItem
@@ -544,175 +545,75 @@ fun ExportDataSettingsSheet(
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { CompactSheetDragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        dragHandle = { CompactSheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text = stringResource(R.string.export_data_settings),
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-//
-//            FlowRow(
-//                horizontalArrangement = Arrangement.spacedBy(8.dp),
-//                verticalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//                FilterChip(
-//                    selected = allSelected,
-//                    onClick = {
-//                        includeSettings = true
-//                        includeHistory = true
-//                        includeCalibrations = true
-//                    },
-//                    label = { Text(stringResource(R.string.export_everything)) }
-//                )
-//                FilterChip(
-//                    selected = includeHistory && !includeSettings && !includeCalibrations,
-//                    onClick = {
-//                        includeSettings = false
-//                        includeHistory = true
-//                        includeCalibrations = false
-//                    },
-//                    label = { Text(stringResource(R.string.export_data)) }
-//                )
-//                FilterChip(
-//                    selected = includeSettings && !includeHistory && !includeCalibrations,
-//                    onClick = {
-//                        includeSettings = true
-//                        includeHistory = false
-//                        includeCalibrations = false
-//                    },
-//                    label = { Text(stringResource(R.string.settings)) }
-//                )
-//                FilterChip(
-//                    selected = includeCalibrations && !includeSettings && !includeHistory,
-//                    onClick = {
-//                        includeSettings = false
-//                        includeHistory = false
-//                        includeCalibrations = true
-//                    },
-//                    label = { Text(stringResource(R.string.calibrations)) }
-//                )
-//            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ExportContentRow(
-                    title = stringResource(R.string.settings),
-                    subtitle = stringResource(R.string.export_settings_desc),
-                    icon = Icons.Default.Settings,
-                    checked = includeSettings,
-                    onCheckedChange = { includeSettings = it }
-                )
-                ExportContentRow(
-                    title = stringResource(R.string.export_data),
-                    subtitle = stringResource(R.string.export_history_data_desc),
-                    icon = Icons.Default.History,
-                    checked = includeHistory,
-                    onCheckedChange = { includeHistory = it }
-                )
-                ExportContentRow(
-                    title = stringResource(R.string.calibrations),
-                    subtitle = stringResource(R.string.export_calibrations_desc),
-                    icon = Icons.Default.TrackChanges,
-                    checked = includeCalibrations,
-                    onCheckedChange = { includeCalibrations = it }
-                )
-            }
-
+            ExportContentRow(
+                title = stringResource(R.string.settings),
+                subtitle = stringResource(R.string.export_settings_desc),
+                icon = Icons.Default.Settings,
+                checked = includeSettings,
+                position = CardPosition.TOP,
+                onCheckedChange = { includeSettings = it }
+            )
+            ExportContentRow(
+                title = stringResource(R.string.export_data),
+                subtitle = stringResource(R.string.export_history_data_desc),
+                icon = Icons.Default.History,
+                checked = includeHistory,
+                position = CardPosition.MIDDLE,
+                onCheckedChange = { includeHistory = it }
+            )
+            ExportContentRow(
+                title = stringResource(R.string.calibrations),
+                subtitle = stringResource(R.string.export_calibrations_desc),
+                icon = Icons.Default.TrackChanges,
+                checked = includeCalibrations,
+                position = CardPosition.MIDDLE,
+                onCheckedChange = { includeCalibrations = it }
+            )
             if (includeHistory) {
-//                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-//                Text(
-//                    text = stringResource(R.string.export_range_title),
-//                    style = MaterialTheme.typography.titleSmall,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExportRangeChip(
-                        selected = historyDays == 30L,
-                        label = stringResource(R.string.export_range_30_days),
-                        onClick = { historyDays = 30L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == 90L,
-                        label = stringResource(R.string.export_range_90_days),
-                        onClick = { historyDays = 90L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == 365L,
-                        label = stringResource(R.string.export_range_365_days),
-                        onClick = { historyDays = 365L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == null,
-                        label = stringResource(R.string.export_range_all),
-                        onClick = { historyDays = null }
-                    )
-                }
-                OutlinedButton(
-                    onClick = ::exportCsv,
-                    enabled = !isExporting,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.export_complete_csv))
-                }
-                OutlinedButton(
-                    onClick = ::exportReadableReport,
-                    enabled = !isExporting,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.export_readable_report))
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = stringResource(R.string.export_compression),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ExportChoiceRow(
+                    title = stringResource(R.string.export_range_title),
+                    icon = Icons.Default.DateRange,
+                    position = CardPosition.MIDDLE,
+                    options = listOf(30L, 90L, 365L, null),
+                    selected = historyDays,
+                    onSelected = { historyDays = it },
+                    labelText = { days ->
+                        when (days) {
+                            30L -> context.getString(R.string.export_range_30_days)
+                            90L -> context.getString(R.string.export_range_90_days)
+                            365L -> context.getString(R.string.export_range_365_days)
+                            else -> context.getString(R.string.export_range_all)
+                        }
+                    }
                 )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExportRangeChip(
-                        selected = compression == ExportCompression.GZIP,
-                        label = stringResource(R.string.export_compression_gzip),
-                        onClick = { compression = ExportCompression.GZIP }
-                    )
-                    ExportRangeChip(
-                        selected = compression == ExportCompression.NONE,
-                        label = stringResource(R.string.export_compression_none),
-                        onClick = { compression = ExportCompression.NONE }
-                    )
-                    ExportRangeChip(
-                        selected = compression == ExportCompression.ZSTD,
-                        label = stringResource(R.string.export_compression_zstd),
-                        onClick = { compression = ExportCompression.ZSTD }
-                    )
-                }
             }
+            ExportChoiceRow(
+                title = stringResource(R.string.export_compression),
+                icon = Icons.Default.Compress,
+                position = CardPosition.BOTTOM,
+                options = listOf(ExportCompression.NONE, ExportCompression.GZIP, ExportCompression.ZSTD),
+                selected = compression,
+                onSelected = { compression = it },
+                labelText = { option -> context.getString(compressionLabel(option)) }
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             if (isExporting) {
                 Box(
@@ -732,28 +633,48 @@ fun ExportDataSettingsSheet(
                 Button(
                     onClick = ::saveToFilePicker,
                     enabled = !isExporting,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(stringResource(R.string.export_save_to_files))
                 }
                 OutlinedButton(
                     onClick = ::shareExport,
                     enabled = !isExporting,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(imageVector = Icons.Default.Share, contentDescription = null)
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(stringResource(R.string.export_share_to_cloud))
+                }
+                if (includeHistory) {
+                    OutlinedButton(
+                        onClick = ::exportCsv,
+                        enabled = !isExporting,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                    ) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = null)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(stringResource(R.string.export_complete_csv))
+                    }
+                    OutlinedButton(
+                        onClick = ::exportReadableReport,
+                        enabled = !isExporting,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Info, contentDescription = null)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(stringResource(R.string.export_readable_report))
+                    }
                 }
             }
         }
@@ -935,6 +856,7 @@ fun ScheduledBackupSettingsSheet(
                 title = stringResource(R.string.scheduled_backup_enabled),
                 subtitle = stringResource(R.string.scheduled_backup_enabled_desc),
                 icon = Icons.Default.Backup,
+                iconTint = MaterialTheme.colorScheme.primary,
                 checked = config.enabled,
                 position = CardPosition.TOP,
                 onCheckedChange = { enabled ->
@@ -951,6 +873,7 @@ fun ScheduledBackupSettingsSheet(
                 subtitle = config.destination?.let(::backupFolderLabel)
                     ?: stringResource(R.string.scheduled_backup_folder_none),
                 icon = Icons.Default.FolderOpen,
+                iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.MIDDLE,
                 onClick = { folderLauncher.launch(config.destination) }
             )
@@ -958,31 +881,18 @@ fun ScheduledBackupSettingsSheet(
                 title = stringResource(R.string.scheduled_backup_time),
                 subtitle = formatBackupTime(context, config.hour, config.minute),
                 icon = Icons.Default.Schedule,
+                iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.MIDDLE,
                 onClick = { showTimePicker = true }
             )
-            SettingsItem(
+            ExportChoiceRow(
                 title = stringResource(R.string.export_compression),
                 icon = Icons.Default.Compress,
                 position = CardPosition.MIDDLE,
-                trailingContent = {
-                    ConnectedButtonGroup(
-                        options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
-                        selectedOption = config.compression,
-                        onOptionSelected = { persist(config.copy(compression = it)) },
-                        label = {},
-                        labelText = { option ->
-                            when (option) {
-                                ExportCompression.ZSTD -> context.getString(R.string.export_compression_zstd)
-                                else -> context.getString(R.string.export_compression_gzip)
-                            }
-                        },
-                        modifier = Modifier.width(160.dp),
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    )
-                }
+                options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
+                selected = config.compression,
+                onSelected = { persist(config.copy(compression = it)) },
+                labelText = { option -> context.getString(compressionLabel(option)) }
             )
             ExpandableSettingsCard(
                 title = stringResource(R.string.scheduled_backup_retention),
@@ -1200,61 +1110,79 @@ private fun ExportContentRow(
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     checked: Boolean,
+    position: CardPosition,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Surface(
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconTint = MaterialTheme.colorScheme.primary,
+        position = position,
         onClick = { onCheckedChange(!checked) },
+        trailingContent = {
+            Checkbox(checked = checked, onCheckedChange = null)
+        }
+    )
+}
+
+/**
+ * A settings row whose value is a short exclusive choice: title on the row's grid,
+ * the connected group underneath spanning the card, the way a slider row does.
+ */
+@Composable
+private fun <T> ExportChoiceRow(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    position: CardPosition,
+    options: List<T>,
+    selected: T,
+    onSelected: (T) -> Unit,
+    labelText: (T) -> String
+) {
+    val tint = MaterialTheme.colorScheme.primary
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = tint.copy(alpha = 0.12f)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+                Spacer(Modifier.width(12.dp))
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange
+            Spacer(Modifier.height(12.dp))
+            ConnectedButtonGroup(
+                options = options,
+                selectedOption = selected,
+                onOptionSelected = onSelected,
+                label = {},
+                labelText = labelText,
+                modifier = Modifier.fillMaxWidth(),
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
             )
         }
     }
 }
 
-@Composable
-private fun ExportRangeChip(
-    selected: Boolean,
-    label: String,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) }
-    )
+private fun compressionLabel(option: ExportCompression): Int = when (option) {
+    ExportCompression.NONE -> R.string.export_compression_none
+    ExportCompression.GZIP -> R.string.export_compression_gzip
+    ExportCompression.ZSTD -> R.string.export_compression_zstd
 }

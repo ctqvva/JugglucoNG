@@ -531,7 +531,7 @@
     <string name="export_data_settings">导出数据/设置</string>
     <string name="export_data_settings_desc">选择设置、历史记录、校准或完整包</string>
     <string name="export_compression">压缩</string>
-    <string name="export_compression_none">无 (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">自动备份</string>

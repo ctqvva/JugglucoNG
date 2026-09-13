@@ -620,7 +620,7 @@
     <string name="export_data_settings">Экспорт данных/настроек</string>
     <string name="export_data_settings_desc">Выберите настройки, историю, калибровки или полный пакет</string>
     <string name="export_compression">Сжатие</string>
-    <string name="export_compression_none">Без сжатия (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Автоматические резервные копии</string>

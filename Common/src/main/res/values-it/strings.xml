@@ -397,7 +397,7 @@
     <string name="export_data_settings">Esporta dati/impostazioni</string>
     <string name="export_data_settings_desc">Scegli impostazioni, cronologia, calibrazioni o un pacchetto completo</string>
     <string name="export_compression">Compressione</string>
-    <string name="export_compression_none">Nessuna (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Backup automatici</string>

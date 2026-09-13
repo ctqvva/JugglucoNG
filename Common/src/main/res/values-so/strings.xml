@@ -765,7 +765,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="export_data_settings">Dhoofinta xogta/goobaha</string>
     <string name="export_data_settings_desc">Dooro dejinta, taariikhda, jaangooyada, ama xirmo dhamaystiran</string>
     <string name="export_compression">Cadaadis</string>
-    <string name="export_compression_none">Midna (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Kayd otomaatig ah</string>

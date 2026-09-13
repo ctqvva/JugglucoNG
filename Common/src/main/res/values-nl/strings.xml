@@ -613,7 +613,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="export_data_settings">Gegevens/instellingen exporteren</string>
     <string name="export_data_settings_desc">Kies instellingen, geschiedenis, kalibraties of een volledig pakket</string>
     <string name="export_compression">Compressie</string>
-    <string name="export_compression_none">Geen (JSON)</string>
+    <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
     <string name="export_compression_zstd">Zstandard</string>
     <string name="scheduled_backup_title">Automatische back-ups</string>
