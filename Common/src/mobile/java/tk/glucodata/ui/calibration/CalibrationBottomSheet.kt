@@ -132,21 +132,6 @@ fun CalibrationBottomSheet(
         else -> selectedAutoValue.takeIf { it > 0f } ?: selectedRawValue.takeIf { it > 0f }
     } ?: initialValueAuto
 
-    /**
-     * Records what the readings now display as. Non-destructive: the sensor's own
-     * stored values are never touched, and readings already sealed keep the
-     * number they were shown as.
-     */
-    fun triggerRewriteOverwrittenHistory(startTimestamp: Long = 0L) {
-        if (currentSensor.isBlank()) return
-        CoroutineScope(Dispatchers.IO).launch {
-            historyRepository.recordCalibratedDisplayValues(
-                sensorSerial = currentSensor,
-                isRawMode = isRawMode,
-                startTimestamp = startTimestamp
-            )
-        }
-    }
 
     // Values
     val startValue = editingEntity?.userValue ?: defaultInputValue
@@ -294,7 +279,6 @@ fun CalibrationBottomSheet(
                             onClick = {
                                 scope.launch {
                                     CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
-                                    triggerRewriteOverwrittenHistory(editingEntity!!.timestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(
@@ -319,7 +303,6 @@ fun CalibrationBottomSheet(
                                      CalibrationManager.deleteCalibration(editingEntity!!)
                                      selectedTimestamp = System.currentTimeMillis()
                                      onDismiss()
-                                     triggerRewriteOverwrittenHistory(deletedTimestamp)
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -527,7 +510,6 @@ fun CalibrationBottomSheet(
                                     )
                                 )
                                 onDismiss()
-                                triggerRewriteOverwrittenHistory(minOf(previousTimestamp, selectedTimestamp))
                             } else {
                                 // New
                                 CalibrationManager.addCalibration(
@@ -547,7 +529,6 @@ fun CalibrationBottomSheet(
                                         .takeIf { it.isFinite() && it > 0f } ?: 0f
                                 )
                                 onDismiss()
-                                triggerRewriteOverwrittenHistory(selectedTimestamp)
                             }
                         }
                     },

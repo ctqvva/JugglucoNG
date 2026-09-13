@@ -556,7 +556,7 @@ extern int saveScanTrend(const nfcdata *nfcptr,time_t nutime,int nuid, SensorGlu
         if(newnu<(nutime-60*3)) {
 //            lastscan=nullptr;
             LOGGER("senso->finished was %d, set to 1. %s: newnu=%zd nutime=%zd\n",senso->finished,serial.data(),newnu,nutime);
-            senso->finished=1;
+            senso->markFinished();
             extern void    setstreaming(SensorGlucoseData *hist);
             setstreaming(hist);
             void setusedsensors() ;
@@ -1634,5 +1634,4 @@ void closedynlib(void) {
 extern "C" JNIEXPORT void  JNICALL   fromjava(closedynlib)(JNIEnv *env, jclass _cl) {
      closedynlib() ;
     }
-
 

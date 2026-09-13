@@ -13,26 +13,34 @@ import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
  *
  * Protocol:
  *   1. Write snSecret to F001 (authentication challenge)
- *   2. Receive PAIR key from F001 notification (16 bytes, changes per connection)
+ *   2. Receive PAIR key from F001 notification (16 bytes, stable until sensor-side UNPAIR)
  *   3. Read F002 to get 17-byte BOND data
  *   4. Decrypt BOND with PAIR key + SN IV -> session key
  *   5. Send post-BOND config (plaintext 10 C1 F3, encrypted with session key + SN IV)
  *   6. F003 data decrypted with session key + SN IV
  *   7. F002 commands encrypted with session key + SN IV
  */
-class AiDexKeyExchange(val serial: String) {
+class AiDexKeyExchange(
+    val serial: String,
+    pairingMaterial: AiDexPairingMaterial? = null,
+) {
 
     /** Bare serial number (without "X-" or "AiDEX X-" prefix).
      *  snToBytes() expects the bare serial (e.g., "2222267V4E", not "X-2222267V4E"). */
     val bareSerial: String = SerialCrypto.stripPrefix(serial)
 
-    /** SN-derived secret (F001 challenge). Stable per serial. */
-    val snSecret: ByteArray = SerialCrypto.deriveSecret(bareSerial)
+    /** True when F001/BOND material came from a provisioned source instead of serial derivation. */
+    val usesProvisionedPairingMaterial: Boolean = pairingMaterial != null
 
-    /** SN-derived IV. Used for BOND, F003, and F002. Stable per serial. */
-    val snIv: ByteArray = SerialCrypto.deriveIv(bareSerial)
+    /** F001 challenge. Sensors may accept serial-derived or sensor-specific material. */
+    val snSecret: ByteArray = pairingMaterial?.secretCopy()
+        ?: SerialCrypto.deriveSecret(bareSerial)
 
-    /** PAIR key from F001 notification. Changes per connection. */
+    /** IV used for BOND, F003, and F002. */
+    val snIv: ByteArray = pairingMaterial?.ivCopy()
+        ?: SerialCrypto.deriveIv(bareSerial)
+
+    /** PAIR key from F001 notification. Stable until the sensor accepts DELETE_BOND. */
     var pairKey: ByteArray? = null
         private set
 

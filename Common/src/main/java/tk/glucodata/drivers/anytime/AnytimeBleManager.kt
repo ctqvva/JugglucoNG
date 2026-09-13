@@ -72,6 +72,27 @@ class AnytimeBleManager(
         const val SENSOR_GEN = 0
 
         private const val ACTIVE_SESSION_RECONNECT_DELAY_MS = 2_000L
+
+        /**
+         * How long a soft reconnect waits between closing the old GATT and opening
+         * a new one.
+         *
+         * Defensive, and not a proven mechanism. What the 2026-09-09 CT5 trace shows
+         * is that reconnecting 250ms after close() produced a visibly unhealthy
+         * session — two onMtuChanged callbacks for a single requestMtu, service
+         * discovery taking 8s where the clean retry two minutes later took under one,
+         * and the link dropped with GATT_FAILURE (257) a second after the low-power
+         * ack. The likely reading is that close() had not finished unregistering the
+         * old client, since BluetoothGatt.close() returns before the stack is done
+         * with it; the trace does not establish that, and neither duplicate callback
+         * proves a second registered client on its own.
+         *
+         * Widening the gap is cheap either way — the reconnect is already 250ms late
+         * and nothing waits on it — while the failure it guards against cost ~90s of
+         * blind reconnects. Making the GATT lifecycle itself safe against overlapping
+         * attempts would be the real fix.
+         */
+        private const val SOFT_RECONNECT_SETTLE_MS = 750L
         private const val SERVICE_DISCOVERY_TIMEOUT_MS = 15_000L
         private const val SERVICE_DISCOVERY_HARD_RECOVERY_DELAY_MS = 5_000L
         private const val SERVICE_DISCOVERY_RETRY_DELAY_MS = 1_500L
@@ -260,6 +281,10 @@ class AnytimeBleManager(
     @Volatile private var forceScanResultAtMs: Long = 0L
     @Volatile private var pendingCccdGatt: BluetoothGatt? = null
     @Volatile private var lastConnectRequestAtMs: Long = 0L
+
+    /** What direct connects to this transmitter have actually achieved so far. */
+    private val connectMode = AnytimeConnectModeState()
+
     @Volatile private var pendingFingerstickMgdl: Int = -1
     @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
     @Volatile private var pendingKrPush: Boolean = false
@@ -407,6 +432,11 @@ class AnytimeBleManager(
         transmitterVersion = AnytimeRegistry.loadTransmitterVersion(context, id)
         val persistedLastGlucoseId = AnytimeRegistry.loadLastGlucoseId(context, id)
         sensorStartAtMs = AnytimeRegistry.loadSensorStartAt(context, id)
+        glucoseTimelineStartAtMs = restoredTimelineStartMs(
+            persistedTimelineStartMs = AnytimeRegistry.loadTimelineStartAt(context, id),
+            persistedSensorStartMs = sensorStartAtMs,
+            persistedLastGlucoseId = persistedLastGlucoseId,
+        )
         warmupStartedAtMs = AnytimeRegistry.loadWarmupStartedAt(context, id)
         bound = AnytimeRegistry.loadBound(context, id)
         lastReferenceBgMgdlTimes10 = AnytimeRegistry.loadReferenceBgMgdlTimes10(context, id)
@@ -613,6 +643,7 @@ class AnytimeBleManager(
         AnytimeRegistry.saveBound(ctx, id, bound)
         AnytimeRegistry.saveLastGlucoseId(ctx, id, lastGlucoseId)
         AnytimeRegistry.saveSensorStartAt(ctx, id, sensorStartAtMs)
+        AnytimeRegistry.saveTimelineStartAt(ctx, id, glucoseTimelineStartAtMs)
         AnytimeRegistry.saveWarmupStartedAt(ctx, id, warmupStartedAtMs)
         AnytimeRegistry.saveReferenceBgMgdlTimes10(ctx, id, lastReferenceBgMgdlTimes10)
         AnytimeRegistry.saveReferenceBgGlucoseId(ctx, id, lastReferenceBgGlucoseId)
@@ -1970,20 +2001,53 @@ class AnytimeBleManager(
      * means "handled, no scan needed" — the link is up.
      */
     override fun reconnect(now: Long): Boolean {
-        if (!stop &&
-            phase == Phase.STREAMING &&
-            shouldDeferLossOfSignalReconnect(streamingSinceMs, now, reconnectGraceMs())
-        ) {
-            Log.i(
-                TAG,
-                "Ignoring loss-of-signal reconnect: streaming session is only " +
-                        "${(now - streamingSinceMs) / 1000}s old; waiting for the next " +
-                        "${profile.readingIntervalMinutes}-minute push"
-            )
+        if (!stop && phase == Phase.STREAMING) {
+            if (shouldDeferLossOfSignalReconnect(streamingSinceMs, now, reconnectGraceMs())) {
+                Log.i(
+                    TAG,
+                    "Ignoring loss-of-signal reconnect: streaming session is only " +
+                            "${(now - streamingSinceMs) / 1000}s old; waiting for the next " +
+                            "${profile.readingIntervalMinutes}-minute push"
+                )
+                return true
+            }
+            // A push that carried no glucose is still proof the link works. The alarm
+            // is armed from the last reading and cannot see the difference; the driver
+            // can, and noDataWatchdog has always used exactly this timestamp.
+            val lastDataMs = lastSensorDataAtMs()
+            if (hasRecentSensorData(lastDataMs, now, reconnectGraceMs())) {
+                Log.i(
+                    TAG,
+                    "Ignoring loss-of-signal reconnect: last push was " +
+                            "${(now - lastDataMs) / 1000}s ago, inside the " +
+                            "${profile.readingIntervalMinutes}-minute cadence"
+                )
+                return true
+            }
+        }
+        // Genuinely out of contact. Take the disconnect ourselves rather than letting
+        // the base class disconnect and open a new connection in the same breath: the
+        // GATT is closed on the disconnect callback, and scheduleReconnect from there
+        // reconnects in a defined order with the usual backoff.
+        val gatt = mBluetoothGatt
+        if (!stop && gatt != null) {
+            Log.i(TAG, "Loss-of-signal reconnect: closing the link before reconnecting")
+            noteLossOfSignal(now)
+            runCatching { gatt.disconnect() }
+                .onFailure { Log.stack(TAG, "reconnect(disconnect)", it) }
+            UiRefreshBus.requestStatusRefresh()
             return true
         }
         return super.reconnect(now)
     }
+
+    /**
+     * Inherit the user's setting until a direct connect has proved itself unable to
+     * reach this transmitter, then let the stack wait for an advertisement instead of
+     * burning another 30-second timer. Kept free of side effects: it is read again to
+     * record which mode a connection was established with.
+     */
+    override fun useAutoConnect(): Boolean = connectMode.useAutoConnect(super.useAutoConnect())
 
     private fun scheduleReconnect(reason: String, delayMs: Long = ACTIVE_SESSION_RECONNECT_DELAY_MS) {
         if (stop) return
@@ -2263,6 +2327,9 @@ class AnytimeBleManager(
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
                 Log.i(TAG, "Connected to ${gatt.device?.address}")
+                // Nothing between opening the attempt and this callback can change the
+                // mode, so asking again reports what this connection was opened with.
+                connectMode.onConnected(usedAutoConnect = useAutoConnect())
                 cancelReconnect()
                 clearGattCallbacks()
                 mBluetoothGatt = gatt
@@ -2290,6 +2357,18 @@ class AnytimeBleManager(
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
                 Log.i(TAG, "Disconnected (status=$status)")
+                // A disconnect out of CONNECTING never reached the transmitter, so
+                // status 147 here is Android's direct-connect timer expiring rather
+                // than a link that dropped.
+                val couldReachDirectly = !connectMode.directConnectUnreachable
+                connectMode.onDisconnected(status, wasConnecting = phase == Phase.CONNECTING)
+                if (couldReachDirectly && connectMode.directConnectUnreachable) {
+                    Log.i(
+                        TAG,
+                        "Direct connect timed out without reaching $SerialNumber; waiting for it " +
+                                "to advertise instead until a direct connect succeeds again"
+                    )
+                }
                 phase = Phase.IDLE
                 streamingSinceMs = 0L
                 writeInFlight = false
@@ -2332,7 +2411,13 @@ class AnytimeBleManager(
                         ct5EndCycleSsnInFlight = false
                     }
                     if (!stop) {
-                        scheduleReconnect("GATT disconnect status=$status")
+                        scheduleReconnect(
+                            "GATT disconnect status=$status",
+                            connectMode.retryDelayMs(
+                                baseDelayMs = ACTIVE_SESSION_RECONNECT_DELAY_MS,
+                                readingIntervalMs = profile.readingIntervalMinutes * 60L * 1000L,
+                            ),
+                        )
                     }
                 }
                 UiRefreshBus.requestStatusRefresh()
@@ -3524,6 +3609,10 @@ class AnytimeBleManager(
                     if (isCt5WarmingUp() && remainingMin >= 0L) " ~${remainingMin}min left" else "",
                 ),
             )
+            // The sensor is talking on schedule; only the reading is missing. Without
+            // this the shared loss-of-signal alarm reads the silence in charcha[1] as a
+            // dead link and tears down a working one.
+            noteLiveFrameWithoutReading(now)
             armNoDataWatchdog()
             armPullFallback()
             maybeRunReconnectTelemetryAfterLivePush()
@@ -4633,7 +4722,7 @@ class AnytimeBleManager(
         }
         handler.postDelayed({
             if (!stop) connectDevice(0)
-        }, 250L)
+        }, SOFT_RECONNECT_SETTLE_MS)
         UiRefreshBus.requestStatusRefresh()
     }
 

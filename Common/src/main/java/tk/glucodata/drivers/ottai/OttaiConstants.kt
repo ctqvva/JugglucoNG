@@ -370,6 +370,9 @@ object OttaiConstants {
     const val PREF_RETAIN_TIME_PREFIX = "ottai_retain_time_"      // retainTime ms (destruction value)
     const val PREF_DEVICE_VERSION_PREFIX = "ottai_device_version_"
     const val PREF_LAST_DATA_NO_PREFIX = "ottai_last_datano_"
+    // BLE record layout (8 or 9) once a payload big enough to prove it has been seen. Held
+    // per sensor so a short live notify, which cannot tell the two apart, never re-decides it.
+    const val PREF_RECORD_SIZE_PREFIX = "ottai_record_size_"
     // Requested-but-undelivered history windows: "start:endExclusive:attempts" joined by ';'.
     const val PREF_HISTORY_HOLES_PREFIX = "ottai_history_holes_"
     const val PREF_DEVICE_ID_PREFIX = "ottai_device_id_"

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
@@ -37,9 +39,11 @@ import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalInsulinPresetInput
+import tk.glucodata.data.journal.JournalHumanProfile
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
+import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -126,7 +130,8 @@ class DashboardViewModel(
          * everything the chart actually draws.
          */
         val uncertaintyCount: Int,
-        val lastUncertaintyBits: Long
+        val lastUncertaintyBits: Long,
+        val recordedDisplayHash: Int,
     )
 
     private data class DashboardHistoryCacheKey(
@@ -202,6 +207,10 @@ class DashboardViewModel(
         const val PREDICTION_HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
         const val PREDICTION_NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
+        const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
+        const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
+        const val STATE_DOSE_HINT_PROFILE_NOTICE_KEY = "dashboard_state_dose_hint_profile_notice_ack"
+        const val STATE_DOSE_HINT_IN_RANGE_KEY = "dashboard_state_dose_hint_in_range_enabled"
         const val PREDICTION_CARB_RATIO_DEFAULT = 10f
         const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
         const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
@@ -302,6 +311,20 @@ class DashboardViewModel(
         MutableStateFlow(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
     val multiSensorDisplay = _multiSensorDisplay.asStateFlow()
 
+    /**
+     * Who is the main sensor, minute by minute, over the chart's history window.
+     *
+     * The chart draws what this says. See [tk.glucodata.chart.MainSensorOwnership]
+     * for the rule; this only keeps it current with the record and the selected
+     * primary.
+     */
+    private val _mainSensorOwnership = MutableStateFlow(tk.glucodata.chart.MainSensorOwnership.NONE)
+    val mainSensorOwnership = _mainSensorOwnership.asStateFlow()
+
+    private suspend fun refreshMainSensorOwnership(startTimeMs: Long) {
+        _mainSensorOwnership.value = historyRepository.mainSensorOwnership(startTime = startTimeMs)
+    }
+
     // Raw (display-unit) peer history kept separate from view-mode resolution so
     // the display data rebuilds when a peer's auto/raw mode changes natively,
     // without re-querying Room.
@@ -397,6 +420,30 @@ class DashboardViewModel(
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
 
+    // On by default. The amounts are only as good as the sensitivity and carb ratio in the
+    // model profile, but a hint the reader acts on is not the place to withhold information
+    // over that -- the profile is named once instead, see stateDoseHintProfileNoticeAck.
+    // Anyone who switched it off keeps that: the key is written on every toggle, so only an
+    // installation that never touched it takes the new default.
+    private val _stateDoseHintEnabled = MutableStateFlow(true)
+    val stateDoseHintEnabled = _stateDoseHintEnabled.asStateFlow()
+
+    // Its own switch rather than part of the rule: whether to correct inside the range is a
+    // matter of therapy style, and folding it in would push anyone who disagrees into
+    // switching the whole hint off, carb branch included.
+    private val _stateDoseHintCorrectInRange = MutableStateFlow(true)
+    val stateDoseHintCorrectInRange = _stateDoseHintCorrectInRange.asStateFlow()
+
+    private val _stateDoseHintProfileNoticeAck = MutableStateFlow(false)
+    val stateDoseHintProfileNoticeAck = _stateDoseHintProfileNoticeAck.asStateFlow()
+
+    private val _predictionModelProfileSaved = MutableStateFlow(false)
+    val predictionModelProfileSaved = _predictionModelProfileSaved.asStateFlow()
+
+    private val _stateDoseHintHorizonMinutes =
+        MutableStateFlow(StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+    val stateDoseHintHorizonMinutes = _stateDoseHintHorizonMinutes.asStateFlow()
+
     private val _journalFoodMacrosEnabled = MutableStateFlow(false)
     val journalFoodMacrosEnabled = _journalFoodMacrosEnabled.asStateFlow()
 
@@ -411,6 +458,9 @@ class DashboardViewModel(
 
     private val _journalDashboardQuickAddButton = MutableStateFlow(false)
     val journalDashboardQuickAddButton = _journalDashboardQuickAddButton.asStateFlow()
+
+    private val _journalBodyWeightKg = MutableStateFlow<Float?>(null)
+    val journalBodyWeightKg = _journalBodyWeightKg.asStateFlow()
 
     private val _glucoseValueRangeColorsEnabled = MutableStateFlow(false)
     val glucoseValueRangeColorsEnabled = _glucoseValueRangeColorsEnabled.asStateFlow()
@@ -492,6 +542,16 @@ class DashboardViewModel(
 
     private val _alertsMasterEnabled = MutableStateFlow(false)
     val alertsMasterEnabled = _alertsMasterEnabled.asStateFlow()
+
+    /** End of the running alarm quiet window, 0 when none: the dashboard's chip. */
+    val quietWindowUntilMs: kotlinx.coroutines.flow.StateFlow<Long> =
+        tk.glucodata.alerts.QuietWindow.state
+            .map { it.untilMs }
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                tk.glucodata.alerts.QuietWindow.state.value.untilMs
+            )
 
     private var collectionMode = CollectionMode.INACTIVE
     private var currentReadingJob: Job? = null
@@ -744,11 +804,21 @@ class DashboardViewModel(
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
+        _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
+        _stateDoseHintCorrectInRange.value = prefs.getBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, true)
+        _stateDoseHintProfileNoticeAck.value = prefs.getBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, false)
+        _stateDoseHintHorizonMinutes.value = prefs
+            .getInt(STATE_DOSE_HINT_HORIZON_KEY, StateDoseHintCalculator.HORIZON_MINUTES_DEFAULT)
+            .coerceIn(
+                StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+                StateDoseHintCalculator.HORIZON_MINUTES_MAX
+            )
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
         _journalQuickAddAlwaysNow.value = prefs.getBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, false)
         _journalDashboardQuickAddButton.value = prefs.getBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, false)
+        _journalBodyWeightKg.value = JournalHumanProfile.bodyWeightKg(context)
         _glucoseValueRangeColorsEnabled.value = prefs.getBoolean(GLUCOSE_RANGE_COLORS_KEY, false)
         _glucoseArrowForecastColorsEnabled.value = prefs.getBoolean(ARROW_FORECAST_COLORS_KEY, false)
         _glucoseChartRangeColorsEnabled.value = prefs.getBoolean(CHART_RANGE_COLORS_KEY, false)
@@ -770,6 +840,7 @@ class DashboardViewModel(
             .getFloat(PREDICTION_INSULIN_SENSITIVITY_KEY, PREDICTION_INSULIN_SENSITIVITY_DEFAULT)
             .coerceIn(10f, 180f)
         _predictionModelProfile.value = PredictionModelProfileStore.load(prefs)
+        _predictionModelProfileSaved.value = PredictionModelProfileStore.isSaved(prefs)
         _predictionCarbRatioGramsPerUnit.value = _predictionModelProfile.value.blocks.first().carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value =
             _predictionModelProfile.value.blocks.first().insulinSensitivityMgDlPerUnit
@@ -1158,6 +1229,12 @@ class DashboardViewModel(
                 _sensorViewModes.value = config.sensorViewModes
 
                 val peerSensors = config.selectedSensorIds.drop(1)
+                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
+                // Ownership is resolved here, beside the peer history, because
+                // both change on the same events: a swap, or the record gaining
+                // a minute. With a single sensor there is nothing to contest,
+                // but the answer is still the record's to give.
+                refreshMainSensorOwnership(startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1165,7 +1242,6 @@ class DashboardViewModel(
                 }
 
                 var hasSeenPeerEmission = false
-                val startTimeMs = System.currentTimeMillis() - DASHBOARD_PEER_HISTORY_WINDOW_MS
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
@@ -1179,6 +1255,7 @@ class DashboardViewModel(
                         }
                         _multiSensorRawHistory.value = PeerRawHistory(config.selectedSensorIds, peerSensors, converted)
                         refreshPeerCurrentReadings(peerSensors)
+                        refreshMainSensorOwnership(startTimeMs)
                     }
                 }
         }
@@ -1288,7 +1365,8 @@ class DashboardViewModel(
             lastUncertaintyBits = last?.uncertainty?.let { uncertainty ->
                 (java.lang.Float.floatToRawIntBits(uncertainty.lower).toLong() shl 32) or
                     (java.lang.Float.floatToRawIntBits(uncertainty.upper).toLong() and 0xffffffffL)
-            } ?: 0L
+            } ?: 0L,
+            recordedDisplayHash = tk.glucodata.ui.recordedDisplaySignature(points),
         )
     }
 
@@ -1550,6 +1628,38 @@ class DashboardViewModel(
         _journalDoseCalculatorEnabled.value = enabled
     }
 
+    fun setStateDoseHintEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_KEY, enabled).apply()
+        _stateDoseHintEnabled.value = enabled
+    }
+
+    fun setStateDoseHintCorrectInRange(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, enabled).apply()
+        _stateDoseHintCorrectInRange.value = enabled
+    }
+
+    fun acknowledgeStateDoseHintProfileNotice() {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(STATE_DOSE_HINT_PROFILE_NOTICE_KEY, true).apply()
+        _stateDoseHintProfileNoticeAck.value = true
+    }
+
+    fun setStateDoseHintHorizonMinutes(value: Int) {
+        val normalized = value.coerceIn(
+            StateDoseHintCalculator.HORIZON_MINUTES_MIN,
+            StateDoseHintCalculator.HORIZON_MINUTES_MAX
+        )
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putInt(STATE_DOSE_HINT_HORIZON_KEY, normalized).apply()
+        _stateDoseHintHorizonMinutes.value = normalized
+    }
+
     fun setJournalFoodMacrosEnabled(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
@@ -1584,6 +1694,12 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, enabled).apply()
         _journalDashboardQuickAddButton.value = enabled
+    }
+
+    fun setJournalBodyWeightKg(value: Float?) {
+        val context = tk.glucodata.Applic.app
+        JournalHumanProfile.setBodyWeightKg(context, value)
+        _journalBodyWeightKg.value = JournalHumanProfile.bodyWeightKg(context)
     }
 
     fun setGlucoseValueRangeColorsEnabled(enabled: Boolean) {
@@ -1767,6 +1883,7 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         PredictionModelProfileStore.save(prefs, profile)
         _predictionModelProfile.value = profile
+        _predictionModelProfileSaved.value = true
         val first = profile.blocks.first()
         _predictionCarbRatioGramsPerUnit.value = first.carbRatioGramsPerUnit
         _predictionInsulinSensitivityMgDlPerUnit.value = first.insulinSensitivityMgDlPerUnit

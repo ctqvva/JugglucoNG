@@ -118,8 +118,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(aidexProcessData)(
   if (res) {
     sensor *sensor = sensors->getsensor(sdata->sensorindex);
     sens->sensorerror = false;
-    if (sensor && sensor->finished) {
-      sensor->finished = 0;
+    if (sensor && sensor->finished && sensor->reactivateFromData()) {
       backup->resensordata(sdata->sensorindex);
     }
     if (backup) {

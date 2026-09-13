@@ -597,6 +597,19 @@ object OttaiRegistry {
     }
 
     /**
+     * The sensor's learned BLE record layout, 0 when nothing has proved one yet.
+     *
+     * Persisted rather than kept per connection so the layout is right from the very first
+     * frame of the next session too — otherwise every reconnect spends its opening live
+     * notifies guessing, and a wrong guess silently drops those minutes.
+     */
+    @JvmStatic fun loadRecordSize(c: Context, id: String): Int =
+        prefs(c).getInt(OttaiConstants.PREF_RECORD_SIZE_PREFIX + OttaiConstants.canonicalSensorId(id), 0)
+    @JvmStatic fun saveRecordSize(c: Context, id: String, size: Int) {
+        prefs(c).edit().putInt(OttaiConstants.PREF_RECORD_SIZE_PREFIX + OttaiConstants.canonicalSensorId(id), size).apply()
+    }
+
+    /**
      * Hole ledger: requested-but-undelivered history windows, serialized by the driver as
      * "start:endExclusive:attempts" entries joined by ';'. Persisted so a disconnect or app
      * restart cannot turn a missed window into a permanent history gap.

@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -71,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -91,6 +94,7 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.webserver.WebServerCertificate
 import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
 import tk.glucodata.GoogleServices
@@ -902,6 +906,13 @@ fun GarminStatusScreen(navController: NavController) {
     }
 }
 
+/**
+ * The accurate type for a PEM file, and the one Android's certificate installer
+ * registers for -- so a shared certificate can be opened and trusted directly on
+ * the receiving device rather than only saved.
+ */
+private const val PEM_MIME_TYPE = "application/x-pem-file"
+
 @Composable
 fun WebServerSettingsScreen(navController: NavController) {
     val context = LocalContext.current
@@ -913,9 +924,15 @@ fun WebServerSettingsScreen(navController: NavController) {
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var sslEnabled by rememberSaveable { mutableStateOf(Natives.getuseSSL()) }
     var sslExpanded by rememberSaveable { mutableStateOf(sslEnabled) }
+    var httpPortText by rememberSaveable { mutableStateOf(Natives.getxdripport().toString()) }
     var sslPortText by rememberSaveable { mutableStateOf(Natives.getsslport().toString()) }
     var intervalText by rememberSaveable { mutableStateOf(Natives.getinterval().toString()) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
+    var certificate by remember { mutableStateOf(WebServerCertificate.installed(context)) }
+    var generatingCertificate by remember { mutableStateOf(false) }
+    var showCertificateImport by rememberSaveable { mutableStateOf(false) }
+    var showCertificateExport by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -924,6 +941,8 @@ fun WebServerSettingsScreen(navController: NavController) {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(context, context.getString(R.string.saved), Toast.LENGTH_SHORT).show()
+            WebServerCertificate.clearSelfSignedMarker(context)
+            certificate = WebServerCertificate.installed(context)
             if (sslEnabled) {
                 val sslError = Natives.setuseSSL(true)
                 if (sslError != null) Toast.makeText(context, sslError, Toast.LENGTH_LONG).show()
@@ -937,6 +956,8 @@ fun WebServerSettingsScreen(navController: NavController) {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(context, context.getString(R.string.saved), Toast.LENGTH_SHORT).show()
+            WebServerCertificate.clearSelfSignedMarker(context)
+            certificate = WebServerCertificate.installed(context)
             if (sslEnabled) {
                 val sslError = Natives.setuseSSL(true)
                 if (sslError != null) Toast.makeText(context, sslError, Toast.LENGTH_LONG).show()
@@ -953,6 +974,13 @@ fun WebServerSettingsScreen(navController: NavController) {
             return false
         }
 
+        val httpPort = httpPortText.toIntOrNull()
+        if (httpPort == null) {
+            if (showErrors) {
+                Toast.makeText(context, "$httpPortText${context.getString(R.string.invalidport)}", Toast.LENGTH_LONG).show()
+            }
+            return false
+        }
         val port = sslPortText.toIntOrNull()
         if (port == null) {
             if (showErrors) {
@@ -961,19 +989,22 @@ fun WebServerSettingsScreen(navController: NavController) {
             return false
         }
         val receivePort = Natives.getreceiveport().toIntOrNull()
-        if (receivePort != null && port == receivePort) {
+        if (receivePort != null && (port == receivePort || httpPort == receivePort)) {
             if (showErrors) {
                 Toast.makeText(context, context.getString(R.string.nomirrorport), Toast.LENGTH_LONG).show()
             }
             return false
         }
-        if (port == 17580) {
+        // The two servers listen at the same time, so they cannot share a port.
+        // This used to compare against the literal 17580 because that was the
+        // only value the HTTP server could ever have.
+        if (port == httpPort) {
             if (showErrors) {
                 Toast.makeText(context, context.getString(R.string.nohttpport), Toast.LENGTH_LONG).show()
             }
             return false
         }
-        if (port !in 1024..65535) {
+        if (port !in 1024..65535 || httpPort !in 1024..65535) {
             if (showErrors) {
                 Toast.makeText(context, context.getString(R.string.portrange), Toast.LENGTH_LONG).show()
             }
@@ -991,6 +1022,10 @@ fun WebServerSettingsScreen(navController: NavController) {
         Natives.setApiSecret(key)
         if (port != Natives.getsslport()) {
             Natives.setsslport(port)
+        }
+        // Rebinds a running server, so only call it when the value moved.
+        if (httpPort != Natives.getxdripport()) {
+            Natives.setxdripport(httpPort)
         }
         Natives.setinterval(interval)
         Natives.setXdripServerLocal(localOnly)
@@ -1010,13 +1045,55 @@ fun WebServerSettingsScreen(navController: NavController) {
 
     fun buildBaseUrl(host: String): String {
         val scheme = if (sslEnabled) "https" else "http"
-        val port = if (sslEnabled) sslPortText.toIntOrNull() ?: Natives.getsslport() else 17580
+        val port = if (sslEnabled) {
+            sslPortText.toIntOrNull() ?: Natives.getsslport()
+        } else {
+            httpPortText.toIntOrNull() ?: Natives.getxdripport()
+        }
         val key = apiSecret.trim()
         val keyPrefix = if (key.isEmpty()) "" else "$key/"
         return "$scheme://$host:$port/$keyPrefix"
     }
 
+    /**
+     * Writes a fresh self-signed pair, then hands the server back to whatever
+     * state it was in. Key generation is slow enough to be visible, so it runs
+     * off the main thread and the switch is held disabled meanwhile.
+     */
+    fun generateCertificate(thenEnableSsl: Boolean) {
+        if (generatingCertificate) return
+        generatingCertificate = true
+        scope.launch {
+            val error = withContext(Dispatchers.IO) { WebServerCertificate.generate(context) }
+            certificate = WebServerCertificate.installed(context)
+            generatingCertificate = false
+            if (error != null) {
+                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            Toast.makeText(context, context.getString(R.string.webserver_cert_created), Toast.LENGTH_SHORT).show()
+            // A running server holds the old certificate open; re-enabling is
+            // what makes it read the new one.
+            if (thenEnableSsl || sslEnabled) {
+                val sslError = Natives.setuseSSL(true)
+                if (sslError != null) {
+                    Toast.makeText(context, sslError, Toast.LENGTH_LONG).show()
+                } else {
+                    sslEnabled = true
+                }
+            }
+        }
+    }
+
     fun setSslEnabled(enabled: Boolean) {
+        // Turning HTTPS on used to fail unless the user had already side-loaded
+        // two PEM files. Nothing about wanting encrypted traffic implies owning
+        // a certificate, so make one.
+        if (enabled && !WebServerCertificate.hasCertificate(context)) {
+            sslExpanded = true
+            generateCertificate(thenEnableSsl = true)
+            return
+        }
         val err = Natives.setuseSSL(enabled)
         if (err != null) {
             Toast.makeText(context, err, Toast.LENGTH_LONG).show()
@@ -1033,6 +1110,42 @@ fun WebServerSettingsScreen(navController: NavController) {
         uriHandler.openUri(url)
     }
 
+    /**
+     * Hands the PEMs to the share sheet, which is both halves of what people
+     * want here: send it to the other device, or save it to Files as a backup.
+     */
+    fun exportCertificate(includePrivateKey: Boolean) {
+        showCertificateExport = false
+        val staged = WebServerCertificate.stageForExport(context, includePrivateKey)
+        if (staged.isEmpty()) {
+            Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_LONG).show()
+            return
+        }
+        val uris = ArrayList<Uri>(
+            staged.map {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
+            }
+        )
+        val intent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).apply {
+                type = PEM_MIME_TYPE
+                putExtra(Intent.EXTRA_STREAM, uris.first())
+            }
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = PEM_MIME_TYPE
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }
+        }.apply { addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        runCatching {
+            context.startActivity(
+                Intent.createChooser(intent, context.getString(R.string.webserver_cert_export))
+            )
+        }.onFailure {
+            Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_LONG).show()
+        }
+    }
+
     fun shareUrl(url: String) {
         if (!applyCurrentInputs(showErrors = true)) return
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -1042,9 +1155,11 @@ fun WebServerSettingsScreen(navController: NavController) {
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.sendto)))
     }
 
-    val localBaseUrl = remember(apiSecret, sslEnabled, sslPortText) { buildBaseUrl("127.0.0.1") }
-    val lanHost = remember(apiSecret, sslEnabled, sslPortText) { findLocalIpv4Address() }
-    val lanBaseUrl = remember(lanHost, apiSecret, sslEnabled, sslPortText) { lanHost?.let { buildBaseUrl(it) } }
+    val localBaseUrl = remember(apiSecret, sslEnabled, sslPortText, httpPortText) { buildBaseUrl("127.0.0.1") }
+    val lanHost = remember(apiSecret, sslEnabled, sslPortText, httpPortText) { findLocalIpv4Address() }
+    val lanBaseUrl = remember(lanHost, apiSecret, sslEnabled, sslPortText, httpPortText) {
+        lanHost?.let { buildBaseUrl(it) }
+    }
     val primaryUrl = if (localOnly) localBaseUrl else (lanBaseUrl ?: localBaseUrl)
     val rootUrl = primaryUrl
     val currentUrl = remember(primaryUrl) { "${primaryUrl}api/v1/entries/current" }
@@ -1147,8 +1262,34 @@ fun WebServerSettingsScreen(navController: NavController) {
                     )
 
                     SettingsItem(
+                        title = stringResource(R.string.port),
+                        icon = Icons.Filled.SettingsEthernet,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE,
+                        trailingContent = {
+                            OutlinedTextField(
+                                value = httpPortText,
+                                onValueChange = { httpPortText = it },
+                                enabled = childEnabled,
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { applyCurrentInputs(showErrors = true) }
+                                ),
+                                modifier = Modifier
+                                    .width(96.dp)
+                                    .height(52.dp)
+                            )
+                        }
+                    )
+
+                    SettingsItem(
                         title = stringResource(R.string.usessl),
-                        subtitle = "HTTPS with certificate files",
+                        subtitle = stringResource(R.string.webserver_https_subtitle),
                         icon = Icons.Filled.Lock,
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.MIDDLE,
@@ -1182,6 +1323,123 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                val installed = certificate
+                                // Loopback-only means no LAN name is in play, so
+                                // a certificate that omits this phone's address
+                                // is not a problem worth raising.
+                                val lanAddress = lanHost?.takeIf { !localOnly }
+                                val status = WebServerCertificate.statusOf(
+                                    installed = installed,
+                                    lanAddress = lanAddress,
+                                    nowMillis = System.currentTimeMillis(),
+                                )
+                                val needsAttention = status == WebServerCertificate.Status.ADDRESS_CHANGED ||
+                                    status == WebServerCertificate.Status.EXPIRED
+
+                                Text(
+                                    text = when {
+                                        generatingCertificate ->
+                                            stringResource(R.string.webserver_cert_generating)
+                                        needsAttention ->
+                                            stringResource(R.string.webserver_cert_needs_update)
+                                        else -> stringResource(R.string.webserver_certificate)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (needsAttention && !generatingCertificate) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+
+                                if (!generatingCertificate) {
+                                    Text(
+                                        text = when {
+                                            installed == null -> stringResource(R.string.webserver_cert_none)
+                                            status == WebServerCertificate.Status.EXPIRED ->
+                                                stringResource(R.string.webserver_cert_expired)
+                                            status == WebServerCertificate.Status.ADDRESS_CHANGED ->
+                                                stringResource(
+                                                    R.string.webserver_cert_address_changed,
+                                                    lanAddress.orEmpty()
+                                                )
+                                            installed.selfSigned ->
+                                                stringResource(R.string.webserver_cert_selfsigned)
+                                            else -> stringResource(R.string.webserver_cert_custom)
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (needsAttention) {
+                                            MaterialTheme.colorScheme.error
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+
+                                if (installed != null && !generatingCertificate) {
+                                    // The names the certificate actually answers
+                                    // to. Spelling them out is what gives
+                                    // Regenerate a meaning the user can act on:
+                                    // remake this for the addresses I have now.
+                                    if (installed.hostnames.isNotEmpty()) {
+                                        Text(
+                                            text = installed.hostnames.joinToString(", "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (status != WebServerCertificate.Status.EXPIRED) {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.webserver_cert_expires,
+                                                formatExpiryDate(installed.notAfterMillis)
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val primaryLabel = stringResource(
+                                        when (status) {
+                                            WebServerCertificate.Status.MISSING ->
+                                                R.string.webserver_cert_generate
+                                            WebServerCertificate.Status.ADDRESS_CHANGED,
+                                            WebServerCertificate.Status.EXPIRED ->
+                                                R.string.webserver_cert_update
+                                            else -> R.string.webserver_cert_regenerate
+                                        }
+                                    )
+                                    val onPrimary = { generateCertificate(thenEnableSsl = false) }
+                                    val primaryEnabled = childEnabled && !generatingCertificate
+                                    // Filled only while something is actually
+                                    // wrong; the rest of the time reissuing is
+                                    // just one of three equal options.
+                                    if (needsAttention) {
+                                        Button(
+                                            onClick = onPrimary,
+                                            enabled = primaryEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(primaryLabel) }
+                                    } else {
+                                        FilledTonalButton(
+                                            onClick = onPrimary,
+                                            enabled = primaryEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(primaryLabel) }
+                                    }
+                                    OutlinedButton(
+                                        onClick = { showCertificateExport = true },
+                                        enabled = primaryEnabled && installed != null,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text(stringResource(R.string.webserver_cert_export)) }
+                                    OutlinedButton(
+                                        onClick = { showCertificateImport = true },
+                                        enabled = primaryEnabled,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text(stringResource(R.string.webserver_cert_import)) }
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1208,31 +1466,6 @@ fun WebServerSettingsScreen(navController: NavController) {
                                             .height(52.dp)
                                     )
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
-                                        enabled = childEnabled,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Filled.Key, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.privatekey))
-                                    }
-                                    OutlinedButton(
-                                        onClick = { fullChainPicker.launch(arrayOf("*/*")) },
-                                        enabled = childEnabled,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Filled.Shield, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.fullchain))
-                                    }
-                                }
-                                Text(
-                                    text = "Import key files first, then enable Use SSL.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     }
@@ -1363,6 +1596,82 @@ fun WebServerSettingsScreen(navController: NavController) {
             }
         }
     }
+    if (showCertificateExport) {
+        AlertDialog(
+            onDismissRequest = { showCertificateExport = false },
+            title = { Text(stringResource(R.string.webserver_cert_export)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.webserver_cert_export_hint),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedButton(
+                        onClick = { exportCertificate(includePrivateKey = false) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Shield, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.webserver_cert_export_certificate))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = { exportCertificate(includePrivateKey = true) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Key, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.webserver_cert_export_with_key))
+                    }
+                    Text(
+                        text = stringResource(R.string.webserver_cert_export_key_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCertificateExport = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+    if (showCertificateImport) {
+        AlertDialog(
+            onDismissRequest = { showCertificateImport = false },
+            title = { Text(stringResource(R.string.webserver_cert_import)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.webserver_cert_import_hint),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedButton(
+                        onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Key, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.privatekey))
+                    }
+                    OutlinedButton(
+                        onClick = { fullChainPicker.launch(arrayOf("*/*")) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Shield, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.fullchain))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCertificateImport = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
     if (showHelp) {
         AlertDialog(
             onDismissRequest = { showHelp = false },
@@ -1372,7 +1681,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                     Text("Nightscout-compatible endpoints are served directly from this phone.")
                     Text("Base URL exposes api/v1/entries/current, api/v1/entries, and x/report paths.")
                     Text("Use Local only for same-device loopback testing. Disable it for LAN.")
-                    Text("For HTTPS: import Private Key + Full Chain, then enable Use SSL.")
+                    Text("Enable Use SSL and the app writes its own certificate. Import one instead if you have a CA-issued certificate.")
                 }
             },
             confirmButton = {
@@ -1428,6 +1737,20 @@ private fun findLocalIpv4Address(): String? {
             ?.hostAddress
     } catch (_: Throwable) {
         null
+    }
+}
+
+/**
+ * Date only. A certificate expires two years out, so the time of day it happens
+ * is noise -- unlike [formatEpoch], whose other callers are showing when the
+ * mirror last sent or received.
+ */
+private fun formatExpiryDate(epochMs: Long): String {
+    if (epochMs <= 0L) return ""
+    return try {
+        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs))
+    } catch (_: Throwable) {
+        ""
     }
 }
 

@@ -123,8 +123,29 @@
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
+            <!-- Long press on the quiet-window tile: the alert settings. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
 
         </activity>
+
+        <!-- Quick-settings tile for the alarm quiet window: one tap starts the
+             default duration, one tap on a running window ends it. -->
+        <service
+            android:name=".ui.QuietWindowTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_quiet_window_inactive"
+            android:label="@string/quiet_window_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="false" />
+        </service>
         
         <!-- Takes an insulin-pen tap while the app is not in front and imports the
              doses without bringing the UI up. Disabled until the "import in the

@@ -3,6 +3,7 @@ package tk.glucodata.alerts
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.TrendArrowAngle
 
 /**
  * PERSISTENT_HIGH suppression while a correction visibly works. Field case:
@@ -49,46 +50,38 @@ class FallSuppressionPolicyTests {
         assertFalse(FallSuppressionPolicy.fallingSuppresses(rate = Float.NaN, fallRateSuppress = 0.5f))
     }
 
-    /**
-     * HIGH is the alarm somebody relies on to hear about a high at all, and it fires the
-     * moment the line is crossed, so silencing it takes a fall this app would call a fall.
-     * Its own vocabulary: under 0.5 is drawn level, and it does not tell other apps
-     * "falling" until 2.0.
-     */
     @Test
-    fun aHighIsOnlySilencedByAFallThisAppWouldCallOne() {
-        val asked = AlertDefaults.HIGH_FALL_RATE_MGDL_PER_MIN
+    fun enabledHighSuppressionExactlyMatchesTheDrawnDownArrow() {
+        val enabled = AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
+        val rates = listOf(-5f, -2f, -1.9f, -1f, -0.51f, -0.5f, -0.49f, 0f, 0.51f, 2f, Float.NaN)
 
-        assertTrue(FallSuppressionPolicy.highFallingSuppresses(rate = -2.5f, fallRateSuppress = asked))
-        assertTrue(FallSuppressionPolicy.highFallingSuppresses(rate = -2.0f, fallRateSuppress = asked))
-        // A value coming down thirty an hour is not the correction plainly working.
-        assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -0.5f, fallRateSuppress = asked))
-        assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -1.9f, fallRateSuppress = asked))
+        rates.forEach { rate ->
+            val arrowPointsDown = TrendArrowAngle.rotationDegrees(rate) > 0f
+            assertTrue(
+                "rate=$rate arrowPointsDown=$arrowPointsDown",
+                FallSuppressionPolicy.highFallingSuppresses(rate, enabled) == arrowPointsDown
+            )
+        }
     }
 
-    /** Nothing quieter than the floor counts, whatever is stored or edited into the file. */
+    /** Every former non-zero slider choice was an opt-in and now gets the same arrow rule. */
     @Test
-    fun aStoredLimitBelowTheFloorDoesNotSilenceAHigh() {
-        assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -0.6f, fallRateSuppress = 0.2f))
-        assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -0.9f, fallRateSuppress = 0.5f))
-        // At the floor it does, since that is where this app stops calling the movement level.
-        assertTrue(
-            FallSuppressionPolicy.highFallingSuppresses(
-                rate = -1.0f,
-                fallRateSuppress = AlertDefaults.HIGH_FALL_RATE_FLOOR_MGDL_PER_MIN
-            )
-        )
+    fun anExistingPositiveHighSettingRemainsEnabled() {
+        assertTrue(FallSuppressionPolicy.highFallingSuppresses(rate = -0.6f, fallRateSuppress = 0.2f))
+        assertTrue(FallSuppressionPolicy.highFallingSuppresses(rate = -0.6f, fallRateSuppress = 1.0f))
+        assertTrue(FallSuppressionPolicy.highFallingSuppresses(rate = -0.6f, fallRateSuppress = 3.0f))
     }
 
     /** Off unless asked for: no limit means the alarm somebody has today, unchanged. */
     @Test
     fun aHighWithNoLimitSetIsNeverSilenced() {
+        assertTrue(AlertDefaults.defaultConfig(AlertType.HIGH, isMmol = true).fallRateSuppress == null)
         assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -5.0f, fallRateSuppress = null))
         assertFalse(FallSuppressionPolicy.highFallingSuppresses(rate = -5.0f, fallRateSuppress = 0f))
         assertFalse(
             FallSuppressionPolicy.highFallingSuppresses(
                 rate = Float.NaN,
-                fallRateSuppress = AlertDefaults.HIGH_FALL_RATE_MGDL_PER_MIN
+                fallRateSuppress = AlertDefaults.FALL_RATE_SUPPRESS_MGDL_PER_MIN
             )
         )
     }

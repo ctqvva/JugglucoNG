@@ -15,6 +15,7 @@ import tk.glucodata.drivers.aidex.native.crypto.Crc8Maxim
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
 import tk.glucodata.drivers.aidex.native.ble.aiDexActivationTimeZone
 import tk.glucodata.drivers.aidex.native.ble.aiDexDeviceNameMatchesSerial
+import tk.glucodata.drivers.aidex.native.ble.aiDexDisplayName
 import tk.glucodata.drivers.aidex.native.data.*
 import tk.glucodata.drivers.aidex.native.protocol.AiDexCommandBuilder
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDpCatalogProvider
@@ -232,7 +233,17 @@ class SerialCryptoTests {
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("AiDEX X-2222267V4E"))
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("X-2222267V4E"))
         assertEquals("2222293NWA", SerialCrypto.stripPrefix("AiDEX x-2222293NWA"))
+        assertEquals("22222FZXKT", SerialCrypto.stripPrefix("AiDEX F-22222FZXKT"))
+        assertEquals("22222FZXKT", SerialCrypto.stripPrefix("F-22222FZXKT"))
+        assertEquals("22222GZXKT", SerialCrypto.stripPrefix("AiDEX G-22222GZXKT"))
+        assertEquals("22222QZXKT", SerialCrypto.stripPrefix("Q-22222QZXKT"))
         assertEquals("2222267V4E", SerialCrypto.stripPrefix("2222267V4E"))
+    }
+
+    @Test
+    fun testFGenerationSerialDerivesCapturedChallenge() {
+        val secret = SerialCrypto.deriveSecret(SerialCrypto.stripPrefix("AiDEX F-22222FZXKT"))
+        assertEquals("F0740DC2FA51F24A884F61FC4C14885B", AiDexParser.compactHex(secret))
     }
 
     @Test
@@ -273,6 +284,32 @@ class DeviceNameMatchingTests {
     @Test
     fun testAiDexDeviceNameRejectsDifferentSerial() {
         assertFalse(aiDexDeviceNameMatchesSerial("AiDEX x-2222293NWA", "X-222228AWH2"))
+    }
+}
+
+class DisplayNameTests {
+
+    @Test
+    fun advertisedNameWinsOverSerial() {
+        assertEquals(
+            "AiDEX X-2222293NWA",
+            aiDexDisplayName("AiDEX X-2222293NWA", "C0:AB:12:34:56:78", "X-2222293NWA"),
+        )
+    }
+
+    @Test
+    fun macAddressFallbackCollapsesToSerial() {
+        // SuperGattCallback.mygetDeviceName() returns the MAC before the first connect attempt.
+        assertEquals("X-2222293NWA", aiDexDisplayName("C0:AB:12:34:56:78", "C0:AB:12:34:56:78", "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("c0:ab:12:34:56:78", "C0:AB:12:34:56:78", "X-2222293NWA"))
+    }
+
+    @Test
+    fun placeholderAndBlankCollapseToSerial() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("?", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("   ", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName(null, null, "X-2222293NWA"))
     }
 }
 

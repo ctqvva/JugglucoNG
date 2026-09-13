@@ -23,6 +23,9 @@ interface HistoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDeletedReadings(readings: List<DeletedHistoryReading>)
 
+    @Query("SELECT * FROM history_deleted_readings WHERE deletedAt >= :startTime ORDER BY deletedAt ASC")
+    suspend fun getDeletedReadingsSince(startTime: Long): List<DeletedHistoryReading>
+
     // ── Per-sensor queries (used for dashboard, chart, current reading) ──
 
     @Query("SELECT * FROM history_readings WHERE sensorSerial = :serial AND timestamp >= :startTime ORDER BY timestamp ASC")

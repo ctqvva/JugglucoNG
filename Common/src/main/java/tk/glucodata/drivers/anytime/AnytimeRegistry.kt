@@ -169,6 +169,12 @@ object AnytimeRegistry {
         prefs(c).edit().putLong(AnytimeConstants.PREF_SENSOR_START_AT_PREFIX + id, ms).apply()
     }
 
+    @JvmStatic fun loadTimelineStartAt(c: Context, id: String): Long =
+        prefs(c).getLong(AnytimeConstants.PREF_TIMELINE_START_AT_PREFIX + id, 0L)
+    @JvmStatic fun saveTimelineStartAt(c: Context, id: String, ms: Long) {
+        prefs(c).edit().putLong(AnytimeConstants.PREF_TIMELINE_START_AT_PREFIX + id, ms).apply()
+    }
+
     @JvmStatic fun loadWarmupStartedAt(c: Context, id: String): Long =
         prefs(c).getLong(AnytimeConstants.PREF_WARMUP_STARTED_AT_PREFIX + id, 0L)
     @JvmStatic fun saveWarmupStartedAt(c: Context, id: String, ms: Long) {

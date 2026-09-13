@@ -111,6 +111,8 @@ object AlertStateTracker {
         }
         dismissedAlerts.add(type)
         SmsWatchdog.onAlertAcknowledged(type.id)
+        // Acknowledged: a quiet window's silenced episode must not break through now.
+        QuietWindow.clearSilencedEpisode(type.id)
         Log.i(LOG_ID, "Dismissed ${type.name} for current episode")
         return true
     }
@@ -131,6 +133,14 @@ object AlertStateTracker {
         manualTests.arm(type)
     }
 
+    /** True between the episode's first firing and [resetState]. */
+    @Synchronized
+    fun isEpisodeActive(type: AlertType): Boolean = lastTriggerTime.containsKey(type)
+
+    /** True once [onAlertDismissed] took this episode, until [resetState]. */
+    @Synchronized
+    fun isDismissed(type: AlertType): Boolean = type in dismissedAlerts
+
     /**
      * Reset state for an alert type.
      * Call this when:
@@ -146,6 +156,9 @@ object AlertStateTracker {
         ) {
             Log.i(LOG_ID, "Resetting state for ${type.name}")
         }
+        // The condition cleared: a quiet window's silenced episode for this kind
+        // is over too, so it must not break through later.
+        QuietWindow.clearSilencedEpisode(type.id)
         lastTriggerTime.remove(type)
         dismissedAlerts.remove(type)
         manualTests.clearPending(type)
