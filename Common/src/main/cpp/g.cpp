@@ -1879,6 +1879,12 @@ using HistorySamples = std::map<jlong, std::pair<jlong, jlong>>;
 // dashboard instead of only reaching native followers/LibreView.
 static void appendStoredHistory(const SensorGlucoseData *hist, jlong starttime,
                                 HistorySamples &samples) {
+  // Dexcom historydata contains saveDexFuture forecasts, including forecasts
+  // whose timestamps are now in the past. Actual readings/backfill live in polls.
+  // Keep this independent of the graph's prediction visibility setting.
+  if (hist->isDexcom())
+    return;
+
   const int start = std::max(0, hist->getstarthistory());
   const int end = std::min(hist->getAllendhistory(), hist->maxpos());
   for (int pos = start; pos < end; ++pos) {
