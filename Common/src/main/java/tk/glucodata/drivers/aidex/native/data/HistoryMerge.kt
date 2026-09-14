@@ -15,6 +15,8 @@ data class HistoryStoreEntry(
     val glucoseMgDl: Float,
     val rawMgDl: Float,
     val isValid: Boolean,
+    /** Skin temperature in °C from the 0x24 `i2` channel; NaN when unknown. */
+    val temperatureC: Float = Float.NaN,
 )
 
 /**
@@ -154,6 +156,7 @@ object HistoryMerge {
                 glucoseMgDl = glucose,
                 rawMgDl = normalizeRawMgDl(entry.rawValue) ?: 0f,
                 isValid = !(entry.i1 == 0f && entry.i2 == 0f && entry.vc == 0f),
+                temperatureC = entry.temperatureC,
             )
         }
 

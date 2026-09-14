@@ -43,6 +43,7 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.aidex.AiDexScanReceiver
 import tk.glucodata.drivers.aidex.AiDexDriver
+import tk.glucodata.drivers.aidex.AiDexTemperatureStore
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
@@ -824,6 +825,24 @@ class AiDexBleManager(
         IDLE,
         DOWNLOADING_CALIBRATED,  // 0x23 (calibrated glucose)
         DOWNLOADING_RAW,         // 0x24 (ADC/raw data)
+    }
+
+    /**
+     * Mirror a skin-temperature sample into the display-only sidecar store.
+     *
+     * The F003 `i2` channel carries skin temperature in °C (verified against a
+     * co-worn Sibionics sensor). Implausible values are dropped by the store;
+     * nothing here touches glucose storage or calibration.
+     */
+    private fun appendSkinTemperature(timestampMs: Long, temperatureC: Float?) {
+        if (timestampMs <= 0L || temperatureC == null) return
+        if (!AiDexTemperatureStore.isPlausibleSkinTemperatureC(temperatureC)) return
+        val context = Applic.app ?: return
+        AiDexTemperatureStore.appendTemperatureHistory(
+            context,
+            SerialNumber,
+            listOf(AiDexTemperatureStore.TemperatureRecord(timestampMs, temperatureC)),
+        )
     }
 
     private fun clearPendingRoomHistory(reason: String? = null) {
@@ -3291,8 +3310,10 @@ class AiDexBleManager(
             rawI1 = rawI1,
             rawI2 = rawI2,
             timeOffsetMinutes = trustedTimeOffsetMinutes ?: 0,
+            temperatureC = rawI2,
         )
         onGlucoseReading?.invoke(reading)
+        appendSkinTemperature(sampleTimestampMs, rawI2)
 
         if (dataptr != 0L) {
             try {
@@ -5311,6 +5332,7 @@ class AiDexBleManager(
         var stored = 0
         var skippedWearDuration = 0
         var newestStoredTimeMs = 0L
+        val temperatureRecords = ArrayList<AiDexTemperatureStore.TemperatureRecord>()
 
         for (entry in entries) {
             // Filter invalid
@@ -5360,6 +5382,11 @@ class AiDexBleManager(
                 pendingRoomHistoryTimestamps.add(historicalTimeMs)
                 pendingRoomHistoryValues.add(entry.glucoseMgDl)
                 pendingRoomHistoryRawValues.add(rawForStore)
+                if (AiDexTemperatureStore.isPlausibleSkinTemperatureC(entry.temperatureC)) {
+                    temperatureRecords.add(
+                        AiDexTemperatureStore.TemperatureRecord(historicalTimeMs, entry.temperatureC)
+                    )
+                }
                 stored++
                 historyStoredCount++
                 if (historicalTimeMs > newestStoredTimeMs) {
@@ -5387,6 +5414,11 @@ class AiDexBleManager(
         if (stored > 0) {
             noteValidReadingAvailable(newestStoredTimeMs, "valid-history")
             Log.i(TAG, "storeHistoryEntries: stored $stored/${entries.size} entries (total=$historyStoredCount)")
+            if (temperatureRecords.isNotEmpty()) {
+                Applic.app?.let { context ->
+                    AiDexTemperatureStore.appendTemperatureHistory(context, SerialNumber, temperatureRecords)
+                }
+            }
         }
     }
 

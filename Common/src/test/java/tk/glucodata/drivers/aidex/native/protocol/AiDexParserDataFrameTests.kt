@@ -51,6 +51,19 @@ class AiDexParserDataFrameTests {
     }
 
     @Test
+    fun documentedFrameExposesSkinTemperatureFromI2() {
+        // The `i2` channel is skin temperature in °C (co-worn Sibionics
+        // cross-check: r ≈ 0.72, −0.08 °C mean bias). This cool-skin warmup
+        // frame reads 29.5 °C.
+        val frame = AiDexParser.parseDataFrame(documentedFrame)
+        assertNotNull(frame)
+        frame!!
+
+        assertEquals(frame.i2, frame.temperatureC, 0.0f)
+        assertEquals(29.50f, frame.temperatureC, 0.001f)
+    }
+
+    @Test
     fun offsetIsAU16MinuteCounterNotAU32SecondCounter() {
         val frame = AiDexParser.parseDataFrame(documentedFrame)!!
 

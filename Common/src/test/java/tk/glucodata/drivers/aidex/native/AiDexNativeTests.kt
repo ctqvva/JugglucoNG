@@ -1523,6 +1523,23 @@ class HistoryMergeEntryTests {
     }
 
     @Test
+    fun testMergeCarriesSkinTemperatureFromI2() {
+        // The 0x24 `i2` channel is skin temperature in °C — the merge must
+        // carry it into the store entry so history backfill feeds the Stats
+        // temperature card.
+        val cache = mutableMapOf(100 to 80, 101 to 85)
+        val adcEntries = listOf(
+            adcEntry(100, i2 = 33.5f),
+            adcEntry(101, i2 = 27.2f),
+        )
+        val result = HistoryMerge.mergeHistoryEntries(adcEntries, cache, null)
+
+        assertEquals(2, result.entries.size)
+        assertEquals(33.5f, result.entries[0].temperatureC, 0.001f)
+        assertEquals(27.2f, result.entries[1].temperatureC, 0.001f)
+    }
+
+    @Test
     fun testFallbackWhenNoMatch() {
         // 0x24 has entries at offsets 100-104, but 0x23 only has 100-101
         val cache = mutableMapOf(100 to 80, 101 to 85)

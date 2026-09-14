@@ -25,7 +25,16 @@ data class GlucoseFrame(
     val crc16: Int,
     /** Whether this is a valid glucose reading (not sentinel, in range) */
     val isValid: Boolean,
-)
+) {
+    /**
+     * Skin temperature in °C.
+     *
+     * The `i2` channel tracks skin temperature, not a second glucose current:
+     * verified against a co-worn Sibionics sensor (r ≈ 0.72 over ~5.5 h,
+     * identical span, −0.08 °C mean bias). Already in °C, no scaling.
+     */
+    val temperatureC: Float get() = i2
+}
 
 /**
  * Parsed result from a 5-byte F003 status/keepalive frame.
@@ -67,7 +76,10 @@ data class AdcHistoryEntry(
     val rawValue: Float,
     /** Sensor glucose = i1 * 18.0182 (treating i1 as mmol/L -> mg/dL) */
     val sensorGlucose: Float,
-)
+) {
+    /** Skin temperature in °C — same `i2` channel as [GlucoseFrame.temperatureC]. */
+    val temperatureC: Float get() = i2
+}
 
 /**
  * A parsed calibration record from GET_CALIBRATION (0x27) response.
@@ -126,6 +138,8 @@ data class GlucoseReading(
     val rawI2: Float?,
     /** Minutes from sensor start */
     val timeOffsetMinutes: Int,
+    /** Skin temperature in °C (F003 `i2` channel); null when unknown */
+    val temperatureC: Float? = null,
 ) {
     /** Composite key for deduplication: "${timestamp}_${sensorSerial}" */
     val compositeKey: String get() = "${timestamp}_${sensorSerial}"
