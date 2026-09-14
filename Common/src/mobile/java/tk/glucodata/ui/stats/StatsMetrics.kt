@@ -53,7 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1139,7 +1139,7 @@ internal enum class PinnedWindow(@get:StringRes val labelResId: Int, private val
 fun hasPinnedStats(): Boolean {
     val context = LocalContext.current
     LaunchedEffect(context) { StatsLayoutStore.ensureLoaded(context) }
-    val layout by StatsLayoutStore.state.collectAsState()
+    val layout by StatsLayoutStore.state.collectAsStateWithLifecycle()
     return layout.dashboardMetrics.isNotEmpty()
 }
 
@@ -1168,15 +1168,16 @@ internal fun PinnedStatsStrip(
 ) {
     val context = LocalContext.current
     LaunchedEffect(context) { StatsLayoutStore.ensureLoaded(context) }
-    val layout by StatsLayoutStore.state.collectAsState()
+    val layout by StatsLayoutStore.state.collectAsStateWithLifecycle()
     val pinned = layout.dashboardMetrics
+    if (pinned.isEmpty()) return
     val statsViewModel: StatsViewModel = rememberStatsViewModel()
     var window by windowState
     // Tells the view model how far back to read. Without this the strip showed numbers
     // for whatever range the statistics screen was last left on, whatever the pill said.
     LaunchedEffect(window) { statsViewModel.setPinnedWindow(window) }
-    val pinnedState by statsViewModel.pinnedState.collectAsState()
-    if (pinned.isEmpty() || pinnedState.summary.readingCount == 0) return
+    val pinnedState by statsViewModel.pinnedState.collectAsStateWithLifecycle()
+    if (pinnedState.summary.readingCount == 0) return
     val adaptiveMetrics = rememberAdaptiveWindowMetrics()
     val view = LocalView.current
 
