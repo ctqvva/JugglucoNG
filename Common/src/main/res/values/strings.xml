@@ -219,6 +219,8 @@
     <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
     <string name="broadcast_computed_trend_title">Broadcast app trend</string>
     <string name="broadcast_computed_trend_desc">Use the app’s trend instead of the sensor’s</string>
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Send glucose readings to Health Connect for compatible health apps</string>
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="sensorpermission">Sensors permission</string>
@@ -2327,6 +2329,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enable_overlay_service">Enable overlay service</string>
     <string name="accessibility_service_enabled">Accessibility service enabled</string>
     <string name="open_accessibility_settings">Open Accessibility settings</string>
+    <string name="aod_show_on_lockscreen">Show on the lock screen</string>
+    <string name="aod_show_on_lockscreen_desc">Also show while the screen is on and locked</string>
     <string name="show_chart">Show chart</string>
     <string name="show_chart_expanded">Show chart (expanded)</string>
     <string name="show_chart_expanded_desc">Chart when notification is expanded</string>

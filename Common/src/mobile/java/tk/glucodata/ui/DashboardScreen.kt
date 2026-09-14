@@ -310,7 +310,7 @@ fun DashboardScreen(
     LaunchedEffect(timeRange) {
         dashboardPrefs.edit().putString("dashboard_chart_time_range", timeRange.name).apply()
     }
-<    val currentGlucose by viewModel.currentGlucose.collectAsStateWithLifecycle()
+    val currentGlucose by viewModel.currentGlucose.collectAsStateWithLifecycle()
     val currentRate by viewModel.currentRate.collectAsStateWithLifecycle()
     val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val daysRemaining by viewModel.daysRemaining.collectAsStateWithLifecycle()
