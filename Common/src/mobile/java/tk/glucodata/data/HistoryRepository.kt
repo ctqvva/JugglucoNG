@@ -8,7 +8,9 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import tk.glucodata.Applic
@@ -57,6 +59,15 @@ class HistoryRepository(context: Context = Applic.app) {
     
     companion object {
         private const val TAG = "HistoryRepo"
+
+        @Volatile
+        private var timestampIndexTracker: HistoryTimestampIndexTracker? = null
+
+        /** The one timestamp index for the database; see [HistoryTimestampIndexTracker]. */
+        internal fun timestampIndex(dao: HistoryDao): HistoryTimestampIndexTracker =
+            timestampIndexTracker ?: synchronized(this) {
+                timestampIndexTracker ?: HistoryTimestampIndexTracker(dao).also { timestampIndexTracker = it }
+            }
 
         /**
          * Every serial a sensor's rows may be stored under: the id the caller
@@ -1470,6 +1481,116 @@ class HistoryRepository(context: Context = Applic.app) {
                 display.indexedDisplay()
             )
         }.flowOn(Dispatchers.IO)
+    }
+
+    // ── The windowed timeline ──
+    //
+    // The merged display timeline over a window of time, correct at the edges
+    // and identical to the whole merge restricted to that window — see
+    // HistoryDisplayMerge.mergeWindow. The rows are read for the padded window
+    // only; the whole store's coverage comes from the timestamp index. This is
+    // what the chart, the history screen and the journal draw from, so a write
+    // costs the window, not the store.
+
+    private val timestampIndex: HistoryTimestampIndexTracker get() = timestampIndex(dao)
+
+    /** Oldest and newest stored reading and the row count, live. */
+    fun observeTimelineExtents(): kotlinx.coroutines.flow.Flow<TimelineExtents?> =
+        dao.getTableFingerprintFlow()
+            .map { fingerprint ->
+                val earliest = fingerprint.minTimestamp
+                val latest = fingerprint.maxTimestamp
+                if (earliest == null || latest == null) null else TimelineExtents(earliest, latest, fingerprint.rowCount)
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.IO)
+
+    /**
+     * The merged display timeline for [startTime]..[endTime], live.
+     *
+     * Emits a provisional merge of the window's own rows first when the index
+     * has not been built yet — the same answer the dashboard's first paint
+     * always gave — so a large store does not hold the first frame.
+     */
+    fun observeMergedWindow(
+        preferredSerial: String?,
+        startTime: Long,
+        endTime: Long,
+    ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> {
+        val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
+        val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
+        return kotlinx.coroutines.flow.combine(
+            dao.getReadingsBetweenFlow(paddedStart, paddedEnd),
+            uncertaintyDao.getBetweenFlow(paddedStart, paddedEnd),
+            displayDao.getBetweenFlow(paddedStart, paddedEnd),
+        ) { readings, uncertainty, display ->
+            Triple(readings, uncertainty, display)
+        }.transform { (readings, uncertainty, display) ->
+            if (!timestampIndex.isReady) {
+                emit(
+                    mapReadings(
+                        HistoryDisplayMerge.mergeReadings(readings, preferredSerial),
+                        uncertainty.indexed(),
+                        display.indexedDisplay()
+                    ).trimTo(startTime, endTime)
+                )
+            }
+            emit(mergeWindowRows(readings, preferredSerial, uncertainty, display, startTime, endTime))
+        }.flowOn(Dispatchers.IO)
+    }
+
+    /** One-shot form of [observeMergedWindow]. */
+    suspend fun loadMergedWindow(preferredSerial: String?, startTime: Long, endTime: Long): List<GlucosePoint> =
+        withContext(Dispatchers.IO) {
+            val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
+            val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
+            val readings = dao.getReadingsBetween(paddedStart, paddedEnd)
+            val uncertainty = runCatching { uncertaintyDao.getBetween(paddedStart, paddedEnd) }.getOrDefault(emptyList())
+            val display = runCatching { displayDao.getBetween(paddedStart, paddedEnd) }.getOrDefault(emptyList())
+            mergeWindowRows(readings, preferredSerial, uncertainty, display, startTime, endTime)
+        }
+
+    private suspend fun mergeWindowRows(
+        readings: List<HistoryReading>,
+        preferredSerial: String?,
+        uncertainty: List<ReadingUncertainty>,
+        display: List<ReadingDisplay>,
+        startTime: Long,
+        endTime: Long,
+    ): List<GlucosePoint> {
+        val merged = timestampIndex.withIndex { coverage ->
+            HistoryDisplayMerge.mergeWindow(readings, preferredSerial, coverage)
+        }
+        return mapReadings(merged, uncertainty.indexed(), display.indexedDisplay()).trimTo(startTime, endTime)
+    }
+
+    /**
+     * How many merged readings fall in [startTime]..[endTime] — what the
+     * history screen's range selector counts. The merge runs on the rows'
+     * identities alone, since which of two rows wins a minute does not change
+     * how many minutes there are.
+     */
+    suspend fun mergedReadingCount(preferredSerial: String?, startTime: Long, endTime: Long): Int =
+        withContext(Dispatchers.IO) {
+            val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
+            val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
+            val rows = dao.getIndexRowsBetween(paddedStart, paddedEnd).map {
+                HistoryReading(id = it.id, timestamp = it.timestamp, sensorSerial = it.sensorSerial, value = 1f, rawValue = 1f, rate = null)
+            }
+            timestampIndex.withIndex { coverage ->
+                HistoryDisplayMerge.mergeWindow(rows, preferredSerial, coverage)
+            }.count { it.timestamp in startTime..endTime }
+        }
+
+    /** Bumped when the timestamp index was rebuilt after a rewrite of the store; per-timestamp caches drop on it. */
+    fun observeTimelineRewrites(): kotlinx.coroutines.flow.Flow<Long> = timestampIndex.rebuilds
+
+    private fun List<GlucosePoint>.trimTo(startTime: Long, endTime: Long): List<GlucosePoint> {
+        if (isEmpty()) return this
+        if (first().timestamp >= startTime && last().timestamp <= endTime) return this
+        val from = indexOfFirst { it.timestamp >= startTime }.let { if (it < 0) size else it }
+        val to = indexOfLast { it.timestamp <= endTime } + 1
+        return if (from >= to) emptyList() else subList(from, to).toList()
     }
 
     

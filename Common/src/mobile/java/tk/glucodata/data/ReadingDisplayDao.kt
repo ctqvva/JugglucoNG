@@ -76,6 +76,12 @@ interface ReadingDisplayDao {
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     fun getFlow(startTime: Long): Flow<List<ReadingDisplay>>
 
+    @Query(
+        "SELECT * FROM reading_display WHERE timestamp >= :startTime AND timestamp <= :endTime " +
+            "ORDER BY timestamp ASC"
+    )
+    fun getBetweenFlow(startTime: Long, endTime: Long): Flow<List<ReadingDisplay>>
+
     /** Which sensor owned the main line, minute by minute, since [startTime]. */
     @Query("SELECT timestamp, sensorSerial FROM reading_display WHERE timestamp >= :startTime")
     suspend fun mainLineOwners(startTime: Long): List<ReadingDisplayOwner>

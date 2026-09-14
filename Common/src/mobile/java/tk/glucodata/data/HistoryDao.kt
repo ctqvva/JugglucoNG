@@ -108,6 +108,45 @@ interface HistoryDao {
 
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     fun getHistoryFlow(startTime: Long): Flow<List<HistoryReading>>
+
+    // ── Windowed timeline (the chart, the history and journal screens) ──
+
+    @Query("""
+        SELECT * FROM history_readings
+        WHERE timestamp >= :startTime
+          AND timestamp <= :endTime
+        ORDER BY timestamp ASC
+    """)
+    fun getReadingsBetweenFlow(startTime: Long, endTime: Long): Flow<List<HistoryReading>>
+
+    /** The whole table in four numbers; see [HistoryTimestampIndexTracker]. */
+    @Query("""
+        SELECT COUNT(*) AS rowCount, MAX(id) AS maxId,
+               MIN(timestamp) AS minTimestamp, MAX(timestamp) AS maxTimestamp
+        FROM history_readings
+    """)
+    suspend fun getTableFingerprint(): HistoryTableFingerprint
+
+    @Query("""
+        SELECT COUNT(*) AS rowCount, MAX(id) AS maxId,
+               MIN(timestamp) AS minTimestamp, MAX(timestamp) AS maxTimestamp
+        FROM history_readings
+    """)
+    fun getTableFingerprintFlow(): Flow<HistoryTableFingerprint>
+
+    @Query("SELECT id, timestamp, sensorSerial FROM history_readings WHERE id > :afterId ORDER BY id ASC")
+    suspend fun getIndexRowsAfter(afterId: Long): List<HistoryIndexRow>
+
+    @Query("SELECT id, timestamp, sensorSerial FROM history_readings WHERE timestamp >= :startTime AND timestamp <= :endTime ORDER BY timestamp ASC")
+    suspend fun getIndexRowsBetween(startTime: Long, endTime: Long): List<HistoryIndexRow>
+
+    @Query("""
+        SELECT timestamp FROM history_readings
+        WHERE sensorSerial = :serial AND timestamp > :afterTimestamp
+        ORDER BY timestamp ASC
+        LIMIT :limit
+    """)
+    suspend fun getTimestampsForSensorPage(serial: String, afterTimestamp: Long, limit: Int): List<Long>
     
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getReadingsSince(startTime: Long): List<HistoryReading>

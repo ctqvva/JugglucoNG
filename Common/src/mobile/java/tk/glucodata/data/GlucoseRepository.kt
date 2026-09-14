@@ -246,6 +246,49 @@ class GlucoseRepository {
         }
     }
 
+    // ── The windowed timeline ──
+
+    /**
+     * The merged cross-sensor timeline over one window of time, in stored
+     * mg/dL, live. Identical to the whole timeline restricted to the window —
+     * see HistoryDisplayMerge.mergeWindow — so the chart can be handed exactly
+     * what it shows plus a margin, and a write costs the window, not the store.
+     *
+     * The native backfill is still requested from the beginning, as before:
+     * which readings Room holds is the sync's business, not the window's.
+     */
+    fun getMergedWindowFlowRaw(startTime: Long, endTime: Long): Flow<List<GlucosePoint>> {
+        return _currentSerial.flatMapLatest { serial ->
+            val preferredSerial = resolveDisplayPreferredSerial(serial)
+            channelFlow {
+                launch {
+                    historyRepository.ensureBackfilled(preferredSerial, 0L)
+                }
+                historyRepository.observeMergedWindow(preferredSerial, startTime, endTime).collect { points ->
+                    send(points)
+                }
+            }
+        }
+    }
+
+    /** One-shot form of [getMergedWindowFlowRaw]. */
+    suspend fun loadMergedWindowRaw(startTime: Long, endTime: Long): List<GlucosePoint> {
+        val preferredSerial = resolveDisplayPreferredSerial(_currentSerial.value)
+        return historyRepository.loadMergedWindow(preferredSerial, startTime, endTime)
+    }
+
+    /** Oldest and newest stored reading across every sensor, live. */
+    fun getTimelineExtentsFlow(): Flow<TimelineExtents?> = historyRepository.observeTimelineExtents()
+
+    /** The merged reading count in a range, for the history screen's range selector. */
+    suspend fun mergedReadingCount(startTime: Long, endTime: Long): Int {
+        val preferredSerial = resolveDisplayPreferredSerial(_currentSerial.value)
+        return historyRepository.mergedReadingCount(preferredSerial, startTime, endTime)
+    }
+
+    /** Bumped when the store was rewritten underneath the windows; see HistoryRepository.observeTimelineRewrites. */
+    fun getTimelineRewritesFlow(): Flow<Long> = historyRepository.observeTimelineRewrites()
+
     /**
      * Get ALL history from the Room database for the main sensor.
      * No time limit - fetches everything available for the main sensor.

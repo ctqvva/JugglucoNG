@@ -32,3 +32,21 @@ data class HistoryReading(
     /** First time this logical row reached Room; preserved across overlap rewrites. */
     val firstStoredAt: Long = System.currentTimeMillis(),
 )
+
+/** A reading's identity without its values — what the timestamp index is built from. */
+data class HistoryIndexRow(
+    val id: Long,
+    val timestamp: Long,
+    val sensorSerial: String,
+)
+
+/**
+ * The readings table summarised: enough to tell an append from a rewrite.
+ * Nullable aggregates are null on an empty table.
+ */
+data class HistoryTableFingerprint(
+    val rowCount: Int,
+    val maxId: Long?,
+    val minTimestamp: Long?,
+    val maxTimestamp: Long?,
+)
