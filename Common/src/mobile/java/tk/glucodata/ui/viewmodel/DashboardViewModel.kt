@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -1102,11 +1103,11 @@ class DashboardViewModel(
         timelineExtentsJob = viewModelScope.launch {
             glucoseRepository.getTimelineExtentsFlow().collect { extents ->
                 _timelineExtents.value = extents
-                // Until the chart has said where it is looking, load around the
-                // newest reading: that is where every chart opens, and it is
-                // what lets a store whose newest reading is older than the live
-                // tail show anything at all.
-                if (extents != null && _chartWindow.value == null) {
+                // A store whose newest reading is older than the live tail would
+                // otherwise show nothing until the chart said where it was
+                // looking — and the chart is not composed without data. Open
+                // around the newest reading, which is where every chart opens.
+                if (extents != null && _chartWindow.value == null && extents.latestMs < _liveTailStart.value) {
                     _chartWindow.value = TimelineWindowPolicy.windowFor(
                         extents.latestMs - INITIAL_CHART_VIEWPORT_MS,
                         extents.latestMs
@@ -1126,8 +1127,22 @@ class DashboardViewModel(
         // whole timeline's.
         historyJob = viewModelScope.launch {
             var hasSeenHistoryEmission = false
+            var firstPainted = false
             val tailFlow = _liveTailStart.flatMapLatest { tailStart ->
-                glucoseRepository.getMergedWindowFlowRaw(tailStart, Long.MAX_VALUE)
+                kotlinx.coroutines.flow.flow {
+                    // First paint: the default range and its margin, read once
+                    // and answered from the window's own rows if the coverage
+                    // index is still to be built — what the dashboard's first
+                    // frame always was. The whole tail follows and replaces it.
+                    if (!firstPainted) {
+                        firstPainted = true
+                        val quickStart = TimelineWindowPolicy.liveTailStart(System.currentTimeMillis()) +
+                            (TimelineWindowPolicy.LIVE_TAIL_MS - TimelineWindowPolicy.FIRST_PAINT_MS)
+                        val quick = glucoseRepository.loadMergedWindowRaw(quickStart, Long.MAX_VALUE, allowProvisional = true)
+                        if (quick.isNotEmpty()) emit(quick)
+                    }
+                    emitAll(glucoseRepository.getMergedWindowFlowRaw(tailStart, Long.MAX_VALUE))
+                }
             }
             val windowFlow = _chartWindow.flatMapLatest { window ->
                 if (window == null) {
@@ -1218,14 +1233,13 @@ class DashboardViewModel(
      */
     fun onChartViewportChanged(viewportStartMs: Long, viewportEndMs: Long) {
         if (viewportEndMs <= viewportStartMs) return
-        val current = _chartWindow.value
-        if (TimelineWindowPolicy.needsNewWindow(current, viewportStartMs, viewportEndMs)) {
-            _chartWindow.value = TimelineWindowPolicy.windowFor(viewportStartMs, viewportEndMs)
-        }
         val now = System.currentTimeMillis()
         if (TimelineWindowPolicy.liveTailNeedsReanchor(_liveTailStart.value, now)) {
             _liveTailStart.value = TimelineWindowPolicy.liveTailStart(now)
         }
+        val current = _chartWindow.value
+        val next = TimelineWindowPolicy.windowUpdate(current, _liveTailStart.value, viewportStartMs, viewportEndMs)
+        if (next != current) _chartWindow.value = next
     }
 
     /**

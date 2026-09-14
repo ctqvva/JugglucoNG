@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +98,9 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+
+/** The viewport a freshly chosen range is loaded for before its chart can say where it is looking: TimeRange.H24, the screen's default. */
+private const val HISTORY_RANGE_FIRST_VIEWPORT_MS = 24L * 60L * 60L * 1000L
 
 private data class HistoryDateSection(
     val date: LocalDate,
@@ -489,6 +493,16 @@ fun HistoryBrowseScreen(
         flow.collectAsStateWithLifecycle(initialValue = loadedRangeSummary).value
     } else {
         loadedRangeSummary
+    }
+    // A range the loaded stretches do not reach — last month, say — has
+    // nothing on screen to ask for it; ask for its last day here, and the
+    // chart takes over once it has data to report a viewport from.
+    LaunchedEffect(activeRange, rangeSummary?.latestMs, activeHistory.isEmpty(), onVisibleRangeChanged) {
+        val callback = onVisibleRangeChanged ?: return@LaunchedEffect
+        val end = rangeSummary?.latestMs ?: return@LaunchedEffect
+        if (activeHistory.isEmpty()) {
+            callback(end - HISTORY_RANGE_FIRST_VIEWPORT_MS, end)
+        }
     }
     val activeJournalEntries = remember(journalEntries, activeRange) {
         activeRange?.let { range ->

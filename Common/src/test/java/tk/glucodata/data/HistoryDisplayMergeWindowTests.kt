@@ -146,6 +146,16 @@ class HistoryDisplayMergeWindowTests {
     }
 
     @Test
+    fun paddingAnOpenEndedWindowDoesNotWrapTheClock() {
+        val padded = HistoryDisplayMerge.paddedWindow(ORIGIN, Long.MAX_VALUE)
+        assertEquals(ORIGIN - HistoryDisplayMerge.WINDOW_PADDING_MS, padded.first)
+        assertEquals(Long.MAX_VALUE, padded.last)
+        assertEquals(Long.MIN_VALUE, HistoryDisplayMerge.paddedWindow(Long.MIN_VALUE, ORIGIN).first)
+        val bounded = HistoryDisplayMerge.paddedWindow(ORIGIN, ORIGIN + HOUR_MS)
+        assertEquals(ORIGIN + HOUR_MS + HistoryDisplayMerge.WINDOW_PADDING_MS, bounded.last)
+    }
+
+    @Test
     fun removingAndReplacingKeepTheIndexExact() {
         val index = HistoryTimestampIndex()
         val times = (0 until 100).map { ORIGIN + it * MINUTE_MS }

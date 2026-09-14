@@ -2,7 +2,6 @@ package tk.glucodata.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,18 +72,36 @@ internal class ChartResolutionInputs(
  * a recomposition that changes nothing (a viewport animation, a tick of the
  * age colour) leaves the in-flight one alone.
  */
+private class ChartResolutionHolder(
+    var resolvedFor: ChartResolutionInputs,
+    var resolution: ChartResolution,
+)
+
 @Composable
 internal fun rememberChartResolution(
     inputs: ChartResolutionInputs,
     resolve: (ChartResolutionInputs) -> ChartResolution,
 ): ChartResolution {
-    val holder: MutableState<ChartResolution> = remember { mutableStateOf(resolve(inputs)) }
-    var resolvedFor by remember { mutableStateOf(inputs) }
-    LaunchedEffect(inputs) {
-        if (inputs === resolvedFor || inputs.sameAs(resolvedFor)) return@LaunchedEffect
-        val resolution = withContext(Dispatchers.Default) { resolve(inputs) }
-        holder.value = resolution
-        resolvedFor = inputs
+    // A plain holder rather than state, so the synchronous path below can
+    // replace the resolution during composition without writing a state that
+    // this same composition has already read; the async path bumps
+    // [asyncRevision] to be recomposed.
+    val holder = remember { ChartResolutionHolder(inputs, resolve(inputs)) }
+    var asyncRevision by remember { mutableStateOf(0) }
+    // The first frame *with data* is the one that matters, and it is still
+    // resolved in composition: a chart that composed empty — the history
+    // screen waiting for a range to load — draws its first readings in the
+    // frame they arrive, not a resolution later.
+    if (!inputs.sameAs(holder.resolvedFor) && holder.resolution.renderData.isEmpty() && inputs.safeData.isNotEmpty()) {
+        holder.resolution = resolve(inputs)
+        holder.resolvedFor = inputs
     }
-    return holder.value
+    LaunchedEffect(inputs) {
+        if (inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
+        val resolution = withContext(Dispatchers.Default) { resolve(inputs) }
+        holder.resolution = resolution
+        holder.resolvedFor = inputs
+        asyncRevision++
+    }
+    return remember(asyncRevision, holder.resolution) { holder.resolution }
 }

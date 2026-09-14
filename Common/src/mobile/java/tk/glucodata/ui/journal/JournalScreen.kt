@@ -207,7 +207,7 @@ fun JournalScreen(
                 )
             }
 
-            if (sortedHistory.isNotEmpty() || timelineExtents != null) {
+            if (sortedHistory.isNotEmpty()) {
                 item(key = "journal-chart") {
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(

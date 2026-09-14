@@ -50,13 +50,30 @@ class TimelineWindowPolicyTests {
     }
 
     @Test
-    fun theLiveTailStartsTwoDaysBackAndReanchorsAfterThree() {
+    fun theLiveTailCoversEveryRangeButtonAndItsPreviewMargin() {
         val start = TimelineWindowPolicy.liveTailStart(now)
         assertEquals(0L, start % hour)
         assertTrue(now - start >= TimelineWindowPolicy.LIVE_TAIL_MS)
         assertTrue(now - start < TimelineWindowPolicy.LIVE_TAIL_MS + hour)
-        assertFalse(TimelineWindowPolicy.liveTailNeedsReanchor(start, now + 20 * hour))
-        assertTrue(TimelineWindowPolicy.liveTailNeedsReanchor(start, now + 30 * hour))
+        // 3D, the longest range button, plus the day of margin the preview strip needs: no window.
+        val threeDays = 72 * hour
+        assertEquals(null, TimelineWindowPolicy.windowUpdate(null, start, now - threeDays, now))
+        assertFalse(TimelineWindowPolicy.liveTailNeedsReanchor(start, now + 10 * hour))
+        assertTrue(TimelineWindowPolicy.liveTailNeedsReanchor(start, now + 14 * hour))
+    }
+
+    @Test
+    fun noWindowIsHeldWhileTheTailCoversTheViewport() {
+        val tailStart = TimelineWindowPolicy.liveTailStart(now)
+        // Default view, and a pan two days back: both inside the tail.
+        assertEquals(null, TimelineWindowPolicy.windowUpdate(null, tailStart, now - 3 * hour, now))
+        assertEquals(null, TimelineWindowPolicy.windowUpdate(null, tailStart, now - 51 * hour, now - 48 * hour))
+        // Panned back a week: a window, then the same window while it still comfortably covers.
+        val far = TimelineWindowPolicy.windowUpdate(null, tailStart, now - 7 * 24 * hour, now - 7 * 24 * hour + 3 * hour)
+        assertTrue(far != null)
+        assertEquals(far, TimelineWindowPolicy.windowUpdate(far, tailStart, now - 7 * 24 * hour - 5 * hour, now - 7 * 24 * hour - 2 * hour))
+        // And released again once the viewport is back inside the tail.
+        assertEquals(null, TimelineWindowPolicy.windowUpdate(far, tailStart, now - 3 * hour, now))
     }
 
     private fun point(ts: Long) = GlucosePoint(value = 100f, time = "", timestamp = ts)

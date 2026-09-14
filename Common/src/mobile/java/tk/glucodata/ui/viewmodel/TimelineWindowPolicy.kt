@@ -26,16 +26,21 @@ data class TimelineWindow(val startMs: Long, val endMs: Long) {
  * The live edge is loaded separately and always — see [liveTailStart] — for
  * everything that reads the newest readings without looking at the chart:
  * the hero value, the reading rows and their deltas, the prediction, the
- * history-recovery check. So a chart panned back to last month holds two
- * stretches: the month, and now.
+ * history-recovery check. It reaches back four days: every range button up
+ * to 3D, with the day of margin the preview strip needs, so the ordinary use
+ * of the chart never loads anything at all. A window is asked for only when
+ * the viewport wants what the tail does not hold, and then a chart panned
+ * back to last month holds two stretches: the month, and now.
  */
 object TimelineWindowPolicy {
     const val HOUR_MS = 60L * 60L * 1000L
     const val MIN_MARGIN_MS = 24L * HOUR_MS
-    /** How far back the always-loaded live tail reaches, at least. */
-    const val LIVE_TAIL_MS = 48L * HOUR_MS
+    /** How far back the always-loaded live tail reaches, at least: the 3D range plus the preview margin. */
+    const val LIVE_TAIL_MS = 96L * HOUR_MS
     /** The tail is re-anchored when its start has drifted further than this behind now. */
-    const val LIVE_TAIL_REANCHOR_MS = 72L * HOUR_MS
+    const val LIVE_TAIL_REANCHOR_MS = LIVE_TAIL_MS + 12L * HOUR_MS
+    /** What the first paint loads before the whole tail lands: the default range and its margin, as the dashboard always did. */
+    const val FIRST_PAINT_MS = 12L * HOUR_MS
 
     fun marginFor(viewportStartMs: Long, viewportEndMs: Long): Long =
         maxOf(viewportEndMs - viewportStartMs, MIN_MARGIN_MS)
@@ -59,8 +64,31 @@ object TimelineWindowPolicy {
         return viewportStartMs - current.startMs < slack || current.endMs - viewportEndMs < slack
     }
 
-    /** Where the live tail starts for a clock reading of [nowMs]: two days back, on the hour. */
+    /** Where the live tail starts for a clock reading of [nowMs]: [LIVE_TAIL_MS] back, on the hour. */
     fun liveTailStart(nowMs: Long): Long = Math.floorDiv(nowMs - LIVE_TAIL_MS, HOUR_MS) * HOUR_MS
+
+    /**
+     * The window to hold for a viewport, given a live tail that starts at
+     * [tailStartMs]: null when the tail already covers the viewport and its
+     * margin, so no second stretch is loaded for the ordinary case; otherwise
+     * [windowFor] the viewport, unless [current] still comfortably covers it.
+     */
+    fun windowUpdate(
+        current: TimelineWindow?,
+        tailStartMs: Long,
+        viewportStartMs: Long,
+        viewportEndMs: Long,
+    ): TimelineWindow? {
+        // Inside the tail only the preview strip's day of margin matters; the
+        // pan margin is for stretches that have to be fetched ahead of the
+        // viewport, and the tail is already there.
+        if (viewportStartMs - MIN_MARGIN_MS >= tailStartMs) return null
+        return if (needsNewWindow(current, viewportStartMs, viewportEndMs)) {
+            windowFor(viewportStartMs, viewportEndMs)
+        } else {
+            current
+        }
+    }
 
     /** Whether a tail anchored at [tailStartMs] has drifted far enough behind [nowMs] to be re-anchored. */
     fun liveTailNeedsReanchor(tailStartMs: Long, nowMs: Long): Boolean =

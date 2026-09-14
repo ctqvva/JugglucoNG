@@ -171,6 +171,18 @@ internal object HistoryDisplayMerge {
      */
     const val WINDOW_PADDING_MS = 2L * SENSOR_MINUTE_BUCKET_MS
 
+    /**
+     * The rows to read for a window: [WINDOW_PADDING_MS] each side, without
+     * running off either end of the clock. An open-ended tail is asked for
+     * with `Long.MAX_VALUE`, and padding that wrapped to a negative bound and
+     * read nothing at all.
+     */
+    fun paddedWindow(startTime: Long, endTime: Long): LongRange {
+        val start = if (startTime < Long.MIN_VALUE + WINDOW_PADDING_MS) Long.MIN_VALUE else startTime - WINDOW_PADDING_MS
+        val end = if (endTime > Long.MAX_VALUE - WINDOW_PADDING_MS) Long.MAX_VALUE else endTime + WINDOW_PADDING_MS
+        return start..end
+    }
+
     private fun mergeCoalesced(
         coalesced: List<HistoryReading>,
         resolver: PreferredMatchResolver,

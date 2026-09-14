@@ -254,10 +254,10 @@ class GlucoseRepository {
         }
     }
 
-    /** One-shot form of [getMergedWindowFlowRaw]. */
-    suspend fun loadMergedWindowRaw(startTime: Long, endTime: Long): List<GlucosePoint> {
+    /** One-shot form of [getMergedWindowFlowRaw]; see HistoryRepository.loadMergedWindow for [allowProvisional]. */
+    suspend fun loadMergedWindowRaw(startTime: Long, endTime: Long, allowProvisional: Boolean = false): List<GlucosePoint> {
         val preferredSerial = resolveDisplayPreferredSerial(_currentSerial.value)
-        return historyRepository.loadMergedWindow(preferredSerial, startTime, endTime)
+        return historyRepository.loadMergedWindow(preferredSerial, startTime, endTime, allowProvisional)
     }
 
     /** Oldest and newest stored reading across every sensor, live. */

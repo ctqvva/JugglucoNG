@@ -314,8 +314,12 @@ fun DashboardScreen(
     val daysRemaining by viewModel.daysRemaining.collectAsState()
     val glucoseHistory by viewModel.glucoseHistory.collectAsState()
     val timelineExtents by viewModel.timelineExtents.collectAsState()
-    val chartDataBounds = remember(timelineExtents) {
-        timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) }
+    // Only once there is data to draw: with bounds alone the chart would compose
+    // empty and paint its axes over nothing for the frames before the first
+    // readings land, where it used to appear complete in one frame. The live
+    // tail is always loaded, so data is never far behind the bounds.
+    val chartDataBounds = remember(timelineExtents, glucoseHistory.isEmpty()) {
+        timelineExtents?.takeIf { glucoseHistory.isNotEmpty() }?.let { ChartDataBounds(it.earliestMs, it.latestMs) }
     }
     val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsState()
     val mainSensorOwnership by viewModel.mainSensorOwnership.collectAsState()

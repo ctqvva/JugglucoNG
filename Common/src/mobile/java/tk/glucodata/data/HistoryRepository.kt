@@ -1462,8 +1462,9 @@ class HistoryRepository(context: Context = Applic.app) {
         startTime: Long,
         endTime: Long,
     ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> {
-        val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
-        val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
+        val padded = HistoryDisplayMerge.paddedWindow(startTime, endTime)
+        val paddedStart = padded.first
+        val paddedEnd = padded.last
         return kotlinx.coroutines.flow.combine(
             dao.getReadingsBetweenFlow(paddedStart, paddedEnd),
             uncertaintyDao.getBetweenFlow(paddedStart, paddedEnd),
@@ -1484,15 +1485,34 @@ class HistoryRepository(context: Context = Applic.app) {
         }.flowOn(Dispatchers.IO)
     }
 
-    /** One-shot form of [observeMergedWindow]. */
-    suspend fun loadMergedWindow(preferredSerial: String?, startTime: Long, endTime: Long): List<GlucosePoint> =
+    /**
+     * One-shot form of [observeMergedWindow].
+     *
+     * @param allowProvisional answer from the window's own rows while the
+     *   index is still to be built, rather than building it first — for a first
+     *   paint, where the wait is what matters and the flow that follows will
+     *   correct the edges.
+     */
+    suspend fun loadMergedWindow(
+        preferredSerial: String?,
+        startTime: Long,
+        endTime: Long,
+        allowProvisional: Boolean = false,
+    ): List<GlucosePoint> =
         withContext(Dispatchers.IO) {
-            val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
-            val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
-            val readings = dao.getReadingsBetween(paddedStart, paddedEnd)
-            val uncertainty = runCatching { uncertaintyDao.getBetween(paddedStart, paddedEnd) }.getOrDefault(emptyList())
-            val display = runCatching { displayDao.getBetween(paddedStart, paddedEnd) }.getOrDefault(emptyList())
-            mergeWindowRows(readings, preferredSerial, uncertainty, display, startTime, endTime)
+            val padded = HistoryDisplayMerge.paddedWindow(startTime, endTime)
+            val readings = dao.getReadingsBetween(padded.first, padded.last)
+            val uncertainty = runCatching { uncertaintyDao.getBetween(padded.first, padded.last) }.getOrDefault(emptyList())
+            val display = runCatching { displayDao.getBetween(padded.first, padded.last) }.getOrDefault(emptyList())
+            if (allowProvisional && !timestampIndex.isReady) {
+                mapReadings(
+                    HistoryDisplayMerge.mergeReadings(readings, preferredSerial),
+                    uncertainty.indexed(),
+                    display.indexedDisplay()
+                ).trimTo(startTime, endTime)
+            } else {
+                mergeWindowRows(readings, preferredSerial, uncertainty, display, startTime, endTime)
+            }
         }
 
     private suspend fun mergeWindowRows(
@@ -1518,9 +1538,8 @@ class HistoryRepository(context: Context = Applic.app) {
      */
     suspend fun mergedRangeSummary(preferredSerial: String?, startTime: Long, endTime: Long): TimelineRangeSummary? =
         withContext(Dispatchers.IO) {
-            val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
-            val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
-            val rows = dao.getIndexRowsBetween(paddedStart, paddedEnd).map {
+            val padded = HistoryDisplayMerge.paddedWindow(startTime, endTime)
+            val rows = dao.getIndexRowsBetween(padded.first, padded.last).map {
                 HistoryReading(id = it.id, timestamp = it.timestamp, sensorSerial = it.sensorSerial, value = 1f, rawValue = 1f, rate = null)
             }
             val merged = timestampIndex.withIndex { coverage ->
