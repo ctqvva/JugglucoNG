@@ -57,18 +57,6 @@ import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
 internal object DashboardHistoryCollectionPolicy {
-    /**
-     * Whether to also run the unbounded stream that backs the History browse
-     * screen.
-     *
-     * This used to be called `usesMergedCrossSensorHistory`, which stopped being
-     * what it means: the dashboard chart is merged across sensors too now. What
-     * still separates the two is the bound — the dashboard queries the visible
-     * window, the History route queries everything.
-     */
-    fun runsUnboundedHistoryStream(mode: DashboardViewModel.CollectionMode): Boolean =
-        mode == DashboardViewModel.CollectionMode.FULL_HISTORY
-
     fun shouldCoalesceEmission(mode: DashboardViewModel.CollectionMode, hasSeenHistoryEmission: Boolean): Boolean =
         mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
 
@@ -180,6 +168,8 @@ class DashboardViewModel(
          */
         const val CURRENT_SENSOR_TAIL_WINDOW_MS = 6L * 60L * 60L * 1000L
         const val DASHBOARD_HISTORY_COALESCE_MS = 300L
+        /** The viewport assumed before the chart reports one; TimeRange.H3, the default. */
+        const val INITIAL_CHART_VIEWPORT_MS = 3L * 60L * 60L * 1000L
         // Drivers request a data refresh per delivered batch, and dowithglucose
         // requests one per non-main-sensor reading, so with three sensors these
         // arrive far faster than the dashboard can usefully redraw. Matches the
@@ -358,14 +348,32 @@ class DashboardViewModel(
     val sensorViewModes = _sensorViewModes.asStateFlow()
 
     /**
-     * Cross-sensor merged history for the History browse screen. Includes
-     * previous sensor calibrated readings, CSV imports, and older device data,
-     * so the History route remains complete across sensor swaps. The live
-     * dashboard intentionally uses the per-sensor [glucoseHistory] above.
+     * The oldest and newest stored reading and the row count, across every
+     * sensor. What [glucoseHistory] used to be read end to end to learn — how
+     * far the chart may pan, what "latest" is, how far back a range selector
+     * reaches — now comes from here, and [glucoseHistory] holds only the
+     * stretches on screen.
      */
-    private val _historyScreenGlucoseHistory =
-        MutableStateFlow<List<tk.glucodata.ui.GlucosePoint>>(emptyList())
-    val historyScreenGlucoseHistory = _historyScreenGlucoseHistory.asStateFlow()
+    private val _timelineExtents = MutableStateFlow<tk.glucodata.data.TimelineExtents?>(null)
+    val timelineExtents = _timelineExtents.asStateFlow()
+
+    /**
+     * The stretch of the timeline the chart has asked for, via
+     * [onChartViewportChanged]; null until the chart has said where it is
+     * looking. See [TimelineWindowPolicy] for how it is sized.
+     */
+    private val _chartWindow = MutableStateFlow<TimelineWindow?>(null)
+
+    /** Where the always-loaded live tail starts; re-anchored as the clock moves on. */
+    private val _liveTailStart = MutableStateFlow(TimelineWindowPolicy.liveTailStart(System.currentTimeMillis()))
+
+    /**
+     * The current sensor's newest reading in display units, for surfaces that
+     * prefill from "the latest reading" of the sensor being calibrated. Not the
+     * merged timeline's newest point, which may be another sensor's.
+     */
+    private val _currentSensorLatestReading = MutableStateFlow<tk.glucodata.ui.GlucosePoint?>(null)
+    val currentSensorLatestReading = _currentSensorLatestReading.asStateFlow()
 
     private val _unit = MutableStateFlow("mg/dL")
     val unit = _unit.asStateFlow()
@@ -549,6 +557,19 @@ class DashboardViewModel(
     private val _journalFoods = MutableStateFlow<List<JournalFood>>(emptyList())
     val journalFoods = _journalFoods.asStateFlow()
 
+    /**
+     * The reading each journal entry sits on, keyed by entry timestamp, in
+     * display units — see [JournalGlucoseAnchors]. Resolved from bounded reads
+     * around the entries, newest first, and kept for the life of the view
+     * model; entries near the live edge are re-resolved as readings land.
+     */
+    private val _journalGlucoseAnchors = MutableStateFlow<Map<Long, JournalGlucoseAnchor>>(emptyMap())
+    val journalGlucoseAnchors = _journalGlucoseAnchors.asStateFlow()
+    private val journalAnchorCache = HashMap<Long, JournalGlucoseAnchor>()
+    private var journalAnchorCacheUnit: String? = null
+    private var journalAnchorRewriteRevision = -1L
+    private var journalAnchorsJob: Job? = null
+
     private val _lowAlarmSoundMode = MutableStateFlow(0)
     val lowAlarmSoundMode = _lowAlarmSoundMode.asStateFlow()
 
@@ -575,7 +596,7 @@ class DashboardViewModel(
     private var currentReadingJob: Job? = null
     private var historyJob: Job? = null
     private var multiSensorHistoryJob: Job? = null
-    private var historyScreenJob: Job? = null
+    private var timelineExtentsJob: Job? = null
     private var uiRefreshJob: Job? = null
     private var journalEntriesJob: Job? = null
     private var journalPresetsJob: Job? = null
@@ -1068,60 +1089,58 @@ class DashboardViewModel(
             CollectionMode.DASHBOARD -> 0L
             CollectionMode.FULL_HISTORY -> 0L
         }
-        val queryStartTimeMs = when (mode) {
-            CollectionMode.INACTIVE -> return
-            CollectionMode.DASHBOARD -> 0L
-            CollectionMode.FULL_HISTORY -> 0L
-        }
         activeHistoryStartTimeMs = recoveryStartTimeMs
 
         startMultiSensorHistoryCollectionForMode(mode)
         if (historyJob?.isActive == true && activeHistoryMode == mode) return
 
         historyJob?.cancel()
-        historyScreenJob?.cancel()
+        timelineExtentsJob?.cancel()
         activeHistoryMode = mode
         _isLoading.value = _glucoseHistory.value.isEmpty()
 
-        if (DashboardHistoryCollectionPolicy.runsUnboundedHistoryStream(mode)) {
-            // Parallel cross-sensor merged stream that backs the History browse
-            // screen. Keep it off the dashboard path so dashboard startup does
-            // not scan and convert the full multi-sensor Room timeline.
-            historyScreenJob = viewModelScope.launch {
-                combine(
-                    _unit,
-                    glucoseRepository.getMergedHistoryFlowRaw(queryStartTimeMs)
-                        .distinctUntilChangedBy(::historyEdgeSignature)
-                        // The signature is two passes over the whole store per
-                        // emission; the collector is the main thread.
-                        .flowOn(Dispatchers.Default)
-                ) { unitStr, rawHistory ->
-                    unitStr to rawHistory
-                }.collect { (unitStr, rawHistory) ->
-                    _historyScreenGlucoseHistory.value = withContext(Dispatchers.Default) {
-                        rawHistory.inDisplayUnit(unitStr)
-                    }
+        timelineExtentsJob = viewModelScope.launch {
+            glucoseRepository.getTimelineExtentsFlow().collect { extents ->
+                _timelineExtents.value = extents
+                // Until the chart has said where it is looking, load around the
+                // newest reading: that is where every chart opens, and it is
+                // what lets a store whose newest reading is older than the live
+                // tail show anything at all.
+                if (extents != null && _chartWindow.value == null) {
+                    _chartWindow.value = TimelineWindowPolicy.windowFor(
+                        extents.latestMs - INITIAL_CHART_VIEWPORT_MS,
+                        extents.latestMs
+                    )
                 }
             }
-        } else {
-            _historyScreenGlucoseHistory.value = emptyList()
         }
 
         startCurrentSensorTailCollection(mode)
 
+        // The chart's list is two stretches of the merged timeline: the live
+        // tail, which every non-chart consumer reads and which is always there,
+        // and the window the chart has asked for around its viewport. Each is a
+        // bounded Room query merged against the store's coverage, so a write
+        // costs the stretches on screen and not the store — see
+        // HistoryRepository.observeMergedWindow for why the answer is still the
+        // whole timeline's.
         historyJob = viewModelScope.launch {
             var hasSeenHistoryEmission = false
-            val rawHistoryFlow = when (mode) {
-                CollectionMode.DASHBOARD -> glucoseRepository.getDashboardHistoryFlowRaw(queryStartTimeMs)
-                CollectionMode.FULL_HISTORY -> glucoseRepository.getHistoryFlowRaw(queryStartTimeMs)
-                CollectionMode.INACTIVE -> return@launch
+            val tailFlow = _liveTailStart.flatMapLatest { tailStart ->
+                glucoseRepository.getMergedWindowFlowRaw(tailStart, Long.MAX_VALUE)
+            }
+            val windowFlow = _chartWindow.flatMapLatest { window ->
+                if (window == null) {
+                    kotlinx.coroutines.flow.flowOf(emptyList())
+                } else {
+                    glucoseRepository.getMergedWindowFlowRaw(window.startMs, window.endMs)
+                }
             }
             combine(
                 _unit,
-                rawHistoryFlow
-                    // Signed once, off the main thread: the signature is two
-                    // passes over the whole store, and it is both the change
-                    // gate and the display cache's key.
+                combine(tailFlow, windowFlow) { tail, window -> mergeSortedTimelines(tail, window) }
+                    // Signed once, off the main thread: the signature is the
+                    // change gate and the display cache's key.
                     .map { rawHistory -> rawHistory to historyEdgeSignature(rawHistory) }
                     .distinctUntilChangedBy { it.second }
                     .flowOn(Dispatchers.Default)
@@ -1142,11 +1161,104 @@ class DashboardViewModel(
                     logEvery = 20L,
                     detail = "mode=$mode size=${rawHistory.size}"
                 )
-                _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, mode, signature)
+                _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, signature)
                 _isLoading.value = false
             }
         }
     }
+
+    /**
+     * Starts resolving [journalGlucoseAnchors] for the entries on record and
+     * keeps them current. Idempotent; the journal screen asks for it when it
+     * appears, since nothing else needs a reading per entry.
+     */
+    fun ensureJournalGlucoseAnchorsObserved() {
+        if (journalAnchorsJob?.isActive == true) return
+        journalAnchorsJob = viewModelScope.launch {
+            data class Inputs(val timestamps: List<Long>, val latestMs: Long?, val rewrites: Long, val unit: String)
+            combine(
+                _journalEntries.map { entries -> entries.map { it.timestamp }.distinct() }.distinctUntilChanged(),
+                _timelineExtents.map { it?.latestMs }.distinctUntilChanged(),
+                glucoseRepository.getTimelineRewritesFlow(),
+                _unit,
+            ) { timestamps, latest, rewrites, unit -> Inputs(timestamps, latest, rewrites, unit) }
+                .collectLatest { inputs ->
+                    if (inputs.rewrites != journalAnchorRewriteRevision || inputs.unit != journalAnchorCacheUnit) {
+                        journalAnchorCache.clear()
+                        journalAnchorRewriteRevision = inputs.rewrites
+                        journalAnchorCacheUnit = inputs.unit
+                    }
+                    val pending = JournalGlucoseAnchors.pending(inputs.timestamps, journalAnchorCache, inputs.latestMs)
+                    publishJournalAnchors()
+                    var sincePublish = 0
+                    for (cluster in JournalGlucoseAnchors.clusters(pending)) {
+                        val points = glucoseRepository.loadMergedWindowRaw(cluster.startMs, cluster.endMs)
+                            .inDisplayUnit(inputs.unit)
+                        journalAnchorCache.putAll(JournalGlucoseAnchors.resolve(cluster, points))
+                        // Newest clusters first, published as they land: the top of
+                        // the ledger fills within a read or two on a long journal.
+                        if (++sincePublish >= 4) {
+                            publishJournalAnchors()
+                            sincePublish = 0
+                        }
+                    }
+                    publishJournalAnchors()
+                }
+        }
+    }
+
+    private fun publishJournalAnchors() {
+        _journalGlucoseAnchors.value = HashMap(journalAnchorCache)
+    }
+
+    /**
+     * The chart says where it is looking; the window it holds follows, with a
+     * margin, per [TimelineWindowPolicy]. Called on every viewport change, so it
+     * must be — and is — a comparison, not a query.
+     */
+    fun onChartViewportChanged(viewportStartMs: Long, viewportEndMs: Long) {
+        if (viewportEndMs <= viewportStartMs) return
+        val current = _chartWindow.value
+        if (TimelineWindowPolicy.needsNewWindow(current, viewportStartMs, viewportEndMs)) {
+            _chartWindow.value = TimelineWindowPolicy.windowFor(viewportStartMs, viewportEndMs)
+        }
+        val now = System.currentTimeMillis()
+        if (TimelineWindowPolicy.liveTailNeedsReanchor(_liveTailStart.value, now)) {
+            _liveTailStart.value = TimelineWindowPolicy.liveTailStart(now)
+        }
+    }
+
+    /**
+     * What a range of the merged timeline holds — how many readings, and the
+     * first and last of them — live: recomputed when the store changes. For
+     * the history screen, which used to learn these by slicing the whole list
+     * it was handed.
+     */
+    fun timelineRangeSummaryFlow(startMs: Long, endMs: Long): kotlinx.coroutines.flow.Flow<tk.glucodata.data.TimelineRangeSummary?> =
+        kotlinx.coroutines.flow.flow {
+            // Counted in parts, so a year-long range costs the year once and
+            // about an hour a minute — see TimelineRangeSummaryTracker.
+            val tracker = TimelineRangeSummaryTracker(startMs, endMs)
+            combine(_timelineExtents, glucoseRepository.getTimelineRewritesFlow()) { extents, rewrites ->
+                extents to rewrites
+            }.collect { (extents, rewrites) ->
+                if (extents == null) {
+                    emit(null)
+                    return@collect
+                }
+                val plan = tracker.plan(extents.latestMs, rewrites)
+                val counted = plan.stretches.map { glucoseRepository.mergedRangeSummary(it.first, it.last) }
+                emit(tracker.apply(plan, counted, rewrites))
+            }
+        }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.IO)
+
+    /** The merged timeline around one moment, live — for a sheet that opens on a tapped point. */
+    fun mergedWindowFlow(startMs: Long, endMs: Long): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> =
+        combine(_unit, glucoseRepository.getMergedWindowFlowRaw(startMs, endMs)) { unitStr, raw ->
+            raw.inDisplayUnit(unitStr)
+        }.flowOn(Dispatchers.Default)
 
     /**
      * Collects the current sensor's own tail, and owns the history-recovery
@@ -1177,6 +1289,7 @@ class DashboardViewModel(
                 // Stored mg/dL, unconverted: the recovery check reads timestamps
                 // only, and converting would be work no one looks at.
                 _currentSensorTail.value = tail
+                _currentSensorLatestReading.value = tail.lastOrNull()?.inDisplayUnit(_unit.value)
 
                 val preferredSerial = preferredDashboardSensorId()?.takeIf { it.isNotBlank() }
                 val current = resolveCurrentForHistoryRecovery(preferredSerial)
@@ -1352,15 +1465,8 @@ class DashboardViewModel(
     private suspend fun resolveHistoryDisplayList(
         rawHistory: List<GlucosePoint>,
         unitStr: String,
-        mode: CollectionMode,
         signature: HistoryEdgeSignature
     ): List<GlucosePoint> {
-        if (mode != CollectionMode.DASHBOARD) {
-            return withContext(Dispatchers.Default) {
-                rawHistory.inDisplayUnit(unitStr)
-            }
-        }
-
         val cacheKey = DashboardHistoryCacheKey(signature, unitStr)
         synchronized(processDashboardHistoryCacheLock) {
             if (processDashboardHistoryCacheKey == cacheKey) {
@@ -1477,8 +1583,10 @@ class DashboardViewModel(
         historyJob = null
         multiSensorHistoryJob?.cancel()
         multiSensorHistoryJob = null
-        historyScreenJob?.cancel()
-        historyScreenJob = null
+        timelineExtentsJob?.cancel()
+        timelineExtentsJob = null
+        journalAnchorsJob?.cancel()
+        journalAnchorsJob = null
         currentSensorTailJob?.cancel()
         currentSensorTailJob = null
         uiRefreshJob?.cancel()

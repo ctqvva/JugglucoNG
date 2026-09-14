@@ -64,7 +64,10 @@ import tk.glucodata.ui.DashboardChartSection
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.JournalTimelineRow
 import tk.glucodata.ui.ReadingRow
+import tk.glucodata.ui.ChartDataBounds
 import tk.glucodata.ui.TimeRange
+import tk.glucodata.data.TimelineExtents
+import tk.glucodata.ui.viewmodel.JournalGlucoseAnchor
 import tk.glucodata.ui.ascendingByTimestamp
 import tk.glucodata.ui.rowTrendHistory
 import tk.glucodata.ui.uniqueRowKeys
@@ -120,7 +123,17 @@ fun JournalScreen(
     bottomContentPadding: Dp = 104.dp,
     showEiob: Boolean = true,
     chartRangeColors: Boolean = false,
-    quickAddAlwaysNow: Boolean = false
+    quickAddAlwaysNow: Boolean = false,
+    /**
+     * The reading each entry sits on, keyed by entry timestamp — see
+     * [JournalGlucoseAnchors]. [glucoseHistory] is only the stretch loaded
+     * around the chart, so the ledger cannot find its readings there; null
+     * falls back to searching it, for callers that still pass the whole list.
+     */
+    glucoseAnchors: Map<Long, JournalGlucoseAnchor>? = null,
+    /** The whole store's ends; see HistoryBrowseScreen. */
+    timelineExtents: TimelineExtents? = null,
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
 ) {
     val view = LocalView.current
     val sortedHistory = remember(glucoseHistory) { glucoseHistory.ascendingByTimestamp() }
@@ -144,7 +157,9 @@ fun JournalScreen(
     val filteredEntries = remember(journalEntries, selectedTypes) {
         journalEntries.filter { it.type in selectedTypes }
     }
-    val sections = remember(filteredEntries, sortedHistory) { buildJournalSections(filteredEntries, sortedHistory) }
+    val sections = remember(filteredEntries, sortedHistory, glucoseAnchors) {
+        buildJournalSections(filteredEntries, sortedHistory, glucoseAnchors)
+    }
     // Not keyed on the history: the markers do not depend on it, and keying on
     // it rebuilt them — and so recomposed the chart — on every new reading.
     val markers = remember(filteredEntries, presetsById, foodsById, unit) {
@@ -192,7 +207,7 @@ fun JournalScreen(
                 )
             }
 
-            if (sortedHistory.isNotEmpty()) {
+            if (sortedHistory.isNotEmpty() || timelineExtents != null) {
                 item(key = "journal-chart") {
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(
@@ -204,6 +219,8 @@ fun JournalScreen(
                             modifier = Modifier.matchParentSize(),
                             appChartRangeColors = chartRangeColors,
                             glucoseHistory = sortedHistory,
+                            dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                            onVisibleRangeChanged = onVisibleRangeChanged,
                             journalMarkers = markers,
                             graphSmoothingMinutes = graphSmoothingMinutes,
                             collapseSmoothedData = collapseSmoothedData,
@@ -741,7 +758,8 @@ private fun JournalTypeFilter(
 
 private fun buildJournalSections(
     entries: List<JournalEntry>,
-    points: List<GlucosePoint>
+    points: List<GlucosePoint>,
+    anchors: Map<Long, JournalGlucoseAnchor>?
 ): List<JournalDateSection> {
     if (entries.isEmpty()) return emptyList()
     val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
@@ -749,12 +767,17 @@ private fun buildJournalSections(
     val items = entries
         .groupBy { it.timestamp }
         .map { (timestamp, groupedEntries) ->
-            val point = findClosestPoint(points, timestamp)
+            val anchor = anchors?.get(timestamp)
+            val point = if (anchors != null) anchor?.point else findClosestPoint(points, timestamp)
             JournalLedgerItem(
                 timestamp = timestamp,
                 entries = groupedEntries.sortedByDescending { it.timestamp },
                 point = point,
-                trendHistory = if (point != null) rowTrendHistory(points, point.timestamp) else emptyList()
+                trendHistory = when {
+                    point == null -> emptyList()
+                    anchors != null -> anchor?.trendHistory.orEmpty()
+                    else -> rowTrendHistory(points, point.timestamp)
+                }
             )
         }
         .sortedByDescending { it.timestamp }

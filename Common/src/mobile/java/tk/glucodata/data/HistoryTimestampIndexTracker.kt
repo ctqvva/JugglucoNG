@@ -121,3 +121,10 @@ data class TimelineExtents(
     val latestMs: Long,
     val readingCount: Int,
 )
+
+/** A range of the merged timeline: how many readings, and the first and last of them. */
+data class TimelineRangeSummary(
+    val readingCount: Int,
+    val earliestMs: Long,
+    val latestMs: Long,
+)

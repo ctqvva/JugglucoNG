@@ -138,13 +138,13 @@ private fun HistoryRoute(
     onTriggerCalibration: (CalibrationSheetState) -> Unit,
 //    initialShowReadingRows: Boolean = true
 ) {
-    // Use the merged multi-sensor flow so the previous sensor's calibrated
-    // readings (and any imported/older sensor data) remain visible on the
-    // History screen across sensor swaps. The dashboard chart still uses the
-    // narrower per-sensor [glucoseHistory] flow above.
-    val mergedGlucoseHistory by dashboardViewModel.historyScreenGlucoseHistory.collectAsStateWithLifecycle()
-    val dashboardGlucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
-    val glucoseHistory = mergedGlucoseHistory.ifEmpty { dashboardGlucoseHistory }
+    // The merged cross-sensor timeline — the previous sensor's calibrated
+    // readings, imports and older device data stay visible across a sensor
+    // swap — loaded around the chart's viewport plus the live tail. The chart
+    // reports where it is looking through onVisibleRangeChanged and the view
+    // model loads accordingly; the store's ends come from timelineExtents.
+    val glucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
+    val timelineExtents by dashboardViewModel.timelineExtents.collectAsStateWithLifecycle()
     val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
     val viewMode by dashboardViewModel.viewMode.collectAsStateWithLifecycle()
     val sensorName by dashboardViewModel.sensorName.collectAsStateWithLifecycle()
@@ -215,6 +215,9 @@ private fun HistoryRoute(
         quickAddAlwaysNow = journalQuickAddAlwaysNow,
         showRowDelta = rowsShowDelta,
         deltaIntervalMinutes = deltaIntervalMinutes,
+        timelineExtents = timelineExtents,
+        onVisibleRangeChanged = dashboardViewModel::onChartViewportChanged,
+        rangeSummaryFlow = dashboardViewModel::timelineRangeSummaryFlow,
         onBack = onBack,
         onPointClick = { point ->
             onTriggerCalibration(
@@ -305,9 +308,12 @@ private fun JournalRoute(
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp
 ) {
-    val mergedGlucoseHistory by dashboardViewModel.historyScreenGlucoseHistory.collectAsStateWithLifecycle()
-    val dashboardGlucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
-    val glucoseHistory = mergedGlucoseHistory.ifEmpty { dashboardGlucoseHistory }
+    val glucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
+    val timelineExtents by dashboardViewModel.timelineExtents.collectAsStateWithLifecycle()
+    // The ledger's readings come from bounded reads around the entries, not from
+    // the loaded list; nothing else needs them, so they start with this screen.
+    LaunchedEffect(dashboardViewModel) { dashboardViewModel.ensureJournalGlucoseAnchorsObserved() }
+    val journalGlucoseAnchors by dashboardViewModel.journalGlucoseAnchors.collectAsStateWithLifecycle()
     val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
     val viewMode by dashboardViewModel.viewMode.collectAsStateWithLifecycle()
     val sensorName by dashboardViewModel.sensorName.collectAsStateWithLifecycle()
@@ -412,7 +418,10 @@ private fun JournalRoute(
         bottomContentPadding = bottomContentPadding,
         showEiob = journalEiobDisplayEnabled,
         chartRangeColors = appChartRangeColorsEnabled,
-        quickAddAlwaysNow = journalQuickAddAlwaysNow
+        quickAddAlwaysNow = journalQuickAddAlwaysNow,
+        glucoseAnchors = journalGlucoseAnchors,
+        timelineExtents = timelineExtents,
+        onVisibleRangeChanged = dashboardViewModel::onChartViewportChanged
     )
 
     journalEditorRequest?.let { request ->
@@ -498,7 +507,10 @@ private fun CalibrationListRoute(
     navController: androidx.navigation.NavController,
     onTriggerCalibration: (CalibrationSheetState) -> Unit
 ) {
-    val glucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
+    // The sensor being calibrated is the current one, so the reading to prefill
+    // from is its own newest — not the first element of a list, which was the
+    // oldest reading in the store.
+    val latestReading by dashboardViewModel.currentSensorLatestReading.collectAsStateWithLifecycle()
     val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
     val viewMode by dashboardViewModel.viewMode.collectAsStateWithLifecycle()
     val currentGlucose by dashboardViewModel.currentGlucose.collectAsStateWithLifecycle()
@@ -512,7 +524,7 @@ private fun CalibrationListRoute(
         viewMode = viewMode,
         sensorId = sensorName,
         onAdd = {
-            val latest = glucoseHistory.firstOrNull()
+            val latest = latestReading
             val autoVal = latest?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
             val rawVal = latest?.rawValue ?: autoVal
             onTriggerCalibration(
@@ -569,7 +581,6 @@ private fun CalibrationSheetHost(
 ) {
     if (sheetState is CalibrationSheetState.Hidden) return
 
-    val glucoseHistory by dashboardViewModel.glucoseHistory.collectAsStateWithLifecycle()
     val multiSensorDisplay by dashboardViewModel.multiSensorDisplay.collectAsStateWithLifecycle()
     val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
     val viewMode by dashboardViewModel.viewMode.collectAsStateWithLifecycle()
@@ -601,14 +612,27 @@ private fun CalibrationSheetHost(
         CalibrationSheetState.Hidden -> SheetInit(0f, 0f, 0L, null, viewMode)
     }
 
-    val sheetHistory = remember(glucoseHistory, multiSensorDisplay, init.sensorId) {
+    // The sheet reads the timeline around the moment it is set to — the
+    // nearest reading, and the trend leading up to it. That moment moves as
+    // the user edits the time or picks an earlier calibration, so the window
+    // follows it: six hours each side, re-centred once the moment leaves the
+    // inner half of what is loaded.
+    var sheetWindowCenter by remember(init.timestamp) { mutableStateOf(init.timestamp) }
+    val sheetWindow = remember(sheetWindowCenter) {
+        val half = CALIBRATION_SHEET_WINDOW_HALF_MS
+        sheetWindowCenter - half to sheetWindowCenter + half
+    }
+    val windowedHistory by remember(sheetWindow) {
+        dashboardViewModel.mergedWindowFlow(sheetWindow.first, sheetWindow.second)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val sheetHistory = remember(windowedHistory, multiSensorDisplay, init.sensorId) {
         val sensorId = init.sensorId
         val source = if (sensorId.isNullOrBlank()) {
-            glucoseHistory
+            windowedHistory
         } else {
-            val primarySerial = glucoseHistory.lastOrNull()?.sensorSerial
-            if (SensorIdentity.matches(sensorId, primarySerial)) {
-                glucoseHistory
+            val primarySerial = windowedHistory.lastOrNull()?.sensorSerial
+            if (primarySerial == null || SensorIdentity.matches(sensorId, primarySerial)) {
+                windowedHistory
             } else {
                 multiSensorDisplay.seriesFor(sensorId)?.points.orEmpty()
             }
@@ -632,9 +656,18 @@ private fun CalibrationSheetHost(
         onNavigateToHistory = {
             onDismiss()
             onNavigateToCalibrations()
+        },
+        onSelectedTimestampChanged = { selected ->
+            val quarter = CALIBRATION_SHEET_WINDOW_HALF_MS / 2
+            if (selected < sheetWindowCenter - quarter || selected > sheetWindowCenter + quarter) {
+                sheetWindowCenter = selected
+            }
         }
     )
 }
+
+/** How far each side of its moment the calibration sheet reads the timeline. */
+private const val CALIBRATION_SHEET_WINDOW_HALF_MS = 6L * 60L * 60L * 1000L
 
 @Composable
 private fun AdaptiveNavigationLabel(text: String) {

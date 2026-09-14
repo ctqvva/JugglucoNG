@@ -663,6 +663,9 @@ private const val ARTIFACT_NOTICE_PROBABILITY = 0.25f
 /** Below this confidence the tooltip says so rather than leaving the wide band unexplained. */
 private const val LOW_CONFIDENCE_NOTICE = 0.45f
 
+/** The whole timeline's first and last reading, for a chart handed only a window of it. */
+data class ChartDataBounds(val earliestMs: Long, val latestMs: Long)
+
 data class ChartViewportSnapshot(
     val startMillis: Long,
     val endMillis: Long,
@@ -730,14 +733,21 @@ fun DashboardChartSection(
     onJournalMarkerClick: ((Long) -> Unit)? = null,
     chartBoostProgress: Float = 0f,
     resetToLatestOnResume: Boolean = true,
-    onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null
+    onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null,
+    dataBounds: ChartDataBounds? = null,
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
 ) {
     val chartContent: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(bottom = 0.dp)) {
              Box(modifier = Modifier.weight(1f)) {
-                if (glucoseHistory.isNotEmpty()) {
+                // With bounds the chart composes before its window has loaded:
+                // it has to, since it is the chart's viewport that says which
+                // window to load.
+                if (glucoseHistory.isNotEmpty() || dataBounds != null) {
                     InteractiveGlucoseChart(
                         fullData = glucoseHistory,
+                        dataBounds = dataBounds,
+                        onVisibleRangeChanged = onVisibleRangeChanged,
                         multiSensorDisplay = multiSensorDisplay,
                         mainSensorOwnership = mainSensorOwnership,
                         peerPredictionSeries = peerPredictionSeries,
@@ -852,7 +862,16 @@ fun InteractiveGlucoseChart(
     onJournalMarkerClick: ((Long) -> Unit)? = null,
     chartBoostProgress: Float = 0f,
     resetToLatestOnResume: Boolean = true,
-    onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null
+    onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null,
+    /**
+     * Where the whole timeline begins and ends, when [fullData] is only the
+     * stretch of it on screen. Without it the ends of the list are taken to be
+     * the ends of the data, which is what every caller that still passes the
+     * whole list gets.
+     */
+    dataBounds: ChartDataBounds? = null,
+    /** Reports the viewport as it moves, so the owner of [fullData] can load around it. */
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
 ) {
     // --- THEME & PAINTS ---
     val isDark = isSystemInDarkTheme()
@@ -1108,10 +1127,21 @@ fun InteractiveGlucoseChart(
 
     // --- VIEWPORT STATE ---
     val now = System.currentTimeMillis()
-    val latestDataTimestamp = safeData.lastOrNull()?.timestamp ?: 0L
-    val earliestDataTimestamp = safeData.firstOrNull()?.timestamp ?: 0L
-    val dataSeriesSignature = remember(earliestDataTimestamp, latestDataTimestamp, safeData.size) {
-        "$earliestDataTimestamp:$latestDataTimestamp:${safeData.size}"
+    // The whole timeline's ends. From the bounds when the list is a window of
+    // it, from the list when the list is all of it — "latest" must be the store's
+    // newest reading either way, or back-to-now and the auto-scroll follow a
+    // stale edge.
+    val latestDataTimestamp = dataBounds?.latestMs ?: safeData.lastOrNull()?.timestamp ?: 0L
+    val earliestDataTimestamp = dataBounds?.earliestMs ?: safeData.firstOrNull()?.timestamp ?: 0L
+    // With bounds, the list's size is a matter of what is loaded and must not
+    // count as a new series — but its first arrival must, since the effects
+    // keyed on this wait for data before they centre the viewport.
+    val dataSeriesSignature = remember(earliestDataTimestamp, latestDataTimestamp, dataBounds, safeData.size) {
+        if (dataBounds != null) {
+            "$earliestDataTimestamp:$latestDataTimestamp:${safeData.isEmpty()}"
+        } else {
+            "$earliestDataTimestamp:$latestDataTimestamp:${safeData.size}"
+        }
     }
     val resolvedPredictionSeries = remember(predictionPoints, predictionSeries) {
         when {
@@ -1735,6 +1765,11 @@ fun InteractiveGlucoseChart(
         } else {
             after
         }
+    }
+
+    // Cheap and unconditional: the owner of the data sizes what it loads by this.
+    LaunchedEffect(centerTime, visibleDuration, onVisibleRangeChanged) {
+        onVisibleRangeChanged?.invoke(centerTime - visibleDuration / 2, centerTime + visibleDuration / 2)
     }
 
     LaunchedEffect(interactionData, centerTime, visibleDuration, selectedPoint, onViewportSnapshotChanged) {

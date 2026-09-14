@@ -67,7 +67,10 @@ import kotlinx.coroutines.launch
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tk.glucodata.data.HistoryRepository
+import tk.glucodata.data.TimelineExtents
+import tk.glucodata.data.TimelineRangeSummary
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
@@ -211,16 +214,21 @@ private fun buildHistorySections(items: List<TimelineRowItem>): List<HistoryDate
     return sections
 }
 
-private fun resolveAvailableTimelineRange(
-    points: List<GlucosePoint>,
+/**
+ * How far the timeline reaches: the store's ends, from its extents rather than
+ * from the loaded list — which is now only the stretch on screen — widened by
+ * any journal entry outside them.
+ */
+internal fun resolveAvailableTimelineRange(
+    extents: TimelineExtents?,
     entries: List<JournalEntry>
 ): StatsDateRange? {
     val startMillis = listOfNotNull(
-        points.firstOrNull()?.timestamp,
+        extents?.earliestMs,
         entries.minOfOrNull { it.timestamp }
     ).minOrNull() ?: return null
     val endMillis = listOfNotNull(
-        points.lastOrNull()?.timestamp,
+        extents?.latestMs,
         entries.maxOfOrNull { it.timestamp }
     ).maxOrNull() ?: return null
     return StatsDateRange(startMillis = startMillis, endMillis = endMillis)
@@ -404,15 +412,31 @@ fun HistoryBrowseScreen(
     showTransferActions: Boolean = true,
     quickAddAlwaysNow: Boolean = false,
     showRowDelta: Boolean = false,
-    deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES
+    deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES,
+    /**
+     * The whole store's ends. [glucoseHistory] is the stretch loaded around the
+     * chart's viewport plus the live tail, not the whole timeline, so anything
+     * that needs to know how far the data reaches asks this.
+     */
+    timelineExtents: TimelineExtents? = null,
+    /** Reports the chart's viewport so the owner of [glucoseHistory] can load around it. */
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null,
+    /** What a range of the timeline holds, live; null falls back to the loaded list. */
+    rangeSummaryFlow: ((startMs: Long, endMs: Long) -> kotlinx.coroutines.flow.Flow<TimelineRangeSummary?>)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val sortedHistory = remember(glucoseHistory) { glucoseHistory.ascendingByTimestamp() }
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
-    val availableRange = remember(sortedHistory, journalEntries) {
-        resolveAvailableTimelineRange(sortedHistory, journalEntries)
+    val loadedExtents = remember(sortedHistory) {
+        sortedHistory.takeIf { it.isNotEmpty() }?.let {
+            TimelineExtents(it.first().timestamp, it.last().timestamp, it.size)
+        }
+    }
+    val effectiveExtents = timelineExtents ?: loadedExtents
+    val availableRange = remember(effectiveExtents, journalEntries) {
+        resolveAvailableTimelineRange(effectiveExtents, journalEntries)
     }
 
     var selectedHistoryRange by rememberSaveable(browseMode) {
@@ -450,6 +474,21 @@ fun HistoryBrowseScreen(
     }
     val activeHistory = remember(sortedHistory, activeRange) {
         activeRange?.let { sortedHistory.sliceByTimestampRange(it.startMillis, it.endMillis) } ?: sortedHistory
+    }
+    // What the active range holds across the whole store — the loaded list is
+    // only a window of it. Live, so the count follows the store like it did.
+    val loadedRangeSummary = remember(activeHistory) {
+        activeHistory.takeIf { it.isNotEmpty() }?.let {
+            TimelineRangeSummary(it.size, it.first().timestamp, it.last().timestamp)
+        }
+    }
+    val rangeSummary = if (rangeSummaryFlow != null && activeRange != null) {
+        val flow = remember(activeRange, rangeSummaryFlow) {
+            rangeSummaryFlow(activeRange.startMillis, activeRange.endMillis)
+        }
+        flow.collectAsStateWithLifecycle(initialValue = loadedRangeSummary).value
+    } else {
+        loadedRangeSummary
     }
     val activeJournalEntries = remember(journalEntries, activeRange) {
         activeRange?.let { range ->
@@ -612,7 +651,7 @@ fun HistoryBrowseScreen(
             )
         }
     ) { innerPadding ->
-        if (sortedHistory.isEmpty() && journalEntries.isEmpty()) {
+        if (effectiveExtents == null && journalEntries.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -642,8 +681,10 @@ fun HistoryBrowseScreen(
                         hasData = visibleTimelineRows.isNotEmpty(),
                         readingCount = if (effectiveBrowseMode == TimelineBrowseMode.JOURNAL) {
                             visibleTimelineRows.size
+                        } else if (journalEnabled && !showReadingRows) {
+                            0
                         } else {
-                            filteredHistory.size
+                            rangeSummary?.readingCount ?: 0
                         },
                         countLabelResId = if (effectiveBrowseMode == TimelineBrowseMode.JOURNAL) {
                             R.string.journal_visible_events
@@ -659,7 +700,7 @@ fun HistoryBrowseScreen(
                 }
             }
 
-            if (activeHistory.isNotEmpty()) {
+            if (activeHistory.isNotEmpty() || rangeSummary != null) {
                 item(key = "history-chart") {
                     Box(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp)) {
                         DashboardChartSection(
@@ -668,6 +709,11 @@ fun HistoryBrowseScreen(
                                 .height(420.dp),
                             appChartRangeColors = chartRangeColors,
                             glucoseHistory = activeHistory,
+                            // The chart may pan over the whole active range, of
+                            // which it holds a window; "latest" is the range's
+                            // last reading, as it was when the list was the range.
+                            dataBounds = rangeSummary?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                            onVisibleRangeChanged = onVisibleRangeChanged,
                             journalMarkers = journalMarkers,
                             graphSmoothingMinutes = graphSmoothingMinutes,
                             collapseSmoothedData = collapseSmoothedData,

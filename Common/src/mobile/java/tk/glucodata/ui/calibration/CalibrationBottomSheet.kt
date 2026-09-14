@@ -84,7 +84,9 @@ fun CalibrationBottomSheet(
     isMmol: Boolean = true,
     viewMode: Int = 0,
     sensorId: String,
-    onNavigateToHistory: () -> Unit
+    onNavigateToHistory: () -> Unit,
+    /** Where the sheet is now set to, so the owner of [glucoseHistory] can load around it. */
+    onSelectedTimestampChanged: ((Long) -> Unit)? = null
 ) {
     val view = LocalView.current
     val context = LocalContext.current
@@ -99,6 +101,9 @@ fun CalibrationBottomSheet(
     var editingEntity by remember { mutableStateOf<CalibrationEntity?>(null) }
     val currentSensor = SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId
     var selectedTimestamp by remember { mutableLongStateOf(initialTimestamp) }
+    LaunchedEffect(selectedTimestamp, onSelectedTimestampChanged) {
+        onSelectedTimestampChanged?.invoke(selectedTimestamp)
+    }
 
     val nearestHistoryPoint = remember(selectedTimestamp, glucoseHistory) {
         glucoseHistory.minByOrNull { abs(it.timestamp - selectedTimestamp) }

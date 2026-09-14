@@ -178,14 +178,6 @@ class HistoryRepository(context: Context = Applic.app) {
             )
         }
 
-        /**
-         * How much history the dashboard paints before the full timeline lands.
-         *
-         * Wide enough to fill the chart at its default range without a visible
-         * second step, narrow enough that it is a few hundred rows rather than
-         * tens of thousands.
-         */
-        private const val FIRST_PAINT_TAIL_MS = 12L * 60L * 60L * 1000L
         const val IMPORTED_SENSOR_SERIAL = "__imported_csv__"
         private val IMPORTED_HISTORY_SENSOR_SERIALS = listOf(
             IMPORTED_SENSOR_SERIAL,
@@ -1415,56 +1407,9 @@ class HistoryRepository(context: Context = Applic.app) {
 
     /**
      * Reactive display-history flow using the same merged multi-sensor timeline
-     * as the dashboard and chart.
+     * as the dashboard and chart, unbounded. The chart no longer reads this —
+     * see [observeMergedWindow] — but the stats and export paths still do.
      */
-    /**
-     * A first paint for the dashboard: the recent tail, merged, fetched once.
-     *
-     * The chart's real input is the whole timeline, and it has to be — the merge
-     * needs every sensor's rows to know which one wins, and the chart reads
-     * "latest" off the end of the list it is handed. Querying a window instead
-     * broke both. So this does not replace the full query; it lands before it,
-     * and the full one overwrites it a moment later.
-     *
-     * That ordering is what makes a partial list safe here. The two properties
-     * that a window breaks both hold for a *recent* one: the current sensor is
-     * the one producing readings now, so its rows are present and the merge
-     * suppresses correctly; and the newest reading in the store is by definition
-     * inside it, so "latest" is the same value the full list would give. Neither
-     * survives being generalised to an arbitrary window, which is the mistake
-     * this is written to avoid repeating.
-     *
-     * Returns null when the store's newest reading is older than the tail — an
-     * expired sensor, an offline review. Then the window holds no current-sensor
-     * rows, the merge has nothing to suppress with, and the only correct first
-     * paint is the full one.
-     */
-    suspend fun getDisplayHistoryFirstPaint(
-        preferredSerial: String?,
-        startTime: Long,
-        tailMs: Long = FIRST_PAINT_TAIL_MS
-    ): List<GlucosePoint>? = withContext(Dispatchers.IO) {
-        try {
-            val latest = dao.getLatestReading()?.timestamp ?: return@withContext null
-            val tailStart = (latest - tailMs).coerceAtLeast(startTime)
-            if (tailStart <= startTime) return@withContext null
-
-            val readings = dao.getReadingsBetween(tailStart, Long.MAX_VALUE)
-            if (readings.isEmpty()) return@withContext null
-
-            val serials = readings.mapTo(LinkedHashSet()) { it.sensorSerial }.toList()
-            mapDisplayReadings(
-                readings,
-                preferredSerial,
-                uncertaintyFor(serials, tailStart),
-                displayRecordsFor(tailStart)
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "First-paint history query failed", e)
-            null
-        }
-    }
-
     fun getDisplayHistoryFlow(
         preferredSerial: String?,
         startTime: Long = 0L
@@ -1565,21 +1510,23 @@ class HistoryRepository(context: Context = Applic.app) {
     }
 
     /**
-     * How many merged readings fall in [startTime]..[endTime] — what the
-     * history screen's range selector counts. The merge runs on the rows'
-     * identities alone, since which of two rows wins a minute does not change
-     * how many minutes there are.
+     * The merged readings in [startTime]..[endTime], counted and bounded — what
+     * the history screen's range selector shows and where its chart may pan.
+     * The merge runs on the rows' identities alone, since which of two rows
+     * wins a minute changes neither how many minutes there are nor which is
+     * first or last. Null when the range holds nothing.
      */
-    suspend fun mergedReadingCount(preferredSerial: String?, startTime: Long, endTime: Long): Int =
+    suspend fun mergedRangeSummary(preferredSerial: String?, startTime: Long, endTime: Long): TimelineRangeSummary? =
         withContext(Dispatchers.IO) {
             val paddedStart = startTime - HistoryDisplayMerge.WINDOW_PADDING_MS
             val paddedEnd = endTime + HistoryDisplayMerge.WINDOW_PADDING_MS
             val rows = dao.getIndexRowsBetween(paddedStart, paddedEnd).map {
                 HistoryReading(id = it.id, timestamp = it.timestamp, sensorSerial = it.sensorSerial, value = 1f, rawValue = 1f, rate = null)
             }
-            timestampIndex.withIndex { coverage ->
+            val merged = timestampIndex.withIndex { coverage ->
                 HistoryDisplayMerge.mergeWindow(rows, preferredSerial, coverage)
-            }.count { it.timestamp in startTime..endTime }
+            }.filter { it.timestamp in startTime..endTime }
+            if (merged.isEmpty()) null else TimelineRangeSummary(merged.size, merged.first().timestamp, merged.last().timestamp)
         }
 
     /** Bumped when the timestamp index was rebuilt after a rewrite of the store; per-timestamp caches drop on it. */

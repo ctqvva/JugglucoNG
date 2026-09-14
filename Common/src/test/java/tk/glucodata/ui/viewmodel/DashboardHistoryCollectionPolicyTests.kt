@@ -7,20 +7,6 @@ import org.junit.Test
 class DashboardHistoryCollectionPolicyTests {
 
     @Test
-    fun onlyTheHistoryRouteRunsTheUnboundedStream() {
-        assertFalse(
-            DashboardHistoryCollectionPolicy.runsUnboundedHistoryStream(
-                DashboardViewModel.CollectionMode.DASHBOARD
-            )
-        )
-        assertTrue(
-            DashboardHistoryCollectionPolicy.runsUnboundedHistoryStream(
-                DashboardViewModel.CollectionMode.FULL_HISTORY
-            )
-        )
-    }
-
-    @Test
     fun dashboardHistoryCoalescingSkipsOnlyInitialEmission() {
         assertFalse(
             DashboardHistoryCollectionPolicy.shouldCoalesceEmission(

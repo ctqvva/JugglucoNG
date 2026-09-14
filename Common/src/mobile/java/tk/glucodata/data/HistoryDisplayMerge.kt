@@ -84,7 +84,8 @@ internal object HistoryDisplayMerge {
      * query, and showed up as a foreign sensor's line on the chart and a hole in
      * the middle of it.
      *
-     * Slice after merging, never before.
+     * Slice after merging, never before — or merge the slice against the
+     * store's coverage with [mergeWindow], which is the same answer.
      */
     fun mergeReadings(
         readings: List<HistoryReading>,

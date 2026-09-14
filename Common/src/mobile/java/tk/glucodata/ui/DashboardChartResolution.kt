@@ -60,12 +60,11 @@ internal class ChartResolutionInputs(
  * Resolves the chart off the main thread, keeping the last resolution on
  * screen until the next one is ready.
  *
- * Smoothing and the model builder are each a pass over the whole timeline,
- * and the timeline is the whole store — that is a property the merge and the
- * chart both depend on, see GlucoseRepository.getDashboardHistoryFlowRaw. Run
- * inside `remember` they were a main-thread pass over every reading ever
- * stored, once a minute, which is jank that grows with the age of the
- * install. The first resolution is still synchronous, so the chart's first
+ * Smoothing and the model builder are each a pass over the list the chart is
+ * handed — the stretches loaded around its viewport, see
+ * GlucoseRepository.getMergedWindowFlowRaw, and before that the whole store.
+ * Run inside `remember` they were a main-thread pass per emission, once a
+ * minute. The first resolution is still synchronous, so the chart's first
  * frame is the same frame it always was; only the updates move.
  *
  * [inputs] must be the same instance while nothing changed — build it with
