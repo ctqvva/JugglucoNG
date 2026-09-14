@@ -72,6 +72,11 @@ object DataSmoothing {
      * destination has a `...SmoothingMinutes` accessor returning 0 when that destination
      * takes the reading as measured, so "how much smoothing" and "any at all" are one
      * question with one answer.
+     *
+     * Not fully independent, though: "collapse into chunks" is defined as keeping one
+     * *smoothed* reading per interval, so enabling it for exchange pulls exchange smoothing
+     * back on even under "graph only" — there is no smoothed reading to collapse to
+     * otherwise. See [shouldSmoothExchangeOutputs]'s `collapseChunks` parameter.
      */
     @JvmStatic
     fun shouldSmoothGraph(context: Context): Boolean = graphSmoothingMinutes(context) > 0
@@ -103,7 +108,8 @@ object DataSmoothing {
         return shouldSmoothExchangeOutputs(
             smoothingMinutes = getMinutes(context),
             graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
+            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
+            collapseChunks = collapseChunks(context)
         )
     }
 
@@ -119,7 +125,8 @@ object DataSmoothing {
         return exchangeSmoothingMinutes(
             smoothingMinutes = getMinutes(context),
             graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
+            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
+            collapseChunks = collapseChunks(context)
         )
     }
 
@@ -292,21 +299,29 @@ object DataSmoothing {
         return if (sanitized > 0 && !graphOnly && !exchangeOutputsOnly) sanitized else 0
     }
 
+    /**
+     * "Collapse" keeps one *smoothed* reading per interval (see its own description) — it
+     * has nothing meaningful to keep if exchange stayed unsmoothed, so turning it on pulls
+     * exchange smoothing back in even under "graph only". Default false keeps every
+     * existing three-switch call site (and its tests) unaffected.
+     */
     internal fun shouldSmoothExchangeOutputs(
         smoothingMinutes: Int,
         graphOnly: Boolean,
-        exchangeOutputsOnly: Boolean
+        exchangeOutputsOnly: Boolean,
+        collapseChunks: Boolean = false
     ): Boolean {
-        return sanitizeMinutes(smoothingMinutes) > 0 && (exchangeOutputsOnly || !graphOnly)
+        return sanitizeMinutes(smoothingMinutes) > 0 && (exchangeOutputsOnly || !graphOnly || collapseChunks)
     }
 
     internal fun exchangeSmoothingMinutes(
         smoothingMinutes: Int,
         graphOnly: Boolean,
-        exchangeOutputsOnly: Boolean
+        exchangeOutputsOnly: Boolean,
+        collapseChunks: Boolean = false
     ): Int {
         val sanitized = sanitizeMinutes(smoothingMinutes)
-        return if (shouldSmoothExchangeOutputs(sanitized, graphOnly, exchangeOutputsOnly)) sanitized else 0
+        return if (shouldSmoothExchangeOutputs(sanitized, graphOnly, exchangeOutputsOnly, collapseChunks)) sanitized else 0
     }
 
     internal fun shouldCollapseExchangeOutputs(
@@ -318,7 +333,8 @@ object DataSmoothing {
         return collapseChunks && shouldSmoothExchangeOutputs(
             smoothingMinutes = smoothingMinutes,
             graphOnly = graphOnly,
-            exchangeOutputsOnly = exchangeOutputsOnly
+            exchangeOutputsOnly = exchangeOutputsOnly,
+            collapseChunks = collapseChunks
         )
     }
 

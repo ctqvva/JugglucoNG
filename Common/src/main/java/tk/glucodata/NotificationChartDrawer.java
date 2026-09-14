@@ -1079,6 +1079,20 @@ public class NotificationChartDrawer {
         return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);
     }
 
+    private static List<NotificationPredictionSeries> resolvePredictionOverlay(
+            Context context, List<GlucosePoint> data, boolean isMmol, int viewMode,
+            boolean hasCalibration, String calibrationSensorId, float targetLow, float targetHigh,
+            NotificationPredictionBatch predictionBatch) {
+        if (predictionBatch == null) {
+            return resolvePredictionOverlay(context, data, isMmol, viewMode, hasCalibration,
+                    calibrationSensorId, targetLow, targetHigh);
+        }
+        return predictionBatch.resolve(data, isMmol, viewMode, hasCalibration,
+                calibrationSensorId, targetLow, targetHigh,
+                () -> resolvePredictionOverlay(context, data, isMmol, viewMode, hasCalibration,
+                        calibrationSensorId, targetLow, targetHigh));
+    }
+
     @SuppressWarnings("unchecked")
     private static List<NotificationPredictionSeries> resolvePredictionOverlay(
             Context context,
@@ -1141,9 +1155,22 @@ public class NotificationChartDrawer {
         return isDark ? Color.WHITE : Color.BLACK;
     }
 
+    /**
+     * Whether the AOD overlay currently draws light-on-dark. Always true over an ambient
+     * (black) panel; the service lowers it when the overlay is shown on an interactive
+     * lock screen whose wallpaper asks for dark text. Every AOD drawing routine reads the
+     * palette through {@link #useLightOnTransparentPalette}, so value, arrow, chart and
+     * grid all flip together.
+     */
+    private static volatile boolean sAodUsesLightPalette = true;
+
+    public static void setAodUsesLightPalette(boolean light) {
+        sAodUsesLightPalette = light;
+    }
+
     private static boolean useLightOnTransparentPalette(Context context) {
         if (context != null && AOD_OVERLAY_SERVICE_NAME.equals(context.getClass().getName())) {
-            return true;
+            return sAodUsesLightPalette;
         }
         int uiMode = context.getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
@@ -1722,6 +1749,24 @@ public class NotificationChartDrawer {
             boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
             String calibrationSensorId, long durationMs, boolean showPredictionOverlay, List<PeerSeries> peerSeries,
             tk.glucodata.chart.HistoryChartModel model) {
+        return drawChartInternal(context, data, widthHint, heightHint, isMmol, viewMode, showTargetRange,
+                hasCalibration, compactMode, calibrationSensorId, durationMs, showPredictionOverlay,
+                peerSeries, model, null);
+    }
+
+    static Bitmap drawChartWithPrediction(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
+            boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
+            String calibrationSensorId, List<PeerSeries> peerSeries, tk.glucodata.chart.HistoryChartModel model,
+            NotificationPredictionBatch predictionBatch) {
+        return drawChartInternal(context, data, widthHint, heightHint, isMmol, viewMode, showTargetRange,
+                hasCalibration, compactMode, calibrationSensorId, DEFAULT_CHART_DURATION_MS, true,
+                peerSeries, model, predictionBatch);
+    }
+
+    private static Bitmap drawChartInternal(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
+            boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
+            String calibrationSensorId, long durationMs, boolean showPredictionOverlay, List<PeerSeries> peerSeries,
+            tk.glucodata.chart.HistoryChartModel model, NotificationPredictionBatch predictionBatch) {
         // When a resolved model drives the primary line, the auto/raw lanes are
         // only ever the source lanes behind a calibration. Without one they
         // would be the main line, and the model already is.
@@ -1900,7 +1945,8 @@ public class NotificationChartDrawer {
                         hasCalibration,
                         calibrationSensorId,
                         targetLow,
-                        targetHigh)
+                        targetHigh,
+                        predictionBatch)
                 : Collections.emptyList();
         // Peer prediction overlays — one per peer series, so the simulation
         // extends every drawn line (matching the dashboard), not just the primary.
@@ -1912,7 +1958,8 @@ public class NotificationChartDrawer {
                     continue;
                 }
                 peerPredictionSeries.add(resolvePredictionOverlay(
-                        context, ps.points, isMmol, ps.viewMode, false, ps.sensorId, targetLow, targetHigh));
+                        context, ps.points, isMmol, ps.viewMode, false, ps.sensorId, targetLow, targetHigh,
+                        predictionBatch));
             }
         }
 

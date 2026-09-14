@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SettingsAccessibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -69,6 +70,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import tk.glucodata.R
+import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -108,6 +110,7 @@ fun NotificationSettingsScreen(
     var largeArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_large_trend_arrow", false)) }
     var arrowSize by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_arrow_size", 1.0f)) }
     var collapsedChart by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
+    var pauseChartScreenOff by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_pause_screen_off", false)) }
     var showTargetRange by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     var showIob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_iob", false)) }
     var showCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_cob", false)) }
@@ -125,6 +128,7 @@ fun NotificationSettingsScreen(
             .putBoolean("notification_large_trend_arrow", largeArrow)
             .putFloat("notification_arrow_size", arrowSize)
             .putBoolean("notification_chart_collapsed", collapsedChart)
+            .putBoolean("notification_chart_pause_screen_off", pauseChartScreenOff)
             .putBoolean("notification_chart_target_range", showTargetRange)
             .putBoolean("notification_show_iob", showIob)
             .putBoolean("notification_show_cob", showCob)
@@ -269,13 +273,22 @@ fun NotificationSettingsScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.show_target_range),
-                    subtitle = stringResource(R.string.show_target_range_desc),
-                    checked = showTargetRange,
-                    onCheckedChange = { showTargetRange = it; save() },
-                    position = CardPosition.BOTTOM
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.show_target_range),
+                        subtitle = stringResource(R.string.show_target_range_desc),
+                        checked = showTargetRange,
+                        onCheckedChange = { showTargetRange = it; save() },
+                        position = CardPosition.MIDDLE
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.notification_chart_pause_screen_off),
+                        subtitle = stringResource(R.string.notification_chart_pause_screen_off_summary),
+                        checked = pauseChartScreenOff,
+                        onCheckedChange = { pauseChartScreenOff = it; save() },
+                        position = CardPosition.BOTTOM
+                    )
+                }
             }
         }
 
@@ -722,6 +735,14 @@ fun AodSettingsScreen(navController: NavController) {
     var alignment by rememberSaveable { mutableStateOf(prefs.getString("aod_alignment", "CENTER") ?: "CENTER") }
     var fontSource by rememberSaveable { mutableStateOf(prefs.getString("aod_font_source", "APP") ?: "APP") }
     var fontWeight by rememberSaveable { mutableIntStateOf(prefs.getInt("aod_font_weight", 400)) }
+    var showOnLockscreen by rememberSaveable {
+        mutableStateOf(
+            prefs.getBoolean(
+                AODOverlayService.PREF_SHOW_ON_LOCKSCREEN,
+                AODOverlayService.DEFAULT_SHOW_ON_LOCKSCREEN
+            )
+        )
+    }
 
     fun save() {
         prefs.edit()
@@ -736,6 +757,7 @@ fun AodSettingsScreen(navController: NavController) {
             .putString("aod_alignment", alignment)
             .putString("aod_font_source", fontSource)
             .putInt("aod_font_weight", fontWeight)
+            .putBoolean(AODOverlayService.PREF_SHOW_ON_LOCKSCREEN, showOnLockscreen)
             .apply()
     }
 
@@ -759,6 +781,23 @@ fun AodSettingsScreen(navController: NavController) {
                 context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             },
             icon = Icons.Default.SettingsAccessibility,
+            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+        )
+
+        Spacer(Modifier.height(8.dp))
+        SettingsSwitchItem(
+            title = stringResource(R.string.aod_show_on_lockscreen),
+            subtitle = stringResource(R.string.aod_show_on_lockscreen_desc),
+            checked = showOnLockscreen,
+            onCheckedChange = {
+                showOnLockscreen = it
+                save()
+                context.sendBroadcast(
+                    Intent(AODOverlayService.ACTION_IMMEDIATE_REFRESH).setPackage(context.packageName)
+                )
+            },
+            icon = Icons.Default.Lock,
+            position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
         )
 

@@ -66,12 +66,14 @@ object NotificationPredictionOverlay {
         if (source.size < 2) return emptyList()
 
         val unit = if (isMmol) "mmol/L" else "mg/dL"
+        // This formatter belongs to one calculation; SimpleDateFormat is not thread-safe.
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         val uiHistory = source.map { point ->
             UiGlucosePoint(
                 value = point.value,
                 rawValue = point.rawValue,
                 timestamp = point.timestamp,
-                time = timeLabel(point.timestamp),
+                time = timeFormat.format(Date(point.timestamp)),
                 sensorSerial = calibrationSensorId
             )
         }
@@ -175,9 +177,5 @@ object NotificationPredictionOverlay {
             entries = emptyList(),
             presetsById = emptyMap()
         )
-    }
-
-    private fun timeLabel(timestamp: Long): String {
-        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
     }
 }
