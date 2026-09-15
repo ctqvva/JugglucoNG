@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -702,9 +703,18 @@ class DashboardViewModel(
         val serial = preferredDashboardSensorId()?.takeIf { it.isNotBlank() }
         val historyStartTimeMs = activeHistoryStartTimeMs
         val current = resolveCurrentForHistoryRecovery(serial)
+        // Decide from the store, not the retained tail: the retained list
+        // predates the hide, so its hours-old timestamps would read as "sensor
+        // behind" and fire a BLE history pull plus chunked backfill replay on
+        // every return after idle. The restarted tail flow re-evaluates with
+        // live data right after anyway.
+        val decisionTail = runCatching {
+            val tailStartMs = (System.currentTimeMillis() - CURRENT_SENSOR_TAIL_WINDOW_MS).coerceAtLeast(0L)
+            glucoseRepository.getCurrentSensorTailFlowRaw(tailStartMs).first()
+        }.getOrDefault(_currentSensorTail.value)
         val shouldPreferHistoryRecovery = serial != null &&
             historyStartTimeMs != null &&
-            shouldRequestHistoryRecovery(historyStartTimeMs, _currentSensorTail.value, serial, current)
+            shouldRequestHistoryRecovery(historyStartTimeMs, decisionTail, serial, current)
 
         if (!shouldPreferHistoryRecovery) {
             glucoseRepository.syncLatestNativeReadingOnce()
