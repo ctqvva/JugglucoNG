@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Persisted by resource name rather than unstable numeric resource IDs. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/alert_contour_*,@raw/alert_porcelain_*,@raw/alert_halo_*" />

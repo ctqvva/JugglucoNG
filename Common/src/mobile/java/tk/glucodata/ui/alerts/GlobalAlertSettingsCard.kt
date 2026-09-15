@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import tk.glucodata.BuildConfig
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertConfig
 import tk.glucodata.alerts.AlertType
@@ -247,10 +248,16 @@ fun GlobalAlertSettingsCard(
 internal fun shouldEnableApplyToAll(
     draftConfig: AlertConfig,
     appliedDraft: AlertConfig,
-    allConfigs: Map<AlertType, AlertConfig>
+    allConfigs: Map<AlertType, AlertConfig>,
+    packageName: String = BuildConfig.APPLICATION_ID
 ): Boolean {
     return !draftConfig.sameMasterDraft(appliedDraft) ||
-        allConfigs.values.any { !it.sameMasterDraft(draftConfig) }
+        allConfigs.values.any { target ->
+            val expected = draftConfig.copy(
+                customSoundUri = BundledAlertSounds.forAlert(draftConfig.customSoundUri, packageName, target.type.id)
+            )
+            !target.sameMasterDraft(expected)
+        }
 }
 
 internal fun AlertConfig.sameMasterDraft(other: AlertConfig): Boolean {

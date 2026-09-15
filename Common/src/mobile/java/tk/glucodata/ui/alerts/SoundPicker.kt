@@ -67,7 +67,8 @@ fun getSoundDisplayText(uri: String?, alertTypeId: Int = 0): String {
     return when {
         uri.isNullOrEmpty() -> Applic.app.getString(R.string.app_default_sound)
         uri == SYSTEM_DEFAULT_SOUND -> Applic.app.getString(R.string.system_default_sound)
-        else -> Applic.app.getString(R.string.custom_sound_selected)
+        else -> BundledAlertSounds.styleFor(uri, Applic.app.packageName)
+            ?: Applic.app.getString(R.string.custom_sound_selected)
     }
 }
 
@@ -111,10 +112,10 @@ fun SoundPicker(
     var selectedUri by remember { mutableStateOf(currentUri) }
     var isPlaying by remember { mutableStateOf(false) }
     var playingUri by remember { mutableStateOf<String?>(null) }
-    val mediaPlayer = remember { MediaPlayer() }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     
     // App default sound URI for preview
-    val appDefaultUri = remember { try { Natives.readring(alertTypeId) } catch (e: Exception) { null } }
+    val appDefaultUri = remember(alertTypeId) { try { Natives.readring(alertTypeId) } catch (e: Exception) { null } }
     
     // File picker launcher
     val filePicker = rememberLauncherForActivityResult(
@@ -135,7 +136,7 @@ fun SoundPicker(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(alertTypeId) {
         // Load custom sounds
         customSounds = CustomSoundRepository.getCustomSounds()
         
@@ -143,6 +144,9 @@ fun SoundPicker(
         val soundList = mutableListOf<SoundItem>()
         soundList.add(SoundItem(null, context.getString(R.string.app_default_sound)))
         soundList.add(SoundItem(SYSTEM_DEFAULT_SOUND, context.getString(R.string.system_default_sound)))
+        BundledAlertSounds.styles.forEach { style ->
+            soundList.add(SoundItem(BundledAlertSounds.uri(context.packageName, style, alertTypeId), style))
+        }
 
         val ringtoneManager = RingtoneManager(context)
         ringtoneManager.setType(RingtoneManager.TYPE_NOTIFICATION)
@@ -157,55 +161,61 @@ fun SoundPicker(
         systemSounds = soundList
     }
 
+    fun stopSound() {
+        // release also cancels asynchronous preparation; stop/isPlaying are invalid
+        // in some MediaPlayer states, including a preview that has not prepared yet.
+        val previous = mediaPlayer
+        mediaPlayer = null
+        previous?.release()
+        isPlaying = false
+        playingUri = null
+    }
+
     DisposableEffect(Unit) {
         onDispose {
-            if (mediaPlayer.isPlaying) mediaPlayer.stop()
-            mediaPlayer.release()
+            val previous = mediaPlayer
+            mediaPlayer = null
+            previous?.release()
         }
     }
 
     fun playSound(uri: String?) {
+        stopSound()
+        val player = MediaPlayer()
+        mediaPlayer = player
         try {
-            mediaPlayer.reset()
             val actualUri = when {
-                uri == null -> appDefaultUri?.let { Uri.parse(it) }
+                uri.isNullOrEmpty() -> appDefaultUri?.takeIf { it.isNotEmpty() }?.let { Uri.parse(it) }
                 uri == SYSTEM_DEFAULT_SOUND -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
                 else -> Uri.parse(uri)
-            }
-            
-            if (actualUri != null) {
-                mediaPlayer.setDataSource(context, actualUri)
-            } else {
-                mediaPlayer.setDataSource(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-            }
-            
-            mediaPlayer.setAudioAttributes(
+            } ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+            player.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
-            mediaPlayer.setOnPreparedListener { mp ->
-                mp.start()
-                isPlaying = true
-                playingUri = uri
+            player.setDataSource(context, actualUri)
+            player.setOnPreparedListener { prepared ->
+                if (mediaPlayer === prepared) prepared.start()
             }
-            mediaPlayer.prepareAsync()
-            mediaPlayer.setOnCompletionListener {
-                isPlaying = false
-                playingUri = null
+            player.setOnCompletionListener { completed ->
+                if (mediaPlayer === completed) stopSound()
             }
+            player.setOnErrorListener { failed, what, extra ->
+                android.util.Log.w("SoundPicker", "Preview failed: $what/$extra")
+                if (mediaPlayer === failed) stopSound()
+                true
+            }
+            // Show Stop while preparing too, so a pending preview can be cancelled.
+            isPlaying = true
+            playingUri = uri
+            player.prepareAsync()
         } catch (e: Exception) {
-            e.printStackTrace()
-            isPlaying = false
-            playingUri = null
+            android.util.Log.w("SoundPicker", "Could not preview sound", e)
+            stopSound()
         }
-    }
-
-    fun stopSound() {
-        if (mediaPlayer.isPlaying) mediaPlayer.stop()
-        isPlaying = false
-        playingUri = null
     }
 
     AlertDialog(
@@ -263,7 +273,7 @@ fun SoundPicker(
                 items(systemSounds) { sound ->
                     SoundRow(
                         title = sound.title,
-                        isSelected = if (sound.uri == null) selectedUri == null else selectedUri == sound.uri,
+                        isSelected = if (sound.uri == null) selectedUri.isNullOrEmpty() else selectedUri == sound.uri,
                         isPlaying = isPlaying && playingUri == sound.uri,
                         onClick = { selectedUri = sound.uri },
                         onPlay = { if (isPlaying && playingUri == sound.uri) stopSound() else playSound(sound.uri) }

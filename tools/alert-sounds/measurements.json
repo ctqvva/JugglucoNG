@@ -1,0 +1,164 @@
+{
+  "alert_contour_low.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -11.99,
+    "rms_dbfs": -20.77,
+    "sha256": "b443cf964ab868cff882b6d3e2552e9df0740eb95a952e1dd499a6c1069d5178"
+  },
+  "alert_contour_high.wav": {
+    "seconds": 1.68,
+    "peak_dbfs": -11.51,
+    "rms_dbfs": -20.95,
+    "sha256": "30ac39513d00888fffdb9413fb13e0e68dcf82ec333c8fce129e57d5ae28d684"
+  },
+  "alert_contour_urgent_low.wav": {
+    "seconds": 2.38,
+    "peak_dbfs": -8.95,
+    "rms_dbfs": -18.22,
+    "sha256": "f9f4d34541a0289f53f14e760129bdb659fb5ecc3e0b651c9ce968a95d507bf1"
+  },
+  "alert_contour_urgent_high.wav": {
+    "seconds": 2.25,
+    "peak_dbfs": -8.5,
+    "rms_dbfs": -18.52,
+    "sha256": "8bf8abffbe67b38b44122af38f4bcd4c603115b05b9fb9447e1ce526bd1e54e9"
+  },
+  "alert_contour_falling.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -11.32,
+    "rms_dbfs": -21.12,
+    "sha256": "91ce7a06212035ef4acef378d53cb0abefcea551500459c5031465680e93f5f0"
+  },
+  "alert_contour_rising.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -11.57,
+    "rms_dbfs": -21.08,
+    "sha256": "1a99cc7ceb660f9f87fabc4db902ba0019fec71ad53c28bcc19efdb6f744902d"
+  },
+  "alert_contour_signal.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -13.63,
+    "rms_dbfs": -20.91,
+    "sha256": "fc2bb755d5ca4cd11f47cfa5ae4787502c2be8f74a1fddcb2e69199028a83f58"
+  },
+  "alert_contour_reminder.wav": {
+    "seconds": 1.6,
+    "peak_dbfs": -11.43,
+    "rms_dbfs": -20.99,
+    "sha256": "892a36d0601926c9cc59a2e1822ce0c5cca137dc57e1e55781914f32d27c8310"
+  },
+  "alert_contour_notice.wav": {
+    "seconds": 1.18,
+    "peak_dbfs": -14.48,
+    "rms_dbfs": -21.3,
+    "sha256": "2c310b56a10ed2d680dea6c6f9a730d02d1f236d6f38fb0bdad5ffaf1430ed45"
+  },
+  "alert_porcelain_low.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -10.45,
+    "rms_dbfs": -20.8,
+    "sha256": "bdd5b212bd753de09391cc61b023ec101bbe8e252f4c669295961c258185d5d9"
+  },
+  "alert_porcelain_high.wav": {
+    "seconds": 1.68,
+    "peak_dbfs": -10.22,
+    "rms_dbfs": -20.99,
+    "sha256": "21d9e1474e26274e66357896ffa5b56b6d9ea6f75b6aa38f0656cf5de45de545"
+  },
+  "alert_porcelain_urgent_low.wav": {
+    "seconds": 2.38,
+    "peak_dbfs": -8.26,
+    "rms_dbfs": -18.24,
+    "sha256": "185b6ce10fbe1864b8fe8e6d8697e34059016b70d4e7792ca3fda0dfe59453a2"
+  },
+  "alert_porcelain_urgent_high.wav": {
+    "seconds": 2.25,
+    "peak_dbfs": -7.07,
+    "rms_dbfs": -18.56,
+    "sha256": "7f766ed8946c2513c0276070faf3b5557c1fd3f1f648279b38e0a5a5f568cc95"
+  },
+  "alert_porcelain_falling.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -9.95,
+    "rms_dbfs": -21.16,
+    "sha256": "e3b56d7ca052dabc86faf2bdb863e5b0485abc739890a09725f3deaeb031c4fd"
+  },
+  "alert_porcelain_rising.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -9.99,
+    "rms_dbfs": -21.13,
+    "sha256": "3343242b25158566015b348226cd1d978103c2086237616e83a5e9f39aea9c48"
+  },
+  "alert_porcelain_signal.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -11.38,
+    "rms_dbfs": -20.98,
+    "sha256": "b71c5906c7c4e7966126e255e43d5b134749ca9290a05c994f8849a1b5df0384"
+  },
+  "alert_porcelain_reminder.wav": {
+    "seconds": 1.6,
+    "peak_dbfs": -9.93,
+    "rms_dbfs": -21.03,
+    "sha256": "3f3073e3455e6272693becda0b2499a6fd16a5ed9eda719c56464cd41c6bbdb0"
+  },
+  "alert_porcelain_notice.wav": {
+    "seconds": 1.18,
+    "peak_dbfs": -12.04,
+    "rms_dbfs": -21.37,
+    "sha256": "2954fafc38310aec133e8b08f2ff6089cfeb0707eb6f35474f2cffa5432a6211"
+  },
+  "alert_halo_low.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -10.78,
+    "rms_dbfs": -20.8,
+    "sha256": "9af01d77614c8e513e995ec6e814cd989b8b996152202cc31a3737bb2bee38f7"
+  },
+  "alert_halo_high.wav": {
+    "seconds": 1.68,
+    "peak_dbfs": -10.42,
+    "rms_dbfs": -20.98,
+    "sha256": "55041c73972b1f533cc0791b78066ad5feffd7b62e20880f3f1eb29745ec9759"
+  },
+  "alert_halo_urgent_low.wav": {
+    "seconds": 2.38,
+    "peak_dbfs": -8.04,
+    "rms_dbfs": -18.25,
+    "sha256": "b89b677d24c2437480308f4c2fa891369b5a0e26bcff3de9b55aee16d302b2b6"
+  },
+  "alert_halo_urgent_high.wav": {
+    "seconds": 2.25,
+    "peak_dbfs": -7.36,
+    "rms_dbfs": -18.57,
+    "sha256": "a6cfba19ec641ea92fba3036ce779bee13c03ae3fe4eae47fc02c2cd6390bc9d"
+  },
+  "alert_halo_falling.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -10.08,
+    "rms_dbfs": -21.16,
+    "sha256": "d507030e46abdaa06a2318c7976f0c3dd87d2bf94fc7c4aa31e383ca1ee5a182"
+  },
+  "alert_halo_rising.wav": {
+    "seconds": 1.46,
+    "peak_dbfs": -10.26,
+    "rms_dbfs": -21.12,
+    "sha256": "6c2c5af9217d42bfb1a043eb050143b1bd4582a3f292ffaf8cac092049cc3d92"
+  },
+  "alert_halo_signal.wav": {
+    "seconds": 2.04,
+    "peak_dbfs": -12.32,
+    "rms_dbfs": -20.95,
+    "sha256": "156c6a0eb16153a4e2d08910d6689059b46aa752b99b43b7407ea5e57aeb541e"
+  },
+  "alert_halo_reminder.wav": {
+    "seconds": 1.6,
+    "peak_dbfs": -10.25,
+    "rms_dbfs": -21.03,
+    "sha256": "87c4e29cb65cfce3c49279c1738fb493b4f65aeeef0d7f56f4038d3bc02e1448"
+  },
+  "alert_halo_notice.wav": {
+    "seconds": 1.18,
+    "peak_dbfs": -13.03,
+    "rms_dbfs": -21.34,
+    "sha256": "b726467e22b8131e5ad48a92494d905a81732affe64dd7fec1be3eb833f8f32f"
+  }
+}
