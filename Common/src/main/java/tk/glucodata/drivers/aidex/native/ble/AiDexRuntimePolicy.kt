@@ -4,9 +4,18 @@ import android.bluetooth.BluetoothDevice
 
 internal object AiDexRuntimePolicy {
 
+    enum class PairKeyStartAction {
+        USE_SAVED_KEY,
+        FRESH_PAIR,
+    }
+
+    enum class KeyExchangeFailureAction {
+        RETRY_CLEAN_GATT,
+        BROADCAST_ONLY,
+    }
+
     enum class InvalidSetupRecoveryAction {
         RECONNECT,
-        REMOVE_BOND_AND_RECONNECT,
     }
 
     enum class MissingCccdCallbackAction {
@@ -14,6 +23,44 @@ internal object AiDexRuntimePolicy {
         WAIT,
         ASSUME_COMPLETE,
     }
+
+    /**
+     * Which credential the next key exchange starts from.
+     *
+     * A saved key is used whenever one exists, bonded or not. F002 and F003 accept CCCD
+     * writes over an unencrypted link — the sensor's security there is the app-layer AES
+     * with the PAIR key, not SMP — and only F001 demands a bond. So an unbonded phone that
+     * holds the key reads F002 with it and never touches F001 or asks for a bond: that is
+     * the recovery after a network-settings reset (new phone identity, sensor's one bond
+     * slot still taken) and the cross-device restore. Never createBond() from the phone
+     * side; the sensor refuses that (BOND_NONE, then status 22).
+     *
+     * Without a saved key the sensor is paired fresh over F001, which is what makes it
+     * initiate pairing. A saved key that has failed [savedKeyExhausted] times is replaced
+     * only when the user presses Pair; nothing automatic rotates a stored credential.
+     */
+    fun decidePairKeyStartAction(
+        hasSavedPairKey: Boolean,
+        savedKeyExhausted: Boolean = false,
+        explicitPairRequested: Boolean = false,
+    ): PairKeyStartAction = when {
+        !hasSavedPairKey -> PairKeyStartAction.FRESH_PAIR
+        explicitPairRequested && savedKeyExhausted -> PairKeyStartAction.FRESH_PAIR
+        else -> PairKeyStartAction.USE_SAVED_KEY
+    }
+
+    /** Both saved-key reconnects and fresh pairs retry through a clean GATT this many times. */
+    fun decideKeyExchangeFailureAction(
+        consecutiveFailures: Int,
+        maxFailures: Int,
+    ): KeyExchangeFailureAction = if (consecutiveFailures >= maxFailures) {
+        KeyExchangeFailureAction.BROADCAST_ONLY
+    } else {
+        KeyExchangeFailureAction.RETRY_CLEAN_GATT
+    }
+
+    fun shouldClearPersistedPairKey(deleteBondPending: Boolean, responseStatus: Int): Boolean =
+        deleteBondPending && responseStatus == 0x00
 
     fun connectedWarmupStatus(
         connectionPart: String,
@@ -278,14 +325,9 @@ internal object AiDexRuntimePolicy {
         bondResetThreshold: Int,
         bondValidatedByStreaming: Boolean,
     ): InvalidSetupRecoveryAction {
-        return if (
-            bondState == BluetoothDevice.BOND_BONDED &&
-            !bondValidatedByStreaming &&
-            consecutiveRecoveries >= bondResetThreshold
-        ) {
-            InvalidSetupRecoveryAction.REMOVE_BOND_AND_RECONNECT
-        } else {
-            InvalidSetupRecoveryAction.RECONNECT
-        }
+        // Transport/setup failures are not proof that either the Android SMP bond or the
+        // sensor's stable PAIR credential is invalid. Automatic bond removal can force an
+        // unnecessary F001 PAIR exchange, so recovery is always non-destructive.
+        return InvalidSetupRecoveryAction.RECONNECT
     }
 }

@@ -154,6 +154,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     protected final void markLocalReadingAccepted(long sampleTimeMs) {
         WearSensorClaim.onLocalReadingAccepted(SerialNumber, sampleTimeMs);
         SensorOwnershipRuntime.noteLocalReading(SerialNumber, sampleTimeMs);
+        // charcha[0] is the shared "last successful glucose" slot, read by
+        // shouldreconnect() and by connectionStatusOutdated() to tell a stale "Loss of
+        // signal" label from a current one. The classic drivers set it from their own
+        // onCharacteristicChanged; a managed driver publishes through
+        // processExternalCurrentReading and never reached that line, so for those
+        // sensors the slot stayed 0 and both checks read every session as if no reading
+        // had ever arrived.
+        charcha[0] = sampleTimeMs;
     }
 
     public void disconnect() {
@@ -188,6 +196,28 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             Log.i(LOG_ID, "setPause " + pause);
     }
 
+    /**
+     * Record the shared "Loss of signal" state. Extracted so a driver that recovers the
+     * link its own way still reports it the same to the UI and the error history.
+     */
+    protected final void noteLossOfSignal(long now) {
+        constatstatusstr = "Loss of signal";
+        constatchange[1] = now;
+        BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+    }
+
+    /**
+     * A frame arrived from the sensor that carried no usable glucose.
+     *
+     * charcha[1] is the shared "last failed glucose attempt" slot and the only thing
+     * holding {@link #reconnect} back, so a driver that decodes its own frames has to
+     * report this or a sensor talking on schedule without producing readings looks, to
+     * the loss-of-signal alarm, exactly like a sensor that has gone silent.
+     */
+    protected final void noteLiveFrameWithoutReading(long whenMs) {
+        charcha[1] = whenMs;
+    }
+
     public boolean reconnect(long now) {
         final var old = now - showtime + 20;
         if (charcha[1] < old && connectTime < (now - 60 * 1000)) {
@@ -196,9 +226,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     Log.i(LOG_ID, "reconnect " + SerialNumber);
                 }
                 ;
-                constatstatusstr = "Loss of signal";
-                constatchange[1] = now;
-                BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+                noteLossOfSignal(now);
                 final var thegatt = mBluetoothGatt;
                 if (thegatt != null) {
                     thegatt.disconnect();
@@ -348,13 +376,69 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             glucosealarms = new tk.glucodata.GlucoseAlarms(Applic.app);
         if (!DontTalk) {
             Talker.getvalues();
-            if (Talker.shouldtalk())
-                newtalker(null);
+            // Only (re)create the shared Talker/TextToSpeech if none exists yet, or if the
+            // existing one is demonstrably dead. This watchdog fires roughly every
+            // glucosetimeout while a sensor/data-loss condition persists (potentially dozens of
+            // times per hour), and unconditionally recreating the engine here was
+            // destroying+rebuilding the SAME talker instance the normal periodic announcer
+            // speaks through - silencing announcements for the whole outage and sometimes
+            // leaving the engine mid-reinit exactly when data resumed. Confirmed in traces:
+            // LossOfSensorAlarm onReceive -> new TextToSpeech -> onInit repeating every ~60s,
+            // zero successful speaks for the entire outage, including stretches where fresh
+            // glucose readings kept arriving the whole time.
+            if (Talker.shouldtalk()) {
+                // istalking() alone only proves the object reference is non-null; it says
+                // nothing about whether the underlying TextToSpeech is actually bound. A talker
+                // that has racked up repeated real speak failures (see Talker.needsReinit()) is
+                // just as dead as a null one and needs the same recreate.
+                //
+                // `talker` is a plain static field that endtalk() can null from another thread
+                // at any time - read it into a local once so the null-check and the
+                // needsReinit() call see the same reference.
+                final Talker currentTalker = talker;
+                if (currentTalker == null) {
+                    newtalker(null);
+                } else if (!recreateForHealth(currentTalker)) {
+                    // This is also the profile-switch hook (Talker.config, Settings alarm
+                    // profiles, NumAlarm's scheduled switch): voice speed, pitch and speaker
+                    // are per profile, and getvalues() above just reloaded them. The old
+                    // unconditional recreate applied them via onInit; now that the engine is
+                    // kept, push them into it here.
+                    currentTalker.setvalues();
+                    currentTalker.setvoice();
+                    if (doLog)
+                        Log.i(LOG_ID, "initAlarmTalk: talker already active, applied values");
+                }
+            }
         }
     }
 
+    // When the last health-driven recreate happened (0 = never). Health recreates are
+    // rate-limited by SpeakHealth.RECREATE_FLOOR_MS so a TTS service that never binds is not
+    // reconstructed every couple of readings forever.
+    private static volatile long lastHealthRecreateMs = 0L;
+
+    /**
+     * Recreate {@code current} if it reports itself dead and the floor since the last such
+     * recreate has elapsed. Returns true when a recreate happened.
+     */
+    static boolean recreateForHealth(Talker current) {
+        if (!current.needsReinit())
+            return false;
+        final long now = System.currentTimeMillis();
+        if (!SpeakHealth.recreateAllowed(lastHealthRecreateMs, now)) {
+            if (doLog)
+                Log.i(LOG_ID, "talker needsReinit but recreate floor not elapsed, keeping it");
+            return false;
+        }
+        lastHealthRecreateMs = now;
+        newtalker(null);
+        return true;
+    }
+
     static Talker talker;
-    static boolean dotalk = false;
+    // volatile: flipped from the settings/UI thread, read on the BLE callback thread.
+    static volatile boolean dotalk = false;
 
     static void newtalker(Context context) {
         if (!DontTalk) {
@@ -626,11 +710,33 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
         if (!DontTalk) {
             if (dotalk && !alarmSpeechStarted) {
-                // Speak the calibrated display value (same source as the display,
-                // notifications, and alarm speech) rather than the raw native value.
-                final CurrentDisplaySource.Snapshot speakcurrent =
-                        CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
-                talker.selspeak(speakcurrent != null ? speakcurrent.getSpeechPrimaryStr() : sglucose.value);
+                // `talker` is a plain static field that endtalk() can null from another thread
+                // between the dotalk check and the deref - read it into a local once.
+                final Talker currentTalker = talker;
+                if (currentTalker == null) {
+                    Log.e(LOG_ID, "periodic-speak-gate: dotalk set but no talker - creating");
+                    newtalker(null);
+                } else if (recreateForHealth(currentTalker)) {
+                    // Heal a talker that is non-null but actually dead (e.g. the shared
+                    // TextToSpeech got unbound by a com.google.android.tts update and never
+                    // reconnected) here, on the normal announce cadence, rather than waiting on
+                    // the much rarer LossOfSensorAlarm watchdog in initAlarmTalk() to notice.
+                    //
+                    // Skip speaking this cycle: the replacement's TextToSpeech binds
+                    // asynchronously (onInit), so speaking immediately would very likely fail
+                    // while it is still initializing. The next reading (normally ~1 minute
+                    // later) finds a bound engine and speaks normally. If the recreate floor
+                    // blocked the recreate we fall through and keep trying to speak: a refused
+                    // utterance costs nothing, and a success resets the health counter.
+                    Log.e(LOG_ID, "periodic-speak-gate: talker needsReinit, recreated"
+                            + " and skipping speak this cycle");
+                } else {
+                    // Speak the calibrated display value (same source as the display,
+                    // notifications, and alarm speech) rather than the raw native value.
+                    final CurrentDisplaySource.Snapshot speakcurrent =
+                            CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
+                    currentTalker.selspeak(speakcurrent != null ? speakcurrent.getSpeechPrimaryStr() : sglucose.value);
+                }
             }
         }
         if (isWearable) {
@@ -986,6 +1092,21 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         Natives.setDeviceAddress(dataptr, address);
     }
 
+    /**
+     * Drop a callback object without releasing its native data. Used when a callback turns
+     * out to be a duplicate of a live one: both were resolved from the same sensor, so they
+     * share a dataptr, and {@link #free()} would hand the running callback's
+     * SensorGlucoseData back to the allocator — taking that sensor's history with it.
+     */
+    void discard() {
+        stop = true;
+        if (doLog) {
+            Log.i(LOG_ID, "discard " + SerialNumber);
+        }
+        close();
+        dataptr = 0L;
+    }
+
     void free() {
         stop = true;
         {
@@ -1063,9 +1184,15 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * constructor overwrites from {@code Natives.getAndroid13()}, so until this hook existed a
      * driver had no say at all: every one of the 103 connect attempts logged during the
      * 2026-08-01 jamming storm (52 + 51, two Ottai sensors) used autoConnect=true and not one
-     * used false. Whether a direct connect would do better on any particular peripheral is still
+     * used false. Whether a direct connect would do better on any particular peripheral was
      * unmeasured — see {@link #noteFirstGattCallback} for the number that would decide it — so
-     * every driver deliberately keeps inheriting the user's setting here.
+     * every driver inherited the user's setting here.
+     * <p>
+     * The Anytime driver is the one exception, and only because that number came in: a CT5 told
+     * to go low-power is unreachable between its 3-minute pushes, where a direct connect can only
+     * spend Android's 30-second timer and report status 147. It overrides this to fall back to
+     * autoConnect once an attempt has actually timed out; every other driver still has nothing
+     * deciding between the modes and keeps inheriting the setting.
      */
     protected boolean useAutoConnect() {
         return autoconnect;

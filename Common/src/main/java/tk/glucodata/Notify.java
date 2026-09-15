@@ -89,6 +89,7 @@ import tk.glucodata.alerts.AlertConfig;
 import tk.glucodata.alerts.AlertNotificationDismissAction;
 import tk.glucodata.alerts.AlertRepository;
 import tk.glucodata.alerts.AlertStateTracker;
+import tk.glucodata.alerts.QuietWindow;
 import tk.glucodata.drivers.ManagedSensorRuntime;
 import tk.glucodata.drivers.ManagedSensorStatusPolicy;
 import java.util.Collections;
@@ -1656,6 +1657,19 @@ public class Notify {
     }
     // static int alarmnr=0;
 
+    /**
+     * Quiet window: a silenced alarm has stayed active past the breakthrough time.
+     * Deliver its effects again; playringhier finds the silenced episode old
+     * enough and lets sound and vibration through.
+     */
+    public static void breakThroughQuietWindow(int kind) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (onenot != null) {
+                onenot.mksound(kind);
+            }
+        });
+    }
+
     public static void playring(Ringtone ring, int duration, boolean sound, boolean flash, boolean vibrate,
             boolean disturb, int kind) {
         if (onenot == null)
@@ -1822,6 +1836,20 @@ public class Notify {
 
     private synchronized void playringhier(AlertSoundHandle soundHandle, int duration, boolean sound, boolean flash,
             boolean vibrate, boolean disturb, int kind, String hapticProfile, long effectDurationMs) {
+        playringhier(soundHandle, duration, sound, flash, vibrate, disturb, kind, hapticProfile, effectDurationMs,
+                false);
+    }
+
+    /**
+     * {@code customAlert}: a custom alert delivers as kind 0/1 (LOW/HIGH) and shares their
+     * channels, but it is not their episode — the quiet window keeps its silenced
+     * episode apart, under its own key. The breakthrough scope still reads the raw
+     * kind, so a custom alert delivered as a low breaks through like a low: the user
+     * built it as one. Nothing else here reads the flag.
+     */
+    private synchronized void playringhier(AlertSoundHandle soundHandle, int duration, boolean sound, boolean flash,
+            boolean vibrate, boolean disturb, int kind, String hapticProfile, long effectDurationMs,
+            boolean customAlert) {
         final int sanitizedDuration = sanitizeAlarmDurationSeconds(duration);
         if (sanitizedDuration != duration) {
             duration = sanitizedDuration;
@@ -1865,7 +1893,7 @@ public class Notify {
                         delayedAlertEffectPriority = Integer.MIN_VALUE;
                     }
                     target.playringhier(soundHandle, finalDuration, sound, flash, vibrate, disturb, kind,
-                            hapticProfile, effectDurationMs);
+                            hapticProfile, effectDurationMs, customAlert);
                 }, delayMs, TimeUnit.MILLISECONDS);
                 if (doLog) {
                     Log.i(LOG_ID, "Delaying alert effects kind=" + kind + " by " + delayMs + "ms");
@@ -1876,23 +1904,57 @@ public class Notify {
                     nowMs + ALERT_EFFECT_START_GAP_MS);
         }
 
+        // Quiet window: a temporary, self-expiring cut of sound (and, in
+        // notification-only mode, vibration) decided by AlertDeliveryPolicy. A
+        // silenced alarm that stays active past the breakthrough time sounds as if
+        // there were no window. Nothing else here changes.
+        final long quietNowMs = System.currentTimeMillis();
+        final boolean quietWindow = QuietWindow.untilMs(quietNowMs) > 0L;
+        boolean quietBreakThrough = false;
+        String quietMode = null;
+        if (quietWindow) {
+            // A custom alert is not LOW/HIGH's episode; it is tracked under its own key.
+            final int episodeKind = customAlert ? QuietWindow.customEpisodeKind(kind) : kind;
+            final long silencedSinceMs = QuietWindow.noteSilencedDelivery(episodeKind, quietNowMs);
+            quietBreakThrough = AlertDeliveryPolicy.quietWindowBreakthroughAppliesTo(kind,
+                    QuietWindow.breakthroughScope())
+                    && AlertDeliveryPolicy.quietWindowBreaksThrough(silencedSinceMs, quietNowMs,
+                            QuietWindow.breakthroughMillis());
+            quietMode = QuietWindow.mode();
+            if (doLog) {
+                Log.i(LOG_ID, "Quiet window: kind=" + kind + " silencedSince=" + silencedSinceMs
+                        + (quietBreakThrough ? " -> breaking through" : " -> sound off"));
+            }
+        }
+        final boolean quietSilencesSound = AlertDeliveryPolicy.shouldSilenceSound(quietWindow, quietBreakThrough);
+        final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
+                quietMode, quietBreakThrough);
+
         notifyfocus = true;
         doTurnFocuson();
         stopalarm();
         // final int[] curfilter={-1};
         final boolean glucosealarm = kind < 2 || kind > 4;
         if (!DontTalk) {
-            if (glucosealarm && Natives.speakalarms()) {
+            // Speech is sound: a quiet window silences it too.
+            if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
-                if (current != null) {
-                    SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
+                // Read the static into a local before dereferencing it: endtalk() nulls
+                // SuperGattCallback.talker from another thread, and it is null until the first
+                // newtalker(). Every other call site already guards; the alarm path did not.
+                final Talker alarmTalker = SuperGattCallback.talker;
+                if (current != null && alarmTalker != null) {
+                    alarmTalker.speak(current.getSpeechPrimaryStr(),
                             disturb ? ScanNfcV.audioattributes : notification_audio);
                 }
             }
         }
         final boolean[] doplaysound = { true };
         final boolean hasSoundHandle = soundHandle != null && soundHandle.isPresent();
-        if (sound) {
+        if (sound && quietSilencesSound) {
+            // Quiet window: no sound, and no DND override for a sound that will not play.
+            doplaysound[0] = false;
+        } else if (sound) {
             if (!hasSoundHandle) {
                 doplaysound[0] = false;
                 if (doLog) {
@@ -1965,12 +2027,32 @@ public class Notify {
                     stopvibratealarm();
                 }
                 if (!DontTalk) {
-                    if (glucosealarm && Natives.speakalarms()) {
+                    if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
                         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                         if (current != null) {
                             Applic.scheduler.schedule(
-                                    () -> SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
-                                            disturb ? ScanNfcV.audioattributes : notification_audio),
+                                    () -> {
+                                        // Resolve the talker inside the lambda, not at schedule
+                                        // time: endtalk() has this whole 300ms delay in which to
+                                        // null the field, which would throw on the scheduler
+                                        // thread mid-alarm.
+                                        final Talker delayedTalker = SuperGattCallback.talker;
+                                        if (delayedTalker == null) {
+                                            Log.e(LOG_ID, "alarm speech: no talker, dropping utterance");
+                                            doTurnFocusoff();
+                                            return;
+                                        }
+                                        // Release focus if the engine refused the utterance too:
+                                        // a false return means nothing was queued, so no
+                                        // onDone/onError will arrive to release it for us.
+                                        // notifyfocus is false here, so the listener - not the
+                                        // alarm stop path - is what would otherwise own this.
+                                        if (!delayedTalker.speak(current.getSpeechPrimaryStr(),
+                                                disturb ? ScanNfcV.audioattributes : notification_audio)) {
+                                            Log.e(LOG_ID, "alarm speech: engine refused utterance");
+                                            doTurnFocusoff();
+                                        }
+                                    },
                                     300, TimeUnit.MILLISECONDS);
                         } else
                             doTurnFocusoff();
@@ -2023,7 +2105,8 @@ public class Notify {
         // and flash immediately; add the audible alarm only after the configured
         // delay. Only when both sound and vibration are on for this alert (else
         // there is either nothing to delay, or a silent gap with no signal).
-        final int soundDelaySeconds = (sound && vibrate) ? getSoundDelaySeconds(kind) : 0;
+        // A sound the quiet window silences has nothing to delay.
+        final int soundDelaySeconds = (sound && vibrate && !quietSilencesSound) ? getSoundDelaySeconds(kind) : 0;
         final long soundDelayMs = TimeUnit.SECONDS.toMillis(soundDelaySeconds);
         final boolean canPlaySound = sound && doplaysound[0] && hasSoundHandle && soundHandle != null;
 
@@ -2032,7 +2115,8 @@ public class Notify {
                 Flash.start(app, 200L);
             }
         }
-        if (vibrate) {
+        // Quiet window in notification-only mode: no vibration either.
+        if (vibrate && !quietSuppressesVibration) {
             // The finite pattern must also span the silent delay phase
             // ("vibrate first"), else it runs out before the sound starts.
             vibratealarm(kind, resolvedHapticProfile, duration, soundDelaySeconds);
@@ -2363,7 +2447,7 @@ public class Notify {
                             vibrate, hapticProfile, finalDuration);
 
                     onenot.playringhier(soundHandle, finalDuration, sound, flash, vibrate, disturb, kind,
-                            hapticProfile, effectDurationMs);
+                            hapticProfile, effectDurationMs, true);
 
                     if (doLog)
                         Log.i(LOG_ID, "Custom Alert: sound=" + sound + " flash=" + flash + " vibrate=" + vibrate
@@ -2706,7 +2790,6 @@ public class Notify {
             return false;
         }
 
-        boolean incomingAlarm = alarm; // Capture initial state from Native/Caller
         AlertType alertType = null;
         AlertConfig config = null;
 
@@ -2744,35 +2827,10 @@ public class Notify {
                 deliverTriggeredAlert(kind, glvalue, message, strglucose, type);
             }
         } else {
-            // Processing for SILENT updates (alarm was false initially, OR
-            // suppressed/downgraded above)
-
-            // CRITICAL FIX: If incomingAlarm was false, it means Native logic (or caller)
-            // decided
-            // the alarm condition is NOT active (or cleared).
-            // We must RESET the AlertStateTracker so it doesn't get stuck thinking the
-            // episode is
-            // still ongoing forever (preventing future triggers).
-            if (!incomingAlarm && alertType != null) {
-                AlertStateTracker.INSTANCE.resetState(alertType);
-                cancelRetrySession(kind, "condition-cleared");
-            } else if (incomingAlarm && alertType != null) {
-                try {
-                    if (config == null) {
-                        config = AlertRepository.INSTANCE.loadConfig(alertType);
-                    }
-                    syncRetrySession(kind, glvalue, message, strglucose, type, config, false);
-                } catch (Exception e) {
-                    Log.e(LOG_ID, "Error updating retry session: " + e.toString());
-                }
-            }
-
-            if (incomingAlarm) {
-                if (doLog) {
-                    Log.i(LOG_ID, "Suppressed alert did not update UI/notification: kind=" + kind);
-                }
-                return false;
-            }
+            // This call only refreshes the displayed reading. A silent delivery is
+            // not evidence that the alert condition cleared. AlertRuntimeManager
+            // owns condition resolution; acknowledgement and snooze have their
+            // own explicit paths. Leave the episode and retry session intact.
 
             final var act = MainActivity.thisone;
             if (act != null) {
@@ -2969,11 +3027,9 @@ public class Notify {
                 ;
 
                 setIcon(GluNotBuilder, glvalue, glucose.sensorgen2);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    // final int timeout= Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    final int timeout = 800 * 60;// Build.VERSION.SDK_INT >= 30? 60*1500:60*3000;
-                    GluNotBuilder.setTimeoutAfter(timeout);
-                }
+                // Do not expire an unacknowledged alert. Android also sends the delete
+                // intent on timeout, which would falsely dismiss/snooze the episode and
+                // cancel its retries. The sound/vibration timer is independent.
                 GluNotBuilder.setPriority(Notification.PRIORITY_HIGH);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     GluNotBuilder.setCategory(Notification.CATEGORY_ALARM);
@@ -3027,15 +3083,8 @@ public class Notify {
                 // Data Prep
                 int glucoseColor = NotificationChartDrawer.getGlucoseColor(Applic.app, glvalue, isMmol);
 
-                // Fetch Native Points for Consistent Text Formatting (Raw/Auto)
                 long endT = System.currentTimeMillis();
-                long recentStartT = endT - 10 * 60 * 1000L;
                 final String activeSensorSerial = NotificationHistorySource.resolveSensorSerial(resolvePrimarySensorName());
-                java.util.List<GlucosePoint> nativePoints = new java.util.ArrayList<>();
-                try {
-                    nativePoints = NotificationHistorySource.getDisplayHistory(recentStartT, isMmol, activeSensorSerial);
-                } catch (Exception e) {
-                }
 
                 // Determine ViewMode for formatting
                 int viewMode = 0;
@@ -3062,8 +3111,10 @@ public class Notify {
                         ? NotificationChartDrawer.drawArrow(Applic.app, displayRate, isMmol, glucoseColor, arrowSize)
                         : null;
 
-                CharSequence valueText = formatGlucoseText(glucose.value, glvalue, nativePoints, viewMode,
-                        glucose.time, activeSensorSerial);
+                // Keep the value supplied with this firing, as the full-screen alarm does.
+                // Resolving it again from history can replace a low trigger with a higher
+                // reading, or give a message-only alert a glucose value it never carried.
+                CharSequence valueText = alarmGlucoseValue;
 
                 // Construct RemoteViews using the same rich alert surface for every mode.
                 RemoteViews remoteViews = new RemoteViews(Applic.app.getPackageName(),
@@ -3715,6 +3766,14 @@ public class Notify {
                 (showChartCollapsed || showChart)
                         ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
                         : java.util.Collections.emptyList();
+        // The resolved chart: values and main/secondary look decided once, by
+        // the same builder the dashboard uses, from the same record. The
+        // painter paints what it is handed.
+        final tk.glucodata.chart.HistoryChartModel chartModel =
+                (showChartCollapsed || showChart)
+                        ? NotificationChartModelSource.build(safeContext, chartPoints, activeSensorSerial, viewMode,
+                                hasCalibration, peerChartSeries, startT)
+                        : null;
 
         if (showChartCollapsed) {
             // Collapsed chart: Limit height to 48dp based on SYSTEM density
@@ -3726,14 +3785,14 @@ public class Notify {
             // Use safeContext and explicit height
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, true, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChart) {
             // Expanded chart: Use safely resolved density context (default 0 ->
             // 256*density)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries);
+                    viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel);
         }
 
         if (showChartCollapsed && chartBitmapCollapsed != null) {
@@ -3894,14 +3953,24 @@ public class Notify {
             if (collapsedHeight < 48)
                 collapsedHeight = 48;
 
+            // The same resolved model as the main notification and the
+            // dashboard, so this surface cannot disagree with them about a
+            // minute the user has already been shown. No peers here and no
+            // calibration, as before.
+            final tk.glucodata.chart.HistoryChartModel startupModel = NotificationChartModelSource.build(
+                    safeContext, chartPoints, activeSensorSerial, viewMode, false,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT, false);
+
             // Collapsed: Compact Mode = TRUE, Height 48dp
             chartBitmapCollapsed = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, collapsedHeight,
                     isMmol,
-                    viewMode, true, false, true, activeSensorSerial);
+                    viewMode, true, false, true, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
 
             // Expanded: Compact Mode = FALSE, Height 256dp (via 0)
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
-                    viewMode, true, false, false, activeSensorSerial);
+                    viewMode, true, false, false, activeSensorSerial,
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startupModel);
         }
 
         Bitmap arrowBitmap;

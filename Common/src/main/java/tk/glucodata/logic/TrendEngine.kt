@@ -163,6 +163,44 @@ object TrendEngine {
     private const val DECAY_CADENCE_MULTIPLE = 5.0
 
     /**
+     * Recency-weighted least-squares slope shared by every current-state trend reader.
+     * [newestFirst] must already contain only the readings the caller wants in its window.
+     */
+    internal fun recencyWeightedSlope(
+        newestFirst: List<GlucosePoint>,
+        usableCount: Int = newestFirst.size,
+        valueMgDl: (GlucosePoint) -> Double
+    ): Float? {
+        val usable = usableCount.coerceIn(0, newestFirst.size)
+        if (usable < 2) return null
+
+        val tauMinutes = DECAY_CADENCE_MULTIPLE * cadenceMinutes(newestFirst)
+        if (!tauMinutes.isFinite() || tauMinutes <= 0.0) return null
+        val newestTs = newestFirst.first().timestamp
+        var sw = 0.0
+        var sx = 0.0
+        var sy = 0.0
+        var sxy = 0.0
+        var sxx = 0.0
+        for (i in 0 until usable) {
+            val point = newestFirst[i]
+            val xMinutes = (point.timestamp - newestTs) / 60000.0
+            val yMgDl = valueMgDl(point)
+            if (!yMgDl.isFinite()) return null
+            // xMinutes <= 0 going back, so this decays from 1 at the newest reading.
+            val weight = Math.exp(xMinutes / tauMinutes)
+            sw += weight
+            sx += weight * xMinutes
+            sy += weight * yMgDl
+            sxy += weight * xMinutes * yMgDl
+            sxx += weight * xMinutes * xMinutes
+        }
+        val denominator = sw * sxx - sx * sx
+        if (denominator <= 1e-6) return null
+        return ((sw * sxy - sx * sy) / denominator).toFloat().takeIf { it.isFinite() }
+    }
+
+    /**
      * Calculates the trend based on a list of historical points.
      * @param history List of glucose points, ordered by time descending (newest first).
      * @param isMmol Whether the input values are in mmol/L (true) or mg/dL (false).
@@ -213,7 +251,7 @@ object TrendEngine {
 
         // Velocity: recency-weighted least-squares slope over the window, in mg/dL per
         // minute. The window comes from the sensor's cadence ([trendWindowMillis]) and the
-        // weighting from [DECAY_CADENCE_MULTIPLE]; a fit reads the trend rather than the
+        // weighting from [recencyWeightedSlope]; a fit reads the trend rather than the
         // jitter, and the weighting stops it averaging a fresh turn against the plateau it
         // just left.
         //
@@ -233,34 +271,9 @@ object TrendEngine {
             }
         }
 
-        // Recency-weighted least squares — see [DECAY_CADENCE_MULTIPLE]. Weights replace the
-        // plain point count in every sum, so with a flat weight of 1 this is exactly the
-        // unweighted fit.
-        val tauMinutes = DECAY_CADENCE_MULTIPLE * cadenceMinutes(validPoints)
-        val newestTs = validPoints.first().timestamp
-        var sw = 0.0
-        var sx = 0.0
-        var sy = 0.0
-        var sxy = 0.0
-        var sxx = 0.0
-        for (i in 0 until usable) {
-            val p = validPoints[i]
-            val xMinutes = (p.timestamp - newestTs) / 60000.0
-            val yMgdl = (pointValue(p) * conversionFactor).toDouble()
-            // xMinutes <= 0 going back, so this decays from 1 at the newest reading.
-            val w = Math.exp(xMinutes / tauMinutes)
-            sw += w
-            sx += w * xMinutes
-            sy += w * yMgdl
-            sxy += w * xMinutes * yMgdl
-            sxx += w * xMinutes * xMinutes
-        }
-        val denominator = sw * sxx - sx * sx
-        val velocity = if (usable >= 2 && denominator > 1e-6) {
-            ((sw * sxy - sx * sy) / denominator).toFloat()
-        } else {
-            0f
-        }
+        val velocity = recencyWeightedSlope(validPoints, usable) {
+            (pointValue(it) * conversionFactor).toDouble()
+        } ?: 0f
 
         // Acceleration: Compare velocity of first half vs second half of window
         // (Rough approximation)
@@ -274,6 +287,7 @@ object TrendEngine {
         // - Curves (Turns/Humps) -> Parabola fits well -> Low Noise
         // - Jitter/Wobble -> Poor fit -> High Noise
         
+        val newestTs = validPoints.first().timestamp
         val spanMillis = newestTs - validPoints.last().timestamp
         val noiseLevel2: Float = if (rawValueList.size >= 4 && spanMillis > 0L) { // Need at least 4 points for Variance (N > Order+1)
             val n = rawValueList.size
@@ -368,4 +382,3 @@ object TrendEngine {
         return TrendResult(stateFor(velocity), velocity, acceleration, 1.0f, noiseLevel)
     }
 }
-

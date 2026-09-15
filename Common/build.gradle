@@ -50,13 +50,18 @@ android {
     }
 
     defaultConfig {
+        // Ship ARM only. x86 and x86_64 are emulator and ChromeOS territory; on a phone app
+        // they were half the native payload for hardware nobody wears a sensor next to.
+        // armeabi-v7a stays: minSdk is 26, and 32-bit ARM handsets of that vintage are
+        // exactly what people leave plugged in as a dedicated CGM receiver.
+        //
         // Build for one architecture when asked: -PjugglucoAbi=arm64-v8a. A phone needs one
-        // of the four, and the other three are most of the download. Unset, nothing changes
-        // and the APK stays universal, which is what a release has to be.
-        if (project.hasProperty('jugglucoAbi')) {
-            ndk {
-                abiFilters(*project.property('jugglucoAbi').split(',').collect { it.trim() })
-            }
+        // of the two, and the other is most of what is left. The property replaces this list
+        // rather than narrowing it, so -PjugglucoAbi=x86_64 still builds an emulator APK.
+        ndk {
+            abiFilters(*(project.hasProperty('jugglucoAbi')
+                    ? project.property('jugglucoAbi').split(',').collect { it.trim() }
+                    : ['arm64-v8a', 'armeabi-v7a']))
         }
 
         applicationId = "tk.glucodata.ng"
@@ -384,6 +389,7 @@ dependencies {
     mobileImplementation "androidx.camera:camera-view:$cameraXVersion"
     mobileImplementation 'com.google.guava:guava:33.7.1-android'
     mobileImplementation 'com.google.mlkit:barcode-scanning:17.3.0'
+    mobileImplementation 'com.github.luben:zstd-jni:1.5.7-12@aar'
 
     // ---- wear ----
     wearImplementation 'androidx.activity:activity-ktx:1.13.0'
@@ -410,4 +416,5 @@ dependencies {
     // Unit tests
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20260814'
+    testImplementation 'com.github.luben:zstd-jni:1.5.7-12'
 }

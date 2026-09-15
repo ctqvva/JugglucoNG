@@ -2,18 +2,17 @@ package tk.glucodata.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,24 +20,31 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,21 +58,38 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.data.ExportCompression
 import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistoryExporter
+import tk.glucodata.data.ScheduledBackupConfig
+import tk.glucodata.data.ScheduledBackupIntegrityNotifier
+import tk.glucodata.data.ScheduledBackupSettings
+import tk.glucodata.data.ScheduledBackupWorker
+import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.ExpandableSettingsCard
+import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
 import java.util.ArrayList
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -238,6 +261,7 @@ fun ExportDataSettingsSheet(
     var includeHistory by rememberSaveable { mutableStateOf(true) }
     var includeCalibrations by rememberSaveable { mutableStateOf(true) }
     var historyDays by rememberSaveable { mutableStateOf<Long?>(90L) }
+    var compression by rememberSaveable { mutableStateOf(ExportCompression.GZIP) }
     var isExporting by remember { mutableStateOf(false) }
     var pendingRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
     var pendingCsvRequest by remember { mutableStateOf<ExportPackageExporter.ExportRequest?>(null) }
@@ -248,7 +272,8 @@ fun ExportDataSettingsSheet(
             includeSettings = includeSettings,
             includeHistory = includeHistory,
             includeCalibrations = includeCalibrations,
-            historyDays = if (includeHistory) historyDays else null
+            historyDays = if (includeHistory) historyDays else null,
+            compression = compression
         )
     }
 
@@ -342,9 +367,7 @@ fun ExportDataSettingsSheet(
         }
     }
 
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
+    fun exportPackageToUri(uri: Uri?) {
         val request = pendingRequest
         pendingRequest = null
         if (uri != null && request != null) {
@@ -358,6 +381,24 @@ fun ExportDataSettingsSheet(
                 }
             }
         }
+    }
+
+    val gzipSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.GZIP.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
+    val zstdSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.ZSTD.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
+    }
+
+    val jsonSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportCompression.NONE.mimeType)
+    ) { uri ->
+        exportPackageToUri(uri)
     }
 
     val csvLauncher = rememberLauncherForActivityResult(
@@ -402,10 +443,14 @@ fun ExportDataSettingsSheet(
             Toast.makeText(context, context.getString(R.string.export_nothing_selected), Toast.LENGTH_SHORT).show()
             return
         }
-        // Always save a single JSON package containing every selected section. The
-        // human-readable report stays available via its own button and via Share.
+        // Save one JSON package containing every selected section. The human-readable
+        // report stays available via its own button and via Share.
         pendingRequest = request
-        saveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        when (request.compression) {
+            ExportCompression.NONE -> jsonSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+            ExportCompression.GZIP -> gzipSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+            ExportCompression.ZSTD -> zstdSaveLauncher.launch(ExportPackageExporter.suggestedFileName(request))
+        }
     }
 
     fun shareExport() {
@@ -495,120 +540,62 @@ fun ExportDataSettingsSheet(
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { CompactSheetDragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        dragHandle = { CompactSheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text = stringResource(R.string.export_data_settings),
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-//
-//            FlowRow(
-//                horizontalArrangement = Arrangement.spacedBy(8.dp),
-//                verticalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//                FilterChip(
-//                    selected = allSelected,
-//                    onClick = {
-//                        includeSettings = true
-//                        includeHistory = true
-//                        includeCalibrations = true
-//                    },
-//                    label = { Text(stringResource(R.string.export_everything)) }
-//                )
-//                FilterChip(
-//                    selected = includeHistory && !includeSettings && !includeCalibrations,
-//                    onClick = {
-//                        includeSettings = false
-//                        includeHistory = true
-//                        includeCalibrations = false
-//                    },
-//                    label = { Text(stringResource(R.string.export_data)) }
-//                )
-//                FilterChip(
-//                    selected = includeSettings && !includeHistory && !includeCalibrations,
-//                    onClick = {
-//                        includeSettings = true
-//                        includeHistory = false
-//                        includeCalibrations = false
-//                    },
-//                    label = { Text(stringResource(R.string.settings)) }
-//                )
-//                FilterChip(
-//                    selected = includeCalibrations && !includeSettings && !includeHistory,
-//                    onClick = {
-//                        includeSettings = false
-//                        includeHistory = false
-//                        includeCalibrations = true
-//                    },
-//                    label = { Text(stringResource(R.string.calibrations)) }
-//                )
-//            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ExportContentRow(
-                    title = stringResource(R.string.settings),
-                    subtitle = stringResource(R.string.export_settings_desc),
-                    icon = Icons.Default.Settings,
-                    checked = includeSettings,
-                    onCheckedChange = { includeSettings = it }
-                )
-                ExportContentRow(
-                    title = stringResource(R.string.export_data),
-                    subtitle = stringResource(R.string.export_history_data_desc),
-                    icon = Icons.Default.History,
-                    checked = includeHistory,
-                    onCheckedChange = { includeHistory = it }
-                )
-                ExportContentRow(
-                    title = stringResource(R.string.calibrations),
-                    subtitle = stringResource(R.string.export_calibrations_desc),
-                    icon = Icons.Default.TrackChanges,
-                    checked = includeCalibrations,
-                    onCheckedChange = { includeCalibrations = it }
-                )
-            }
-
+            ExportContentRow(
+                title = stringResource(R.string.settings),
+                subtitle = stringResource(R.string.export_settings_desc),
+                icon = Icons.Default.Settings,
+                checked = includeSettings,
+                position = CardPosition.TOP,
+                onCheckedChange = { includeSettings = it }
+            )
+            ExportContentRow(
+                title = stringResource(R.string.export_data),
+                subtitle = stringResource(R.string.export_history_data_desc),
+                icon = Icons.Default.History,
+                checked = includeHistory,
+                position = CardPosition.MIDDLE,
+                onCheckedChange = { includeHistory = it }
+            )
+            ExportContentRow(
+                title = stringResource(R.string.calibrations),
+                subtitle = stringResource(R.string.export_calibrations_desc),
+                icon = Icons.Default.TrackChanges,
+                checked = includeCalibrations,
+                position = CardPosition.BOTTOM,
+                onCheckedChange = { includeCalibrations = it }
+            )
             if (includeHistory) {
-//                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-//                Text(
-//                    text = stringResource(R.string.export_range_title),
-//                    style = MaterialTheme.typography.titleSmall,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExportRangeChip(
-                        selected = historyDays == 30L,
-                        label = stringResource(R.string.export_range_30_days),
-                        onClick = { historyDays = 30L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == 90L,
-                        label = stringResource(R.string.export_range_90_days),
-                        onClick = { historyDays = 90L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == 365L,
-                        label = stringResource(R.string.export_range_365_days),
-                        onClick = { historyDays = 365L }
-                    )
-                    ExportRangeChip(
-                        selected = historyDays == null,
-                        label = stringResource(R.string.export_range_all),
-                        onClick = { historyDays = null }
-                    )
-                }
+                Spacer(Modifier.height(16.dp))
+                ExportChoiceGroup(
+                    options = listOf(30L, 90L, 365L, null),
+                    selected = historyDays,
+                    onSelected = { historyDays = it },
+                    labelText = { days ->
+                        when (days) {
+                            30L -> context.getString(R.string.export_range_30_days)
+                            90L -> context.getString(R.string.export_range_90_days)
+                            365L -> context.getString(R.string.export_range_365_days)
+                            else -> context.getString(R.string.export_range_all)
+                        }
+                    }
+                )
+                Spacer(Modifier.height(16.dp))
                 OutlinedButton(
                     onClick = ::exportCsv,
                     enabled = !isExporting,
@@ -622,6 +609,7 @@ fun ExportDataSettingsSheet(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.export_complete_csv))
                 }
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = ::exportReadableReport,
                     enabled = !isExporting,
@@ -636,6 +624,15 @@ fun ExportDataSettingsSheet(
                     Text(stringResource(R.string.export_readable_report))
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
+            ExportChoiceGroup(
+                options = listOf(ExportCompression.NONE, ExportCompression.GZIP, ExportCompression.ZSTD),
+                selected = compression,
+                onSelected = { compression = it },
+                labelText = { option -> context.getString(compressionLabel(option)) }
+            )
+            Spacer(Modifier.height(16.dp))
 
             if (isExporting) {
                 Box(
@@ -683,67 +680,467 @@ fun ExportDataSettingsSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScheduledBackupSettingsSheet(
+    onDismiss: () -> Unit,
+    sheetState: SheetState,
+    onConfigurationChanged: (ScheduledBackupConfig) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var config by remember { mutableStateOf(ScheduledBackupSettings.load(context)) }
+    var enableAfterFolderPick by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var retentionExpanded by rememberSaveable { mutableStateOf(false) }
+    var isRunningNow by remember { mutableStateOf(false) }
+    var isTestingBackup by remember { mutableStateOf(false) }
+    var backupTestMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
+    fun persist(updated: ScheduledBackupConfig) {
+        ScheduledBackupSettings.saveConfiguration(context, updated)
+        ScheduledBackupWorker.applyConfiguration(context, updated)
+        config = ScheduledBackupSettings.load(context)
+        onConfigurationChanged(config)
+    }
+
+    val folderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) {
+            enableAfterFolderPick = false
+            return@rememberLauncherForActivityResult
+        }
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val granted = runCatching {
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        }.isSuccess
+        if (!granted) {
+            enableAfterFolderPick = false
+            Toast.makeText(
+                context,
+                context.getString(R.string.scheduled_backup_folder_error),
+                Toast.LENGTH_LONG
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
+        val previous = config.destination
+        persist(config.copy(destination = uri, enabled = config.enabled || enableAfterFolderPick))
+        enableAfterFolderPick = false
+        if (previous != null && previous != uri) {
+            runCatching { context.contentResolver.releasePersistableUriPermission(previous, flags) }
+        }
+    }
+
+    fun runNow() {
+        if (config.destination == null || isRunningNow || isTestingBackup) return
+        isRunningNow = true
+        val workId = ScheduledBackupWorker.runNow(context)
+        Toast.makeText(context, context.getString(R.string.scheduled_backup_queued), Toast.LENGTH_SHORT).show()
+        scope.launch {
+            var terminalState: WorkInfo.State? = null
+            for (attempt in 0 until 240) {
+                val info = withContext(Dispatchers.IO) {
+                    WorkManager.getInstance(context).getWorkInfoById(workId).get()
+                }
+                if (info != null && info.state.isFinished) {
+                    terminalState = info.state
+                    break
+                }
+                delay(500)
+            }
+            config = ScheduledBackupSettings.load(context)
+            onConfigurationChanged(config)
+            isRunningNow = false
+            val message = when (terminalState) {
+                WorkInfo.State.SUCCEEDED -> R.string.scheduled_backup_run_success
+                WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> R.string.scheduled_backup_run_failed
+                else -> R.string.scheduled_backup_still_running
+            }
+            Toast.makeText(context, context.getString(message), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val backupTestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        isTestingBackup = true
+        scope.launch {
+            val result = ExportPackageExporter.validateBackup(context, uri)
+            backupTestMessage = result.fold(
+                onSuccess = { summary ->
+                    true to context.getString(
+                        R.string.scheduled_backup_test_success,
+                        summary.historyReadings,
+                        summary.journalEntries,
+                        summary.journalFoods,
+                        summary.insulinPresets,
+                        summary.calibrations,
+                        context.getString(
+                            if (summary.settingsIncluded) android.R.string.yes else android.R.string.no
+                        )
+                    )
+                },
+                onFailure = { error ->
+                    false to context.getString(
+                        R.string.scheduled_backup_test_failed,
+                        error.localizedMessage ?: context.getString(R.string.unknown_error)
+                    )
+                }
+            )
+            isTestingBackup = false
+        }
+    }
+
+    StableModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { CompactSheetDragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.scheduled_backup_title),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            config.integrityWarning?.let {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                stringResource(R.string.scheduled_backup_integrity_warning),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                stringResource(R.string.scheduled_backup_integrity_explanation),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    ScheduledBackupSettings.acknowledgeIntegrityWarning(context)
+                                    ScheduledBackupIntegrityNotifier.cancel(context)
+                                    config = ScheduledBackupSettings.load(context)
+                                    onConfigurationChanged(config)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .padding(top = 8.dp)
+                            ) {
+                                Text(stringResource(R.string.scheduled_backup_acknowledge))
+                            }
+                        }
+                    }
+                }
+            }
+
+            SettingsSwitchItem(
+                title = stringResource(R.string.scheduled_backup_enabled),
+                subtitle = stringResource(R.string.scheduled_backup_enabled_desc),
+                icon = Icons.Default.Backup,
+                iconTint = MaterialTheme.colorScheme.primary,
+                checked = config.enabled,
+                position = CardPosition.TOP,
+                onCheckedChange = { enabled ->
+                    if (enabled && config.destination == null) {
+                        enableAfterFolderPick = true
+                        folderLauncher.launch(null)
+                    } else {
+                        persist(config.copy(enabled = enabled))
+                    }
+                }
+            )
+            SettingsItem(
+                title = stringResource(R.string.scheduled_backup_folder),
+                subtitle = config.destination?.let(::backupFolderLabel)
+                    ?: stringResource(R.string.scheduled_backup_folder_none),
+                icon = Icons.Default.FolderOpen,
+                iconTint = MaterialTheme.colorScheme.primary,
+                position = CardPosition.MIDDLE,
+                onClick = { folderLauncher.launch(config.destination) }
+            )
+            SettingsItem(
+                title = stringResource(R.string.scheduled_backup_time),
+                subtitle = formatBackupTime(context, config.hour, config.minute),
+                icon = Icons.Default.Schedule,
+                iconTint = MaterialTheme.colorScheme.primary,
+                position = CardPosition.MIDDLE,
+                onClick = { showTimePicker = true }
+            )
+            ExpandableSettingsCard(
+                title = stringResource(R.string.scheduled_backup_retention),
+                summary = stringResource(
+                    R.string.scheduled_backup_retention_summary,
+                    config.dailyRetention,
+                    config.weeklyRetention,
+                    config.monthlyRetention
+                ),
+                icon = Icons.Default.History,
+                expanded = retentionExpanded,
+                onExpandedChange = { retentionExpanded = it },
+                position = CardPosition.BOTTOM
+            ) {
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_daily),
+                    selected = config.dailyRetention,
+                    onSelected = { persist(config.copy(dailyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_weekly),
+                    selected = config.weeklyRetention,
+                    onSelected = { persist(config.copy(weeklyRetention = it)) }
+                )
+                BackupRetentionRow(
+                    label = stringResource(R.string.scheduled_backup_monthly),
+                    selected = config.monthlyRetention,
+                    onSelected = { persist(config.copy(monthlyRetention = it)) }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            ExportChoiceGroup(
+                options = listOf(ExportCompression.GZIP, ExportCompression.ZSTD),
+                selected = config.compression,
+                onSelected = { persist(config.copy(compression = it)) },
+                labelText = { option -> context.getString(compressionLabel(option)) }
+            )
+
+            // Status is a caption, not a surface of its own: there is nothing to act on
+            // here beyond the buttons that follow.
+            Column(
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    if (config.lastSuccessAtMillis > 0L) {
+                        stringResource(
+                            R.string.scheduled_backup_last_success,
+                            java.text.DateFormat.getDateTimeInstance(
+                                java.text.DateFormat.MEDIUM,
+                                java.text.DateFormat.SHORT
+                            ).format(Date(config.lastSuccessAtMillis))
+                        )
+                    } else {
+                        stringResource(R.string.scheduled_backup_never)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                config.lastError?.let { error ->
+                    Text(
+                        stringResource(R.string.scheduled_backup_last_error, error),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            Button(
+                onClick = ::runNow,
+                enabled = config.destination != null && !isRunningNow && !isTestingBackup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isRunningNow) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduled_backup_run_now))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    backupTestLauncher.launch(
+                        arrayOf("application/json", "application/gzip", "application/zstd", "*/*")
+                    )
+                },
+                enabled = !isRunningNow && !isTestingBackup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isTestingBackup) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduled_backup_test))
+            }
+        }
+    }
+    if (showTimePicker) {
+        val pickerState = rememberTimePickerState(
+            initialHour = config.hour,
+            initialMinute = config.minute,
+            is24Hour = android.text.format.DateFormat.is24HourFormat(context)
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        persist(config.copy(hour = pickerState.hour, minute = pickerState.minute))
+                        showTimePicker = false
+                    }
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            text = { TimePicker(state = pickerState) }
+        )
+    }
+
+    backupTestMessage?.let { (success, message) ->
+        AlertDialog(
+            onDismissRequest = { backupTestMessage = null },
+            confirmButton = {
+                Button(onClick = { backupTestMessage = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            icon = {
+                Icon(
+                    if (success) Icons.Default.Backup else Icons.Default.Warning,
+                    contentDescription = null
+                )
+            },
+            title = { Text(stringResource(R.string.scheduled_backup_test)) },
+            text = { Text(message) }
+        )
+    }
+}
+
+@Composable
+private fun BackupRetentionRow(
+    label: String,
+    selected: Int,
+    onSelected: (Int) -> Unit
+) {
+    val options = ScheduledBackupSettings.retentionOptions
+    var index by remember(selected) {
+        mutableStateOf(options.indexOf(selected).coerceAtLeast(0).toFloat())
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = options[index.toInt().coerceIn(options.indices)].toString(),
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Slider(
+            value = index,
+            onValueChange = { index = it },
+            onValueChangeFinished = { onSelected(options[index.toInt().coerceIn(options.indices)]) },
+            valueRange = 0f..options.lastIndex.toFloat(),
+            steps = (options.size - 2).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+internal fun scheduledBackupSummary(config: ScheduledBackupConfig): String {
+    if (!config.enabled) return stringResource(R.string.scheduled_backup_desc_off)
+    val time = formatBackupTime(LocalContext.current, config.hour, config.minute)
+    return stringResource(
+        R.string.scheduled_backup_desc_on,
+        time,
+        config.dailyRetention,
+        config.weeklyRetention,
+        config.monthlyRetention
+    )
+}
+
+private fun backupFolderLabel(uri: Uri): String {
+    return runCatching {
+        Uri.decode(DocumentsContract.getTreeDocumentId(uri)).replace(':', '/')
+    }.getOrElse { uri.toString() }
+}
+
+private fun formatBackupTime(context: android.content.Context, hour: Int, minute: Int): String {
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+    }
+    return android.text.format.DateFormat.getTimeFormat(context).format(calendar.time)
+}
+
 @Composable
 private fun ExportContentRow(
     title: String,
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     checked: Boolean,
+    position: CardPosition,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Surface(
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconTint = MaterialTheme.colorScheme.primary,
+        position = position,
         onClick = { onCheckedChange(!checked) },
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
+        trailingContent = {
+            Checkbox(checked = checked, onCheckedChange = null)
         }
-    }
+    )
 }
 
 @Composable
-private fun ExportRangeChip(
-    selected: Boolean,
-    label: String,
-    onClick: () -> Unit
+private fun <T> ExportChoiceGroup(
+    options: List<T>,
+    selected: T,
+    onSelected: (T) -> Unit,
+    labelText: (T) -> String
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) }
+    ConnectedButtonGroup(
+        options = options,
+        selectedOption = selected,
+        onOptionSelected = onSelected,
+        label = {},
+        labelText = labelText,
+        modifier = Modifier.fillMaxWidth(),
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     )
+}
+
+private fun compressionLabel(option: ExportCompression): Int = when (option) {
+    ExportCompression.NONE -> R.string.export_compression_none
+    ExportCompression.GZIP -> R.string.export_compression_gzip
+    ExportCompression.ZSTD -> R.string.export_compression_zstd
 }

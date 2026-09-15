@@ -13,6 +13,16 @@ import java.util.UUID
 import java.util.Locale
 import kotlin.math.abs
 
+/** One decoded glucose field, keeping the wire parts so they can be logged. */
+data class ICanHealthGlucoseField(
+    /** High nibble of the field. Purpose unknown; constant per sensor. Not part of the value. */
+    val nibble: Int,
+    /** Unsigned 12-bit value exactly as it came off the wire, in hundredths of mmol/L. */
+    val mantissa: Int,
+    val glucoseMmolL: Float,
+    val glucoseMgdl: Float,
+)
+
 object ICanHealthConstants {
     // Precompiled once. These were built inline on every call, and because
     // SensorIdentity.matches -> managedMatches asks every driver adapter to
@@ -63,6 +73,18 @@ object ICanHealthConstants {
     /** CGM Status (Read) — time offset from session start */
     val CGM_STATUS: UUID = UUID.fromString("00002aa9-0000-1000-8000-00805f9b34fb")
 
+    /**
+     * CGM Feature (Read) — 3-byte feature bitfield, a type/sample-location byte, then the
+     * characteristic's own E2E-CRC (0xFFFF when that feature is absent).
+     *
+     * Bit 0 is Calibration Supported, bit 12 E2E-CRC Supported, bit 14 Multiple Sessions.
+     * iCGM-t6 answers 0x004001 with 0xFFFF: calibration yes, CRC no.
+     */
+    val CGM_FEATURE: UUID = UUID.fromString("00002aa8-0000-1000-8000-00805f9b34fb")
+
+    /** CGM Session Run Time (Read) — hours the sensor intends to run, from session start. */
+    val CGM_SESSION_RUN_TIME: UUID = UUID.fromString("00002aab-0000-1000-8000-00805f9b34fb")
+
     /** CGM Session Start Time (Read) — sensor activation time */
     val CGM_SESSION_START_TIME: UUID = UUID.fromString("00002aaa-0000-1000-8000-00805f9b34fb")
 
@@ -109,6 +131,44 @@ object ICanHealthConstants {
     // Keep iCan aligned with the native stream validator (<552 mg/dL). Values
     // above the normal display maximum still render as HI instead of no data.
     const val MAX_VALID_GLUCOSE_MGDL = 551f
+
+    // ---- Glucose field ----
+
+    /**
+     * Decode the 16-bit glucose field of a CGM measurement.
+     *
+     * The field splits into a 4-bit high nibble and a 12-bit value. The 12 bits are hundredths of
+     * mmol/L, verified against the vendor app's own database. What the nibble carries is not
+     * known: captures show it constant for the life of a sensor and different between sensors
+     * (0x1 on one i6, 0x0 on another), so it is neither an IEEE-11073 exponent nor a per-reading
+     * state. It is decoded out and reported for diagnosis, and deliberately not used for
+     * anything.
+     *
+     * Three call sites — the live frame, the SN history batch, and the encrypted history record —
+     * previously carried byte-identical copies of this arithmetic.
+     */
+    @JvmStatic
+    fun decodeGlucoseField(
+        low: Int,
+        high: Int,
+        directGlucoseEncoding: Boolean,
+    ): ICanHealthGlucoseField {
+        val lowByte = low and 0xFF
+        val highByte = high and 0xFF
+        val nibble = if (directGlucoseEncoding) 0 else (highByte ushr 4) and 0x0F
+        val mantissa = if (directGlucoseEncoding) {
+            lowByte or (highByte shl 8)
+        } else {
+            lowByte or ((highByte and 0x0F) shl 8)
+        }
+        val glucoseMmolL = mantissa / 100.0f
+        return ICanHealthGlucoseField(
+            nibble = nibble,
+            mantissa = mantissa,
+            glucoseMmolL = glucoseMmolL,
+            glucoseMgdl = glucoseMmolL * MMOL_TO_MGDL,
+        )
+    }
 
     private enum class BundledKeyFamily {
         OLD,

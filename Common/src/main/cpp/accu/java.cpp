@@ -91,9 +91,8 @@ jlong mkres(SensorGlucoseData *sens,uint32_t timsec,uint32_t eventTime, int min,
              sens->sensorerror=false;
              const int sensorindex=sens->sensorIndex;
              sensor *sensor=sensors->getsensor(sensorindex);
-             if(sensor->finished) {
-                    LOGGER("mkres %s finished was %d becomes 0\n", sens->showsensorname().data(), sensor->finished);
-                    sensor->finished=0;
+             if(sensor->finished && sensor->reactivateFromData()) {
+                    LOGGER("mkres %s finished becomes 0\n", sens->showsensorname().data());
                     backup->resensordata(sensorindex);
                     }
              res=glucoseback(eventTime,mgdL,change,sens);
@@ -218,9 +217,8 @@ extern "C" JNIEXPORT jlong JNICALL   fromjava(accuProcessData)(JNIEnv *env, jcla
          sens->sensorerror=false;
          const int sensorindex=sdata->sensorindex;
          sensor *sensor=sensors->getsensor(sensorindex);
-         if(sensor->finished) {
-                LOGGER("accuProcessData finished was %d becomes 0\n", sensor->finished);
-                sensor->finished=0;
+         if(sensor->finished && sensor->reactivateFromData()) {
+                LOGSTRING("accuProcessData finished becomes 0\n");
                 backup->resensordata(sensorindex);
                 }
          res=glucoseback(eventTime,mgdL,change,sens);

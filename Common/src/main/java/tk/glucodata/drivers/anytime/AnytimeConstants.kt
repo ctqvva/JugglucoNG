@@ -480,6 +480,16 @@ object AnytimeConstants {
     const val PREF_LAST_GLUCOSE_ID_PREFIX = "anytime_last_id_"
     const val PREF_SENSOR_START_AT_PREFIX = "anytime_started_at_"
     const val PREF_WARMUP_STARTED_AT_PREFIX = "anytime_warmup_at_"
+
+    /**
+     * Start of the glucose-id timeline: the wall-clock time id 0 would have had.
+     *
+     * Persisted separately from PREF_SENSOR_START_AT_PREFIX because the two answer
+     * different questions. The sensor start is a display value the check frame can
+     * also supply; this one records that a timeline anchor already exists, which is
+     * what keeps a repeated live id from re-anchoring the session after a restart.
+     */
+    const val PREF_TIMELINE_START_AT_PREFIX = "anytime_timeline_at_"
     const val PREF_VOLTAGE_PREFIX = "anytime_voltage_"
     const val PREF_DEVICE_NAME_PREFIX = "anytime_device_name_"
     const val PREF_TRANSMITTER_VERSION_PREFIX = "anytime_tx_version_"

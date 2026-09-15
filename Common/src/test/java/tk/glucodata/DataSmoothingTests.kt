@@ -195,8 +195,13 @@ class DataSmoothingTests {
     }
 
     @Test
-    fun shouldCollapseExchangeOutputsRequiresEffectiveExchangeSmoothing() {
-        assertFalse(
+    fun shouldCollapseExchangeOutputsPullsExchangeSmoothingBackInUnderGraphOnly() {
+        // "Collapse" is defined as keeping one *smoothed* reading per interval, so turning
+        // it on for exchange overrides "graph only" instead of leaving it a no-op: there is
+        // no smoothed reading to collapse to otherwise, which used to mean xDrip/WearInt/
+        // Gadgetbridge/the outbound API kept sending an unthrottled raw reading every minute
+        // whenever "graph only" was set alongside "collapse".
+        assertTrue(
             DataSmoothing.shouldCollapseExchangeOutputs(
                 smoothingMinutes = 5,
                 graphOnly = true,
@@ -223,12 +228,44 @@ class DataSmoothingTests {
             )
         )
 
+        // Without "collapse" itself on, "graph only" still switches exchange smoothing off.
+        assertFalse(
+            DataSmoothing.shouldCollapseExchangeOutputs(
+                smoothingMinutes = 5,
+                graphOnly = true,
+                exchangeOutputsOnly = false,
+                collapseChunks = false
+            )
+        )
+
         assertFalse(
             DataSmoothing.shouldCollapseExchangeOutputs(
                 smoothingMinutes = 5,
                 graphOnly = false,
                 exchangeOutputsOnly = false,
                 collapseChunks = false
+            )
+        )
+    }
+
+    @Test
+    fun exchangeSmoothingMinutesIsPulledBackInByCollapseUnderGraphOnly() {
+        assertEquals(
+            0,
+            DataSmoothing.exchangeSmoothingMinutes(
+                smoothingMinutes = 5,
+                graphOnly = true,
+                exchangeOutputsOnly = false
+            )
+        )
+
+        assertEquals(
+            5,
+            DataSmoothing.exchangeSmoothingMinutes(
+                smoothingMinutes = 5,
+                graphOnly = true,
+                exchangeOutputsOnly = false,
+                collapseChunks = true
             )
         )
     }

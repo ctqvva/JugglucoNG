@@ -46,6 +46,24 @@ class ManagedSensorHandoffCoverageTests {
     }
 
     @Test
+    fun aidexPairKeyTravelsSoTheWatchCanStreamUnbonded() {
+        // The vault keys by canonical bare serial; a stored "X-<serial>" must still line up.
+        assertTrue(
+            ManagedSensorHandoff.exportsPairKeyEntryForSensor("pairKey_v1_$serial", "X-$serial"),
+        )
+        assertTrue(
+            ManagedSensorHandoff.exportsPairKeyEntryForSensor("pairKey_v1_$serial", serial),
+        )
+        // Another sensor's key, and a stray entry, stay put.
+        assertFalse(
+            ManagedSensorHandoff.exportsPairKeyEntryForSensor("pairKey_v1_OTHER123", serial),
+        )
+        assertFalse(
+            ManagedSensorHandoff.exportsPairKeyEntryForSensor("some_other_key", serial),
+        )
+    }
+
+    @Test
     fun unrelatedSettingsStayOnTheDeviceThatOwnsThem() {
         // Only per-sensor state travels: app-wide preferences belong to the
         // device they were set on.

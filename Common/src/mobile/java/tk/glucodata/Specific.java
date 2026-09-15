@@ -43,6 +43,9 @@ public class Specific {
 		registerBridges();
 		watchdrip.set(Natives.getwatchdrip());
 		SuperGattCallback.doGadgetbridge = Natives.getgadgetbridge();
+		// Re-arm the nightly backup chain from process start, not only from the
+		// settings screen: a chain that died stays dead until someone re-enqueues it.
+		tk.glucodata.data.ScheduledBackupWorker.initialize(context);
 	}
 
 	static void splash(Object act) {
