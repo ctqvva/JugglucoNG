@@ -29,15 +29,19 @@ import static tk.glucodata.Log.showbytes;
 import android.nfc.Tag;
 
 import tk.glucodata.AlgNfcV;
+import tk.glucodata.Applic;
 import tk.glucodata.Libre3NfcSettings;
 import tk.glucodata.Log;
 import tk.glucodata.Natives;
+import tk.glucodata.R;
 
 
 public class NFC {
 
 
 private static final String LOG_ID="NFC";
+private static final int SOURCE_ACTIVATION = 0;
+private static final int ESTABLISHED_ACTIVATION_FALLBACK = 1;
 public static	long   	second(byte[] nfc1,Tag tag) {
 	long nowsec=(long)Math.round(System.currentTimeMillis()/1000.0);
 //	long nowsec=Natives.getLibre3secs(nfc1);
@@ -45,7 +49,11 @@ public static	long   	second(byte[] nfc1,Tag tag) {
 	long accountId=getlibreAccountIDnumber();
 	{if(doLog) {Log.i(LOG_ID,"accountId="+accountId);};};
 	byte[] metcrc=new byte[10];// 8C 42 86 62 8D 6D 41 1F BC 93
-	if(Natives.startTimeIDsum(metcrc, nowsec, accountId) != 0) {
+	final int activationResult=Natives.startTimeIDsum(metcrc, nowsec, accountId);
+	if(activationResult == ESTABLISHED_ACTIVATION_FALLBACK) {
+		Applic.Toaster(R.string.libre3_activation_legacy_fallback);
+		}
+	else if(activationResult != SOURCE_ACTIVATION) {
 		Log.e(LOG_ID, "startTimeIDsum failed");
 		return 0L;
 		}
