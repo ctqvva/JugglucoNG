@@ -2351,7 +2351,14 @@ class AnytimeBleManager(
                 // Android can report STATE_CONNECTED but never deliver MTU callback.
                 // Start service discovery shortly anyway, and retry if discoverServices()
                 // returns false instead of waiting for the watchdog loop.
-                handler.postDelayed({ discoverServicesOrRetry(gatt, "connected-fallback") }, 350L)
+                // EXCEPTION: CT3_ULTRASONIC chips wedge if discoverServices is issued
+                // before onMtuChanged completes. For Ultrasonic, wait for onMtuChanged
+                // or use a longer fallback (3000ms).
+                if (familyEntry.family == AnytimeConstants.Family.CT3_ULTRASONIC) {
+                    handler.postDelayed({ discoverServicesOrRetry(gatt, "ultrasonic-mtu-fallback") }, 3000L)
+                } else {
+                    handler.postDelayed({ discoverServicesOrRetry(gatt, "connected-fallback") }, 350L)
+                }
                 handler.postDelayed(serviceDiscoveryWatchdog, SERVICE_DISCOVERY_TIMEOUT_MS)
                 UiRefreshBus.requestStatusRefresh()
             }
