@@ -21,10 +21,12 @@
 //
 // Live mode parses only the LAST record; history parses all records.
 //
-// The record size is NOT re-decided per payload once the driver has learned it. A
-// minute live notify is header + one 9-byte record + padding, which is also a valid
-// length for two 8-byte records, and one record is not enough evidence to tell them
-// apart. See chooseRecordSize/decisiveRecordSize.
+// The record size is NOT re-guessed from content per payload once the driver has learned
+// it. A minute live notify is header + one 9-byte record + padding, which is also a valid
+// length for two 8-byte records, and one record is not enough content evidence to tell
+// them apart. It IS re-derived every payload from the sensor's own frontDataNo advance,
+// which a lone record can prove outright — see chooseRecordSize/decisiveRecordSize and
+// frontDeltaRecordSize.
 
 package tk.glucodata.drivers.ottai
 
@@ -83,27 +85,66 @@ object OttaiParser {
      * rejected, and the real sample in record[0] went unexamined. Fourteen consecutive
      * minutes were lost that way while the sensor was connected and talking.
      *
-     * So [learned] wins over the guess: once [decisiveRecordSize] has settled the layout from
-     * a payload that could actually settle it, a short frame consumes that answer rather than
-     * voting again. The version string still outranks both — a confirmed family is not a
-     * guess at all.
+     * Two things can settle it ahead of that guess. [frontDeltaRecordSize] wins first: the
+     * sensor's own dataNo advance from [previousFront] into this payload is ground truth,
+     * proven fresh on every single frame — including the one-record frame above, which never
+     * has enough content to prove anything on its own. Failing that, [learned] wins over the
+     * guess: once [decisiveRecordSize] has settled the layout from a payload that could
+     * actually settle it (a confirmed version, a frontDelta proof, or a lopsided vote on a
+     * page with enough records), a short frame consumes that held answer rather than voting
+     * again. The version string still outranks both — a confirmed family is not a guess at all.
      */
     internal fun chooseRecordSize(
         payload: ByteArray,
         deviceVersion: String,
+        previousFront: Int? = null,
         learned: Int? = null,
     ): Int {
         confirmedRecordSize(deviceVersion)?.let { return it }
+        frontDeltaRecordSize(payload, previousFront)?.let { return it }
         learned?.takeIf { it == BLE_RECORD_SIZE || it == BLE_RECORD_SIZE_E12 }?.let { return it }
         val (nine, eight) = recordSizeEvidence(payload)
         return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
     }
 
     /**
-     * Vendor-valid record counts for a payload read as 9-byte and as 8-byte, in that order.
+     * The record size this payload's advance from [previousFront] proves it holds exactly one
+     * of, or null when [previousFront] is unknown or the advance isn't exactly 1.
      *
-     * Exposed so the decision, the "is this decisive" test and the driver's diagnostics all
-     * read one computation instead of three that could drift.
+     * A lone-record live notify can't outvote its own padding by content: a 24-byte notify —
+     * header, one 9-byte record, seven pad bytes — is also exactly a header plus two 8-byte
+     * records, so [recordSizeEvidence]'s vote alone ties to 8-byte and decodes the padding as a
+     * second, all-zero record that then fails every downstream sanity gate. But frontDataNo
+     * counts records the sensor has *generated*, and when it has advanced by exactly 1 since
+     * the payload before this one, that can only mean one real record and zero skipped
+     * notifies — the sensor cannot report "+1" for any other reason. Whichever candidate size
+     * implies exactly one record for this payload's length is then the real one, no vote needed.
+     *
+     * Any other delta is not trusted, however tidy the arithmetic looks: a delta of 2 could
+     * just as well be one real record plus one live notify a brief disconnect dropped in
+     * between, which this payload's own bytes can never distinguish from two real records — and
+     * on a 16-byte body, that skip reads as eightCount(2), silently flipping a genuinely 9-byte
+     * sensor to 8-byte (and, since [decisiveRecordSize] trusts this same check, persisting that
+     * wrong answer over an already-correct learned one). Only a delta of exactly 1 rules that
+     * out categorically, which is why larger deltas are left to the vote instead.
+     */
+    internal fun frontDeltaRecordSize(payload: ByteArray, previousFront: Int?): Int? {
+        val bodyLen = payload.size - HEADER_SIZE
+        if (previousFront == null || bodyLen <= 0) return null
+        val delta = (frontDataNo(payload) - previousFront) and 0xFFFF
+        if (delta != 1) return null
+        val nineCount = bodyLen / BLE_RECORD_SIZE_E12
+        val eightCount = bodyLen / BLE_RECORD_SIZE
+        if (nineCount == 1 && eightCount != 1) return BLE_RECORD_SIZE_E12
+        if (eightCount == 1 && nineCount != 1) return BLE_RECORD_SIZE
+        return null
+    }
+
+    /**
+     * Vendor-valid record counts (a1.a.b) for this payload read as 9-byte and as 8-byte, in
+     * that order — the same evidence [chooseRecordSize]'s fallback vote decides on, exposed so
+     * the decision, the "is this decisive" test and the driver's diagnostics all read one
+     * computation instead of several that could drift.
      */
     internal fun recordSizeEvidence(payload: ByteArray): Pair<Int, Int> = Pair(
         vendorValidCount(payload, BLE_RECORD_SIZE_E12, curLo = 0, tempLo = 7),
@@ -123,13 +164,18 @@ object OttaiParser {
     /**
      * The layout this payload can prove, or null when it cannot prove one.
      *
-     * A confirmed version string proves it without looking at content. Otherwise the winner
-     * must have at least [MIN_DECISIVE_RECORDS] vendor-valid records and lead by
+     * A confirmed version string proves it without looking at content, and so does the
+     * sensor's own frontDataNo advance across [previousFront] into this payload (see
+     * [frontDeltaRecordSize]) — it's stronger than the content vote below since it's the
+     * sensor's own count rather than a read of bytes it may not have filled in yet, and it
+     * can prove a layout from a single-record frame the vote never could. Failing both, the
+     * winner must have at least [MIN_DECISIVE_RECORDS] vendor-valid records and lead by
      * [DECISIVE_MARGIN], which a minute live notify can never do and a history page or a
      * nine-record live read always does.
      */
-    internal fun decisiveRecordSize(payload: ByteArray, deviceVersion: String): Int? {
+    internal fun decisiveRecordSize(payload: ByteArray, deviceVersion: String, previousFront: Int? = null): Int? {
         confirmedRecordSize(deviceVersion)?.let { return it }
+        frontDeltaRecordSize(payload, previousFront)?.let { return it }
         val (nine, eight) = recordSizeEvidence(payload)
         return when {
             nine >= MIN_DECISIVE_RECORDS && nine - eight >= DECISIVE_MARGIN -> BLE_RECORD_SIZE_E12
@@ -188,11 +234,12 @@ object OttaiParser {
     fun frameRecords(
         payload: ByteArray,
         deviceVersion: String = "",
+        previousFront: Int? = null,
         learned: Int? = null,
     ): List<ByteArray> {
         if (payload.size <= HEADER_SIZE) return emptyList()
         val front = frontDataNo(payload)
-        val bleSize = chooseRecordSize(payload, deviceVersion, learned)
+        val bleSize = chooseRecordSize(payload, deviceVersion, previousFront, learned)
         val nineByte = bleSize == BLE_RECORD_SIZE_E12
         val bodyLen = payload.size - HEADER_SIZE
         val count = bodyLen / bleSize

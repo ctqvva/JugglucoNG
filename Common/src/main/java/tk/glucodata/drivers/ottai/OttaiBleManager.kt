@@ -907,6 +907,12 @@ class OttaiBleManager(
     // sample is admitted and re-baselines the gate.
     @Volatile private var consecutiveContinuityRejects = 0
     @Volatile private var lastDataNo = -1
+    // frontDataNo of the last decrypted notify (live or history alike — one counter), used to
+    // settle chooseRecordSize's 8-vs-9-byte vote from the sensor's own advance rather than a
+    // content guess. -1 until known; restoreFromPersistence seeds it from the persisted
+    // lastDataNo (same counter) so a fresh connection after an app restart already has ground
+    // truth on its first payload too, not just from its second one on.
+    @Volatile private var lastFrameFront = -1
     @Volatile private var consecutiveCeilingFullDrops = 0
     @Volatile private var ceilingDistrusted = false
     // Set when the bounded wait for a fresh advertisement gave up. connectDevice()'s
@@ -1073,6 +1079,11 @@ class OttaiBleManager(
         authKeys = materials.authKeys
         activatedMaxActiveMs = OttaiRegistry.loadAcceptedMaxActive(context, id)
         lastDataNo = OttaiRegistry.loadLastDataNo(context, id)
+        // frontDataNo and lastDataNo are the same counter (see chooseRecordSize's doc), so this
+        // is a real seed, not a guess: it closes the one gap the front-delta tie-break still had
+        // — the very first payload of a fresh connection after an app restart, before this
+        // process has decrypted anything itself to learn the counter from directly.
+        lastFrameFront = lastDataNo.takeIf { it > 0 } ?: -1
         learnedRecordSize = OttaiRegistry.loadRecordSize(context, id)
         synchronized(historyHolesLock) {
             historyHoles.clear()
@@ -2902,9 +2913,9 @@ class OttaiBleManager(
      * Printing the evidence counts on disagreement makes the next trace answer that directly.
      * Logged once per run of disagreement so a persistently odd sensor cannot flood the log.
      */
-    private fun learnRecordSize(payload: ByteArray) {
+    private fun learnRecordSize(payload: ByteArray, previousFront: Int?) {
         val id = SerialNumber ?: return
-        val decisive = OttaiParser.decisiveRecordSize(payload, materials.deviceVersion)
+        val decisive = OttaiParser.decisiveRecordSize(payload, materials.deviceVersion, previousFront)
         if (decisive != null) {
             recordSizeDisagreementLogged = false
             if (decisive != learnedRecordSize) {
@@ -2946,8 +2957,12 @@ class OttaiBleManager(
             Log.w(TAG, "$kind $source decrypt failed len=${cipher.size} blockMod=${cipher.size % 16}")
             return
         }
-        learnRecordSize(payload)
-        val records = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
+        val front = OttaiParser.frontDataNo(payload)
+        val previousFront = lastFrameFront.takeIf { it >= 0 }
+        val frontDeltaSize = OttaiParser.frontDeltaRecordSize(payload, previousFront)
+        learnRecordSize(payload, previousFront)
+        val records = OttaiParser.frameRecords(payload, materials.deviceVersion, previousFront, heldRecordSize())
+        lastFrameFront = front
         if (records.isEmpty()) {
             Log.w(TAG, "$kind $source no records payloadLen=${payload.size} hex=${OttaiCrypto.bytesToHex(payload).take(160)}")
             if (live) {
@@ -2966,7 +2981,17 @@ class OttaiBleManager(
             }
             return
         }
-        logi(TAG) { "$kind $source decrypted payloadLen=${payload.size} records=${records.size} front=${OttaiParser.frontDataNo(payload)}" }
+        logi(TAG) {
+            val by = when {
+                frontDeltaSize != null -> "frontDelta=$frontDeltaSize"
+                heldRecordSize() != null -> "learned=${heldRecordSize()}"
+                else -> {
+                    val (nine, eight) = OttaiParser.recordSizeEvidence(payload)
+                    "vote(nine=$nine,eight=$eight)"
+                }
+            }
+            "$kind $source decrypted payloadLen=${payload.size} records=${records.size} front=$front recordSizeBy=$by"
+        }
         val readings = if (live) {
             listOf(OttaiParser.toReading(records.last(), materials.method, materials.coefficients, activeMs))
         } else {
@@ -3050,9 +3075,11 @@ class OttaiBleManager(
             Log.w(TAG, "ended live $source decrypt failed len=${cipher.size}")
             return
         }
-        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
+        val previousFront = lastFrameFront.takeIf { it >= 0 }
+        val latest = OttaiParser.frameRecords(payload, materials.deviceVersion, previousFront, heldRecordSize())
             .map(OttaiParser::parseRecord)
             .maxByOrNull { it.dataNo }
+        lastFrameFront = OttaiParser.frontDataNo(payload)
         if (latest == null) {
             Log.w(TAG, "ended live $source has no records")
             return
