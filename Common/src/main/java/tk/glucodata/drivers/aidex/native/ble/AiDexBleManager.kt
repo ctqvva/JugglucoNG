@@ -66,17 +66,35 @@ internal fun aiDexDeviceNameMatchesSerial(deviceName: String, serialNumber: Stri
 internal fun aiDexPairingKeyProblemStatusRes(usedSavedKey: Boolean): Int =
     if (usedSavedKey) R.string.aidex_key_rejected else R.string.aidex_key_missing
 /**
+ * Brand words MicroTech sells the same GX-series hardware under, plus the bare "CGM"/"sensor"
+ * generic. All of them belong in the card's family chip, never the title — so the title loop
+ * below strips every leading one ("Wellion AiDEX …" loses both words) and whatever remains
+ * (normally the "X-…" serial) is the title.
+ */
+private val AIDEX_TITLE_PREFIX = Regex(
+    "^(?:aidex|linx|glucorx|vista|lumiflex|lumi|diax?expert|wellion|cgm|sensors?)(?:[\\s_\\-]+|$)",
+    RegexOption.IGNORE_CASE,
+)
+
+/**
  * Pick the name a sensor card should be titled with.
  *
- * The advertised BLE name ("AiDEX X-2222267V4E") is preferred when the stack has seen one.
- * [SuperGattCallback.mygetDeviceName] otherwise falls back to the MAC address and then "?",
- * both of which are populated before the first connect attempt and neither of which is a
- * sensor name; those collapse to the serial instead.
+ * The card already carries the family chip, so brand words the sensor advertises
+ * ("AiDEX X-2222267V4E") are dropped from the title the same way Sibionics strips its managed
+ * prefix; "X-2222267V4E" is what remains. [SuperGattCallback.mygetDeviceName] falls back to
+ * the MAC address and then "?" before the first connect attempt — neither is a sensor name,
+ * so those collapse to the serial instead.
  */
 internal fun aiDexDisplayName(advertisedName: String?, deviceAddress: String?, serialNumber: String): String {
     val name = advertisedName?.trim().orEmpty()
     if (name.isEmpty() || name == "?" || name.equals(deviceAddress, ignoreCase = true)) return serialNumber
-    return name
+    var stripped = name
+    while (true) {
+        val next = stripped.replace(AIDEX_TITLE_PREFIX, "").trim()
+        if (next == stripped) break
+        stripped = next
+    }
+    return stripped.ifEmpty { serialNumber }
 }
 
 internal fun aiDexExtractLocalName(scanRecord: ByteArray): String? {
@@ -2976,8 +2994,9 @@ class AiDexBleManager(
      * does not rename storage or native sensor identity while a sensor is active.
      */
     private fun maybeUseAdvertisedProtocolSerial() {
+        // Raw stack name, not the display override: protocol identity must not depend on title logic.
         val advertisedName = try {
-            mygetDeviceName()
+            super.mygetDeviceName()
         } catch (_: Throwable) {
             null
         }
