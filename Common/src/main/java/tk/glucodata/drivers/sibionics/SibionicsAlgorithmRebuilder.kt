@@ -88,6 +88,7 @@ internal object SibionicsAlgorithmRebuilder {
             check(it.restore(stockContext.snapshot())) { "could not transfer exact algorithm state" }
         }
         val readings = ArrayList<SibionicsRebuiltReading>(validSources.size)
+        val referenceShifts = ArrayList<Pair<Int, Float>>()
         validSources.forEachIndexed { index, sample ->
             val calibrated = calibratedDisplay[index]
             val preparedMmol = if (calibrated.isFinite() && calibrated > 0f) {
@@ -112,6 +113,10 @@ internal object SibionicsAlgorithmRebuilder {
             )
             val displayMgdl = displayMmol * SibionicsConstants.MGDL_PER_MMOLL
             if (SibionicsConstants.isValidAlgorithmGlucoseMgdl(displayMgdl)) {
+                val shiftMmol = rebuiltContext.latestReferenceShiftMmol()
+                if (shiftMmol != 0f && shiftMmol.isFinite()) {
+                    referenceShifts += readings.size to shiftMmol * SibionicsConstants.MGDL_PER_MMOLL
+                }
                 readings += SibionicsRebuiltReading(
                     sampleMs = sample.timestampMs,
                     glucoseMgdl = displayMgdl,
@@ -124,8 +129,46 @@ internal object SibionicsAlgorithmRebuilder {
                 )
             }
         }
+        blendReferenceShiftsBackward(readings, referenceShifts)
         return SibionicsReplayResult(rebuiltContext, readings, sourceSamples)
     }
+
+    /**
+     * Eases each fingerstick's correction into the minutes before it.
+     *
+     * The estimator applies a reference at the sample it belongs to, so a
+     * replay puts the whole correction on one minute and the line steps there.
+     * The app's own calibration ramps in over the half hour before a stick
+     * rather than stepping (`CalibrationMath.applyPastPolicy`); the replayed
+     * line does the same, so a stick looks the same whichever calibration
+     * produced it. Nothing before the ramp moves: the sensor's earlier number
+     * stands until a stick says otherwise, as it does for every other sensor.
+     */
+    internal fun blendReferenceShiftsBackward(
+        readings: MutableList<SibionicsRebuiltReading>,
+        shifts: List<Pair<Int, Float>>,
+        windowMs: Long = REFERENCE_BLEND_WINDOW_MS,
+    ) {
+        if (shifts.isEmpty() || windowMs <= 0L) return
+        for ((at, shiftMgdl) in shifts) {
+            val stickMs = readings[at].sampleMs
+            var index = at - 1
+            while (index >= 0) {
+                val reading = readings[index]
+                val before = stickMs - reading.sampleMs
+                if (before >= windowMs) break
+                val weight = 1f - before.toFloat() / windowMs
+                val eased = reading.glucoseMgdl + shiftMgdl * weight
+                if (SibionicsConstants.isValidAlgorithmGlucoseMgdl(eased)) {
+                    readings[index] = reading.copy(glucoseMgdl = eased)
+                }
+                index--
+            }
+        }
+    }
+
+    /** Matches the app calibration's own ramp before a first fingerstick. */
+    internal const val REFERENCE_BLEND_WINDOW_MS = 30L * 60L * 1000L
 
     fun calibrationBaselineAtAnchors(
         displayStock: FloatArray,

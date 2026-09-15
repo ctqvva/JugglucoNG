@@ -460,7 +460,7 @@ class AdaptiveV2EstimatorTest {
     // ── Calibration anchors ────────────────────────────────────────────────
 
     @Test
-    fun calibrationAnchorMovesThePosteriorAndContractsUncertainty() {
+    fun calibrationAnchorMovesThePosteriorMostOfTheWay() {
         val context = context()
         val before = context.settle(level = 6f, samples = 220, noise = 0.06f)!!
 
@@ -471,19 +471,59 @@ class AdaptiveV2EstimatorTest {
             references = listOf(AdaptiveV2Reference(6.8f, timestamp)),
         )!!
 
+        // Most of the way to the stick — a fingerstick is the one observation
+        // that can identify the calibration, and it is obeyed as such — but
+        // not teleported onto it: the stick has its own error.
         assertTrue(
             "before=${before.glucoseMmol} after=${after.glucoseMmol}",
-            after.glucoseMmol > before.glucoseMmol,
+            after.glucoseMmol > before.glucoseMmol + 0.6f,
         )
-        // Moves toward the anchor, but is not teleported onto it.
         assertTrue("after=${after.glucoseMmol}", after.glucoseMmol < 6.8f)
+        // The level is now known to about a fingerstick's error along the
+        // calibration directions, which the interval reports honestly: it may
+        // widen a little, and must not explode.
         val beforeWidth = before.upper90Mmol - before.lower90Mmol
         val afterWidth = after.upper90Mmol - after.lower90Mmol
-        assertTrue("before=$beforeWidth after=$afterWidth", afterWidth < beforeWidth)
+        assertTrue("before=$beforeWidth after=$afterWidth", afterWidth < beforeWidth + 0.6f)
     }
 
     @Test
-    fun anAbsurdCalibrationAnchorIsRobustlyDownWeighted() {
+    fun aFingerstickIsObeyedInBothDirectionsAndHolds() {
+        for (stick in listOf(6.9f, 5.1f)) {
+            val context = context()
+            context.settle(level = 6f, samples = 300, noise = 0.03f)
+            val timestamp = (START_INDEX + 300) * 60_000L
+            val at = context.feed(START_INDEX + 300, 6f, references = listOf(AdaptiveV2Reference(stick, timestamp)))!!
+            var held = at
+            repeat(240) { offset -> held = context.feed(START_INDEX + 301 + offset, 6f)!! }
+            val move = stick - 6f
+            // ≥ 80% of the way at the stick, and still ≥ 75% four hours later
+            // with the sensor reading 6.0 the whole time.
+            assertTrue("stick=$stick at=${at.glucoseMmol}", abs(at.glucoseMmol - 6f) >= 0.8f * abs(move))
+            assertTrue("stick=$stick held=${held.glucoseMmol}", abs(held.glucoseMmol - 6f) >= 0.75f * abs(move))
+            assertTrue("stick=$stick at=${at.glucoseMmol}", (at.glucoseMmol - 6f) * move > 0f)
+        }
+    }
+
+    @Test
+    fun aSecondConsistentFingerstickClosesTheRemainingGap() {
+        val context = context()
+        context.settle(level = 6f, samples = 300, noise = 0.03f)
+        val first = context.feed(
+            START_INDEX + 300, 6f,
+            references = listOf(AdaptiveV2Reference(7f, (START_INDEX + 300) * 60_000L)),
+        )!!
+        repeat(59) { offset -> context.feed(START_INDEX + 301 + offset, 6f) }
+        val second = context.feed(
+            START_INDEX + 360, 6f,
+            references = listOf(AdaptiveV2Reference(7f, (START_INDEX + 360) * 60_000L)),
+        )!!
+        assertTrue("first=${first.glucoseMmol} second=${second.glucoseMmol}", second.glucoseMmol > first.glucoseMmol)
+        assertTrue("second=${second.glucoseMmol}", second.glucoseMmol > 6.85f)
+    }
+
+    @Test
+    fun anAbsurdCalibrationAnchorIsBoundedByWhatASensorCanBeWrongBy() {
         val context = context()
         val before = context.settle(level = 6f, samples = 220, noise = 0.06f)!!
 
@@ -493,11 +533,37 @@ class AdaptiveV2EstimatorTest {
             6f,
             references = listOf(AdaptiveV2Reference(19f, timestamp)),
         )!!
+        var settled = after
+        repeat(10) { offset -> settled = context.feed(START_INDEX + 221 + offset, 6f)!! }
 
+        // It moves — the user said so — but a sensor reading 6 when blood is 19
+        // is not mis-calibrated, it is not measuring glucose, and the sensor
+        // states are clamped at what a real sensor can be wrong by. So the
+        // level goes as far as that envelope allows and no further.
         assertTrue(
             "before=${before.glucoseMmol} after=${after.glucoseMmol}",
-            after.glucoseMmol - before.glucoseMmol < 1.5f,
+            after.glucoseMmol > before.glucoseMmol + 1f,
         )
+        assertTrue("after=${after.glucoseMmol}", after.glucoseMmol < 12f)
+        // And it stays there: no one-minute spike that the next observation
+        // snaps back from.
+        assertTrue(
+            "after=${after.glucoseMmol} settled=${settled.glucoseMmol}",
+            abs(settled.glucoseMmol - after.glucoseMmol) < 0.4f,
+        )
+    }
+
+    @Test
+    fun theReferenceShiftReportsHowFarTheStickMovedTheLevel() {
+        val context = context()
+        val before = context.settle(level = 6f, samples = 300, noise = 0.03f)!!
+        val timestamp = (START_INDEX + 300) * 60_000L
+        val at = context.feed(START_INDEX + 300, 6f, references = listOf(AdaptiveV2Reference(6.9f, timestamp)))!!
+        val shift = context.latestReferenceShiftMmol()
+        assertTrue("shift=$shift", shift > 0.6f)
+        assertEquals(at.glucoseMmol - before.glucoseMmol, shift, 0.08f)
+        context.feed(START_INDEX + 301, 6f)
+        assertEquals(0f, context.latestReferenceShiftMmol(), 1e-6f)
     }
 
     @Test

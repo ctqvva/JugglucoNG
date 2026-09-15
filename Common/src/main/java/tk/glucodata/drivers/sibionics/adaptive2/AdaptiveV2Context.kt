@@ -53,6 +53,9 @@ internal class SibionicsAdaptiveV2Context {
     /** Most recent per-sample diagnostics row, independent of the ring buffer. */
     fun latestDiagnostics(): AdaptiveV2Diagnostics? = estimator.latestDiagnostics
 
+    /** How far the references folded into the last sample moved the level; see [AdaptiveV2Estimator.referenceShift]. */
+    fun latestReferenceShiftMmol(): Float = estimator.referenceShift.toFloat()
+
     fun probabilityBelow(thresholdMmol: Float): Float = estimator.probabilityBelow(thresholdMmol)
 
     fun continuationIndex(): Int? = estimator.continuationIndex()

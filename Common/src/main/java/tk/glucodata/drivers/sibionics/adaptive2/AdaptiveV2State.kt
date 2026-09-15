@@ -168,6 +168,44 @@ internal class AdaptiveV2Gaussian {
         return s
     }
 
+    /** Variance of the state along [direction]: dᵀ P d. */
+    fun varianceAlong(direction: DoubleArray): Double {
+        var total = 0.0
+        for (row in 0 until V2.N) {
+            if (direction[row] == 0.0) continue
+            var sum = 0.0
+            for (column in 0 until V2.N) sum += p[row * V2.N + column] * direction[column]
+            total += direction[row] * sum
+        }
+        return total
+    }
+
+    /**
+     * Raises the uncertainty of the state along [direction] to at least [floor].
+     *
+     * The state is read as x = t·d + (everything orthogonal), and [floor] is a
+     * floor on Var(t) — so with a direction whose entry for one state is 1, it
+     * is a floor on that state's variance *along the direction*. The rank-one
+     * term (floor − dᵀPd/(dᵀd)²) · d dᵀ is added; nothing is taken away, so P
+     * stays positive semi-definite, and at or above the floor this is a no-op.
+     */
+    fun raiseVarianceAlong(direction: DoubleArray, floor: Double) {
+        var norm = 0.0
+        for (value in direction) norm += value * value
+        if (norm <= 0.0) return
+        val current = varianceAlong(direction) / (norm * norm)
+        val scale = floor - current
+        if (scale <= 0.0) return
+        for (row in 0 until V2.N) {
+            if (direction[row] == 0.0) continue
+            for (column in 0 until V2.N) {
+                if (direction[column] == 0.0) continue
+                p[row * V2.N + column] += scale * direction[row] * direction[column]
+            }
+        }
+        symmetrize()
+    }
+
     /** Guards against slow asymmetry and negative diagonals from round-off. */
     fun symmetrize() {
         for (row in 0 until V2.N) {

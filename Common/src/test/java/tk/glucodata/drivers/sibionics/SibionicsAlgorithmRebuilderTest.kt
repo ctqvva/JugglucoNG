@@ -28,6 +28,29 @@ class SibionicsAlgorithmRebuilderTest {
     }
 
     @Test
+    fun aStickBlendsIntoTheHalfHourBeforeItAndNothingEarlier() {
+        val minute = 60_000L
+        val readings = (0 until 60).map { index ->
+            SibionicsRebuiltReading(
+                sampleMs = index * minute, glucoseMgdl = 100f, rawMgdl = 90f,
+                temperatureC = 34f, impedance = 2_900f, index = index,
+            )
+        }.toMutableList()
+
+        // The stick at minute 45 lifted the level by 18 mg/dL.
+        SibionicsAlgorithmRebuilder.blendReferenceShiftsBackward(readings, listOf(45 to 18f))
+
+        assertEquals(100f, readings[14].glucoseMgdl, 0.001f) // outside the window
+        assertEquals(100f, readings[15].glucoseMgdl, 0.001f) // exactly the window's edge
+        assertEquals(100f + 18f * 0.5f, readings[30].glucoseMgdl, 0.01f)
+        assertEquals(100f + 18f * (29f / 30f), readings[44].glucoseMgdl, 0.01f)
+        // The stick's own minute and everything after were already corrected
+        // by the estimator; the blend does not touch them.
+        assertEquals(100f, readings[45].glucoseMgdl, 0.001f)
+        assertEquals(100f, readings[59].glucoseMgdl, 0.001f)
+    }
+
+    @Test
     fun stockReplayDoesNotInvokeCalibrationEvaluator() {
         val replay = SibionicsAlgorithmRebuilder.rebuild(
             sensorId = "stock",

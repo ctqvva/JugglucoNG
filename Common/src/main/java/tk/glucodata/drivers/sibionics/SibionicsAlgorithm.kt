@@ -240,6 +240,19 @@ class SibionicsAlgorithmContext(
             Float.NaN
         }
 
+    /**
+     * How far the fingerstick references folded into the last sample moved
+     * Adaptive V2's level, mmol/L; zero for other models and for a sample with
+     * no reference. A replay reads it to blend the correction into the minutes
+     * before the stick.
+     */
+    fun latestReferenceShiftMmol(): Float =
+        if (selection.model == SibionicsCustomAlgorithmModel.ADAPTIVE_V2) {
+            adaptiveV2Core.latestReferenceShiftMmol()
+        } else {
+            0f
+        }
+
     /** Enables the Adaptive V2 developer trace, retaining at most [capacity] rows. */
     fun enableV2Diagnostics(capacity: Int) = adaptiveV2Core.enableDiagnostics(capacity)
 

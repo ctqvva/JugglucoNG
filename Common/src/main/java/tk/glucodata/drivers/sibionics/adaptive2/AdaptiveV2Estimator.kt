@@ -204,6 +204,17 @@ internal class AdaptiveV2Estimator {
     private var biasPrior = 0.0
     private var logSensitivityPrior = 0.0
 
+    private val reopenDirection = DoubleArray(V2.N)
+
+    /**
+     * How far the references folded into the last sample moved the level,
+     * mmol/L. Zero on a sample with none. A replay reads it to blend the
+     * correction into the minutes before a fingerstick, the way the app's own
+     * calibration does.
+     */
+    var referenceShift = 0.0
+        private set
+
     /** Last emitted posterior, exposed for diagnostics and probability queries. */
     var latestGlucoseMixture: GaussianMixture1D? = null
         private set
@@ -242,6 +253,7 @@ internal class AdaptiveV2Estimator {
         vendorSensitivityDrift = 0.0
         biasPrior = 0.0
         logSensitivityPrior = 0.0
+        referenceShift = 0.0
         latestGlucoseMixture = null
         latestEstimate = null
         latestDiagnostics = null
@@ -569,7 +581,41 @@ internal class AdaptiveV2Estimator {
         lastObservation = observation
     }
 
+    /**
+     * Folds in the fingerstick references that belong to this sample.
+     *
+     * A reference is the one observation that can identify the sensor states.
+     * The chemical observation reads s·B + bias every minute and can never say
+     * which of the three it is looking at; hundreds of them leave the filter
+     * confident about B *given* the factory calibration, with [V2.BIAS] and
+     * [V2.LOG_S] pinned near their priors by process noise that is deliberately
+     * tiny. Updating B alone against that posterior is what the first version
+     * did, and it is why a 6.9 fingerstick against a sensor reading 6.0 moved
+     * the estimate 0.19 and then held it there: the Kalman gain on B was the
+     * ratio of a well-known level to a noisy stick, the sensor states barely
+     * moved because their covariance with B was as small as their process
+     * noise had made it, and the next observation put the level straight back.
+     *
+     * So the calibration is reopened first. Holding the observation fixed, a
+     * bias error δ means the level is off by −δ/s, and a log-sensitivity error
+     * δ means it is off by −B·δ; those two directions are where the truth can
+     * differ from the state, and [reopenCalibration] raises the covariance
+     * along exactly them. The reference then updates B in the ordinary way,
+     * and because the uncertainty now lies along the calibration directions
+     * the gain lands on [V2.BIAS] and [V2.LOG_S] as much as on B: the level
+     * moves to the stick, the sensor states move to explain why, and the
+     * predicted observation is unchanged, so the next minute confirms rather
+     * than reverts. This is the joint update a fingerstick calls for, done as
+     * a covariance reopening followed by a scalar update rather than as a
+     * bespoke two-observation step.
+     *
+     * The robust weight still applies, and against the reopened prior it means
+     * something: an anchor that disagrees by more than a plausible calibration
+     * error is discounted, not obeyed, and the clamps on the sensor states
+     * bound how far any anchor can take the level from what the sensor reads.
+     */
     private fun applyReferences(references: List<AdaptiveV2Reference>, sample: AdaptiveV2Sample) {
+        referenceShift = 0.0
         if (references.isEmpty()) return
         val pending = references.filter {
             it.glucoseMmol.isFinite() && it.glucoseMmol in 1f..35f &&
@@ -580,8 +626,10 @@ internal class AdaptiveV2Estimator {
 
         AdaptiveV2ObservationModel.referenceJacobian(jacobian)
         pending.forEach { reference ->
+            val levelBefore = mixtureGlucose()
             for (index in 0 until AdaptiveV2Mode.COUNT) {
                 val mode = modes[index]
+                reopenCalibration(mode)
                 val innovation = reference.glucoseMmol - mode.x[V2.B]
                 var priorVariance = REFERENCE_VARIANCE
                 for (row in 0 until V2.N) {
@@ -600,22 +648,81 @@ internal class AdaptiveV2Estimator {
                 // here forces an instantaneous discontinuity.
                 val weight = noiseModel.robustWeight(innovation * innovation / priorVariance)
                 mode.update(jacobian, innovation, REFERENCE_VARIANCE / max(weight, MIN_ROBUST_WEIGHT))
+                // The clamps bound what a sensor can be wrong by. An anchor
+                // beyond them leaves the level where the update put it but the
+                // sensor states where the clamp stopped, so the state no longer
+                // predicts the observation and the next minute snaps the level
+                // back — a one-minute spike to nowhere. Put the level where the
+                // clamped calibration says it is, and it settles there instead.
+                val predictedUnclamped = AdaptiveV2ObservationModel.predicted(mode.x)
                 AdaptiveV2ObservationModel.clampSensorStates(mode.x)
+                val predictedClamped = AdaptiveV2ObservationModel.predicted(mode.x)
+                if (predictedClamped != predictedUnclamped) {
+                    val correction = (predictedUnclamped - predictedClamped) /
+                        AdaptiveV2ObservationModel.sensitivityOf(mode.x)
+                    mode.x[V2.B] += correction
+                    mode.x[V2.I] += correction
+                    AdaptiveV2ObservationModel.clampSensorStates(mode.x)
+                }
             }
             reweightModesFromLikelihood()
             lastReferenceTimestampMs = reference.timestampMs
+            referenceShift += mixtureGlucose() - levelBefore
         }
         adoptSensorStateFromReferences()
+    }
+
+    /**
+     * Reopens the question a fingerstick is about to answer: how far the
+     * sensor's calibration is from the factory value.
+     *
+     * Raised to a floor, not added to. A run of consistent references must
+     * not inflate the covariance without bound, and each one should be able to
+     * re-learn the calibration in full — a sensor that has drifted since the
+     * last stick is exactly what the next stick is for. What one stick can
+     * establish is bounded by its own noise, [REFERENCE_VARIANCE], which is
+     * what the posterior settles to.
+     */
+    private fun reopenCalibration(mode: AdaptiveV2Gaussian) {
+        val sensitivity = AdaptiveV2ObservationModel.sensitivityOf(mode.x).toDouble()
+        val level = mode.x[V2.B]
+        // z = s·B + bias, held fixed: +1 on bias is −1/s on the level, and on
+        // the interstitial compartment that trails it.
+        reopenDirection.fill(0.0)
+        reopenDirection[V2.BIAS] = 1.0
+        reopenDirection[V2.B] = -1.0 / sensitivity
+        reopenDirection[V2.I] = -1.0 / sensitivity
+        mode.raiseVarianceAlong(reopenDirection, REFERENCE_BIAS_REOPENING)
+        // +1 on log-sensitivity is −B on the level.
+        reopenDirection.fill(0.0)
+        reopenDirection[V2.LOG_S] = 1.0
+        reopenDirection[V2.B] = -level
+        reopenDirection[V2.I] = -level
+        mode.raiseVarianceAlong(reopenDirection, REFERENCE_SENSITIVITY_REOPENING)
+    }
+
+    /** Probability-weighted level across the modes, before [combine] has run. */
+    private fun mixtureGlucose(): Double {
+        var level = 0.0
+        var total = 0.0
+        for (index in 0 until AdaptiveV2Mode.COUNT) {
+            val weight = max(modeProbability[index].toDouble(), 0.0)
+            level += weight * modes[index].x[V2.B]
+            total += weight
+        }
+        return if (total > 0.0) level / total else modes[AdaptiveV2Mode.STEADY.ordinal].x[V2.B]
     }
 
     /**
      * Moves the shrinkage targets toward the sensor state a reference just
      * established.
      *
-     * Only a fraction is adopted per reference: one fingerstick is evidence,
-     * not proof, and a mistimed or mis-entered one should not permanently
-     * redefine the sensor. Repeated consistent references converge the prior;
-     * a single outlier moves it a little and is then out-voted.
+     * Most of it is adopted per reference: a fingerstick is the only evidence
+     * that can identify these states, and a correction the user entered must
+     * not evaporate as [V2.BIAS] and [V2.LOG_S] relax toward a factory value
+     * the stick has just contradicted. The remainder is what a mistimed or
+     * mis-entered stick is allowed to move the sensor's identity by until the
+     * next one.
      */
     private fun adoptSensorStateFromReferences() {
         var bias = 0.0
@@ -789,6 +896,7 @@ internal class AdaptiveV2Estimator {
         gapVariance = 0.0
         observationBeforeLast = Double.NaN
         lastObservation = Double.NaN
+        referenceShift = 0.0
         for (index in 0 until AdaptiveV2Mode.COUNT) {
             val mode = modes[index]
             mode.reset()
@@ -1043,9 +1151,20 @@ internal class AdaptiveV2Estimator {
         private const val INITIAL_ARTIFACT_VARIANCE = 0.02
 
         /** Fingerstick meters are themselves ~±0.4 mmol/L one-sigma at normal ranges. */
+        /** A fingerstick's own error: about ±0.4 mmol/L one-sigma. */
         private const val REFERENCE_VARIANCE = 0.16
         private const val REFERENCE_FUTURE_TOLERANCE_MS = 60_000L
-        private const val REFERENCE_PRIOR_ADOPTION = 0.6
+        private const val REFERENCE_PRIOR_ADOPTION = 0.9
+
+        /**
+         * How wrong the calibration is allowed to be when a fingerstick asks:
+         * one-sigma 1 mmol/L of offset and ~12% of sensitivity. At 6 mmol/L
+         * that is about 1.5 mmol²/L² of level uncertainty along the
+         * calibration directions, against which a 1 mmol/L disagreement is an
+         * ordinary correction and a 5 mmol/L one is an outlier.
+         */
+        private const val REFERENCE_BIAS_REOPENING = 1.0
+        private const val REFERENCE_SENSITIVITY_REOPENING = 0.015
 
         private const val CONFIDENCE_WIDTH_SCALE = 2.2f
     }
