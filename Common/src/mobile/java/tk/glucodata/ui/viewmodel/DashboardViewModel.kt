@@ -588,6 +588,13 @@ class DashboardViewModel(
     private var currentSensorTailJob: Job? = null
     private var activeHistoryMode: CollectionMode? = null
     private var activeHistoryStartTimeMs: Long? = null
+    /**
+     * Change gate for [refreshMainSensorOwnership]: the ownership answer embeds
+     * the current minute, so re-resolving it on every collection restart would
+     * emit on any return more than a minute later and rebuild the chart for
+     * nothing. Peer-data changes refresh it through the peer flow instead.
+     */
+    private var lastOwnershipRefreshConfig: MultiSensorHistoryQueryConfig? = null
 
     init {
         _journalEnabled.value = readJournalEnabledPreference()
@@ -1372,7 +1379,12 @@ class DashboardViewModel(
                 // both change on the same events: a swap, or the record gaining
                 // a minute. With a single sensor there is nothing to contest,
                 // but the answer is still the record's to give.
-                refreshMainSensorOwnership(startTimeMs)
+                // Only on change: a restart with the same config would resolve
+                // a minute-drifted duplicate and pointlessly rebuild the chart.
+                if (config != lastOwnershipRefreshConfig) {
+                    lastOwnershipRefreshConfig = config
+                    refreshMainSensorOwnership(startTimeMs)
+                }
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
