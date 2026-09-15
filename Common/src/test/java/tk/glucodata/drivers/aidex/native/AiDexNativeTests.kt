@@ -290,11 +290,34 @@ class DeviceNameMatchingTests {
 class DisplayNameTests {
 
     @Test
-    fun advertisedNameWinsOverSerial() {
-        assertEquals(
-            "AiDEX X-2222293NWA",
-            aiDexDisplayName("AiDEX X-2222293NWA", "C0:AB:12:34:56:78", "X-2222293NWA"),
-        )
+    fun brandWordIsDroppedFromAdvertisedName() {
+        // The card's family chip already names the brand; the title keeps only the "X-" serial.
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDEX X-2222293NWA", "C0:AB:12:34:56:78", "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("aidex x-2222293NWA".uppercase(), null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDex-X-2222293NWA", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun everyKnownRebrandIsDroppedFromAdvertisedName() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("Linx X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("GlucoRX AiDEX X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("Vista X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("Lumiflex LinX X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("DiaExpert X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("Wellion AiDEX X-2222293NWA", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("CGM X-2222293NWA", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun unbrandedAdvertisedNameIsKeptVerbatim() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("X-2222293NWA", null, "2222293NWA"))
+        assertEquals("12345678", aiDexDisplayName("Linx 12345678", null, "X-2222293NWA"))
+    }
+
+    @Test
+    fun brandWordAloneCollapsesToSerial() {
+        assertEquals("X-2222293NWA", aiDexDisplayName("AiDEX ", null, "X-2222293NWA"))
+        assertEquals("X-2222293NWA", aiDexDisplayName("LinX", null, "X-2222293NWA"))
     }
 
     @Test
