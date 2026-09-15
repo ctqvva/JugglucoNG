@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Sms
@@ -44,6 +45,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -83,6 +85,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -94,6 +100,8 @@ import tk.glucodata.OutboundApi
 import tk.glucodata.OutboundApiInsulinTokens
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
+import tk.glucodata.GluciferSetup
+import tk.glucodata.ui.setup.rememberUnifiedQrScanLauncher
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.sms.SmsWatchdog
 import tk.glucodata.ui.components.CardPosition
@@ -114,6 +122,15 @@ fun OutboundApiSettingsScreen(navController: NavController) {
     var showSecretForId by rememberSaveable { mutableStateOf<String?>(null) }
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<OutboundApiSettings.Destination?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(context, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(1000)
+                config = OutboundApiSettings.load(context)
+            }
+        }
+    }
 
     fun save(next: OutboundApiSettings.Config) {
         val normalized = next.copy(enabled = true)
@@ -218,6 +235,13 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.navigate_back)
                         )
+                    }
+                },
+                actions = {
+                    if (config.destinations.any { it.isGlucifer() }) {
+                        TextButton(onClick = { navController.popBackStack() }) {
+                            Text(stringResource(R.string.glucifer_done))
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -481,6 +505,7 @@ private fun DestinationEditor(
     onChangePreset: (String) -> Unit
 ) {
     val preset = destination.normalizedPreset()
+    val isGlucifer = destination.isGlucifer()
     val isCustom = preset == OutboundApiSettings.PRESET_CUSTOM_JSON
     val isVk = preset == OutboundApiSettings.PRESET_GLUCO_WATCH_VK ||
         preset == OutboundApiSettings.PRESET_VK_MESSAGES
@@ -589,12 +614,24 @@ private fun DestinationEditor(
                 Text(stringResource(R.string.outbound_api_url_template_help))
             }
         },
+        visualTransformation = if (isGlucifer && !showSecret) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = {
+            if (isGlucifer) IconButton(onClick = { onShowSecretChange(!showSecret) }) {
+                Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = null)
+            }
+        },
         leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Uri,
             imeAction = ImeAction.Next
         )
     )
+
+    if (isGlucifer) {
+        GluciferQrSetup(destination, onChange)
+        GluciferFields(destination, onChange)
+        return
+    }
 
     OutlinedTextField(
         value = destination.headers,
@@ -1302,6 +1339,12 @@ private data class PresetSpec(
 private fun destinationPresetSpecs(): List<PresetSpec> =
     listOf(
         PresetSpec(
+            id = OutboundApiSettings.PRESET_GLUCIFER,
+            titleRes = R.string.glucifer_title,
+            descriptionRes = R.string.glucifer_description,
+            icon = Icons.Filled.CloudUpload
+        ),
+        PresetSpec(
             id = OutboundApiSettings.PRESET_CUSTOM_JSON,
             titleRes = R.string.outbound_api_preset_custom_json,
             descriptionRes = R.string.outbound_api_preset_custom_json_desc,
@@ -1335,6 +1378,7 @@ private fun destinationPresetSpecs(): List<PresetSpec> =
 
 private fun presetTitle(preset: String): Int =
     when (preset) {
+        OutboundApiSettings.PRESET_GLUCIFER -> R.string.glucifer_title
         OutboundApiSettings.PRESET_TELEGRAM_BOT -> R.string.outbound_api_preset_telegram
         OutboundApiSettings.PRESET_GLUCO_WATCH_VK -> R.string.outbound_api_preset_gluco_watch_vk
         OutboundApiSettings.PRESET_VK_MESSAGES -> R.string.outbound_api_preset_vk
@@ -1438,3 +1482,138 @@ private val templateTokens = listOf(
     "{status}",
     "{status_emoji}"
 )
+
+@Composable
+private fun GluciferFields(
+    destination: OutboundApiSettings.Destination,
+    onChange: (OutboundApiSettings.Destination) -> Unit
+) {
+    Text(stringResource(R.string.glucifer_saved_help), style = MaterialTheme.typography.bodyMedium)
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferLiveBypass, role = Role.Switch) {
+        onChange(destination.copy(gluciferLiveBypass = it))
+    }) {
+        Text(stringResource(R.string.glucifer_live_bypass), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferLiveBypass, onCheckedChange = null)
+    }
+    Text(stringResource(R.string.glucifer_live_bypass_help), style = MaterialTheme.typography.bodySmall)
+    SettingsSubsectionTitle(stringResource(R.string.glucifer_fallback_interval))
+    Text(stringResource(R.string.glucifer_fallback_help), style = MaterialTheme.typography.bodySmall)
+    GluciferIntervalChoices(destination.gluciferFallbackSeconds) {
+        onChange(destination.copy(gluciferFallbackSeconds = it))
+    }
+    SettingsSubsectionTitle(stringResource(if (destination.gluciferLiveBypass)
+        R.string.glucifer_min_interval else R.string.glucifer_all_spacing_title))
+    Text(stringResource(if (destination.gluciferLiveBypass)
+        R.string.glucifer_background_spacing_help else R.string.glucifer_all_spacing_help),
+        style = MaterialTheme.typography.bodySmall)
+    GluciferIntervalChoices(destination.gluciferMinIntervalSeconds) {
+        onChange(destination.copy(gluciferMinIntervalSeconds = it))
+    }
+    Text(stringResource(R.string.glucifer_glucose_required), style = MaterialTheme.typography.bodyMedium)
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferHistory, role = Role.Switch) {
+        onChange(destination.copy(gluciferHistory = it))
+    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.glucifer_history), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferHistory, onCheckedChange = null)
+    }
+    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournal, role = Role.Switch) {
+        onChange(destination.copy(gluciferJournal = it))
+    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.glucifer_journal), modifier = Modifier.weight(1f))
+        StyledSwitch(checked = destination.gluciferJournal, onCheckedChange = null)
+    }
+    Text(stringResource(R.string.glucifer_journal_help), style = MaterialTheme.typography.bodySmall)
+    if (destination.gluciferJournal) {
+        SettingsSubsectionTitle(stringResource(R.string.glucifer_journal_days))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(1, 3, 7, 14, 30, 60, 90).forEach { days ->
+                FilterChip(selected = destination.gluciferJournalDays == days,
+                    onClick = { onChange(destination.copy(gluciferJournalDays = days)) },
+                    label = { Text(stringResource(R.string.glucifer_days, days)) })
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournalNotes, role = Role.Switch) {
+            onChange(destination.copy(gluciferJournalNotes = it))
+        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.glucifer_journal_notes), modifier = Modifier.weight(1f))
+            StyledSwitch(checked = destination.gluciferJournalNotes, onCheckedChange = null)
+        }
+    }
+    val fields = listOf(
+        "predictions" to R.string.wear_prediction_title,
+        "trend" to R.string.stats_trend,
+        "delta_mgdl" to R.string.glucifer_delta,
+        "rate_mgdl_min" to R.string.glucifer_rate,
+        "raw_mgdl" to R.string.glucifer_raw,
+        "auto_mgdl" to R.string.glucifer_auto,
+        "iob_u" to R.string.notification_show_iob_title,
+        "eiob_u" to R.string.journal_eiob_display_title,
+        "cob_g" to R.string.notification_show_cob_title,
+        "battery_percent" to R.string.glucifer_phone_battery,
+        "sensor_id" to R.string.glucifer_sensor_id,
+        "sensor_generation" to R.string.glucifer_sensor_generation,
+        "sensor_started_ms" to R.string.sensor_started,
+        "sensor_expires_ms" to R.string.sensor_expected_end,
+        "sensor_warmup" to R.string.glucifer_warmup
+    ) + tk.glucodata.alerts.AlertType.entries.mapNotNull { type ->
+        val key = type.name.lowercase(Locale.ROOT)
+        if (key in tk.glucodata.GluciferPayload.alerts) "alert:$key" to type.nameResId else null
+    }
+    fields.forEach { (key, label) ->
+        val enabled = key in destination.gluciferFields
+        Row(
+            modifier = Modifier.fillMaxWidth().toggleable(value = enabled, role = Role.Switch) {
+                onChange(destination.copy(gluciferFields =
+                    if (it) destination.gluciferFields + key else destination.gluciferFields - key))
+            }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(stringResource(label), modifier = Modifier.weight(1f))
+            StyledSwitch(checked = enabled, onCheckedChange = null)
+        }
+    }
+}
+
+
+@Composable
+private fun GluciferIntervalChoices(value: Int, onChange: (Int) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tk.glucodata.GluciferSendLimiter.intervals.forEach { seconds ->
+            FilterChip(selected = value == seconds, onClick = { onChange(seconds) },
+                label = { Text(when {
+                    seconds >= 3600 -> stringResource(R.string.glucifer_hours, seconds / 3600)
+                    seconds >= 60 -> stringResource(R.string.glucifer_minutes, seconds / 60)
+                    else -> stringResource(R.string.glucifer_seconds, seconds)
+                }) })
+        }
+    }
+}
+
+@Composable
+private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChange: (OutboundApiSettings.Destination) -> Unit) {
+    val context = LocalContext.current
+    var pendingUrl by remember(destination.id) { mutableStateOf<String?>(null) }
+    val scan = rememberUnifiedQrScanLauncher(requestCode = 0x4748, title = stringResource(R.string.scan_qr_button), onScanResult = { text ->
+        val url = GluciferSetup.parseQr(text)
+        if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
+        else pendingUrl = url
+    })
+    Button(onClick = scan, modifier = Modifier.fillMaxWidth()) {
+        Icon(
+            imageVector = Icons.Filled.QrCodeScanner,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = stringResource(R.string.scan_qr_button),
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+    pendingUrl?.let { url ->
+        AlertDialog(onDismissRequest = { pendingUrl = null },
+            title = { Text(stringResource(R.string.glucifer_title)) },
+            text = { Text(stringResource(R.string.glucifer_qr_confirm, GluciferSetup.hostLabel(url))) },
+            confirmButton = { TextButton(onClick = { onChange(destination.copy(url = url)); pendingUrl = null }) { Text(stringResource(R.string.confirm)) } },
+            dismissButton = { TextButton(onClick = { pendingUrl = null }) { Text(stringResource(R.string.cancel)) } })
+    }
+}
