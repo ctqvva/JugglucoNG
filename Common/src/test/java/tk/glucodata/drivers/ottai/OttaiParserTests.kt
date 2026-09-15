@@ -268,4 +268,28 @@ class OttaiParserTests {
             OttaiParser.chooseRecordSize(payload, "E9.9.9(V9.9.UNK)", previousFront = 4096),
         )
     }
+
+    // frontDeltaRecordSize and recordSizeEvidence are chooseRecordSize's two decision inputs,
+    // extracted so a caller (OttaiBleManager) can log which one actually settled a given
+    // payload instead of only the outcome — the same evidence a trace needs to tell "the sensor's
+    // counter proved it" apart from "nobody proved it, this is still a guess".
+    @Test
+    fun frontDeltaRecordSize_resolvesOrAbstainsIndependentlyOfContent() {
+        val ninePerRecord = ByteArray(16 + OttaiParser.HEADER_SIZE).also {
+            it[4] = 50
+            it[16] = 1
+        }
+        assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 49))
+        assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = null))
+        assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 50)) // delta=0
+        assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 4096)) // fits neither
+    }
+
+    @Test
+    fun recordSizeEvidence_matchesTheVoteChooseRecordSizeFallsBackTo() {
+        val payload = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
+        val (nine, eight) = OttaiParser.recordSizeEvidence(payload)
+        assertEquals(0, nine)
+        assertEquals(3, eight)
+    }
 }

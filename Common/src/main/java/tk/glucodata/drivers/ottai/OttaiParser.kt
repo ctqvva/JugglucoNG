@@ -70,31 +70,56 @@ object OttaiParser {
      * 9-byte: current[0:2], temp[7:9]; 8-byte: current[4:6], temp[6:8].
      *
      * @param previousFront frontDataNo of the immediately preceding notify on this connection
-     * (live or history — the sensor's dataNo counter is one sequence), or null if unknown (first
-     * frame of a session/transfer). When the advance from [previousFront] to this payload's own
-     * frontDataNo exactly matches the record count ONE candidate size implies for this payload's
-     * length — and not the other — that settles it outright: the sensor's own counter is ground
-     * truth, unlike the content-based vote below, which a real device's still-unseen "unused"
-     * record bytes can tip either way (seen live: a 24-byte single-record 9-byte frame voted
-     * 8-byte, decoding to an all-zero trailing record — raw=0, runtime=0 — because the vote had
-     * only 1 nine-byte window to check against 2 eight-byte ones).
+     * (live or history — the sensor's dataNo counter is one sequence, and restoreFromPersistence
+     * seeds it from the persisted lastDataNo, so this is available from the first payload after
+     * an app restart too), or null if truly unknown (first payload ever seen for the sensor).
+     * See [frontDeltaRecordSize] for how it settles the choice.
      */
     internal fun chooseRecordSize(payload: ByteArray, deviceVersion: String, previousFront: Int? = null): Int {
         confirmedRecordSize(deviceVersion)?.let { return it }
-        val bodyLen = payload.size - HEADER_SIZE
-        if (previousFront != null && bodyLen > 0) {
-            val delta = (frontDataNo(payload) - previousFront) and 0xFFFF
-            if (delta > 0) {
-                val nineCount = bodyLen / BLE_RECORD_SIZE_E12
-                val eightCount = bodyLen / BLE_RECORD_SIZE
-                if (delta == nineCount && delta != eightCount) return BLE_RECORD_SIZE_E12
-                if (delta == eightCount && delta != nineCount) return BLE_RECORD_SIZE
-            }
-        }
-        val nine = vendorValidCount(payload, BLE_RECORD_SIZE_E12, curLo = 0, tempLo = 7)
-        val eight = vendorValidCount(payload, BLE_RECORD_SIZE, curLo = 4, tempLo = 6)
+        frontDeltaRecordSize(payload, previousFront)?.let { return it }
+        val (nine, eight) = recordSizeEvidence(payload)
         return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
     }
+
+    /**
+     * The record size [previousFront]'s advance into this payload's own frontDataNo proves, or
+     * null when it proves nothing — [previousFront] is unknown, or the advance matches neither
+     * candidate's record count, or (rarer) matches both.
+     *
+     * When it does resolve, it settles the choice outright: the sensor's own counter is ground
+     * truth, unlike the content-based vote in [recordSizeEvidence], which a real device's
+     * still-unseen "unused" record bytes can tip either way. A 24-byte live notify — header,
+     * one 9-byte record, seven pad bytes — is also exactly a header plus two 8-byte records;
+     * one real record cannot outvote two, so the vote alone ties to 8-byte and decodes the
+     * padding as a second, all-zero record (raw=0, runtime=0) that then fails every downstream
+     * sanity gate. It happens every single such frame, not just an unlucky one, because the
+     * payload never grows a third record's worth of evidence — a lone-record live notify is
+     * this ambiguous by construction, every time it's sent. The advance in frontDataNo across
+     * two payloads is the one signal a short frame's own bytes can never supply.
+     */
+    internal fun frontDeltaRecordSize(payload: ByteArray, previousFront: Int?): Int? {
+        val bodyLen = payload.size - HEADER_SIZE
+        if (previousFront == null || bodyLen <= 0) return null
+        val delta = (frontDataNo(payload) - previousFront) and 0xFFFF
+        if (delta <= 0) return null
+        val nineCount = bodyLen / BLE_RECORD_SIZE_E12
+        val eightCount = bodyLen / BLE_RECORD_SIZE
+        if (delta == nineCount && delta != eightCount) return BLE_RECORD_SIZE_E12
+        if (delta == eightCount && delta != nineCount) return BLE_RECORD_SIZE
+        return null
+    }
+
+    /**
+     * Vendor-valid record counts (a1.a.b) for this payload read as 9-byte and as 8-byte, in
+     * that order — the same evidence [chooseRecordSize]'s fallback vote decides on, exposed so
+     * a disagreement between that vote and [frontDeltaRecordSize] can be logged for diagnosis
+     * instead of only ever being inferred after the fact from a trace.
+     */
+    internal fun recordSizeEvidence(payload: ByteArray): Pair<Int, Int> = Pair(
+        vendorValidCount(payload, BLE_RECORD_SIZE_E12, curLo = 0, tempLo = 7),
+        vendorValidCount(payload, BLE_RECORD_SIZE, curLo = 4, tempLo = 6),
+    )
 
     /** E major.minor -> record size, only for families still unambiguous on hardware. */
     private val CONFIRMED_E_FAMILIES = mapOf(
