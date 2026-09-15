@@ -1,0 +1,109 @@
+# General pull-request gate. What a change has to survive before it can land on
+# main: the whole JVM unit suite, and a phone + wear + release compile including
+# the native side.
+#
+# Deliberately NOT here: lint (lintMobileDebug reports ~2358 issues, ~530 of them
+# errors, so gating on it needs a committed baseline first), instrumentation
+# tests (no androidTest source set exists), and all-ABI builds.
+#
+# The APKs this produces are a compile check, not a build. Common/src/main/jniLibs
+# is gitignored, so a clean checkout has none of the prebuilt vendor .so files --
+# liblibre3extension.so, libcalibrat2.so, libinit.so and the rest. They are loaded
+# at runtime, so their absence never fails a build; it just means nothing built
+# here is installable as a working app. Don't wire these outputs into a release.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same PR makes the previous run's answer worthless.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: JVM unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # No submodules and no NDK: these tests never load a native library, and
+      # skipping both is what lets this job answer in a few minutes while the
+      # compile job is still fetching the toolchain.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Run the full mobile debug unit suite
+        run: ./gradlew :Common:testMobileDebugUnitTest --stacktrace
+
+      # Only on failure, and only the reports -- the HTML report is what makes a
+      # red build readable, and it is a few hundred KB.
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: |
+            Common/build/reports/tests/testMobileDebugUnitTest/
+            Common/build/test-results/testMobileDebugUnitTest/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  compile:
+    name: Compile phone + wear + release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      # libjuice is a submodule and CMakeLists.txt does add_subdirectory(libjuice),
+      # so the native build does not configure without it.
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The runner image carries neither NDK 29 nor CMake 4.1. Installing them
+      # here rather than leaving it to AGP's auto-download keeps a missing SDK
+      # package from surfacing as an unrelated CMake configure error. Versions
+      # are read from Common/build.gradle so this cannot drift from the build.
+      - name: Install NDK and CMake
+        run: |
+          set -euo pipefail
+          ndk=$(sed -n "s/^ *ndkver *= *'\(.*\)'.*/\1/p" Common/build.gradle)
+          cmake=$(sed -n "s/^ *CMAKEVERSION *= *'\(.*\)'.*/\1/p" Common/build.gradle)
+          echo "NDK=$ndk CMake=$cmake"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$ndk" "cmake;$cmake"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # arm64-only: a PR needs to know the code compiles and links, not that it
+      # does so four times over. All-ABI coverage belongs in nightly -- do not
+      # read a green run here as proof that armeabi-v7a/x86/x86_64 still build.
+      #
+      # assembleMobileRelease is in here for R8: minifyEnabled and shrinkResources
+      # are on for release, and a missing keep rule only ever fails there.
+      - name: Assemble phone debug, wear debug and phone release
+        run: |
+          ./gradlew \
+            :Common:assembleMobileDebug \
+            :Common:assembleWearDebug \
+            :Common:assembleMobileRelease \
+            -PjugglucoAbi=arm64-v8a \
+            --stacktrace
