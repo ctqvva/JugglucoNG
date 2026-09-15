@@ -459,6 +459,7 @@ class MQFollowerManager(
                 )
             },
             logLabel = "MQ follower",
+            mirrorToNative = true,
         )
         if (tailMs > 0L) {
             lastImportedHistoryTailMs = tailMs
@@ -504,6 +505,7 @@ class MQFollowerManager(
                 ),
                 sensorGen = MQBleManager.SENSOR_GEN,
                 logLabel = "MQ follower",
+                mirrorToNative = true,
             )
         } else if (previousTimeMs > 0L && latest.timestampMs == previousTimeMs && previousMgdl != latest.glucoseMgdl) {
             UiRefreshBus.requestDataRefresh()

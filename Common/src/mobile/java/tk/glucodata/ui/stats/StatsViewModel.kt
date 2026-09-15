@@ -761,10 +761,21 @@ class StatsViewModel : ViewModel() {
             // A reading whose displayed value was recorded overrides the series
             // recomputed above: the statistic has to describe what was on screen,
             // not what today's calibration would have made of it.
+            //
+            // Converted, because the two sides are not in the same unit.
+            // [calibratedDisplayValues] holds display units — it is filled from
+            // `getCalibratedSeries` over samples that were themselves converted
+            // with `displayFromMgDl`. A recorded main value is mg/dL, matching how
+            // readings are stored. Assigning it straight in put 292 where 16.2
+            // belonged, `DisplayValueResolver` rejected the implausible result,
+            // and `mapIndexedNotNull` below dropped the point — so every reading
+            // that had a record silently vanished from the statistics and only
+            // the unsealed last hour survived. Harmless while the record was
+            // sparse enough to almost never fire; total once coverage was fixed.
             history.forEachIndexed { index, point ->
                 point.sealedDisplayValue
                     ?.takeIf { it.isFinite() && it > 0f }
-                    ?.let { calibratedDisplayValues[index] = it }
+                    ?.let { calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol) }
             }
         }
 

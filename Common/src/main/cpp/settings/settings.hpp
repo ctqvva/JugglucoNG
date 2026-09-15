@@ -447,6 +447,13 @@ struct Tings {
       meter = self.newGlucoseMeter(deviceName);
     return meter;
   }
+  // Settings files written before httpport was populated leave it zero. The
+  // desktop build has always read this field; on Android the port was hardcoded
+  // at the call sites instead, so an install upgrading into an editable port
+  // must not be told the server runs on port 0.
+  uint16_t effectivehttpport() const {
+    return httpport ? httpport : static_cast<uint16_t>(defaulthttpport);
+  }
   void defaultshows() {
     showcalibrated = false;
     showscans = true;

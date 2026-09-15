@@ -923,15 +923,38 @@ fromjava(getusexdripwebserver)(JNIEnv *env, jclass cl) {
 }
 extern void stopwatchthread();
 extern void startwatchthread(int port);
+extern void restartwatchthread(int port);
 extern "C" JNIEXPORT void JNICALL fromjava(setusexdripwebserver)(JNIEnv *env,
                                                                  jclass cl,
                                                                  jboolean val) {
 #ifndef WEAROS
   settings->data()->usexdripwebserver = val;
   if (val) {
-    startwatchthread(defaulthttpport);
+    startwatchthread(settings->data()->effectivehttpport());
   } else {
     stopwatchthread();
+  }
+#endif
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getxdripport)(JNIEnv *env,
+                                                         jclass cl) {
+  return settings->data()->effectivehttpport();
+}
+
+// The port was always in the settings file and always honoured by the desktop
+// build; on Android both start sites passed the compile-time default instead,
+// so it could not be reached from the phone at all.
+extern "C" JNIEXPORT void JNICALL fromjava(setxdripport)(JNIEnv *env, jclass cl,
+                                                         jint val) {
+#ifndef WEAROS
+  if (val < 1024 || val > UINT16_MAX)
+    return;
+  if (settings->data()->effectivehttpport() == val)
+    return;
+  settings->data()->httpport = static_cast<uint16_t>(val);
+  if (settings->data()->usexdripwebserver) {
+    restartwatchthread(val);
   }
 #endif
 }

@@ -13,22 +13,22 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
+import tk.glucodata.data.journal.JournalPendingDeleteEntity
 import java.io.File
-import java.io.OutputStreamWriter
-import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 object ExportPackageExporter {
-    private const val SCHEMA = "tk.glucodata.export-package"
-    private const val SCHEMA_VERSION = 1
+    internal const val SCHEMA = "tk.glucodata.export-package"
+    private const val SCHEMA_VERSION = 2
 
     data class ExportRequest(
         val includeSettings: Boolean,
         val includeHistory: Boolean,
         val includeCalibrations: Boolean,
-        val historyDays: Long?
+        val historyDays: Long?,
+        val compression: ExportCompression = ExportCompression.GZIP
     ) {
         val hasSelection: Boolean
             get() = includeSettings || includeHistory || includeCalibrations
@@ -65,6 +65,21 @@ object ExportPackageExporter {
         val historyDisplaySerial: String? = null
     )
 
+    data class BackupValidationSummary(
+        val settingsIncluded: Boolean,
+        val historyReadings: Int,
+        val journalEntries: Int,
+        val journalFoods: Int,
+        val insulinPresets: Int,
+        val calibrations: Int
+    )
+
+    enum class ImportFileType {
+        SETTINGS,
+        EXPORT_PACKAGE,
+        OTHER
+    }
+
     // Result of importing only the glucose/history section.
     data class HistoryOnlyImport(
         val readings: Int,
@@ -91,10 +106,11 @@ object ExportPackageExporter {
                 val (payload, summary) = buildPayload(appContext, request)
                 val outputStream = appContext.contentResolver.openOutputStream(uri)
                     ?: error("Could not open export destination")
-                OutputStreamWriter(outputStream, StandardCharsets.UTF_8).use { writer ->
-                    writer.write(payload.toString(2))
-                    writer.write("\n")
-                }
+                ExportPackageCodec.writeJson(
+                    output = outputStream,
+                    payload = payload,
+                    compression = request.compression
+                )
                 summary
             }
         }
@@ -106,6 +122,130 @@ object ExportPackageExporter {
             runCatching {
                 readPayload(appContext, uri).optString("schema") == SCHEMA
             }.getOrDefault(false)
+        }
+    }
+
+    suspend fun detectImportFileType(context: Context, uri: Uri): ImportFileType {
+        val appContext = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                classifyPayload(readPayload(appContext, uri))
+            }.getOrDefault(ImportFileType.OTHER)
+        }
+    }
+
+    internal fun classifyPayload(payload: JSONObject): ImportFileType {
+        return when (payload.optString("schema")) {
+            SettingsExporter.SCHEMA -> ImportFileType.SETTINGS
+            SCHEMA -> ImportFileType.EXPORT_PACKAGE
+            else -> ImportFileType.OTHER
+        }
+    }
+
+    suspend fun validateBackup(context: Context, uri: Uri): Result<BackupValidationSummary> {
+        val appContext = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching { validateBackupPayload(readPayload(appContext, uri)) }
+        }
+    }
+
+    internal fun validateBackupPayload(payload: JSONObject): BackupValidationSummary {
+        return when (classifyPayload(payload)) {
+            ImportFileType.SETTINGS -> {
+                val settings = SettingsExporter.validatePayload(payload)
+                BackupValidationSummary(
+                    settingsIncluded = true,
+                    historyReadings = 0,
+                    journalEntries = settings.journalEntries,
+                    journalFoods = settings.journalFoods,
+                    insulinPresets = settings.journalInsulinPresets,
+                    calibrations = 0
+                )
+            }
+            ImportFileType.EXPORT_PACKAGE -> validateExportPackagePayload(payload)
+            ImportFileType.OTHER -> error("Unsupported backup file")
+        }
+    }
+
+    private fun validateExportPackagePayload(payload: JSONObject): BackupValidationSummary {
+        val schemaVersion = payload.optInt("schemaVersion", 0)
+        require(schemaVersion in 1..SCHEMA_VERSION) {
+            "Unsupported export package version: $schemaVersion"
+        }
+        val sections = payload.optJSONArray("sections") ?: error("Backup section list is missing")
+        val sectionNames = buildSet {
+            for (index in 0 until sections.length()) add(sections.getString(index))
+        }
+        require(sectionNames.isNotEmpty()) { "Backup contains no restorable sections" }
+        val supported = setOf("settings", "history", "calibrations")
+        require(sectionNames.all { it in supported }) {
+            "Backup contains an unsupported section"
+        }
+        sectionNames.forEach { section ->
+            require(payload.optJSONObject(section) != null) { "Backup section is missing: $section" }
+        }
+
+        payload.optJSONObject("settings")?.let { settings ->
+            SettingsExporter.validatePayload(settings, requireJournalData = false)
+        }
+        val history = payload.optJSONObject("history")
+        val readings = history?.requiredArray("readings").toHistoryReadings()
+        val journalEntries = history?.requiredArray("journalEntries").toJournalEntries()
+        val insulinPresets = history?.requiredArray("journalInsulinPresets").toInsulinPresets()
+        val foods = history?.requiredArray("journalFoods").toFoods()
+        // Both tombstone arrays arrived after the first packages shipped; the importer
+        // treats them as optional, so validation must too or every older export fails.
+        val deletedReadings = history?.optJSONArray("deletedReadings").toDeletedReadings()
+        val pendingDeletes = history?.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
+        if (history != null) {
+            requireFullyParsed("history readings", history.getJSONArray("readings"), readings.size)
+            requireFullyParsed("journal entries", history.getJSONArray("journalEntries"), journalEntries.size)
+            requireFullyParsed(
+                "insulin presets",
+                history.getJSONArray("journalInsulinPresets"),
+                insulinPresets.size
+            )
+            requireFullyParsed("food presets", history.getJSONArray("journalFoods"), foods.size)
+            history.optJSONArray("deletedReadings")?.let { source ->
+                requireFullyParsed("deleted history readings", source, deletedReadings.size)
+            }
+            history.optJSONArray("pendingJournalDeletes")?.let { source ->
+                requireFullyParsed("pending Nightscout deletes", source, pendingDeletes.size)
+            }
+        }
+
+        val calibrationsSection = payload.optJSONObject("calibrations")
+        val calibrations = calibrationsSection?.requiredArray("calibrations").toCalibrationEntities()
+        if (calibrationsSection != null) {
+            requireFullyParsed(
+                "calibrations",
+                calibrationsSection.getJSONArray("calibrations"),
+                calibrations.size
+            )
+            calibrationsSection.optJSONArray("sensorEnablement")?.let { states ->
+                val validStates = (0 until states.length()).count { index ->
+                    states.optJSONObject(index)?.optString("sensorId")?.isNotBlank() == true
+                }
+                requireFullyParsed("calibration sensor settings", states, validStates)
+            }
+        }
+
+        return BackupValidationSummary(
+            settingsIncluded = payload.optJSONObject("settings") != null,
+            historyReadings = readings.size,
+            journalEntries = journalEntries.size,
+            journalFoods = foods.size,
+            insulinPresets = insulinPresets.size,
+            calibrations = calibrations.size
+        )
+    }
+
+    private fun JSONObject.requiredArray(name: String): JSONArray =
+        optJSONArray(name) ?: error("Backup field is missing: $name")
+
+    private fun requireFullyParsed(label: String, source: JSONArray, parsedCount: Int) {
+        require(parsedCount == source.length()) {
+            "$label contains ${source.length() - parsedCount} invalid record(s)"
         }
     }
 
@@ -182,10 +322,11 @@ object ExportPackageExporter {
 
                 val fileName = suggestedFileName(request)
                 val file = File(exportDir, fileName)
-                OutputStreamWriter(file.outputStream(), StandardCharsets.UTF_8).use { writer ->
-                    writer.write(payload.toString(2))
-                    writer.write("\n")
-                }
+                ExportPackageCodec.writeJson(
+                    output = file.outputStream(),
+                    payload = payload,
+                    compression = request.compression
+                )
                 CachedExport(
                     file = file,
                     fileName = fileName,
@@ -195,7 +336,7 @@ object ExportPackageExporter {
         }
     }
 
-    fun mimeTypeFor(request: ExportRequest): String = "application/json"
+    fun mimeTypeFor(request: ExportRequest): String = request.compression.mimeType
 
     fun suggestedFileName(request: ExportRequest): String {
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(System.currentTimeMillis())
@@ -206,7 +347,7 @@ object ExportPackageExporter {
             request.includeCalibrations && !request.includeSettings && !request.includeHistory -> "Calibrations"
             else -> "Package"
         }
-        return "Juggluco_${label}_$date.json"
+        return "Juggluco_${label}_$date${request.compression.fileSuffix}"
     }
 
     fun suggestedReadableReportFileName(): String {
@@ -298,6 +439,7 @@ object ExportPackageExporter {
             ?.let { endMillis - TimeUnit.DAYS.toMillis(it.coerceAtLeast(1L)) }
             ?: 0L
         val readings = database.historyDao().getReadingsSince(startMillis)
+        val deletedReadings = database.historyDao().getDeletedReadingsSince(startMillis)
         val journalEntries = if (startMillis > 0L) {
             database.journalDao().getEntriesBetween(startMillis, endMillis)
         } else {
@@ -305,6 +447,8 @@ object ExportPackageExporter {
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
         val foods = database.journalDao().getFoods()
+        val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
+            .filter { it.deletedAt >= startMillis }
 
         // Non-destructive software calibration (issue #130): the stored values stay
         // raw mg/dL; each reading additionally carries the calibrated mg/dL that live
@@ -320,13 +464,13 @@ object ExportPackageExporter {
             runCatching {
                 database.readingDisplayDao().getAllSince(0L)
                     .filter { it.isUsable && it.isSealedAt(nowMs) }
-                    .associate { sealedDisplayKey(it.sensorSerial, it.timestamp) to it.displayMgdl }
+                    .associate { sealedDisplayKey(it.timestamp) to it.displayMgdl }
             }.getOrDefault(emptyMap())
         } else {
             emptyMap()
         }
         val sealedOf: (HistoryReading) -> Float? = { reading ->
-            sealedByKey[sealedDisplayKey(reading.sensorSerial, reading.timestamp)]
+            sealedByKey[sealedDisplayKey(reading.timestamp)]
         }
 
         return JSONObject()
@@ -355,6 +499,18 @@ object ExportPackageExporter {
                 "journalFoods",
                 JSONArray().also { array ->
                     foods.forEach { array.put(it.toJson()) }
+                }
+            )
+            .put(
+                "deletedReadings",
+                JSONArray().also { array ->
+                    deletedReadings.forEach { array.put(it.toJson()) }
+                }
+            )
+            .put(
+                "pendingJournalDeletes",
+                JSONArray().also { array ->
+                    pendingJournalDeletes.forEach { array.put(it.toJson()) }
                 }
             ) to HistorySummary(
             readings = readings.size,
@@ -424,6 +580,8 @@ object ExportPackageExporter {
         val entries = history.optJSONArray("journalEntries").toJournalEntries()
         val insulinPresets = history.optJSONArray("journalInsulinPresets").toInsulinPresets()
         val foods = history.optJSONArray("journalFoods").toFoods()
+        val deletedReadings = history.optJSONArray("deletedReadings").toDeletedReadings()
+        val pendingJournalDeletes = history.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
 
         if (readings.isNotEmpty()) {
             database.historyDao().insertAll(readings)
@@ -439,6 +597,15 @@ object ExportPackageExporter {
             // Written straight to the table rather than through the repository, so the wake
             // it raises has to be raised here: a restored journal is a backlog like any
             // other and would otherwise sit until something unrelated woke the uploader.
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        }
+        if (deletedReadings.isNotEmpty()) {
+            database.historyDao().insertDeletedReadings(deletedReadings)
+        }
+        if (pendingJournalDeletes.isNotEmpty()) {
+            for (tombstone in pendingJournalDeletes) {
+                database.journalDao().enqueuePendingNightscoutDelete(tombstone)
+            }
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
 
@@ -547,9 +714,8 @@ object ExportPackageExporter {
         return rows.size
     }
 
-    /** Mirrors HistoryRepository's display key: sensor plus minute bucket. */
-    private fun sealedDisplayKey(sensorSerial: String, timestamp: Long): Long =
-        (timestamp / 60_000L) * 31L + sensorSerial.hashCode()
+    /** Mirrors HistoryRepository's display key: the minute, and nothing else. */
+    private fun sealedDisplayKey(timestamp: Long): Long = ReadingDisplay.minuteOf(timestamp)
 
     private fun HistoryReading.toJson(
         isMmol: Boolean,
@@ -596,6 +762,12 @@ object ExportPackageExporter {
             .put("updatedAt", updatedAt)
             .put("nsUploadedAt", nsUploadedAt ?: JSONObject.NULL)
             .put("nsRemoteId", nsRemoteId ?: JSONObject.NULL)
+            .put("insulinCurveJsonSnapshot", insulinCurveJsonSnapshot ?: JSONObject.NULL)
+            .put("insulinCurveProfileId", insulinCurveProfileId ?: JSONObject.NULL)
+            .put("insulinCurveModelVersion", insulinCurveModelVersion ?: JSONObject.NULL)
+            .put("insulinCurveEvidence", insulinCurveEvidence ?: JSONObject.NULL)
+            .put("insulinBodyWeightKg", insulinBodyWeightKg?.toDouble() ?: JSONObject.NULL)
+            .put("insulinCurveWasApproximated", insulinCurveWasApproximated)
     }
 
     private fun JournalInsulinPresetEntity.toJson(): JSONObject {
@@ -611,6 +783,9 @@ object ExportPackageExporter {
             .put("countsTowardIob", countsTowardIob)
             .put("useForCalculation", useForCalculation)
             .put("sortOrder", sortOrder)
+            .put("curveProfileId", curveProfileId ?: JSONObject.NULL)
+            .put("curveModelVersion", curveModelVersion)
+            .put("curveEvidence", curveEvidence)
     }
 
     private fun JournalFoodEntity.toJson(): JSONObject {
@@ -639,6 +814,22 @@ object ExportPackageExporter {
             .put("isEnabled", isEnabled)
             .put("isRawMode", isRawMode)
             .put("journalEntryId", journalEntryId ?: JSONObject.NULL)
+    }
+
+    private fun DeletedHistoryReading.toJson(): JSONObject {
+        return JSONObject()
+            .put("timestamp", timestamp)
+            .put("sensorSerial", sensorSerial)
+            .put("deletedAt", deletedAt)
+    }
+
+    private fun JournalPendingDeleteEntity.toJson(): JSONObject {
+        return JSONObject()
+            .put("entryId", entryId)
+            .put("nsRemoteId", nsRemoteId)
+            .put("deletedAt", deletedAt)
+            .put("attempts", attempts)
+            .put("lastAttemptAt", lastAttemptAt)
     }
 
     private fun JSONArray?.toHistoryReadings(): List<HistoryReading> {
@@ -692,7 +883,16 @@ object ExportPackageExporter {
                         createdAt = item.optLong("createdAt", timestamp),
                         updatedAt = item.optLong("updatedAt", timestamp),
                         nsUploadedAt = item.optNullableLong("nsUploadedAt"),
-                        nsRemoteId = item.optNullableString("nsRemoteId")
+                        nsRemoteId = item.optNullableString("nsRemoteId"),
+                        insulinCurveJsonSnapshot = item.optNullableString("insulinCurveJsonSnapshot"),
+                        insulinCurveProfileId = item.optNullableString("insulinCurveProfileId"),
+                        insulinCurveModelVersion = item.optNullableInt("insulinCurveModelVersion"),
+                        insulinCurveEvidence = item.optNullableString("insulinCurveEvidence"),
+                        insulinBodyWeightKg = item.optNullableFloat("insulinBodyWeightKg"),
+                        insulinCurveWasApproximated = item.optBoolean(
+                            "insulinCurveWasApproximated",
+                            false
+                        )
                     )
                 )
             }
@@ -720,7 +920,10 @@ object ExportPackageExporter {
                             "useForCalculation",
                             !(item.optBoolean("isBuiltIn", false) &&
                                 item.optInt("sortOrder", index) in setOf(1, 10))
-                        )
+                        ),
+                        curveProfileId = item.optNullableString("curveProfileId"),
+                        curveModelVersion = item.optInt("curveModelVersion", 0),
+                        curveEvidence = item.optString("curveEvidence", "unverified")
                     )
                 )
             }
@@ -775,6 +978,46 @@ object ExportPackageExporter {
         }
     }
 
+    private fun JSONArray?.toDeletedReadings(): List<DeletedHistoryReading> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                val timestamp = item.optLong("timestamp", 0L)
+                val sensorSerial = item.optString("sensorSerial", "")
+                if (timestamp <= 0L || sensorSerial.isBlank()) continue
+                add(
+                    DeletedHistoryReading(
+                        timestamp = timestamp,
+                        sensorSerial = sensorSerial,
+                        deletedAt = item.optLong("deletedAt", timestamp)
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JSONArray?.toPendingJournalDeletes(): List<JournalPendingDeleteEntity> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                val entryId = item.optLong("entryId", 0L)
+                val remoteId = item.optString("nsRemoteId", "")
+                if (entryId <= 0L || remoteId.isBlank()) continue
+                add(
+                    JournalPendingDeleteEntity(
+                        entryId = entryId,
+                        nsRemoteId = remoteId,
+                        deletedAt = item.optLong("deletedAt", System.currentTimeMillis()),
+                        attempts = item.optInt("attempts", 0),
+                        lastAttemptAt = item.optLong("lastAttemptAt", 0L)
+                    )
+                )
+            }
+        }
+    }
+
     private fun JSONObject.optNullableString(name: String): String? {
         return if (isNull(name) || !has(name)) null else optString(name)
     }
@@ -794,7 +1037,7 @@ object ExportPackageExporter {
     private fun readPayload(context: Context, uri: Uri): JSONObject {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Could not open import source")
-        val text = inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+        val text = ExportPackageCodec.readUtf8(inputStream)
         return JSONObject(text)
     }
 }

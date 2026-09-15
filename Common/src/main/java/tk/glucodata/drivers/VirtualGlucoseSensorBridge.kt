@@ -4,6 +4,7 @@ import java.util.Locale
 import tk.glucodata.Applic
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
+import tk.glucodata.Natives
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 
@@ -12,12 +13,60 @@ import tk.glucodata.UiRefreshBus
  * Values are stored in Room as mg/dL and published through the same live path as
  * managed BLE sensors, so dashboard, notification history, widgets, and alerts can
  * consume them without source-specific UI code.
+ *
+ * Sources that own no native sensor record ask for [mirrorToNative]. Room is what
+ * the phone's own UI reads, so stopping there looks complete — but everything
+ * served out of native reads the native sensor list instead, and a sensor with no
+ * poll data there is skipped entirely. That is why a follower-only setup answered
+ * the built-in web server's /api/v1/entries endpoints with "{}". BLE drivers that
+ * already keep their own native shell must leave the flag off so exactly one
+ * writer owns each sensor's window.
  */
 object VirtualGlucoseSensorBridge {
     private const val TAG = "VirtualGlucose"
     private const val MMOL_TO_MGDL = 18.0182f
     private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
     private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
+    private val mirrorLock = Any()
+
+    private val nativeMirror = VirtualSensorNativeMirror(
+        readShellStartSeconds = { serial ->
+            val sensorPtr = Natives.str2sensorptr(serial)
+            if (sensorPtr == 0L) 0L else Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1000L
+        },
+        openShell = { serial, startSeconds, minimumRecords ->
+            if (Natives.ensureSensorShellWithCapacity(serial, startSeconds, minimumRecords) == 0L) {
+                // Geometry is chosen once, at creation; a shell that already
+                // exists at a smaller size is still perfectly usable.
+                Natives.ensureSensorShell(serial, startSeconds)
+            }
+        },
+        rebaseShell = { serial, startSeconds -> Natives.rebaseDirectStreamWindow(serial, startSeconds) },
+        writeBatch = { timestampsSec, glucose, raws, serial ->
+            Natives.addGlucoseStreamBatchWithRawTemp(
+                timestampsSec,
+                glucose,
+                raws,
+                FloatArray(timestampsSec.size),
+                serial,
+            )
+        },
+    )
+
+    /**
+     * Serialised because the window's start is read, then written, then used to
+     * decide which readings are in range; two poll threads interleaving there
+     * would filter against a start the other had already moved.
+     */
+    private fun mirrorIntoNative(
+        sensorSerial: String,
+        readings: List<Reading>,
+        logLabel: String,
+    ): Int = synchronized(mirrorLock) {
+        runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel) }
+            .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
+            .getOrDefault(0)
+    }
 
     data class Reading(
         val timestampMs: Long,
@@ -41,6 +90,7 @@ object VirtualGlucoseSensorBridge {
         logLabel: String = "virtual",
         backfill: Boolean = true,
         nearDuplicateWindowMs: Long = 0L,
+        mirrorToNative: Boolean = false,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         val nowMs = System.currentTimeMillis()
@@ -50,6 +100,14 @@ object VirtualGlucoseSensorBridge {
             Log.w(TAG, "Skipped $skippedInvalid invalid $logLabel history points for $sensorSerial")
         }
         if (validReadings.isEmpty()) return 0
+        // Deliberately before the Room dedup below: on an app that already holds
+        // this history in Room, every point is a duplicate there and nothing
+        // would reach native, leaving the mirror empty forever. Native writes are
+        // addressed by minute slot and idempotent, so re-offering the whole page
+        // each poll is what refills a mirror that started out behind.
+        if (mirrorToNative) {
+            mirrorIntoNative(sensorSerial, validReadings, logLabel)
+        }
         val latestRoomTimestamp = if (backfill) 0L else HistorySyncAccess.getLatestTimestampForSensor(sensorSerial)
         val existingTimestamps = if (nearDuplicateWindowMs > 0L) {
             val minTimestamp = validReadings.minOf { it.timestampMs }
@@ -151,6 +209,7 @@ object VirtualGlucoseSensorBridge {
         reading: Reading,
         sensorGen: Int,
         logLabel: String = "virtual",
+        mirrorToNative: Boolean = false,
     ) {
         if (sensorSerial.isBlank()) return
         if (!isUsableCurrentReading(reading, System.currentTimeMillis())) {
@@ -167,6 +226,9 @@ object VirtualGlucoseSensorBridge {
             rate,
             sensorSerial,
         )
+        if (mirrorToNative) {
+            mirrorIntoNative(sensorSerial, listOf(reading), logLabel)
+        }
 
         val primaryMgdl = reading.primaryGlucoseMgdl
         val glucoseDisplay = if (Applic.unit == 1) {

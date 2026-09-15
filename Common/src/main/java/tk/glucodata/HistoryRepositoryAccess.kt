@@ -25,6 +25,27 @@ object HistoryRepositoryAccess {
         }.getOrNull()
     }
 
+    private val ownershipMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod("getMainSensorOwnershipForNotification", Long::class.javaPrimitiveType)
+        }.getOrNull()
+    }
+
+    /**
+     * Who is the main sensor, minute by minute, since [startTimeMs] — from the
+     * same record the dashboard reads. The one thing a shared renderer needs
+     * that the history points do not already carry.
+     */
+    @JvmStatic
+    fun getMainSensorOwnership(startTimeMs: Long): tk.glucodata.chart.MainSensorOwnership {
+        val method = ownershipMethod ?: return tk.glucodata.chart.MainSensorOwnership.NONE
+        return runCatching {
+            method.invoke(null, startTimeMs) as? tk.glucodata.chart.MainSensorOwnership
+        }.onFailure {
+            Log.w(TAG, "getMainSensorOwnership($startTimeMs) failed", it)
+        }.getOrNull() ?: tk.glucodata.chart.MainSensorOwnership.NONE
+    }
+
     @JvmStatic
     fun getHistoryForSensor(
         sensorSerial: String?,

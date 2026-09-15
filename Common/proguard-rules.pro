@@ -43,4 +43,5 @@
 -keep class ist.com.sdk.CurrentGlucose { *; }
 -keep class ist.com.sdk.KRDecodeData { *; }
 -keep class ist.com.sdk.SDKVersion { *; }
+-keep class com.github.luben.zstd.** { *; }
 

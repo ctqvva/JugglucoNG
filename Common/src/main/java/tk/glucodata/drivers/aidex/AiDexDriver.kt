@@ -245,6 +245,13 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
     /** Initiate re-pairing from scratch. */
     override fun rePairSensor()
 
+    /**
+     * Force-forget the stored PAIR credential locally, without any sensor handshake. For a
+     * key that has been invalidated by an unpair elsewhere and can no longer build a session
+     * to unpair itself. The next connection pairs fresh.
+     */
+    fun forgetSavedPairKey()
+
     /** Send an arbitrary maintenance/diagnostic command. Returns true on success. */
     override fun sendMaintenanceCommand(opCode: Int): Boolean
 

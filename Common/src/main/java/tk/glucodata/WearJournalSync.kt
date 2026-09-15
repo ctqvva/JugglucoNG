@@ -12,11 +12,13 @@ import java.nio.charset.StandardCharsets
  * persist. Payloads are encoded on the phone side of the bridge so the reflective
  * surface into the mobile source set stays two methods wide.
  *
- * Wire format, version 1, big-endian:
+ * Wire format, current version, big-endian:
  *
  *     served:  u8 version, u8 enabled, u16 entryCount,
  *              entryCount × { i64 timestampMs, i64 id, u8 type, f32 amount,
- *                             u8 titleLen, titleLen × utf8 },
+ *                             u8 titleLen, titleLen × utf8, i64 presetId,
+ *                             u8 curveCount,
+ *                             curveCount × { u16 minute, f32 activity } },
  *              u16 presetCount,
  *              presetCount × { i64 id, f32 units, u8 nameLen, nameLen × utf8 }
  *
@@ -31,8 +33,11 @@ object WearJournalSync {
      * forecasting as though a dose never happened. A v1 payload still decodes;
      * its entries simply carry no preset, and prediction treats them as
      * unmodelled.
+     *
+     * 3 adds the immutable resolved curve to each entry. This keeps watch
+     * prediction stable when a preset or body weight changes after a dose.
      */
-    const val VERSION = 2
+    const val VERSION = 3
     private const val MIN_VERSION = 1
 
     const val CMD_ADD = 1
@@ -57,7 +62,21 @@ object WearJournalSync {
         val title: String,
         /** 0 when unknown, which is every entry from a v1 payload. */
         val presetId: Long = 0L,
-    )
+        /** Resolved per-dose curve; empty for payloads older than v3. */
+        val curveMinutes: IntArray = IntArray(0),
+        val curveActivity: FloatArray = FloatArray(0),
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Entry) return false
+            return timestampMs == other.timestampMs && id == other.id && type == other.type &&
+                amount == other.amount && title == other.title && presetId == other.presetId &&
+                curveMinutes.contentEquals(other.curveMinutes) &&
+                curveActivity.contentEquals(other.curveActivity)
+        }
+
+        override fun hashCode(): Int = id.hashCode() * 31 + timestampMs.hashCode()
+    }
 
     data class Preset(
         val id: Long,
@@ -275,7 +294,20 @@ object WearJournalSync {
             if (buffer.remaining() < titleLen) return@repeat
             val title = ByteArray(titleLen).also { buffer.get(it) }.toString(StandardCharsets.UTF_8)
             val presetId = if (version >= 2 && buffer.remaining() >= 8) buffer.long else 0L
-            entries.add(Entry(timestamp, id, type, amount, title, presetId))
+            var minutes = IntArray(0)
+            var activity = FloatArray(0)
+            if (version >= 3 && buffer.remaining() >= 1) {
+                val curveCount = buffer.get().toInt() and 0xFF
+                if (buffer.remaining() >= curveCount * 6) {
+                    minutes = IntArray(curveCount)
+                    activity = FloatArray(curveCount)
+                    for (index in 0 until curveCount) {
+                        minutes[index] = buffer.short.toInt() and 0xFFFF
+                        activity[index] = buffer.float
+                    }
+                }
+            }
+            entries.add(Entry(timestamp, id, type, amount, title, presetId, minutes, activity))
         }
         val presets = ArrayList<Preset>()
         if (buffer.remaining() >= 2) {

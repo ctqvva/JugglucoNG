@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SettingsAccessibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -69,6 +70,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import tk.glucodata.R
+import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -723,6 +725,14 @@ fun AodSettingsScreen(navController: NavController) {
     var alignment by rememberSaveable { mutableStateOf(prefs.getString("aod_alignment", "CENTER") ?: "CENTER") }
     var fontSource by rememberSaveable { mutableStateOf(prefs.getString("aod_font_source", "APP") ?: "APP") }
     var fontWeight by rememberSaveable { mutableIntStateOf(prefs.getInt("aod_font_weight", 400)) }
+    var showOnLockscreen by rememberSaveable {
+        mutableStateOf(
+            prefs.getBoolean(
+                AODOverlayService.PREF_SHOW_ON_LOCKSCREEN,
+                AODOverlayService.DEFAULT_SHOW_ON_LOCKSCREEN
+            )
+        )
+    }
 
     fun save() {
         prefs.edit()
@@ -737,6 +747,7 @@ fun AodSettingsScreen(navController: NavController) {
             .putString("aod_alignment", alignment)
             .putString("aod_font_source", fontSource)
             .putInt("aod_font_weight", fontWeight)
+            .putBoolean(AODOverlayService.PREF_SHOW_ON_LOCKSCREEN, showOnLockscreen)
             .apply()
     }
 
@@ -760,6 +771,23 @@ fun AodSettingsScreen(navController: NavController) {
                 context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             },
             icon = Icons.Default.SettingsAccessibility,
+            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+        )
+
+        Spacer(Modifier.height(8.dp))
+        SettingsSwitchItem(
+            title = stringResource(R.string.aod_show_on_lockscreen),
+            subtitle = stringResource(R.string.aod_show_on_lockscreen_desc),
+            checked = showOnLockscreen,
+            onCheckedChange = {
+                showOnLockscreen = it
+                save()
+                context.sendBroadcast(
+                    Intent(AODOverlayService.ACTION_IMMEDIATE_REFRESH).setPackage(context.packageName)
+                )
+            },
+            icon = Icons.Default.Lock,
+            position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
         )
 

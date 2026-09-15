@@ -94,6 +94,29 @@ internal fun shouldReanchorTimeline(
 ): Boolean = liveId >= 0 && (!haveTimelineStart || liveId > previousMaxId)
 
 /**
+ * The timeline anchor to start a process with.
+ *
+ * [shouldReanchorTimeline] treats a missing anchor as "bootstrap, take whatever the
+ * first live id says". That is right for a new sensor and wrong after a restart: the
+ * anchor used to live only in memory, so every process start re-anchored on the first
+ * push, and a transmitter repeating an id it had already sent walked the stored sensor
+ * start forward by however long the app had been down.
+ *
+ * The sensor start is the fallback for installs that predate the persisted anchor, and
+ * only when an id has been seen before — without one there is nothing the anchor could
+ * have been derived from.
+ */
+internal fun restoredTimelineStartMs(
+    persistedTimelineStartMs: Long,
+    persistedSensorStartMs: Long,
+    persistedLastGlucoseId: Int,
+): Long = when {
+    persistedTimelineStartMs > 0L -> persistedTimelineStartMs
+    persistedSensorStartMs > 0L && persistedLastGlucoseId >= 0 -> persistedSensorStartMs
+    else -> 0L
+}
+
+/**
  * Legacy families use the profile record count as a hard history boundary.
  * CT5 does not: live ids can continue beyond the vendor's nominal 7695-record
  * horizon, and a finite CT5 repair is already bounded by its live id.
@@ -405,10 +428,25 @@ internal fun shouldDeferLossOfSignalReconnect(
     streamingSinceMs: Long,
     nowMs: Long,
     graceMs: Long,
-): Boolean {
-    if (streamingSinceMs <= 0L) return false
-    val age = nowMs - streamingSinceMs
-    return age in 0 until graceMs
+): Boolean = isWithinWindow(streamingSinceMs, nowMs, graceMs)
+
+/**
+ * True when the sensor has been heard from inside [withinMs].
+ *
+ * The shared alarm is armed from the last *reading*, so a sensor pushing on cadence
+ * without producing glucose — a terminated CT5 does this for days — reads to it as
+ * silence, and it tears down a working link. A decoded push is proof the link works
+ * whether or not it carried a reading.
+ */
+internal fun hasRecentSensorData(
+    lastSensorDataAtMs: Long,
+    nowMs: Long,
+    withinMs: Long,
+): Boolean = isWithinWindow(lastSensorDataAtMs, nowMs, withinMs)
+
+private fun isWithinWindow(sinceMs: Long, nowMs: Long, windowMs: Long): Boolean {
+    if (sinceMs <= 0L) return false
+    return (nowMs - sinceMs) in 0 until windowMs
 }
 
 /**

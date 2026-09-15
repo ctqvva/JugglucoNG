@@ -139,6 +139,10 @@ public class Natives {
 
         public static native String resolveFullSensorName(String sensorId);
 
+        public static native int getSensorIndex(String sensorId);
+
+        public static native int getSensorIndexFromDataPtr(long dataptr);
+
         public static native void freedataptr(long dataptr);
 
         public static native void setDeviceAddress(long dataptr, String deviceAddress);
@@ -1002,6 +1006,8 @@ public class Natives {
 
         public static native void finishSensor(long dataptr);
 
+        public static native boolean removeSensorById(String sensorId);
+
         public static native void unfinishSensor(long dataptr);
 
         public static native long manualLibreAccountIDnumber();
@@ -1017,6 +1023,16 @@ public class Natives {
         public static native void setsslport(int val);
 
         public static native int getsslport();
+
+        /**
+         * Port the plain-HTTP web server listens on. The setting was always in the native
+         * settings file and always honoured by the desktop build; both Android start sites
+         * passed the compile-time default instead, so it could not be changed from the
+         * phone. Setting it rebinds a running server on a background thread.
+         */
+        public static native int getxdripport();
+
+        public static native void setxdripport(int val);
 
         public static native void setsaytreatments(boolean val);
 
