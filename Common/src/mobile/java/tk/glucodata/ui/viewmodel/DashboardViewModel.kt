@@ -1117,7 +1117,12 @@ class DashboardViewModel(
         // whole timeline's.
         historyJob = viewModelScope.launch {
             var hasSeenHistoryEmission = false
-            var firstPainted = false
+            // A warm cache is already painted: skip the quick-sample stage,
+            // or the chart would jump back to the first-paint window and
+            // forward again on every return. The tail flow below takes over
+            // live; an unchanged signature resolves to the cached list
+            // instance, so collectors see no emission at all.
+            var firstPainted = _glucoseHistory.value.isNotEmpty()
             val tailFlow = _liveTailStart.flatMapLatest { tailStart ->
                 kotlinx.coroutines.flow.flow {
                     // First paint: the default range and its margin, read once
@@ -1546,9 +1551,10 @@ class DashboardViewModel(
         uiRefreshJob = null
         activeHistoryMode = null
         activeHistoryStartTimeMs = null
-        _multiSensorRawHistory.value = PeerRawHistory.EMPTY
-        _multiSensorDisplay.value = tk.glucodata.ui.MultiSensorDisplayData.EMPTY
-        _peerCurrentReadings.value = emptyList()
+        // Jobs stop, values stay: the rows keep their last paint while hidden
+        // instead of flashing empty-then-populated on every return. The
+        // restarted collectors replace them behind the cached frame; anything
+        // genuinely new arrives as a single update, not a restage.
     }
 
     fun setLowAlarm(enabled: Boolean, threshold: Float) {
