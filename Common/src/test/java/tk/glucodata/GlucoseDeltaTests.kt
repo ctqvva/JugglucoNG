@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
@@ -8,6 +9,11 @@ import java.util.Locale
 class GlucoseDeltaTests {
 
     private val t0 = 1_700_000_000_000L
+
+    @Test
+    fun arrowMatchingDefaultsOff() {
+        assertFalse(GlucoseDelta.DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA)
+    }
 
     @Test
     fun fiveMinutePairGivesRawChange() {
@@ -74,6 +80,13 @@ class GlucoseDeltaTests {
             GlucoseDelta.fiveMinuteDelta(t0, 130f, t0 - 10 * 60_000L, 120f),
             0.001f
         )
+    }
+
+    @Test
+    fun displayedDeltaConvertsToTheArrowRate() {
+        assertEquals(1.22f, GlucoseDelta.rateMgdlPerMinute(6.1f, false, 5), 0.001f)
+        assertEquals(3.60364f, GlucoseDelta.rateMgdlPerMinute(0.2f, true, 1), 0.001f)
+        assertTrue(GlucoseDelta.rateMgdlPerMinute(Float.NaN, false, 5).isNaN())
     }
 
     @Test

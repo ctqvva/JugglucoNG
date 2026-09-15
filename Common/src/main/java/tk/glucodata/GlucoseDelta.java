@@ -20,15 +20,18 @@ import java.util.Locale;
 
 /**
  * The "Δ" readout: measured change over a configurable interval (1 or 5
- * minutes), in display units. Unlike the trend arrow (an estimate over a
- * window) this is a raw measurement, an independent number to sanity-check
- * the arrow's angle and color against. Five minutes rather than one: adjacent
- * readings repeat on plain sensor noise, so a one-minute delta shows "0" next
- * to a visibly climbing chart — GDH exposes the same 1-vs-5-minute choice for
- * the same reason. The interval is a global setting; the same value drives the
- * readout and the FALLING_FAST / RISING_FAST delta alarms.
+ * minutes), in display units. Five minutes rather than one: adjacent readings
+ * repeat on plain sensor noise, so a one-minute delta shows "0" next to a visibly
+ * climbing chart — GDH exposes the same 1-vs-5-minute choice for the same reason.
+ * The interval is a global setting; the same value drives the readout and the
+ * FALLING_FAST / RISING_FAST delta alarms. The readout is independent of the
+ * smoother trend regression by default; users can instead match visible dashboard
+ * and notification arrows to this interval.
  */
 public final class GlucoseDelta {
+    private static final float MGDL_PER_MMOL = 18.0182f;
+    public static final String MATCH_ARROW_TO_DISPLAYED_DELTA_KEY = "match_arrow_to_displayed_delta";
+    public static final boolean DEFAULT_MATCH_ARROW_TO_DISPLAYED_DELTA = false;
     public static final int DEFAULT_INTERVAL_MINUTES = 5;
     public static final long WINDOW_MILLIS = 5L * 60L * 1000L;
     // Callers walk back to a point at least this much older than the newest
@@ -72,6 +75,14 @@ public final class GlucoseDelta {
     /** Convenience wrapper for the default 5-minute interval. */
     public static float fiveMinuteDelta(long newMillis, float newValue, long prevMillis, float prevValue) {
         return delta(newMillis, newValue, prevMillis, prevValue, DEFAULT_INTERVAL_MINUTES);
+    }
+
+    /** Converts a displayed delta back to the mg/dL-per-minute rate an arrow consumes. */
+    public static float rateMgdlPerMinute(float delta, boolean isMmol, int intervalMinutes) {
+        if (!Float.isFinite(delta))
+            return Float.NaN;
+        final float rate = delta / sanitizeIntervalMinutes(intervalMinutes);
+        return isMmol ? rate * MGDL_PER_MMOL : rate;
     }
 
     /**
