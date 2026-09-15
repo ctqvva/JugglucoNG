@@ -122,6 +122,40 @@ class RecordedDisplayVoidingTests {
     }
 
     @Test
+    fun aRecordStandsForAReadingOnlyWhileItHoldsTheSensorsNumber() {
+        val record = record(0, 100f)
+        val same = reading(0, 100.004f)
+        val moved = reading(0, 112f)
+        // Integrated lane: equal stands, moved or missing is stale.
+        assertTrue(RecordedDisplayVoiding.recordStandsFor(record, same, autoLaneIntegrated = true, rawLaneIntegrated = false))
+        assertTrue(!RecordedDisplayVoiding.recordStandsFor(record, moved, autoLaneIntegrated = true, rawLaneIntegrated = false))
+        assertTrue(!RecordedDisplayVoiding.recordStandsFor(record, null, autoLaneIntegrated = true, rawLaneIntegrated = false))
+        // A lane the driver does not integrate holds the app's calibration and may differ.
+        assertTrue(RecordedDisplayVoiding.recordStandsFor(record, moved, autoLaneIntegrated = false, rawLaneIntegrated = true))
+    }
+
+    @Test
+    fun theLineSetsAStaleRecordAsideAtReadTimeWithoutTouchingOwnership() {
+        // A store that already holds stale records — every minute after a
+        // 16:07 stick recorded at the pre-stick number while the driver had
+        // rewritten the rows to 1.8× — drew the old number where the record
+        // was this sensor's and the new one where it was the other sensor's,
+        // block by block. The line helper asks the same question the voiding
+        // does, so such a store draws the sensor's number at once; the
+        // record's ownership of the minute is not consulted here and stands.
+        val repo = java.io.File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val line = repo.substringAfter("private fun sealedRecordForLine").substringBefore("\n    }\n")
+        assertTrue(line.contains("recordStillDescribes(reading, record)"))
+        val rule = repo.substringAfter("private fun recordStillDescribes").substringBefore("\n    }\n")
+        assertTrue("one definition, shared with the voiding", rule.contains("RecordedDisplayVoiding.recordStandsFor"))
+        assertTrue("gated on the driver integrating the calibration", rule.contains("integratesLane"))
+        val flow = repo.substringAfter("private fun withSealedDisplay").substringBefore("\n    private fun")
+        assertTrue("the flow path asks too", flow.contains("recordStillDescribes("))
+        val stats = repo.substringAfter("private fun mapReadingForStats").substringBefore("\n    }\n")
+        assertTrue("statistics set aside a stale record of the reading's own sensor", stats.contains("recordStillDescribes(reading, record)"))
+    }
+
+    @Test
     fun theRepositoryVoidsOnlyAfterADriversBatchReplacedItsHistory() {
         // The voiding is wired to the one write a driver uses to replace its
         // own history, and to nothing else — recording, revising, and the

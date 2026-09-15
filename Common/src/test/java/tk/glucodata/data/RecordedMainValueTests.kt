@@ -165,9 +165,15 @@ class RecordedMainValueTests {
             flow.contains("SensorIdentity.matches(point.sensorSerial, it.sensorSerial)"),
         )
         // Statistics want the main value shown at the minute whoever showed it,
-        // and deliberately do not carry this check.
+        // so another sensor's record is taken as it is; only a stale record of
+        // the reading's own sensor is set aside (see recordStillDescribes).
         val stats = repo.substringAfter("private fun mapReadingForStats").substringBefore("\n    }")
-        assertFalse(stats.contains("SensorIdentity.matches"))
+        assertTrue(
+            stats.contains(
+                "!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||\n" +
+                    "                            recordStillDescribes(reading, record)"
+            ),
+        )
     }
 
     /**

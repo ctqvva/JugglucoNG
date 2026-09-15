@@ -54,18 +54,36 @@ object RecordedDisplayVoiding {
         for (record in records) {
             if (record.timestamp < first || record.timestamp > last) continue
             if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorSerial)) continue
-            val rawLane = record.viewMode == 1 || record.viewMode == 3
-            if (if (rawLane) !rawLaneIntegrated else !autoLaneIntegrated) continue
-            val now = byMinute[record.timestamp]
-            val current = when {
-                now == null -> Float.NaN
-                rawLane -> now.rawValue
-                else -> now.value
+            if (!recordStandsFor(record, byMinute[record.timestamp], autoLaneIntegrated, rawLaneIntegrated)) {
+                voided.add(record.timestamp)
             }
-            val unchanged = current.isFinite() && current > 0f &&
-                abs(current - record.displayMgdl) <= TOLERANCE_MGDL
-            if (!unchanged) voided.add(record.timestamp)
         }
         return voided
+    }
+
+    /**
+     * Whether [record] still describes the number [reading] holds in the
+     * record's lane — the one question both the rebuild-time voiding and the
+     * read-time check ask, so they cannot answer it differently.
+     *
+     * True whenever the lane is not integrated: the record then holds the
+     * app's own calibration of the number and is allowed to differ from it.
+     * On an integrated lane the record can only ever equal the stored number
+     * or be stale, so a missing reading or a different number is stale.
+     */
+    fun recordStandsFor(
+        record: ReadingDisplay,
+        reading: HistoryReading?,
+        autoLaneIntegrated: Boolean,
+        rawLaneIntegrated: Boolean,
+    ): Boolean {
+        val rawLane = record.viewMode == 1 || record.viewMode == 3
+        if (if (rawLane) !rawLaneIntegrated else !autoLaneIntegrated) return true
+        val current = when {
+            reading == null -> Float.NaN
+            rawLane -> reading.rawValue
+            else -> reading.value
+        }
+        return current.isFinite() && current > 0f && abs(current - record.displayMgdl) <= TOLERANCE_MGDL
     }
 }

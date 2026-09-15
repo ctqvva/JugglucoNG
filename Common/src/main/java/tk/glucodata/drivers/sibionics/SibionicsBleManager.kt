@@ -1697,7 +1697,8 @@ class SibionicsBleManager(
         Log.i(
             SibionicsConstants.TAG,
             "local algorithm rebuild committed samples=${result.readings.size} " +
-                "selection=${selection.name} revision=$calibrationRevision",
+                "selection=${selection.name} revision=$calibrationRevision " +
+                "anchors=${referenceAnchorsForEstimator().size}",
         )
     }
 

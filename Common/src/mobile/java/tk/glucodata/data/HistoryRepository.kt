@@ -982,6 +982,16 @@ class HistoryRepository(context: Context = Applic.app) {
                     val sealed = indexed[displayKey(point.timestamp)]
                         ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
                         ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
+                        ?.takeIf { record ->
+                            val serial = point.sensorSerial ?: return@takeIf true
+                            recordStillDescribes(
+                                HistoryReading(
+                                    timestamp = point.timestamp, sensorSerial = serial,
+                                    value = point.value, rawValue = point.rawValue, rate = null,
+                                ),
+                                record,
+                            )
+                        }
                         ?: return@map point
                     point.copy(sealedDisplayValue = sealed.displayMgdl, sealedDisplayViewMode = sealed.viewMode)
                 }
@@ -1643,6 +1653,12 @@ class HistoryRepository(context: Context = Applic.app) {
             } else {
                 display[displayKey(reading.timestamp)]
                     ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                    // The minute's record whoever showed it — but not a stale
+                    // one of this reading's own sensor; see recordStillDescribes.
+                    ?.takeIf { record ->
+                        !SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||
+                            recordStillDescribes(reading, record)
+                    }
                     ?.displayMgdl
             },
         )
@@ -2108,8 +2124,38 @@ class HistoryRepository(context: Context = Applic.app) {
         val record = display[displayKey(reading.timestamp)] ?: return null
         if (!record.isUsable || !record.isSealedAt(nowMs)) return null
         if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
+        if (!recordStillDescribes(reading, record)) return null
         return record
     }
+
+    /**
+     * Whether a record of this reading's own sensor still describes the number
+     * it was drawn from.
+     *
+     * A sensor whose driver integrates the user's calibration shows its stored
+     * number as it is; the record of such a minute can only equal that number
+     * or be stale — left behind when the driver replayed its algorithm and
+     * replaced the row. Drawing a stale one froze the line at a calibration
+     * the user had since changed, and where the record belonged to the other
+     * sensor the line showed the new number instead, so a two-sensor store
+     * drew the old and the new numbers side by side, minute by minute. The
+     * rewrite voids such records ([voidRecordsRewrittenByDriver]); this is the
+     * same rule at read time, so a store that already holds them draws the
+     * sensor's number without waiting for the next rewrite. The record's
+     * ownership of the minute is untouched: only its value is set aside.
+     */
+    private fun recordStillDescribes(reading: HistoryReading, record: ReadingDisplay): Boolean {
+        val serial = reading.sensorSerial
+        val autoIntegrated = integratesLane(serial, isRawMode = false)
+        val rawIntegrated = integratesLane(serial, isRawMode = true)
+        if (!autoIntegrated && !rawIntegrated) return true
+        return RecordedDisplayVoiding.recordStandsFor(record, reading, autoIntegrated, rawIntegrated)
+    }
+
+    private fun integratesLane(serial: String, isRawMode: Boolean): Boolean =
+        runCatching {
+            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(serial, isRawMode)
+        }.getOrDefault(false)
 
     /**
      * The recorded main value's key: the minute, and nothing else.
