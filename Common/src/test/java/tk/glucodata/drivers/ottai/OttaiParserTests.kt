@@ -338,26 +338,33 @@ class OttaiParserTests {
         assertEquals(50, OttaiParser.parseRecord(records.single()).dataNo)
     }
 
+    // Flagged in PR #319 review: a skipped live notify (a brief disconnect is the common cause)
+    // advances frontDataNo by 2 with no second real record to show for it. On this same 16-byte
+    // body that coincidentally equals eightCount, so trusting any delta > 1 flips a genuinely
+    // 9-byte sensor to 8-byte — and worse, since decisiveRecordSize trusts the same check, it
+    // would persist that wrong answer over an already-correct learned 9-byte one. delta must
+    // stay confined to exactly 1, the only value a skip can never produce for a live sensor
+    // whose counter advances by one per real record.
     @Test
-    fun chooseRecordSize_frontDeltaCanConfirmEightByteToo() {
-        // Same ambiguous all-zero content, 24-byte body: nine-byte gives 24/9=2 candidate
-        // records, eight-byte gives 24/8=3. A previous front 3 behind this one matches only the
-        // 8-byte reading.
-        val payload = ByteArray(24 + OttaiParser.HEADER_SIZE).also { it[4] = 10 }
+    fun chooseRecordSize_aSkippedNotifyMustNotBeMistakenForASecondRecord() {
+        val payload = ByteArray(16 + OttaiParser.HEADER_SIZE).also { it[4] = 52 } // front=52
+        // previousFront=50: two records' worth of advance, but only one notify was actually
+        // received in between (one was dropped) — this payload still holds a single 9-byte
+        // record, not two 8-byte ones.
+        assertNull(OttaiParser.frontDeltaRecordSize(payload, previousFront = 50))
         assertEquals(
             OttaiParser.BLE_RECORD_SIZE_E12,
-            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 8),
+            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 50, learned = OttaiParser.BLE_RECORD_SIZE_E12),
         )
-        assertEquals(
-            OttaiParser.BLE_RECORD_SIZE,
-            OttaiParser.chooseRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 7),
-        )
+        // decisiveRecordSize must likewise refuse to re-learn 8-byte from this ambiguous delta,
+        // so a correctly held layout survives a skip instead of being overwritten by it.
+        assertNull(OttaiParser.decisiveRecordSize(payload, "E1.1.4(V1.7.S2530.1)", previousFront = 50))
     }
 
     @Test
-    fun chooseRecordSize_ignoresFrontDeltaWhenItMatchesNeitherCandidate() {
-        // A delta that fits neither candidate's record count (a reconnect, a history seek to an
-        // unrelated dataNo, 16-bit wraparound) must not force a size — fall back to content.
+    fun chooseRecordSize_ignoresFrontDeltaWhenItIsNotExactlyOne() {
+        // Any delta other than 1 — zero, a skip, a reconnect, a history seek to an unrelated
+        // dataNo, 16-bit wraparound — must not force a size — fall back to content.
         val payload = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
         assertEquals(
             OttaiParser.BLE_RECORD_SIZE,
@@ -378,6 +385,7 @@ class OttaiParserTests {
         assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 49))
         assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = null))
         assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 50)) // delta=0
+        assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 48)) // delta=2, a skip
         assertEquals(null, OttaiParser.frontDeltaRecordSize(ninePerRecord, previousFront = 4096)) // fits neither
     }
 

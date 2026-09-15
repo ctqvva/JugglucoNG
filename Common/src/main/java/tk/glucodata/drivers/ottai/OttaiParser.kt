@@ -108,30 +108,35 @@ object OttaiParser {
     }
 
     /**
-     * The record size [previousFront]'s advance into this payload's own frontDataNo proves, or
-     * null when it proves nothing — [previousFront] is unknown, or the advance matches neither
-     * candidate's record count, or (rarer) matches both.
+     * The record size this payload's advance from [previousFront] proves it holds exactly one
+     * of, or null when [previousFront] is unknown or the advance isn't exactly 1.
      *
-     * When it does resolve, it settles the choice outright: the sensor's own counter is ground
-     * truth, unlike the content-based vote in [recordSizeEvidence], which a real device's
-     * still-unseen "unused" record bytes can tip either way. A 24-byte live notify — header,
-     * one 9-byte record, seven pad bytes — is also exactly a header plus two 8-byte records;
-     * one real record cannot outvote two, so the vote alone ties to 8-byte and decodes the
-     * padding as a second, all-zero record (raw=0, runtime=0) that then fails every downstream
-     * sanity gate. It happens every single such frame, not just an unlucky one, because the
-     * payload never grows a third record's worth of evidence — a lone-record live notify is
-     * this ambiguous by construction, every time it's sent. The advance in frontDataNo across
-     * two payloads is the one signal a short frame's own bytes can never supply.
+     * A lone-record live notify can't outvote its own padding by content: a 24-byte notify —
+     * header, one 9-byte record, seven pad bytes — is also exactly a header plus two 8-byte
+     * records, so [recordSizeEvidence]'s vote alone ties to 8-byte and decodes the padding as a
+     * second, all-zero record that then fails every downstream sanity gate. But frontDataNo
+     * counts records the sensor has *generated*, and when it has advanced by exactly 1 since
+     * the payload before this one, that can only mean one real record and zero skipped
+     * notifies — the sensor cannot report "+1" for any other reason. Whichever candidate size
+     * implies exactly one record for this payload's length is then the real one, no vote needed.
+     *
+     * Any other delta is not trusted, however tidy the arithmetic looks: a delta of 2 could
+     * just as well be one real record plus one live notify a brief disconnect dropped in
+     * between, which this payload's own bytes can never distinguish from two real records — and
+     * on a 16-byte body, that skip reads as eightCount(2), silently flipping a genuinely 9-byte
+     * sensor to 8-byte (and, since [decisiveRecordSize] trusts this same check, persisting that
+     * wrong answer over an already-correct learned one). Only a delta of exactly 1 rules that
+     * out categorically, which is why larger deltas are left to the vote instead.
      */
     internal fun frontDeltaRecordSize(payload: ByteArray, previousFront: Int?): Int? {
         val bodyLen = payload.size - HEADER_SIZE
         if (previousFront == null || bodyLen <= 0) return null
         val delta = (frontDataNo(payload) - previousFront) and 0xFFFF
-        if (delta <= 0) return null
+        if (delta != 1) return null
         val nineCount = bodyLen / BLE_RECORD_SIZE_E12
         val eightCount = bodyLen / BLE_RECORD_SIZE
-        if (delta == nineCount && delta != eightCount) return BLE_RECORD_SIZE_E12
-        if (delta == eightCount && delta != nineCount) return BLE_RECORD_SIZE
+        if (nineCount == 1 && eightCount != 1) return BLE_RECORD_SIZE_E12
+        if (eightCount == 1 && nineCount != 1) return BLE_RECORD_SIZE
         return null
     }
 
