@@ -1436,5 +1436,6 @@ private val templateTokens = listOf(
     "{journal_events}",
     "{journal}",
     "{status}",
-    "{status_emoji}"
+    "{status_emoji}",
+    "{temp}"
 )

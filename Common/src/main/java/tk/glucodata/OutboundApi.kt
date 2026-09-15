@@ -497,6 +497,13 @@ object OutboundApi {
                 Natives.getxDripTrendName(rateMgdlPerMinute) ?: ""
             }
         }
+        /**
+         * Latest known skin temperature in °C for this reading's sensor, from
+         * the same sources the Statistics card reads ([SensorTemperature]).
+         * Null when the sensor has no temperature channel — rendered as empty.
+         */
+        val temperatureC: Float? get() =
+            runCatching { SensorTemperature.latestTemperatureC(sensorId) }.getOrNull()
         val trendArrow: String get() = trendArrow(trendName)
         val iob: Float get() = runCatching { Natives.getIOBvalue(timeMillis) }.getOrDefault(Float.NaN)
         val journal: JournalSnapshot get() = loadJournalSnapshot(timeMillis)
@@ -575,6 +582,7 @@ object OutboundApi {
             .replace("{time}", time)
             .replace("{sensor}", reading.sensorId)
             .replace("{sensor_gen}", reading.sensorGen.toString())
+            .replace("{temp}", formatTemperatureC(reading.temperatureC))
             .replace("{alarm}", reading.alarm.toString())
             .replace("{iob}", if (effectiveIob.isFinite()) formatNumber(effectiveIob, 2) else "0")
             .replace("{journal_iob}", if (journal.iob.isFinite()) formatNumber(journal.iob, 2) else "0")
@@ -607,7 +615,7 @@ object OutboundApi {
         "auto", "auto_value", "auto_mgdl", "auto_mmol",
         "raw", "raw_mgdl", "raw_mmol",
         "trend", "trend_arrow", "rate_mgdl", "rate_mmol",
-        "timestamp", "time", "sensor", "sensor_gen", "alarm",
+        "timestamp", "time", "sensor", "sensor_gen", "temp", "alarm",
         "test", "status", "status_emoji"
     )
 
@@ -630,6 +638,13 @@ object OutboundApi {
         if (!value.isFinite()) return ""
         return "%.${decimals}f".format(Locale.US, value)
     }
+
+    /**
+     * Renders a `{temp}` token: 1-decimal °C number, or empty when the sensor
+     * has no known temperature. Never invents a value.
+     */
+    internal fun formatTemperatureC(value: Float?): String =
+        if (value != null && value.isFinite()) formatNumber(value, 1) else ""
 
     internal fun displayToMgdl(value: Float): Int {
         if (!value.isFinite() || value <= 0f) return 0
