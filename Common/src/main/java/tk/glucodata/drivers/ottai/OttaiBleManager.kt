@@ -907,11 +907,14 @@ class OttaiBleManager(
     // sample is admitted and re-baselines the gate.
     @Volatile private var consecutiveContinuityRejects = 0
     @Volatile private var lastDataNo = -1
-    // frontDataNo of the last decrypted notify (live or history alike — one counter), used to
-    // settle chooseRecordSize's 8-vs-9-byte vote from the sensor's own advance rather than a
-    // content guess. -1 until known; restoreFromPersistence seeds it from the persisted
-    // lastDataNo (same counter) so a fresh connection after an app restart already has ground
-    // truth on its first payload too, not just from its second one on.
+    // dataNo of the last record actually held by the last decrypted notify (live or history
+    // alike — one counter), used to settle chooseRecordSize's 8-vs-9-byte vote from the
+    // sensor's own advance rather than a content guess. The LAST record, not the frame's own
+    // front: a multi-record page's front undercounts by (recordCount-1) once the page has been
+    // read, which would make the very next, perfectly-adjacent notify measure as a bigger,
+    // unresolvable delta instead of the 1 it actually is. -1 until known; restoreFromPersistence
+    // seeds it from the persisted lastDataNo (same counter) so a fresh connection after an app
+    // restart already has ground truth on its first payload too, not just from its second one on.
     @Volatile private var lastFrameFront = -1
     @Volatile private var consecutiveCeilingFullDrops = 0
     @Volatile private var ceilingDistrusted = false
@@ -2962,7 +2965,13 @@ class OttaiBleManager(
         val frontDeltaSize = OttaiParser.frontDeltaRecordSize(payload, previousFront)
         learnRecordSize(payload, previousFront)
         val records = OttaiParser.frameRecords(payload, materials.deviceVersion, previousFront, heldRecordSize())
-        lastFrameFront = front
+        // The dataNo of the LAST record this frame actually held, not the frame's own front —
+        // a multi-record page (history, or a polled live read) advances the counter by more
+        // than one, and seeding the next frame's delta check from the page's first record
+        // instead of its last understates the true advance by (recordCount-1), so a
+        // perfectly-adjacent next notify no longer measures as delta==1 and frontDeltaRecordSize
+        // abstains when it could have proven the layout directly.
+        lastFrameFront = records.lastOrNull()?.let { OttaiParser.parseRecord(it).dataNo } ?: front
         if (records.isEmpty()) {
             Log.w(TAG, "$kind $source no records payloadLen=${payload.size} hex=${OttaiCrypto.bytesToHex(payload).take(160)}")
             if (live) {
@@ -3079,7 +3088,10 @@ class OttaiBleManager(
         val latest = OttaiParser.frameRecords(payload, materials.deviceVersion, previousFront, heldRecordSize())
             .map(OttaiParser::parseRecord)
             .maxByOrNull { it.dataNo }
-        lastFrameFront = OttaiParser.frontDataNo(payload)
+        // Same reasoning as handleGlucosePayload: track the last record's dataNo, not the
+        // frame's own front, so a multi-record page still leaves the next frame's delta check
+        // measuring the true advance.
+        lastFrameFront = latest?.dataNo ?: OttaiParser.frontDataNo(payload)
         if (latest == null) {
             Log.w(TAG, "ended live $source has no records")
             return
