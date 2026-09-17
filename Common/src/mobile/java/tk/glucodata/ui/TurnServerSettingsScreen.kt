@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import tk.glucodata.Applic
 import tk.glucodata.CloneIceNetworkConfigStore
+import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.Natives
 import tk.glucodata.R
 
@@ -19,58 +20,42 @@ private fun writeTurnEndpoint(endpoint: TurnEndpoint?) {
     else Natives.setTurnServer(0, endpoint.host, endpoint.port, endpoint.username, endpoint.password)
 }
 
+/**
+ * The screen edits a draft and applies it in one step. Switches take effect on the next
+ * connection attempt and never disturb a live one; a changed server does, once, when
+ * Apply is pressed -- not on every keystroke or focus change on the way there.
+ */
 @Composable
 fun TurnServerSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     var config by remember { mutableStateOf(CloneIceNetworkConfigStore.load(context)) }
-    var turn by remember { mutableStateOf(readTurnEndpoint()) }
-    fun reportFailure() {
-        Toast.makeText(context, R.string.savefailed, Toast.LENGTH_LONG).show()
-    }
+    var saved by remember { mutableStateOf(HybridDraft.of(config, readTurnEndpoint())) }
+    var draft by remember { mutableStateOf(saved) }
+    // Read once per entry: the button's wording is what it is about to do, and a route
+    // that changes mid-edit is not worth a recomposition storm to track.
+    val liveConnection = remember { CloneSensorRegistry.hasLiveCloneConnection() }
+
     HybridSettingsContent(
-        config = config,
-        turn = turn,
+        draft = draft,
+        saved = saved,
+        liveConnection = liveConnection,
+        onDraftChange = { draft = it },
         onBack = { navController.popBackStack() },
-        onLocalDiscovery = { enabled ->
-            val next = config.copy(useLocalDiscovery = enabled)
-            if (CloneIceNetworkConfigStore.save(context, next)) config = next else reportFailure()
-        },
-        onTurnForStun = { enabled ->
-            val next = config.copy(useTurnForStun = enabled)
-            if (CloneIceNetworkConfigStore.save(context, next)) config = next else reportFailure()
-        },
-        onPreferIPv4 = { enabled ->
-            val next = config.copy(preferIPv4 = enabled)
-            if (CloneIceNetworkConfigStore.save(context, next)) config = next else reportFailure()
-        },
-        onSaveTurn = { nextTurn ->
-            val previous = turn
-            val nextConfig = config.copy(useTurnForStun = nextTurn != null && config.useTurnForStun)
+        onApply = {
+            val previousTurn = saved.turnEndpoint
+            val nextTurn = draft.turnEndpoint
+            val nextConfig = draft.toConfig(config)
+            val reconnect = draft.changesServers(saved)
             writeTurnEndpoint(nextTurn)
             if (readTurnEndpoint() != nextTurn || !CloneIceNetworkConfigStore.save(context, nextConfig)) {
-                writeTurnEndpoint(previous)
-                reportFailure()
-                false
+                writeTurnEndpoint(previousTurn)
+                Toast.makeText(context, R.string.savefailed, Toast.LENGTH_LONG).show()
             } else {
-                turn = nextTurn
                 config = nextConfig
-                if (previous != nextTurn) Natives.resetnetwork()
+                saved = HybridDraft.of(nextConfig, nextTurn)
+                draft = saved
+                if (reconnect) Natives.resetnetwork()
                 Applic.wakemirrors()
-                true
-            }
-        },
-        onSaveRendezvous = { host, port, verify ->
-            val next = config.copy(rendezvousHost = host, rendezvousPort = port, verifyRendezvousCertificate = verify)
-            val endpointChanged = config.rendezvousHost != host || config.rendezvousPort != port ||
-                config.verifyRendezvousCertificate != verify
-            if (CloneIceNetworkConfigStore.save(context, next)) {
-                config = next
-                if (endpointChanged) Natives.resetnetwork()
-                Applic.wakemirrors()
-                true
-            } else {
-                reportFailure()
-                false
             }
         },
     )

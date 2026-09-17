@@ -407,49 +407,71 @@ class CloneReceptionSafetyTests {
         assertTrue(connection.contains("icedata[1].reStarted(preservePeerRequest)"))
     }
 
-    @Test
-    fun hybridSwitchesPersistImmediatelyWithoutResettingTheLiveConnection() {
-        val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
-            .replace(Regex("\\s+"), " ")
-        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
-            .replace(Regex("\\s+"), " ")
-        val switches = screen.substring(screen.indexOf("onLocalDiscovery ="), screen.indexOf("onSaveTurn ="))
-        assertTrue(switches.contains("CloneIceNetworkConfigStore.save(context, next)"))
-        assertTrue(switches.contains("useLocalDiscovery = enabled"))
-        assertTrue(switches.contains("useTurnForStun = enabled"))
-        assertTrue(switches.contains("preferIPv4 = enabled"))
-        assertFalse(switches.contains("resetnetwork()"))
-        assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
-    }
-
     /**
-     * STUN over TURN needs a TURN server to point at. This used to be expressed
-     * as a default that switched itself on when none was configured, which the
-     * validation work removed; the guarantee now is that the switch cannot be
-     * reached without a server, and that clearing the server clears it too.
+     * The screen edits a draft and nothing reaches native or the store until Apply.
+     * The explicit save was intentional in the original stack, because a changed
+     * setting must not rebuild a live connection on its own; the draft keeps that
+     * guarantee without a Save button, and the Apply button says when it will.
      */
     @Test
-    fun stunOverTurnIsUnreachableWithoutATurnServer() {
+    fun hybridSettingsApplyOnceAndSwitchesNeverResetTheLiveConnection() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
             .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
 
-        assertTrue(screen.contains("useTurnForStun = nextTurn != null && config.useTurnForStun"))
+        // One write path, inside onApply; the content composable never touches native.
+        assertTrue(Regex("CloneIceNetworkConfigStore.save\\(").findAll(screen).count() == 1)
+        assertFalse(hybrid.contains("Natives."))
+        assertFalse(hybrid.contains("CloneIceNetworkConfigStore"))
+        val apply = screen.substring(screen.indexOf("onApply = {"))
+        assertTrue(apply.contains("val reconnect = draft.changesServers(saved)"))
+        assertTrue(apply.contains("if (reconnect) Natives.resetnetwork()"))
+        // A switch alone is not a server change, so it never resets the network.
+        val draft = hybrid.substring(hybrid.indexOf("fun changesServers(saved: HybridDraft)"))
+            .substringBefore("companion object")
+        assertFalse(draft.contains("useLocalDiscovery"))
+        assertFalse(draft.contains("useTurnForStun"))
+        assertFalse(draft.contains("preferIPv4"))
+        assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
+    }
+
+    /** The button tells the user whether pressing it costs the current connection. */
+    @Test
+    fun applyButtonNamesTheReconnectBeforeItHappens() {
+        val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
+            .replace(Regex("\\s+"), " ")
+        val button = hybrid.substring(hybrid.indexOf("AnimatedVisibility( visible = dirty"))
+        assertTrue(button.contains("if (reconnects && liveConnection) R.string.clone_apply_reconnect else R.string.clone_apply"))
+        assertTrue(button.contains("enabled = draft.valid"))
+        assertTrue(hybrid.contains("BackHandler(enabled = dirty)"))
+        assertTrue(hybrid.contains("R.string.clone_discard_changes_title"))
+    }
+
+    /**
+     * STUN over TURN needs a TURN server to point at. The switch cannot be reached
+     * without one in the draft, and a draft that clears the server clears it too.
+     */
+    @Test
+    fun stunOverTurnIsUnreachableWithoutATurnServer() {
+        val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(hybrid.contains("useTurnForStun = useTurnForStun && turnEndpoint != null"))
         val stunSwitch = hybrid.substring(hybrid.indexOf("R.string.clone_stun_short"))
             .substringBefore("position = CardPosition.BOTTOM")
-        assertTrue(stunSwitch.contains("enabled = turn != null"))
+        assertTrue(stunSwitch.contains("enabled = turnAvailable"))
         assertTrue(stunSwitch.contains("R.string.clone_stun_needs_server"))
     }
 
     @Test
-    fun serverEditorsRetainRollbackAndReconnectOnlyForChangedEndpoints() {
+    fun applyRollsBackTheTurnServerWhenTheStoreRefuses() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         assertTrue(screen.contains("readTurnEndpoint() != nextTurn"))
-        assertTrue(screen.contains("writeTurnEndpoint(previous)"))
-        assertTrue(screen.contains("if (previous != nextTurn) Natives.resetnetwork()"))
-        assertTrue(screen.contains("if (endpointChanged) Natives.resetnetwork()"))
+        assertTrue(screen.contains("writeTurnEndpoint(previousTurn)"))
     }
 
     @Test

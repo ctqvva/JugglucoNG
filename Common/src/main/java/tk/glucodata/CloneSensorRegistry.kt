@@ -361,6 +361,26 @@ object CloneSensorRegistry {
         )
     }
 
+    /** Whether any configured Clone host currently has an ICE route up, local or relayed. */
+    @JvmStatic
+    fun hasLiveCloneConnection(): Boolean = connectedCloneTransports().isNotEmpty()
+
+    private fun connectedCloneTransports(): List<CloneTransport> = runCatching {
+        buildList {
+            for (index in 0 until Natives.backuphostNr()) {
+                if (Natives.getHostDeactivated(index)) continue
+                val identity = Natives.getICElabel(index)?.takeIf { it.isNotBlank() }
+                    ?: continue
+                val transport = CloneTransport.fromCode(
+                    Natives.getCloneConnectionTransport(identity),
+                )
+                if (transport == CloneTransport.LOCAL_ICE || transport == CloneTransport.TURN) {
+                    add(transport)
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
+
     /** Returns the route selected by the sensor's current ICE connection, not its last imported row. */
     @JvmStatic
     fun liveTransportForSensor(sensorId: String?): CloneTransport? {
@@ -383,21 +403,6 @@ object CloneSensorRegistry {
         // reconnect can briefly lack the sensor-to-host mapping. If exactly
         // one active ICE host is connected, its selected route is still an
         // unambiguous live answer for the sensor card and notification.
-        val connectedTransports = runCatching {
-            buildList {
-                for (index in 0 until Natives.backuphostNr()) {
-                    if (Natives.getHostDeactivated(index)) continue
-                    val identity = Natives.getICElabel(index)?.takeIf { it.isNotBlank() }
-                        ?: continue
-                    val transport = CloneTransport.fromCode(
-                        Natives.getCloneConnectionTransport(identity),
-                    )
-                    if (transport == CloneTransport.LOCAL_ICE || transport == CloneTransport.TURN) {
-                        add(transport)
-                    }
-                }
-            }
-        }.getOrDefault(emptyList())
-        return CloneLiveTransportPolicy.resolve(mappedTransport, connectedTransports)
+        return CloneLiveTransportPolicy.resolve(mappedTransport, connectedCloneTransports())
     }
 }
