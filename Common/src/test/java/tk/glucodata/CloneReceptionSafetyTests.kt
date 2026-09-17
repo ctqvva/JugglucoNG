@@ -408,13 +408,13 @@ class CloneReceptionSafetyTests {
     }
 
     /**
-     * The screen edits a draft and nothing reaches native or the store until Apply.
-     * The explicit save was intentional in the original stack, because a changed
-     * setting must not rebuild a live connection on its own; the draft keeps that
-     * guarantee without a Save button, and the Apply button says when it will.
+     * The screen saves itself and never rebuilds a live connection on its own: switches
+     * are written as they are flipped, servers when the screen is left, and neither
+     * path resets the network. The one explicit action is Apply, which exists only
+     * while a changed server would otherwise wait for the next reconnect.
      */
     @Test
-    fun hybridSettingsApplyOnceAndSwitchesNeverResetTheLiveConnection() {
+    fun hybridSettingsSaveThemselvesAndOnlyApplyRebuildsAConnection() {
         val screen = source("Common/src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt")
             .replace(Regex("\\s+"), " ")
         val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
@@ -422,32 +422,35 @@ class CloneReceptionSafetyTests {
         val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
             .replace(Regex("\\s+"), " ")
 
-        // One write path, inside onApply; the content composable never touches native.
-        assertTrue(Regex("CloneIceNetworkConfigStore.save\\(").findAll(screen).count() == 1)
+        // The content composable never touches native or the store.
         assertFalse(hybrid.contains("Natives."))
         assertFalse(hybrid.contains("CloneIceNetworkConfigStore"))
-        val apply = screen.substring(screen.indexOf("onApply = {"))
-        assertTrue(apply.contains("val reconnect = draft.changesServers(saved)"))
-        assertTrue(apply.contains("if (reconnect) Natives.resetnetwork()"))
-        // A switch alone is not a server change, so it never resets the network.
-        val draft = hybrid.substring(hybrid.indexOf("fun changesServers(saved: HybridDraft)"))
-            .substringBefore("companion object")
-        assertFalse(draft.contains("useLocalDiscovery"))
-        assertFalse(draft.contains("useTurnForStun"))
-        assertFalse(draft.contains("preferIPv4"))
+        // Leaving the screen saves the servers without a reconnect.
+        assertTrue(screen.contains("onDispose { persistServers(draft, reconnect = false) }"))
+        // Switches save as flipped, through a path with no reset in it.
+        val switches = screen.substring(screen.indexOf("fun persistSwitches("), screen.indexOf("DisposableEffect"))
+        assertFalse(switches.contains("resetnetwork"))
+        assertTrue(screen.contains("if (next.switchesChanged(saved)) persistSwitches(next)"))
+        // The only reset is behind the explicit Apply.
+        assertTrue(Regex("Natives.resetnetwork\\(\\)").findAll(screen).count() == 1)
+        assertTrue(screen.contains("if (reconnect) Natives.resetnetwork()"))
+        assertTrue(screen.contains("saved = persistServers(draft.copy("))
         assertTrue(connection.contains("reloadNetworkConfig(getBackupHosts()[allindex])"))
     }
 
-    /** The button tells the user whether pressing it costs the current connection. */
+    /** Apply is inside the server it applies, and only while pressing it does something. */
     @Test
-    fun applyButtonNamesTheReconnectBeforeItHappens() {
+    fun applyLivesInsideTheChangedServerAndOnlyWhileARouteIsUp() {
         val hybrid = source("Common/src/mobile/java/tk/glucodata/ui/HybridSettingsContent.kt")
             .replace(Regex("\\s+"), " ")
-        val button = hybrid.substring(hybrid.indexOf("AnimatedVisibility( visible = dirty"))
-        assertTrue(button.contains("if (reconnects && liveConnection) R.string.clone_apply_reconnect else R.string.clone_apply"))
-        assertTrue(button.contains("enabled = draft.valid"))
-        assertTrue(hybrid.contains("BackHandler(enabled = dirty)"))
-        assertTrue(hybrid.contains("R.string.clone_discard_changes_title"))
+        assertTrue(hybrid.contains("showApply = liveConnection && draft.turnValid && draft.turnChanged(saved)"))
+        assertTrue(hybrid.contains("showApply = liveConnection && draft.rendezvousValid && draft.rendezvousChanged(saved)"))
+        // Both rows sit inside the disclosed content of their card.
+        assertTrue(Regex("ApplyRow\\(visible = showApply, onApply = onApply\\)").findAll(hybrid).count() == 2)
+        // No footer, no dialog, nothing to explain.
+        assertFalse(hybrid.contains("clone_switches_apply"))
+        assertFalse(hybrid.contains("BackHandler"))
+        assertFalse(hybrid.contains("AlertDialog( onDismissRequest = { confirmDiscard"))
     }
 
     /**

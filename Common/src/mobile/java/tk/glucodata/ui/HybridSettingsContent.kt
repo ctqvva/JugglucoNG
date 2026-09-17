@@ -2,7 +2,6 @@
 
 package tk.glucodata.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -64,11 +63,6 @@ internal data class HybridDraft(
     val rendezvousHostValid: Boolean
         get() = rendezvousHost.isNotBlank() && rendezvousHost.trim().length <= CloneIceNetworkConfig.MAX_HOST_LENGTH
 
-    /** A draft Apply may act on: every enabled server has a host and a port that parse. */
-    val valid: Boolean
-        get() = (!customTurn || (turnHost.isNotBlank() && turnHostValid && turnPortValue != null && turnUserValid && turnPasswordValid)) &&
-            (!customRendezvous || (rendezvousHostValid && rendezvousPortValue != null))
-
     /** The TURN endpoint this draft describes, or null for the app's own. */
     val turnEndpoint: TurnEndpoint?
         get() = if (customTurn && turnHost.isNotBlank()) {
@@ -87,18 +81,28 @@ internal data class HybridDraft(
         preferIPv4 = preferIPv4,
     )
 
-    /**
-     * Whether applying this over [saved] changes a server -- which is what costs a live
-     * connection its route. Switches only take effect on the next connection attempt.
-     */
-    fun changesServers(saved: HybridDraft): Boolean =
-        turnEndpoint != saved.turnEndpoint ||
-            toConfig(CloneIceNetworkConfig()).let { mine ->
-                val theirs = saved.toConfig(CloneIceNetworkConfig())
-                mine.rendezvousHost != theirs.rendezvousHost ||
-                    mine.rendezvousPort != theirs.rendezvousPort ||
-                    mine.verifyRendezvousCertificate != theirs.verifyRendezvousCertificate
-            }
+    /** Whether this draft names a different TURN server than [saved]. */
+    fun turnChanged(saved: HybridDraft): Boolean = turnEndpoint != saved.turnEndpoint
+
+    /** Whether this draft names a different rendezvous server, or verifies it differently. */
+    fun rendezvousChanged(saved: HybridDraft): Boolean {
+        val mine = toConfig(CloneIceNetworkConfig())
+        val theirs = saved.toConfig(CloneIceNetworkConfig())
+        return mine.rendezvousHost != theirs.rendezvousHost ||
+            mine.rendezvousPort != theirs.rendezvousPort ||
+            mine.verifyRendezvousCertificate != theirs.verifyRendezvousCertificate
+    }
+
+    /** The switches, which never cost a connection and are saved as they are flipped. */
+    fun switchesChanged(saved: HybridDraft): Boolean =
+        useLocalDiscovery != saved.useLocalDiscovery ||
+            useTurnForStun != saved.useTurnForStun ||
+            preferIPv4 != saved.preferIPv4
+
+    val turnValid: Boolean
+        get() = !customTurn || (turnHost.isNotBlank() && turnHostValid && turnPortValue != null && turnUserValid && turnPasswordValid)
+    val rendezvousValid: Boolean
+        get() = !customRendezvous || (rendezvousHostValid && rendezvousPortValue != null)
 
     companion object {
         fun of(config: CloneIceNetworkConfig, turn: TurnEndpoint?): HybridDraft = HybridDraft(
@@ -119,9 +123,10 @@ internal data class HybridDraft(
 }
 
 /**
- * Presentation only: nothing here touches native networking. The screen edits a
- * [draft]; [onApply] is the one moment it becomes real, and the button says whether
- * that will cost the current connection.
+ * Presentation only: nothing here touches native networking. The screen edits a [draft]
+ * that the owner saves on its own; the one thing a user has to ask for is rebuilding a
+ * live connection through a server they just changed, and that is the only time a
+ * button appears -- inside the server it belongs to.
  */
 @Composable
 internal fun HybridSettingsContent(
@@ -129,28 +134,19 @@ internal fun HybridSettingsContent(
     saved: HybridDraft,
     liveConnection: Boolean,
     onDraftChange: (HybridDraft) -> Unit,
-    onApply: () -> Unit,
+    onApplyTurn: () -> Unit,
+    onApplyRendezvous: () -> Unit,
     onBack: () -> Unit,
 ) {
     var showHelp by rememberSaveable { mutableStateOf(false) }
-    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val accent = MaterialTheme.colorScheme.tertiary
-    val dirty = draft != saved
-    val reconnects = dirty && draft.changesServers(saved)
-
-    // Typed credentials are the one thing on this screen worth a question before they go.
-    fun leave() {
-        if (dirty) confirmDiscard = true else onBack()
-    }
-    BackHandler(enabled = dirty) { leave() }
-
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.clone_network_title)) },
                 navigationIcon = {
-                    IconButton(onClick = ::leave) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.navigate_back))
                     }
                 },
@@ -167,9 +163,23 @@ internal fun HybridSettingsContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             SectionLabel(stringResource(R.string.clone_servers), topPadding = 8.dp)
-            TurnServerSetting(draft = draft, saved = saved, onDraftChange = onDraftChange, accent = accent)
+            TurnServerSetting(
+                draft = draft,
+                saved = saved,
+                onDraftChange = onDraftChange,
+                showApply = liveConnection && draft.turnValid && draft.turnChanged(saved),
+                onApply = onApplyTurn,
+                accent = accent,
+            )
             Spacer(Modifier.height(2.dp))
-            RendezvousServerSetting(draft = draft, saved = saved, onDraftChange = onDraftChange, accent = accent)
+            RendezvousServerSetting(
+                draft = draft,
+                saved = saved,
+                onDraftChange = onDraftChange,
+                showApply = liveConnection && draft.rendezvousValid && draft.rendezvousChanged(saved),
+                onApply = onApplyRendezvous,
+                accent = accent,
+            )
 
             SectionLabel(stringResource(R.string.clone_connection_options))
             SettingsSwitchItem(
@@ -203,47 +213,6 @@ internal fun HybridSettingsContent(
                 onCheckedChange = { onDraftChange(draft.copy(preferIPv4 = it)) },
                 position = CardPosition.BOTTOM,
             )
-
-            // The button exists only while there is something to apply, and its label is
-            // the one fact the user needs before pressing it: whether the live connection
-            // is about to be rebuilt. Switches alone never rebuild it.
-            AnimatedVisibility(
-                visible = dirty,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-            ) {
-                Column(Modifier.padding(top = 24.dp)) {
-                    Button(
-                        onClick = onApply,
-                        enabled = draft.valid,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    ) {
-                        Icon(
-                            if (reconnects && liveConnection) Icons.Default.Sync else Icons.Default.Check,
-                            contentDescription = null,
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            stringResource(
-                                if (reconnects && liveConnection) R.string.clone_apply_reconnect else R.string.clone_apply,
-                            ),
-                        )
-                    }
-                    Text(
-                        stringResource(
-                            when {
-                                !draft.valid -> R.string.clone_apply_incomplete
-                                reconnects && liveConnection -> R.string.clone_apply_reconnect_desc
-                                reconnects -> R.string.clone_apply_servers_desc
-                                else -> R.string.clone_apply_next_connection
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-            }
         }
     }
     if (showHelp) {
@@ -260,22 +229,27 @@ internal fun HybridSettingsContent(
             confirmButton = { TextButton(onClick = { showHelp = false }) { Text(stringResource(R.string.ok)) } },
         )
     }
-    if (confirmDiscard) {
-        AlertDialog(
-            onDismissRequest = { confirmDiscard = false },
-            title = { Text(stringResource(R.string.clone_discard_changes_title)) },
-            text = { Text(stringResource(R.string.clone_discard_changes_body)) },
-            confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onBack() }) {
-                    Text(stringResource(R.string.clone_discard))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) {
-                    Text(stringResource(R.string.clone_keep_editing))
-                }
-            },
-        )
+}
+
+/**
+ * The one action on this screen. It exists only while pressing it does something the
+ * screen would not do on its own: the server above was changed, and a Clone route is up
+ * that would otherwise keep using the old one until it next reconnected.
+ */
+@Composable
+private fun ApplyRow(visible: Boolean, onApply: () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Button(onClick = onApply) {
+                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.clone_apply))
+            }
+        }
     }
 }
 
@@ -289,6 +263,8 @@ private fun ColumnScope.RendezvousServerSetting(
     draft: HybridDraft,
     saved: HybridDraft,
     onDraftChange: (HybridDraft) -> Unit,
+    showApply: Boolean,
+    onApply: () -> Unit,
     accent: androidx.compose.ui.graphics.Color,
 ) {
     DisclosingSwitchCard(
@@ -314,6 +290,7 @@ private fun ColumnScope.RendezvousServerSetting(
             isError = draft.rendezvousPortValue == null,
             keyboardType = KeyboardType.Number,
         )
+        ApplyRow(visible = showApply, onApply = onApply)
     }
     AnimatedVisibility(
         visible = draft.customRendezvous,
@@ -342,6 +319,8 @@ private fun TurnServerSetting(
     draft: HybridDraft,
     saved: HybridDraft,
     onDraftChange: (HybridDraft) -> Unit,
+    showApply: Boolean,
+    onApply: () -> Unit,
     accent: androidx.compose.ui.graphics.Color,
 ) {
     var visible by rememberSaveable { mutableStateOf(false) }
@@ -397,6 +376,7 @@ private fun TurnServerSetting(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
+        ApplyRow(visible = showApply, onApply = onApply)
     }
 }
 

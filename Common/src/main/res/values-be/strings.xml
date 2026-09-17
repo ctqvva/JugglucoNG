@@ -2937,15 +2937,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_stun_needs_server">Спачатку наладзьце сервер TURN</string>
     <string name="clone_stun_short_desc">Пытацца свой публічны адрас у свайго TURN-сервера, а не ў публічнага STUN-сервера</string>
     <string name="clone_apply">Ужыць</string>
-    <string name="clone_apply_reconnect">Ужыць і перападключыць</string>
-    <string name="clone_apply_next_connection">Набудзе сілу пры наступнай спробе падключэння. Бягучае падключэнне не закранаецца.</string>
-    <string name="clone_apply_servers_desc">Сервер зменены. Далей Clone будзе падключацца праз яго.</string>
-    <string name="clone_apply_reconnect_desc">Сервер зменены. Бягучае падключэнне будзе перабудавана праз яго.</string>
-    <string name="clone_apply_incomplete">Пазначце імя хоста і порт для кожнага ўключанага сервера.</string>
-    <string name="clone_discard_changes_title">Адмяніць змены?</string>
-    <string name="clone_discard_changes_body">Змены на гэтым экране яшчэ не ўжытыя.</string>
-    <string name="clone_discard">Адмяніць</string>
-    <string name="clone_keep_editing">Працягнуць</string>
     <string name="clone_server_edit_hint">Змены сервера перападключаць Clone. На абедзвюх прыладах павінны быць аднолькавыя налады.</string>
     <string name="clone_use_default_server">Сервер праграмы</string>
     <string name="clone_custom_server">Уласны сервер</string>

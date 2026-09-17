@@ -2879,15 +2879,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_stun_needs_server">请先配置 TURN 服务器</string>
     <string name="clone_stun_short_desc">向自己的 TURN 服务器询问公网地址，而不是公共 STUN 服务器</string>
     <string name="clone_apply">应用</string>
-    <string name="clone_apply_reconnect">应用并重新连接</string>
-    <string name="clone_apply_next_connection">在下次连接时生效。当前连接不受影响。</string>
-    <string name="clone_apply_servers_desc">服务器已更改。此后 Clone 将通过它连接。</string>
-    <string name="clone_apply_reconnect_desc">服务器已更改。当前连接将通过它重新建立。</string>
-    <string name="clone_apply_incomplete">请为每个已开启的服务器填写主机名和端口。</string>
-    <string name="clone_discard_changes_title">放弃更改？</string>
-    <string name="clone_discard_changes_body">此处的更改尚未应用。</string>
-    <string name="clone_discard">放弃</string>
-    <string name="clone_keep_editing">继续编辑</string>
     <string name="clone_server_edit_hint">更改服务器将重新连接 Clone。请在两台设备上使用相同的设置。</string>
     <string name="clone_use_default_server">使用默认服务器</string>
     <string name="clone_custom_server">自定义服务器</string>

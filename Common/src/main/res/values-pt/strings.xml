@@ -2865,15 +2865,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_stun_needs_server">Configure primeiro um servidor TURN</string>
     <string name="clone_stun_short_desc">Pedir o seu endereço público ao seu servidor TURN em vez de a um servidor STUN público</string>
     <string name="clone_apply">Aplicar</string>
-    <string name="clone_apply_reconnect">Aplicar e voltar a ligar</string>
-    <string name="clone_apply_next_connection">Usado na próxima tentativa de ligação. A ligação atual não é afetada.</string>
-    <string name="clone_apply_servers_desc">Um servidor mudou. A partir de agora o Clone liga-se através dele.</string>
-    <string name="clone_apply_reconnect_desc">Um servidor mudou. A ligação atual será refeita através dele.</string>
-    <string name="clone_apply_incomplete">Indique um nome de anfitrião e uma porta para cada servidor que ativou.</string>
-    <string name="clone_discard_changes_title">Descartar alterações?</string>
-    <string name="clone_discard_changes_body">O que alterou aqui ainda não foi aplicado.</string>
-    <string name="clone_discard">Descartar</string>
-    <string name="clone_keep_editing">Continuar a editar</string>
     <string name="clone_server_edit_hint">As alterações ao servidor voltam a ligar o Clone. Use as mesmas definições nos dois dispositivos.</string>
     <string name="clone_use_default_server">Usar servidor predefinido</string>
     <string name="clone_custom_server">Servidor personalizado</string>

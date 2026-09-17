@@ -2892,15 +2892,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_stun_needs_server">Önce bir TURN sunucusu yapılandırın</string>
     <string name="clone_stun_short_desc">Genel adresinizi genel bir STUN sunucusu yerine kendi TURN sunucunuza sorun</string>
     <string name="clone_apply">Uygula</string>
-    <string name="clone_apply_reconnect">Uygula ve yeniden bağlan</string>
-    <string name="clone_apply_next_connection">Bir sonraki bağlantı denemesinde kullanılır. Mevcut bağlantı etkilenmez.</string>
-    <string name="clone_apply_servers_desc">Bir sunucu değişti. Clone bundan sonra onun üzerinden bağlanacak.</string>
-    <string name="clone_apply_reconnect_desc">Bir sunucu değişti. Mevcut bağlantı onun üzerinden yeniden kurulacak.</string>
-    <string name="clone_apply_incomplete">Açtığınız her sunucu için bir ana bilgisayar adı ve bağlantı noktası girin.</string>
-    <string name="clone_discard_changes_title">Değişiklikler atılsın mı?</string>
-    <string name="clone_discard_changes_body">Burada değiştirdikleriniz henüz uygulanmadı.</string>
-    <string name="clone_discard">At</string>
-    <string name="clone_keep_editing">Düzenlemeye devam et</string>
     <string name="clone_server_edit_hint">Sunucu değişiklikleri Clone bağlantısını yeniler. İki cihazda da aynı ayarları kullanın.</string>
     <string name="clone_use_default_server">Uygulama sunucusunu kullan</string>
     <string name="clone_custom_server">Özel sunucu</string>

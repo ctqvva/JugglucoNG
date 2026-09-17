@@ -2913,15 +2913,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_stun_needs_server">Сначала настройте сервер TURN</string>
     <string name="clone_stun_short_desc">Узнавать свой публичный адрес у своего TURN-сервера, а не у публичного STUN-сервера</string>
     <string name="clone_apply">Применить</string>
-    <string name="clone_apply_reconnect">Применить и переподключить</string>
-    <string name="clone_apply_next_connection">Вступит в силу при следующей попытке подключения. Текущее подключение не затрагивается.</string>
-    <string name="clone_apply_servers_desc">Сервер изменён. Дальше Clone будет подключаться через него.</string>
-    <string name="clone_apply_reconnect_desc">Сервер изменён. Текущее подключение будет пересоздано через него.</string>
-    <string name="clone_apply_incomplete">Укажите имя хоста и порт для каждого включённого сервера.</string>
-    <string name="clone_discard_changes_title">Отменить изменения?</string>
-    <string name="clone_discard_changes_body">Изменения на этом экране ещё не применены.</string>
-    <string name="clone_discard">Отменить</string>
-    <string name="clone_keep_editing">Продолжить</string>
     <string name="clone_server_edit_hint">Изменения сервера переподключат Clone. На обоих устройствах должны быть одинаковые настройки.</string>
     <string name="clone_use_default_server">Сервер приложения</string>
     <string name="clone_custom_server">Свой сервер</string>

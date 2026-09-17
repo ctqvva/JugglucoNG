@@ -2864,15 +2864,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_stun_needs_server">Konfigurera en TURN-server först</string>
     <string name="clone_stun_short_desc">Fråga din TURN-server om din publika adress i stället för en publik STUN-server</string>
     <string name="clone_apply">Verkställ</string>
-    <string name="clone_apply_reconnect">Verkställ och anslut igen</string>
-    <string name="clone_apply_next_connection">Används vid nästa anslutningsförsök. Den nuvarande anslutningen påverkas inte.</string>
-    <string name="clone_apply_servers_desc">En server har ändrats. Clone ansluter via den från och med nu.</string>
-    <string name="clone_apply_reconnect_desc">En server har ändrats. Den nuvarande anslutningen byggs upp igen via den.</string>
-    <string name="clone_apply_incomplete">Ange värdnamn och port för varje server du slagit på.</string>
-    <string name="clone_discard_changes_title">Kasta ändringarna?</string>
-    <string name="clone_discard_changes_body">Det du ändrade här har inte verkställts.</string>
-    <string name="clone_discard">Kasta</string>
-    <string name="clone_keep_editing">Fortsätt redigera</string>
     <string name="clone_server_edit_hint">Serverändringar återansluter Clone. Använd samma inställningar på båda enheterna.</string>
     <string name="clone_use_default_server">Använd appens server</string>
     <string name="clone_custom_server">Egen server</string>

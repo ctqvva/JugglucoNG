@@ -3055,15 +3055,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_stun_needs_server">Marka hore deji adeege TURN</string>
     <string name="clone_stun_short_desc">Ciwaankaaga dadweynaha weydii server-kaaga TURN halkii aad ka weydiin lahayd server STUN oo dadweyne</string>
     <string name="clone_apply">Dabaq</string>
-    <string name="clone_apply_reconnect">Dabaq oo dib u xidh</string>
-    <string name="clone_apply_next_connection">Waxaa la isticmaali doonaa isku dayga xidhiidhka ee xiga. Xidhiidhka hadda ma saameynayo.</string>
-    <string name="clone_apply_servers_desc">Server ayaa isbeddelay. Hadda wixii ka dambeeya Clone wuxuu ku xidhmi doonaa isaga.</string>
-    <string name="clone_apply_reconnect_desc">Server ayaa isbeddelay. Xidhiidhka hadda waa lagu dib u dhisi doonaa isaga.</string>
-    <string name="clone_apply_incomplete">Geli magaca martigeliyaha iyo dekedda server kasta oo aad shidday.</string>
-    <string name="clone_discard_changes_title">Isbeddelada ma la tuurayaa?</string>
-    <string name="clone_discard_changes_body">Waxa aad halkan ka beddeshay weli lama dabaqin.</string>
-    <string name="clone_discard">Tuur</string>
-    <string name="clone_keep_editing">Sii wad tafatirka</string>
     <string name="clone_server_edit_hint">Beddelka adeegaha wuxuu dib u xiraa Clone. Labada aaladood ku isticmaal dejimo isku mid ah.</string>
     <string name="clone_use_default_server">Isticmaal adeegaha abka</string>
     <string name="clone_custom_server">Adeege gaar ah</string>
