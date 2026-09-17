@@ -75,9 +75,10 @@ fun TrendIndicator(
         pulseAnim.animateTo(1.0f, tween(800, easing = LinearOutSlowInEasing))
     }
 
-    val totalScale = baseScale * pulseAnim.value
-
     Canvas(modifier = modifier.size(24.dp)) {
+        // Animation changes only the pixels; reading it in composition rebuilt
+        // the indicator on every frame of its multi-second pulse.
+        val totalScale = baseScale * pulseAnim.value
         val cx = size.width / 2
         val cy = size.height / 2
 

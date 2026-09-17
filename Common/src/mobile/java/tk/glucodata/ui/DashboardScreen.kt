@@ -400,7 +400,7 @@ fun DashboardScreen(
     val activeSensorList by viewModel.activeSensorList.collectAsStateWithLifecycle()
     val sensorHoursRemaining by viewModel.sensorHoursRemaining.collectAsStateWithLifecycle()
     val currentDay by viewModel.currentDay.collectAsStateWithLifecycle()
-    val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsStateWithLifecycle()
     val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsStateWithLifecycle()
 
     // Initialize Calibration Manager
@@ -588,7 +588,7 @@ fun DashboardScreen(
         predictionSettings,
         consumerHistory,
         viewMode,
-        predictionCalibrationRefresh,
+        calibrationRevision,
         scopedJournalEntries,
         journalPresetsById,
         unit,
@@ -618,7 +618,7 @@ fun DashboardScreen(
         multiSensorDisplay,
         journalEnabled,
         predictionSettings,
-        predictionCalibrationRefresh,
+        calibrationRevision,
         scopedJournalEntries,
         journalPresetsById,
         unit,
