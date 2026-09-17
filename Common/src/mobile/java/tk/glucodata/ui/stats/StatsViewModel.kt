@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LifecycleStartEffect
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,7 +72,15 @@ internal fun rememberStatsViewModel(): StatsViewModel {
             .filterIsInstance<ViewModelStoreOwner>()
             .firstOrNull()
     }
-    return viewModel(viewModelStoreOwner = owner ?: checkNotNull(LocalViewModelStoreOwner.current))
+    val model = viewModel<StatsViewModel>(
+        viewModelStoreOwner = owner ?: checkNotNull(LocalViewModelStoreOwner.current)
+    )
+    val consumer = remember(model) { Any() }
+    LifecycleStartEffect(model, consumer) {
+        model.acquireUiObservation(consumer)
+        onStopOrDispose { model.releaseUiObservation(consumer) }
+    }
+    return model
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -155,6 +164,22 @@ class StatsViewModel : ViewModel() {
     private val _hasSensor = MutableStateFlow(true)
     private val _historyPoints = MutableStateFlow<List<GlucosePoint>>(emptyList())
     private val _temperaturePoints = MutableStateFlow<List<TemperaturePoint>>(emptyList())
+
+    private val uiObservation: StatsUiObservationSession = StatsUiObservationSession(
+        parentScope = viewModelScope,
+        onStart = {
+            observeUiRefreshBus()
+            refreshFromNative()
+        },
+        onStop = {
+            // Keep displayed history and projection caches for an immediate return.
+            historyJob = null
+            availableRangeJob = null
+        },
+    )
+
+    internal fun acquireUiObservation(consumer: Any) = uiObservation.acquire(consumer)
+    internal fun releaseUiObservation(consumer: Any) = uiObservation.release(consumer)
 
     private var historyJob: Job? = null
     private var activeSerial: String? = null
@@ -290,11 +315,9 @@ class StatsViewModel : ViewModel() {
     )
 
     init {
-        observeUiRefreshBus()
         if (pendingRestoredCustomClamp) {
             clampRestoredCustomRangeWhenAvailable()
         }
-        refreshFromNative()
     }
 
     internal fun setPinnedWindow(window: PinnedWindow?) {
@@ -344,7 +367,7 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun observeUiRefreshBus() {
-        viewModelScope.launch {
+        uiObservation.scope?.launch {
             UiRefreshBus.events.collect { event ->
                 when (event) {
                     UiRefreshBus.Event.DataChanged -> refreshFromNative()
@@ -393,7 +416,7 @@ class StatsViewModel : ViewModel() {
     }
 
     fun refreshFromNative() {
-        viewModelScope.launch {
+        uiObservation.scope?.launch {
             _calibrationRevision.value = CalibrationManager.getRevision()
             val unit = resolveUnit()
             _unit.value = unit
@@ -447,6 +470,7 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun subscribeToHistory(serial: String, startTime: Long) {
+        val observationScope = uiObservation.scope ?: return
         historyJob?.cancel()
         val previousSerial = activeSerial
         val previousWindowStart = historyWindowStartMs
@@ -456,7 +480,7 @@ class StatsViewModel : ViewModel() {
         activeSerial = serial
         historyWindowStartMs = startTime
 
-        historyJob = viewModelScope.launch {
+        historyJob = observationScope.launch {
             refreshAvailableRangeAsync()
             // Native backfill can be slow on reopen; don't block already-persisted Room data.
             launch(Dispatchers.IO) {
@@ -490,7 +514,7 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun refreshDisplayState() {
-        viewModelScope.launch {
+        uiObservation.scope?.launch {
             _calibrationRevision.value = CalibrationManager.getRevision()
             val unit = resolveUnit()
             _unit.value = unit
@@ -575,6 +599,7 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun resubscribeToRequestedWindow() {
+        if (uiObservation.scope == null) return
         val serial = activeSerial ?: resolveStatsSensorSerial() ?: return
         val requestedStartTime = resolveSubscriptionStartTime()
         if (serial != activeSerial || needsHistoryWindowExpansion(requestedStartTime)) {
@@ -583,8 +608,9 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun refreshAvailableRangeAsync() {
+        val observationScope = uiObservation.scope ?: return
         availableRangeJob?.cancel()
-        availableRangeJob = viewModelScope.launch(Dispatchers.IO) {
+        availableRangeJob = observationScope.launch(Dispatchers.IO) {
             _availableRange.value = loadAvailableRange()
         }
     }
