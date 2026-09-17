@@ -839,8 +839,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             ;
         }
-        // Force notification update on resume/launch
-        Notify.showoldglucose();
+        // Resolve stored values and render notification charts on the notification worker.
+        Notify.scheduleStoredGlucoseRefresh();
         if (Applic.isWearable && Applic.Nativesloaded) {
             // The companion stream routinely stalls while the watch app is
             // backgrounded/dozed; ask the phone for the stream immediately on

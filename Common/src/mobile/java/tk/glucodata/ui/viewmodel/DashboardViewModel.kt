@@ -1078,7 +1078,13 @@ class DashboardViewModel(
     }
 
     private fun refreshCurrentDisplaySnapshot() {
-        refreshCurrentDisplayAfterSmoothingChange()
+        CurrentDisplaySource.resolveCurrent(
+            maxAgeMillis = Notify.glucosetimeout,
+            preferredSensorId = preferredDashboardSensorId()
+        )?.let { resolved ->
+            _currentGlucose.value = resolved.primaryStr
+            _currentRate.value = resolved.rate.takeIf { it.isFinite() } ?: 0f
+        }
     }
 
     private fun startHistoryCollectionForMode(mode: CollectionMode) {
@@ -2182,13 +2188,7 @@ class DashboardViewModel(
     }
 
     private fun refreshCurrentDisplayAfterSmoothingChange() {
-        CurrentDisplaySource.resolveCurrent(
-            maxAgeMillis = Notify.glucosetimeout,
-            preferredSensorId = preferredDashboardSensorId()
-        )?.let { resolved ->
-            _currentGlucose.value = resolved.primaryStr
-            _currentRate.value = resolved.rate.takeIf { it.isFinite() } ?: 0f
-        }
+        refreshCurrentDisplaySnapshot()
         // Every smoothing setter funnels through here, so this is the one place
         // the watch needs telling; it smooths with the same settings.
         tk.glucodata.WearPrefsSync.push()

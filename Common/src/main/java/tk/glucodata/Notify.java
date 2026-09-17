@@ -866,6 +866,20 @@ public class Notify {
      * }
      */
 
+    private static final Runnable storedGlucoseRefresh = () -> {
+        try {
+            showoldglucose();
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "storedGlucoseRefresh", th);
+        }
+    };
+
+    /** Resume must not render notification charts or wait for Room on the UI thread. */
+    public static void scheduleStoredGlucoseRefresh() {
+        glucoseRefreshHandler.removeCallbacks(storedGlucoseRefresh);
+        glucoseRefreshHandler.post(storedGlucoseRefresh);
+    }
+
     public static void showoldglucose() {
         var noti = onenot;
         if (noti == null)
