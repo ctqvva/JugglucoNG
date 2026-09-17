@@ -413,7 +413,7 @@ fun DashboardScreen(
         tk.glucodata.data.calibration.JournalCalibrationSync.onAppStart()
     }
     // The alarm quiet window: a header chip while one runs, nothing otherwise.
-    val quietWindowUntilMs by viewModel.quietWindowUntilMs.collectAsState()
+    val quietWindowUntilMs by viewModel.quietWindowUntilMs.collectAsStateWithLifecycle()
     // State for wizards (matching SensorScreen pattern)
     var showSibionicsWizard by remember { mutableStateOf(false) }
     var showLibreWizard by remember { mutableStateOf(false) }
