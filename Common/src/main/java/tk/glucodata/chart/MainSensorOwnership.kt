@@ -32,7 +32,7 @@ class MainSensorOwnership(
     private val recorded: Map<Long, String>,
     private val nowMs: Long,
 ) {
-    private val sealHorizonMs: Long = nowMs - SEAL_GRACE_MS
+    private val sealedOwners = recorded.filterKeys { it <= nowMs - SEAL_GRACE_MS }
 
     /**
      * The recorded main sensor at [timestampMs], or null where the record has
@@ -40,8 +40,7 @@ class MainSensorOwnership(
      */
     fun mainSensorAt(timestampMs: Long): String? {
         val minute = minuteOf(timestampMs)
-        if (minute > sealHorizonMs) return null
-        return recorded[minute]
+        return sealedOwners[minute]
     }
 
     /**
@@ -57,15 +56,14 @@ class MainSensorOwnership(
     /** Whether the record has anything to say inside this window at all. */
     val hasRecordedOwnership: Boolean get() = recorded.isNotEmpty()
 
-    // Equal when they would answer every question the same way: same record,
-    // same minute of horizon. A refresh that found nothing new is then equal to
-    // the last one, and a chart keyed on this does not rebuild for it.
+    // Clock movement alone does not change the rendered ownership. A newly
+    // sealed record does, including when returning after the UI was stopped.
     override fun equals(other: Any?): Boolean =
         other is MainSensorOwnership &&
-            other.recorded == recorded &&
-            minuteOf(other.sealHorizonMs) == minuteOf(sealHorizonMs)
+            other.sealedOwners == sealedOwners &&
+            other.hasRecordedOwnership == hasRecordedOwnership
 
-    override fun hashCode(): Int = 31 * recorded.hashCode() + minuteOf(sealHorizonMs).hashCode()
+    override fun hashCode(): Int = 31 * sealedOwners.hashCode() + hasRecordedOwnership.hashCode()
 
     companion object {
         const val MINUTE_MS = 60_000L

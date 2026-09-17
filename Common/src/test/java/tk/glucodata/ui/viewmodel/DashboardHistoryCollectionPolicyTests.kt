@@ -28,6 +28,24 @@ class DashboardHistoryCollectionPolicyTests {
         )
     }
 
+    @Test
+    fun warmDashboardCoalescesTheFirstRestartedSnapshot() {
+        assertTrue(
+            DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
+                DashboardViewModel.CollectionMode.DASHBOARD,
+                hasSeenHistoryEmission = false,
+                hasRetainedHistory = true,
+            )
+        )
+        assertFalse(
+            DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
+                DashboardViewModel.CollectionMode.FULL_HISTORY,
+                hasSeenHistoryEmission = false,
+                hasRetainedHistory = true,
+            )
+        )
+    }
+
     // ── history recovery ──────────────────────────────────────────────────────
 
     private companion object {

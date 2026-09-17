@@ -59,8 +59,12 @@ import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
 internal object DashboardHistoryCollectionPolicy {
-    fun shouldCoalesceEmission(mode: DashboardViewModel.CollectionMode, hasSeenHistoryEmission: Boolean): Boolean =
-        mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
+    fun shouldCoalesceEmission(
+        mode: DashboardViewModel.CollectionMode,
+        hasSeenHistoryEmission: Boolean,
+        hasRetainedHistory: Boolean = false,
+    ): Boolean = mode == DashboardViewModel.CollectionMode.DASHBOARD &&
+        (hasSeenHistoryEmission || hasRetainedHistory)
 
     /**
      * Whether the current sensor's stored history is behind enough to ask native
@@ -589,13 +593,6 @@ class DashboardViewModel(
     private var currentSensorTailJob: Job? = null
     private var activeHistoryMode: CollectionMode? = null
     private var activeHistoryStartTimeMs: Long? = null
-    /**
-     * Change gate for [refreshMainSensorOwnership]: the ownership answer embeds
-     * the current minute, so re-resolving it on every collection restart would
-     * emit on any return more than a minute later and rebuild the chart for
-     * nothing. Peer-data changes refresh it through the peer flow instead.
-     */
-    private var lastOwnershipRefreshConfig: MultiSensorHistoryQueryConfig? = null
 
     init {
         _journalEnabled.value = readJournalEnabledPreference()
@@ -1126,13 +1123,14 @@ class DashboardViewModel(
         // HistoryRepository.observeMergedWindow for why the answer is still the
         // whole timeline's.
         historyJob = viewModelScope.launch {
+            val hasRetainedHistory = _glucoseHistory.value.isNotEmpty()
             var hasSeenHistoryEmission = false
             // A warm cache is already painted: skip the quick-sample stage,
             // or the chart would jump back to the first-paint window and
             // forward again on every return. The tail flow below takes over
             // live; an unchanged signature resolves to the cached list
             // instance, so collectors see no emission at all.
-            var firstPainted = _glucoseHistory.value.isNotEmpty()
+            var firstPainted = hasRetainedHistory
             val tailFlow = _liveTailStart.flatMapLatest { tailStart ->
                 kotlinx.coroutines.flow.flow {
                     // First paint: the default range and its margin, read once
@@ -1171,6 +1169,7 @@ class DashboardViewModel(
                 val shouldCoalesce = DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
                     mode,
                     hasSeenHistoryEmission,
+                    hasRetainedHistory,
                 )
                 hasSeenHistoryEmission = true
                 if (shouldCoalesce) {
@@ -1394,19 +1393,17 @@ class DashboardViewModel(
                 // both change on the same events: a swap, or the record gaining
                 // a minute. With a single sensor there is nothing to contest,
                 // but the answer is still the record's to give.
-                // Only on change: a restart with the same config would resolve
-                // a minute-drifted duplicate and pointlessly rebuild the chart.
-                if (config != lastOwnershipRefreshConfig) {
-                    lastOwnershipRefreshConfig = config
-                    refreshMainSensorOwnership(startTimeMs)
-                }
+                // Equality compares effective ownership, so a warm refresh can
+                // pick up newly sealed minutes without emitting for clock drift.
+                refreshMainSensorOwnership(startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
                     return@collectLatest
                 }
 
-                var hasSeenPeerEmission = false
+                var hasSeenPeerEmission = _multiSensorRawHistory.value.peerIds == peerSensors &&
+                    _multiSensorRawHistory.value.points.isNotEmpty()
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
