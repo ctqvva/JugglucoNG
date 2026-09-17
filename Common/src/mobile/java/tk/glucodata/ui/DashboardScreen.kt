@@ -402,6 +402,7 @@ fun DashboardScreen(
     val currentDay by viewModel.currentDay.collectAsStateWithLifecycle()
     val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsStateWithLifecycle()
     val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsStateWithLifecycle()
+    val predictionHideInitial by tk.glucodata.data.calibration.CalibrationManager.hideInitialWhenCalibrated.collectAsStateWithLifecycle()
 
     // Initialize Calibration Manager
     LaunchedEffect(Unit) {
@@ -589,6 +590,7 @@ fun DashboardScreen(
         consumerHistory,
         viewMode,
         calibrationRevision,
+        predictionHideInitial,
         scopedJournalEntries,
         journalPresetsById,
         unit,
@@ -619,6 +621,7 @@ fun DashboardScreen(
         journalEnabled,
         predictionSettings,
         calibrationRevision,
+        predictionHideInitial,
         scopedJournalEntries,
         journalPresetsById,
         unit,
