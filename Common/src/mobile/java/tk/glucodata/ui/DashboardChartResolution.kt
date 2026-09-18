@@ -55,6 +55,29 @@ internal class ChartResolutionInputs(
             primaryColorArgb == other.primaryColorArgb
 }
 
+/** Two recent charts survive tab navigation; only exactly matching inputs are reusable. */
+internal class ChartResolutionCache {
+    private val entries = ArrayList<Pair<ChartResolutionInputs, ChartResolution>>(2)
+
+    fun get(inputs: ChartResolutionInputs): ChartResolution? =
+        entries.firstOrNull { inputs.sameAs(it.first) }?.second
+
+    fun put(inputs: ChartResolutionInputs, resolution: ChartResolution) {
+        entries.removeAll { inputs.sameAs(it.first) }
+        entries.add(0, inputs to resolution)
+        if (entries.size > 2) entries.removeAt(entries.lastIndex)
+    }
+}
+
+// Accessed on the composition/main dispatcher only. No Context or resolver is retained.
+private val recentChartResolutions = ChartResolutionCache()
+
+private fun cachedOrResolve(
+    inputs: ChartResolutionInputs,
+    resolve: (ChartResolutionInputs) -> ChartResolution,
+): ChartResolution = recentChartResolutions.get(inputs)
+    ?: resolve(inputs).also { recentChartResolutions.put(inputs, it) }
+
 /**
  * Resolves the chart off the main thread, keeping the last resolution on
  * screen until the next one is ready.
@@ -86,19 +109,21 @@ internal fun rememberChartResolution(
     // replace the resolution during composition without writing a state that
     // this same composition has already read; the async path bumps
     // [asyncRevision] to be recomposed.
-    val holder = remember { ChartResolutionHolder(inputs, resolve(inputs)) }
+    val holder = remember { ChartResolutionHolder(inputs, cachedOrResolve(inputs, resolve)) }
     var asyncRevision by remember { mutableStateOf(0) }
     // The first frame *with data* is the one that matters, and it is still
     // resolved in composition: a chart that composed empty — the history
     // screen waiting for a range to load — draws its first readings in the
     // frame they arrive, not a resolution later.
     if (!inputs.sameAs(holder.resolvedFor) && holder.resolution.renderData.isEmpty() && inputs.safeData.isNotEmpty()) {
-        holder.resolution = resolve(inputs)
+        holder.resolution = cachedOrResolve(inputs, resolve)
         holder.resolvedFor = inputs
     }
     LaunchedEffect(inputs) {
         if (inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
-        val resolution = withContext(Dispatchers.Default) { resolve(inputs) }
+        val resolution = recentChartResolutions.get(inputs)
+            ?: withContext(Dispatchers.Default) { resolve(inputs) }
+        recentChartResolutions.put(inputs, resolution)
         holder.resolution = resolution
         holder.resolvedFor = inputs
         asyncRevision++
