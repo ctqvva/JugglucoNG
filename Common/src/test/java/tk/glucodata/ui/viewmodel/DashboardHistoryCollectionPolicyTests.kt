@@ -29,19 +29,13 @@ class DashboardHistoryCollectionPolicyTests {
     }
 
     @Test
-    fun warmDashboardCoalescesTheFirstRestartedSnapshot() {
-        assertTrue(
+    fun restartedDashboardPublishesTheCurrentSnapshotWithoutWaiting() {
+        // History rows are presented as a snapshot, without replay animation.
+        // A retained frame must not delay the latest database snapshot.
+        assertFalse(
             DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
                 DashboardViewModel.CollectionMode.DASHBOARD,
                 hasSeenHistoryEmission = false,
-                hasRetainedHistory = true,
-            )
-        )
-        assertFalse(
-            DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
-                DashboardViewModel.CollectionMode.FULL_HISTORY,
-                hasSeenHistoryEmission = false,
-                hasRetainedHistory = true,
             )
         )
     }

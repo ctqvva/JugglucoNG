@@ -62,9 +62,7 @@ internal object DashboardHistoryCollectionPolicy {
     fun shouldCoalesceEmission(
         mode: DashboardViewModel.CollectionMode,
         hasSeenHistoryEmission: Boolean,
-        hasRetainedHistory: Boolean = false,
-    ): Boolean = mode == DashboardViewModel.CollectionMode.DASHBOARD &&
-        (hasSeenHistoryEmission || hasRetainedHistory)
+    ): Boolean = mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
 
     /**
      * Whether the current sensor's stored history is behind enough to ask native
@@ -1175,7 +1173,6 @@ class DashboardViewModel(
                 val shouldCoalesce = DashboardHistoryCollectionPolicy.shouldCoalesceEmission(
                     mode,
                     hasSeenHistoryEmission,
-                    hasRetainedHistory,
                 )
                 hasSeenHistoryEmission = true
                 if (shouldCoalesce) {
@@ -1411,8 +1408,7 @@ class DashboardViewModel(
                     return@collectLatest
                 }
 
-                var hasSeenPeerEmission = _multiSensorRawHistory.value.peerIds == peerSensors &&
-                    _multiSensorRawHistory.value.points.isNotEmpty()
+                var hasSeenPeerEmission = false
                 historyRepository.getHistoryFlowForDisplaySensors(peerSensors, startTimeMs)
                     .conflate()
                     .distinctUntilChangedBy(::historyEdgeSignature)
