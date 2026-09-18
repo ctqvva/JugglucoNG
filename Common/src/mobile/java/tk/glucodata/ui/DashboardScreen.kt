@@ -315,6 +315,11 @@ fun DashboardScreen(
     val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val daysRemaining by viewModel.daysRemaining.collectAsStateWithLifecycle()
     val glucoseHistory by viewModel.glucoseHistory.collectAsStateWithLifecycle()
+    if (tk.glucodata.BuildConfig.DEBUG) {
+        LaunchedEffect(glucoseHistory) {
+            android.util.Log.d("DashboardHistory", "compose count=${glucoseHistory.size} latest=${glucoseHistory.lastOrNull()?.timestamp}")
+        }
+    }
     val timelineExtents by viewModel.timelineExtents.collectAsStateWithLifecycle()
     // Only once there is data to draw: with bounds alone the chart would compose
     // empty and paint its axes over nothing for the frames before the first

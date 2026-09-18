@@ -1186,6 +1186,9 @@ class DashboardViewModel(
                     logEvery = 20L,
                     detail = "mode=$mode size=${rawHistory.size}"
                 )
+                if (tk.glucodata.BuildConfig.DEBUG) {
+                    android.util.Log.d("DashboardHistory", "publish mode=$mode count=${rawHistory.size} latest=${rawHistory.lastOrNull()?.timestamp} previous=${_glucoseHistory.value.lastOrNull()?.timestamp}")
+                }
                 _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, signature)
                 _isLoading.value = false
             }

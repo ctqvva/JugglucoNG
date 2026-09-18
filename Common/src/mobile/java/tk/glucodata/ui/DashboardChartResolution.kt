@@ -62,9 +62,9 @@ internal class ChartResolutionInputs(
  * Smoothing and the model builder are each a pass over the list the chart is
  * handed — the stretches loaded around its viewport, see
  * GlucoseRepository.getMergedWindowFlowRaw, and before that the whole store.
- * Every resolution, including the first frame and the first non-empty input,
- * runs off the UI thread. Navigation must not synchronously rebuild a chart
- * just because its composition was recreated.
+ * Run inside `remember` they were a main-thread pass per emission, once a
+ * minute. The first resolution is still synchronous, so the chart's first
+ * frame is the same frame it always was; only the updates move.
  *
  * [inputs] must be the same instance while nothing changed — build it with
  * `remember` keyed on its parts. The effect is keyed on it, so a change of
@@ -73,7 +73,7 @@ internal class ChartResolutionInputs(
  * age colour) leaves the in-flight one alone.
  */
 private class ChartResolutionHolder(
-    var resolvedFor: ChartResolutionInputs?,
+    var resolvedFor: ChartResolutionInputs,
     var resolution: ChartResolution,
 )
 
@@ -82,13 +82,22 @@ internal fun rememberChartResolution(
     inputs: ChartResolutionInputs,
     resolve: (ChartResolutionInputs) -> ChartResolution,
 ): ChartResolution {
-    // Publish the three derived outputs together, only after resolution completes.
-    val holder = remember {
-        ChartResolutionHolder(null, ChartResolution(emptyList(), emptyList(), tk.glucodata.chart.HistoryChartModel.EMPTY))
-    }
+    // A plain holder rather than state, so the synchronous path below can
+    // replace the resolution during composition without writing a state that
+    // this same composition has already read; the async path bumps
+    // [asyncRevision] to be recomposed.
+    val holder = remember { ChartResolutionHolder(inputs, resolve(inputs)) }
     var asyncRevision by remember { mutableStateOf(0) }
+    // The first frame *with data* is the one that matters, and it is still
+    // resolved in composition: a chart that composed empty — the history
+    // screen waiting for a range to load — draws its first readings in the
+    // frame they arrive, not a resolution later.
+    if (!inputs.sameAs(holder.resolvedFor) && holder.resolution.renderData.isEmpty() && inputs.safeData.isNotEmpty()) {
+        holder.resolution = resolve(inputs)
+        holder.resolvedFor = inputs
+    }
     LaunchedEffect(inputs) {
-        if (holder.resolvedFor?.let(inputs::sameAs) == true) return@LaunchedEffect
+        if (inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
         val resolution = withContext(Dispatchers.Default) { resolve(inputs) }
         holder.resolution = resolution
         holder.resolvedFor = inputs
