@@ -6,7 +6,7 @@ import org.junit.Test
 class AlertSoundDefaultsTests {
     @Test fun defaultsCoverEveryAlertAndUnknownIdsWithoutArrayIndexing() {
         val cues = listOf("low", "high", "notice", "reminder", "signal", "urgent_low",
-            "urgent_high", "falling", "rising", "signal", "high", "reminder", "falling", "rising")
+            "urgent_high", "falling", "rising", "signal", "high", "reminder", "falling", "rising", "notice")
         assertEquals(AlertType.entries.size, cues.size)
         cues.forEachIndexed { id, cue ->
             val expected = "android.resource://example.app/raw/alert_ember_$cue"
@@ -14,7 +14,7 @@ class AlertSoundDefaultsTests {
             assertEquals(expected, AlertSoundDefaults.resolve(null, "example.app", id))
             assertEquals(expected, AlertSoundDefaults.resolve("", "example.app", id))
         }
-        listOf(-1, 14, Int.MAX_VALUE).forEach {
+        listOf(-1, 15, Int.MAX_VALUE).forEach {
             assertEquals("notice", AlertSoundDefaults.cueFor(it))
             assertFalse(AlertSoundDefaults.hasNativeSlot(it))
         }
@@ -31,6 +31,6 @@ class AlertSoundDefaultsTests {
 
     @Test fun preferenceOnlyAlertsCannotReadBeyondNativeSoundStorage() {
         (0..9).forEach { assertTrue(AlertSoundDefaults.hasNativeSlot(it)) }
-        (10..13).forEach { assertFalse(AlertSoundDefaults.hasNativeSlot(it)) }
+        (10..14).forEach { assertFalse(AlertSoundDefaults.hasNativeSlot(it)) }
     }
 }

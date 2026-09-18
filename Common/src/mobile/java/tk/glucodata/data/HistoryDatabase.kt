@@ -61,6 +61,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
+ *   v33: optional hypo episode classification marks.
  */
 @Database(
     entities = [
@@ -74,13 +75,15 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
         JournalPendingDeleteEntity::class,
         CloneJournalTombstoneEntity::class,
         CloneJournalRecoveryTombstoneEntity::class,
+        HypoEpisodeMark::class,
         CloneRecoveryImportEntity::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
     
+    abstract fun hypoEpisodeDao(): HypoEpisodeDao
     abstract fun historyDao(): HistoryDao
     abstract fun journalDao(): JournalDao
     abstract fun readingUncertaintyDao(): ReadingUncertaintyDao
@@ -768,6 +771,23 @@ abstract class HistoryDatabase : RoomDatabase() {
             )
         }
 
+        private val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS hypo_episode_marks (
+                        episodeKeyMs INTEGER PRIMARY KEY NOT NULL,
+                        endMs INTEGER NOT NULL,
+                        nadirMgdl REAL NOT NULL,
+                        classification TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -805,7 +825,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     bridgeCloneToV30(28),
                     bridgeCloneToV30(29),
                     MIGRATION_30_31,
-                    MIGRATION_31_32
+                    MIGRATION_31_32,
+                    MIGRATION_32_33
                 )
                 .build().also { INSTANCE = it }
             }
