@@ -2,7 +2,7 @@
 <resources>
 
      <string name="libresetalllabels">First specify (on the companion phone) for each label what should be done with it.</string>
-    <string name="watch_face_name" translatable="false">Juggluco</string>
+    <string name="watch_face_name" translatable="false">Glucifer</string>
     <string name="colors_style_setting">@string/colors</string>
     <!-- Subtitle for the menu option to select the watch face color theme [CHAR LIMIT=20] -->
 
