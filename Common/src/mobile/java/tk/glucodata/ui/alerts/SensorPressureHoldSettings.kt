@@ -23,6 +23,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertRepository
+import tk.glucodata.alerts.AlertDefaults
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CompressionAlertCoverage
 import tk.glucodata.alerts.CompressionHoldRuntime
@@ -84,6 +86,28 @@ internal fun SensorPressureHoldCard(
     fun saveTuning(updated: CompressionLowDetector.Tuning) {
         tuning = updated
         CompressionHoldRuntime.saveTuning(updated)
+    }
+
+    fun resetSettings() {
+        // Preserve opt-in, the self-disable latch, episode history and cue enablement.
+        // In particular, setEnabled would clear the latch and history.
+        coveredAlerts = CompressionAlertCoverage.defaultTypes
+        CompressionAlertCoverage.eligibleTypes.forEach { type ->
+            CompressionHoldRuntime.setAlertCovered(type, type in coveredAlerts)
+        }
+        suppressZeroIob = false
+        CompressionHoldRuntime.setSuppressZeroIobPredictive(suppressZeroIob)
+        maxHold = CompressionHoldRuntime.DEFAULT_MAX_HOLD_MINUTES
+        CompressionHoldRuntime.setMaxHoldMinutes(maxHold)
+        floorMode = CompressionHoldRuntime.FLOOR_MODE_VERY_LOW
+        CompressionHoldRuntime.setFloorMode(floorMode)
+        floorCustomMgdl = CompressionHoldRuntime.DEFAULT_FLOOR_MGDL
+        CompressionHoldRuntime.setFloorCustomMgdl(floorCustomMgdl)
+        selfDisableLimit = CompressionHoldRuntime.DEFAULT_SELF_DISABLE_LIMIT
+        CompressionHoldRuntime.setSelfDisableLimit(selfDisableLimit)
+        saveTuning(CompressionLowDetector.Tuning.DEFAULT)
+        saveCue(AlertDefaults.defaultConfig(AlertType.SENSOR_PRESSURE, isMmol)
+            .copy(enabled = cueConfig.enabled))
     }
 
     Card(
@@ -173,6 +197,12 @@ internal fun SensorPressureHoldCard(
             }
 
             if (cardExpanded) {
+                TextButton(
+                    onClick = ::resetSettings,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(stringResource(R.string.resetname))
+                }
                 // Two sentences up front; the full risk text lives one tap away — a wall of
                 // prose next to a master switch is read by nobody.
                 var descriptionExpanded by remember { mutableStateOf(false) }
@@ -385,6 +415,16 @@ internal fun SensorPressureHoldCard(
                         onTest = { Notify.testTrigger(AlertType.SENSOR_PRESSURE.id) }
                     )
 
+                    TextButton(
+                        onClick = {
+                            saveCue(AlertDefaults.defaultConfig(AlertType.SENSOR_PRESSURE, isMmol)
+                                .copy(enabled = cueConfig.enabled))
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.resetname))
+                    }
+
                     OutlinedButton(
                         onClick = { advancedExpanded = !advancedExpanded },
                         modifier = Modifier.fillMaxWidth()
@@ -409,6 +449,12 @@ internal fun SensorPressureHoldCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         TuningSliders(tuning, ::saveTuning)
+                        TextButton(
+                            onClick = { saveTuning(CompressionLowDetector.Tuning.DEFAULT) },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(stringResource(R.string.resetname))
+                        }
                     }
                 }
             }
