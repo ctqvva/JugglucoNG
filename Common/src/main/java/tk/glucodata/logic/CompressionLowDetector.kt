@@ -235,11 +235,41 @@ object CompressionLowDetector {
         iobUnits: Float,
         dosePeakPassed: Boolean,
         tuning: Tuning = Tuning.DEFAULT
+    ): OngoingSuspect? = assessLiveFall(
+        samples, nowMillis, isfMgdlPerUnit, iobUnits, dosePeakPassed,
+        tuning.sanitized(), tuning.sanitized().minDropDepthMgdl
+    )
+
+    /**
+     * Prospective evidence for a bounded, silent early-warning wait. No accumulated
+     * depth threshold: a forecast or delta candidate can precede a deep drop. All
+     * rate, quiet-baseline, freshness, IOB/ISF and dose-peak checks still apply.
+     * This evidence must never admit an actual LOW hold or a rising-side wait.
+     */
+    fun assessEarlyWarningSuspicion(
+        samples: List<Sample>,
+        nowMillis: Long,
+        isfMgdlPerUnit: Float,
+        iobUnits: Float,
+        dosePeakPassed: Boolean,
+        tuning: Tuning = Tuning.DEFAULT
+    ): OngoingSuspect? = assessLiveFall(
+        samples, nowMillis, isfMgdlPerUnit, iobUnits, dosePeakPassed,
+        tuning.sanitized(), 0f
+    )
+
+    private fun assessLiveFall(
+        samples: List<Sample>,
+        nowMillis: Long,
+        isfMgdlPerUnit: Float,
+        iobUnits: Float,
+        dosePeakPassed: Boolean,
+        t: Tuning,
+        minimumDepthMgdl: Float
     ): OngoingSuspect? {
         if (!isfMgdlPerUnit.isFinite() || isfMgdlPerUnit <= 0f) return null
         if (!iobUnits.isFinite() || iobUnits < 0f) return null
         if (!dosePeakPassed) return null
-        val t = tuning.sanitized()
         val trace = sanitize(samples)
         if (trace.size < 3) return null
 
@@ -262,7 +292,7 @@ object CompressionLowDetector {
 
         val onset = trace[onsetIndex]
         val depth = onset.mgdl - current.mgdl
-        if (depth < t.minDropDepthMgdl) return null
+        if (depth < minimumDepthMgdl) return null
         val fallMinutes = (current.timestampMillis - onset.timestampMillis) / MINUTE_MS.toFloat()
         if (fallMinutes <= 0f) return null
         val meanRate = -depth / fallMinutes

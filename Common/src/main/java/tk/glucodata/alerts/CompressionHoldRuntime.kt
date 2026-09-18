@@ -34,6 +34,8 @@ internal object CompressionHoldRuntime {
     private const val LOG_ID = "CompressionHold"
     private const val PREFS_NAME = "tk.glucodata.compression_hold"
 
+    const val PREF_ZERO_IOB_PREDICTIVE = "compression_hold_zero_iob_predictive"
+
     const val PREF_ENABLED = "compression_hold_enabled"
     const val PREF_COVERED_ALERTS_MASK = "compression_hold_covered_alerts_mask"
     const val PREF_MAX_HOLD_MINUTES = "compression_hold_max_minutes"
@@ -60,7 +62,7 @@ internal object CompressionHoldRuntime {
 
     private val holdState = CompressionHoldState()
     private var lastSuspect: CompressionLowDetector.OngoingSuspect? = null
-    private val trendEvidence = CompressionTrendEvidenceState()
+    private val trendEvidence = CompressionTrendEvidence()
     private var lastTrendObservationReadingTimeMs = Long.MIN_VALUE
     private var lastTrendAssessmentReadingTimeMs = Long.MIN_VALUE
     private var lastTrendSensorId: String? = null
@@ -73,6 +75,13 @@ internal object CompressionHoldRuntime {
     // --- settings surface (read by the alert settings screen) ---
 
     fun isOptedIn(): Boolean = prefs()?.getBoolean(PREF_ENABLED, false) == true
+
+    fun suppressZeroIobPredictive(): Boolean =
+        prefs()?.getBoolean(PREF_ZERO_IOB_PREDICTIVE, false) == true
+
+    fun setSuppressZeroIobPredictive(enabled: Boolean) {
+        prefs()?.edit()?.putBoolean(PREF_ZERO_IOB_PREDICTIVE, enabled)?.apply()
+    }
 
     fun isSelfDisabled(): Boolean = prefs()?.getBoolean(PREF_SELF_DISABLED, false) == true
 
@@ -232,7 +241,7 @@ internal object CompressionHoldRuntime {
         }
     }
 
-    /** True only when the full live detector, not alarm selection alone, armed the wait. */
+    /** Falling warnings use early evidence; rising warnings still require the full detector. */
     fun hasTrendEvidence(
         type: AlertType,
         readingTimeMs: Long,
@@ -300,7 +309,7 @@ internal object CompressionHoldRuntime {
             val mayStart = !holdState.holding && !episodeSpent
             val suspicion = if (mayStart) assessSuspicion(nowMs, valueMgdl) else null
             if (suspicion != null) {
-                trendEvidence.record(lastTrendSensorId, nowMs, suspicion)
+                trendEvidence.recordLow(lastTrendSensorId, nowMs, suspicion)
             }
             val action = holdState.onLowActive(
                 nowMs = nowMs,
@@ -418,20 +427,21 @@ internal object CompressionHoldRuntime {
     ) {
         if (readingTimeMs <= 0L || readingTimeMs == lastTrendAssessmentReadingTimeMs) return
         lastTrendAssessmentReadingTimeMs = readingTimeMs
-        val suspect = assessSuspicion(
+        assessSuspicion(
             nowMs = System.currentTimeMillis(),
             valueMgdl = toMgdl(displayValue),
             sensorId = sensorId,
-            logMiss = false
-        ) ?: return
-        trendEvidence.record(sensorId, readingTimeMs, suspect)
+            logMiss = false,
+            earlyReadingTimeMs = readingTimeMs
+        )
     }
 
     private fun assessSuspicion(
         nowMs: Long,
         valueMgdl: Float,
         sensorId: String? = null,
-        logMiss: Boolean = true
+        logMiss: Boolean = true,
+        earlyReadingTimeMs: Long? = null
     ): CompressionLowDetector.OngoingSuspect? {
         val history = NotificationHistorySource.getDisplayHistory(
             nowMs - HISTORY_LOOKBACK_MS,
@@ -444,13 +454,18 @@ internal object CompressionHoldRuntime {
         val appPrefs = appPrefs() ?: return null
         val isf = PredictionModelProfileStore.parametersAt(appPrefs, nowMs).insulinSensitivityMgDlPerUnit
         val peakPassed = JournalIobAccess.lastDosePeakPassed(nowMs) == 1
+        val tuning = loadTuning()
+        if (earlyReadingTimeMs != null) {
+            trendEvidence.observe(samples, nowMs, earlyReadingTimeMs, sensorId, isf, iob, peakPassed, tuning)
+            return null
+        }
         val suspect = CompressionLowDetector.assessOngoing(
             samples = samples,
             nowMillis = nowMs,
             isfMgdlPerUnit = isf,
             iobUnits = iob,
             dosePeakPassed = peakPassed,
-            tuning = loadTuning()
+            tuning = tuning
         )
         if (suspect == null && logMiss) {
             Log.i(LOG_ID, "No suspicion at ${"%.0f".format(valueMgdl)} mg/dL " +

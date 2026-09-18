@@ -1,5 +1,49 @@
 # Compression lows (PISA): spike findings and what got built
 
+## Predictive handling refinement
+
+PRE_LOW and FALLING_FAST can arrive before a pressure-like fall reaches the
+conservative detector's 25 mg/dL minimum depth. Their silent, six-minute
+confirmation wait now uses a separate prospective assessment without an accumulated
+depth requirement. It retains the configured rate, quiet baseline, freshness,
+IOB/ISF plausibility and dose-peak checks. The existing minimum-depth setting
+continues to govern actual LOW detection, retrospective classification and the
+full evidence required for rising-side warnings. No duplicate tuning controls
+are added. All trend recovery comparisons use mg/dL, including on mmol/L devices.
+
+"Suppress predictive lows at zero IOB" is a separate switch, off by default.
+With the experimental sensor-pressure feature enabled and the relevant warning
+selected, it consumes PRE_LOW and FALLING_FAST candidates when classic IOB is
+finite and between 0 and 0.0001 U inclusive. The epsilon allows numerical residue;
+it is not a threshold for considering a small dose harmless. Neither this option
+nor the predictive confirmation wait emits the Sensor Pressure cue.
+
+IOB comes from the existing journal/remote snapshot path. Null, missing, negative
+or non-finite values cannot authorize suppression. An unused journal or absent
+insulin history is unknown, not verified zero. The journal must be reliable:
+an unlogged dose can make the reported IOB wrong. A real low can also occur
+without active insulin, so this option reduces early-warning coverage.
+
+At the configured LOW threshold, a configured hard floor, or an unavailable LOW
+threshold, falling candidates leave predictive handling. LOW and VERY_LOW retain
+their existing selection, cue, floor and bounded-hold behavior. The LOW hold
+requires more than 3 mg/dL of recovery from its tracked nadir after six minutes;
+otherwise it escalates. The maximum hold and hard floor also escalate. An actual
+LOW clearing resolves the hold. Existing deliberate VERY_LOW selection and
+lowered/disabled floor overrides are preserved, rather than being silently reset.
+
+A held forecast candidate stays pending; a consumed one clears pending delivery.
+A held delta candidate rearms its offer; a consumed delta run remains latched until
+the run breaks. Consumption does not record a delivered alert or start a cooldown.
+The new setting lives in the existing compression preferences file and defaults
+to false when absent. No database migration or existing preference rewrite occurs.
+
+The reported five rebounds followed an alert that may have prompted a position
+change. They do not establish that a silent hold would recover spontaneously.
+The regression traces are synthetic and check decisions and episode transitions,
+not clinical discrimination or physical notification delivery.
+
+
 > **Status update (2026-08-23):** the spike graduated. The branch now carries the full
 > feature set — the pure retrospective detector, the live **sensor pressure hold**
 > ("compression low gatekeeper": opt-in, experimental, user-selectable alarm coverage,
@@ -70,7 +114,8 @@ releases PRE_LOW and FALLING_FAST from this confirmation state so the selected L
 policy owns the safety decision.
 
 The confirmation state remains separate from retrospective classification, but it is armed
-only by the same prospective detector evidence used for LOW. The dashboard signal-quality
+by separate falling and rebound evidence. Falling warnings do not require the LOW
+detector's minimum drop depth; rising warnings still require full detector evidence. The dashboard signal-quality
 number was checked as a possible supporting input. It stayed mostly green at the false-alert
 points and overlapped the genuine-low controls, so the wait does not use it as a decision
 signal.

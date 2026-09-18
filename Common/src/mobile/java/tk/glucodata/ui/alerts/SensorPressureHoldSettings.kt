@@ -65,6 +65,7 @@ internal fun SensorPressureHoldCard(
     var optedIn by remember { mutableStateOf(CompressionHoldRuntime.isOptedIn()) }
     var selfDisabled by remember { mutableStateOf(CompressionHoldRuntime.isSelfDisabled()) }
     var coveredAlerts by remember { mutableStateOf(CompressionHoldRuntime.coveredAlertTypes()) }
+    var suppressZeroIob by remember { mutableStateOf(CompressionHoldRuntime.suppressZeroIobPredictive()) }
     var maxHold by remember { mutableStateOf(CompressionHoldRuntime.maxHoldMinutes()) }
     var floorMode by remember { mutableStateOf(CompressionHoldRuntime.floorMode()) }
     var floorCustomMgdl by remember { mutableStateOf(CompressionHoldRuntime.floorCustomMgdl()) }
@@ -242,6 +243,23 @@ internal fun SensorPressureHoldCard(
                             CompressionHoldRuntime.setAlertCovered(type, selected)
                         }
                     }
+                    CoveredAlarmOption(
+                        label = stringResource(R.string.sensor_pressure_zero_iob_title),
+                        selected = suppressZeroIob
+                    ) { selected ->
+                        suppressZeroIob = selected
+                        CompressionHoldRuntime.setSuppressZeroIobPredictive(selected)
+                    }
+                    Text(
+                        stringResource(R.string.sensor_pressure_zero_iob_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        stringResource(R.string.sensor_pressure_predictive_depth_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     if (coveredAlerts.isEmpty()) {
                         WarningText(stringResource(R.string.sensor_pressure_covered_alarms_none_warning))
                     }

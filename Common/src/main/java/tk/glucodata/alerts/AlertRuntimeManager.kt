@@ -4,6 +4,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import tk.glucodata.Applic
+import tk.glucodata.JournalIobAccess
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.GlucoseDelta
 import tk.glucodata.Log
@@ -310,19 +311,16 @@ object AlertRuntimeManager {
             standardEpisodes.clearPending(type)
             return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
-        if (compressionTrendHolds.supports(type)) {
-            when (compressionTrendDecisionLocked(type, condition.glucoseValue)) {
-                CompressionTrendHoldState.Decision.HOLD -> {
-                    standardEpisodes.markPendingDelivery(type)
-                    return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
-                }
-                CompressionTrendHoldState.Decision.DROP -> {
+        if (compressionTrendHolds.supports(type) && CompressionTrendPolicy.consume(
+                compressionTrendDecisionLocked(type, condition.glucoseValue),
+                onHold = { standardEpisodes.markPendingDelivery(type) },
+                onDrop = {
                     standardEpisodes.clearPending(type)
-                    Log.i(LOG_ID, "Dropped ${type.name} after sensor-pressure trend recovery")
-                    return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
+                    Log.i(LOG_ID, "Dropped ${type.name} by sensor-pressure predictive policy")
                 }
-                CompressionTrendHoldState.Decision.ALLOW -> Unit
-            }
+            )
+        ) {
+            return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
 
         // Like snooze, a selected held threshold alarm stays pending so it fires the
@@ -794,20 +792,14 @@ object AlertRuntimeManager {
             return
         }
 
-        if (compressionTrendHolds.supports(type)) {
-            when (compressionTrendDecisionLocked(type, glucoseValue)) {
-                CompressionTrendHoldState.Decision.HOLD -> {
-                    // shouldTrigger disarms on an offer. Keep offering the same run until
-                    // the bounded wait decides; scheduler passes cannot inflate its counter.
-                    state.rearmAfterFailedDelivery()
-                    return
-                }
-                CompressionTrendHoldState.Decision.DROP -> {
-                    Log.i(LOG_ID, "Dropped ${type.name} after sensor-pressure trend recovery")
-                    return
-                }
-                CompressionTrendHoldState.Decision.ALLOW -> Unit
-            }
+        if (compressionTrendHolds.supports(type) && CompressionTrendPolicy.consume(
+                compressionTrendDecisionLocked(type, glucoseValue),
+                // Reoffer a held delta run; DROP leaves its once-per-run latch consumed.
+                onHold = { state.rearmAfterFailedDelivery() },
+                onDrop = { Log.i(LOG_ID, "Dropped ${type.name} by sensor-pressure predictive policy") }
+            )
+        ) {
+            return
         }
 
         if (suppressedBySameDirectionAlertLocked(type)) {
@@ -869,37 +861,28 @@ object AlertRuntimeManager {
         type: AlertType,
         glucoseValue: Float
     ): CompressionTrendHoldState.Decision {
-        if (!CompressionHoldRuntime.isOptedIn() || CompressionHoldRuntime.isSelfDisabled()) {
-            compressionTrendHolds.clear()
-            return CompressionTrendHoldState.Decision.ALLOW
-        }
-        if (!CompressionHoldRuntime.isAlertCovered(type)) {
-            compressionTrendHolds.onCandidateCleared(type)
-            return CompressionTrendHoldState.Decision.ALLOW
-        }
-        if (!CompressionHoldRuntime.hasTrendEvidence(
-                type = type,
-                readingTimeMs = lastReadingTimeMs,
-                displayValue = glucoseValue,
-                sensorId = lastDisplaySnapshot?.sensorId
-            )
-        ) {
-            compressionTrendHolds.onCandidateCleared(type)
-            return CompressionTrendHoldState.Decision.ALLOW
-        }
-        val lowThreshold = runCatching {
-            AlertRepository.loadConfig(AlertType.LOW).threshold
-        }.getOrNull()
-        val actualLow = (type == AlertType.PRE_LOW || type == AlertType.FALLING_FAST) &&
-            lowThreshold?.let {
-                it.isFinite() && it > 0f && glucoseValue <= it
-            } == true
-        return compressionTrendHolds.onCandidate(
+        val nowMs = System.currentTimeMillis()
+        return CompressionTrendPolicy.decide(
+            holds = compressionTrendHolds,
             type = type,
-            nowMs = System.currentTimeMillis(),
+            nowMs = nowMs,
             readingTimeMs = lastReadingTimeMs,
-            valueMgdl = glucoseValue,
-            actualLow = actualLow
+            valueMgdl = if (Applic.unit == 1) glucoseValue * 18.0182f else glucoseValue,
+            enabled = CompressionHoldRuntime.isOptedIn() && !CompressionHoldRuntime.isSelfDisabled(),
+            covered = CompressionHoldRuntime.isAlertCovered(type),
+            lowThresholdMgdl = runCatching {
+                AlertRepository.loadConfig(AlertType.LOW).threshold?.let {
+                    if (Applic.unit == 1) it * 18.0182f else it
+                }
+            }.getOrNull(),
+            hardFloorReached = CompressionHoldRuntime.isAtHardFloor(glucoseValue),
+            suppressZeroIob = CompressionHoldRuntime.suppressZeroIobPredictive(),
+            iobUnits = { JournalIobAccess.snapshot(nowMs)?.getOrNull(0) },
+            hasEvidence = {
+                CompressionHoldRuntime.hasTrendEvidence(
+                    type, lastReadingTimeMs, glucoseValue, lastDisplaySnapshot?.sensorId
+                )
+            }
         )
     }
 
