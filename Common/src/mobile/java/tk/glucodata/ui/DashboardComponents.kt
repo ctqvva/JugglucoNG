@@ -1601,17 +1601,9 @@ fun RecentReadingsCard(
     content: @Composable (Int, GlucosePoint) -> Unit // Rendering the row with Index
 ) {
     if (recentReadings.isNotEmpty()) {
-        // Do not animate rows on initial dashboard open.
-        // Only animate truly new readings that arrive afterward.
-        val seenTimestamps = remember { mutableSetOf<Long>() }
-        var initialized by remember { mutableStateOf(false) }
-
-        if (!initialized) {
-            seenTimestamps.clear()
-            seenTimestamps.addAll(recentReadings.map { it.timestamp })
-            initialized = true
-        }
-
+        // This is a snapshot of recent history, including readings received
+        // while hidden. Keep one stable subtree per reading: entrance wrappers
+        // replayed missed rows and were removed on the very next recomposition.
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -1623,22 +1615,8 @@ fun RecentReadingsCard(
         ) {
             Column {
                 recentReadings.forEachIndexed { index, item ->
-                    key(item.timestamp) {
-                        val isNewReading = !seenTimestamps.contains(item.timestamp)
-                        val shouldAnimateNewReading = isNewReading
-                        if (isNewReading) {
-                            seenTimestamps.add(item.timestamp)
-                        }
-                        if (shouldAnimateNewReading) {
-                            AnimatedVisibility(
-                                visibleState = remember { MutableTransitionState(false).apply { targetState = true } },
-                                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn()
-                            ) {
-                                content(index, item)
-                            }
-                        } else {
-                            content(index, item)
-                        }
+                    key(item.sensorSerial, item.timestamp) {
+                        content(index, item)
                     }
                 }
                 if (onViewHistory != null) {

@@ -1600,7 +1600,7 @@ fun DashboardScreen(
                                 onDeleteReading = { point ->
                                     viewModel.deleteHistoryReading(point, sensorName)
                                 },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier
                             )
                         }
                     }
@@ -2062,7 +2062,7 @@ fun DashboardScreen(
                                 } else {
                                     null
                                 },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier
                             )
                         }
                     }
