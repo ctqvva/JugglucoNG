@@ -1199,7 +1199,9 @@ internal fun PinnedStatsStrip(
     val pinnedSpecs = pinned.map { metric ->
         metricSpec(metric, pinnedState.summary, pinnedState.targets, pinnedState.unit)
     }
-    val cells = buildList<@Composable (Modifier, Float) -> Unit> {
+    // The single-row strip may show fewer than are pinned; slot indices stay those of the
+    // full list, so the picker and drag reorder keep working on what the user pinned.
+    fun cellsFor(shown: Int) = buildList<@Composable (Modifier, Float) -> Unit> {
         add { cellModifier, contentScale ->
             PinnedWindowPill(
                 label = windowLabel,
@@ -1208,7 +1210,7 @@ internal fun PinnedStatsStrip(
                 contentScale = contentScale
             )
         }
-        pinned.forEachIndexed { index, metric ->
+        pinned.take(shown).forEachIndexed { index, metric ->
             val spec = pinnedSpecs[index]
             add { cellModifier, contentScale ->
                 PinnedMetricChip(
@@ -1240,20 +1242,64 @@ internal fun PinnedStatsStrip(
                 ).size.width.toDp()
             }
 
+            // Measured against the widest window label rather than the current one, so
+            // cycling the pill from "Today" to "3d" never changes how many chips fit.
+            val pillLabelStyle = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+            val widestPillWidth = PinnedWindow.entries
+                .map { stringResource(it.labelResId) }
+                .maxOf { textWidth(it, pillLabelStyle) } + PinnedWindowPillChrome
+            val titleStyle = MaterialTheme.typography.labelSmall
+            val valueStyle = MaterialTheme.typography.titleMedium.copy(
+                fontFeatureSettings = "tnum",
+                fontWeight = FontWeight.SemiBold
+            )
+            // What each chip needs to draw its value and title whole, by the same rule as
+            // the pill: against the widest value the metric can show, so the count does
+            // not flicker when 99% becomes 100%.
+            val valueNeeds = pinned.mapIndexed { index, metric ->
+                val spec = pinnedSpecs[index]
+                maxOf(
+                    textWidth(spec.value, valueStyle),
+                    textWidth(widestValueLike(spec.value), valueStyle)
+                ) + PinnedMetricChipChrome + if (metric == StatsMetric.TIME_IN_RANGE) {
+                    PinnedMetricChipTirChrome
+                } else {
+                    0.dp
+                }
+            }
+            val chipNeeds = pinned.indices.map { index ->
+                maxOf(valueNeeds[index], textWidth(pinnedSpecs[index].title, titleStyle) + PinnedMetricChipChrome)
+            }
+            val baseGap = 8.dp
+            // The chips share the row equally, so the widest one sets the width of all.
+            // A couple of dp of slack covers the pixel rounding between measuring text
+            // here and laying it out in weighted cells; a glyph clipped by one pixel is
+            // exactly the cut-off percent sign this is meant to rule out.
+            fun establishedRowWidth(needs: List<Dp>, count: Int): Dp =
+                widestPillWidth + (needs.take(count).maxOrNull() ?: 0.dp) * count + baseGap * count + 2.dp
+
+            val shownCount = pinnedStripShownCount(pinned.size) { count ->
+                establishedRowWidth(chipNeeds, count) <= maxWidth
+            }
+            val shownSpecs = pinnedSpecs.take(shownCount)
+            val cells = cellsFor(shownCount)
+
             val compactWindowCellWidth = (
                 textWidth(windowLabel, MaterialTheme.typography.labelMedium) + 31.dp
             ).coerceAtLeast(62.dp)
-            val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
+            val metricCellWidth = shownSpecs.maxOfOrNull { spec ->
                 maxOf(
                     textWidth(spec.title, MaterialTheme.typography.labelSmall),
                     textWidth(spec.value, MaterialTheme.typography.titleMedium)
                 ) + 28.dp
             }?.coerceIn(96.dp, 124.dp) ?: 96.dp
-            val baseGap = 8.dp
+            // Titles may ellipsise in the established layout; values may not. When even
+            // the values would be clipped — "100%" losing its sign — the strip scales as
+            // one unit instead, the way it already does on compact layouts.
             val useEstablishedPhoneLayout = shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = adaptiveMetrics.widthClass,
                 layoutDensity = adaptiveMetrics.layoutDensity
-            )
+            ) && establishedRowWidth(valueNeeds, shownCount) <= maxWidth
 
             if (useEstablishedPhoneLayout) {
                 // Preserve the dashboard's established phone composition: the window pill
@@ -1280,7 +1326,7 @@ internal fun PinnedStatsStrip(
                 // range-picker-like content width. Scale the composition as one unit when
                 // even that preferred width does not fit.
                 val preferredWidth = compactWindowCellWidth +
-                    metricCellWidth * pinnedSpecs.size +
+                    metricCellWidth * shownSpecs.size +
                     baseGap * (cells.size - 1).coerceAtLeast(0)
                 val contentScale = if (preferredWidth > 0.dp) {
                     (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
@@ -1289,7 +1335,7 @@ internal fun PinnedStatsStrip(
                 }
                 val cellWidths = buildList {
                     add(compactWindowCellWidth)
-                    repeat(pinnedSpecs.size) { add(metricCellWidth) }
+                    repeat(shownSpecs.size) { add(metricCellWidth) }
                 }
 
                 Row(
@@ -1311,7 +1357,9 @@ internal fun PinnedStatsStrip(
         }
     } else {
         // Landscape: two rows of two, so the strip is as tall as the left column is
-        // narrow rather than squeezing four cells across it.
+        // narrow rather than squeezing four cells across it. Everything pinned is shown;
+        // this is where a fourth chip the portrait row had no room for turns up.
+        val cells = cellsFor(pinned.size)
         val perRow = ((cells.size + rows - 1) / rows).coerceAtLeast(1)
         Column(
             modifier = modifier.fillMaxWidth(),
@@ -1380,6 +1428,24 @@ internal fun PinnedStatsStrip(
         )
     }
 }
+
+/** Horizontal padding of [PinnedMetricChip], both sides. */
+private val PinnedMetricChipChrome = 20.dp
+
+/** The time-in-range bar and the gap before it, on top of [PinnedMetricChipChrome]. */
+private val PinnedMetricChipTirChrome = 12.dp
+
+/** [PinnedWindowPill] beyond its label: padding both sides, the gap and the chevron. */
+private val PinnedWindowPillChrome = 31.dp
+
+/**
+ * The widest string a value with this shape can become, for measuring what a chip needs
+ * without the answer changing every time the number does. Digits are tabular in the
+ * chip, so only the count of them matters: percentages top out at "100%" or "36.5%",
+ * levels at "10.2" or "250".
+ */
+internal fun widestValueLike(value: String): String =
+    if (value.endsWith('%')) "00.0%" else "00.0"
 
 internal fun shouldUseEstablishedPinnedStatsPhoneLayout(
     widthClass: AdaptiveWindowWidthClass,

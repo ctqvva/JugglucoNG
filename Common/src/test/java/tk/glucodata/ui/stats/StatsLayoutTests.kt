@@ -62,13 +62,52 @@ class StatsLayoutTests {
     }
 
     @Test
-    fun theDashboardStartsWithLevelSpreadAndTimeInRange() {
+    fun theDashboardStartsWithLevelEstimateSpreadAndTimeInRange() {
         val pinned = StatsLayoutState().dashboardMetrics
-        assertEquals(listOf(StatsMetric.TIME_IN_RANGE, StatsMetric.AVERAGE, StatsMetric.CV), pinned)
-        assertEquals(3, pinned.size)
-        // GMI is a fourteen-day regression; over the strip's default window it is the mean
-        // in a percent sign, so it is not one of the three that ship pinned.
-        assertTrue(StatsMetric.GMI !in pinned)
+        assertEquals(
+            listOf(StatsMetric.TIME_IN_RANGE, StatsMetric.AVERAGE, StatsMetric.GMI, StatsMetric.CV),
+            pinned
+        )
+        // The estimate sits beside the mean it is fitted from, and never at the end:
+        // the last chip is the one a narrow row drops.
+        assertEquals(pinned.indexOf(StatsMetric.AVERAGE) + 1, pinned.indexOf(StatsMetric.GMI))
+    }
+
+    @Test
+    fun anUntouchedOldDefaultFollowsTheNewDefaultOnce() {
+        val old = StatsMetric.LEGACY_PINNED_DEFAULT
+        assertEquals(StatsMetric.PINNED_BY_DEFAULT, StatsLayoutStore.migratePinned(old, storedVersion = 1))
+        // Once written at the current version the same three are a choice and stay.
+        assertEquals(old, StatsLayoutStore.migratePinned(old, storedVersion = 2))
+    }
+
+    @Test
+    fun aChosenPinnedListSurvivesTheDefaultChange() {
+        val chosen = listOf(StatsMetric.AVERAGE, StatsMetric.CV)
+        assertEquals(chosen, StatsLayoutStore.migratePinned(chosen, storedVersion = 1))
+        assertEquals(emptyList<StatsMetric>(), StatsLayoutStore.migratePinned(emptyList(), storedVersion = 1))
+    }
+
+    @Test
+    fun theFourthChipOnlyShowsWhenItFits() {
+        assertEquals(4, pinnedStripShownCount(4) { true })
+        assertEquals(3, pinnedStripShownCount(4) { it <= 3 })
+    }
+
+    @Test
+    fun theRowNeverHidesMoreThanTheFourth() {
+        // Below three the strip scales instead, so a row nothing fits in still shows three.
+        assertEquals(3, pinnedStripShownCount(4) { false })
+        assertEquals(3, pinnedStripShownCount(3) { false })
+        assertEquals(2, pinnedStripShownCount(2) { false })
+    }
+
+    @Test
+    fun chipWidthIsMeasuredAgainstTheWidestValueOfItsShape() {
+        assertEquals("00.0%", widestValueLike("99%"))
+        assertEquals("00.0%", widestValueLike("100%"))
+        assertEquals("00.0", widestValueLike("5.9"))
+        assertEquals("00.0", widestValueLike("180"))
     }
 
     @Test
@@ -125,9 +164,10 @@ class StatsLayoutTests {
     }
 
     @Test
-    fun theDashboardStartsWithThreeMetricsAndAllowsAFourth() {
-        assertEquals(3, StatsLayoutState().dashboardMetrics.size)
+    fun theDashboardStartsFullAndTheRowShowsAtLeastThree() {
+        assertEquals(StatsLayoutStore.MAX_DASHBOARD_METRICS, StatsLayoutState().dashboardMetrics.size)
         assertEquals(4, StatsLayoutStore.MAX_DASHBOARD_METRICS)
+        assertEquals(3, StatsLayoutStore.MIN_DASHBOARD_METRICS_SHOWN)
     }
 
     @Test
