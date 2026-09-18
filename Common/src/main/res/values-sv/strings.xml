@@ -2897,6 +2897,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">Så här många eskalerade tillbakahållningar stänger av funktionen automatiskt — en heuristik som gång på gång har fel bör stoppa sig själv, inte vänta på övervakning.</string>
     <string name="sensor_pressure_hold_never">Aldrig</string>
     <string name="sensor_pressure_hold_never_warning">Funktionen fortsätter hålla tillbaka larm oavsett hur ofta den har fel. Granska kvittona själv.</string>
+    <string name="sensor_pressure_reset_all">Återställ alla</string>
     <string name="sensor_pressure_hold_advanced">Detektionströsklar…</string>
     <string name="sensor_pressure_hold_advanced_hide">Dölj detektionströsklar</string>
     <string name="sensor_pressure_hold_advanced_description">Vad som får ett fall att räknas som misstänkt tryck. Standardvärdena är försiktiga, underbyggda gissningar — trimma dem mot dina egna episoder och bedöm resultatet utifrån tillbakahållningskvittona. Värdena anges i mg/dL eftersom beräkningen körs i sensorenheter.</string>

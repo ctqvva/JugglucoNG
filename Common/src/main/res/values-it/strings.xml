@@ -2887,6 +2887,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">Questo numero di trattenute finite in allarme disattiva automaticamente la funzione — un\'euristica che continua a sbagliare deve fermarsi da sola, non aspettare di essere sorvegliata.</string>
     <string name="sensor_pressure_hold_never">Mai</string>
     <string name="sensor_pressure_hold_never_warning">La funzione continuerà a trattenere gli allarmi, per quanto spesso sbagli. Controlla tu stesso il registro delle trattenute.</string>
+    <string name="sensor_pressure_reset_all">Ripristina tutto</string>
     <string name="sensor_pressure_hold_advanced">Soglie di rilevamento…</string>
     <string name="sensor_pressure_hold_advanced_hide">Nascondi le soglie di rilevamento</string>
     <string name="sensor_pressure_hold_advanced_description">Che cosa fa contare una discesa come pressione sospetta. I valori predefiniti sono stime prudenti — regolali sui tuoi episodi e giudica il risultato dal registro delle trattenute. I valori sono in mg/dL perché il calcolo lavora nelle unità del sensore.</string>

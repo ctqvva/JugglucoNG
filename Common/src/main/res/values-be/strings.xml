@@ -2970,6 +2970,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">Пасля столькіх затрымак з эскалацыяй функцыя адключаецца аўтаматычна — эўрыстыка, якая раз за разам памыляецца, мусіць спыніць сябе сама, а не чакаць нагляду.</string>
     <string name="sensor_pressure_hold_never">Ніколі</string>
     <string name="sensor_pressure_hold_never_warning">Функцыя і далей будзе затрымліваць сігналы, як бы часта яна ні памылялася. Правярайце запісы самі.</string>
+    <string name="sensor_pressure_reset_all">Скінуць усё</string>
     <string name="sensor_pressure_hold_advanced">Парогі выяўлення…</string>
     <string name="sensor_pressure_hold_advanced_hide">Схаваць парогі выяўлення</string>
     <string name="sensor_pressure_hold_advanced_description">Што робіць падзенне падазрэннем на ціск. Прадвызначаныя значэнні — асцярожныя абгрунтаваныя здагадкі; падладзьце іх пад уласныя эпізоды і мяркуйце пра вынік па запісах затрымак. Значэнні ў mg/dL, бо разлік ідзе ў адзінках сэнсара.</string>

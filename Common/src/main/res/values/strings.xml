@@ -969,6 +969,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">This many escalated holds disable the feature automatically — a heuristic that keeps being wrong should stop itself, not wait to be babysat.</string>
     <string name="sensor_pressure_hold_never">Never</string>
     <string name="sensor_pressure_hold_never_warning">The feature will keep holding alarms no matter how often it is wrong. Check the receipts yourself.</string>
+    <string name="sensor_pressure_reset_all">Reset All</string>
     <string name="sensor_pressure_hold_advanced">Detection thresholds…</string>
     <string name="sensor_pressure_hold_advanced_hide">Hide detection thresholds</string>
     <string name="sensor_pressure_hold_advanced_description">What makes a fall count as suspected pressure. The defaults are conservative educated guesses — tune them against your own episodes and judge the result by the hold receipts. Values are in mg/dL because the math runs on sensor units.</string>

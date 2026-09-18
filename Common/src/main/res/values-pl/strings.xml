@@ -2937,6 +2937,7 @@
     <string name="sensor_pressure_hold_self_disable_description">Po tylu eskalowanych wstrzymaniach funkcja wyłącza się automatycznie — heurystyka, która ciągle się myli, powinna sama się zatrzymać, a nie czekać na nadzór.</string>
     <string name="sensor_pressure_hold_never">Nigdy</string>
     <string name="sensor_pressure_hold_never_warning">Funkcja będzie wstrzymywać alarmy niezależnie od tego, jak często się myli. Sprawdzaj rejestr samodzielnie.</string>
+    <string name="sensor_pressure_reset_all">Zresetuj wszystko</string>
     <string name="sensor_pressure_hold_advanced">Progi wykrywania…</string>
     <string name="sensor_pressure_hold_advanced_hide">Ukryj progi wykrywania</string>
     <string name="sensor_pressure_hold_advanced_description">Co sprawia, że spadek jest uznawany za podejrzenie nacisku. Wartości domyślne to ostrożne, wyważone założenia — dostrój je do własnych epizodów i oceń efekt po rejestrze wstrzymań. Wartości są w mg/dL, bo obliczenia działają na jednostkach sensora.</string>

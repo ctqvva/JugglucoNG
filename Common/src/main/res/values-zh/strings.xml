@@ -2912,6 +2912,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">达到这么多次升级延后后，该功能会自动停用——一个不断出错的启发式规则应当自行停止，而不是等人看管。</string>
     <string name="sensor_pressure_hold_never">从不</string>
     <string name="sensor_pressure_hold_never_warning">无论出错多少次，该功能都会继续延后警报。请自行核对记录。</string>
+    <string name="sensor_pressure_reset_all">全部重置</string>
     <string name="sensor_pressure_hold_advanced">检测阈值…</string>
     <string name="sensor_pressure_hold_advanced_hide">隐藏检测阈值</string>
     <string name="sensor_pressure_hold_advanced_description">决定一次下降何时算作疑似压迫。默认值是保守的经验估计——请根据您自己的发作来调整，并以延后记录来判断效果。由于计算基于传感器单位，数值以 mg/dL 表示。</string>

@@ -2940,6 +2940,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_pressure_hold_self_disable_description">Na zoveel geëscaleerde vastgehouden alarmen schakelt de functie zichzelf automatisch uit — een heuristiek die het steeds mis heeft, moet zichzelf stoppen en niet wachten op toezicht.</string>
     <string name="sensor_pressure_hold_never">Nooit</string>
     <string name="sensor_pressure_hold_never_warning">De functie blijft alarmen vasthouden, hoe vaak hij het ook mis heeft. Controleer zelf de resultaten.</string>
+    <string name="sensor_pressure_reset_all">Alles herstellen</string>
     <string name="sensor_pressure_hold_advanced">Detectiedrempels…</string>
     <string name="sensor_pressure_hold_advanced_hide">Detectiedrempels verbergen</string>
     <string name="sensor_pressure_hold_advanced_description">Wat een daling laat tellen als vermoede druk. De standaardwaarden zijn voorzichtige, beredeneerde schattingen — stem ze af op je eigen episodes en beoordeel het resultaat aan de hand van de vasthoud-resultaten. De waarden staan in mg/dL omdat de berekening op sensoreenheden draait.</string>

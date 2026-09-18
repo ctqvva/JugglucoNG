@@ -3003,6 +3003,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_pressure_hold_self_disable_description">Энэ тооны саатуулалт дохио болж дуугарвал функц автоматаар идэвхгүй болно — байнга алддаг таамаглал хянуулахыг хүлээлгүй өөрөө зогсох ёстой.</string>
     <string name="sensor_pressure_hold_never">Хэзээ ч</string>
     <string name="sensor_pressure_hold_never_warning">Функц хэдэн ч удаа алдсан бай дохиог саатуулсаар байна. Бүртгэлийг өөрөө шалгаарай.</string>
+    <string name="sensor_pressure_reset_all">Бүгдийг дахин тохируулах</string>
     <string name="sensor_pressure_hold_advanced">Илрүүлэх босго…</string>
     <string name="sensor_pressure_hold_advanced_hide">Илрүүлэх босгыг нуух</string>
     <string name="sensor_pressure_hold_advanced_description">Уналтыг сэжигтэй даралт гэж тооцох нөхцөл. Анхдагч утгууд нь болгоомжтой таамаглал — өөрийн тохиолдлуудаар тохируулж, үр дүнг саатуулалтын бүртгэлээр дүгнээрэй. Тооцоолол мэдрэгчийн нэгжээр хийгддэг тул утгууд mg/dL-ээр байна.</string>

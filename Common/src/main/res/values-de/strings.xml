@@ -2936,6 +2936,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_pressure_hold_self_disable_description">So viele eskalierte Zurückhaltungen schalten die Funktion automatisch ab — eine Heuristik, die immer wieder danebenliegt, sollte sich selbst stoppen, statt auf Aufsicht zu warten.</string>
     <string name="sensor_pressure_hold_never">Nie</string>
     <string name="sensor_pressure_hold_never_warning">Die Funktion hält Alarme weiter zurück, egal wie oft sie danebenliegt. Prüfen Sie die Belege selbst.</string>
+    <string name="sensor_pressure_reset_all">Alle zurücksetzen</string>
     <string name="sensor_pressure_hold_advanced">Erkennungsschwellen…</string>
     <string name="sensor_pressure_hold_advanced_hide">Erkennungsschwellen ausblenden</string>
     <string name="sensor_pressure_hold_advanced_description">Was einen Abfall als vermuteten Druck zählen lässt. Die Voreinstellungen sind konservative, begründete Schätzungen — stimmen Sie sie an Ihren eigenen Episoden ab und beurteilen Sie das Ergebnis anhand der Zurückhalte-Belege. Die Werte sind in mg/dL, weil die Berechnung auf Sensoreinheiten läuft.</string>

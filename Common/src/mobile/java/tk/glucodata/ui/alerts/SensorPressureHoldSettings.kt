@@ -201,7 +201,7 @@ internal fun SensorPressureHoldCard(
                     onClick = ::resetSettings,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text(stringResource(R.string.resetname))
+                    Text(stringResource(R.string.sensor_pressure_reset_all))
                 }
                 // Two sentences up front; the full risk text lives one tap away — a wall of
                 // prose next to a master switch is read by nobody.

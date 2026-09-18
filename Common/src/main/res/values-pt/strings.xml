@@ -2898,6 +2898,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">Esse número de retenções que acabam em alarme desativa a função automaticamente — uma heurística que erra repetidamente deve parar sozinha, não esperar por supervisão.</string>
     <string name="sensor_pressure_hold_never">Nunca</string>
     <string name="sensor_pressure_hold_never_warning">A função continuará retendo alarmes, não importa com que frequência erre. Confira você mesmo o registro das retenções.</string>
+    <string name="sensor_pressure_reset_all">Repor tudo</string>
     <string name="sensor_pressure_hold_advanced">Limites de detecção…</string>
     <string name="sensor_pressure_hold_advanced_hide">Ocultar limites de detecção</string>
     <string name="sensor_pressure_hold_advanced_description">O que faz uma queda contar como pressão suspeita. Os padrões são estimativas conservadoras — ajuste-os com base nos seus próprios episódios e julgue o resultado pelo registro das retenções. Os valores estão em mg/dL porque o cálculo trabalha nas unidades do sensor.</string>

@@ -2903,6 +2903,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">Ce nombre de retenues finies en alarme désactive automatiquement la fonction — une heuristique qui se trompe sans cesse doit s\'arrêter d\'elle-même, pas attendre d\'être surveillée.</string>
     <string name="sensor_pressure_hold_never">Jamais</string>
     <string name="sensor_pressure_hold_never_warning">La fonction continuera de retenir les alarmes, peu importe combien de fois elle se trompe. Vérifiez vous-même le relevé des retenues.</string>
+    <string name="sensor_pressure_reset_all">Tout réinitialiser</string>
     <string name="sensor_pressure_hold_advanced">Seuils de détection…</string>
     <string name="sensor_pressure_hold_advanced_hide">Masquer les seuils de détection</string>
     <string name="sensor_pressure_hold_advanced_description">Ce qui fait qu\'une chute compte comme pression suspectée. Les valeurs par défaut sont des estimations prudentes — ajustez-les sur vos propres épisodes et jugez le résultat d\'après le relevé des retenues. Les valeurs sont en mg/dL car le calcul travaille dans les unités du capteur.</string>

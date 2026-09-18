@@ -2925,6 +2925,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_pressure_hold_self_disable_description">Bu kadar yükseltilmiş bekletme özelliği otomatik olarak devre dışı bırakır — sürekli yanılan bir sezgisel yöntem başında beklenmeyi değil, kendi kendini durdurmayı bilmelidir.</string>
     <string name="sensor_pressure_hold_never">Asla</string>
     <string name="sensor_pressure_hold_never_warning">Özellik ne kadar sık yanılırsa yanılsın alarmları bekletmeye devam eder. Kayıtları kendiniz kontrol edin.</string>
+    <string name="sensor_pressure_reset_all">Tümünü sıfırla</string>
     <string name="sensor_pressure_hold_advanced">Algılama eşikleri…</string>
     <string name="sensor_pressure_hold_advanced_hide">Algılama eşiklerini gizle</string>
     <string name="sensor_pressure_hold_advanced_description">Bir düşüşün şüpheli basınç sayılması için gerekenler. Varsayılanlar temkinli tahminlerdir — kendi olaylarınıza göre ayarlayın ve sonucu bekletme kayıtlarına bakarak değerlendirin. Hesaplama sensör birimleriyle yapıldığından değerler mg/dL cinsindendir.</string>

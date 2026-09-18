@@ -3088,6 +3088,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_pressure_hold_self_disable_description">Intaas hakin oo kor u kacday ayaa si toos ah u damisa astaantan — hab qiyaas ah oo had iyo jeer khaldan waa inuu iskiis isu joojiyaa, ma aha inuu sugo in la ilaaliyo.</string>
     <string name="sensor_pressure_hold_never">Waligeed</string>
     <string name="sensor_pressure_hold_never_warning">Astaantu waxay sii wadi doontaa hakinta digniinaha si kasta oo ay u khaldanto. Diiwaannada adigu hubi.</string>
+    <string name="sensor_pressure_reset_all">Dhammaan dib u deji</string>
     <string name="sensor_pressure_hold_advanced">Xadadka ogaanshaha…</string>
     <string name="sensor_pressure_hold_advanced_hide">Qari xadadka ogaanshaha</string>
     <string name="sensor_pressure_hold_advanced_description">Waxa hoos u dhac ka dhigaya cadaadis laga shakiyo. Qiimayaasha caadiga ah waa qiyaaso taxaddar leh — ku hagaaji dhacdooyinkaaga oo natiijada ku qiimee diiwaannada hakinta. Qiimayaashu waa mg/dL sababtoo ah xisaabtu waxay ku shaqaysaa halbeegyada dareemaha.</string>

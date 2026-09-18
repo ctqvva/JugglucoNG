@@ -2946,6 +2946,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pressure_hold_self_disable_description">После стольких задержек с эскалацией функция отключается автоматически — эвристика, которая раз за разом ошибается, должна остановить себя сама, а не ждать присмотра.</string>
     <string name="sensor_pressure_hold_never">Никогда</string>
     <string name="sensor_pressure_hold_never_warning">Функция будет и дальше задерживать сигналы, как бы часто она ни ошибалась. Проверяйте записи сами.</string>
+    <string name="sensor_pressure_reset_all">Сбросить всё</string>
     <string name="sensor_pressure_hold_advanced">Пороги обнаружения…</string>
     <string name="sensor_pressure_hold_advanced_hide">Скрыть пороги обнаружения</string>
     <string name="sensor_pressure_hold_advanced_description">Что делает падение подозрением на давление. Значения по умолчанию — осторожные обоснованные предположения; подстройте их под собственные эпизоды и судите о результате по записям задержек. Значения в mg/dL, потому что расчёт идёт в единицах сенсора.</string>
