@@ -40,6 +40,8 @@ interface ReadingDisplayDao {
      * The seal is enforced here, in SQL, rather than by whichever caller
      * remembers to check: `timestamp > :sealHorizon` is the whole guarantee, and
      * the caller supplies the horizon from the current clock and grace window.
+     * Identical presentations are no-ops: changing only recordedAt must not
+     * invalidate every chart query observing the table.
      * A stale or incorrect horizon would weaken this bound. There is no other update
      * and no REPLACE anywhere in this DAO.
      */
@@ -52,6 +54,8 @@ interface ReadingDisplayDao {
             calibrationFingerprint = :calibrationFingerprint,
             recordedAt = :recordedAt
         WHERE timestamp = :timestamp AND timestamp > :sealHorizon
+          AND (displayMgdl != :displayMgdl OR sensorSerial != :sensorSerial
+               OR viewMode != :viewMode OR calibrationFingerprint != :calibrationFingerprint)
         """
     )
     suspend fun reviseIfUnsealed(
