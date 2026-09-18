@@ -127,6 +127,8 @@ data class AlertConfig(
     // covers the projected overshoot x this factor. 0 = off. Never applied to
     // PRE_LOW - insulin makes a predicted low MORE likely.
     val iobCoverageFactor: Float? = null,
+    // PRE_LOW only: use insulin and recent glucose evidence before episode entry.
+    val preLowEvidenceEnabled: Boolean = false,
     // PERSISTENT_HIGH: suppress while the value falls at least this fast
     // (mg/dl per minute, magnitude). HIGH uses any positive value only as the
     // opt-in marker for suppressing while its displayed arrow points down.

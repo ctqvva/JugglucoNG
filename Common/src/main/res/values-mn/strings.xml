@@ -2935,6 +2935,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="aidex_pairing_key_deleted">Хослуулах түлхүүр устгагдлаа</string>
     <string name="rearm_margin_label">Дахин сэрэмжлүүлэх зөрүү</string>
     <string name="rearm_min_interval_label">Сэрэмжлүүлгийн хоорондох хамгийн бага хугацаа</string>
+    <string name="pre_low_evidence_label">IOB болон сүүлийн глюкозыг харгалзах</string>
+    <string name="pre_low_evidence_description">Бүртгэсэн инсулин болон сүүлийн глюкозоор цаашдын бага глюкозын таамгийг баталгаажуулна. IOB байхгүй үед өмнөх суурь түвшин рүү буухыг сүүлийн оргилоос хойш 15 минут хүртэл хүлээж болно. Суурь түвшнээс доошлох, эсвэл бага глюкоз ойртох буюу нэн даруй үүсэх үед эрт анхааруулна. Инсулины мэдээлэл дутуу байх нь IOB тэг гэсэн үг биш.</string>
     <string name="pre_high_iob_coverage_label">Инсулины нөхөлт</string>
     <string name="alert_feature_off">Унтраах</string>
     <string name="same_direction_suppression_title">Чиг хандлагын дохионы дараах чимээгүй хугацаа</string>

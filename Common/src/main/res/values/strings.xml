@@ -3066,6 +3066,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Pairing key deleted</string>
     <string name="rearm_margin_label">Re-arm margin</string>
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
+    <string name="pre_low_evidence_label">Consider IOB and recent glucose</string>
+    <string name="pre_low_evidence_description">Confirms distant forecast lows using logged insulin and recent glucose. Without IOB, a return toward the previous baseline can wait until 15 minutes after the recent peak. Falling below that baseline, nearby lows, or imminent lows allow earlier warning. Missing insulin data is not zero IOB.</string>
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
     <string name="same_direction_suppression_title">Quiet period after a trend alert</string>

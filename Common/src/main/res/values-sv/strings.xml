@@ -2829,6 +2829,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Parkopplingsnyckel borttagen</string>
     <string name="rearm_margin_label">Återaktiveringsmarginal</string>
     <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
+    <string name="pre_low_evidence_label">Ta hänsyn till IOB och senaste glukosvärden</string>
+    <string name="pre_low_evidence_description">Bekräftar mer avlägsna prognoser om lågt glukos med registrerat insulin och senaste glukosvärden. Utan IOB kan återgången till föregående basnivå avvakta till 15 minuter efter den senaste toppen. Ett fall under basnivån eller nära eller omedelbart förestående lågt glukos tillåter tidigare varning. Saknade insulindata betyder inte noll IOB.</string>
     <string name="pre_high_iob_coverage_label">Insulintäckning</string>
     <string name="alert_feature_off">Av</string>
     <string name="same_direction_suppression_title">Tyst period efter ett trendlarm</string>

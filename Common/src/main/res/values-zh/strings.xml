@@ -2845,6 +2845,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">配对密钥已删除</string>
     <string name="rearm_margin_label">重新触发余量</string>
     <string name="rearm_min_interval_label">警报最小间隔</string>
+    <string name="pre_low_evidence_label">考虑 IOB 和近期血糖</string>
+    <string name="pre_low_evidence_description">根据已记录的胰岛素和近期血糖确认较远期的低血糖预测。无 IOB 时，血糖回落至先前基线的过程可等待至近期峰值后的 15 分钟。低于该基线、接近低血糖或低血糖即将发生时可提前警报。缺少胰岛素数据不代表 IOB 为零。</string>
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
     <string name="same_direction_suppression_title">趋势警报后的静默期</string>
