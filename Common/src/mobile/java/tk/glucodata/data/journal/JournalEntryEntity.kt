@@ -14,7 +14,7 @@ import androidx.room.ColumnInfo
         Index(value = ["foodId"]),
         Index(value = ["sourceRecordId"], unique = true),
         Index(value = ["recoveryId"], unique = true),
-    val mealId: Long? = null,
+        Index(value = ["mealId"]),
     ]
 )
 data class JournalEntryEntity(

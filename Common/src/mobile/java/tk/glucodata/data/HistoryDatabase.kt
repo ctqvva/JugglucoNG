@@ -65,6 +65,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
+ *   v33-v36: meals, product contribution, nutrition metadata and package pieces.
  */
 @Database(
     entities = [
@@ -874,26 +875,46 @@ abstract class HistoryDatabase : RoomDatabase() {
 
         private val MIGRATION_33_34 = object : Migration(33, 34) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN contributedAt INTEGER")
+                if (!hasColumn(db, "meal_products", "contributedAt")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN contributedAt INTEGER")
+                }
             }
         }
 
         private val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+                if (!hasColumn(db, "meal_products", "saturatedFatGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saturatedFatGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "saltGrams")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN saltGrams REAL")
+                }
+                if (!hasColumn(db, "meal_products", "offCategory")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN offCategory TEXT")
+                }
             }
         }
 
         private val MIGRATION_35_36 = object : Migration(35, 36) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
-                db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
-                db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                if (!hasColumn(db, "meal_items", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_items", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_items", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_items ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieces")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieces REAL")
+                }
+                if (!hasColumn(db, "meal_products", "packagePieceLabel")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePieceLabel TEXT")
+                }
+                if (!hasColumn(db, "meal_products", "packagePiecesUserEdited")) {
+                    db.execSQL("ALTER TABLE meal_products ADD COLUMN packagePiecesUserEdited INTEGER NOT NULL DEFAULT 0")
+                }
             }
         }
 

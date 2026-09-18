@@ -359,7 +359,6 @@ fun JournalSettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.meal_settings_entry),
                         subtitle = stringResource(R.string.meal_settings_entry_desc),
-                        showArrow = true,
                         onClick = { navController.navigate("journal/meals") },
                         icon = Icons.Default.Restaurant,
                         iconTint = MaterialTheme.colorScheme.secondary,

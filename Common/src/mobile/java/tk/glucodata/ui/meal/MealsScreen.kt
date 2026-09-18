@@ -159,7 +159,6 @@ private fun MealRow(meal: Meal, items: List<MealItem>, position: CardPosition, o
     SettingsItem(
         title = meal.label,
         subtitle = subtitle,
-        showArrow = true,
         onClick = onClick,
         icon = Icons.Default.Restaurant,
         iconTint = MaterialTheme.colorScheme.secondary,
