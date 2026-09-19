@@ -32,6 +32,10 @@ class JournalRepository {
             .flowOn(Dispatchers.Default)
     }
 
+    fun observeEntriesForMeal(mealId: Long): Flow<List<JournalEntry>> {
+        return dao.observeEntriesForMeal(mealId).map { entries -> entries.map(JournalEntryEntity::toModel) }
+    }
+
     fun observeInsulinPresets(): Flow<List<JournalInsulinPreset>> {
         return dao.observeInsulinPresets()
             .map { presets -> presets.map(JournalInsulinPresetEntity::toModel) }
@@ -160,6 +164,7 @@ class JournalRepository {
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
                 foodId = input.foodId,
+                mealId = input.mealId ?: existing?.mealId,
                 proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
                 fatGrams = input.fatGrams?.coerceAtLeast(0f),
                 nsUploadedAt = existing?.nsUploadedAt,
@@ -410,6 +415,16 @@ class JournalRepository {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
         return deleted.size
+    }
+
+    /**
+     * Deletes every entry logged for a meal, one by one through [deleteEntry] so each row gets
+     * its Nightscout tombstone and the IOB/calibration listeners fire as for a manual delete.
+     */
+    suspend fun deleteEntriesForMeal(mealId: Long): Int {
+        val ids = dao.getEntryIdsForMeal(mealId)
+        ids.forEach { deleteEntry(it) }
+        return ids.size
     }
 
     suspend fun upsertInsulinPreset(input: JournalInsulinPresetInput): Long {
@@ -858,7 +873,8 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         insulinCurveModelVersion = insulinCurveModelVersion,
         insulinCurveEvidence = insulinCurveEvidence?.let { JournalCurveEvidence.fromStorage(it) },
         insulinBodyWeightKg = insulinBodyWeightKg,
-        insulinCurveWasApproximated = insulinCurveWasApproximated
+        insulinCurveWasApproximated = insulinCurveWasApproximated,
+        mealId = mealId
     )
 }
 

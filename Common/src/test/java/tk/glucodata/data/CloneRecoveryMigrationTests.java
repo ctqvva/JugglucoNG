@@ -58,7 +58,7 @@ public class CloneRecoveryMigrationTests {
     private static int identityVersion() throws Exception { return migrationFor("ALTER TABLE journal_entries ADD COLUMN recoveryId TEXT"); }
     private static int tombstoneVersion() throws Exception { return migrationFor("CREATE TABLE IF NOT EXISTS clone_journal_recovery_tombstones"); }
     private static int receiptVersion() throws Exception { return migrationFor("CREATE TABLE IF NOT EXISTS clone_recovery_imports"); }
-    private Connection db() throws Exception {
+    static Connection db() throws Exception {
         Class.forName("org.sqlite.JDBC");
         Connection db = DriverManager.getConnection("jdbc:sqlite::memory:");
         String source = Files.readString(ROOT.resolve("Common/build/generated/ksp/mobileRelease/kotlin/tk/glucodata/data/HistoryDatabase_Impl.kt"));
@@ -69,10 +69,10 @@ public class CloneRecoveryMigrationTests {
         assertTrue("Read generated Room schema", count > 20);
         return db;
     }
-    private static void exec(Connection db, String sql) throws SQLException {
+    static void exec(Connection db, String sql) throws SQLException {
         try (Statement statement = db.createStatement()) { statement.execute(sql); }
     }
-    private static List<List<String>> query(Connection db, String sql) throws SQLException {
+    static List<List<String>> query(Connection db, String sql) throws SQLException {
         try (Statement statement = db.createStatement(); ResultSet result = statement.executeQuery(sql)) {
             List<List<String>> rows = new ArrayList<>();
             while (result.next()) {
@@ -109,7 +109,7 @@ public class CloneRecoveryMigrationTests {
             }
         });
     }
-    private static void migrate(Connection db, int from) throws Exception {
+    static void migrate(Connection db, int from) throws Exception {
         SupportSQLiteDatabase adapter = (SupportSQLiteDatabase) Proxy.newProxyInstance(
             SupportSQLiteDatabase.class.getClassLoader(), new Class<?>[]{SupportSQLiteDatabase.class}, (proxy, method, args) -> {
                 if (method.getName().equals("execSQL") && args.length == 1) { exec(db, (String) args[0]); return null; }
@@ -121,7 +121,7 @@ public class CloneRecoveryMigrationTests {
         field.setAccessible(true);
         ((Migration) field.get(null)).migrate(adapter);
     }
-    private static SortedMap<String, String> schema(Connection db) throws Exception {
+    static SortedMap<String, String> schema(Connection db) throws Exception {
         SortedMap<String, String> schema = new TreeMap<>();
         for (List<String> row : query(db, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'room_master_table' ORDER BY name")) {
             String name = row.get(0);

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -118,6 +119,10 @@ fun JournalScreen(
     onOpenFoodLibrary: () -> Unit,
     onOpenInsulinLibrary: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenMeals: (() -> Unit)? = null,
+    onNewMeal: (() -> Unit)? = null,
+    currentMealLabel: String? = null,
+    onOpenCurrentMeal: (() -> Unit)? = null,
     showTitle: Boolean = true,
     useStatusBarsPadding: Boolean = true,
     bottomContentPadding: Dp = 104.dp,
@@ -194,6 +199,7 @@ fun JournalScreen(
                 item(key = "journal-title") {
                     JournalHeader(
                         onOpenFoodLibrary = onOpenFoodLibrary,
+                        onOpenMeals = onOpenMeals,
                         onOpenInsulinLibrary = onOpenInsulinLibrary
                     )
                 }
@@ -391,6 +397,9 @@ fun JournalScreen(
         }
 
         JournalExpandableFab(
+            onMealSelected = onNewMeal,
+            currentMealLabel = currentMealLabel,
+            onCurrentMealSelected = onOpenCurrentMeal,
             expanded = fabExpanded,
             onExpandedChange = {
                 fabExpanded = it
@@ -433,7 +442,8 @@ internal fun journalQuickAddTimestamp(
 @Composable
 private fun JournalHeader(
     onOpenFoodLibrary: () -> Unit,
-    onOpenInsulinLibrary: () -> Unit
+    onOpenInsulinLibrary: () -> Unit,
+    onOpenMeals: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -452,9 +462,18 @@ private fun JournalHeader(
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
+            onOpenMeals?.let { openMeals ->
+                IconButton(onClick = openMeals, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = stringResource(R.string.meal_title),
+                        tint = journalTypeColor(JournalEntryType.CARBS)
+                    )
+                }
+            }
             IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Default.Restaurant,
+                    imageVector = Icons.Default.LunchDining,
                     contentDescription = stringResource(R.string.journal_food_library),
                     tint = journalTypeColor(JournalEntryType.CARBS)
                 )
@@ -567,7 +586,7 @@ private fun JournalMetricsPanel(
                     R.string.journal_events_today,
                     todaysEntries.count { it.type == JournalEntryType.CARBS }
                 ),
-                icon = Icons.Default.Restaurant,
+                icon = Icons.Default.LunchDining,
                 type = JournalEntryType.CARBS,
                 modifier = Modifier.weight(1f)
             )

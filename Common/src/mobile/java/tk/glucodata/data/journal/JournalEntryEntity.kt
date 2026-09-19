@@ -13,7 +13,8 @@ import androidx.room.ColumnInfo
         Index(value = ["insulinPresetId"]),
         Index(value = ["foodId"]),
         Index(value = ["sourceRecordId"], unique = true),
-        Index(value = ["recoveryId"], unique = true)
+        Index(value = ["recoveryId"], unique = true),
+        Index(value = ["mealId"]),
     ]
 )
 data class JournalEntryEntity(
@@ -54,5 +55,6 @@ data class JournalEntryEntity(
      * every upload pass. Tracked separately from [nsUploadedAt] because the two
      * destinations succeed and fail independently.
      */
-    val lvUploadedAt: Long? = null
+    val lvUploadedAt: Long? = null,
+    val mealId: Long? = null,
 )

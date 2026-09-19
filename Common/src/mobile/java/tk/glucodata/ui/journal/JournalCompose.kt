@@ -53,7 +53,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vaccines
@@ -164,7 +164,9 @@ data class JournalEntryDraft(
     val doseGlucoseMgDl: Float? = null,
     val pairWithDose: Boolean = false,
     val pairedAmountText: String = "",
-    val foodItems: List<JournalDraftFoodItem> = emptyList()
+    val foodItems: List<JournalDraftFoodItem> = emptyList(),
+    /** Set when the entry was started from a meal; copied onto every entry the sheet saves. */
+    val mealId: Long? = null
 )
 
 data class JournalDraftFoodItem(
@@ -237,6 +239,7 @@ fun buildJournalChartMarkers(
         }
         JournalChartMarker(
             entryId = entry.id,
+            mealId = entry.mealId,
             timestamp = entry.timestamp,
             type = entry.type,
             title = if (entry.type == JournalEntryType.INSULIN) {
@@ -357,11 +360,17 @@ fun JournalEntrySheet(
     doseProfile: JournalDoseProfile? = null,
     initialType: JournalEntryType,
     existingEntry: JournalEntry? = null,
+    /**
+     * Values to start a new entry from (a meal's "eaten" step). Editable like any draft; the
+     * dose calculator runs on the current glucose and IOB, not on anything stored with the meal.
+     */
+    prefill: JournalEntryInput? = null,
     onDismiss: () -> Unit,
     onSave: (JournalEntryInput) -> Unit,
     onSaveEntries: ((List<JournalEntryInput>) -> Unit)? = null,
     onSaveFood: ((JournalFoodInput) -> Unit)? = null,
     onDelete: ((Long) -> Unit)? = null,
+    onOpenMeal: ((Long) -> Unit)? = null,
     sensorSerialProvider: () -> String?
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -380,7 +389,8 @@ fun JournalEntrySheet(
         suggestedChartAnchorGlucoseMgDl,
         suggestedAmountFraction,
         unit,
-        insulinPresets
+        insulinPresets,
+        prefill
     ) {
         buildDraft(
             existingEntry = existingEntry,
@@ -389,7 +399,9 @@ fun JournalEntrySheet(
             unit = unit,
             suggestedGlucoseMgDl = suggestedGlucoseMgDl,
             suggestedChartAnchorGlucoseMgDl = suggestedChartAnchorGlucoseMgDl,
-            suggestedAmountFraction = suggestedAmountFraction
+            suggestedAmountFraction = suggestedAmountFraction,
+            prefill = prefill,
+            foodMacrosEnabled = foodMacrosEnabled
         )
     }
     var draft by remember(
@@ -400,7 +412,8 @@ fun JournalEntrySheet(
         suggestedChartAnchorGlucoseMgDl,
         suggestedAmountFraction,
         unit,
-        insulinPresets
+        insulinPresets,
+        prefill
     ) {
         mutableStateOf(initialDraft)
     }
@@ -553,6 +566,16 @@ fun JournalEntrySheet(
                             )
                         }
                     }
+                }
+            }
+
+            val linkedMealId = draft.mealId
+            if (draft.type == JournalEntryType.CARBS && linkedMealId != null && onOpenMeal != null) {
+                item(key = "linked_meal") {
+                    JournalMealLink(mealId = linkedMealId, onOpenMeal = { id ->
+                        onDismiss()
+                        onOpenMeal(id)
+                    })
                 }
             }
 
@@ -817,7 +840,7 @@ fun JournalEntrySheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(
-                        imageVector = journalTypeIcon(draft.type),
+                        imageVector = draft.type.journalActionIcon(draft.mealId),
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -902,8 +925,29 @@ private fun buildDraft(
     unit: String,
     suggestedGlucoseMgDl: Float? = null,
     suggestedChartAnchorGlucoseMgDl: Float? = null,
-    suggestedAmountFraction: Float? = null
+    suggestedAmountFraction: Float? = null,
+    prefill: JournalEntryInput? = null,
+    foodMacrosEnabled: Boolean = false
 ): JournalEntryDraft {
+    if (existingEntry == null && prefill != null) {
+        return JournalEntryDraft(
+            type = prefill.type,
+            timestamp = prefill.timestamp,
+            title = prefill.title,
+            amountText = prefill.amount?.let(::formatFloatForEditor).orEmpty(),
+            glucoseText = prefill.glucoseValueMgDl?.let { formatGlucoseForEditor(it, unit) }.orEmpty(),
+            durationText = prefill.durationMinutes?.toString()
+                ?: if (prefill.type == JournalEntryType.CARBS) JournalMealShape.MIXED.durationMinutes.toString() else "",
+            note = prefill.note.orEmpty(),
+            intensity = prefill.intensity,
+            insulinPresetId = prefill.insulinPresetId,
+            foodId = prefill.foodId,
+            proteinText = if (foodMacrosEnabled) prefill.proteinGrams?.let(::formatFloatForEditor).orEmpty() else "",
+            fatText = if (foodMacrosEnabled) prefill.fatGrams?.let(::formatFloatForEditor).orEmpty() else "",
+            doseGlucoseMgDl = suggestedGlucoseMgDl,
+            mealId = prefill.mealId
+        )
+    }
     if (existingEntry == null) {
         return JournalEntryDraft(
             type = initialType,
@@ -943,7 +987,8 @@ private fun buildDraft(
         proteinText = existingEntry.proteinGrams?.let(::formatFloatForEditor).orEmpty(),
         fatText = existingEntry.fatGrams?.let(::formatFloatForEditor).orEmpty(),
         chartAnchorGlucoseMgDl = existingEntry.glucoseValueMgDl,
-        doseGlucoseMgDl = existingEntry.glucoseValueMgDl
+        doseGlucoseMgDl = existingEntry.glucoseValueMgDl,
+        mealId = existingEntry.mealId
     )
 }
 
@@ -1147,7 +1192,8 @@ private fun JournalEntryDraft.toInput(
                 note = noteValue,
                 amount = amountValue,
                 glucoseValueMgDl = chartAnchorGlucoseMgDl,
-                insulinPresetId = presetId
+                insulinPresetId = presetId,
+                mealId = mealId
             )
         }
 
@@ -1168,7 +1214,8 @@ private fun JournalEntryDraft.toInput(
                 durationMinutes = absorptionMinutes,
                 foodId = foodId?.takeIf { it > 0L },
                 proteinGrams = if (foodMacrosEnabled) proteinText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
-                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null
+                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
+                mealId = mealId
             )
         }
 
@@ -1240,7 +1287,8 @@ private fun JournalEntryDraft.toInputs(
                 title = preset.displayName,
                 amount = amountValue,
                 glucoseValueMgDl = chartAnchorGlucoseMgDl,
-                insulinPresetId = presetId
+                insulinPresetId = presetId,
+                mealId = mealId
             )
         }
 
@@ -1256,7 +1304,8 @@ private fun JournalEntryDraft.toInputs(
                 durationMinutes = durationText.parseIntOrNull()?.coerceIn(15, 480),
                 proteinGrams = null,
                 fatGrams = null,
-                foodId = null
+                foodId = null,
+                mealId = mealId
             )
         }
 
@@ -1435,7 +1484,7 @@ private fun JournalDoseAssistCard(
                 )
             ) {
                 Icon(
-                    imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.Restaurant,
+                    imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.LunchDining,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1636,7 +1685,7 @@ private fun JournalFoodLibrarySelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Restaurant,
+                    imageVector = Icons.Default.LunchDining,
                     contentDescription = null,
                     tint = visibleItems.firstOrNull()?.accentColor?.let(::Color)
                         ?: MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2420,7 +2469,7 @@ private fun JournalActionRow(
                     imageVector = when (action) {
                         JournalTrayAction.CALIBRATE -> Icons.Default.Bloodtype
                         JournalTrayAction.INSULIN -> Icons.Default.Vaccines
-                        JournalTrayAction.CARBS -> Icons.Default.Restaurant
+                        JournalTrayAction.CARBS -> Icons.Default.LunchDining
                         JournalTrayAction.FINGERSTICK -> Icons.Default.Bloodtype
                         JournalTrayAction.ACTIVITY -> Icons.Default.DirectionsRun
                         JournalTrayAction.NOTE -> Icons.AutoMirrored.Filled.Label
@@ -2655,7 +2704,7 @@ fun JournalInlineChip(
                 horizontalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 8.dp)
             ) {
                 Icon(
-                    imageVector = journalTypeIcon(entry.type),
+                    imageVector = entry.type.journalActionIcon(entry.mealId),
                     contentDescription = null,
                     tint = tint,
                     modifier = Modifier
@@ -2852,7 +2901,7 @@ private fun JournalEntryChip(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = journalTypeIcon(entry.type),
+                        imageVector = entry.type.journalActionIcon(entry.mealId),
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(16.dp)
@@ -3534,7 +3583,7 @@ private fun String.trimTrailingLabel(): String {
 private fun journalTypeIcon(type: JournalEntryType): ImageVector {
     return when (type) {
         JournalEntryType.INSULIN -> Icons.Default.Vaccines
-        JournalEntryType.CARBS -> Icons.Default.Restaurant
+        JournalEntryType.CARBS -> Icons.Default.LunchDining
         JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
         JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
         JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
