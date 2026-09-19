@@ -2838,6 +2838,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Chave de emparelhamento eliminada</string>
     <string name="rearm_margin_label">Margem de rearme</string>
     <string name="rearm_min_interval_label">Tempo mínimo entre alarmes</string>
+    <string name="pre_low_evidence_label">Considerar IOB e glicose recente</string>
+    <string name="pre_low_evidence_description">Confirma previsões de glicose baixa mais distantes usando insulina registada e glicose recente. Sem IOB, o regresso ao nível anterior pode aguardar até 15 minutos após o pico recente. Uma descida abaixo desse nível ou uma hipoglicemia próxima ou iminente permite um aviso mais cedo. A ausência de dados de insulina não significa IOB zero.</string>
     <string name="pre_high_iob_coverage_label">Cobertura de insulina</string>
     <string name="alert_feature_off">Desligado</string>
     <string name="same_direction_suppression_title">Período de silêncio após um alerta de tendência</string>

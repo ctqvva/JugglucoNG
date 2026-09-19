@@ -2958,6 +2958,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_pairing_key_deleted">Kopplungsschlüssel gelöscht</string>
     <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
     <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
+    <string name="pre_low_evidence_label">IOB und Glukoseverlauf berücksichtigen</string>
+    <string name="pre_low_evidence_description">Bestätigt weiter entfernte vorhergesagte Unterzuckerungen anhand protokollierten Insulins und des Glukoseverlaufs. Ohne IOB kann die Rückkehr zum vorherigen Ausgangswert bis 15 Minuten nach dem letzten Höchstwert abgewartet werden. Ein Unterschreiten des Ausgangswerts sowie nahe oder unmittelbar drohende Unterzuckerungen erlauben eine frühere Warnung. Fehlende Insulindaten bedeuten nicht null IOB.</string>
     <string name="pre_high_iob_coverage_label">Insulindeckung</string>
     <string name="alert_feature_off">Aus</string>
     <string name="same_direction_suppression_title">Ruhezeit nach einem Trendalarm</string>

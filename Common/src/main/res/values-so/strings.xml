@@ -3028,6 +3028,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="aidex_pairing_key_deleted">Furaha isku-xidhka waa la tirtiray</string>
     <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
     <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
+    <string name="pre_low_evidence_label">Tixgeli IOB iyo gulukoostii dhowayd</string>
+    <string name="pre_low_evidence_description">Waxay xaqiijisaa saadaasha gulukoos hoose ee fog iyadoo adeegsanaysa insuliinta la diiwaangeliyey iyo gulukoostii dhowayd. IOB la’aantiis, ku noqoshada heerkii hore waxay sugi kartaa ilaa 15 daqiiqo ka dib heerkii ugu sarreeyey ee dhowaa. Hoos uga dhicidda heerkaas ama gulukoos hoose oo dhow ama soo fool leh waxay oggolaanaysaa digniin hore. Xog insulin oo maqan macnaheedu ma aha IOB eber.</string>
     <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
     <string name="alert_feature_off">Damman</string>
     <string name="same_direction_suppression_title">Muddo aamusan digniin isbeddel ka dib</string>

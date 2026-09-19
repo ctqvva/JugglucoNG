@@ -2865,6 +2865,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="aidex_pairing_key_deleted">Eşleştirme anahtarı silindi</string>
     <string name="rearm_margin_label">Yeniden alarm marjı</string>
     <string name="rearm_min_interval_label">Alarmlar arası asgari süre</string>
+    <string name="pre_low_evidence_label">IOB ve son glikoz değerlerini dikkate al</string>
+    <string name="pre_low_evidence_description">Daha uzak düşük glikoz tahminlerini kayıtlı insülin ve son glikoz değerleriyle doğrular. IOB yokken önceki temel düzeye dönüş, son zirveden sonra 15 dakikaya kadar bekleyebilir. Bu düzeyin altına düşüş, yakın veya hemen beklenen hipoglisemi daha erken uyarıya izin verir. Eksik insülin verileri sıfır IOB anlamına gelmez.</string>
     <string name="pre_high_iob_coverage_label">İnsülin karşılama</string>
     <string name="alert_feature_off">Kapalı</string>
     <string name="same_direction_suppression_title">Eğilim alarmından sonra sessiz süre</string>

@@ -2875,6 +2875,8 @@
     <string name="aidex_pairing_key_deleted">Klucz parowania usunięty</string>
     <string name="rearm_margin_label">Margines ponownego alarmu</string>
     <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
+    <string name="pre_low_evidence_label">Uwzględniaj IOB i ostatni przebieg glikemii</string>
+    <string name="pre_low_evidence_description">Potwierdza odległe prognozy niskiej glikemii na podstawie zapisanej insuliny i ostatnich pomiarów. Bez IOB powrót do wcześniejszego poziomu może czekać do 15 minut od ostatniego szczytu. Spadek poniżej tego poziomu lub bliska albo nieuchronna hipoglikemia pozwala ostrzec wcześniej. Brak danych o insulinie nie oznacza zerowego IOB.</string>
     <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
     <string name="alert_feature_off">Wył.</string>
     <string name="same_direction_suppression_title">Cisza po alarmie trendu</string>

@@ -2908,6 +2908,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Ключ спалучэння выдалены</string>
     <string name="rearm_margin_label">Запас да паўторнага спрацоўвання</string>
     <string name="rearm_min_interval_label">Мінімальны інтэрвал паміж трывогамі</string>
+    <string name="pre_low_evidence_label">Улічваць IOB і нядаўнюю глюкозу</string>
+    <string name="pre_low_evidence_description">Пацвярджае аддалены прагноз нізкай глюкозы паводле запісанага інсуліну і нядаўніх вымярэнняў. Без IOB вяртанне да папярэдняга ўзроўню можа чакаць да 15 хвілін пасля нядаўняга піка. Падзенне ніжэй за гэты ўзровень, блізкая або непазбежная гіпаглікемія дазваляюць папярэдзіць раней. Адсутнасць даных пра інсулін не азначае нулявы IOB.</string>
     <string name="pre_high_iob_coverage_label">Пакрыццё інсулінам</string>
     <string name="alert_feature_off">Выкл.</string>
     <string name="same_direction_suppression_title">Ціхі перыяд пасля сігналу пра трэнд</string>
