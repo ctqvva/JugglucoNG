@@ -3070,4 +3070,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_network_summary">Adeegayaal iyo raadinta gudaha</string>
     <string name="clone_connections_empty">Weli ma jiraan aalado lammaansan.</string>
     <string name="clone_background_desc">Waxay isticmaashaa batari badan</string>
+    <string name="libre3_source_experimental_warning">Nooca amniga Libre 3 ee tijaabada ah. Hayso APK-ga caadiga ah si aad ugu noqoto.</string>
 </resources>

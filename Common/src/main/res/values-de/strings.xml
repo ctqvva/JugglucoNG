@@ -3000,4 +3000,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_connections_empty">Noch keine gekoppelten Geräte.</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
+    <string name="libre3_source_experimental_warning">Experimenteller Libre-3-Sicherheitsbuild. Bewahren Sie die Standard-APK für eine Rückkehr auf.</string>
 </resources>
