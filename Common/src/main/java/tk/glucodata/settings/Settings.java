@@ -1223,9 +1223,9 @@ private    void mksettings(MainActivity context) {
         globalscan.setOnCheckedChangeListener( (buttonView,  isChecked) -> 
                 EnableIntentScanning(isChecked));
            nfcsound.setOnCheckedChangeListener((buttonView,  isChecked) -> {
-                Natives.setnfcsound(isChecked);
-                context.setnfc();
-                });
+                 Natives.setnfcsound(isChecked);
+                 context.setnfc(true);
+                 });
         }
     CheckBox camera=!isWearable?new CheckBox(context):null;
     if(!isWearable) {
