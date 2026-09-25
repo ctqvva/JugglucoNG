@@ -2897,4 +2897,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Serveurs et recherche locale</string>
     <string name="clone_connections_empty">Aucun appareil associé.</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
+    <string name="libre3_source_experimental_warning">Version de sécurité Libre 3 expérimentale. Conservez l’APK standard pour pouvoir revenir en arrière.</string>
 </resources>

@@ -2931,4 +2931,5 @@
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_connections_empty">Brak sparowanych urządzeń.</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
+    <string name="libre3_source_experimental_warning">Eksperymentalna kompilacja zabezpieczeń Libre 3. Zachowaj standardowy plik APK, aby móc wrócić.</string>
 </resources>

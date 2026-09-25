@@ -2919,4 +2919,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_connections_empty">Henüz eşleştirilmiş cihaz yok.</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
+    <string name="libre3_source_experimental_warning">Deneysel Libre 3 güvenlik sürümü. Geri dönmek için standart APK’yı saklayın.</string>
 </resources>

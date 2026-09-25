@@ -2934,4 +2934,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_network_summary">Servers en lokaal zoeken</string>
     <string name="clone_connections_empty">Nog geen gekoppelde apparaten.</string>
     <string name="clone_background_desc">Verbruikt meer batterij</string>
+    <string name="libre3_source_experimental_warning">Experimentele Libre 3-beveiligingsbuild. Bewaar de standaard-APK om terug te kunnen gaan.</string>
 </resources>
