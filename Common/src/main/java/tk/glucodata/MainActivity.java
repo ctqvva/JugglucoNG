@@ -693,6 +693,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private static boolean askNFC = true;
 
+    /**
+     * One-shot state for the "NFC disabled" nag. Passive checks only toast once and never open
+     * settings; explicit NFC actions bypass the one-shot. (askNFC above remains for the
+     * no-NFC-hardware branch only.)
+     */
+    private static final NfcPromptState nfcPromptState = new NfcPromptState();
+
     private static final int nfcflags = NfcAdapter.FLAG_READER_NFC_V | NfcAdapter.FLAG_READER_NFC_A
             | NfcAdapter.FLAG_READER_NFC_B | NfcAdapter.FLAG_READER_NFC_F | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
             | NfcAdapter.FLAG_READER_NFC_BARCODE; // =415. Activation of sensor was only possible if app not at the
@@ -705,10 +712,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     /**
-     * Arms NFC reader mode. When NFC is off a toast is always shown once per process, but the
-     * system NFC settings are only opened when NFC is actually needed: either the caller is an
-     * explicit NFC flow (userRequested, e.g. a Libre scan) or a Libre 2/3 sensor is active.
-     * BLE-only users (iCan, Sibionics, …) must not be yanked out of the app on every cold start.
+     * Arms NFC reader mode. When NFC is off, BLE-only users get nothing at all; otherwise a
+     * toast explains it (once per process for passive checks, every time for an explicit NFC
+     * flow). Only an explicit NFC flow on a primary opens the system NFC settings — a passive
+     * check never launches another app.
      */
     public void setnfc(boolean userRequested) {
         try {
@@ -735,17 +742,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             } else {
                 if (!mNfcAdapter.isEnabled()) {
                     if (!isWearable) {
-                        if (askNFC) {
+                        final NfcPromptState.Decision nfcDecision = nfcPromptState.decide(userRequested,
+                                NfcSettingsRouting.isNfcNeeded(), Natives.backuphostNr());
+                        if (nfcDecision.toast) {
                             Applic.argToaster(this, getResources().getString(R.string.error_nfc_disabled),
                                     Toast.LENGTH_LONG);
-                            if (NfcSettingsRouting.shouldOpen(userRequested, isNfcNeeded(), Natives.backuphostNr())) {
-                                try {
-                                    startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
-                                } catch (Throwable th) {
-                                    Log.stack(LOG_ID, "Settings.ACTION_NFC_SETTINGS", th);
-                                }
+                        }
+                        if (nfcDecision.openSettings) {
+                            try {
+                                startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
+                            } catch (Throwable th) {
+                                Log.stack(LOG_ID, "Settings.ACTION_NFC_SETTINGS", th);
                             }
-                            askNFC = false;
                         }
                     }
 
@@ -795,48 +803,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             Log.e(LOG_ID, "setnfc " + mess);
         }
-    }
-
-    /**
-     * NFC reader mode only serves Libre scans (opt-in pen import and the manual Ottai wake have
-     * their own entry points), so an active Libre 2/3 sensor is the signal that NFC matters.
-     * Same relevance check as the CGM-readiness NFC row; every native call is guarded so an
-     * unloaded native library just means "not needed".
-     */
-    static boolean isNfcNeeded() {
-        try {
-            final String[] active = Natives.activeSensors();
-            if (active != null) {
-                for (final String sensorId : active) {
-                    if (sensorId != null && isLibreSensorId(sensorId)) {
-                        return true;
-                    }
-                }
-            }
-        } catch (Throwable th) {
-            Log.stack(LOG_ID, "isNfcNeeded", th);
-        }
-        return false;
-    }
-
-    static boolean isLibreSensorId(String sensorId) {
-        try {
-            final int kind = SensorSourceResolver.resolveSensorKind(sensorId,
-                    SensorSourceResolver.SENSOR_KIND_UNKNOWN);
-            if (kind == SensorSourceResolver.SENSOR_KIND_LIBRE2
-                    || kind == SensorSourceResolver.SENSOR_KIND_LIBRE3) {
-                return true;
-            }
-            final long sensorPtr = Natives.str2sensorptr(sensorId);
-            if (sensorPtr != 0L) {
-                final int nativeKind = Natives.getSensorptrLibreVersion(sensorPtr);
-                return nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE2
-                        || nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE3;
-            }
-        } catch (Throwable th) {
-            Log.stack(LOG_ID, "isLibreSensorId", th);
-        }
-        return false;
     }
 
     boolean active = false;

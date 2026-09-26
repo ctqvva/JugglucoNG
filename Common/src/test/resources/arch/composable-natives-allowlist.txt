@@ -5,7 +5,6 @@
 # list may only shrink: a new file added to it, or a stale line for one already fixed, fails the
 # build (ArchitectureGateTests.composablesDoNotGrowInCallsToNatives).
 src/mobile/java/tk/glucodata/ui/AlarmScreen.kt
-src/mobile/java/tk/glucodata/ui/CgmReadiness.kt
 src/mobile/java/tk/glucodata/ui/CloneHistoryRecoverySheet.kt
 src/mobile/java/tk/glucodata/ui/DebugSettingsScreen.kt
 src/mobile/java/tk/glucodata/ui/ExchangeSettingsScreens.kt
