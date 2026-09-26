@@ -1280,7 +1280,8 @@ private    void mksettings(MainActivity context) {
         changelabels.setText(R.string.numberlabels);
         changelabels.setOnClickListener(v-> {
                 hidekeyboard();
-                new LabelsClass(context).mklabellayout(thelayout[0]);});
+                tk.glucodata.LegacyScreens screens = tk.glucodata.LegacyScreensAccess.get();
+                if (screens != null) screens.openLabels(context, thelayout[0]);});
               }
     Button numalarm=getbutton(context,R.string.remindersname);
     Button advanced=null;

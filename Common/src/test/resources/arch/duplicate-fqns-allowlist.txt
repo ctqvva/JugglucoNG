@@ -10,6 +10,8 @@
 # Removed so far: tk.glucodata.receivers.AlarmLaunchReceiver (T5.1).
 #   tk.glucodata.Stats, tk.glucodata.Watch (category P): their watch stubs had no
 #   caller anywhere in src/main or src/wear, so they were deleted.
+#   tk.glucodata.settings.LabelsClass (category P): the shared Settings.java now opens
+#   it through the LegacyScreens registry, so its watch stub was deleted.
 tk.glucodata.BluetoothGlucoseMeter
 tk.glucodata.Dialogs
 tk.glucodata.FloatingConfig
@@ -28,7 +30,6 @@ tk.glucodata.WearOngoingActivity
 tk.glucodata.glucosecomplication.ColorConfig
 tk.glucodata.glucosecomplication.GlucoseValue
 tk.glucodata.nums.AllData
-tk.glucodata.settings.LabelsClass
 tk.glucodata.settings.LibreNumbers
 tk.glucodata.settings.SetColors
 tk.glucodata.ui.AlarmActivity

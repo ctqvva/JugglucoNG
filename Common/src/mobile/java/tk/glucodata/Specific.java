@@ -51,6 +51,7 @@ public class Specific {
 		HistorySyncBridgeAccess.register(tk.glucodata.data.MobileHistorySyncBridge.INSTANCE);
 		CloneRecoveryAccessBridge.register(tk.glucodata.data.MobileCloneRecoveryBridge.INSTANCE);
 		CloneOutgoingRecoveryAccessBridge.register(tk.glucodata.data.MobileCloneOutgoingRecoveryBridge.INSTANCE);
+		LegacyScreensAccess.register(tk.glucodata.settings.MobileLegacyScreens.INSTANCE);
 	}
 
 	static void start(Application context) {
