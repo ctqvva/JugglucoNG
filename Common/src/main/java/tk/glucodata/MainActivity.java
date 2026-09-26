@@ -721,6 +721,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
     public void setnfc(boolean userRequested) {
         try {
+            // Passive checks with no NFC consumer must not touch the NFC stack at all:
+            // on newer ROMs even querying the adapter pops an NFC-hardware consent
+            // sheet, on or off. Relevance is probed without NFC APIs (guarded natives).
+            if (!NfcSettingsRouting.needsNfcStack(userRequested,
+                    NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected())) {
+                return;
+            }
             if (mNfcAdapter == null) {
                 mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
             }
@@ -763,7 +770,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
 
                     return;
-                } else if (NfcSettingsRouting.shouldArmReaderMode(userRequested,
+                } else if (NfcSettingsRouting.needsNfcStack(userRequested,
                         NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected())) {
 
                     // mNfcAdapter.enableReaderMode(this, this,

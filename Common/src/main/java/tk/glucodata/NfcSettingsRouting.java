@@ -37,12 +37,13 @@ public final class NfcSettingsRouting {
     }
 
     /**
-     * Claiming the NFC controller (enableReaderMode) is what newer OS versions ask runtime
-     * consent for, so it must not happen when nobody needs NFC: Libre scans, explicit NFC
-     * flows, or enabled insulin pens. Everyone else still gets their taps through manifest
-     * dispatch (TECH_DISCOVERED) if they ever tap one — just without reader-mode exclusivity.
+     * Whether the NFC stack may be touched at all: claiming the NFC controller
+     * (enableReaderMode) is what newer OS versions ask runtime consent for, and even querying
+     * the adapter pops that sheet on some ROMs — so no-touch without a consumer. Libre scans,
+     * explicit NFC flows, or enabled insulin pens qualify. Everyone else still gets taps
+     * through manifest TECH_DISCOVERED dispatch if one ever happens.
      */
-    public static boolean shouldArmReaderMode(boolean userRequested, boolean nfcNeeded,
+    public static boolean needsNfcStack(boolean userRequested, boolean nfcNeeded,
             boolean penReadsExpected) {
         return userRequested || nfcNeeded || penReadsExpected;
     }
