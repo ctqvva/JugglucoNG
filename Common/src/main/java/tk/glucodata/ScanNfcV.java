@@ -512,7 +512,9 @@ public class ScanNfcV {
         curve.requestRender();
         if (curve.waitnfc) {
             curve.waitnfc = false;
-            ((MainActivity) curve.getContext()).setnfc();
+            // Continuation of an explicit user scan (the sensor may not be registered yet,
+            // so relevance probing would early-out): keep the reader armed for follow-up taps.
+            ((MainActivity) curve.getContext()).setnfc(true);
         }
         main.runOnUiThread(() -> {
             if (main.curve.numcontrol != null)

@@ -85,6 +85,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Log
+import tk.glucodata.MainActivity
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ottai.OttaiBleManager
@@ -720,7 +721,7 @@ fun OttaiSetupWizard(
             if (context.findActivity()?.isChangingConfigurations != true) {
                 credentialBootstrap?.cancelV3CredentialBootstrap()
             }
-            OttaiNfc.dumpMode = false
+            OttaiNfc.disarmForSetup()
             if (OttaiNfc.onResult === callback) OttaiNfc.onResult = null
         }
     }
@@ -1183,6 +1184,9 @@ fun OttaiSetupWizard(
                     val armNfcRead: () -> Unit = {
                         status = context.getString(R.string.ottai_nfc_dump_armed)
                         OttaiNfc.armForSetup()
+                        // Explicit user action: arm the reader now and offer NFC settings
+                        // when NFC is off (passive checks never open settings).
+                        (context.findActivity() as? MainActivity)?.setnfc(true)
                     }
 
                     Column(

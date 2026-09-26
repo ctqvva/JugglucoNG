@@ -336,7 +336,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     public static void launchLibreNfcScan() {
         if (thisone != null) {
             thisone.runOnUiThread(() -> {
-                thisone.setnfc();
+                thisone.setnfc(true);
                 Applic.argToaster(thisone, thisone.getString(R.string.libre_nfc_instruction), Toast.LENGTH_SHORT);
             });
         }
@@ -693,6 +693,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private static boolean askNFC = true;
 
+    /**
+     * One-shot state for the "NFC disabled" nag. Passive checks only toast once and never open
+     * settings; explicit NFC actions bypass the one-shot. (askNFC above remains for the
+     * no-NFC-hardware branch only.)
+     */
+    private static final NfcPromptState nfcPromptState = new NfcPromptState();
+
     private static final int nfcflags = NfcAdapter.FLAG_READER_NFC_V | NfcAdapter.FLAG_READER_NFC_A
             | NfcAdapter.FLAG_READER_NFC_B | NfcAdapter.FLAG_READER_NFC_F | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
             | NfcAdapter.FLAG_READER_NFC_BARCODE; // =415. Activation of sensor was only possible if app not at the
@@ -701,14 +708,37 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // |NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK;
 
     public void setnfc() {
+        setnfc(false);
+    }
+
+    /**
+     * Arms NFC reader mode, but only when somebody needs it (explicit NFC flow, active Libre
+     * sensor, enabled insulin pens, or an armed Ottai tap expectation) — some devices/ROMs
+     * surface NFC-access UI on stack interaction. When NFC is off, BLE-only users get nothing
+     * at all; otherwise a toast explains it (once per process for passive checks, every time
+     * for an explicit NFC flow). Only an explicit NFC flow on a primary opens the system NFC
+     * settings — a passive check never launches another app.
+     */
+    public void setnfc(boolean userRequested) {
         try {
+            // Passive checks with no NFC consumer must not touch the NFC stack at all:
+            // on newer ROMs even querying the adapter pops an NFC-hardware consent
+            // sheet, on or off. Relevance is probed without NFC APIs (guarded natives).
+            if (!NfcSettingsRouting.needsNfcStack(userRequested,
+                    NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected(),
+                    NfcSettingsRouting.isOttaiTapExpected())) {
+                return;
+            }
             if (mNfcAdapter == null) {
                 mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
             }
 
             if (mNfcAdapter == null) {
                 if (!isWearable) {
-                    if (askNFC) {
+                    // Same explicit-bypass semantics as the disabled branch below: a passive
+                    // check warns once, but an explicit NFC action always gets its error, even
+                    // after the passive warning ran first.
+                    if (userRequested || askNFC) {
                         {
                             if (doLog) {
                                 Log.i(LOG_ID, "No NFC adapter found!");
@@ -725,22 +755,25 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             } else {
                 if (!mNfcAdapter.isEnabled()) {
                     if (!isWearable) {
-                        if (askNFC) {
+                        final NfcPromptState.Decision nfcDecision = nfcPromptState.decide(userRequested,
+                                NfcSettingsRouting.isNfcNeeded(), Natives.backuphostNr());
+                        if (nfcDecision.toast) {
                             Applic.argToaster(this, getResources().getString(R.string.error_nfc_disabled),
                                     Toast.LENGTH_LONG);
-                            if (Natives.backuphostNr() == 0) {
-                                try {
-                                    startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
-                                } catch (Throwable th) {
-                                    Log.stack(LOG_ID, "Settings.ACTION_NFC_SETTINGS", th);
-                                }
+                        }
+                        if (nfcDecision.openSettings) {
+                            try {
+                                startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
+                            } catch (Throwable th) {
+                                Log.stack(LOG_ID, "Settings.ACTION_NFC_SETTINGS", th);
                             }
-                            askNFC = false;
                         }
                     }
 
                     return;
-                } else {
+                } else if (NfcSettingsRouting.needsNfcStack(userRequested,
+                        NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected(),
+                        NfcSettingsRouting.isOttaiTapExpected())) {
 
                     // mNfcAdapter.enableReaderMode(this, this,
                     // NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS|NfcAdapter.FLAG_READER_NFC_V ,
@@ -775,6 +808,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     // final int flags=NfcAdapter.FLAG_READER_NFC_V ;
                     mNfcAdapter.enableReaderMode(this, this, flags, null);
                     hasnfc = true;
+                } else {
+                    // No NFC consumer (no Libre sensor, no pens, no Ottai tap expectation, no
+                    // explicit scan): do not claim the NFC controller. Some devices/ROMs
+                    // surface NFC-access UI on stack interaction, and manifest
+                    // TECH_DISCOVERED dispatch still delivers NfcV taps if one ever happens —
+                    // just without reader-mode exclusivity.
+                    if (doLog) {
+                        Log.i(LOG_ID, "reader mode not armed: no NFC consumer");
+                    }
+                    ;
                 }
 
             }
