@@ -21,6 +21,33 @@ public final class NfcSettingsRouting {
     }
 
     /**
+     * Whether foreground NFC reads are expected at all. Pushed from the mobile source set
+     * (InsulinPenManager: pens are opt-in and live there, while this class must stay usable
+     * from src/main, which the wear build also compiles). Defaults to false, matching pens
+     * being off until asked for.
+     */
+    private static volatile boolean penReadsExpected = false;
+
+    public static void setPenReadsExpected(boolean expected) {
+        penReadsExpected = expected;
+    }
+
+    public static boolean isPenReadsExpected() {
+        return penReadsExpected;
+    }
+
+    /**
+     * Claiming the NFC controller (enableReaderMode) is what newer OS versions ask runtime
+     * consent for, so it must not happen when nobody needs NFC: Libre scans, explicit NFC
+     * flows, or enabled insulin pens. Everyone else still gets their taps through manifest
+     * dispatch (TECH_DISCOVERED) if they ever tap one — just without reader-mode exclusivity.
+     */
+    public static boolean shouldArmReaderMode(boolean userRequested, boolean nfcNeeded,
+            boolean penReadsExpected) {
+        return userRequested || nfcNeeded || penReadsExpected;
+    }
+
+    /**
      * NFC reader mode only serves Libre scans (opt-in pen import and the manual Ottai wake have
      * their own entry points), so an active Libre 2/3 sensor is the signal that NFC matters.
      * Same relevance check the CGM-readiness NFC row uses; every native call is guarded so an

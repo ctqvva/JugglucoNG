@@ -712,7 +712,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     /**
-     * Arms NFC reader mode. When NFC is off, BLE-only users get nothing at all; otherwise a
+     * Arms NFC reader mode, but only when somebody needs it (explicit NFC flow, active Libre
+     * sensor, or enabled insulin pens) — claiming the controller is what newer OS versions ask
+     * runtime consent for. When NFC is off, BLE-only users get nothing at all; otherwise a
      * toast explains it (once per process for passive checks, every time for an explicit NFC
      * flow). Only an explicit NFC flow on a primary opens the system NFC settings — a passive
      * check never launches another app.
@@ -761,7 +763,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
 
                     return;
-                } else {
+                } else if (NfcSettingsRouting.shouldArmReaderMode(userRequested,
+                        NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected())) {
 
                     // mNfcAdapter.enableReaderMode(this, this,
                     // NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS|NfcAdapter.FLAG_READER_NFC_V ,
@@ -796,6 +799,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     // final int flags=NfcAdapter.FLAG_READER_NFC_V ;
                     mNfcAdapter.enableReaderMode(this, this, flags, null);
                     hasnfc = true;
+                } else {
+                    // No NFC consumer (no Libre sensor, no pens, no explicit scan): do not
+                    // claim the NFC controller. Newer OS versions ask runtime consent for
+                    // reader mode, and manifest TECH_DISCOVERED dispatch still delivers a
+                    // tap if one ever happens — just without reader-mode exclusivity.
+                    if (doLog) {
+                        Log.i(LOG_ID, "reader mode not armed: no NFC consumer");
+                    }
+                    ;
                 }
 
             }

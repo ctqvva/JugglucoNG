@@ -29,4 +29,16 @@ class NfcSettingsRoutingTests {
         assertFalse(NfcSettingsRouting.shouldOpen(true, 1))
         assertFalse(NfcSettingsRouting.shouldOpen(false, 2))
     }
+
+    @Test
+    fun `reader mode arms for explicit flow, Libre sensor or pens`() {
+        assertTrue(NfcSettingsRouting.shouldArmReaderMode(true, false, false))
+        assertTrue(NfcSettingsRouting.shouldArmReaderMode(false, true, false))
+        assertTrue(NfcSettingsRouting.shouldArmReaderMode(false, false, true))
+    }
+
+    @Test
+    fun `reader mode stays disarmed with no NFC consumer`() {
+        assertFalse(NfcSettingsRouting.shouldArmReaderMode(false, false, false))
+    }
 }
