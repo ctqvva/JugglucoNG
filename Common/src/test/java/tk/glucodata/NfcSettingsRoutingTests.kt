@@ -31,14 +31,15 @@ class NfcSettingsRoutingTests {
     }
 
     @Test
-    fun `NFC stack is touched for explicit flow, Libre sensor or pens`() {
-        assertTrue(NfcSettingsRouting.needsNfcStack(true, false, false))
-        assertTrue(NfcSettingsRouting.needsNfcStack(false, true, false))
-        assertTrue(NfcSettingsRouting.needsNfcStack(false, false, true))
+    fun `NFC stack is touched for explicit flow, Libre sensor, pens or Ottai tap`() {
+        assertTrue(NfcSettingsRouting.needsNfcStack(true, false, false, false))
+        assertTrue(NfcSettingsRouting.needsNfcStack(false, true, false, false))
+        assertTrue(NfcSettingsRouting.needsNfcStack(false, false, true, false))
+        assertTrue(NfcSettingsRouting.needsNfcStack(false, false, false, true))
     }
 
     @Test
     fun `NFC stack stays untouched with no NFC consumer`() {
-        assertFalse(NfcSettingsRouting.needsNfcStack(false, false, false))
+        assertFalse(NfcSettingsRouting.needsNfcStack(false, false, false, false))
     }
 }

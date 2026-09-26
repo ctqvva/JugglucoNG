@@ -713,11 +713,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     /**
      * Arms NFC reader mode, but only when somebody needs it (explicit NFC flow, active Libre
-     * sensor, or enabled insulin pens) — claiming the controller is what newer OS versions ask
-     * runtime consent for. When NFC is off, BLE-only users get nothing at all; otherwise a
-     * toast explains it (once per process for passive checks, every time for an explicit NFC
-     * flow). Only an explicit NFC flow on a primary opens the system NFC settings — a passive
-     * check never launches another app.
+     * sensor, enabled insulin pens, or an armed Ottai tap expectation) — some devices/ROMs
+     * surface NFC-access UI on stack interaction. When NFC is off, BLE-only users get nothing
+     * at all; otherwise a toast explains it (once per process for passive checks, every time
+     * for an explicit NFC flow). Only an explicit NFC flow on a primary opens the system NFC
+     * settings — a passive check never launches another app.
      */
     public void setnfc(boolean userRequested) {
         try {
@@ -725,7 +725,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // on newer ROMs even querying the adapter pops an NFC-hardware consent
             // sheet, on or off. Relevance is probed without NFC APIs (guarded natives).
             if (!NfcSettingsRouting.needsNfcStack(userRequested,
-                    NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected())) {
+                    NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected(),
+                    NfcSettingsRouting.isOttaiTapExpected())) {
                 return;
             }
             if (mNfcAdapter == null) {
@@ -771,7 +772,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                     return;
                 } else if (NfcSettingsRouting.needsNfcStack(userRequested,
-                        NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected())) {
+                        NfcSettingsRouting.isNfcNeeded(), NfcSettingsRouting.isPenReadsExpected(),
+                        NfcSettingsRouting.isOttaiTapExpected())) {
 
                     // mNfcAdapter.enableReaderMode(this, this,
                     // NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS|NfcAdapter.FLAG_READER_NFC_V ,
@@ -807,10 +809,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     mNfcAdapter.enableReaderMode(this, this, flags, null);
                     hasnfc = true;
                 } else {
-                    // No NFC consumer (no Libre sensor, no pens, no explicit scan): do not
-                    // claim the NFC controller. Newer OS versions ask runtime consent for
-                    // reader mode, and manifest TECH_DISCOVERED dispatch still delivers a
-                    // tap if one ever happens — just without reader-mode exclusivity.
+                    // No NFC consumer (no Libre sensor, no pens, no Ottai tap expectation, no
+                    // explicit scan): do not claim the NFC controller. Some devices/ROMs
+                    // surface NFC-access UI on stack interaction, and manifest
+                    // TECH_DISCOVERED dispatch still delivers NfcV taps if one ever happens —
+                    // just without reader-mode exclusivity.
                     if (doLog) {
                         Log.i(LOG_ID, "reader mode not armed: no NFC consumer");
                     }

@@ -37,22 +37,41 @@ public final class NfcSettingsRouting {
     }
 
     /**
-     * Whether the NFC stack may be touched at all: claiming the NFC controller
-     * (enableReaderMode) is what newer OS versions ask runtime consent for, and even querying
-     * the adapter pops that sheet on some ROMs — so no-touch without a consumer. Libre scans,
-     * explicit NFC flows, or enabled insulin pens qualify. Everyone else still gets taps
-     * through manifest TECH_DISCOVERED dispatch if one ever happens.
+     * Whether an Ottai wake/setup flow currently expects a tap. Pushed from OttaiNfc itself
+     * (arm/disarm around the wizard's NFC-dump mode and activation retries). Needed because
+     * Ottai tags may be NfcA or MifareUltralight, which the manifest TECH_DISCOVERED filter
+     * (NfcV-only) does not dispatch — only an armed reader reliably delivers those taps.
+     * Do not widen the manifest filter instead: that would make the app eligible for every
+     * unrelated NFC-A tag the system dispatches.
      */
-    public static boolean needsNfcStack(boolean userRequested, boolean nfcNeeded,
-            boolean penReadsExpected) {
-        return userRequested || nfcNeeded || penReadsExpected;
+    private static volatile boolean ottaiTapExpected = false;
+
+    public static void setOttaiTapExpected(boolean expected) {
+        ottaiTapExpected = expected;
+    }
+
+    public static boolean isOttaiTapExpected() {
+        return ottaiTapExpected;
     }
 
     /**
-     * NFC reader mode only serves Libre scans (opt-in pen import and the manual Ottai wake have
-     * their own entry points), so an active Libre 2/3 sensor is the signal that NFC matters.
-     * Same relevance check the CGM-readiness NFC row uses; every native call is guarded so an
-     * unloaded native library just means "not needed".
+     * Whether the NFC stack may be touched at all. Reader mode aside, even querying the
+     * adapter has surfaced NFC-access UI on some devices/ROMs (cause of the Mi 9T sheet is
+     * not established — stock Android documents no runtime-consent flow for reader mode),
+     * so no-touch without a consumer: Libre scans, explicit NFC flows, enabled insulin
+     * pens, or an armed Ottai tap expectation. Everyone else still gets NfcV taps through
+     * manifest TECH_DISCOVERED dispatch if one ever happens.
+     */
+    public static boolean needsNfcStack(boolean userRequested, boolean nfcNeeded,
+            boolean penReadsExpected, boolean ottaiTapExpected) {
+        return userRequested || nfcNeeded || penReadsExpected || ottaiTapExpected;
+    }
+
+    /**
+     * An active Libre 2/3 sensor means NFC scans may happen at any time, so the reader stays
+     * armed. (Opt-in pen reads and the manual Ottai wake are tracked separately via their own
+     * expectation flags.) Same relevance check the CGM-readiness NFC row uses; every native
+     * call is guarded so an unloaded native library just means "not needed".
      */
     public static boolean isNfcNeeded() {
         try {
