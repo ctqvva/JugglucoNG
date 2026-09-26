@@ -2926,6 +2926,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Ключ сполучення видалено</string>
     <string name="rearm_margin_label">Запас до повторного спрацьовування</string>
     <string name="rearm_min_interval_label">Мінімальний інтервал між тривогами</string>
+    <string name="pre_low_evidence_label">Враховувати IOB і недавню глюкозу</string>
+    <string name="pre_low_evidence_description">Підтверджує віддалений прогноз низької глюкози за записаним інсуліном і недавніми вимірюваннями. Без IOB повернення до попереднього рівня може чекати до 15 хвилин після недавнього піка. Падіння нижче цього рівня, близька або неминуча гіпоглікемія дозволяють попередити раніше. Відсутність даних про інсулін не означає нульовий IOB.</string>
     <string name="pre_high_iob_coverage_label">Покриття інсуліном</string>
     <string name="alert_feature_off">Вимк.</string>
     <string name="same_direction_suppression_title">Тихий період після сигналу про тренд</string>
