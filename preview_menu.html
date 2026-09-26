@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anteprima Interattiva - Menu Curva Glucosio JugglucoNG</title>
+  <style>
+    :root {
+      --bg-color: #0b0d12;
+      --card-bg: #141720;
+      --card-border: rgba(255, 255, 255, 0.22);
+      --btn-bg: #222633;
+      --btn-text: #f0f3f8;
+      --chart-bg: #10121a;
+      --target-band: rgba(56, 142, 60, 0.12);
+      --curve-color: #5ea8ff;
+      --curve-grad-top: rgba(94, 168, 255, 0.35);
+      --curve-grad-bottom: rgba(94, 168, 255, 0.0);
+      --c-insulin: #4F78A8;
+      --c-carbs: #5F8B5D;
+      --c-fingerstick: #E06A5F;
+      --c-activity: #E58C3D;
+      --c-note: #A586CC;
+    }
+
+    body.light-theme {
+      --bg-color: #f1f4f9;
+      --card-bg: #f8fafc;
+      --card-border: rgba(0, 0, 0, 0.15);
+      --btn-bg: #edf2f7;
+      --btn-text: #0f172a;
+      --chart-bg: #ffffff;
+      --target-band: rgba(76, 175, 80, 0.14);
+      --curve-color: #2176d2;
+      --curve-grad-top: rgba(33, 118, 210, 0.25);
+      --curve-grad-bottom: rgba(33, 118, 210, 0.0);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: #e0e5ed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+      transition: background-color 0.25s ease;
+    }
+
+    header {
+      max-width: 680px;
+      width: 100%;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f5f7fb;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 13.5px;
+      color: #9aa4b5;
+      line-height: 1.4;
+    }
+
+    .badge-info {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 12px;
+      background: rgba(94, 168, 255, 0.15);
+      border: 1px solid rgba(94, 168, 255, 0.3);
+      border-radius: 100px;
+      font-size: 12px;
+      color: #8cc3ff;
+    }
+
+    /* Toolbar comandi */
+    .controls-panel {
+      max-width: 440px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .controls-panel button {
+      background: #252a37;
+      color: #edf1f7;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .controls-panel button:hover {
+      background: #313849;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #b0bac9;
+    }
+
+    .slider-container input {
+      width: 80px;
+      cursor: pointer;
+    }
+
+    /* Simulatore Schermo Telefono */
+    .phone-mockup {
+      width: 100%;
+      max-width: 412px;
+      background: #0f1218;
+      border-radius: 36px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 4px #2a2e3d;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      height: 28px;
+      background: #0a0c10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 18px;
+      font-size: 11px;
+      color: #9ba3b0;
+      font-weight: 600;
+    }
+
+    .app-header {
+      background: #141720;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glucose-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .glucose-number {
+      font-size: 34px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .glucose-unit {
+      font-size: 13px;
+      color: #8e9bb0;
+      font-weight: 500;
+    }
+
+    .glucose-trend {
+      font-size: 26px;
+      color: #4CAF50;
+      margin-left: 2px;
+    }
+
+    .metrics-pill {
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #b4bfd1;
+    }
+
+    /* Container Grafico */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 330px;
+      background: var(--chart-bg);
+      cursor: crosshair;
+      overflow: hidden;
+    }
+
+    canvas#chartCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .chart-hint {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      color: #d8e2f0;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      animation: pulseHint 2.5s infinite;
+    }
+
+    @keyframes pulseHint {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Cursore di tocco */
+    .touch-cursor {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1.5px;
+      background: rgba(255, 255, 255, 0.85);
+      pointer-events: none;
+      display: none;
+    }
+
+    .touch-point {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #2176d2;
+      box-shadow: 0 0 10px rgba(94, 168, 255, 0.9);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: none;
+    }
+
+    .touch-tooltip {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      margin-top: -8px;
+      background: #11141c;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    /* IL NUOVO POPUP A DUE COLONNE CON SFONDO SCURO */
+    .popup-menu-card {
+      position: absolute;
+      width: 254px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      transform-origin: top center;
+      transition: transform 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.14s ease;
+    }
+
+    .popup-menu-card.visible {
+      display: flex;
+      animation: popupPop 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    }
+
+    @keyframes popupPop {
+      0% {
+        opacity: 0;
+        transform: scale(0.86) translateY(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .menu-row-2col {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .menu-row-full {
+      width: 100%;
+    }
+
+    .action-btn {
+      flex: 1;
+      height: 38px;
+      background: var(--btn-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      color: var(--btn-text);
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.12s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-btn:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    /* Colori semantici dei pulsanti */
+    .action-btn.insulin {
+      border-color: rgba(79, 120, 168, 0.45);
+    }
+    .action-btn.insulin svg { fill: var(--c-insulin); }
+
+    .action-btn.carbs {
+      border-color: rgba(95, 139, 93, 0.45);
+    }
+    .action-btn.carbs svg { fill: var(--c-carbs); }
+
+    .action-btn.fingerstick {
+      border-color: rgba(224, 106, 95, 0.45);
+    }
+    .action-btn.fingerstick svg { fill: var(--c-fingerstick); }
+
+    .action-btn.activity {
+      border-color: rgba(229, 140, 61, 0.45);
+    }
+    .action-btn.activity svg { fill: var(--c-activity); }
+
+    .action-btn.note {
+      border-color: rgba(165, 134, 204, 0.45);
+    }
+    .action-btn.note svg { fill: var(--c-note); }
+
+    .action-btn svg {
+      width: 21px;
+      height: 21px;
+      flex-shrink: 0;
+    }
+
+    .action-btn span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Toast notifica azione */
+    .toast-msg {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e2430;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(4px);
+    }
+
+    /* Spiegazione delle modifiche */
+    .info-box {
+      max-width: 440px;
+      width: 100%;
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #b8c2d1;
+      line-height: 1.5;
+    }
+
+    .info-box h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-box ul {
+      margin-left: 18px;
+      margin-top: 4px;
+    }
+
+    .info-box li {
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Visualizzatore Anteprima Menu Glucosio</h1>
+    <p>Simulazione interattiva del menu popup su curva glicemica di <b>JugglucoNG</b>.</p>
+    <div class="badge-info">Testabile istantaneamente senza dover ricompilare l'APK</div>
+  </header>
+
+  <!-- Pannello controlli -->
+  <div class="controls-panel">
+    <button id="themeToggleBtn">🌓 Alterna Tema Chiaro/Scuro</button>
+    <button id="tapLeftBtn">📍 Tocca Sinistra (10:15)</button>
+    <button id="tapCenterBtn">📍 Tocca Centro (13:30)</button>
+    <button id="tapRightBtn">📍 Tocca Destra (17:45)</button>
+    <div class="slider-container">
+      <span>Spaziatura:</span>
+      <input type="range" id="spacingSlider" min="4" max="12" value="6" step="1">
+      <span id="spacingValue">6px</span>
+    </div>
+  </div>
+
+  <!-- Telefono Mockup -->
+  <div class="phone-mockup">
+    <div class="status-bar">
+      <span>12:45</span>
+      <span>JugglucoNG · Sensore Attivo</span>
+      <span>92% 🔋</span>
+    </div>
+
+    <div class="app-header">
+      <div class="glucose-value-wrap">
+        <div class="glucose-number" id="headerVal">118</div>
+        <div class="glucose-unit">mg/dL</div>
+        <div class="glucose-trend">→</div>
+      </div>
+      <div class="metrics-pill">IOB: 1.2 U · COB: 28 g</div>
+    </div>
+
+    <!-- Area grafico con canvas interattivo -->
+    <div class="chart-container" id="chartContainer">
+      <canvas id="chartCanvas"></canvas>
+
+      <!-- Indicatore tocco -->
+      <div class="touch-cursor" id="touchCursor"></div>
+      <div class="touch-point" id="touchPoint"></div>
+      <div class="touch-tooltip" id="touchTooltip">13:30 · 118 mg/dL</div>
+
+      <div class="chart-hint" id="chartHint">👆 Fai tap in qualsiasi punto della curva</div>
+
+      <!-- IL NUOVO POPUP A DUE COLONNE -->
+      <div class="popup-menu-card" id="popupMenu">
+        <!-- Riga 1: Attività & Cibo -->
+        <div class="menu-row-2col">
+          <button class="action-btn activity" data-type="Attività">
+            <svg viewBox="0 0 24 24"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-.9-.4 2 7.1 1.4z"/></svg>
+            <span>Attività</span>
+          </button>
+          <button class="action-btn carbs" data-type="Cibo">
+            <svg viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>
+            <span>Cibo</span>
+          </button>
+        </div>
+
+        <!-- Riga 2: Nota & Glicemia -->
+        <div class="menu-row-2col">
+          <button class="action-btn note" data-type="Nota">
+            <svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
+            <span>Nota</span>
+          </button>
+          <button class="action-btn fingerstick" data-type="Glicemia">
+            <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span>Glicemia</span>
+          </button>
+        </div>
+
+        <!-- Riga 3: Insulina (a larghezza intera) -->
+        <div class="menu-row-full">
+          <button class="action-btn insulin" data-type="Insulina">
+            <svg viewBox="0 0 24 24"><path d="M20 6c0-1.1-.9-2-2-2h-2V2h-2v2H8V2H6v2H4c-1.1 0-2 .9-2 2v2h18V6zm-9 6H9v2h2v-2zm4 0h-2v2h2v-2zm-4 4H9v2h2v-2zm4 0h-2v2h2v-2zm4-4h-2v2h2v-2zm0 4h-2v2h2v-2zM4 20c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10H4v10z"/></svg>
+            <span>Insulina</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toast Feedback -->
+      <div class="toast-msg" id="toastMsg">Voce inserita</div>
+    </div>
+  </div>
+
+  <!-- Note informative -->
+  <div class="info-box">
+    <h3>🔍 Cosa è stato migliorato</h3>
+    <ul>
+      <li><b>Disposizione su 2 colonne</b>: layout più compatto e orizzontale (~144dp di altezza invece di oltre 250dp).</li>
+      <li><b>Scheda popup con sfondo scuro</b>: crea uno stacco visivo netto dalla curva e dalla griglia glicemica sottostante.</li>
+      <li><b>Spaziatura ridotta</b>: distanza tra i pulsanti abbassata a 6dp per una consultazione immediata e comoda.</li>
+      <li><b>Massima leggibilità</b>: contrasto elevato, etichette chiare con icone dedicate e colori semantici coerenti.</li>
+    </ul>
+  </div>
+
+  <script>
+    // Inizializzazione Grafico Canvas
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('chartContainer');
+    const popupMenu = document.getElementById('popupMenu');
+    const touchCursor = document.getElementById('touchCursor');
+    const touchPoint = document.getElementById('touchPoint');
+    const touchTooltip = document.getElementById('touchTooltip');
+    const chartHint = document.getElementById('chartHint');
+    const toastMsg = document.getElementById('toastMsg');
+    const spacingSlider = document.getElementById('spacingSlider');
+    const spacingValue = document.getElementById('spacingValue');
+
+    let currentSelectedPoint = null;
+
+    // Punti simulati curva glucosio (orari dalle 08:00 alle 20:00)
+    const glucosePoints = [
+      { time: '08:00', xRatio: 0.05, mgdl: 95 },
+      { time: '09:00', xRatio: 0.15, mgdl: 110 },
+      { time: '09:45', xRatio: 0.22, mgdl: 145 }, // Picco colazione
+      { time: '10:30', xRatio: 0.30, mgdl: 160 },
+      { time: '11:15', xRatio: 0.38, mgdl: 135 },
+      { time: '12:00', xRatio: 0.46, mgdl: 105 },
+      { time: '13:00', xRatio: 0.55, mgdl: 98 },
+      { time: '13:45', xRatio: 0.63, mgdl: 135 }, // Pranzo
+      { time: '14:30', xRatio: 0.70, mgdl: 155 },
+      { time: '15:30', xRatio: 0.78, mgdl: 140 },
+      { time: '17:00', xRatio: 0.86, mgdl: 112 },
+      { time: '18:30', xRatio: 0.95, mgdl: 118 }
+    ];
+
+    function resizeCanvas() {
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      drawChart();
+    }
+
+    function mgdlToY(mgdl, height) {
+      // Scala da 40 mg/dL a 250 mg/dL
+      const minVal = 40;
+      const maxVal = 240;
+      const fraction = (mgdl - minVal) / (maxVal - minVal);
+      return height - (fraction * (height - 40)) - 25;
+    }
+
+    function drawChart() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Fascia Target (70 - 180 mg/dL)
+      const y180 = mgdlToY(180, h);
+      const y70 = mgdlToY(70, h);
+
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--target-band');
+      ctx.fillRect(0, y180, w, y70 - y180);
+
+      // Linee limite target tratteggiate
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+
+      // 180 mg/dL
+      ctx.beginPath();
+      ctx.moveTo(0, y180);
+      ctx.lineTo(w, y180);
+      ctx.stroke();
+
+      // 70 mg/dL
+      ctx.beginPath();
+      ctx.moveTo(0, y70);
+      ctx.lineTo(w, y70);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Testo soglie
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('180', 8, y180 - 4);
+      ctx.fillText('70', 8, y70 + 12);
+
+      // 2. Griglia oraria
+      const hours = ['08:00', '11:00', '14:00', '17:00', '20:00'];
+      hours.forEach((time, index) => {
+        const x = (w * 0.05) + (index * (w * 0.9) / 4);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.beginPath();
+        ctx.moveTo(x, 15);
+        ctx.lineTo(x, h - 20);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillText(time, x - 14, h - 6);
+      });
+
+      // 3. Gradiente sotto la curva
+      const grad = ctx.createLinearGradient(0, 40, 0, h);
+      grad.addColorStop(0, getComputedStyle(document.body).getPropertyValue('--curve-grad-top'));
+      grad.addColorStop(1, getComputedStyle(document.body).getPropertyValue('--curve-grad-bottom'));
+
+      ctx.beginPath();
+      glucosePoints.forEach((pt, i) => {
+        const x = pt.xRatio * w;
+        const y = mgdlToY(pt.mgdl, h);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          const prev = glucosePoints[i - 1];
+          const prevX = prev.xRatio * w;
+          const prevY = mgdlToY(prev.mgdl, h);
+          const cpX1 = prevX + (x - prevX) / 2;
+          const cpX2 = prevX + (x - prevX) / 2;
+          ctx.bezierCurveTo(cpX1, prevY, cpX2, y, x, y);
+        }
+      });
+
+      // Chiudi il gradiente in basso
+      const lastX = glucosePoints[glucosePoints.length - 1].xRatio * w;
+      const firstX = glucosePoints[0].xRatio * w;
+      ctx.lineTo(lastX, h - 20);
+      ctx.lineTo(firstX, h - 20);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // 4. Linea curva principale
+      ctx.beginPath();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--curve-color');
+      ctx.lineCap = 'round';
+
+      glucosePoints.forEach((pt, i) => {
+        const x = pt.xRatio * w;
+        const y = mgdlToY(pt.mgdl, h);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          const prev = glucosePoints[i - 1];
+          const prevX = prev.xRatio * w;
+          const prevY = mgdlToY(prev.mgdl, h);
+          const cpX1 = prevX + (x - prevX) / 2;
+          const cpX2 = prevX + (x - prevX) / 2;
+          ctx.bezierCurveTo(cpX1, prevY, cpX2, y, x, y);
+        }
+      });
+      ctx.stroke();
+
+      // Punti dati evidenziati
+      glucosePoints.forEach((pt) => {
+        const x = pt.xRatio * w;
+        const y = mgdlToY(pt.mgdl, h);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Gestione tocco sul grafico
+    function triggerTap(x, y) {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      // Trova il punto più vicino lungo la curva
+      let closest = glucosePoints[0];
+      let minDiff = Infinity;
+      glucosePoints.forEach(pt => {
+        const px = pt.xRatio * w;
+        const diff = Math.abs(px - x);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = pt;
+        }
+      });
+
+      const ptX = closest.xRatio * w;
+      const ptY = mgdlToY(closest.mgdl, h);
+
+      // Mostra indicatore tocco
+      touchCursor.style.display = 'block';
+      touchCursor.style.left = ptX + 'px';
+
+      touchPoint.style.display = 'block';
+      touchPoint.style.left = ptX + 'px';
+      touchPoint.style.top = ptY + 'px';
+
+      touchTooltip.style.display = 'block';
+      touchTooltip.style.left = ptX + 'px';
+      touchTooltip.style.top = ptY + 'px';
+      touchTooltip.textContent = `${closest.time} · ${closest.mgdl} mg/dL`;
+
+      chartHint.style.display = 'none';
+
+      // Posizionamento del menu popup
+      const menuW = 254;
+      const menuH = 144;
+      const gap = 12;
+      const padding = 10;
+
+      // Se tocco a destra, apri a sinistra; altrimenti apri a destra
+      let desiredX;
+      if (ptX / w > 0.52) {
+        desiredX = ptX - menuW - gap;
+      } else {
+        desiredX = ptX + gap;
+      }
+
+      // Clamping orizzontale
+      const clampedX = Math.max(padding, Math.min(desiredX, w - menuW - padding));
+
+      // Clamping verticale centrato vicino al tocco
+      let desiredY = ptY - (menuH / 2);
+      const clampedY = Math.max(padding, Math.min(desiredY, h - menuH - padding));
+
+      popupMenu.style.left = clampedX + 'px';
+      popupMenu.style.top = clampedY + 'px';
+      popupMenu.classList.add('visible');
+
+      currentSelectedPoint = closest;
+    }
+
+    // Event listener click su canvas
+    container.addEventListener('click', (e) => {
+      // Se cliccato dentro al popup o su un pulsante, non chiudere
+      if (e.target.closest('#popupMenu')) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      triggerTap(x, y);
+    });
+
+    // Azione pulsanti popup
+    document.querySelectorAll('.action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const actionType = btn.getAttribute('data-type');
+        const time = currentSelectedPoint ? currentSelectedPoint.time : '12:34';
+        showToast(`✓ Aggiunto al diario: ${actionType} alle ${time}`);
+
+        // Feedback tocco
+        btn.style.transform = 'scale(0.92)';
+        setTimeout(() => {
+          btn.style.transform = '';
+          popupMenu.classList.remove('visible');
+        }, 140);
+      });
+    });
+
+    function showToast(text) {
+      toastMsg.textContent = text;
+      toastMsg.classList.add('show');
+      setTimeout(() => {
+        toastMsg.classList.remove('show');
+      }, 2400);
+    }
+
+    // Controlli Toolbar
+    document.getElementById('themeToggleBtn').addEventListener('click', () => {
+      document.body.classList.toggle('light-theme');
+      drawChart();
+    });
+
+    document.getElementById('tapLeftBtn').addEventListener('click', () => {
+      const w = container.clientWidth;
+      triggerTap(w * 0.22, 120);
+    });
+
+    document.getElementById('tapCenterBtn').addEventListener('click', () => {
+      const w = container.clientWidth;
+      triggerTap(w * 0.55, 180);
+    });
+
+    document.getElementById('tapRightBtn').addEventListener('click', () => {
+      const w = container.clientWidth;
+      triggerTap(w * 0.86, 150);
+    });
+
+    // Controllo spaziatura
+    spacingSlider.addEventListener('input', (e) => {
+      const val = e.target.value + 'px';
+      spacingValue.textContent = val;
+      popupMenu.style.gap = val;
+      document.querySelectorAll('.menu-row-2col').forEach(row => {
+        row.style.gap = val;
+      });
+    });
+
+    // Avvio e ridimensionamento
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Mostra il popup di default al centro per mostrare subito il risultato
+    setTimeout(() => {
+      const w = container.clientWidth;
+      triggerTap(w * 0.55, 180);
+    }, 400);
+  </script>
+</body>
+</html>

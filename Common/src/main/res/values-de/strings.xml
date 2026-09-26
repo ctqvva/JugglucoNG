@@ -2861,8 +2861,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_color_title">Sensorfarbe</string>
     <string name="journal_curve_activity">Relative Aktivität</string>
     <string name="journal_curve_activity_desc">Blutzuckersenkende Wirkung relativ zum Maximum dieser Kurve (100 %).</string>
-    <string name="journal_preset_rapid_generic">Schnell wirkend (generisch)</string>
-    <string name="journal_preset_long_generic">Lang wirkend (generisch)</string>
+    <string name="journal_preset_rapid_generic">Schnell</string>
+    <string name="journal_preset_long_generic">Langsam</string>
     <string name="journal_preset_ultra_long_generic">Ultralang wirkendes Basal (generisch)</string>
     <string name="journal_scientific_name">Wissenschaftlicher Name</string>
     <string name="journal_curve_reset">Kurve zurücksetzen</string>

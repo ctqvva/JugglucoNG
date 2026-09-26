@@ -1740,7 +1740,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_empty">Nessun evento del diario in questa finestra</string>
     <string name="journal_type_insulin">Insulina</string>
     <string name="journal_type_food">Cibo</string>
-    <string name="journal_type_bg_short">Glic</string>
+    <string name="journal_type_bg_short">Glicemia</string>
     <string name="journal_type_fingerstick">Puntura dito</string>
     <string name="journal_type_activity">Attività</string>
     <string name="journal_type_note">Nota</string>
@@ -2734,8 +2734,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">Colore del sensore</string>
     <string name="journal_curve_activity">Attività relativa</string>
     <string name="journal_curve_activity_desc">Attività ipoglicemizzante rispetto al picco di questa curva (100%).</string>
-    <string name="journal_preset_rapid_generic">Ad azione rapida (generica)</string>
-    <string name="journal_preset_long_generic">Ad azione prolungata (generica)</string>
+    <string name="journal_preset_rapid_generic">Rapida</string>
+    <string name="journal_preset_long_generic">Lenta</string>
     <string name="journal_preset_ultra_long_generic">Basale ultra-lenta (generica)</string>
     <string name="journal_scientific_name">Nome scientifico</string>
     <string name="journal_curve_unverified">Curva non verificata</string>

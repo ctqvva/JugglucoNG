@@ -15,7 +15,7 @@ ext {
     appVersionName = '1.2.1-Alpha'
 
     ndkver       = '29.0.14206865'
-    CMAKEVERSION = '4.1.2'
+    CMAKEVERSION = '3.22.1'
     CPPSTD       = '-std=gnu++26'
     TARGETSDK    = 36
     APPCOMPAT    = '1.8.0'

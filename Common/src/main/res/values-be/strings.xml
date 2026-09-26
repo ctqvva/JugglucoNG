@@ -2815,8 +2815,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">Колер датчыка</string>
     <string name="journal_curve_activity">Адносная актыўнасць</string>
     <string name="journal_curve_activity_desc">Глюкозазніжальная актыўнасць адносна піка гэтай крывой (100%).</string>
-    <string name="journal_preset_rapid_generic">Хуткага дзеяння (агульны)</string>
-    <string name="journal_preset_long_generic">Працяглага дзеяння (агульны)</string>
+    <string name="journal_preset_rapid_generic">Хуткая</string>
+    <string name="journal_preset_long_generic">Доўгая</string>
     <string name="journal_preset_ultra_long_generic">Звышдоўгі базальны (агульны)</string>
     <string name="journal_scientific_name">Навуковая назва</string>
     <string name="journal_curve_unverified">Неправераная крывая</string>

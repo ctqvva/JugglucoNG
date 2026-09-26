@@ -2772,8 +2772,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_color_title">Sensör rengi</string>
     <string name="journal_curve_activity">Göreli etkinlik</string>
     <string name="journal_curve_activity_desc">Bu eğrinin tepe noktasına göre glukoz düşürücü etkinlik (%100).</string>
-    <string name="journal_preset_rapid_generic">Hızlı etkili (genel)</string>
-    <string name="journal_preset_long_generic">Uzun etkili (genel)</string>
+    <string name="journal_preset_rapid_generic">Hızlı</string>
+    <string name="journal_preset_long_generic">Uzun</string>
     <string name="journal_preset_ultra_long_generic">Ultra uzun etkili bazal (genel)</string>
     <string name="journal_scientific_name">Bilimsel ad</string>
     <string name="journal_curve_unverified">Doğrulanmamış eğri</string>

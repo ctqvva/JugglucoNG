@@ -2745,8 +2745,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">Cor do sensor</string>
     <string name="journal_curve_activity">Atividade relativa</string>
     <string name="journal_curve_activity_desc">Atividade hipoglicemiante em relação ao pico desta curva (100%).</string>
-    <string name="journal_preset_rapid_generic">Ação rápida (genérica)</string>
-    <string name="journal_preset_long_generic">Ação prolongada (genérica)</string>
+    <string name="journal_preset_rapid_generic">Rápida</string>
+    <string name="journal_preset_long_generic">Lenta</string>
     <string name="journal_preset_ultra_long_generic">Basal de ação ultralonga (genérica)</string>
     <string name="journal_scientific_name">Nome científico</string>
     <string name="journal_curve_unverified">Curva não verificada</string>

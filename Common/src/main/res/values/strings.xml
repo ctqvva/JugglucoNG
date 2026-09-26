@@ -2965,8 +2965,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_pause_streaming">Pause sensor</string>
     <string name="sensor_resume_streaming">Resume sensor</string>
     <string name="sensor_color_title">Sensor colour</string>
-    <string name="journal_preset_rapid_generic">Rapid acting (generic)</string>
-    <string name="journal_preset_long_generic">Long acting (generic)</string>
+    <string name="journal_preset_rapid_generic">Rapid</string>
+    <string name="journal_preset_long_generic">Long</string>
     <string name="journal_preset_regular_u100" translatable="false">Humulin R / Novolin R</string>
     <string name="journal_preset_aspart" translatable="false">NovoRapid / NovoLog</string>
     <string name="journal_preset_lispro" translatable="false">Humalog</string>

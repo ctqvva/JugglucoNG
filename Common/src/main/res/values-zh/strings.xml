@@ -2760,8 +2760,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">传感器颜色</string>
     <string name="journal_curve_activity">相对活性</string>
     <string name="journal_curve_activity_desc">相对于该曲线峰值（100%）的降糖活性。</string>
-    <string name="journal_preset_rapid_generic">速效（通用）</string>
-    <string name="journal_preset_long_generic">长效（通用）</string>
+    <string name="journal_preset_rapid_generic">速效</string>
+    <string name="journal_preset_long_generic">长效</string>
     <string name="journal_preset_ultra_long_generic">超长效基础（通用）</string>
     <string name="journal_scientific_name">科学名称</string>
     <string name="journal_curve_unverified">未经验证的曲线</string>
