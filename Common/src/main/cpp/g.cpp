@@ -420,6 +420,9 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(getsensorptr)(JNIEnv *env,
 double calibrateONEtest(const SensorGlucoseData *sens, const ScanData &value);
 extern "C" JNIEXPORT jlong JNICALL fromjava(streamfromSensorptr)(
     JNIEnv *env, jclass cl, jlong sensorptr, int pos) {
+  if (!sensorptr) {
+    return 0LL;
+  }
   const auto *sens = reinterpret_cast<const SensorGlucoseData *>(sensorptr);
   const ScanData *start = sens->beginpolls();
   const int len = sens->pollcount();
@@ -442,10 +445,16 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(streamfromSensorptr)(
 }
 extern "C" JNIEXPORT void JNICALL fromjava(setHidefromSensorptr)(
     JNIEnv *env, jclass cl, jlong sensorptr, jboolean hide) {
+  if (!sensorptr) {
+    return;
+  }
   reinterpret_cast<SensorGlucoseData *>(sensorptr)->hide = hide;
 }
 extern "C" JNIEXPORT jboolean JNICALL
 fromjava(getHidefromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
+  if (!sensorptr) {
+    return false;
+  }
   return reinterpret_cast<const SensorGlucoseData *>(sensorptr)->hide;
 }
 
@@ -505,6 +514,9 @@ extern "C" JNIEXPORT void JNICALL fromjava(healthConnectReset)(JNIEnv *env,
 extern "C" JNIEXPORT jint JNICALL
 fromjava(healthConnectfromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
   LOGGER("healthConnectfromSensorptr(%p)\n", sensorptr);
+  if (!sensorptr) {
+    return 0;
+  }
   auto *info = reinterpret_cast<SensorGlucoseData *>(sensorptr)->getinfo();
   int start = info->healthconnectiter;
   if (!start) {
@@ -516,6 +528,9 @@ fromjava(healthConnectfromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
 }
 extern "C" JNIEXPORT void JNICALL fromjava(healthConnectWritten)(
     JNIEnv *env, jclass cl, jlong sensorptr, jint pos) {
+  if (!sensorptr) {
+    return;
+  }
   reinterpret_cast<SensorGlucoseData *>(sensorptr)
       ->getinfo()
       ->healthconnectiter = pos;

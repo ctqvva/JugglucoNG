@@ -61,6 +61,11 @@ class HealthConnection(private val client: HealthConnectClient) {
 //TODO: test not already active
 @OptIn(ExperimentalStdlibApi::class)
 private  fun writeAllIns(sensorptr:Long, sensorName:String) {
+    // 0: the driver has no native record (iCan keeps no dataptr), so there is nothing to export
+    if (sensorptr == 0L) {
+        if(doLog) {Log.i(LOG_ID, "writeAll $sensorName: no sensorptr");}
+        return
+    }
     if (active.getAndSet(true)) {
         if(doLog) {Log.i(LOG_ID, "writeAll already active");}
         return
