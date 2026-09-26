@@ -953,6 +953,19 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
     }
 
+    private void exportToHealthConnect() {
+        if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) {
+            return;
+        }
+        final long sensorptr = Natives.getsensorptr(dataptr);
+        // Checked before dohealth(): claiming the export for a sensor with nothing to hand over
+        // would stop every other sensor from exporting.
+        if (sensorptr == 0L || !dohealth(this)) {
+            return;
+        }
+        HealthConnection.Companion.writeAll(sensorptr, SerialNumber);
+    }
+
     protected void handleGlucoseResult(long res, long timmsec) {
         handleGlucoseResultInternal(res, timmsec, 0, Float.NaN);
     }
@@ -1018,12 +1031,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                         sensorgen, reading);
                 charcha[0] = timmsec;
 
-                if (!isWearable && Natives.gethealthConnect() && Build.VERSION.SDK_INT >= 28) {
-                    if (dohealth(this)) {
-                        final long sensorptr = Natives.getsensorptr(dataptr);
-                        HealthConnection.Companion.writeAll(sensorptr, SerialNumber);
-                    }
-                }
+                exportToHealthConnect();
                 SensorBluetooth.othersworking(this, timmsec);
                 return;
             }
@@ -1101,17 +1109,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
             charcha[0] = timmsec;
 
-            if (!isWearable) {
-                if (Natives.gethealthConnect()) {
-                    if (Build.VERSION.SDK_INT >= 28) {
-                        if (dohealth(this)) {
-                            final long sensorptr = Natives.getsensorptr(dataptr);// TODO: set sensorptr in
-                                                                                 // SuperGattCallback?
-                            HealthConnection.Companion.writeAll(sensorptr, SerialNumber);
-                        }
-                    }
-                }
-            }
+            exportToHealthConnect();
             SensorBluetooth.othersworking(this, timmsec);
         } else {
             {
