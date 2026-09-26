@@ -1381,7 +1381,12 @@ class SibionicsBleManager(
             entry to sanitizeSampleTime(entry.eventTimeMs(now))
         }
         val sessionSamples = ordered.map { (entry, eventMs) ->
-            SibionicsSessionPolicy.SessionSample(entry.index, eventMs, entry.isLive)
+            SibionicsSessionPolicy.SessionSample(
+                entry.index,
+                eventMs,
+                entry.isLive,
+                sensorLiveIndex = entry.index + entry.numOfUnreceived,
+            )
         }
         if (!checkSessionRestart(sessionSamples)) return
         // Counted after the session check, so a restart's reset of the counters
