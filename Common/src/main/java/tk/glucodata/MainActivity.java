@@ -725,7 +725,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
             if (mNfcAdapter == null) {
                 if (!isWearable) {
-                    if (askNFC) {
+                    // Same explicit-bypass semantics as the disabled branch below: a passive
+                    // check warns once, but an explicit NFC action always gets its error, even
+                    // after the passive warning ran first.
+                    if (userRequested || askNFC) {
                         {
                             if (doLog) {
                                 Log.i(LOG_ID, "No NFC adapter found!");
