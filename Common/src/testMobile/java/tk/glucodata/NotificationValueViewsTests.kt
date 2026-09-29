@@ -235,13 +235,51 @@ class NotificationValueViewsTests {
         }
     }
 
+    @Test fun twoExpandedReadingsAndArrowsFitNarrowHostInOneLine() {
+        for (system in listOf(false, true)) {
+            val parent = android.widget.RemoteViews(app.packageName, R.layout.notification_material_regular_expanded)
+            NotificationValueViews.bindNativeValueRows(app, parent, true, "7,0",
+                0xff112233.toInt(), listOf(NotificationChartDrawer.ValueItem("7,2", 0xff335577.toInt(), 0f)),
+                -1f, 0xff112233.toInt(), true, 1f, 1f, 400, system, true, false)
+            val root = parent.apply(app, null)
+            val width = (260 * app.resources.displayMetrics.density).toInt()
+            root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+            root.layout(0, 0, width, root.measuredHeight)
+            val container = root.findViewById<android.widget.LinearLayout>(R.id.notification_value_container)
+            assertEquals(2, container.childCount)
+            val first = container.getChildAt(0)
+            val peer = container.getChildAt(1)
+            assertEquals(first.top, peer.top)
+            assertTrue("peer and its arrow must remain within the host", peer.right <= container.width)
+            for (index in 0 until 2) {
+                val row = container.getChildAt(index) as android.view.ViewGroup
+                val arrow = row.findViewById<ImageView>(R.id.notification_value_arrow)
+                assertTrue(arrow.width > 0 && arrow.right <= row.width)
+            }
+        }
+    }
+
+    @Test fun nonregularSystemWeightUsesAccessibleGlyphFallback() {
+        for (weight in listOf(300, 500)) {
+            val row = rowFor(weight)
+            NotificationValueViews.bindPreferredValueRow(app, row, "7.0", 0xff112233.toInt(), 28f, true, weight)
+            val root = row.apply(app, null)
+            assertEquals(View.GONE, root.findViewById<TextView>(R.id.notification_value_text).visibility)
+            val glyphs = root.findViewById<ImageView>(R.id.notification_value_bitmap)
+            assertEquals(View.VISIBLE, glyphs.visibility)
+            assertEquals("7.0", glyphs.contentDescription.toString())
+            assertTrue(glyphs.drawable.intrinsicWidth > 0)
+        }
+    }
+
     @Test fun compactFitsHostHeightAtLargeFontScaleAndExpandedRetainsScale() {
         val configuration = android.content.res.Configuration(app.resources.configuration).also { it.fontScale = 2f }
         val context = app.createConfigurationContext(configuration)
         val parent = android.widget.RemoteViews(app.packageName, R.layout.notification_material)
         NotificationValueViews.bindNativeValueRows(context, parent, false, "10.9 · 11.2",
             0xff112233.toInt(), emptyList(), 0f, 0xff112233.toInt(), true,
-            1f, 1.5f, 500, true, false, false)
+            1f, 1.5f, 400, true, false, false)
         NotificationValueViews.bindStatus(context, parent, false, false, "Connected", 0xff222222.toInt(), 1.5f)
         val root = parent.apply(context, null)
         val density = context.resources.displayMetrics.density
