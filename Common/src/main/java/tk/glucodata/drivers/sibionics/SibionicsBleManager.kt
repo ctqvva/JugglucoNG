@@ -167,7 +167,6 @@ class SibionicsBleManager(
     private val notificationDispatcher = SibionicsNotificationDispatcher(
         post = { task ->
             handler.post(task)
-            Unit
         },
         consume = ::handleIncoming,
     )
@@ -284,6 +283,13 @@ class SibionicsBleManager(
      */
     private var sessionProbeNext: Boolean = false
     private var connectionIsSessionProbe: Boolean = false
+    /**
+     * Set when [checkSessionRestart] set a mid-session page aside to download the
+     * restarted session from idx=0. The rest of that page keeps arriving on this
+     * link until the reconnect; it is set aside too, because after the reset
+     * nothing is left for the restart rules to recognise it by.
+     */
+    private var restartDownloadPending: Boolean = false
     private var loggedStaleLiveThisConnection: Boolean = false
     @Volatile private var autoResetNotBeforeMs: Long = 0L
 
@@ -438,6 +444,7 @@ class SibionicsBleManager(
             startupRecoveryIndex = lastIndex
         }
         startTimeMs = SibionicsRegistry.loadStartTimeMs(context, SerialNumber)
+        autoResetNotBeforeMs = SibionicsRegistry.loadAutoResetNotBeforeMs(context, SerialNumber)
         scheduleResetMaintenanceCheck()
         val (time, glucose, raw) = SibionicsRegistry.loadLastReading(context, SerialNumber)
         latestReadingTimeMs = time
@@ -779,6 +786,7 @@ class SibionicsBleManager(
                 unrequestedPageCountedThisConnection = false
                 connectionRequestedBackfillPage = false
                 connectionIsSessionProbe = false
+                restartDownloadPending = false
                 loggedStaleLiveThisConnection = false
                 handler.removeCallbacks(backfillPageSettleRunnable)
                 clearPendingWrite()
@@ -920,7 +928,8 @@ class SibionicsBleManager(
         if (isCurrentGatt(gatt)) handler.post { retryPendingWrite("write completed") }
     }
 
-    @Suppress("DEPRECATION")
+    // legacy BluetoothGattCallback overload: the platform still invokes it below API 33
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         if (!isCurrentGattCallback(gatt, "notification")) return
         if (characteristic.uuid == SibionicsConstants.CHAR_NOTIFY_FF31) {
@@ -1505,6 +1514,7 @@ class SibionicsBleManager(
      */
     private fun checkSessionRestart(samples: List<SibionicsSessionPolicy.SessionSample>): Boolean {
         if (samples.isEmpty()) return true
+        if (restartDownloadPending) return false
         val knownCursor = if (algorithmRehydrating) maxOf(lastIndex, rehydrationTargetIndex) else lastIndex
         val restartedAtMs = SibionicsSessionPolicy.restartedSessionStartMs(
             samples = samples,
@@ -1521,6 +1531,7 @@ class SibionicsBleManager(
         )
         resetForSensorRestart()
         if (!SibionicsSessionPolicy.shouldDownloadRestartedSessionFromStart(samples)) return true
+        restartDownloadPending = true
         scheduleReconnect("new sensor session; downloading it from idx=0", BACKLOG_RECONNECT_DELAY_MS)
         return false
     }
@@ -2199,6 +2210,7 @@ class SibionicsBleManager(
         journalBackfillFromIndex = -1
         journalBackfillTurn = false
         unrequestedPageConnections = 0
+        autoResetNotBeforeMs = 0L
         Applic.app?.let { context ->
             // Persisted here, not left to the end of the batch: a restart proved
             // mid-session returns before anything else is written, and a process
@@ -2420,6 +2432,8 @@ class SibionicsBleManager(
         return timeMs
     }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     private fun enableNotify(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic) {
         gatt.setCharacteristicNotification(ch, true)
         val descriptor = ch.getDescriptor(SibionicsConstants.CCCD)
@@ -2574,6 +2588,7 @@ class SibionicsBleManager(
         sessionProbeNext = true
         Applic.app?.let {
             SibionicsRegistry.clearResetMaintenanceState(it, SerialNumber)
+            SibionicsRegistry.saveAutoResetNotBeforeMs(it, SerialNumber, autoResetNotBeforeMs)
             SibionicsResetReminder.cancel(it, SerialNumber)
         }
         Log.i(
@@ -3004,6 +3019,8 @@ class SibionicsBleManager(
             ?: SibionicsConstants.normalizeBleAddress(record?.address)
             ?: SibionicsConstants.normalizeBleAddress(SibionicsRegistry.findRecord(Applic.app, SerialNumber)?.address)
 
+    // BluetoothAdapter.getDefaultAdapter(): the fallback when no BluetoothManager is reachable; minSdk 26
+    @Suppress("DEPRECATION")
     private fun hydrateBluetoothDeviceFromAddress(): Boolean {
         val address = knownBleAddress() ?: return false
         mActiveDeviceAddress = address
